@@ -1,3 +1,3 @@
 # FogLAMP
 
-This is the FogLAMO project.
+This is the FogLAMP project.

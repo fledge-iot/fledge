@@ -1,7 +1,9 @@
 import datetime
 import asyncio
 import uuid
-from ..env import Env
+import psycopg2
+
+from foglamp import env
 
 import aiocoap
 import aiocoap.resource as resource
@@ -11,6 +13,7 @@ from cbor2 import loads, dumps
 import sqlalchemy as sa
 from aiopg.sa import create_engine
 from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy import exc
 
 metadata = sa.MetaData()
 
@@ -19,6 +22,7 @@ tbl = sa.Table(
     , metadata
     , sa.Column('key', sa.types.VARCHAR(50))
     , sa.Column('data', JSONB))
+
 
 class Ingest(resource.Resource):
     def __init__(self):
@@ -35,10 +39,15 @@ class Ingest(resource.Resource):
 
         if key is None:
             key = uuid.uuid4().hex
-        
+        # key = 'terris'
+
         # See 
-        async with create_engine(Env.connection_string) as engine:
+        async with create_engine(env.Env.connection_string) as engine:
             async with engine.acquire() as conn:
-                await conn.execute(tbl.insert().values(data=r, key=key))
+                try:
+                    await conn.execute(tbl.insert().values(data=r, key=key))
+                    #except exc.IntegrityError as e:
+                except psycopg2.IntegrityError as e:
+                    pass
         return aiocoap.Message(payload=''.encode("utf-8"))
 

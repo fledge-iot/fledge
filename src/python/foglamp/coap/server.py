@@ -1,8 +1,12 @@
 import asyncio
 import aiocoap
 import aiocoap.resource as resource
+import logging
 
 from .methods.ingest import Ingest
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("foglamp-coap").setLevel(logging.DEBUG)
 
 class CoAPServer:
     @staticmethod
@@ -15,4 +19,5 @@ class CoAPServer:
         Ingest().register(root)
 
         asyncio.Task(aiocoap.Context.create_server_context(root))
+        asyncio.get_event_loop().run_forever()
 

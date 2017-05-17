@@ -29,7 +29,7 @@ class Ingest(resource.Resource):
         super(Ingest, self).__init__()
 
     def register(self, root):
-        root.add_resource(('other', 'ingest'), self);
+        root.add_resource(('other', 'sensor-values'), self);
         return
         
     async def render_post(self, request):

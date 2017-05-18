@@ -120,6 +120,24 @@ CREATE SEQUENCE foglamp.assets_id_seq
 ALTER SEQUENCE foglamp.assets_id_seq OWNER TO foglamp;
 
 
+CREATE SEQUENCE foglamp.clean_rules_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+ALTER SEQUENCE foglamp.clean_rules_id_seq OWNER TO foglamp;
+
+
+CREATE SEQUENCE foglamp.cloud_send_rules_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+ALTER SEQUENCE foglamp.cloud_send_rules_id_seq OWNER TO foglamp;
+
+
 CREATE SEQUENCE foglamp.destinations_id_seq
     INCREMENT 1
     START 1
@@ -602,6 +620,49 @@ COMMENT ON TABLE foglamp.configuration_changes IS
 - The configuration key is stored in the key column
 - The configuration timestamp is stored in the configuration_ts column
 - The old value is stored in the configuration_value column';
+
+
+-- Clean table
+CREATE TABLE foglamp.clean_rules (
+       id         integer                     NOT NULL DEFAULT nextval('foglamp.clean_rules_id_seq'::regclass),
+       type       character(3)                NOT NULL COLLATE pg_catalog."default",
+       object_id  bigint                      NOT NULL DEFAULT 0,
+       rule       jsonb                       NOT NULL DEFAULT '{}'::jsonb,
+       rule_check jsonb                       NOT NULL DEFAULT '{}'::jsonb,
+       ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
+       CONSTRAINT clean_rules_pkey PRIMARY KEY (id)
+            USING INDEX TABLESPACE foglamp )
+  WITH ( OIDS = FALSE )
+  TABLESPACE foglamp;
+
+ALTER TABLE foglamp.clean_rules OWNER to foglamp;
+COMMENT ON TABLE foglamp.clean_rules IS
+'Rules defined to clean (purge) the data.';
+
+
+-- Send data to the cloud table
+CREATE TABLE foglamp.cloud_send_rules (
+       id         integer                     NOT NULL DEFAULT nextval('foglamp.cloud_send_rules_id_seq'::regclass),
+       stream_id  integer                     NOT NULL,
+       rule       jsonb                       NOT NULL DEFAULT '{}'::jsonb,
+       rule_check jsonb                       NOT NULL DEFAULT '{}'::jsonb,
+       ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
+       CONSTRAINT cloud_send_rules_pkey PRIMARY KEY (id)
+            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT cloud_send_rules_fk1 FOREIGN KEY (stream_id)
+       REFERENCES foglamp.streams (id) MATCH SIMPLE
+               ON UPDATE NO ACTION
+               ON DELETE NO ACTION )
+  WITH ( OIDS = FALSE )
+  TABLESPACE foglamp;
+
+ALTER TABLE foglamp.cloud_send_rules OWNER to foglamp;
+COMMENT ON TABLE foglamp.cloud_send_rules IS
+'Rules defined to send data to the Cloud.';
+
+CREATE INDEX fki_cloud_send_rules_fk1
+    ON foglamp.cloud_send_rules USING btree (stream_id)
+    TABLESPACE foglamp;
 
 
 -- Resources table

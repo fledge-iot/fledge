@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='foglamp',
       version='0.1',
-      description='Foglamp',
+      description='fogLAMP',
       url='http://github.com/foglamp',
       author='Scaledb',
       author_email='info@scaledb.com',
@@ -14,6 +14,7 @@ setup(name='foglamp',
           , 'aiopg'
           , 'cbor2'
           , 'linkheader'
+          , 'python-daemon'
           , 'sqlalchemy'
       ],
       zip_safe=False)

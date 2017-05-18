@@ -3,7 +3,7 @@ import os
 
 class Env(object):
     connection_string = None
-    """Connection string to primary database"""
+    """Connection string to primary database. Set via FOGLAMP_DB environment variable."""
 
 def __init__():
     cs = os.environ.get('FOGLAMP_DB')

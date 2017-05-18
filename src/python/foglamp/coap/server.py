@@ -1,12 +1,8 @@
 import asyncio
 import aiocoap
 import aiocoap.resource as resource
-import logging
 
 from .uris.sensor_values import SensorValues;
-
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("foglamp-coap").setLevel(logging.DEBUG)
 
 class CoAPServer:
     @staticmethod

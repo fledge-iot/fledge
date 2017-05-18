@@ -13,10 +13,10 @@ source venv/fogenv/bin/activate
 
 # make sure you see prompt now with (venv/fogenv) as prefix
 
-# remove these lines, when we merge this PR
 
-# python3 src/python/install-packages.py
-# pip freeze > requirements.txt  # do it, when you add new dependency
+# whenever you add new dependency
+# better you add to requirements.txt and run pip install -r requirements.txt
+# or install using `pip install <dependency-name>` and do `pip freeze > requirements.txt ` for future / other's usage
 
 echo "--- installing requirements which were frozen using [pip freeze > requirements.txt]---"
 pip install -r requirements.txt

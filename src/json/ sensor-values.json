@@ -1,0 +1,38 @@
+{
+   "$schema": "http://json-schema.org/draft-04/schema#",
+   "definitions": {},
+   "id": "http://scaledb.com/foglamp/sensor-values.json",
+       "properties": {
+           "asset": {
+               "id": "/items/properties/asset",
+               "type": "string"
+           },
+           "asset_type": {
+               "id": "/items/properties/type",
+               "type": "string"
+           },
+           "ext": {
+               "id": "/items/properties/ext",
+               "type": "object"
+           },
+           "id": {
+               "id": "/items/properties/ext",
+               "type": "string"
+           },
+           "parent_asset": {
+               "id": "/items/properties/ext",
+               "type": "string"
+           },
+           "sensor_values": {
+               "id": "/items/properties/readings",
+               "type": "object"
+           },
+           "timestamp": {
+               "id": "/items/properties/timestamp",
+               "type": "string"
+           },
+       },
+       "type": "object",
+       "required": ["timestamp", "asset"],
+       "additionalProperties": false
+}

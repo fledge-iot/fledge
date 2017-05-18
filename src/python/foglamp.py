@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.5
+
 from foglamp.coap.server import CoAPServer
 import logging
 

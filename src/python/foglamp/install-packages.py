@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.5
+
 from subprocess import call
 
 call(["pip3", "install"

@@ -24,14 +24,14 @@ tbl = sa.Table(
     , sa.Column('data', JSONB))
 
 
-class Ingest(resource.Resource):
+class SensorValues(resource.Resource):
     def __init__(self):
-        super(Ingest, self).__init__()
+        super(SensorValues, self).__init__()
 
     def register(self, root):
         root.add_resource(('other', 'sensor-values'), self);
         return
-        
+
     async def render_post(self, request):
         r = loads(request.payload)
 
@@ -41,7 +41,7 @@ class Ingest(resource.Resource):
             key = uuid.uuid4().hex
         # key = 'terris'
 
-        # See 
+        # See
         async with create_engine(env.Env.connection_string) as engine:
             async with engine.acquire() as conn:
                 try:

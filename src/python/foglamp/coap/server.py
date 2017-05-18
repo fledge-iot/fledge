@@ -3,7 +3,7 @@ import aiocoap
 import aiocoap.resource as resource
 import logging
 
-from .methods.ingest import Ingest
+from .uris.sensor_values import SensorValues;
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("foglamp-coap").setLevel(logging.DEBUG)
@@ -16,7 +16,7 @@ class CoAPServer:
         # Register CoAP methods
         root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
 
-        Ingest().register(root)
+        SensorValues().register(root)
 
         asyncio.Task(aiocoap.Context.create_server_context(root))
         asyncio.get_event_loop().run_forever()

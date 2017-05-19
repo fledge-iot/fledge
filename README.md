@@ -11,3 +11,7 @@ This is the FogLAMP project.
 
 > Installing foglamp script to /usr/local/bin
 
+> Installing foglamp-d script to /usr/local/bin
+
+
+

@@ -2,7 +2,8 @@ import asyncio
 import aiocoap
 import aiocoap.resource as resource
 
-from .uris.sensor_values import SensorValues;
+from foglamp.coap.uris.sensor_values import SensorValues
+
 
 class CoAPServer:
     @staticmethod

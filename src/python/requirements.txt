@@ -9,5 +9,6 @@ packaging==16.8
 psycopg2==2.7.1
 pyparsing==2.2.0
 python-daemon==2.1.2
+PyYAML==3.12
 six==1.10.0
 SQLAlchemy==1.1.9

@@ -1,11 +1,11 @@
-#!/usr/bin/env python3.5
-
 import argparse
 import logging
 import daemon
 from daemon import pidfile
 
+from foglamp.env import DbConfig
 from foglamp.coap.server import CoAPServer
+
 
 def do_something(logf):
     fh = logging.FileHandler(logf)
@@ -21,20 +21,24 @@ def do_something(logf):
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
 
+    # set DB config
+    DbConfig.initialize_config()
     CoAPServer.start()
 
+
 def start_daemon(pidf, logf, wd):
-    ### This launches the daemon in its context
+    # This launches the daemon in its context
 
-    ### XXX pidfile is a context
+    # XXX pidfile is a context
     with daemon.DaemonContext(
-        working_directory=wd,
-        umask=0o002,
-        pidfile=pidfile.TimeoutPIDLockFile(pidf),
-        ) as context:
-            do_something(logf)
+            working_directory=wd,
+            umask=0o002,
+            pidfile=pidfile.TimeoutPIDLockFile(pidf),
+    ) as context:
+        do_something(logf)
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(description="FogLAMP daemon in Python")
     parser.add_argument('-p', '--pid-file', default='~/var/run/foglamp.pid')
     parser.add_argument('-l', '--log-file', default='~/var/log/foglamp.log')
@@ -42,5 +46,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # TODO ['start', 'stop', 'restart', 'status', 'info']
     start_daemon(pidf=args.pid_file, logf=args.log_file, wd=args.working_dir)
 
+if __name__ == "__main__":
+    main()

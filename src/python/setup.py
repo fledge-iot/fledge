@@ -9,5 +9,10 @@ setup(
     author_email='info@scaledb.com',
     license='MIT',
     packages=['foglamp'],
+    entry_points={
+        'console_scripts': [
+            'foglamp = src.python.foglamp:main',
+        ],
+    },
     zip_safe=False
 )

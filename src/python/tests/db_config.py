@@ -18,6 +18,3 @@ def conn_str_is_initialized():
 if __name__ == "__main__":
     conn_str_is_None()
     conn_str_is_initialized()
-
-
-

@@ -37,7 +37,8 @@ def start_daemon(pidf, logf, wd):
     ) as context:
         do_something(logf)
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(description="FogLAMP daemon in Python")
     parser.add_argument('-p', '--pid-file', default='~/var/run/foglamp.pid')
     parser.add_argument('-l', '--log-file', default='~/var/log/foglamp.log')
@@ -45,4 +46,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # TODO ['start', 'stop', 'restart', 'status', 'info']
     start_daemon(pidf=args.pid_file, logf=args.log_file, wd=args.working_dir)
+
+if __name__ == "__main__":
+    main()

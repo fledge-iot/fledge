@@ -1,9 +1,3 @@
-## python3.6
-
-
-
-
-
 
 #### Running python foglamp package
 

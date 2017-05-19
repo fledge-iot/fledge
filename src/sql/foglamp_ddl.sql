@@ -15,14 +15,35 @@
 ----------------------------------------------------------------------
 
 --
--- foglamp.sql
+-- foglamp_ddl.sql
 --
 -- PostgreSQL script to create the FogLAMP persistent Layer
 --
 
 -- NOTE:
 -- This script must be launched with:
--- PGPASSWORD=postgres psql -U postgres -h localhost -f foglamp.sql postgres
+-- PGPASSWORD=postgres psql -U postgres -h localhost -f foglamp_ddl.sql postgres
+
+
+----------------------------------------------------------------------
+-- DDL CONVENTIONS
+-- 
+-- Tables:
+-- * Names are in plural, terms are separated by _
+-- * Columns are, when possible, not null and have a default value.
+--   For example, jsonb columns are '{}' by default.
+-- 
+-- Columns:
+-- id      : It is commonly the PK of the table, a smallint, integer or bigint.
+-- xxx_id  : It usually refers to a FK, where "xxx" is name of the table.
+-- code    : Usually an AK, based on fixed lenght characters.
+-- ts      : The timestamp with microsec precision and tz. It is updated at
+--           every change.
+
+
+----------------------------------------------------------------------
+-- SCHEMA CREATION
+----------------------------------------------------------------------
 
 
 -- Dropping objects
@@ -257,14 +278,18 @@ COMMENT ON TABLE foglamp.asset_types IS
 
 
 -- Assets table
+-- This table is used to list the assets used in FogLAMP
+-- Reading do not necessarily have an asset, but whenever possible this
+-- table provides information regarding the data collected.
 CREATE TABLE foglamp.assets (
-       id           integer                     NOT NULL DEFAULT nextval('foglamp.assets_id_seq'::regclass),
-       description  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", 
-       type_id      integer                     NOT NULL,
-       address      inet                        NOT NULL DEFAULT '0.0.0.0'::inet,
-       status_id    integer                     NOT NULL,
-       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-       has_readings boolean                     NOT NULL DEFAULT false,
+       id           integer                     NOT NULL DEFAULT nextval('foglamp.assets_id_seq'::regclass),         -- The internal PK for assets
+       code         character varying(50),                                                                           -- A unique code  (AK) used to match readings and assets. It can be anything.
+       description  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- A brief description of the asset
+       type_id      integer                     NOT NULL,                                                            -- FK for the type of asset
+       address      inet                        NOT NULL DEFAULT '0.0.0.0'::inet,                                    -- An IPv4 or IPv6 address, if needed. Default means "any address"
+       status_id    integer                     NOT NULL,                                                            -- Status of the asset, FK to the asset_status table
+       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the devices or data to the cloud
+       has_readings boolean                     NOT NULL DEFAULT false,                                              -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
        ts           timestamp(6) with time zone NOT NULL DEFAULT now(),
          CONSTRAINT assets_pkey PRIMARY KEY (id)
               USING INDEX TABLESPACE foglamp,
@@ -290,6 +315,11 @@ CREATE INDEX fki_assets_fk1
 -- Index: fki_assets_fk2
 CREATE INDEX fki_assets_fk2
     ON foglamp.assets USING btree (type_id)
+    TABLESPACE foglamp;
+
+-- Index: assets_ix1
+CREATE UNIQUE INDEX assets_ix1
+    ON foglamp.assets USING btree (code)
     TABLESPACE foglamp;
 
 
@@ -426,18 +456,22 @@ CREATE INDEX fki_asset_messages_fk2
 
 
 -- Readings table
+-- This tables contains the readings for assets.
+-- An asset can be a device with multiple sensor, a single sensor,
+-- a software or anything that generates data that is sent to FogLAMP
 CREATE TABLE foglamp.readings (
-    id       bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
-    asset_id integer                     NOT NULL,
-    reading  jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-    user_ts  timestamp(6) with time zone NOT NULL DEFAULT now(),
-    ts       timestamp(6) with time zone NOT NULL DEFAULT now(),
+    id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
+    asset_code character varying(50),                                                                     -- Link with the assets table. If the value is NULL, the asset is not defined.
+    read_key   uuid                        NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'::uuid, -- A unique key used to avoid double-loading. Default with 0s is used when it is ignored.
+    reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                  -- The json object received
+    user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- The user timestamp extracted by the received message
+    ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
     CONSTRAINT readings_pkey PRIMARY KEY (id)
          USING INDEX TABLESPACE foglamp,
-    CONSTRAINT readings_fk1 FOREIGN KEY (asset_id)
-    REFERENCES foglamp.assets (id) MATCH SIMPLE
+    CONSTRAINT readings_fk1 FOREIGN KEY (asset_code)
+    REFERENCES foglamp.assets (code) MATCH SIMPLE
             ON UPDATE NO ACTION
-             ON DELETE NO ACTION)
+            ON DELETE NO ACTION)
   WITH ( OIDS = FALSE )
   TABLESPACE foglamp;
 
@@ -446,7 +480,11 @@ COMMENT ON TABLE foglamp.readings IS
 'Readings from sensors and devices.';
 
 CREATE INDEX fki_readings_fk1
-    ON foglamp.readings USING btree (asset_id)
+    ON foglamp.readings USING btree (asset_code)
+    TABLESPACE foglamp;
+
+CREATE INDEX readings_ix1
+    ON foglamp.readings USING btree (read_key)
     TABLESPACE foglamp;
 
 

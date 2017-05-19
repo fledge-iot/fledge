@@ -5,7 +5,7 @@ echo "--- installing virtualenv ---"
 pip install virtualenv
 
 # which python3
-python3_path=$( which python3.6 )
+python3_path=$( which python3.6 ) # ubuntu folks may want 3.5
 
 echo "--- setting the virtualenv using python3 path ---"
 
@@ -15,7 +15,7 @@ source venv/fogenv/bin/activate
 # make sure you see prompt now with (venv/fogenv) as prefix
 
 echo "--- installing requirements which were frozen using [pip3.6 freeze > requirements.txt]---"
-pip3.6 install -r requirements.txt
+pip install -r requirements.txt
 
 
 # run tests?

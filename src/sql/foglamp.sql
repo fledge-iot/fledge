@@ -25,6 +25,27 @@
 -- PGPASSWORD=postgres psql -U postgres -h localhost -f foglamp.sql postgres
 
 
+----------------------------------------------------------------------
+-- DDL CONVENTIONS
+-- 
+-- Tables:
+-- * Names are in plural, terms are separated by _
+-- * Columns are, when possible, not null and have a default value.
+--   For example, jsonb columns are '{}' by default.
+-- 
+-- Columns:
+-- id      : It is commonly the PK of the table, a smallint, integer or bigint.
+-- xxx_id  : It usually refers to a FK, where "xxx" is name of the table.
+-- code    : Usually an AK, based on fixed lenght characters.
+-- ts      : The timestamp with microsec precision and tz. It is updated at
+--           every change.
+
+
+----------------------------------------------------------------------
+-- SCHEMA CREATION
+----------------------------------------------------------------------
+
+
 -- Dropping objects
 DROP SCHEMA IF EXISTS foglamp CASCADE;
 DROP DATABASE IF EXISTS foglamp;
@@ -426,18 +447,22 @@ CREATE INDEX fki_asset_messages_fk2
 
 
 -- Readings table
+-- This tables contains the readings for assets.
+-- An asset can be a device with multiple sensor, a single sensor,
+-- a software or anything that generates data that is sent to FogLAMP
 CREATE TABLE foglamp.readings (
     id       bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
-    asset_id integer                     NOT NULL,
-    reading  jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-    user_ts  timestamp(6) with time zone NOT NULL DEFAULT now(),
+    asset_id integer                     NOT NULL,                                                      -- Link with the assets table
+    read_key uuid                        NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'::uuid, -- A unique key used to avoid double-loading. Default with 0s is used when it is ignored.
+    reading  jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                  -- The json object received
+    user_ts  timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- The user timestamp extracted by the received message
     ts       timestamp(6) with time zone NOT NULL DEFAULT now(),
     CONSTRAINT readings_pkey PRIMARY KEY (id)
          USING INDEX TABLESPACE foglamp,
     CONSTRAINT readings_fk1 FOREIGN KEY (asset_id)
     REFERENCES foglamp.assets (id) MATCH SIMPLE
             ON UPDATE NO ACTION
-             ON DELETE NO ACTION)
+            ON DELETE NO ACTION)
   WITH ( OIDS = FALSE )
   TABLESPACE foglamp;
 
@@ -447,6 +472,10 @@ COMMENT ON TABLE foglamp.readings IS
 
 CREATE INDEX fki_readings_fk1
     ON foglamp.readings USING btree (asset_id)
+    TABLESPACE foglamp;
+
+CREATE INDEX readings_ix1
+    ON foglamp.readings USING btree (read_key)
     TABLESPACE foglamp;
 
 

@@ -1,7 +1,7 @@
+import logging
+
 from foglamp.env import DbConfig
 from foglamp.coap.server import CoAPServer
-
-import logging
 
 
 def main():
@@ -15,4 +15,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

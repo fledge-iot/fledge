@@ -8,6 +8,7 @@ from daemon import pidfile
 from foglamp.env import DbConfig
 from foglamp.coap.server import CoAPServer
 
+
 def do_something(logf):
     fh = logging.FileHandler(logf)
     fh.setLevel(logging.DEBUG)
@@ -26,10 +27,11 @@ def do_something(logf):
     DbConfig.initialize_config()
     CoAPServer.start()
 
-def start_daemon(pidf, logf, wd):
-    ### This launches the daemon in its context
 
-    ### XXX pidfile is a context
+def start_daemon(pidf, logf, wd):
+    # This launches the daemon in its context
+
+    # XXX pidfile is a context
     with daemon.DaemonContext(
             working_directory=wd,
             umask=0o002,
@@ -46,4 +48,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_daemon(pidf=args.pid_file, logf=args.log_file, wd=args.working_dir)
-

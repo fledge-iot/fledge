@@ -1,12 +1,13 @@
 from foglamp.env import DbConfig
-
 # TODO rename this module to test_* module
 # TODO make these tests real tests with
 # RUN_ENV
 # DB_CONFIG_STORAGE
 
-def conn_str_is_None():
+
+def conn_str_is_none():
     assert DbConfig.conn_str is None
+
 
 def conn_str_is_initialized():
     DbConfig.initialize_config()
@@ -16,5 +17,5 @@ def conn_str_is_initialized():
 
 
 if __name__ == "__main__":
-    conn_str_is_None()
+    conn_str_is_none()
     conn_str_is_initialized()

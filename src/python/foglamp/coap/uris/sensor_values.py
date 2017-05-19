@@ -53,4 +53,3 @@ class SensorValues(resource.Resource):
                     print(e)
                     # TODO log the error
         return aiocoap.Message(payload=''.encode("utf-8"))
-

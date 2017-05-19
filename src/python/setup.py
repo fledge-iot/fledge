@@ -11,7 +11,7 @@ setup(
     packages=['foglamp'],
     entry_points={
         'console_scripts': [
-            'foglamp = src.python.foglamp:main',
+            'foglamp = foglamp:main',
         ],
     },
     zip_safe=False

@@ -7,7 +7,7 @@ setup(
     url='http://github.com/foglamp/FogLAMP',
     author='DB Software Inc.',
     author_email='info@scaledb.com',
-    license='MIT',
+    license='Unknown',
     packages=['foglamp'],
     entry_points={
         'console_scripts': [

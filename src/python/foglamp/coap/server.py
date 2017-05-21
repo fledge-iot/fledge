@@ -2,7 +2,7 @@ import asyncio
 import aiocoap
 import aiocoap.resource as resource
 
-from foglamp.coap.uris.sensor_values import SensorValues
+from foglamp.coap.uri_handlers.sensor_values import SensorValues
 
 
 class CoAPServer:

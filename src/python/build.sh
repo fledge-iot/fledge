@@ -2,14 +2,14 @@
 
 echo "--- installing virtualenv ---"
 # shall ignore if already installed
-pip install virtualenv
+pip3.5 install virtualenv
 
-# which python3
-python3_path=$( which python3.6 ) # ubuntu folks may want 3.5
+# which python3.5
+python3.5_path=$( which python3.5 )
 
-echo "--- setting the virtualenv using python3 path ---"
+echo "--- setting the virtualenv using python3.5 path; should be 3.5.2 found $python3.5_path ---"
 
-virtualenv --python=$python3_path venv/fogenv
+virtualenv --python=$python3.5_path venv/fogenv
 source venv/fogenv/bin/activate
 
 # make sure you see prompt now with (fogenv) as prefix

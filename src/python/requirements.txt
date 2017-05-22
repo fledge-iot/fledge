@@ -2,7 +2,9 @@ aiocoap
 aiopg
 appdirs
 cbor2
+deepdiff
 docutils
+jsonpickle
 LinkHeader
 lockfile
 packaging
@@ -12,4 +14,3 @@ python-daemon
 PyYAML
 six
 SQLAlchemy
-

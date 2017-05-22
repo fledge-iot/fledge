@@ -3,7 +3,7 @@ import logging
 import daemon
 from daemon import pidfile
 
-from foglamp.env import DbConfig
+from foglamp.configurator import Configurator
 from foglamp.coap.server import CoAPServer
 
 
@@ -22,7 +22,7 @@ def do_something(logf):
     logger.setLevel(logging.DEBUG)
 
     # set DB config
-    DbConfig.initialize_config()
+    Configurator().initialize_dbconfig()
     CoAPServer.start()
 
 

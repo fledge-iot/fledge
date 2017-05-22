@@ -1,15 +1,33 @@
-aiocoap
-aiopg
+# ?
 appdirs
-cbor2
 docutils
-LinkHeader
 lockfile
-packaging
-psycopg2
 pyparsing
-python-daemon
-PyYAML
 six
+
+# env
+PyYAML
+
+# deployment
+packaging
+
+# run
+python-daemon
+
+# postgreSQL
+aiopg
 SQLAlchemy
+psycopg2
+
+# coap
+aiocoap
+cbor2
+LinkHeader
+
+# rest
+aiohttp
+cchardet
+gunicorn
+httpie
+PyJWT
 

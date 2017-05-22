@@ -1,13 +1,19 @@
-FogLAMP
-===========
+
+Welcome to FogLAMP's documentation!
+===================================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
    :caption: Contents:
 
-   frontend
    backend
 
 
-License
-=======
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

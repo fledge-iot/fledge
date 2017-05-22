@@ -13,29 +13,33 @@ Installation:
 
 1. setup and activate virtual env
 
-    pip3.5 install virtualenv
-    python3.5_path=$( which python3.5 )
-    virtualenv --python=$python3.5_path venv/fogenv
-    source venv/fogenv/bin/activate
+    ``pip3.5 install virtualenv``
 
-.. make sure, now you see prompt with (fogenv) as prefix
+    ``python3.5_path=$( which python3.5 )``
 
-..
-   if using pycharm, make sure to set
-   PyCharm > Project Interpreter > Add local `src/python/venv/fogenv/bin/python`
+    ``virtualenv --python=$python3.5_path venv/fogenv``
+
+    ``source venv/fogenv/bin/activate``
+
+    make sure, now you see prompt with (fogenv) as prefix
+
+
+    if using pycharm, make sure to set
+    PyCharm > Project Interpreter > Add local ``src/python/venv/fogenv/bin/python``
 
 2. ``pip install -r requirements.txt``
 
 
 3. ``python setup.py develop --user``
 
-..
    Adding FogLAMP 0.1 to easy-install.pth file
-   Installing foglamp script to ~/.local/bin
-   Installing foglamp-d script to ~/.local/bin
 
-**To clean:**
+   Installing foglamp script to ``~/.local/bin``
 
-``python setup.py clean --all``
+   Installing foglamp-d script to ``~/.local/bin``
 
-.. you may want: ``~/.local/bin$ rm -rf foglamp foglamp-d``
+   **To clean:**
+
+   ``python setup.py clean --all``
+
+   You may want: ``~/.local/bin$ rm -rf foglamp foglamp-d``

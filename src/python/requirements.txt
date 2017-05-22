@@ -13,4 +13,6 @@ pyparsing
 python-daemon
 PyYAML
 six
-SQLAlchemy
+Sphinx
+sphinx-autobuild
+SQLAlcyhemy

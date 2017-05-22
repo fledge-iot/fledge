@@ -38,3 +38,4 @@ venv/
 ENV/
 
 # Config env file
+foglamp-env.yaml

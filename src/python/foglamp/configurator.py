@@ -14,7 +14,6 @@ FOGLAMP_DIR = os.path.dirname(os.path.abspath(__file__))
 FOGLAMP_ENV_CONFIG = os.environ.get('FOGLAMP_ENV_CONFIG', os.path.join(FOGLAMP_DIR, 'foglamp-env.yaml'))
 
 # FOGLAMP_ENV_CONFIG env variable should have a valid YAML (copied from foglamp-env.yaml.example) file
-# write a script for its check? compare keys
 
 
 class Configurator:

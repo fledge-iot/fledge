@@ -9,6 +9,8 @@ Requirements:
 Installation:
 -------------
 
+Check ``build.sh`` in ``src/python/`` directory for quick setup and run.
+
 ``cd src/python``
 
 1. setup and activate virtual env

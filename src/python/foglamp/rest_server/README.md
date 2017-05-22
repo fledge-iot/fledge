@@ -2,19 +2,28 @@
 
 This code originated from work described at http://steelkiwi.com/blog/jwt-authorization-python-part-1-practise/
 
-# Running the server
+# Running the server via Gunicorn
 
-A stand-alone aiohttp server doesn't utilize all cores. Several options as described here: http://aiohttp.readthedocs.io/en/stable/deployment.html. Gunicorn (Green Unicorn) was chosen for production.
+A stand-alone aiohttp server doesn't utilize all cores. Several options are described here: http://aiohttp.readthedocs.io/en/stable/deployment.html. Gunicorn (Green Unicorn) was chosen for production.
+
+See
+http://aiohttp.readthedocs.io/en/stable/deployment.html#start-gunicorn
 
 gunicorn parameters can be specified via an environment variable. See http://docs.gunicorn.org/en/stable/settings.html
 
+Whenever source files in foglamp.rest_server are modified, Gunicorn resets itself so you normally won't need to restart gunicorn once it's running.
+
 ## http (dev/test)
 
-gunicorn main:app --bind localhost:8080 --worker-class aiohttp.worker.GunicornWebWorker --reload
+gunicorn foglamp.rest_server.app:app --bind localhost:8080 --worker-class aiohttp.worker.GunicornWebWorker --reload
 
 ## https (production)
 
 See http://docs.gunicorn.org/en/stable/settings.html#ssl
+
+# Running the server via a debugger
+
+Debugging requires a stand-alone aiohttp server. TBD
 
 # Authentication
 
@@ -22,7 +31,7 @@ Posting to /login with query strings user= and password= returns a token.
 
 The token should be provided in the 'authorization' header for all other API calls. 
 
-The token expires after 15 minutes. Post to /refresh_token to reset the expiration time. The token can be refreshed for up to 7 days.
+The token expires after 15 minutes. Post to /refresh_token to reset the expiration time. The token can be refreshed only for up to 7 days.
 
 # Methods
 
@@ -68,6 +77,3 @@ This is a demo method only that returns details about the currently logged in us
         "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODkwLjkzMDMyM30.V4Eye1eCzZXiGmLzvZ5vRvXMWd9xVS9tneY52YTeFo4"
     }
 
-# Debugging
-
-Debugging requires a stand-alone aiohttp server. TBD

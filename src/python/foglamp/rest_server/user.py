@@ -1,13 +1,13 @@
 class User:
 
-    def __init__(self, id, email, password, is_admin):
+    def __init__(self, id, name, password, is_admin):
         self.id = id
-        self.email = email
+        self.name = name
         self.password = password
         self.is_admin = is_admin
 
     def __repr__(self):
-        template = 'User id={s.id}: <{s.email}, is_admin={s.is_admin}>'
+        template = 'User id={s.id}: <{s.name}, is_admin={s.is_admin}>'
         return template.format(s=self)
 
     def __str__(self):
@@ -31,9 +31,9 @@ class User:
         _max_id = 0
 
         @classmethod
-        def create(cls, email, password, is_admin=False):
+        def create(cls, name, password, is_admin=False):
             cls._max_id += 1
-            cls._storage.append(User(cls._max_id, email, password, is_admin))
+            cls._storage.append(User(cls._max_id, name, password, is_admin))
 
         @classmethod
         def all(cls):
@@ -48,8 +48,8 @@ class User:
             return users
 
         @classmethod
-        def get(cls, id=None, email=None):
-            users = cls.filter(id=id, email=email)
+        def get(cls, id=None, name=None):
+            users = cls.filter(id=id, name=name)
             if len(users) > 1:
                 raise User.TooManyObjects
             if len(users) == 0:

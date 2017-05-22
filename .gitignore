@@ -3,4 +3,6 @@
 # IDE
 .idea
 
+docs/_build
+
 

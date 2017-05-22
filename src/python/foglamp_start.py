@@ -1,6 +1,6 @@
 import logging
 
-from foglamp.env import DbConfig
+from foglamp.configurator import Configurator
 from foglamp.coap.server import CoAPServer
 
 
@@ -9,7 +9,7 @@ def main():
     logging.getLogger("foglamp").setLevel(logging.DEBUG)
 
     # set DB config
-    DbConfig.initialize_config()
+    Configurator().initialize_dbconfig()
     # start coap Server
     CoAPServer.start()
 

@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from cbor2 import loads
 from sqlalchemy.dialects.postgresql import JSONB
 from aiopg.sa import create_engine
-from foglamp.env import DbConfig
+from foglamp.configurator import Configurator
 
 metadata = sa.MetaData()
 
@@ -47,7 +47,7 @@ class SensorValues(resource.Resource):
         # Demonstrate IntegrityError
         key = 'same'
         
-        async with create_engine(DbConfig.conn_str) as engine:
+        async with create_engine(Configurator().db_conn_str) as engine:
             async with engine.acquire() as conn:
                 try:
                     await conn.execute(__tbl__.insert().values(data=payload, key=key))

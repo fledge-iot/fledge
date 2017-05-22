@@ -1,6 +1,5 @@
 # ?
 appdirs
-docutils
 lockfile
 pyparsing
 six
@@ -31,3 +30,7 @@ gunicorn
 httpie
 PyJWT
 
+# docs
+docutils
+Sphinx
+sphinx-autobuild

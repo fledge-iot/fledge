@@ -7,6 +7,7 @@ from foglamp.configurator import Configurator
 
 def conn_str_is_none():
     assert Configurator().db_conn_str is None
+    print("Test conn_str_is_none passed")
 
 
 def conn_str_is_initialized():
@@ -14,6 +15,7 @@ def conn_str_is_initialized():
     assert Configurator().db_conn_str is not None
     print(Configurator().db_conn_str)
     assert "postgresql://postgres:postgres@localhost:5432/foglamp" == Configurator().db_conn_str
+    print("Test conn_str_is_initialized passed")
 
 
 if __name__ == "__main__":

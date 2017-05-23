@@ -11,38 +11,59 @@ usage="$(basename "sh $0") [-h] [-t | --test] [--doc] -- Setup virtual env, inst
 where:
     -h  show this help text
     -t, --test runs tests
-    -i, --install runs pip install -e .
+    -i, --install installs the FogLAMP package
+    -r, --run installs the FogLAMP package and run foglamp
+    --rd, --daemon installs the FogLAMP package and run foglamp-d
     -u, --uninstall uninstalls the  package and remove installed scripts
     --doc generate docs html in docs/_build directory"
 
 setup_and_run() {
 
+    if [ "$option" == "CLEAN" ]
+     then
+        echo "--- removing virtualenv directory ---"
+        rm -rf venv
+        return
+    fi
+
     echo "--- installing virtualenv ---"
     # shall ignore if already installed
-    pip3.5 install virtualenv
+    pip3 install virtualenv
 
-    # which python3.5
-    python_path=$( which python3.5 )
+    # which python3
+    python_path=$( which python3 )
 
     echo "--- setting the virtualenv using python_path; should be 3.5.2 found ${python_path} ---"
 
     virtualenv --python=$python_path venv/fogenv
+    source venv/fogenv/bin/activate
 
 
     echo "--- installing requirements which were frozen using [pip freeze > requirements.txt]---"
-    venv/fogenv/bin/pip install -r requirements.txt
+    pip install -r requirements.txt
 
     if [ "$option" == "TEST" ]
     then
         echo "run tests? will add tox.ini to run via tox"
         echo "until then, checking db config"
 
-        # venv/fogenv/bin/pip install -e . # uncomment or run with -i first to test
-        venv/fogenv/bin/python tests/db_config.py
+        pip install -e .
+        python tests/db_config.py
+        pip uninstall FogLAMP <<< y
 
     elif [ "$option" == "INSTALL" ]
     then
-        venv/fogenv/bin/pip install -e .
+        pip install -e .
+
+    elif [ "$option" == "RUN" ]
+    then
+        pip install -e .
+        foglamp
+
+    elif [ "$option" == "RUN_DAEMON" ]
+    then
+        pip install -e .
+        foglamp-d
 
     elif [ "$option" == "BUILD_DOC" ]
     then
@@ -54,11 +75,9 @@ setup_and_run() {
     elif [ "$option" == "UNINSTALL" ]
     then
         echo "This will remove the package"
-        venv/fogenv/bin/pip uninstall FogLAMP <<< y
-    fi
+        pip uninstall FogLAMP <<< y
 
-    # echo "--- removing virtualenv directory ---"
-    # rm -rf venv/fogenv
+    fi
 }
 
 option=''
@@ -73,12 +92,24 @@ if [ $# -gt 0 ]
              option="TEST"
              ;;
 
-            -i|--i)
+           -i|--install)
              option="INSTALL"
+             ;;
+
+            -r|--run)
+             option="RUN"
+             ;;
+
+            -rd|--daemon)
+             option="RUN_DAEMON"
              ;;
 
             -u|--uninstall)
              option="UNINSTALL"
+             ;;
+
+            -c|--clean)
+             option="CLEAN"
              ;;
 
             --doc)

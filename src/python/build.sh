@@ -41,8 +41,9 @@ Options:
 # Change the cwd to the directory where this script
 # is located
 change_dir() {
-    script=$(readlink -f "$script")
-    sdir=$(dirname "$script")
+    pushd `dirname "$script"` > /dev/null
+    sdir=`pwd`
+    popd > /dev/null
     echo Changing directory to $sdir
     pushd "$sdir"
 }
@@ -54,6 +55,9 @@ setup_and_run() {
         rm -rf venv
         return
     fi
+
+    # TODO If virtualenv is already running, output an error message
+    # and return
 
     echo "--- installing virtualenv ---"
     # shall ignore if already installed

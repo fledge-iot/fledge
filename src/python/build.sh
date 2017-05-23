@@ -1,14 +1,5 @@
 #!/bin/bash
 
-# This script can not be used with set -e because
-# it is intented to be 'sourced'; any failure will
-# cause the caller's bash environment to be closed
-
-# Usage:
-   # ./build.sh
-   # ./build.sh -h
-   # ensure permission: chmod 700 build.sh
-
 called=$_
 if [[ "$called" != "$0" ]] 
 then 
@@ -17,7 +8,7 @@ else
     script=$0
 fi
 
-usage="$(basename $script) [-h] [-t | --test] [--doc]
+usage="$(basename $script)
 
 This script sets up a virtual Python environment via virtualenv.
 It also installs Python packages unless -v is provided.
@@ -31,6 +22,7 @@ Usage:
 Options:
   -h, --help       Show this help text
   -v, --virtualenv Only set up virtual environment
+  -c, --clean      Deactivate and clean the virtual environment
   -t, --test       Runs tests
   -i, --install    Installs the FogLAMP package
   -r, --run        Installs the FogLAMP package and run foglamp
@@ -49,15 +41,26 @@ change_dir() {
 }
 
 setup_and_run() {
+
+    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+
     if [ "$option" == "CLEAN" ]
      then
+        if [ $IN_VENV -gt 0 ]
+        then
+            echo "--- deactivating virtualenv ---"
+            deactivate
+        fi
         echo "--- removing virtualenv directory ---"
         rm -rf venv
         return
     fi
 
-    # TODO If virtualenv is already running, output an error message
-    # and return
+    if [ $IN_VENV -gt 0 ]
+    then
+        echo "*** virtualenv is already running; Run with -c | --clean to cleanup"
+	return
+    fi
 
     echo "--- installing virtualenv ---"
     # shall ignore if already installed
@@ -74,7 +77,7 @@ setup_and_run() {
 
     if [ $? -gt 0 ]
     then
-        echo "*** python3 was not found"
+        echo "*** python3.5 is not found"
 	return
     fi
 
@@ -189,4 +192,3 @@ if [ $# -gt 0 ]
 fi
 
 popd
-

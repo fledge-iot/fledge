@@ -1,24 +1,53 @@
 #!/bin/bash
 
-set -e
+# This script can not be used with set -e because
+# it is intented to be 'sourced'; any failure will
+# cause the caller's bash environment to be closed
 
 # Usage:
    # ./build.sh
    # ./build.sh -h
    # ensure permission: chmod 700 build.sh
 
-usage="$(basename "sh $0") [-h] [-t | --test] [--doc] -- Setup virtual env, install the requirements
-where:
-    -h  show this help text
-    -t, --test runs tests
-    -i, --install installs the FogLAMP package
-    -r, --run installs the FogLAMP package and run foglamp
-    --rd, --daemon installs the FogLAMP package and run foglamp-d
-    -u, --uninstall uninstalls the  package and remove installed scripts
-    --doc generate docs html in docs/_build directory"
+called=$_
+if [[ "$called" != "$0" ]] 
+then 
+    script=$BASH_SOURCE
+else 
+    script=$0
+fi
+
+usage="$(basename $script) [-h] [-t | --test] [--doc]
+
+This script sets up a virtual Python environment via virtualenv.
+It also installs Python packages unless -v is provided.
+Additional activities are available. See below.
+
+Usage:
+  Invoke this script via "source" in order for the shell
+  to inherit fogLAMP's Python virtual environment located in
+  src/python/env/fogenv
+
+Options:
+  -h, --help       Show this help text
+  -v, --virtualenv Only set up virtual environment
+  -t, --test       Runs tests
+  -i, --install    Installs the FogLAMP package
+  -r, --run        Installs the FogLAMP package and run foglamp
+  --rd, --daemon   Installs the FogLAMP package and run foglamp-d
+  -u, --uninstall  Uninstalls the  package and remove installed scripts
+  --doc            Generate docs html in docs/_build directory"
+
+# Change the cwd to the directory where this script
+# is located
+change_dir() {
+    script=$(readlink -f "$script")
+    sdir=$(dirname "$script")
+    echo Changing directory to $sdir
+    pushd "$sdir"
+}
 
 setup_and_run() {
-
     if [ "$option" == "CLEAN" ]
      then
         echo "--- removing virtualenv directory ---"
@@ -30,14 +59,37 @@ setup_and_run() {
     # shall ignore if already installed
     pip3 install virtualenv
 
-    # which python3
-    python_path=$( which python3 )
+    if [ $? -gt 0 ]
+    then
+        echo "*** pip3 failed installing virtualenv"
+	return
+    fi
 
-    echo "--- setting the virtualenv using python_path; should be 3.5.2 found ${python_path} ---"
+    # which python3
+    python_path=$( which python3.5 )
+
+    if [ $? -gt 0 ]
+    then
+        echo "*** python3 was not found"
+	return
+    fi
+
+    echo "--- setting the virtualenv using ${python_path} ---"
 
     virtualenv --python=$python_path venv/fogenv
+
+    if [ $? -gt 0 ]
+    then
+        echo "*** virtualenv failed. Is virtualenv installed?"
+	return
+    fi
+
     source venv/fogenv/bin/activate
 
+    if [ "$option" == "VENV" ]
+    then
+	return
+    fi
 
     echo "--- installing requirements which were frozen using [pip freeze > requirements.txt]---"
     pip install -r requirements.txt
@@ -81,12 +133,17 @@ setup_and_run() {
 }
 
 option=''
+change_dir
 
 if [ $# -gt 0 ]
   then
      for i in "$@"
      do
          case $i in
+
+           -v|--virtualenv)
+             option="VENV"
+             ;;
 
            -t|--test)
              option="TEST"
@@ -126,3 +183,6 @@ if [ $# -gt 0 ]
   else
      setup_and_run
 fi
+
+popd
+

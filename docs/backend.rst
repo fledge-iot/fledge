@@ -14,48 +14,56 @@ Installation:
 
 1. activate virtual env
 
-    ``pip3.5 install virtualenv``
+    ``pip3 install virtualenv``
 
-    ``python3.5_path=$( which python3.5 )``
+    ``python3.5_path=$( which python3 )``
 
     ``virtualenv --python=$python3.5_path venv/fogenv``
 
     ``source venv/fogenv/bin/activate``
 
-    make sure, now you see prompt with (fogenv) as prefix
+    Make sure, now you see prompt with (fogenv) as prefix
 
 
     if using pycharm, make sure to set
+
     PyCharm > Project Interpreter > Add local ``src/python/venv/fogenv/bin/python``
 
 2. ``pip install -r requirements.txt``
 
 
-3. **install using setup.py**
+3. **installation**
 
-   ``venv/fogenv/bin/python setup.py install --record files.txt``
+   3.1 **using setup.py**
 
-        Installing foglamp script to src/python/venv/fogenv/bin
-        Installing foglamp-d script to src/python/venv/fogenv/bin
+       ``python setup.py install --user --prefix= --record install-info.txt``
 
-        Installed src/python/venv/fogenv/lib/python3.5/site-packages/FogLAMP-0.1-py3.5.egg
-        Processing dependencies for FogLAMP==0.1
+            Installing foglamp script to src/python/venv/fogenv/bin
 
-        Finished processing dependencies for FogLAMP==0.1
+            Installing foglamp-d script to src/python/venv/fogenv/bin
 
-        writing list of installed files to ``install-info.txt``
+            Installed src/python/venv/fogenv/lib/python3.5/site-packages/FogLAMP-0.1-py3.5.egg
+
+            Processing dependencies for FogLAMP==0.1
+
+            Finished processing dependencies for FogLAMP==0.1
+
+            writing list of installed files to ``install-info.txt``
 
        **To uninstall:**
 
-        ``cat install-info.txt | xargs  rm -rf``
-        ``rm -rf install-info.txt``
+            ``cat install-info.txt | xargs  rm -rf``
+
+            ``rm -rf install-info.txt``
 
 
        **To clean:**
 
-        ``python setup.py clean --all``
+            ``python setup.py clean --all``
+
+       [if not in virtual env, it will install in ~/.local/bin for ubuntu] Actually check: ``install-info.txt``
 
 
-   **install using pip**
+   3.2 **using pip**
 
        Check ``./build.sh -h`` in ``src/python/`` directory for quick setup and run.

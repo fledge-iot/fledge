@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Usage:
    # ./build.sh
    # ./build.sh -h
@@ -17,10 +19,10 @@ setup_and_run() {
 
     echo "--- installing virtualenv ---"
     # shall ignore if already installed
-    pip3.6 install virtualenv
+    pip3.5 install virtualenv
 
     # which python3.5
-    python_path=$( which python3.6 )
+    python_path=$( which python3.5 )
 
     echo "--- setting the virtualenv using python_path; should be 3.5.2 found ${python_path} ---"
 

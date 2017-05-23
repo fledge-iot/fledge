@@ -38,7 +38,7 @@ Installation:
         Installing foglamp script to src/python/venv/fogenv/bin
         Installing foglamp-d script to src/python/venv/fogenv/bin
 
-        Installed src/python/venv/fogenv/lib/python3.6/site-packages/FogLAMP-0.1-py3.6.egg
+        Installed src/python/venv/fogenv/lib/python3.5/site-packages/FogLAMP-0.1-py3.5.egg
         Processing dependencies for FogLAMP==0.1
 
         Finished processing dependencies for FogLAMP==0.1

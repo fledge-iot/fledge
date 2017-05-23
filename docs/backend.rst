@@ -9,9 +9,10 @@ Requirements:
 Installation:
 -------------
 
+
 ``cd src/python``
 
-1. setup and activate virtual env
+1. activate virtual env
 
     ``pip3.5 install virtualenv``
 
@@ -30,16 +31,31 @@ Installation:
 2. ``pip install -r requirements.txt``
 
 
-3. ``python setup.py develop --user``
+3. **install using setup.py**
 
-   Adding FogLAMP 0.1 to easy-install.pth file
+   ``venv/fogenv/bin/python setup.py install --record files.txt``
 
-   Installing foglamp script to ``~/.local/bin``
+        Installing foglamp script to src/python/venv/fogenv/bin
+        Installing foglamp-d script to src/python/venv/fogenv/bin
 
-   Installing foglamp-d script to ``~/.local/bin``
+        Installed src/python/venv/fogenv/lib/python3.5/site-packages/FogLAMP-0.1-py3.5.egg
+        Processing dependencies for FogLAMP==0.1
 
-   **To clean:**
+        Finished processing dependencies for FogLAMP==0.1
 
-   ``python setup.py clean --all``
+        writing list of installed files to ``install-info.txt``
 
-   You may want: ``~/.local/bin$ rm -rf foglamp foglamp-d``
+       **To uninstall:**
+
+        ``cat install-info.txt | xargs  rm -rf``
+        ``rm -rf install-info.txt``
+
+
+       **To clean:**
+
+        ``python setup.py clean --all``
+
+
+   **install using pip**
+
+       Check ``./build.sh -h`` in ``src/python/`` directory for quick setup and run.

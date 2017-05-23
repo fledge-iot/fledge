@@ -90,12 +90,31 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+# See: https://alabaster.readthedocs.io/en/latest/customization.html#theme-options
+html_theme_options = {
+    'logo': 'images/foglamp.png',
+    'logo_name': True,
+    'description': 'The FogLAMP project',
+    'github_user': 'foglamp',
+    'github_repo': 'FogLAMP',
+    'travis_button': False,
+}
+
+# Need to explicitly tell Sphinx to include the `about.html` sidebar file
+# which includes the logo, description, GitHub buttons, etc.
+html_sidebars = {
+    '**': [
+        'about.html',
+        'navigation.html',
+        'relations.html',
+        'searchbox.html',
+    ]
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ['']
 
 
 # -- Options for HTMLHelp output ------------------------------------------

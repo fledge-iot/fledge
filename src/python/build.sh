@@ -26,14 +26,14 @@ Usage:
   command.
 
 Options:
-  -h, --help       Show this help text
-  -v, --virtualenv Activate virtual environment and exit
-  -c, --clean      Deactivate and clean the virtual environment
-  -t, --test       Run tests
-  -i, --install    Install the FogLAMP package
-  -r, --run        Install the FogLAMP package and run foglamp
+  -h, --help      Show this help text
+  -a, --activate  Activate the virtual environment and exit
+  -c, --clean     Deactivate and clean the virtual environment
+  -t, --test      Run tests
+  -i, --install   Install the FogLAMP package
+  -u, --uninstall Uninstall the  package and remove installed scripts
+  -r, --run       Install the FogLAMP package and run foglamp
   -d, --daemon     Install the FogLAMP package and run foglamp-d
-  -u, --uninstall  Uninstall the  package and remove installed scripts
   --doc            Generate docs html in docs/_build directory"
 
 setup_and_run() {
@@ -79,15 +79,18 @@ setup_and_run() {
 
     echo "--- Setting the virtualenv using ${python_path} ---"
 
-    virtualenv --python=$python_path venv/fogenv
+    # Output to /dev/null because if python is already running, there
+    # are many ugly error messages about 'python' file being locked
+    virtualenv "--python=$python_path" venv/fogenv 2> /dev/null
+    source venv/fogenv/bin/activate
 
-    if [ $? -gt 0 ]
+    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+
+    if [ $IN_VENV -lt 1 ]
     then
         echo "*** virtualenv failed. Is virtualenv installed?"
 	return
     fi
-
-    source venv/fogenv/bin/activate
 
     if [ "$option" == "VENV" ]
     then
@@ -143,7 +146,7 @@ if [ $# -gt 0 ]
      do
          case $i in
 
-           -v|--virtualenv)
+           -a|--activate)
              option="VENV"
              ;;
 

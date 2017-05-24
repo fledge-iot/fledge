@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Change the cwd to the directory where this script
+# is located
 called=$_
 if [[ "$called" != "$0" ]] 
 then 
@@ -7,17 +9,21 @@ then
 else 
     script=$0
 fi
+pushd `dirname "$script"` > /dev/null
+scriptname=$(basename "$script")
 
-usage="$(basename $script)
+usage="=== $scriptname ===
 
-This script sets up a virtual Python environment via virtualenv.
-It also installs Python packages unless -v is provided.
-Additional activities are available. See below.
+Activates a virtual Python environment. Installs 
+Python packages unless -v is provided. Additional 
+capabilities are available. See the options below.
 
 Usage:
-  Invoke this script via "source" in order for the shell
-  to inherit fogLAMP's Python virtual environment located in
-  src/python/env/fogenv
+  \"source\" this script in order for the shell
+  to inherit fogLAMP's Python virtual environment 
+  located in src/python/env/fogenv. Deactivate the
+  environment by running the \"deactivate\" shell
+  command.
 
 Options:
   -h, --help       Show this help text
@@ -26,19 +32,9 @@ Options:
   -t, --test       Runs tests
   -i, --install    Installs the FogLAMP package
   -r, --run        Installs the FogLAMP package and run foglamp
-  --rd, --daemon   Installs the FogLAMP package and run foglamp-d
+  -d, --daemon   Installs the FogLAMP package and run foglamp-d
   -u, --uninstall  Uninstalls the  package and remove installed scripts
   --doc            Generate docs html in docs/_build directory"
-
-# Change the cwd to the directory where this script
-# is located
-change_dir() {
-    pushd `dirname "$script"` > /dev/null
-    sdir=`pwd`
-    popd > /dev/null
-    echo Changing directory to $sdir
-    pushd "$sdir"
-}
 
 setup_and_run() {
 
@@ -48,21 +44,21 @@ setup_and_run() {
      then
         if [ $IN_VENV -gt 0 ]
         then
-            echo "--- deactivating virtualenv ---"
+            echo "--- Deactivating virtualenv ---"
             deactivate
         fi
-        echo "--- removing virtualenv directory ---"
+        echo "--- Removing virtualenv directory ---"
         rm -rf venv
         return
     fi
 
     if [ $IN_VENV -gt 0 ]
     then
-        echo "*** virtualenv is already running; Run with -c | --clean to cleanup"
+        echo "*** virtualenv is active. You can deactivate it via the 'deactivate' command"
 	return
     fi
 
-    echo "--- installing virtualenv ---"
+    echo "--- Installing virtualenv ---"
     # shall ignore if already installed
     pip3 install virtualenv
 
@@ -81,7 +77,7 @@ setup_and_run() {
 	return
     fi
 
-    echo "--- setting the virtualenv using ${python_path} ---"
+    echo "--- Setting the virtualenv using ${python_path} ---"
 
     virtualenv --python=$python_path venv/fogenv
 
@@ -98,7 +94,7 @@ setup_and_run() {
 	return
     fi
 
-    echo "--- installing requirements which were frozen using [pip freeze > requirements.txt]---"
+    echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt] ---"
     pip install -r requirements.txt
 
     if [ "$option" == "TEST" ]
@@ -140,7 +136,6 @@ setup_and_run() {
 }
 
 option=''
-change_dir
 
 if [ $# -gt 0 ]
   then
@@ -164,7 +159,7 @@ if [ $# -gt 0 ]
              option="RUN"
              ;;
 
-            -rd|--daemon)
+            -d|--daemon)
              option="RUN_DAEMON"
              ;;
 
@@ -191,4 +186,5 @@ if [ $# -gt 0 ]
      setup_and_run
 fi
 
-popd
+popd > /dev/null
+

@@ -1,8 +1,9 @@
 .DS_Store
 
 # IDE
-.idea
+*.idea
 
 docs/_build
 
-
+# Compiled Object files
+*.pyc

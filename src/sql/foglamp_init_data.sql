@@ -29,3 +29,35 @@
 -- 
 ----------------------------------------------------------------------
 
+-- Log Codes
+DELETE FROM foglamp.log_codes;
+INSERT INTO foglamp.log_codes ( code, description )
+     VALUES ( 'CLEAN', 'Cleaning Process' );        -- The Cleaning process
+
+
+-- Configuration parameters
+DELETE FROM foglamp.configuration;
+INSERT INTO foglamp.configuration ( key, value )
+     VALUES ( 'CLEAN', '{ "status" : "on" }' );
+
+
+-- Roles
+DELETE FROM foglamp.roles;
+INSERT INTO foglamp.roles ( id, name, description )
+     VALUES ( 1, 'Power User', 'A user with special privileges' );
+
+-- Resources
+DELETE FROM foglamp.resources;
+INSERT INTO foglamp.resources ( id, code, description )
+     VALUES ( 1, 'CLEAN_MGR', 'Can Start / Stop the cleaning process' );
+INSERT INTO foglamp.resources ( id, code, description )
+     VALUES ( 2, 'CLEAN_RULE', 'Can view or set cleaning rules' );
+
+-- Roles/Resources Permissions
+DELETE FROM foglamp.role_resource_permission;
+INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
+     VALUES ( 1, 1, '{ "access": "set" }' );
+INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
+     VALUES ( 1, 2, '{ "access": ["create","read","write","delete"] }' );
+
+

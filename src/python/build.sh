@@ -3,10 +3,10 @@
 # Change the cwd to the directory where this script
 # is located
 called=$_
-if [[ "$called" != "$0" ]] 
-then 
+if [[ "$called" != "$0" ]]
+then
     script=$BASH_SOURCE
-else 
+else
     script=$0
 fi
 pushd `dirname "$script"` > /dev/null
@@ -14,13 +14,13 @@ scriptname=$(basename "$script")
 
 usage="=== $scriptname ===
 
-Activates a virtual Python environment. Installs 
-Python packages unless -v is provided. Additional 
+Activates a virtual Python environment. Installs
+Python packages unless -v is provided. Additional
 capabilities are available. See the options below.
 
 Usage:
   \"source\" this script in order for the shell
-  to inherit fogLAMP's Python virtual environment 
+  to inherit fogLAMP's Python virtual environment
   located in src/python/env/fogenv. Deactivate the
   environment by running the \"deactivate\" shell
   command.
@@ -29,12 +29,14 @@ Options:
   -h, --help      Show this help text
   -a, --activate  Activate the virtual environment and exit
   -c, --clean     Deactivate and clean the virtual environment
+  -l, --lint      Run pylint and generate output to pylint-report.txt
   -t, --test      Run tests
   -i, --install   Install the FogLAMP package
   -u, --uninstall Uninstall the  package and remove installed scripts
   -r, --run       Install the FogLAMP package and run foglamp
-  -d, --daemon     Install the FogLAMP package and run foglamp-d
-  --doc            Generate docs html in docs/_build directory"
+  -d, --daemon    Install the FogLAMP package and run foglamp-d
+  --doc           Generate docs html in docs/_build directory
+  --doctest       Run docs/check_sphinx.py"
 
 setup_and_run() {
 
@@ -100,14 +102,18 @@ setup_and_run() {
     echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt] ---"
     pip install -r requirements.txt
 
-    if [ "$option" == "TEST" ]
+    if [ "$option" == "LINT" ]
     then
-        echo "run tests? will add tox.ini to run via tox"
-        echo "until then, checking db config"
+        echo "Running lint check"
+        # TODO fix it
+        #tox -e lint
+        rm -f pylint-report.txt
+        pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
 
-        pip install -e .
-        python tests/db_config.py
-        pip uninstall FogLAMP <<< y
+    elif [ "$option" == "TEST" ]
+    then
+        echo "tox is on the job; see tox.ini"
+        tox
 
     elif [ "$option" == "INSTALL" ]
     then
@@ -130,6 +136,11 @@ setup_and_run() {
         make html
         cd ../src/python/
 
+    elif [ "$option" == "TEST_DOC" ]
+    then
+        echo "Running Sphnix docs test"
+        tox -e docs
+
     elif [ "$option" == "UNINSTALL" ]
     then
         echo "This will remove the package"
@@ -148,6 +159,10 @@ if [ $# -gt 0 ]
 
            -a|--activate)
              option="VENV"
+             ;;
+
+           -l|--lint)
+             option="LINT"
              ;;
 
            -t|--test)
@@ -178,6 +193,10 @@ if [ $# -gt 0 ]
              option="BUILD_DOC"
              ;;
 
+            --doctest)
+              option="TEST_DOC"
+              ;;
+
             *)
              echo "${usage}" # anything including -h :]
              break
@@ -190,4 +209,3 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
-

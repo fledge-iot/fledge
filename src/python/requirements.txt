@@ -34,3 +34,12 @@ PyJWT
 docutils
 Sphinx
 sphinx-autobuild
+
+# test
+pytest
+
+# tox
+tox
+
+# lint
+pylint

@@ -48,6 +48,3 @@ pylint-report.txt
 
 # tox
 .tox
-
-# docs/build
-docs/__pycache__/

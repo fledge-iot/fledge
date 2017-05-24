@@ -114,6 +114,7 @@ setup_and_run() {
     then
         echo "tox is on the job; see tox.ini"
         tox
+        # to run only /src/python/tests, use tox -e py35
 
     elif [ "$option" == "INSTALL" ]
     then

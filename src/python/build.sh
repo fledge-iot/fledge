@@ -27,13 +27,13 @@ Usage:
 
 Options:
   -h, --help       Show this help text
-  -v, --virtualenv Only set up virtual environment
+  -v, --virtualenv Activate virtual environment and exit
   -c, --clean      Deactivate and clean the virtual environment
-  -t, --test       Runs tests
-  -i, --install    Installs the FogLAMP package
-  -r, --run        Installs the FogLAMP package and run foglamp
-  -d, --daemon   Installs the FogLAMP package and run foglamp-d
-  -u, --uninstall  Uninstalls the  package and remove installed scripts
+  -t, --test       Run tests
+  -i, --install    Install the FogLAMP package
+  -r, --run        Install the FogLAMP package and run foglamp
+  -d, --daemon     Install the FogLAMP package and run foglamp-d
+  -u, --uninstall  Uninstall the  package and remove installed scripts
   --doc            Generate docs html in docs/_build directory"
 
 setup_and_run() {

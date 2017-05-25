@@ -9,4 +9,3 @@ docs/__pycache__/
 # Compiled Object files
 *.pyc
 
-src/python/foglamp/foglamp-env.yaml

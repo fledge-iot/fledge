@@ -53,29 +53,27 @@ setup_and_run() {
     then
         if [ $IN_VENV -gt 0 ]
         then
-            echo "--- Deactivating virtualenv ---"
+            echo "--- Deactivating virtualenv"
             deactivate
         fi
-        echo "--- Removing virtualenv directory ---"
+        echo "--- Removing virtualenv directory"
         rm -rf venv
         return
     fi
 
     if [ $IN_VENV -gt 0 ]
     then
-        echo "--- virtualenv already active ---"
+        echo "--- virtualenv already active"
     else
-        echo "--- Installing virtualenv ---"
-        # shall ignore if already installed
-
-        if [ ! -d venv/fogenv ]
+        if [ ! -f venv/fogenv/bin/activate ]
         then
+            echo "--- Installing virtualenv"
             pip3 install virtualenv
 
             if [ $? -gt 0 ]
             then
                 echo "*** pip3 failed installing virtualenv"
-            return
+                return
             fi
 
             # which python3
@@ -87,12 +85,13 @@ setup_and_run() {
                 return
             fi
 
-            echo "--- Setting the virtualenv using ${python_path} ---"
-
+            echo "--- Creating the virtualenv using ${python_path}"
             virtualenv "--python=$python_path" venv/fogenv
         fi
 
+        echo "--- Activating the virtualenv at `pwd`/venv/fogenv"
         source venv/fogenv/bin/activate
+
         IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
         if [ $IN_VENV -lt 1 ]
@@ -107,7 +106,7 @@ setup_and_run() {
         return
     fi
 
-    echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt] ---"
+    echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt]"
     pip install -r requirements.txt
 
     echo "--- Copying foglamp-env yaml file ---"

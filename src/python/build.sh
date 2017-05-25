@@ -2,24 +2,31 @@
 
 # Change the cwd to the directory where this script
 # is located
-called=$_
-if [[ "$called" != "$0" ]]
+SCRIPT=$_
+if [[ "$SCRIPT" != "$0" ]]
 then
-    script=$BASH_SOURCE
+    # See https://unix.stackexchange.com/questions/4650/determining-path-to-sourced-shell-script
+    SCRIPT=${BASH_SOURCE[@]}
+    if [ "$SCRIPT" == "" ]
+    then
+        SCRIPT=$_
+    fi
 else
-    script=$0
+    SCRIPT=$0
 fi
-pushd `dirname "$script"` > /dev/null
-scriptname=$(basename "$script")
 
-usage="=== $scriptname ===
+pushd `dirname "$SCRIPT"` > /dev/null
+SCRIPTNAME=$(basename "$script")
 
-Activates a virtual Python environment. Installs
-Python packages unless -v is provided. Additional
+
+usage="=== $SCRIPTNAME ===
+
+Activates a Python virtual environment. Installs
+Python packages unless -a is provided. Additional
 capabilities are available. See the options below.
 
 Usage:
-  \"source\" this script in order for the shell
+  \"source\" this script for the current shell
   to inherit fogLAMP's Python virtual environment
   located in src/python/env/fogenv. Deactivate the
   environment by running the \"deactivate\" shell
@@ -43,7 +50,7 @@ setup_and_run() {
     IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
     if [ "$option" == "CLEAN" ]
-     then
+    then
         if [ $IN_VENV -gt 0 ]
         then
             echo "--- Deactivating virtualenv ---"
@@ -56,51 +63,53 @@ setup_and_run() {
 
     if [ $IN_VENV -gt 0 ]
     then
-        echo "*** virtualenv is active. You can deactivate it via the 'deactivate' command"
-	return
-    fi
+        echo "--- virtualenv already active ---"
+    else
+        echo "--- Installing virtualenv ---"
+        # shall ignore if already installed
 
-    echo "--- Installing virtualenv ---"
-    # shall ignore if already installed
-    pip3 install virtualenv
+        if [ ! -d venv/fogenv ]
+        then
+            pip3 install virtualenv
 
-    if [ $? -gt 0 ]
-    then
-        echo "*** pip3 failed installing virtualenv"
-	return
-    fi
+            if [ $? -gt 0 ]
+            then
+                echo "*** pip3 failed installing virtualenv"
+            return
+            fi
 
-    # which python3
-    python_path=$( which python3.5 )
+            # which python3
+            python_path=$( which python3.5 )
 
-    if [ $? -gt 0 ]
-    then
-        echo "*** python3.5 is not found"
-	return
-    fi
+            if [ $? -gt 0 ]
+            then
+                echo "*** python3.5 is not found"
+                return
+            fi
 
-    echo "--- Setting the virtualenv using ${python_path} ---"
+            echo "--- Setting the virtualenv using ${python_path} ---"
 
-    # Output to /dev/null because if python is already running, there
-    # are many ugly error messages about 'python' file being locked
-    virtualenv "--python=$python_path" venv/fogenv 2> /dev/null
-    source venv/fogenv/bin/activate
+            virtualenv "--python=$python_path" venv/fogenv
+        fi
 
-    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+        source venv/fogenv/bin/activate
+        IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
-    if [ $IN_VENV -lt 1 ]
-    then
-        echo "*** virtualenv failed. Is virtualenv installed?"
-	return
+        if [ $IN_VENV -lt 1 ]
+        then
+            echo "*** virtualenv failed. Is virtualenv installed?"
+            return
+        fi
     fi
 
     if [ "$option" == "VENV" ]
     then
-	return
+        return
     fi
 
     echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt] ---"
     pip install -r requirements.txt
+
     echo "--- Copying foglamp-env yaml file ---"
     [ -f foglamp/foglamp-env.yaml ] && echo "File already exists!" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
@@ -212,3 +221,4 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
+

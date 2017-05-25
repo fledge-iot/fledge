@@ -51,6 +51,7 @@ setup_and_run() {
         fi
         echo "--- Removing virtualenv directory ---"
         rm -rf venv
+        make clean
         return
     fi
 

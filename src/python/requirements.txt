@@ -30,6 +30,9 @@ gunicorn
 httpie
 PyJWT
 
+# healthCheck
+deepdiff
+
 # docs
 docutils
 Sphinx

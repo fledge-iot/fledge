@@ -101,6 +101,8 @@ setup_and_run() {
 
     echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt] ---"
     pip install -r requirements.txt
+    echo "--- Copying foglamp-env yaml file ---"
+    [ -f foglamp/foglamp-env.yaml ] && echo "File already exists!" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
     if [ "$option" == "LINT" ]
     then

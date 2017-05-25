@@ -11,8 +11,11 @@ def test_conn_str_is_initialized():
     assert Configurator().db_conn_str is not None
     assert "postgresql://postgres:postgres@localhost:5432/foglamp" == Configurator().db_conn_str
 
+@pytest.mark.skip(reason="mock the env variables")
+def test_conn_str_is_initialized_with_env_var():
+    Configurator().initialize_dbconfig()
+    assert Configurator().db_conn_str is not None
+    assert "postgresql://postgres:postgres-password-env-variable@localhost:5432/foglamp" == Configurator().db_conn_str
 
-# TODO
+# TODO: write more tests
 # FOGLAMP_DEPLOYMENT
-# database:
-    # config_storage: instance # env_variables | instance

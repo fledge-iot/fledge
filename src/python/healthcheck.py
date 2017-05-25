@@ -4,7 +4,7 @@ from foglamp.configurator import *
 class HealthCheck:
     """
     check installation and settings health
-    should have stages pre | post 
+    should have stages pre | post
     """
     @classmethod
     def check_config_yaml(cls):

@@ -61,6 +61,8 @@ CREATE USER foglamp WITH
   CREATEROLE
   REPLICATION;
 
+ALTER USER foglamp ENCRYPTED PASSWORD 'foglamp';
+
 
 -- Create the foglamp tablespace
 CREATE TABLESPACE foglamp
@@ -87,6 +89,16 @@ CREATE SCHEMA foglamp
 
 
 ------ SEQUENCES
+CREATE SEQUENCE foglamp.log_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+ALTER SEQUENCE foglamp.log_id_seq OWNER TO foglamp;
+
+
 CREATE SEQUENCE foglamp.asset_message_status_id_seq
     INCREMENT 1
     START 1
@@ -250,6 +262,38 @@ ALTER SEQUENCE foglamp.users_id_seq OWNER TO foglamp;
 
 
 ----- TABLES
+
+-- Log Codes Table
+CREATE TABLE foglamp.log_codes (
+       code        character(5)          NOT NULL,   -- The process that logs actions
+       description character varying(80) NOT NULL,
+       CONSTRAINT log_codes_pkey PRIMARY KEY (code)
+            USING INDEX TABLESPACE foglamp )
+  WITH ( OIDS = FALSE) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.log_codes OWNER to foglamp;
+COMMENT ON TABLE foglamp.log_codes IS
+'List of tasks that log info into foglamp.log.';
+
+
+-- Generic Log Table
+CREATE TABLE foglamp.log (
+       id   bigint                     NOT NULL DEFAULT nextval('foglamp.log_id_seq'::regclass),
+       code character(5)               NOT NULL,                                                -- The process that logged the action
+       log  jsonb                      NOT NULL DEFAULT '{}'::jsonb,                            -- Generic log structure
+       ts  timestamp(6) with time zone NOT NULL DEFAULT now(),
+       CONSTRAINT log_pkey PRIMARY KEY (id)
+            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT log_fk1 FOREIGN KEY (code)
+       REFERENCES foglamp.log_codes (code) MATCH SIMPLE
+               ON UPDATE NO ACTION
+               ON DELETE NO ACTION )
+  WITH ( OIDS = FALSE) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.log OWNER to foglamp;
+COMMENT ON TABLE foglamp.log IS
+'General log table for FogLAMP';
+
 
 -- Asset status
 CREATE TABLE foglamp.asset_status (
@@ -663,15 +707,15 @@ COMMENT ON TABLE foglamp.configuration_changes IS
 -- Clean table
 CREATE TABLE foglamp.clean_rules (
        id         integer                     NOT NULL DEFAULT nextval('foglamp.clean_rules_id_seq'::regclass),
-       type       character(3)                NOT NULL COLLATE pg_catalog."default",
-       object_id  bigint                      NOT NULL DEFAULT 0,
-       rule       jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-       rule_check jsonb                       NOT NULL DEFAULT '{}'::jsonb,
+       type       character(3)                NOT NULL COLLATE pg_catalog."default",                            -- DES (destination) | STR (stream) | PAS (parent asset) | ASS (asset)
+       object_id  bigint,                                                                                       -- Since the rule may not refer to a specific object, this column can be NULL
+       rule       jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                     -- With Type (sent|age|label|batch) and related values
+       rule_check jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                     -- With Type (always|interval|instant)
+       status     smallint                    NOT NULL DEFAULT 0,                                               -- 0:inactive 1:active 2:completed
        ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
        CONSTRAINT clean_rules_pkey PRIMARY KEY (id)
             USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
 
 ALTER TABLE foglamp.clean_rules OWNER to foglamp;
 COMMENT ON TABLE foglamp.clean_rules IS

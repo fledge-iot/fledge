@@ -30,7 +30,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
-
+.cache/
 
 # virtualenv
 .venv
@@ -43,3 +43,8 @@ foglamp-env.yaml
 # install info file (used to uninstall)
 install-info.txt
 
+# lint check
+pylint-report.txt
+
+# tox
+.tox

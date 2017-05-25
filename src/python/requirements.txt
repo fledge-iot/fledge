@@ -30,7 +30,19 @@ gunicorn
 httpie
 PyJWT
 
+# healthCheck
+deepdiff
+
 # docs
 docutils
 Sphinx
 sphinx-autobuild
+
+# test
+pytest
+
+# tox
+tox
+
+# lint
+pylint

@@ -1,44 +1,42 @@
 #!/bin/bash
 
-called=$_
-if [[ "$called" != "$0" ]] 
-then 
-    script=$BASH_SOURCE
-else 
-    script=$0
-fi
-
-usage="$(basename $script)
-
-This script sets up a virtual Python environment via virtualenv.
-It also installs Python packages unless -v is provided.
-Additional activities are available. See below.
-
-Usage:
-  Invoke this script via "source" in order for the shell
-  to inherit fogLAMP's Python virtual environment located in
-  src/python/env/fogenv
-
-Options:
-  -h, --help       Show this help text
-  -v, --virtualenv Only set up virtual environment
-  -c, --clean      Deactivate and clean the virtual environment
-  -t, --test       Runs tests
-  -i, --install    Installs the FogLAMP package
-  -r, --run        Installs the FogLAMP package and run foglamp
-  --rd, --daemon   Installs the FogLAMP package and run foglamp-d
-  -u, --uninstall  Uninstalls the  package and remove installed scripts
-  --doc            Generate docs html in docs/_build directory"
-
 # Change the cwd to the directory where this script
 # is located
-change_dir() {
-    pushd `dirname "$script"` > /dev/null
-    sdir=`pwd`
-    popd > /dev/null
-    echo Changing directory to $sdir
-    pushd "$sdir"
-}
+called=$_
+if [[ "$called" != "$0" ]]
+then
+    script=$BASH_SOURCE
+else
+    script=$0
+fi
+pushd `dirname "$script"` > /dev/null
+scriptname=$(basename "$script")
+
+usage="=== $scriptname ===
+
+Activates a virtual Python environment. Installs
+Python packages unless -v is provided. Additional
+capabilities are available. See the options below.
+
+Usage:
+  \"source\" this script in order for the shell
+  to inherit fogLAMP's Python virtual environment
+  located in src/python/env/fogenv. Deactivate the
+  environment by running the \"deactivate\" shell
+  command.
+
+Options:
+  -h, --help      Show this help text
+  -a, --activate  Activate the virtual environment and exit
+  -c, --clean     Deactivate and clean the virtual environment
+  -l, --lint      Run pylint and generate output to pylint-report.txt
+  -t, --test      Run tests
+  -i, --install   Install the FogLAMP package
+  -u, --uninstall Uninstall the  package and remove installed scripts
+  -r, --run       Install the FogLAMP package and run foglamp
+  -d, --daemon    Install the FogLAMP package and run foglamp-d
+  --doc           Generate docs html in docs/_build directory
+  --doctest       Run docs/check_sphinx.py"
 
 setup_and_run() {
 
@@ -48,21 +46,21 @@ setup_and_run() {
      then
         if [ $IN_VENV -gt 0 ]
         then
-            echo "--- deactivating virtualenv ---"
+            echo "--- Deactivating virtualenv ---"
             deactivate
         fi
-        echo "--- removing virtualenv directory ---"
+        echo "--- Removing virtualenv directory ---"
         rm -rf venv
         return
     fi
 
     if [ $IN_VENV -gt 0 ]
     then
-        echo "*** virtualenv is already running; Run with -c | --clean to cleanup"
+        echo "*** virtualenv is active. You can deactivate it via the 'deactivate' command"
 	return
     fi
 
-    echo "--- installing virtualenv ---"
+    echo "--- Installing virtualenv ---"
     # shall ignore if already installed
     pip3 install virtualenv
 
@@ -81,34 +79,44 @@ setup_and_run() {
 	return
     fi
 
-    echo "--- setting the virtualenv using ${python_path} ---"
+    echo "--- Setting the virtualenv using ${python_path} ---"
 
-    virtualenv --python=$python_path venv/fogenv
+    # Output to /dev/null because if python is already running, there
+    # are many ugly error messages about 'python' file being locked
+    virtualenv "--python=$python_path" venv/fogenv 2> /dev/null
+    source venv/fogenv/bin/activate
 
-    if [ $? -gt 0 ]
+    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+
+    if [ $IN_VENV -lt 1 ]
     then
         echo "*** virtualenv failed. Is virtualenv installed?"
 	return
     fi
-
-    source venv/fogenv/bin/activate
 
     if [ "$option" == "VENV" ]
     then
 	return
     fi
 
-    echo "--- installing requirements which were frozen using [pip freeze > requirements.txt]---"
+    echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt] ---"
     pip install -r requirements.txt
+    echo "--- Copying foglamp-env yaml file ---"
+    [ -f foglamp/foglamp-env.yaml ] && echo "File already exists!" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
-    if [ "$option" == "TEST" ]
+    if [ "$option" == "LINT" ]
     then
-        echo "run tests? will add tox.ini to run via tox"
-        echo "until then, checking db config"
+        echo "Running lint check"
+        # TODO fix it
+        #tox -e lint
+        rm -f pylint-report.txt
+        pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
 
-        pip install -e .
-        python tests/db_config.py
-        pip uninstall FogLAMP <<< y
+    elif [ "$option" == "TEST" ]
+    then
+        echo "tox is on the job; see tox.ini"
+        tox
+        # to run only /src/python/tests, use tox -e py35
 
     elif [ "$option" == "INSTALL" ]
     then
@@ -131,6 +139,11 @@ setup_and_run() {
         make html
         cd ../src/python/
 
+    elif [ "$option" == "TEST_DOC" ]
+    then
+        echo "Running Sphnix docs test"
+        tox -e docs
+
     elif [ "$option" == "UNINSTALL" ]
     then
         echo "This will remove the package"
@@ -140,7 +153,6 @@ setup_and_run() {
 }
 
 option=''
-change_dir
 
 if [ $# -gt 0 ]
   then
@@ -148,8 +160,12 @@ if [ $# -gt 0 ]
      do
          case $i in
 
-           -v|--virtualenv)
+           -a|--activate)
              option="VENV"
+             ;;
+
+           -l|--lint)
+             option="LINT"
              ;;
 
            -t|--test)
@@ -164,7 +180,7 @@ if [ $# -gt 0 ]
              option="RUN"
              ;;
 
-            -rd|--daemon)
+            -d|--daemon)
              option="RUN_DAEMON"
              ;;
 
@@ -180,6 +196,10 @@ if [ $# -gt 0 ]
              option="BUILD_DOC"
              ;;
 
+            --doctest)
+              option="TEST_DOC"
+              ;;
+
             *)
              echo "${usage}" # anything including -h :]
              break
@@ -191,4 +211,4 @@ if [ $# -gt 0 ]
      setup_and_run
 fi
 
-popd
+popd > /dev/null

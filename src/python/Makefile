@@ -22,3 +22,10 @@ clean-pyc:
 clean-test:
 	rm -fr .cache
 	rm -fr .tox
+
+.PHONY: \
+	help \
+	clean \
+	clean-build \
+	clean-pyc \
+	clean-test

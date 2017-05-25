@@ -106,7 +106,7 @@ setup_and_run() {
         return
     fi
 
-    echo "--- Installing requirements which were frozen using [pip freeze > requirements.txt]"
+    echo "--- Installing Python packages"
     pip install -r requirements.txt
 
     echo "--- Copying foglamp-env yaml file ---"

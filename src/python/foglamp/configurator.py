@@ -8,7 +8,7 @@ FOGLAMP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # TODO: write tests
 FOGLAMP_ENV_CONFIG = os.environ.get('FOGLAMP_ENV_CONFIG', os.path.join(FOGLAMP_DIR, 'foglamp-env.yaml'))
-"""FOGLAMP_ENV_CONFIG env variable should point to a valid YAML (copied from foglamp-env.yaml.example) file"""
+"""FOGLAMP_ENV_CONFIG env variable should point to a valid YAML (copied from foglamp-env.example.yaml) file"""
 
 class Configurator:
 
@@ -19,7 +19,7 @@ class Configurator:
         """Configurator class constructor, reading the YAML config_file as defined via FOGLAMP_CONFIG_PATH """
         with open(FOGLAMP_ENV_CONFIG, 'r') as config_file:
             Configurator.cfg = yaml.load(config_file)
-        
+
     @classmethod
     def get_db_conn_str(cls):
         """ return database connection string"""

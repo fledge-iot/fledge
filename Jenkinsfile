@@ -76,7 +76,7 @@ node {
                     sh "tox"
                 }else if (suite == "${unit_test_choice}"){
                     ansiColor('xterm'){
-                        echo “Unit tests"
+                        echo "Unit tests"
                     }
                     sh "tox -e py35"
                 }else if (suite == "${doc_choice}"){

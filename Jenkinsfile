@@ -79,7 +79,6 @@ node {
                     echo "All tests"
                 }
                 sh "tox"
-            }
             }else if (suite == "${unit_test_choice}"){
                 ansiColor('xterm'){
                     echo "Unit tests"

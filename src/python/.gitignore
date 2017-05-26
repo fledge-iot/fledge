@@ -48,3 +48,7 @@ pylint-report.txt
 
 # tox
 .tox
+
+# allure-report
+allure-report/
+allure/

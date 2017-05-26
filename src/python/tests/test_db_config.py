@@ -3,7 +3,7 @@ from foglamp.configurator import Configurator
 
 
 # noinspection PyClassHasNoInit
-@pytest.allure.feature("TestFunctions")
+@pytest.allure.feature("TestConnection")
 class TestConnection:
 
     def test_conn_str_is_none(self):

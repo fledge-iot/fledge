@@ -1,7 +1,7 @@
 node {
     def all_choice = 'all'
     def doc_choice = 'doc-tests'
-    def py_choice = 'py-tests'
+    def py_choice = 'unit-tests' // pointing to src/python/tests
     def single_choice = 'single-test'
 
     // adding job parameters within jenkinsfile
@@ -58,6 +58,7 @@ node {
         echo "Workspace is ${workspace_dir}"
     }
     stage ("Run tests and report"){
+        // Py tests run and report
         dir ('src/python/') { 
             sh "pip3 install virtualenv"
             ansiColor('css'){
@@ -98,14 +99,14 @@ node {
                         sh "pip3 uninstall FogLAMP <<< y"
                 }
             }finally{
+                // Allure report for tests
                 stage ("Allure-Report"){
                     if (suite == "${doc_choice}" || suite == "${all_choice}"){
+                        // doc test report
                         dir("../../docs/"){
                             allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/reports']]])
                         }
-                    if (suite == "${all_choice}"){
-                        allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/reports']]])
-                    }
+                    // TODO: When ALL choice it should agggregate other py tests as well
                     return;
                     }else if (suite == "${single_choice}"){
                         ansiColor('xterm'){

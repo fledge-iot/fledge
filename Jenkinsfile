@@ -1,9 +1,9 @@
 node {
     def all_choice = 'all'
     def doc_choice = 'doc-tests'
-    def py_choice = 'unit-tests' // pointing to src/python/tests
+    def unit_test_choice = 'unit-tests' // pointing to src/python/tests
     def single_choice = 'single-test'
-
+    
     // adding job parameters within jenkinsfile
     properties([
      parameters([
@@ -18,7 +18,7 @@ node {
          name: 'branch'
        ),
        choice(
-         choices: "${all_choice}\n${doc_choice}\n${py_choice}\n${single_choice}",
+         choices: "${all_choice}\n${doc_choice}\n${unit_test_choice}\n${single_choice}",
          description: "run tests as per your choice",
          name: 'suite'
        ),
@@ -51,46 +51,50 @@ node {
     def gitBranch = branch.trim()
     def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
     def workspace_dir = sh(returnStdout: true, script: 'pwd').trim()
-
+    
+    // xterm ANSI color has GREEN foreground color
+    // css ANSI color has RED foreground color
     ansiColor('xterm'){
         echo "git branch is ${gitBranch}"
         echo "git commit is $gitCommit"
         echo "Workspace is ${workspace_dir}"
     }
     stage ("Run tests and report"){
-        // Py tests run and report
+        // tests run and report
         dir ('src/python/') { 
             sh "pip3 install virtualenv"
-            ansiColor('css'){
+            ansiColor('xterm'){
                 echo "--- setting the virtualenv ---"
             }
             sh "virtualenv fogenv"
             sh "source fogenv/bin/activate"
             try{
                 if (suite == "${all_choice}"){
-                    ansiColor('css'){
+                    ansiColor('xterm'){
                         echo "All tests"
                     }
                     sh "tox"
-                }else if (suite == "${py_choice}"){
-                    ansiColor('css'){
-                        echo "Py tests"
+                }else if (suite == "${unit_test_choice}"){
+                    ansiColor('xterm'){
+                        echo “Unit tests"
                     }
                     sh "tox -e py35"
                 }else if (suite == "${doc_choice}"){
-                    ansiColor('css'){
+                    ansiColor('xterm'){
                         echo "DOC tests"
                     }
                     sh "tox -e docs"
                 }else if (suite == "${single_choice}"){
-                        ansiColor('css'){
+                        ansiColor('xterm'){
                             echo "Single test path is ${single_test}"
                         }
                         if(single_test == ''){
+                           ansiColor(‘css’){
                             error 'Specify single_test parameter blank if you specify single-test as suite parameter'
+                           }
                         }
                         // TODO: Need to find a way to run with tox
-                        ansiColor('css'){
+                        ansiColor('xterm'){
                             echo "--- installing requirements ---"
                         }
                         sh "pip3 install -r requirements.txt"

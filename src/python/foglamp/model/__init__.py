@@ -1,5 +1,6 @@
 import os
 import yaml
+import foglamp.config as config
 
 # TODO: write tests
 
@@ -15,6 +16,7 @@ db_connection_string = None
 See http://docs.sqlalchemy.org/en/latest/core/engines.html
 """
 
+
 def init():
     """
     reading the YAML config_file as defined via FOGLAMP_CONFIG_PATH
@@ -22,20 +24,16 @@ def init():
     from foglamp-env.example.yaml) file
     """
 
-    module_dir = os.path.dirname(os.path.abspath(__file__))
+    cfg = config.get_config()
 
-    config_path = os.environ.get('FOGLAMP_CONFIG_PATH', os.path.join(module_dir, '..', '..', 'foglamp-config.yaml'))
-
-    if os.path.isfile(config_path):
-        with open(config_path, 'r') as config_file:
-            config = yaml.load(config_file)
-            _initialize_dbconfig(config)
+    if config is not None:
+        _initialize_dbconfig(cfg)
 
 
-def _initialize_dbconfig(config):
+def _initialize_dbconfig(cfg):
     """ Sets db_connection_string """
 
-    config_params = config['database']
+    config_params = cfg['database']
 
     # print(config_params)
     # log if db password is not found in env variables

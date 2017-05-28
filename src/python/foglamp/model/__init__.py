@@ -7,7 +7,6 @@ import foglamp.config as config
 """
 Environment variables
 
-# FOGLAMP_CONFIG_PATH
 # FOGLAMP_DB_PASSWORD
 """
 
@@ -26,7 +25,7 @@ def init():
 
     cfg = config.get_config()
 
-    if config is not None:
+    if cfg is not None:
         _initialize_dbconfig(cfg)
 
 

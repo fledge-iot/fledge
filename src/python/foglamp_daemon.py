@@ -1,10 +1,12 @@
+"""
+Run foglamp server as a daemon
+"""
+
 import argparse
 import logging
 import daemon
 from daemon import pidfile
-
-import foglamp.coap as coap
-import foglamp.rest as rest
+import foglamp.starter as start
 
 
 def do_something(logf):
@@ -21,8 +23,7 @@ def do_something(logf):
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
 
-    coap.register()
-    rest.register()
+    start.start()
 
 
 def start_daemon(pidf, logf, wd):

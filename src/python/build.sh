@@ -6,12 +6,14 @@ SCRIPT=$_
 if [[ "$SCRIPT" != "$0" ]]
 then
     # See https://unix.stackexchange.com/questions/4650/determining-path-to-sourced-shell-script
+    SOURCING=1
     SCRIPT=${BASH_SOURCE[@]}
     if [ "$SCRIPT" == "" ]
     then
         SCRIPT=$_
     fi
 else
+    SOURCING=0
     SCRIPT=$0
 fi
 
@@ -47,6 +49,7 @@ Options:
 setup_and_run() {
 
     IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+    ALREADY_IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
     if [ "$option" == "CLEAN" ]
     then
@@ -103,7 +106,16 @@ setup_and_run() {
 
     if [ "$option" == "VENV" ]
     then
-        return
+        if [ $ALREADY_IN_VENV -gt 0 ]
+        then
+            return
+        fi
+
+        if [ $SOURCING -lt 1 ]
+        then
+            echo "*** Error: Source this script when using --activate"
+            exit 1
+        fi
     fi
 
     echo "--- Installing Python packages"
@@ -120,6 +132,10 @@ setup_and_run() {
         #tox -e lint
         rm -f pylint-report.txt
         pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
+        if [ $? && $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
 
     elif [ "$option" == "TEST" ]
     then

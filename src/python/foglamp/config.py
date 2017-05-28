@@ -1,29 +1,36 @@
-import os
-import yaml
-
-# TODO: write tests
-
 """
+Reads a yaml configuration file
+
 Environment variables
 
 # FOGLAMP_CONFIG_PATH
 """
 
-def get_config():
-    """
-    reading the YAML config_file as defined via FOGLAMP_CONFIG_PATH
-    FOGLAMP_CONFIG_PATH env variable should point to a valid YAML (copied
-    from foglamp-env.example.yaml) file
-    """
+import os
+import yaml
 
-    module_dir = os.path.dirname(os.path.abspath(__file__))
+# TODO: write tests
 
-    config_path = os.environ.get('FOGLAMP_CONFIG_PATH', os.path.join(module_dir, '..', 'foglamp-config.yaml'))
+config = None
+"""Contents of the yaml configuration file, as a dict object"""
+
+
+def read_config():
+    """
+    Reads foglamp-config.yaml in the foglamp server root directory
+    or a YAML file specified via FOGLAMP_CONFIG_PATH.
+    """
+    config_path = os.environ.get('FOGLAMP_CONFIG_PATH',
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     '..', 'foglamp-config.yaml'))
+
+    global config
 
     if os.path.isfile(config_path):
         with open(config_path, 'r') as config_file:
-            return yaml.load(config_file)
+            config = yaml.load(config_file)
 
     return
 
+read_config()
 

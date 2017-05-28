@@ -1,5 +1,3 @@
-import datetime
-import asyncio
 import uuid
 import psycopg2
 import aiocoap
@@ -8,23 +6,18 @@ import logging
 import sqlalchemy as sa
 from cbor2 import loads
 from sqlalchemy.dialects.postgresql import JSONB
-from aiopg.sa import create_engine
 import aiopg.sa
-from foglamp.configurator import Configurator
-
-metadata = sa.MetaData()
-
-__tbl__ = sa.Table(
-    'sensor_values_t'
-    , metadata
-    , sa.Column('key', sa.types.VARCHAR(50))
-    , sa.Column('data', JSONB))
-'''Incoming data is inserted into this table'''
-
+import foglamp.model as model
 
 class SensorValues(resource.Resource):
     '''Handles other/sensor_values requests'''
     def __init__(self):
+        self.__sensor_values_tbl = sa.Table(
+            'sensor_values_t',
+            sa.MetaData(),
+            sa.Column('key', sa.types.VARCHAR(50)),
+            sa.Column('data', JSONB))
+
         super(SensorValues, self).__init__()
 
     def register(self, resourceRoot):
@@ -46,12 +39,12 @@ class SensorValues(resource.Resource):
             del payload['key']
             
         # Demonstrate IntegrityError
-        key = 'same'
-        conf = Configurator()
-        async with aiopg.sa.create_engine(conf.db_conn_str) as engine:
+        # key = 'same'
+
+        async with aiopg.sa.create_engine(model.db_connection_string) as engine:
             async with engine.acquire() as conn:
                 try:
-                    await conn.execute(__tbl__.insert().values(data=payload, key=key))
+                    await conn.execute(self.__sensor_values_tbl.insert().values(data=payload, key=key))
                 except psycopg2.IntegrityError as e:
                     logging.getLogger('coap-server').exception(
                         "Duplicate key (%s) inserting sensor values: %s"

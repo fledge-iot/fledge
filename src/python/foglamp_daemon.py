@@ -3,8 +3,8 @@ import logging
 import daemon
 from daemon import pidfile
 
-from foglamp.configurator import Configurator
-from foglamp.coap.server import CoAPServer
+import foglamp.coap as coap
+import foglamp.rest as rest
 
 
 def do_something(logf):
@@ -21,9 +21,8 @@ def do_something(logf):
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
 
-    # set DB config
-    Configurator().initialize_dbconfig()
-    CoAPServer.start()
+    coap.register()
+    rest.register()
 
 
 def start_daemon(pidf, logf, wd):
@@ -51,3 +50,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -12,7 +12,6 @@ http://aiohttp.readthedocs.io/en/stable/deployment.html#start-gunicorn
 from datetime import datetime, timedelta
 
 import jwt
-from aiohttp import web
 from .model import User
 from .util import authentication_required, json_response
 
@@ -96,15 +95,4 @@ async def auth_middleware(app, handler):
         return await handler(request)
     return middleware
 
-# Main #
-User.objects.create(name='username', password='password')
 
-app = web.Application(middlewares=[auth_middleware])
-'''app is referenced by gunicorn - do not rename it'''
-
-__router__ = app.router
-
-# Register URI handlers
-__router__.add_route('POST', '/login', login)
-__router__.add_route('POST', '/refresh-token', refresh_token)
-__router__.add_route('GET', '/whoami', get_user)

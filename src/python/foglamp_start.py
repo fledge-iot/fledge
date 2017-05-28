@@ -1,17 +1,18 @@
 import logging
 
-from foglamp.configurator import Configurator
-from foglamp.coap.server import CoAPServer
-
+import foglamp.coap as coap
+import foglamp.rest as rest
+import asyncio
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger("foglamp").setLevel(logging.DEBUG)
 
-    # set DB config
-    Configurator().initialize_dbconfig()
-    # start coap Server
-    CoAPServer.start()
+    coap.register()
+    rest.register()
+
+    asyncio.get_event_loop().run_forever()
 
 if __name__ == "__main__":
     main()
+

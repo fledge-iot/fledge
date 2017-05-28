@@ -15,7 +15,7 @@ Whenever source files in foglamp.rest_server are modified, Gunicorn resets itsel
 
 ## http (dev/test)
 
-gunicorn foglamp.rest_service.app:app --bind localhost:8080 --worker-class aiohttp.worker.GunicornWebWorker --reload
+gunicorn foglamp.rest:app --bind localhost:8080 --worker-class aiohttp.worker.GunicornWebWorker --reload
 
 ## https (production)
 
@@ -41,7 +41,7 @@ This is a demo method only that returns details about the currently logged in us
 
 # Usage Example
 
-    bash-3.2$ http -f post localhost:8080/login user=username password=password
+    bash-3.2$ http -f post localhost:8080/api/auth/login user=username password=password
 
     HTTP/1.1 200 OK
     Content-Length: 177
@@ -53,7 +53,7 @@ This is a demo method only that returns details about the currently logged in us
         "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo"
     }
 
-    bash-3.2$ http localhost:8080/whoami authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo
+    bash-3.2$ http localhost:8080/api/auth/whoami authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo
 
     HTTP/1.1 200 OK
     Content-Length: 49
@@ -65,7 +65,7 @@ This is a demo method only that returns details about the currently logged in us
         "user": "User id=1: <username, is_admin=False>"
     }
 
-    bash-3.2$ http -f post localhost:8080/refresh-token authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo
+    bash-3.2$ http -f post localhost:8080/api/auth/refresh-token authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo
 
     HTTP/1.1 200 OK
     Content-Length: 177

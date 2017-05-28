@@ -1,9 +1,9 @@
 '''Defines utility function used
 by all uri handlers'''
 
-import json
 from datetime import datetime
 from aiohttp import web
+import json
 
 def json_response(body='', **kwargs):
     '''Creates http response (body)'''

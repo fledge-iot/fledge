@@ -16,8 +16,7 @@ else
 fi
 
 pushd `dirname "$SCRIPT"` > /dev/null
-SCRIPTNAME=$(basename "$script")
-
+SCRIPTNAME=$(basename "$SCRIPT")
 
 usage="=== $SCRIPTNAME ===
 
@@ -112,6 +111,7 @@ setup_and_run() {
 
     echo "--- Copying foglamp-env yaml file ---"
     [ -f foglamp/foglamp-env.yaml ] && echo "File already exists!" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
+    [ -f foglamp-config.yaml ] && echo "File already exists!" || cp foglamp-config.example.yaml foglamp/foglamp-config.yaml
 
     if [ "$option" == "LINT" ]
     then

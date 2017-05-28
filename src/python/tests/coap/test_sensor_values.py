@@ -1,9 +1,10 @@
 from foglamp.coap.sensor_values import SensorValues
-from foglamp.coap.uri_handlers.sensor_values import *
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 from cbor2 import dumps
+import asyncio
+
 
 def AsyncMock(*args, **kwargs):
     m = mock.MagicMock(*args, **kwargs)
@@ -14,8 +15,10 @@ def AsyncMock(*args, **kwargs):
     mock_coro.mock = m
     return mock_coro
 
+
 class MagicMockConnection(MagicMock):
     execute = AsyncMock()
+
 
 class AcquireContextManager(MagicMock):
     async def __aenter__(self):
@@ -25,8 +28,10 @@ class AcquireContextManager(MagicMock):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
+
 class MagicMockEngine(MagicMock):
     acquire = AcquireContextManager()
+
 
 class CreateEngineContextManager(MagicMock):
     async def __aenter__(self):
@@ -36,15 +41,16 @@ class CreateEngineContextManager(MagicMock):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
+
 def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
+
 
 # http://docs.sqlalchemy.org/en/latest/core/dml.html
 class TestSensorValues(unittest.TestCase):
     @mock.patch('aiopg.sa.create_engine')
-    def test_render_post(self, test_patch1, test_patch2):
-        test_patch1.return_value = None
-        test_patch2.return_value = CreateEngineContextManager()
+    def test_render_post(self, test_patch1):
+        test_patch1.return_value = CreateEngineContextManager()
         # test_patch3.return_value = values(data='', key='')
         sv = SensorValues()
         request = MagicMock()

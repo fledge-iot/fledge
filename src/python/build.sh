@@ -39,6 +39,7 @@ Options:
   -c, --clean     Deactivate and clean the virtual environment
   -l, --lint      Run pylint and generate output to pylint-report.txt
   -t, --test      Run tests
+  -p, --pytest    Run only Python tests
   -i, --install   Install the FogLAMP package
   -u, --uninstall Uninstall the  package and remove installed scripts
   -r, --run       Install the FogLAMP package and run foglamp
@@ -132,16 +133,28 @@ setup_and_run() {
         #tox -e lint
         rm -f pylint-report.txt
         pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
-        if [ $? && $SOURCING -lt 1 ]
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
-            exit 1
+            exit $?
         fi
 
     elif [ "$option" == "TEST" ]
     then
         echo "tox is on the job; see tox.ini"
         tox
-        # to run only /src/python/tests, use tox -e py35
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit $?
+        fi
+
+    elif [ "$option" == "TESTPYTHON" ]
+    then
+        echo "tox is on the job; see tox.ini"
+        tox -e py35
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit $?
+        fi
 
     elif [ "$option" == "INSTALL" ]
     then
@@ -160,20 +173,27 @@ setup_and_run() {
     elif [ "$option" == "BUILD_DOC" ]
     then
         echo "Running make html in docs"
-        cd ../../docs/
+        pushd ../../docs > /dev/null
         make html
-        cd ../src/python/
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit $?
+        fi
+        popd > /dev/null
 
     elif [ "$option" == "TEST_DOC" ]
     then
         echo "Running Sphnix docs test"
         tox -e docs
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit $?
+        fi
 
     elif [ "$option" == "UNINSTALL" ]
     then
         echo "This will remove the package"
         pip uninstall FogLAMP <<< y
-
     fi
 }
 
@@ -195,6 +215,10 @@ if [ $# -gt 0 ]
 
            -t|--test)
              option="TEST"
+             ;;
+
+           -p|--pytest)
+             option="TESTPYTHON"
              ;;
 
            -i|--install)

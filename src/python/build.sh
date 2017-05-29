@@ -135,7 +135,7 @@ setup_and_run() {
         pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
-            exit $?
+            exit 1
         fi
 
     elif [ "$option" == "TEST" ]
@@ -144,7 +144,7 @@ setup_and_run() {
         tox
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
-            exit $?
+            exit 1
         fi
 
     elif [ "$option" == "TESTPYTHON" ]
@@ -153,7 +153,7 @@ setup_and_run() {
         tox -e py35
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
-            exit $?
+            exit 1
         fi
 
     elif [ "$option" == "INSTALL" ]
@@ -177,7 +177,7 @@ setup_and_run() {
         make html
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
-            exit $?
+            exit 1
         fi
         popd > /dev/null
 
@@ -187,7 +187,7 @@ setup_and_run() {
         tox -e docs
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
-            exit $?
+            exit 1
         fi
 
     elif [ "$option" == "UNINSTALL" ]

@@ -278,10 +278,11 @@ COMMENT ON TABLE foglamp.log_codes IS
 
 -- Generic Log Table
 CREATE TABLE foglamp.log (
-       id   bigint                     NOT NULL DEFAULT nextval('foglamp.log_id_seq'::regclass),
-       code character(5)               NOT NULL,                                                -- The process that logged the action
-       log  jsonb                      NOT NULL DEFAULT '{}'::jsonb,                            -- Generic log structure
-       ts  timestamp(6) with time zone NOT NULL DEFAULT now(),
+       id    bigint                      NOT NULL DEFAULT nextval('foglamp.log_id_seq'::regclass),
+       code  character(5)                NOT NULL,                                                -- The process that logged the action
+       level smallint                    NOT NULL DEFAULT 0,                                      -- 0 Success - 1 Failure - 2 Warning - 4 Info
+       log   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                            -- Generic log structure
+       ts    timestamp(6) with time zone NOT NULL DEFAULT now(),
        CONSTRAINT log_pkey PRIMARY KEY (id)
             USING INDEX TABLESPACE foglamp,
        CONSTRAINT log_fk1 FOREIGN KEY (code)
@@ -293,6 +294,11 @@ CREATE TABLE foglamp.log (
 ALTER TABLE foglamp.log OWNER to foglamp;
 COMMENT ON TABLE foglamp.log IS
 'General log table for FogLAMP';
+
+-- Index: log_ix1 - For queries by code
+CREATE INDEX log_ix1
+    ON foglamp.log USING btree (code, ts, level)
+    TABLESPACE foglamp;
 
 
 -- Asset status

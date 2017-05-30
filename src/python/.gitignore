@@ -45,7 +45,7 @@ foglamp-config.yaml
 install-info.txt
 
 # lint check
-pylint-report.txt
+pylint_*.log
 
 # tox
 .tox

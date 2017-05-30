@@ -51,7 +51,7 @@ lint: lint-python lint-js
 lint-python:
 	@echo "-- Linting Python files."
 	rm -f pylint*.log
-	pylint *.py --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" > pylint_$(shell date +%FT%T%Z).log || exit 0
+	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" > pylint_$(shell date +%FT%T%Z).log || exit 0
 
 lint-js:
     @echo "-- TODO: add js lint | added here for example, to add later"

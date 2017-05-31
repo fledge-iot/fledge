@@ -107,19 +107,13 @@ setup_and_run() {
         return
     fi
 
-    echo "--- Installing Python packages"
-    pip install -r requirements.txt
+    make install-python-requirements
 
-    echo "--- Copying foglamp-env yaml file ---"
-    [ -f foglamp/foglamp-env.yaml ] && echo "File already exists!" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
+    make copy-config
 
     if [ "$option" == "LINT" ]
     then
-        echo "Running lint check"
-        # TODO fix it
-        #tox -e lint
-        rm -f pylint-report.txt
-        pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
+        make lint
 
     elif [ "$option" == "TEST" ]
     then
@@ -143,10 +137,7 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
-        echo "Running make html in docs"
-        cd ../../docs/
-        make html
-        cd ../src/python/
+        make doc
 
     elif [ "$option" == "TEST_DOC" ]
     then
@@ -157,7 +148,6 @@ setup_and_run() {
     then
         echo "This will remove the package"
         pip uninstall FogLAMP <<< y
-
     fi
 }
 

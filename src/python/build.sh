@@ -49,7 +49,6 @@ Options:
 
 setup_and_run() {
 
-    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
     ALREADY_IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
     if [ "$option" == "CLEAN" ]
@@ -65,7 +64,7 @@ setup_and_run() {
         return
     fi
 
-    if [ $IN_VENV -gt 0 ]
+    if [ $ALREADY_IN_VENV -gt 0 ]
     then
         echo "--- virtualenv already active"
     else
@@ -111,28 +110,21 @@ setup_and_run() {
         then
             return
         fi
-
+    
         if [ $SOURCING -lt 1 ]
         then
             echo "*** Error: Source this script when using --activate"
             exit 1
         fi
     fi
+    
+    make install-python-requirements
 
-    echo "--- Installing Python packages"
-    pip install -r requirements.txt
-
-    echo "--- Copying foglamp-env yaml file ---"
-    [ -f foglamp/foglamp-env.yaml ] && echo "File already exists!" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
-    [ -f foglamp-config.yaml ] && echo "File already exists!" || cp foglamp-config.example.yaml foglamp-config.yaml
+    make copy-config
 
     if [ "$option" == "LINT" ]
     then
-        echo "Running lint check"
-        # TODO fix it
-        #tox -e lint
-        rm -f pylint-report.txt
-        pylint *.py --msg-template='{path}({line}): [{msg_id}{obj}] {msg}' >> pylint-report.txt
+        make lint
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
@@ -172,14 +164,11 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
-        echo "Running make html in docs"
-        pushd ../../docs > /dev/null
-        make html
+        make doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
         fi
-        popd > /dev/null
 
     elif [ "$option" == "TEST_DOC" ]
     then

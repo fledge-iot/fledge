@@ -1,15 +1,16 @@
 import asyncio
 import aiocoap
-import aiocoap.resource as resource
 
 from foglamp.coap.sensor_values import SensorValues
 
 
 def register():
-    root = resource.Site()
+    """Registers all CoAP URI handlers"""
+    root = aiocoap.resource.Site()
 
     # Register CoAP methods
-    root.add_resource(('.well-known', 'core'), resource.WKCResource(root.get_resources_as_linkheader))
+    root.add_resource(('.well-known', 'core'),
+                      aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
 
     SensorValues().register(root)
 

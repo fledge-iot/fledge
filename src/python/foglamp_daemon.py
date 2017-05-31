@@ -6,7 +6,7 @@ import argparse
 import logging
 import daemon
 from daemon import pidfile
-import foglamp.starter as start
+import foglamp.starter
 
 
 def do_something(logf):
@@ -23,11 +23,11 @@ def do_something(logf):
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
 
-    start.start()
+    foglamp.starter.start()
 
 
 def start_daemon(pidf, logf, wd):
-    # This launches the daemon in its context
+    """Launches the daemon in its context"""
 
     # XXX pidfile is a context
     with daemon.DaemonContext(

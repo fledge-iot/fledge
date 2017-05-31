@@ -1,8 +1,3 @@
-"""
-Environment variables
-
-# FOGLAMP_DB_PASSWORD
-"""
 import os
 import yaml
 import foglamp.config as config
@@ -11,20 +6,22 @@ import foglamp.config as config
 
 
 db_connection_string = None
-"""
-See http://docs.sqlalchemy.org/en/latest/core/engines.html
-"""
+"""See http://docs.sqlalchemy.org/en/latest/core/engines.html"""
 
 
-def read_config():
+def set_db_connection_string():
     """
-    reading the YAML config_file as defined via FOGLAMP_CONFIG_PATH
-    FOGLAMP_CONFIG_PATH env variable should point to a valid YAML (copied
-    from foglamp-env.example.yaml) file
+    Sets the db_connection_string module variable using
+    static configuration (see foglamp.config).
+    ---
+    Optionally uses FOGLAMP_DB_PASSWORD environment variable.
+    If present, it overrides the database
+    password specified in config.
     """
 
     cfg = config.config
 
+    # TODO need to decide whether it's legal to have no config
     if cfg is None:
         return
 
@@ -52,5 +49,5 @@ def read_config():
         config_params['db']
     )
 
-read_config()
+set_db_connection_string()
 

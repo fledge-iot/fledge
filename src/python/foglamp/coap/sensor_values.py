@@ -1,13 +1,13 @@
 import uuid
 import psycopg2
-import aiocoap
-import aiocoap.resource as resource
+import aiocoap.resource
 import logging
 import sqlalchemy as sa
 from cbor2 import loads
 from sqlalchemy.dialects.postgresql import JSONB
 import aiopg.sa
-import foglamp.model.config as config
+from foglamp.model.config import config
+
 
 _sensor_values_tbl = sa.Table(
     'sensor_values_t',
@@ -15,15 +15,15 @@ _sensor_values_tbl = sa.Table(
     sa.Column('key', sa.types.VARCHAR(50)),
     sa.Column('data', JSONB))
 
-class SensorValues(resource.Resource):
-    """Handles other/sensor_values requests
-    """
-    def __init__(self):
 
+class SensorValues(aiocoap.resource.Resource):
+    """Handles other/sensor_values requests"""
+    def __init__(self):
         super(SensorValues, self).__init__()
 
 
     def register(self, resourceRoot):
+        """Registers other/sensor_values URI"""
         resourceRoot.add_resource(('other', 'sensor-values'), self)
         return
 

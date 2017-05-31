@@ -1,19 +1,13 @@
-'''
-Registers REST URI handlers. Handles authentication.
-
-URI handlers accept a request object. This object has two
-additional properties:
-user
-jwt_payload: the decrypted JWT payload
-
-http://aiohttp.readthedocs.io/en/stable/deployment.html#start-gunicorn
-'''
+"""
+Authentication-related URI handlers
+"""
 
 from datetime import datetime, timedelta
 
 import jwt
-from .model import User
-from .util import authentication_required, json_response
+from foglamp.rest.model import User
+from foglamp.rest.util import authentication_required
+from aiohttp.web import json_response
 
 __JWT_SECRET = 'secret'
 __JWT_ALGORITHM = 'HS256'
@@ -21,7 +15,7 @@ __JWT_EXP_DAYS = 7
 __JWT_REFRESH_MINUTES = 15
 
 async def login(request):
-    '''Given a user name and a password as query string, a
+    """Given a user name and a password as query string, a
     token in JWT format is returned. The token
     should be provided in the 'authorization' header. The token
     expires after 15 minutes. Post to /refresh_token to reset
@@ -32,7 +26,7 @@ async def login(request):
     {
         "token": "eyJ0eXAiOiJKV1..."
     }
-    '''
+    """
 
     post_data = await request.post()
 
@@ -51,7 +45,7 @@ async def login(request):
     return json_response({'token': jwt_token.decode('utf-8')})
 
 async def refresh_token(request):
-    '''Returns a new token that expires after 15 minutes'''
+    """Returns a new token that expires after 15 minutes"""
     if not request.user:
         return json_response({'message': 'Authentication required'}, status=400)
 
@@ -64,19 +58,21 @@ async def refresh_token(request):
 
 @authentication_required
 async def get_user(request):
-    '''An example method that responds with the currently logged in user's details in JSON format'''
+    """An example method that responds with the currently logged in user's details in JSON format"""
     return json_response({'user': str(request.user)})
 
 async def auth_middleware(app, handler):
     #pylint: disable=unused-argument
-    '''This method is called for every REST request. It inspects
-        the token if there is one for validity and checks whether
-        it has expired.'''
+    """
+    This method is called for every REST request. It inspects
+    the token (if there is one) for validity and checks whether
+    it has expired."""
 
     async def middleware(request):
-        '''If there is an authorization header, this function confirms the
+        """
+        If there is an authorization header, this function confirms the
         validity of it and checks whether the token's long duration
-        has expired.'''
+        has expired."""
         request.user = None
         jwt_token = request.headers.get('authorization', None)
         if jwt_token:
@@ -95,4 +91,9 @@ async def auth_middleware(app, handler):
         return await handler(request)
     return middleware
 
+def register(router):
+    """Registers URI handlers"""
+    router.add_route('POST', '/api/auth/login', login)
+    router.add_route('POST', '/api/auth/refresh-token', refresh_token)
+    router.add_route('GET', '/api/example/whoami', get_user)
 

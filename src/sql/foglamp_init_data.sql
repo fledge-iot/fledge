@@ -34,19 +34,19 @@ DELETE FROM foglamp.log_codes;
 
 -- The Cleaning Process
 INSERT INTO foglamp.log_codes ( code, description )
-     VALUES ( 'CLEAN', 'Cleaning Process' );
-
--- The Logging Process
-INSERT INTO foglamp.log_codes ( code, description )
-     VALUES ( 'LOGGN', 'Logging Process' );
+     VALUES ( 'CLEAN', 'Cleaning Process' ),
+     VALUES ( 'LOGGN', 'Logging Process' ),
+     VALUES ( 'SYPRG', 'Sytem Purge' );
 
 
 -- Configuration parameters
 DELETE FROM foglamp.configuration;
 
 -- CLEAN: The cleaning process is on by default
+--        status    : the process is on or off, it is on by default
+--        interval  : the number of seconds the process goes to sleep before it starts again. Default: 30 seconds
 INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'CLEAN', '{ "status" : "on" }' );
+     VALUES ( 'CLEAN', '{ "status" : "on", "interval" : 30 }' );
 
 -- SYPRG: System Purge
 --        retention : data retention in seconds. Default is 3 days (259200 seconds)

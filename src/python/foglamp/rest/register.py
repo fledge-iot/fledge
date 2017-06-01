@@ -1,4 +1,4 @@
-import foglamp.rest.app as app
+from foglamp.rest.app import app
 import asyncio
 
 

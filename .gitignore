@@ -3,11 +3,13 @@
 # IDE
 *.idea
 
+# Docs
 docs/_build
 docs/__pycache__/
-docs/allure-report/
-docs/allure/
 
 # Compiled Object files
 *.pyc
 
+# Allure
+allure/
+allure-report/

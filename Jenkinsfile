@@ -1,9 +1,9 @@
 node {
-    // TODO: allow user to run job with all tests, only python tests, only doc tests
+    // allow user to run job with all tests, only python tests, only doc tests
     def all_choice = 'all'
     def doc_choice = 'doc-tests'
     def unit_test_choice = 'unit-tests' // pointing to src/python/tests
-    
+
     // adding job parameters within jenkinsfile
     properties([
      parameters([
@@ -36,9 +36,9 @@ node {
     def gitBranch = branch.trim()
     def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
     def workspace_dir = sh(returnStdout: true, script: 'pwd').trim()
-    
-    // xterm ANSI color has GREEN foreground color
-    // css ANSI color has RED foreground color
+
+    // xterm ANSI colormap has GREEN foreground color
+    // error ANSI colormap has RED foreground color
     ansiColor('xterm'){
         echo "git branch is ${gitBranch}"
         echo "git commit is $gitCommit"
@@ -49,17 +49,39 @@ node {
         dir ('src/python/'){
             sh '''#!/bin/bash -l
                  ./build.sh -l
-               '''
-            warnings([canComputeNew:false, canResolveRelativePaths:false, defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', parserConfigurations:[[parserName: 'PyLint', pattern: 'pylint_*.log']], unHealthy: ''])
+              '''
+            ansiColor('xterm'){
+                warnings([canComputeNew:false, canResolveRelativePaths:false, defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', parserConfigurations:[[parserName: 'PyLint', pattern: 'pylint_*.log']], unHealthy: ''])
+            }
+
+            sh '''#!/bin/bash -l
+                 ./build.sh -c
+              '''
         }
     }
-    
+
     stage ("Test Report"){
         dir ('src/python/'){
-            sh '''#!/bin/bash -l
-                 ./build.sh -t
-               '''
-            allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/reports']]])
+            if (suite == "${all_choice}"){
+                echo "${all_choice}"
+                sh '''#!/bin/bash -l
+                      ./build.sh -t
+                    '''
+            }else if (suite == "${doc_choice}"){
+                echo "${doc_choice}"
+                sh '''#!/bin/bash -l
+                      ./build.sh --doctest
+                    '''
+            }else if (suite == "${unit_test_choice}"){
+                echo "${unit_test_choice}"
+                sh '''#!/bin/bash -l
+                      ./build.sh -i
+                      tox -e py35
+                    '''
+            }
+        }
+        ansiColor('xterm'){
+            allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/']]])
         }
     }
-} 
+}

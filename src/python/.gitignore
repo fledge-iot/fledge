@@ -48,7 +48,3 @@ pylint_*.log
 
 # tox
 .tox
-
-# allure-report
-allure-report/
-allure/

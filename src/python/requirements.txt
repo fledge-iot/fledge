@@ -46,3 +46,6 @@ tox
 
 # lint
 pylint
+
+# test report packages
+pytest-allure-adaptor

@@ -1,4 +1,4 @@
-from foglamp.coap.sensor_values import SensorValues
+#from foglamp.coap.sensor_values import SensorValues
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
@@ -14,6 +14,8 @@ from aiocoap import *
 #
 # ~/Development/FogLAMP/src/python$ ./build.sh --run
 #
+# testing commit.
+#test 6
 
 async def main():
     protocol = await Context.create_client_context()
@@ -35,21 +37,6 @@ if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())
 
 
-# test connect to coap server.
-async def direct_coap():
-
-    print("Open connection to COAP server and send a packet.");
-
-    protocol = await Context.create_client_context()
-
-    request = MagicMock()
-    sv = SensorValues()
-    dict_payload = {'jack': 4098, 'sape': 4139}
-    request.payload = dumps(dict_payload)
-
-    returnval =asyncio.get_event_loop().run_until_complete(sv.render_post(request))
-
-    print("This line will be printed.");
 
 
 

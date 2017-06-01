@@ -75,8 +75,7 @@ node {
             }else if (suite == "${unit_test_choice}"){
                 echo "${unit_test_choice}"
                 sh '''#!/bin/bash -l
-                      ./build.sh -i
-                      tox -e py35
+                      ./build.sh -p
                     '''
             }
         }

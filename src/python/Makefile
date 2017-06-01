@@ -44,7 +44,7 @@ install-python-requirements: check-root
 copy-config:
 	@echo "-- Copying configuration file."
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
-	[ -f foglamp-config.yaml ] && echo "foglamp-config already exists." || cp foglamp-config.example.yaml foglamp-config.yaml
+	#[ -f foglamp-config.yaml ] && echo "foglamp-config already exists." || cp foglamp-config.example.yaml foglamp-config.yaml
 
 lint: lint-python lint-js
 

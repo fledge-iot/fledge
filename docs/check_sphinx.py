@@ -1,17 +1,17 @@
 import subprocess
+import pytest
 
 
-def test_linkcheck(tmpdir):
-    doctrees = tmpdir.join("doctrees")
-    htmldir = tmpdir.join("html")
-    subprocess.check_call(
-        ["sphinx-build", "-W", "-blinkcheck",
-          "-d", str(doctrees), ".", str(htmldir)])
+# noinspection PyClassHasNoInit
+@pytest.allure.feature("TestDoc")
+class TestDoc:
 
-          
-def test_build_docs(tmpdir):
-    doctrees = tmpdir.join("doctrees")
-    htmldir = tmpdir.join("html")
-    subprocess.check_call([
-        "sphinx-build", "-W", "-bhtml",
-          "-d", str(doctrees), ".", str(htmldir)])
+    def test_linkcheck(self, tmpdir):
+        doctrees = tmpdir.join("doctrees")
+        htmldir = tmpdir.join("html")
+        subprocess.check_call(["sphinx-build", "-W", "-blinkcheck", "-d", str(doctrees), ".", str(htmldir)])
+
+    def test_build_docs(self, tmpdir):
+        doctrees = tmpdir.join("doctrees")
+        htmldir = tmpdir.join("html")
+        subprocess.check_call(["sphinx-build", "-W", "-bhtml", "-d", str(doctrees), ".", str(htmldir)])

@@ -1,13 +1,6 @@
-"""
-Reads a yaml configuration file
-
-Environment variables
-
-# FOGLAMP_CONFIG_PATH
-"""
-
 import os
 import yaml
+import pkg_resources
 
 # TODO: write tests
 
@@ -16,21 +9,26 @@ config = None
 
 
 def read_config():
+    """Reads foglamp-config.yaml in the foglamp root directory
+    or a YAML file specified via FOGLAMP_CONFIG_PATH. Sets
+    the config module variable.
+
+    :return: The config file's contents parsed as YAML
+    :rtype: dict
     """
-    Reads foglamp-config.yaml in the foglamp server root directory
-    or a YAML file specified via FOGLAMP_CONFIG_PATH.
-    """
-    config_path = os.environ.get('FOGLAMP_CONFIG_PATH',
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     '..', 'foglamp-config.yaml'))
+    path = os.environ.get('FOGLAMP_CONFIG_PATH')
 
     global config
 
-    if os.path.isfile(config_path):
-        with open(config_path, 'r') as config_file:
+    if path is None:
+        resource_str = pkg_resources.resource_string('foglamp', 'foglamp-config.yaml')
+        config = yaml.load(resource_str)
+
+    else:
+        with open(path, 'r') as config_file:
             config = yaml.load(config_file)
 
-    return
+def start():
+    read_config()
 
-read_config()
 

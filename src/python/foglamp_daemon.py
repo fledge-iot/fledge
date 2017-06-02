@@ -1,12 +1,10 @@
-"""
-Run foglamp server as a daemon
-"""
+"""Runs foglamp as a daemon"""
 
 import argparse
 import logging
 import daemon
 from daemon import pidfile
-import foglamp.starter
+from foglamp.foglamp import start
 
 
 def do_something(logf):
@@ -23,11 +21,11 @@ def do_something(logf):
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
 
-    foglamp.starter.start()
+    start()
 
 
 def start_daemon(pidf, logf, wd):
-    """Launches the daemon in its context"""
+    """Launches the daemon"""
 
     # XXX pidfile is a context
     with daemon.DaemonContext(

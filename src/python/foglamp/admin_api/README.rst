@@ -15,7 +15,7 @@ Whenever source files in foglamp.rest_server are modified, Gunicorn resets itsel
 
 ## http (dev/test)
 
-gunicorn foglamp.rest:app --bind localhost:8080 --worker-class aiohttp.worker.GunicornWebWorker --reload
+gunicorn foglamp.admin_api.wsgi:app --bind localhost:8080 --worker-class aiohttp.GunicornWebWorker --reload
 
 ## https (production)
 

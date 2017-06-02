@@ -1,34 +1,21 @@
 import os
-import yaml
 import foglamp.config as config
 
-# TODO: write tests
-
-
 db_connection_string = None
-"""See http://docs.sqlalchemy.org/en/latest/core/engines.html"""
+"""Database connection string.
+See http://docs.sqlalchemy.org/en/latest/core/engines.html
+"""
 
 
-def set_db_connection_string():
-    """
-    Sets the db_connection_string module variable using
+def read_config():
+    """Sets the db_connection_string module attribute using
     static configuration (see foglamp.config).
-    ---
-    Optionally uses FOGLAMP_DB_PASSWORD environment variable.
-    If present, it overrides the database
-    password specified in config.
+    |
+    The FOGLAMP_DB_PASSWORD environment variable
+    overrides the database password specified in config.
     """
 
-    cfg = config.config
-
-    # TODO need to decide whether it's legal to have no config
-    if cfg is None:
-        return
-
-    config_params = cfg['database']
-
-    # print(config_params)
-    # log if db password is not found in env variables
+    config_params = config.config['database']
 
     password = os.environ.get('FOGLAMP_DB_PASSWORD')
     if password is "":
@@ -48,6 +35,5 @@ def set_db_connection_string():
         config_params['port'],
         config_params['db']
     )
-
-set_db_connection_string()
-
+def start():
+    read_config()

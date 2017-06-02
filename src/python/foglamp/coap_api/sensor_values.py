@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from cbor2 import loads
 from sqlalchemy.dialects.postgresql import JSONB
 import aiopg.sa
-from foglamp.model.config import config
+import foglamp.model.model as model
 
 
 _sensor_values_tbl = sa.Table(
@@ -14,6 +14,7 @@ _sensor_values_tbl = sa.Table(
     sa.MetaData(),
     sa.Column('key', sa.types.VARCHAR(50)),
     sa.Column('data', JSONB))
+"""Defines the table that data will be inserted into"""
 
 
 class SensorValues(aiocoap.resource.Resource):
@@ -21,12 +22,10 @@ class SensorValues(aiocoap.resource.Resource):
     def __init__(self):
         super(SensorValues, self).__init__()
 
-
-    def register(self, resourceRoot):
+    def register(self, resource_root):
         """Registers other/sensor_values URI"""
-        resourceRoot.add_resource(('other', 'sensor-values'), self)
+        resource_root.add_resource(('other', 'sensor-values'), self)
         return
-
 
     async def render_post(self, request):
         """Sends incoming data to database"""
@@ -44,7 +43,7 @@ class SensorValues(aiocoap.resource.Resource):
         # Comment out to demonstrate IntegrityError
         # key = 'same'
 
-        async with aiopg.sa.create_engine(config.db_connection_string) as engine:
+        async with aiopg.sa.create_engine(model.db_connection_string) as engine:
             async with engine.acquire() as conn:
                 try:
                     await conn.execute(_sensor_values_tbl.insert().values(data=payload, key=key))

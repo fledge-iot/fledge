@@ -5,8 +5,8 @@ Authentication-related URI handlers
 from datetime import datetime, timedelta
 
 import jwt
-from foglamp.rest.model import User
-from foglamp.rest.util import authentication_required
+from .model import User
+from .util import authentication_required
 from aiohttp.web import json_response
 
 __JWT_SECRET = 'secret'

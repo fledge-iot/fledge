@@ -31,33 +31,58 @@
 
 -- Log Codes
 DELETE FROM foglamp.log_codes;
+
+-- The Cleaning Process
 INSERT INTO foglamp.log_codes ( code, description )
-     VALUES ( 'CLEAN', 'Cleaning Process' );        -- The Cleaning process
+     VALUES ( 'CLEAN', 'Cleaning Process' ),
+     VALUES ( 'LOGGN', 'Logging Process' ),
+     VALUES ( 'SYPRG', 'Sytem Purge' );
 
 
 -- Configuration parameters
 DELETE FROM foglamp.configuration;
+
+-- CLEAN: The cleaning process is on by default
+--        status    : the process is on or off, it is on by default
+--        interval  : the number of seconds the process goes to sleep before it starts again. Default: 30 seconds
 INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'CLEAN', '{ "status" : "on" }' );
+     VALUES ( 'CLEAN', '{ "status" : "on", "interval" : 30 }' );
+
+-- SYPRG: System Purge
+--        retention : data retention in seconds. Default is 3 days (259200 seconds)
+--        last purge: ts of the last purge call
+INSERT INTO foglamp.configuration ( key, value )
+     VALUES ( 'SYPRG', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
+
+-- LOGPR: Log Partitioning
+--        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
+INSERT INTO foglamp.configuration ( key, value )
+     VALUES ( 'LOGPR', '{ "unit" : "day" }' );
+
+
+-- DELETE data for roles, resources and permissions
+DELETE FROM foglamp.role_resource_permission;
+DELETE FROM foglamp.roles;
+DELETE FROM foglamp.resources;
 
 
 -- Roles
-DELETE FROM foglamp.roles;
 INSERT INTO foglamp.roles ( id, name, description )
      VALUES ( 1, 'Power User', 'A user with special privileges' );
 
+
 -- Resources
-DELETE FROM foglamp.resources;
 INSERT INTO foglamp.resources ( id, code, description )
      VALUES ( 1, 'CLEAN_MGR', 'Can Start / Stop the cleaning process' );
 INSERT INTO foglamp.resources ( id, code, description )
      VALUES ( 2, 'CLEAN_RULE', 'Can view or set cleaning rules' );
 
+
 -- Roles/Resources Permissions
-DELETE FROM foglamp.role_resource_permission;
 INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
      VALUES ( 1, 1, '{ "access": "set" }' );
 INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
      VALUES ( 1, 2, '{ "access": ["create","read","write","delete"] }' );
+
 
 

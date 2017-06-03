@@ -8,7 +8,7 @@ config = None
 """Contents of the yaml configuration file, as a dict object"""
 
 
-def read_config():
+def read():
     """Reads foglamp-config.yaml in the foglamp root directory
     or a YAML file specified via FOGLAMP_CONFIG_PATH. Sets
     the config module variable.
@@ -27,8 +27,4 @@ def read_config():
     else:
         with open(path, 'r') as config_file:
             config = yaml.load(config_file)
-
-def start():
-    read_config()
-
 

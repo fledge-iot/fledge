@@ -4,7 +4,7 @@ import argparse
 import logging
 import daemon
 from daemon import pidfile
-from foglamp.foglamp import start
+from foglamp.starter import start
 
 
 def do_something(logf):

@@ -9,12 +9,12 @@ gunicorn foglamp.admin_api.wsgi:app --bind localhost:8080 --worker-class aiohttp
 """
 
 import logging
-from .admin_api import create_app
+from .app import build as build_app
 
 
 try:
     # The name 'app' is used by WSGI server. Don't change it.
-    app = create_app()
+    app = build_app()
 except Exception as e:
     logging.exception("Unable to start web application")
 

@@ -1,5 +1,5 @@
 import logging
-from foglamp.foglamp import start
+from foglamp.starter import start
 
 def main():
     logging.basicConfig(level=logging.DEBUG)

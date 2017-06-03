@@ -91,7 +91,7 @@ async def auth_middleware(app, handler):
         return await handler(request)
     return middleware
 
-def register(router):
+def register_handlers(router):
     """Registers URI handlers"""
     router.add_route('POST', '/api/auth/login', login)
     router.add_route('POST', '/api/auth/refresh-token', refresh_token)

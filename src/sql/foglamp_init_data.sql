@@ -31,12 +31,11 @@
 
 -- Log Codes
 DELETE FROM foglamp.log_codes;
-
--- The Cleaning Process
 INSERT INTO foglamp.log_codes ( code, description )
      VALUES ( 'CLEAN', 'Cleaning Process' ),
-     VALUES ( 'LOGGN', 'Logging Process' ),
-     VALUES ( 'SYPRG', 'Sytem Purge' );
+            ( 'LOGGN', 'Logging Process' ),
+            ( 'STRMN', 'Streaming Process' ),
+            ( 'SYPRG', 'System Purge' );
 
 
 -- Configuration parameters
@@ -48,16 +47,22 @@ DELETE FROM foglamp.configuration;
 INSERT INTO foglamp.configuration ( key, value )
      VALUES ( 'CLEAN', '{ "status" : "on", "interval" : 30 }' );
 
+-- LOGPR: Log Partitioning
+--        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
+INSERT INTO foglamp.configuration ( key, value )
+     VALUES ( 'LOGPR', '{ "unit" : "day" }' );
+
+-- STRMN: Streaming
+--        status      : the process is on or off, it is on by default
+--        time window : the time window when the process is active, always active by default (it means every second)
+INSERT INTO foglamp.configuration ( key, value )
+     VALUES ( 'STRMN', '{ "status" : "day", "window" : [ "always" ] }' );
+
 -- SYPRG: System Purge
 --        retention : data retention in seconds. Default is 3 days (259200 seconds)
 --        last purge: ts of the last purge call
 INSERT INTO foglamp.configuration ( key, value )
      VALUES ( 'SYPRG', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
-
--- LOGPR: Log Partitioning
---        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
-INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'LOGPR', '{ "unit" : "day" }' );
 
 
 -- DELETE data for roles, resources and permissions

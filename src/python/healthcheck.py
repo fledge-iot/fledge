@@ -1,6 +1,3 @@
-from foglamp.configurator import *
-
-
 class HealthCheck:
     """
     check installation and settings health
@@ -9,7 +6,7 @@ class HealthCheck:
     @classmethod
     def check_config_yaml(cls):
         new_cfg = None
-        with open(FOGLAMP_ENV_CONFIG, 'r') as cfg_file:
+        with open(FOGLAMP_ENV_PATH, 'r') as cfg_file:
             new_cfg = yaml.load(cfg_file)
 
         example_cfg = None
@@ -30,3 +27,4 @@ class HealthCheck:
 
 if __name__ == "__main__":
     HealthCheck().check_config_yaml()
+

@@ -120,7 +120,7 @@ setup_and_run() {
     
     make install-python-requirements
 
-    make copy-config
+    make copy-env
 
     if [ "$option" == "LINT" ]
     then

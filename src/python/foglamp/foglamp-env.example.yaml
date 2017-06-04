@@ -4,41 +4,24 @@
 
 database:
   dev:
+    driver: postgres
     host: localhost
     port: 5432
     user: postgres
     password: postgres # shall be overrided by the value, if set in environment variable
     db: foglamp
   prod:
+    driver: postgres
     host: localhost
     port: 5432
     user: prod_user
     password: postgres5432 # shall be overrided by the value, if set in environment variable
     db: foglamp
   test:
+    driver: postgres
     host: localhost
     port: 5432
     user: postgres
     password: postgres-yaml # shall be overrided by the value, if set in environment variable
     db: foglamp_test
 
-####################
-# REST #
-####################
-
-rest_service:
-  jwt:
-    secret: a-jwt-secret-with-no-space-picked-from-yaml # shall be overrided by the value, if set in environment variable
-    algorithm: HMAC SHA256  # HMAC SHA256 | RSA
-    expiration_delta_seconds: 60*60  # expiration date delta; add to current time, after which the token becomes invalid.
-    # Description of exp and other reserved keys provided in corresponding RFC section https://tools.ietf.org/html/rfc7519#section-4.1
-    rsa:
-      private_key: null # signer
-      public_key: null  # verifier
-
-####################
-# COAP #
-####################
-
-coap_service:
-  port: 5683

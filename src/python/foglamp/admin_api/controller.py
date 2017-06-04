@@ -1,7 +1,7 @@
 from aiohttp import web
 from .model import User
 from .login import register_handlers, auth_middleware
-from .app import build as build_app
+from .app_builder import build as build_app
 import asyncio
 
 

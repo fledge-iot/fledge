@@ -11,7 +11,7 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
 	@echo "install-python-requirements - installing Python development dependencies using requirements.txt"
-	@echo "copy-config - copy example configuration file"
+	@echo "copy-env - copy example env file"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-python - run python files lint check only"
 	@echo "lint-js - run ui/*.js files lint check only"
@@ -41,10 +41,9 @@ install-python-requirements: check-root
 	@echo "-- Installing Python development dependencies."
 	pip install -r requirements.txt
 
-copy-config:
-	@echo "-- Copying configuration file."
+copy-env:
+	@echo "-- Copying environment file."
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
-	#[ -f foglamp-config.yaml ] && echo "foglamp-config already exists." || cp foglamp-config.example.yaml foglamp-config.yaml
 
 lint: lint-python lint-js
 
@@ -70,7 +69,7 @@ live-doc:
 	clean-pyc \
 	clean-test \
 	install-python-requirements \
-	copy-config \
+	copy-env \
 	lint \
 	lint-python \
 	lint-js \

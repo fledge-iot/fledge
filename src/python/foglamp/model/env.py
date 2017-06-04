@@ -1,5 +1,5 @@
 import os
-import foglamp.basic_config.config as basic_config
+import foglamp.env as env
 
 db_connection_string = None
 """Database connection string.
@@ -7,7 +7,7 @@ See http://docs.sqlalchemy.org/en/latest/core/engines.html
 """
 
 
-def read_config():
+def read():
     """Sets the db_connection_string module attribute using
     foglamp.config
     |
@@ -15,7 +15,7 @@ def read_config():
     overrides the database password specified in config.
     """
 
-    config_params = basic_config.config['database']
+    config_params = env.data['database']['dev']
 
     password = os.environ.get('FOGLAMP_DB_PASSWORD')
     if password is "":

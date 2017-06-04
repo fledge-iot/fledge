@@ -1,30 +1,20 @@
-class HealthCheck:
-    """
-    check installation and settings health
-    should have stages pre | post
-    """
-    @classmethod
-    def check_config_yaml(cls):
-        new_cfg = None
-        with open(FOGLAMP_ENV_PATH, 'r') as cfg_file:
-            new_cfg = yaml.load(cfg_file)
+import foglamp.env as env;
+import foglamp.model.env as model_env;
 
-        example_cfg = None
-        with open(os.path.join(FOGLAMP_DIR, 'foglamp-env.example.yaml'), 'r') as example_cfg_file:
-            example_cfg = yaml.load(example_cfg_file)
+def init_env():
+    env.read()
+    model_env.read()
 
-        from deepdiff import DeepDiff
-        diff = DeepDiff(new_cfg, example_cfg, verbose_level=0, view='tree')
+def check_env():
+    db_str = model_env.db_connection_string
+    if db_str is None or len(db_str) == 0:
+        raise Exception('model.env.db_connection_string is not set')
 
-        if len(diff):
-            # TODO define required vs optional
-            # don't assert, we should ask only for required
-            assert False, "Found difference as {}".format(diff)
-
-        else:
-            # log info
-            print("All Good!")
+def check_all():
+    init_env()
+    check_env()
+    print("All Good!")
 
 if __name__ == "__main__":
-    HealthCheck().check_config_yaml()
+    check_all()
 

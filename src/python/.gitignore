@@ -39,7 +39,6 @@ ENV/
 
 # Config env file
 foglamp-env.yaml
-foglamp-config.yaml
 
 # install info file (used to uninstall)
 install-info.txt

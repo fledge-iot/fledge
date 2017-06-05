@@ -31,7 +31,7 @@ httpie
 PyJWT
 
 # healthCheck
-deepdiff
+
 
 # docs
 docutils

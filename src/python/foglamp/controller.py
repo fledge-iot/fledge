@@ -1,16 +1,16 @@
 import asyncio
 
-from .device_api.coap.controller import start as coap_start
-from .admin_api.controller import start as admin_api_start
-from .model.controller import start as model_start
-from .env import read as env_read
+from .device_api.coap import controller as coap_controller
+from .admin_api import controller as admin_api_controller
+import foglamp.env as env
 
 
 def start():
-    env_read()
-    model_start()
-    coap_start()
-    admin_api_start()
+    env.load_config()
+
+    coap_controller.start()
+
+    admin_api_controller.start()
 
     asyncio.get_event_loop().run_forever()
 

@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from cbor2 import loads
 from sqlalchemy.dialects.postgresql import JSONB
 import aiopg.sa
-import foglamp.model.env as env
+import foglamp.env as env
 
 
 _sensor_values_tbl = sa.Table(
@@ -54,4 +54,3 @@ class SensorValues(aiocoap.resource.Resource):
                         , original_payload)
 
         return aiocoap.Message(payload=''.encode("utf-8"))
-

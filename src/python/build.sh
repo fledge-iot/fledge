@@ -113,12 +113,13 @@ setup_and_run() {
 
     if [ "$option" == "LINT" ]
     then
+        echo "Running lint checker"
         make lint
 
     elif [ "$option" == "TEST" ]
     then
         echo "tox is on the job; see tox.ini"
-        tox
+        make test
         # to run only /src/python/tests, use tox -e py35
 
     elif [ "$option" == "INSTALL" ]
@@ -137,12 +138,13 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
+        echo "Building doc"
         make doc
 
     elif [ "$option" == "TEST_DOC" ]
     then
         echo "Running Sphnix docs test"
-        tox -e docs
+        make doc-test
 
     elif [ "$option" == "UNINSTALL" ]
     then

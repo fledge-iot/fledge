@@ -15,6 +15,9 @@ help:
 	@echo "install-doc-requirements - installing doc dependencies using requirements_doc.txt"
 	@echo "install-test-requirements - installing test dependencies using requirements_test.txt"
 	@echo "copy-config - copy example configuration file"
+	@echo "test - run all (src/python/tests and docs/check_sphinx) tests"
+	@echo "py-test - run src/python/tests"
+	@echo "doc-test - run docs/check_sphinx tests"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-python - run python files lint check only"
 	@echo "lint-js - run ui/*.js files lint check only"
@@ -61,6 +64,18 @@ copy-config:
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 	#[ -f foglamp-config.yaml ] && echo "foglamp-config already exists." || cp foglamp-config.example.yaml foglamp-config.yaml
 
+test: py-test doc-test
+
+py-test:
+	@echo "-- Executing py tests"
+	pip install tox
+	tox -e py35
+
+doc-test:
+	@echo "-- Executing doc tests"
+	pip install tox
+	tox -e docs
+
 lint: lint-python lint-js
 
 lint-python: install-test-requirements
@@ -93,4 +108,7 @@ live-doc: install-doc-requirements
 	lint-python \
 	lint-js \
 	doc \
-	live-doc
+	live-doc \
+	test \
+	py-test \
+	doc-test \

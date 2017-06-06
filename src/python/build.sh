@@ -120,7 +120,7 @@ setup_and_run() {
     then
         echo "tox is on the job; see tox.ini"
         make test
-        # to run only /src/python/tests, use tox -e py35
+        # to run only /src/python/tests, use make py-test
 
     elif [ "$option" == "INSTALL" ]
     then

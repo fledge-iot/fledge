@@ -1,51 +1,24 @@
-# ?
-appdirs
-lockfile
-pyparsing
-six
-
-# env
-PyYAML
+# coap
+aiocoap==0.3
+cbor2==4.0.0
+LinkHeader==0.4.3
 
 # deployment
-packaging
+packaging==16.8
 
-# run
-python-daemon
+# env
+PyYAML==3.12
 
 # postgreSQL
-aiopg
-SQLAlchemy
-psycopg2
-
-# coap
-aiocoap
-cbor2
-LinkHeader
+aiopg==0.13.0
+SQLAlchemy==1.1.10
+psycopg2==2.7.1
 
 # rest
-aiohttp
-cchardet
-gunicorn
-httpie
-PyJWT
+aiohttp==2.1.0
+cchardet==2.1.0
+httpie==0.9.9
+PyJWT==1.5.0
 
-# healthCheck
-
-
-# docs
-docutils
-Sphinx
-sphinx-autobuild
-
-# test
-pytest
-
-# tox
-tox
-
-# lint
-pylint
-
-# test report packages
-pytest-allure-adaptor
+# run
+python-daemon==2.1.2

@@ -108,9 +108,9 @@ setup_and_run() {
     then
         if [ $ALREADY_IN_VENV -gt 0 ]
         then
-            return
-        fi
-    
+        return
+    fi
+
         if [ $SOURCING -lt 1 ]
         then
             echo "*** Error: Source this script when using --activate"
@@ -118,12 +118,12 @@ setup_and_run() {
         fi
     fi
     
-    make install-python-requirements
-
-    make copy-env
+    make install-py-requirements
+    make create-env
 
     if [ "$option" == "LINT" ]
     then
+        echo "Running lint checker"
         make lint
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -132,8 +132,8 @@ setup_and_run() {
 
     elif [ "$option" == "TEST" ]
     then
-        echo "tox is on the job; see tox.ini"
-        tox
+        echo "Running all tests"
+        make test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
@@ -141,8 +141,8 @@ setup_and_run() {
 
     elif [ "$option" == "TESTPYTHON" ]
     then
-        echo "tox is on the job; see tox.ini"
-        tox -e py35
+        echo "Running pytest"
+        make py-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
@@ -164,6 +164,7 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
+        echo "Building doc"
         make doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -172,8 +173,8 @@ setup_and_run() {
 
     elif [ "$option" == "TEST_DOC" ]
     then
-        echo "Running Sphnix docs test"
-        tox -e docs
+        echo "Running Sphinx docs test"
+        make doc-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1

@@ -10,9 +10,9 @@ help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
-	@echo "install-py-requirements - installing Py dependencies using requirements.txt"
-	@echo "install-dev-requirements - installing dev dependencies using requirements_dev.txt"
-	@echo "install-doc-requirements - installing doc dependencies using requirements_doc.txt"
+	@echo "install-py-requirements - installing python dependencies using requirements.txt"
+	@echo "install-dev-requirements - installing python dev dependencies using requirements_dev.txt"
+	@echo "install-doc-requirements - installing sphinx doc dependencies using requirements_doc.txt"
 	@echo "install-test-requirements - installing test dependencies using requirements_test.txt"
 	@echo "copy-config - copy example configuration file"
 	@echo "test - run all (src/python/tests and docs/check_sphinx) tests"
@@ -44,15 +44,15 @@ clean-test:
 	rm -fr .tox
 
 install-py-requirements: check-root
-	@echo "-- Installing Py dependencies."
+	@echo "-- Installing Python dependencies."
 	pip install -r requirements.txt
 
 install-dev-requirements: check-root
-	@echo "-- Installing dev dependencies."
+	@echo "-- Installing Python dev dependencies."
 	pip install -r requirements_dev.txt
 
 install-doc-requirements: check-root
-	@echo "-- Installing doc dependencies."
+	@echo "-- Installing Sphinx doc dependencies."
 	pip install -r requirements_doc.txt
 
 install-test-requirements: check-root
@@ -67,12 +67,12 @@ copy-config:
 test: py-test doc-test
 
 py-test:
-	@echo "-- Executing py tests"
+	@echo "-- Executing python tests"
 	pip install tox
 	tox -e py35
 
 doc-test:
-	@echo "-- Executing doc tests"
+	@echo "-- Executing sphinx doc tests"
 	pip install tox
 	tox -e docs
 

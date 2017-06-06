@@ -113,6 +113,7 @@ setup_and_run() {
 
     if [ "$option" == "LINT" ]
     then
+        make install-test-requirements
         make lint
 
     elif [ "$option" == "TEST" ]
@@ -137,6 +138,7 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
+        make install-doc-requirements
         make doc
 
     elif [ "$option" == "TEST_DOC" ]

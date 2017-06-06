@@ -1,0 +1,9 @@
+# test
+pytest
+pytest-allure-adaptor
+
+# tox
+tox
+
+# lint
+pylint

@@ -10,8 +10,14 @@ help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
-	@echo "install-python-requirements - installing Python development dependencies using requirements.txt"
+	@echo "install-py-requirements - installing python dependencies using requirements.txt"
+	@echo "install-dev-requirements - installing python dev dependencies using requirements_dev.txt"
+	@echo "install-doc-requirements - installing sphinx doc dependencies using requirements_doc.txt"
+	@echo "install-test-requirements - installing test dependencies using requirements_test.txt"
 	@echo "copy-config - copy example configuration file"
+	@echo "test - run all (src/python/tests and docs/check_sphinx) tests"
+	@echo "py-test - run src/python/tests"
+	@echo "doc-test - run docs/check_sphinx tests"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-python - run python files lint check only"
 	@echo "lint-js - run ui/*.js files lint check only"
@@ -37,30 +43,54 @@ clean-test:
 	rm -fr .cache
 	rm -fr .tox
 
-install-python-requirements: check-root
-	@echo "-- Installing Python development dependencies."
+install-py-requirements: check-root
+	@echo "-- Installing Python dependencies."
 	pip install -r requirements.txt
+
+install-dev-requirements: check-root
+	@echo "-- Installing Python dev dependencies."
+	pip install -r requirements_dev.txt
+
+install-doc-requirements: check-root
+	@echo "-- Installing Sphinx doc dependencies."
+	pip install -r requirements_doc.txt
+
+install-test-requirements: check-root
+	@echo "-- Installing test dependencies."
+	pip install -r requirements_test.txt
 
 copy-config:
 	@echo "-- Copying configuration file."
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 	#[ -f foglamp-config.yaml ] && echo "foglamp-config already exists." || cp foglamp-config.example.yaml foglamp-config.yaml
 
+test: py-test doc-test
+
+py-test:
+	@echo "-- Executing python tests"
+	pip install tox
+	tox -e py35
+
+doc-test:
+	@echo "-- Executing sphinx doc tests"
+	pip install tox
+	tox -e docs
+
 lint: lint-python lint-js
 
-lint-python:
+lint-python: install-test-requirements
 	@echo "-- Linting Python files."
 	rm -f pylint*.log
-	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" > pylint_$(shell date +%FT%T%Z).log || exit 0
+	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') > pylint_$(shell date +%FT%T%Z).log || exit 0
 
 lint-js:
     @echo "-- TODO: add js lint | added here for example, to add later"
 
-doc:
+doc: install-doc-requirements
 	@echo "-- Generate docs html."
 	cd ../../docs && make html
 
-live-doc:
+live-doc: install-doc-requirements
 	cd ../../docs && make livehtml
 
 .PHONY: \
@@ -69,10 +99,16 @@ live-doc:
 	clean-build \
 	clean-pyc \
 	clean-test \
-	install-python-requirements \
+	install-py-requirements \
+	install-dev-requirements \
+	install-doc-requirements \
+	install-test-requirements \
 	copy-config \
 	lint \
 	lint-python \
 	lint-js \
 	doc \
-	live-doc
+	live-doc \
+	test \
+	py-test \
+	doc-test \

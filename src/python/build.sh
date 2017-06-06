@@ -107,19 +107,20 @@ setup_and_run() {
         return
     fi
 
-    make install-python-requirements
+    make install-py-requirements
 
     make copy-config
 
     if [ "$option" == "LINT" ]
     then
+        echo "Running lint checker"
         make lint
 
     elif [ "$option" == "TEST" ]
     then
         echo "tox is on the job; see tox.ini"
-        tox
-        # to run only /src/python/tests, use tox -e py35
+        make test
+        # to run only /src/python/tests, use make py-test
 
     elif [ "$option" == "INSTALL" ]
     then
@@ -137,12 +138,13 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
+        echo "Building doc"
         make doc
 
     elif [ "$option" == "TEST_DOC" ]
     then
         echo "Running Sphnix docs test"
-        tox -e docs
+        make doc-test
 
     elif [ "$option" == "UNINSTALL" ]
     then
@@ -211,4 +213,3 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
-

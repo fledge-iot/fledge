@@ -10,8 +10,8 @@ help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
-	@echo "install-python-requirements - installing Python development dependencies using requirements.txt"
-	@echo "install-dev-requirements - installing dev environment dependencies using requirements_dev.txt"
+	@echo "install-py-requirements - installing Py dependencies using requirements.txt"
+	@echo "install-dev-requirements - installing dev dependencies using requirements_dev.txt"
 	@echo "install-doc-requirements - installing doc dependencies using requirements_doc.txt"
 	@echo "install-test-requirements - installing test dependencies using requirements_test.txt"
 	@echo "copy-config - copy example configuration file"
@@ -40,12 +40,12 @@ clean-test:
 	rm -fr .cache
 	rm -fr .tox
 
-install-python-requirements: check-root
-	@echo "-- Installing Python development dependencies."
+install-py-requirements: check-root
+	@echo "-- Installing Py dependencies."
 	pip install -r requirements.txt
 
 install-dev-requirements: check-root
-	@echo "-- Installing dev environment dependencies."
+	@echo "-- Installing dev dependencies."
 	pip install -r requirements_dev.txt
 
 install-doc-requirements: check-root
@@ -63,19 +63,19 @@ copy-config:
 
 lint: lint-python lint-js
 
-lint-python:
+lint-python: install-test-requirements
 	@echo "-- Linting Python files."
 	rm -f pylint*.log
-	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" > pylint_$(shell date +%FT%T%Z).log || exit 0
+	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') > pylint_$(shell date +%FT%T%Z).log || exit 0
 
 lint-js:
     @echo "-- TODO: add js lint | added here for example, to add later"
 
-doc:
+doc: install-doc-requirements
 	@echo "-- Generate docs html."
 	cd ../../docs && make html
 
-live-doc:
+live-doc: install-doc-requirements
 	cd ../../docs && make livehtml
 
 .PHONY: \
@@ -84,7 +84,7 @@ live-doc:
 	clean-build \
 	clean-pyc \
 	clean-test \
-	install-python-requirements \
+	install-py-requirements \
 	install-dev-requirements \
 	install-doc-requirements \
 	install-test-requirements \

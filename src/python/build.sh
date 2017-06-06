@@ -107,13 +107,12 @@ setup_and_run() {
         return
     fi
 
-    make install-python-requirements
+    make install-py-requirements
 
     make copy-config
 
     if [ "$option" == "LINT" ]
     then
-        make install-test-requirements
         make lint
 
     elif [ "$option" == "TEST" ]
@@ -138,7 +137,6 @@ setup_and_run() {
 
     elif [ "$option" == "BUILD_DOC" ]
     then
-        make install-doc-requirements
         make doc
 
     elif [ "$option" == "TEST_DOC" ]
@@ -213,4 +211,3 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
-

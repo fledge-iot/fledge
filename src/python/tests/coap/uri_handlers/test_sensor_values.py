@@ -48,12 +48,10 @@ def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
 
 # http://docs.sqlalchemy.org/en/latest/core/dml.html
-class TestSensorValues(unittest.TestCase):
-    @mock.patch('aiopg.sa.create_engine')
-    @mock.patch('foglamp.configurator.Configurator.__init__')
-    def test_render_post(self, test_patch1, test_patch2):
-        test_patch1.return_value = None
-        test_patch2.return_value = CreateEngineContextManager()
+class TestSensorValues():
+    def test_render_post(self, mocker):
+        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+        mocker.patch('foglamp.configurator.Configurator.__init__', return_value=None)
         # test_patch3.return_value = values(data='', key='')
         sv = SensorValues()
         request = MagicMock()

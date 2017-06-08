@@ -38,7 +38,7 @@ async def login(request):
 
     access_payload = {'user_id': user.id,
                       'exp': (datetime.utcnow()
-                            + timedelta(minutes=JWT_REFRESH_MINUTES)).timestamp(),
+                            + timedelta(minutes=JWT_REFRESH_MINUTES)),
                       'access': 1
                     }
 
@@ -71,7 +71,7 @@ async def refresh_token(request):
     # TODO: Verify user exists
     payload = {'user_id': request.jwt_payload['user_id'],
                'exp': (datetime.utcnow()
-                       + timedelta(minutes=JWT_REFRESH_MINUTES)).timestamp(),
+                       + timedelta(minutes=JWT_REFRESH_MINUTES)),
                'access': 1
               }
     jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)

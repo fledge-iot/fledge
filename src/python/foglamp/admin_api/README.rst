@@ -30,8 +30,10 @@ Usage Example
     {"refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8", 
     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjEsImV4cCI6MTQ5NjkyMDU1NC4xMDM1OTF9.HlFo1ABpmSLmJocUFjQyH0Y8v4z-3kujvbmC77RZMkg"}
 
-    foglamp$ curl -X GET -H authorization:eyJhbGciOiJIUzI1NiIsInRY5MTgxNTkuNDc4NzQ1LCJhY2Nlc3MiOjEsInVzZXJfaWQiOjF9.c3zS_EXm1YXsgPMxkyO3sIgDmDWOsx8tZYV512XlV7I localhost:8080/api/example/whoami
+    foglamp$ curl -H authorization:eyJhbGciOiJIUzI1NiIsInRY5MTgxNTkuNDc4NzQ1LCJhY2Nlc3MiOjEsInVzZXJfaWQiOjF9.c3zS_EXm1YXsgPMxkyO3sIgDmDWOsx8tZYV512XlV7I \
+    localhost:8080/api/example/whoami
     {"username": "user"}
 
-    foglamp$ curl -X POST -H authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8 localhost:8080/api/auth/refresh-token
+    foglamp$ curl -X POST -H authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8 \
+    localhost:8080/api/auth/refresh-token
     {"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTY5MjA3NTguMjAwNjIxLCJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjF9.cgv348fsNjqYrocmPvJbCgUIqJWoJGaUpVaBIxREJPc"}

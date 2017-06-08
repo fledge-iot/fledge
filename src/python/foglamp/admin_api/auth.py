@@ -59,7 +59,7 @@ async def auth_middleware(app, handler):
                                          status=400)
             except jwt.ExpiredSignatureError:
                 return web.json_response({'message': 'Token expired'},
-                                         status=400)
+                                         status=401)
             request.user = User.objects.get(id=request.jwt_payload['user_id'])
         return await handler(request)
     return middleware

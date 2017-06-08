@@ -9,7 +9,7 @@ gunicorn foglamp.admin_api.wsgi:app --bind localhost:8080 --worker-class aiohttp
 """
 
 import logging
-from .app_builder import build as build_app
+from foglamp.admin_api.app_builder import build as build_app
 
 
 try:

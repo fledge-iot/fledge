@@ -1,60 +1,37 @@
-# Introduction
-
+Introduction
+------------
 This code originated from work described at http://steelkiwi.com/blog/jwt-authorization-python-part-1-practise/
 
-# Running the server 
+Starting the server
+-------------------
+The foglamp start script starts the server on port 8080. There is currently no https option.
 
-./build.sh -r
+Authentication
+--------------
+POST to /api/auth/login with username: and password: in JSON format.
 
-# Authentication
+A JSON document is returned with two keys, refresh_token and access_token.
 
-Posting to /api/auth/login with query strings user= and password= returns a token.
+The access token should be provided in the 'authorization' header for all API calls except /api/auth/refresh_token. It expires after 15 minutes.
 
-The token should be provided in the 'authorization' header for all other API calls. 
+POST the refresh token to /api/auth/refresh_token to get a new access token. The refresh token expires after 7 days.
 
-The token expires after 15 minutes. Post to /api/auth/refresh_token to reset the expiration time. The token can be refreshed only for up to 7 days.
+Methods
+-------
+- whoami
 
-# Methods
+  - This is an example method that returns details about the currently logged in user
 
-## whoami
+Usage Example
+-------------
+.. code-block::
 
-This is an example method that returns details about the currently logged in user
+    foglamp$ curl -X POST -d '{"username":"user", "password": "password"}' localhost:8080/api/auth/login
+    {"refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8", 
+    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjEsImV4cCI6MTQ5NjkyMDU1NC4xMDM1OTF9.HlFo1ABpmSLmJocUFjQyH0Y8v4z-3kujvbmC77RZMkg"}
 
-# Usage Example
+    foglamp$ curl -X GET -H authorization:eyJhbGciOiJIUzI1NiIsInRY5MTgxNTkuNDc4NzQ1LCJhY2Nlc3MiOjEsInVzZXJfaWQiOjF9.c3zS_EXm1YXsgPMxkyO3sIgDmDWOsx8tZYV512XlV7I localhost:8080/api/example/whoami
+    {"username": "user"}
 
- bash-3.2$ curl -X POST localhost:8080/api/auth/login user=username password=password
-
-    HTTP/1.1 200 OK
-    Content-Length: 177
-    Content-Type: text/json
-    Date: Mon, 22 May 2017 05:23:33 GMT
-    Server: Python/3.6 aiohttp/2.0.7
-
-    {
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo"
-    }
-
- bash-3.2$ curl localhost:8080/api/auth/whoami --header authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo
-
-    HTTP/1.1 200 OK
-    Content-Length: 49
-    Content-Type: text/json
-    Date: Mon, 22 May 2017 05:23:45 GMT
-    Server: Python/3.6 aiohttp/2.0.7
-
-    {
-        "user": "User id=1: <username, is_admin=False>"
-    }
-
-    bash-3.2$ curl -X POST localhost:8080/api/auth/refresh-token --header authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODI2LjMwMTE5M30.LRDw1wnfoDluSMBfghUJB2e4Iy8jSlLkQmIlKMet9mo
-
-    HTTP/1.1 200 OK
-    Content-Length: 177
-    Content-Type: text/json
-    Date: Mon, 22 May 2017 05:24:05 GMT
-    Server: Python/3.6 aiohttp/2.0.7
-
-    {
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE0OTYwMzU1MjYsInJlZnJlc2hfZXhwIjoxNDk1NDU2ODkwLjkzMDMyM30.V4Eye1eCzZXiGmLzvZ5vRvXMWd9xVS9tneY52YTeFo4"
-    }
-
+    foglamp$ curl -X POST -H authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8 localhost:8080/api/auth/refresh-token
+    {"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTY5MjA3NTguMjAwNjIxLCJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjF9.cgv348fsNjqYrocmPvJbCgUIqJWoJGaUpVaBIxREJPc"}

@@ -1,6 +1,7 @@
 from aiohttp import web
-from .model import User
-from .login import register_handlers as login_register_handlers, auth_middleware
+from foglamp.admin_api.model import User
+from foglamp.admin_api.login import register_handlers as login_register_handlers
+from foglamp.admin_api.auth import auth_middleware
 
 
 def build():
@@ -9,7 +10,7 @@ def build():
     """
 
     # Create a bogus user until users are moved to the database
-    User.objects.create(name='username', password='password')
+    User.objects.create(name='user', password='password')
 
     app = web.Application(middlewares=[auth_middleware])
     router = app.router

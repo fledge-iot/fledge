@@ -58,4 +58,3 @@ class TestSensorValues:
         assert returnval is not None
         # assert sqlalchemy.Table.insert.mock.assert_called_once_with('blu')
         # assert MagicMockConnection.execute.mock.assert_called_once_with('blu')
-

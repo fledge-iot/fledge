@@ -6,18 +6,19 @@ SCRIPT=$_
 if [[ "$SCRIPT" != "$0" ]]
 then
     # See https://unix.stackexchange.com/questions/4650/determining-path-to-sourced-shell-script
+    SOURCING=1
     SCRIPT=${BASH_SOURCE[@]}
     if [ "$SCRIPT" == "" ]
     then
         SCRIPT=$_
     fi
 else
+    SOURCING=0
     SCRIPT=$0
 fi
 
 pushd `dirname "$SCRIPT"` > /dev/null
-SCRIPTNAME=$(basename "$script")
-
+SCRIPTNAME=$(basename "$SCRIPT")
 
 usage="=== $SCRIPTNAME ===
 
@@ -38,6 +39,7 @@ Options:
   -c, --clean     Deactivate and clean the virtual environment
   -l, --lint      Run pylint and generate output to pylint-report.txt
   -t, --test      Run tests
+  -p, --pytest    Run only Python tests
   -i, --install   Install the FogLAMP package
   -u, --uninstall Uninstall the  package and remove installed scripts
   -r, --run       Install the FogLAMP package and run foglamp
@@ -47,7 +49,7 @@ Options:
 
 setup_and_run() {
 
-    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+    ALREADY_IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
     if [ "$option" == "CLEAN" ]
     then
@@ -62,7 +64,7 @@ setup_and_run() {
         return
     fi
 
-    if [ $IN_VENV -gt 0 ]
+    if [ $ALREADY_IN_VENV -gt 0 ]
     then
         echo "--- virtualenv already active"
     else
@@ -104,23 +106,47 @@ setup_and_run() {
 
     if [ "$option" == "VENV" ]
     then
+        if [ $ALREADY_IN_VENV -gt 0 ]
+        then
         return
     fi
 
+        if [ $SOURCING -lt 1 ]
+        then
+            echo "*** Error: Source this script when using --activate"
+            exit 1
+        fi
+    fi
+    
     make install-py-requirements
-
-    make copy-config
+    make create-env
 
     if [ "$option" == "LINT" ]
     then
         echo "Running lint checker"
         make lint
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
 
     elif [ "$option" == "TEST" ]
     then
-        echo "tox is on the job; see tox.ini"
+        echo "Running all tests"
         make test
-        # to run only /src/python/tests, use make py-test
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
+
+    elif [ "$option" == "TESTPYTHON" ]
+    then
+        echo "Running pytest"
+        make py-test
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
 
     elif [ "$option" == "INSTALL" ]
     then
@@ -140,11 +166,19 @@ setup_and_run() {
     then
         echo "Building doc"
         make doc
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
 
     elif [ "$option" == "TEST_DOC" ]
     then
-        echo "Running Sphnix docs test"
+        echo "Running Sphinx docs test"
         make doc-test
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
 
     elif [ "$option" == "UNINSTALL" ]
     then
@@ -171,6 +205,10 @@ if [ $# -gt 0 ]
 
            -t|--test)
              option="TEST"
+             ;;
+
+           -p|--pytest)
+             option="TESTPYTHON"
              ;;
 
            -i|--install)
@@ -213,3 +251,4 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
+

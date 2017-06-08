@@ -14,7 +14,7 @@ help:
 	@echo "install-dev-requirements - installing python dev dependencies using requirements_dev.txt"
 	@echo "install-doc-requirements - installing sphinx doc dependencies using requirements_doc.txt"
 	@echo "install-test-requirements - installing test dependencies using requirements_test.txt"
-	@echo "copy-config - copy example configuration file"
+	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
 	@echo "test - run all (src/python/tests and docs/check_sphinx) tests"
 	@echo "py-test - run src/python/tests"
 	@echo "doc-test - run docs/check_sphinx tests"
@@ -59,10 +59,9 @@ install-test-requirements: check-root
 	@echo "-- Installing test dependencies."
 	pip install -r requirements_test.txt
 
-copy-config:
-	@echo "-- Copying configuration file."
+create-env:
+	@echo "-- Creating environment file."
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
-	#[ -f foglamp-config.yaml ] && echo "foglamp-config already exists." || cp foglamp-config.example.yaml foglamp-config.yaml
 
 test: py-test doc-test
 
@@ -103,7 +102,7 @@ live-doc: install-doc-requirements
 	install-dev-requirements \
 	install-doc-requirements \
 	install-test-requirements \
-	copy-config \
+	create-env\
 	lint \
 	lint-python \
 	lint-js \
@@ -111,4 +110,5 @@ live-doc: install-doc-requirements
 	live-doc \
 	test \
 	py-test \
-	doc-test \
+	doc-test
+

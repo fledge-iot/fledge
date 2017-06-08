@@ -1,10 +1,10 @@
+"""Runs foglamp as a daemon"""
+
 import argparse
 import logging
 import daemon
 from daemon import pidfile
-
-from foglamp.configurator import Configurator
-from foglamp.coap.server import CoAPServer
+from foglamp.controller import start
 
 
 def do_something(logf):
@@ -21,13 +21,11 @@ def do_something(logf):
     logger.addHandler(fh)
     logger.setLevel(logging.DEBUG)
 
-    # set DB config
-    Configurator().initialize_dbconfig()
-    CoAPServer.start()
+    start()
 
 
 def start_daemon(pidf, logf, wd):
-    # This launches the daemon in its context
+    """Launches the daemon"""
 
     # XXX pidfile is a context
     with daemon.DaemonContext(
@@ -51,3 +49,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

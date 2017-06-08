@@ -1,3 +1,7 @@
+"""
+This class will be moved out of the rest subpackage to the model sub-package
+with a different interface.
+"""
 class User:
 
     def __init__(self, id, name, password, is_admin):

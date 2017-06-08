@@ -1,9 +1,8 @@
+import asyncio
 from unittest import mock
 from unittest.mock import MagicMock
-
 from cbor2 import dumps
 from foglamp.coap.uri_handlers.sensor_values import SensorValues
-import asyncio
 
 
 def AsyncMock(*args, **kwargs):
@@ -59,3 +58,4 @@ class TestSensorValues:
         assert returnval is not None
         # assert sqlalchemy.Table.insert.mock.assert_called_once_with('blu')
         # assert MagicMockConnection.execute.mock.assert_called_once_with('blu')
+

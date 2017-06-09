@@ -1,13 +1,12 @@
-from foglamp.device_api.coap.sensor_values import SensorValues
-import unittest
-from unittest import mock
+import asyncio
 from unittest.mock import MagicMock
 from cbor2 import dumps
-import asyncio
+
+from foglamp.device_api.coap.sensor_values import SensorValues
 
 
 def AsyncMock(*args, **kwargs):
-    m = mock.MagicMock(*args, **kwargs)
+    m = MagicMock(*args, **kwargs)
 
     async def mock_coro(*args, **kwargs):
         return m(*args, **kwargs)
@@ -47,17 +46,14 @@ def _run(coro):
 
 
 # http://docs.sqlalchemy.org/en/latest/core/dml.html
-class TestSensorValues(unittest.TestCase):
-    @mock.patch('aiopg.sa.create_engine')
-    def test_render_post(self, test_patch1):
-        test_patch1.return_value = CreateEngineContextManager()
-        # test_patch3.return_value = values(data='', key='')
+class TestSensorValues:
+    def test_render_post(self, mocker):
+        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
         sv = SensorValues()
         request = MagicMock()
         dict_payload = {'jack': 4098, 'sape': 4139}
         request.payload = dumps(dict_payload)
-        returnval = _run(sv.render_post(request))
-        assert returnval is not None
-        # assert sqlalchemy.Table.insert.mock.assert_called_once_with('blu')
-        # assert MagicMockConnection.execute.mock.assert_called_once_with('blu')
-
+        return_val = _run(sv.render_post(request))
+        assert return_val is not None
+        # assert sqlalchemy.Table.insert.mock.assert_called_once_with('?')
+        # assert MagicMockConnection.execute.mock.assert_called_once_with('?')

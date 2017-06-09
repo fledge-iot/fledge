@@ -1,12 +1,11 @@
 import asyncio
-from unittest import mock
 from unittest.mock import MagicMock
 from cbor2 import dumps
 from foglamp.coap.uri_handlers.sensor_values import SensorValues
 
 
 def AsyncMock(*args, **kwargs):
-    m = mock.MagicMock(*args, **kwargs)
+    m = MagicMock(*args, **kwargs)
 
     async def mock_coro(*args, **kwargs):
         return m(*args, **kwargs)

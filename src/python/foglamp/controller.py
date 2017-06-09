@@ -6,6 +6,7 @@ import foglamp.env as env
 
 
 def start():
+    """Starts FogLAMP services"""
     env.load_config()
     coap_controller.start()
     admin_api_controller.start()

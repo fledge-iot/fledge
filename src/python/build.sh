@@ -152,8 +152,6 @@ setup_and_run() {
             fi
 
             # Find Python3.5 or Python3 if it doesn't exist
-            #
-
             python_path=$( which python3.5 )
 
             if [ $? -gt 0 ]

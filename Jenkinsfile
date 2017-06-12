@@ -1,8 +1,8 @@
 node {
     // allow user to run job with all tests, only python tests, only doc tests
     def all_choice = 'all'
-    def doc_choice = 'doc-tests'
-    def unit_test_choice = 'unit-tests' // pointing to src/python/tests
+    def doc_choice = 'doc-build-tests'
+    def py_test_choice = 'python-tests' // pointing to src/python/tests
 
     // adding job parameters within jenkinsfile
     properties([
@@ -18,7 +18,7 @@ node {
          name: 'branch'
        ),
        choice(
-         choices: "${all_choice}\n${doc_choice}\n${unit_test_choice}",
+         choices: "${all_choice}\n${doc_choice}\n${py_test_choice}",
          description: "run tests as per your choice",
          name: 'suite'
        )
@@ -70,10 +70,10 @@ node {
             }else if (suite == "${doc_choice}"){
                 echo "${doc_choice}"
                 sh '''#!/bin/bash -l
-                      ./build.sh --doctest
+                      ./build.sh --testdoc
                     '''
-            }else if (suite == "${unit_test_choice}"){
-                echo "${unit_test_choice}"
+            }else if (suite == "${py_test_choice}"){
+                echo "${py_test_choice}"
                 sh '''#!/bin/bash -l
                       ./build.sh -p
                     '''

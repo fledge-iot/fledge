@@ -56,7 +56,7 @@ Options:
                    DIRECTORY to automatically generate HTML
   -p, --py-test     Run only Python tests
   -r, --run        Start FogLAMP
-  -s, --service    Start FogLAMP daemon
+  -s, --service    Start FogLAMP service
   -t, --test       Run all tests
   -u, --uninstall  Remove FogLAMP packages and scripts
   Anything else    Show this help text
@@ -343,7 +343,7 @@ if [ $# -gt 0 ]
               ;;
 
             *)
-             echo "${usage}" # anything including -h :]
+             echo "${USAGE}" # anything including -h :]
              break
              ;;
          esac

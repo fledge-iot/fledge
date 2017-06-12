@@ -22,100 +22,171 @@ SCRIPTNAME=$(basename "$SCRIPT")
 
 usage="=== $SCRIPTNAME ===
 
-Activates a Python virtual environment. Installs
-Python packages unless -a is provided. Additional
-capabilities are available. See the options below.
+Activates a Python virtual environment for python3.5 or 
+python3 if python3.5 can not be found. Installs 
+Python dependencies (per requirements.txt) unless 
+--activate is provided. Additional capabilities are 
+available - see the options below.
 
-Usage:
-  \"source\" this script for the current shell
-  to inherit fogLAMP's Python virtual environment
-  located in src/python/env/fogenv. Deactivate the
-  environment by running the \"deactivate\" shell
-  command.
+Sourcing this script:
+  source build.sh [options]
+  or:
+  . build.sh [options]
+
+  Sourcing this script causes the shell to inherit the virtual
+  environment so, for example, the 'python' command actually 
+  runs python3. Deactivate the virtual environment by running
+  \"deactivate\". 
 
 Options:
-  -h, --help      Show this help text
-  -a, --activate  Activate the virtual environment and exit
-  -c, --clean     Deactivate and clean the virtual environment
-  -l, --lint      Run pylint and generate output to pylint-report.txt
-  -t, --test      Run tests
+  -a, --activate  Create and activate the virtual environment
+                  and exit. Do not install dependencies.
+                  (must invoke via 'source')
+  -c, --clean     Delete the virtual environment and remove
+                  'build' directories
+  -d, --doc       Generate html in doc/_build directory
+  --deactivate    Deactivate the virtual environment
+                  (must invoke via 'source')
+  --doctest       Run doc/check_sphinx.py
+  -i, --install   Install FogLAMP packages and scripts
+  -l, --lint      Run pylint. Writes output to 
+                  pylint-report.txt
   -p, --pytest    Run only Python tests
-  -i, --install   Install the FogLAMP package
-  -u, --uninstall Uninstall the  package and remove installed scripts
-  -r, --run       Install the FogLAMP package and run foglamp
-  -d, --daemon    Install the FogLAMP package and run foglamp-d
-  --doc           Generate docs html in docs/_build directory
-  --doctest       Run docs/check_sphinx.py"
+  -r, --run       Start FogLAMP
+  -s, --service   Start FogLAMP daemon
+  -t, --test      Run all tests
+  -u, --uninstall Remove FogLAMP packages and scripts
+  Anything else   Show this help text
+
+Exit status code:
+  When this script is not invoked via 'source', it exits
+  with status code 1 when errors occur (e.g., tests fail)"
 
 setup_and_run() {
-
     ALREADY_IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+
+    if [ $ALREADY_IN_VENV -gt 0 ]
+    then
+        echo "-- A virtual environment is already active"
+    fi 
+
+    if [ "$option" == "ACTIVATE" ]
+    then
+        if [ $ALREADY_IN_VENV -gt 0 ]
+        then
+            return
+        fi
+
+        if [ $SOURCING -lt 1 ]
+        then
+            echo "*** Source this script when using --activate"
+            exit 1
+        fi
+    fi
+
+    if [ "$option" == "DEACTIVATE" ]
+    then
+        if [ $ALREADY_IN_VENV -gt 0 ] 
+        then
+            # deactivate doesn't work unless sourcing
+            if [ $SOURCING -lt 1 ]
+            then
+                echo "*** Source this script when using --deactivate"
+                exit 1
+            fi
+
+            echo "-- Deactivating virtualenv"
+            deactivate
+        fi
+        return
+    fi
+
+    VENV_PATH="venv/$HOSTNAME"
 
     if [ "$option" == "CLEAN" ]
     then
-        if [ $IN_VENV -gt 0 ]
+        if [ $ALREADY_IN_VENV -gt 0 ] 
         then
-            echo "--- Deactivating virtualenv"
+            # deactivate doesn't work unless sourcing
+            if [ $SOURCING -lt 1 ]
+            then
+                echo "*** Source this script when using --clean when virtual environment is active"
+                exit 1
+            fi
+
+            echo "-- Deactivating virtualenv"
             deactivate
         fi
-        echo "--- Removing virtualenv directory"
-        rm -rf venv
+
+        echo "-- Removing `pwd`/$VENV_PATH"
+        rm -rf "$VENV_PATH"
+
         make clean
         return
     fi
 
-    if [ $ALREADY_IN_VENV -gt 0 ]
+    if [ $ALREADY_IN_VENV -lt 1 ]
     then
-        echo "--- virtualenv already active"
-    else
-        if [ ! -f venv/fogenv/bin/activate ]
+        if [ ! -f "$VENV_PATH/bin/activate" ]
         then
-            echo "--- Installing virtualenv"
-            pip3 install virtualenv
+            echo "-- Installing virtualenv"
+            pip3 install virtualenv 2> /dev/null
 
             if [ $? -gt 0 ]
             then
-                echo "*** pip3 failed installing virtualenv"
+                pip install virtualenv
+            fi
+
+            if [ $? -gt 0 ]
+            then
+                echo "*** pip failed installing virtualenv"
+                if [ $SOURCING -lt 1 ]
+                then
+                    exit 1
+                fi
                 return
             fi
 
-            # which python3
+            # Find Python3.5 or Python3 if it doesn't exist
+            #
+
             python_path=$( which python3.5 )
 
             if [ $? -gt 0 ]
             then
-                echo "*** python3.5 is not found"
-                return
+                echo "*** python3.5 not found"
+                python_path=$( which python3 )
+
+                if [ $? -gt 0 ]
+                then
+                    echo "*** python3 not found"
+                    if [ $SOURCING -lt 1 ]
+                    then
+                        exit 1
+                    fi
+                    return
+                fi
             fi
 
-            echo "--- Creating the virtualenv using ${python_path}"
-            virtualenv "--python=$python_path" venv/fogenv
+            echo "-- Creating virtualenv for ${python_path}"
+            virtualenv "--python=$python_path" "$VENV_PATH"
         fi
 
-        echo "--- Activating the virtualenv at `pwd`/venv/fogenv"
-        source venv/fogenv/bin/activate
+        echo "-- Activating the virtualenv at `pwd`/$VENV_PATH"
+        source "$VENV_PATH/bin/activate"
 
         IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
         if [ $IN_VENV -lt 1 ]
         then
-            echo "*** virtualenv failed. Is virtualenv installed?"
+            echo "*** virtualenv failed"
             return
         fi
     fi
 
-    if [ "$option" == "VENV" ]
+    if [ "$option" == "ACTIVATE" ]
     then
-        if [ $ALREADY_IN_VENV -gt 0 ]
-        then
         return
-    fi
-
-        if [ $SOURCING -lt 1 ]
-        then
-            echo "*** Error: Source this script when using --activate"
-            exit 1
-        fi
     fi
     
     make install-py-requirements
@@ -154,12 +225,10 @@ setup_and_run() {
 
     elif [ "$option" == "RUN" ]
     then
-        pip install -e .
         foglamp
 
     elif [ "$option" == "RUN_DAEMON" ]
     then
-        pip install -e .
         foglamp-d
 
     elif [ "$option" == "BUILD_DOC" ]
@@ -196,7 +265,11 @@ if [ $# -gt 0 ]
          case $i in
 
            -a|--activate)
-             option="VENV"
+             option="ACTIVATE"
+             ;;
+
+           --deactivate)
+             option="DEACTIVATE"
              ;;
 
            -l|--lint)
@@ -219,7 +292,7 @@ if [ $# -gt 0 ]
              option="RUN"
              ;;
 
-            -d|--daemon)
+            -s|--service)
              option="RUN_DAEMON"
              ;;
 
@@ -231,7 +304,7 @@ if [ $# -gt 0 ]
              option="CLEAN"
              ;;
 
-            --doc)
+            -d|--doc)
              option="BUILD_DOC"
              ;;
 

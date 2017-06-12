@@ -2,7 +2,7 @@ USER := $(shell whoami)
 
 check-root:
 ifeq ($(USER), root)
-	@echo "WARNING: Installing as root should be avoided at all costs. Use a virtualenv."
+	@echo "WARNING: Installing as root should be avoided at all costs. Use a virtualenv"
 endif
 
 help:
@@ -17,7 +17,7 @@ help:
 	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
 	@echo "test - run all (src/python/tests and docs/check_sphinx) tests"
 	@echo "py-test - run src/python/tests"
-	@echo "doc-test - run docs/check_sphinx tests"
+	@echo "doc-build-test - run docs/check_sphinx tests"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-python - run python files lint check only"
 	@echo "lint-js - run ui/*.js files lint check only"
@@ -44,41 +44,41 @@ clean-test:
 	rm -fr .tox
 
 install-py-requirements: check-root
-	@echo "-- Installing Python dependencies."
+	@echo "-- Installing Python dependencies"
 	pip install -r requirements.txt
 
 install-dev-requirements: check-root
-	@echo "-- Installing Python dev dependencies."
+	@echo "-- Installing Python dev dependencies"
 	pip install -r requirements_dev.txt
 
 install-doc-requirements: check-root
-	@echo "-- Installing Sphinx doc dependencies."
+	@echo "-- Installing Sphinx doc dependencies"
 	pip install -r requirements_doc.txt
 
 install-test-requirements: check-root
-	@echo "-- Installing test dependencies."
+	@echo "-- Installing test dependencies"
 	pip install -r requirements_test.txt
 
 create-env:
 	@echo "-- Creating environment file."
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
-test: py-test doc-test
+test: py-test doc-build-test
 
 py-test:
 	@echo "-- Executing python tests"
 	pip install tox
 	tox -e py35
 
-doc-test:
-	@echo "-- Executing sphinx doc tests"
+doc-build-test:
+	@echo "-- Executing sphinx doc builder tests"
 	pip install tox
 	tox -e docs
 
 lint: lint-python lint-js
 
 lint-python: install-test-requirements
-	@echo "-- Linting Python files."
+	@echo "-- Linting Python files"
 	rm -f pylint*.log
 	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') > pylint_$(shell date +%FT%T%Z).log || exit 0
 
@@ -86,7 +86,7 @@ lint-js:
     @echo "-- TODO: add js lint | added here for example, to add later"
 
 doc: install-doc-requirements
-	@echo "-- Generate docs html."
+	@echo "-- Generate docs html"
 	cd ../../docs && make html
 
 live-doc: install-doc-requirements
@@ -110,5 +110,5 @@ live-doc: install-doc-requirements
 	live-doc \
 	test \
 	py-test \
-	doc-test
+	doc-build-test
 

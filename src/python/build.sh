@@ -45,13 +45,14 @@ Options:
   -c, --clean     Delete the virtual environment and remove
                   'build' directories
   -d, --doc       Generate html in doc/_build directory
+  --doc-build-test Run docs/check_sphinx.py
   --deactivate    Deactivate the virtual environment
                   (must invoke via 'source')
-  --doctest       Run doc/check_sphinx.py
   -i, --install   Install FogLAMP packages and scripts
   -l, --lint      Run pylint. Writes output to 
                   pylint-report.txt
-  -p, --pytest    Run only Python tests
+  --live-doc      Live doc serves the built html for docs/ on localhost, observe the changes in doc and update the html live
+  -p, --py-test    Run only Python tests
   -r, --run       Start FogLAMP
   -s, --service   Start FogLAMP daemon
   -t, --test      Run all tests
@@ -68,7 +69,7 @@ setup_and_run() {
     if [ $ALREADY_IN_VENV -gt 0 ]
     then
         echo "-- A virtual environment is already active"
-    fi 
+    fi
 
     if [ "$option" == "ACTIVATE" ]
     then
@@ -86,7 +87,7 @@ setup_and_run() {
 
     if [ "$option" == "DEACTIVATE" ]
     then
-        if [ $ALREADY_IN_VENV -gt 0 ] 
+        if [ $ALREADY_IN_VENV -gt 0 ]
         then
             # deactivate doesn't work unless sourcing
             if [ $SOURCING -lt 1 ]
@@ -105,7 +106,7 @@ setup_and_run() {
 
     if [ "$option" == "CLEAN" ]
     then
-        if [ $ALREADY_IN_VENV -gt 0 ] 
+        if [ $ALREADY_IN_VENV -gt 0 ]
         then
             # deactivate doesn't work unless sourcing
             if [ $SOURCING -lt 1 ]
@@ -188,7 +189,7 @@ setup_and_run() {
     then
         return
     fi
-    
+
     make install-py-requirements
     make create-env
 
@@ -210,7 +211,7 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "TESTPYTHON" ]
+    elif [ "$option" == "TEST_PYTHON" ]
     then
         echo "Running pytest"
         make py-test
@@ -240,10 +241,19 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "TEST_DOC" ]
+    elif [ "$option" == "TEST_DOC_BUILD" ]
     then
-        echo "Running Sphinx docs test"
-        make doc-test
+        echo "Running Sphinx doc build test"
+        make doc-build-test
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
+
+    elif [ "$option" == "LIVE_DOC" ]
+    then
+        echo "Observe the changes in doc and update the html live"
+        make live-doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
@@ -280,8 +290,8 @@ if [ $# -gt 0 ]
              option="TEST"
              ;;
 
-           -p|--pytest)
-             option="TESTPYTHON"
+           -p|--py-test)
+             option="TEST_PYTHON"
              ;;
 
            -i|--install)
@@ -308,8 +318,12 @@ if [ $# -gt 0 ]
              option="BUILD_DOC"
              ;;
 
-            --doctest)
-              option="TEST_DOC"
+            --doc-build-test)
+              option="TEST_DOC_BUILD"
+              ;;
+
+            --live-doc)
+              option="LIVE_DOC"
               ;;
 
             *)
@@ -324,4 +338,3 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
-

@@ -2,7 +2,7 @@ USER := $(shell whoami)
 
 check-root:
 ifeq ($(USER), root)
-	@echo "WARNING: Installing as root should be avoided at all costs. Use a virtualenv."
+	@echo "WARNING: Installing as root should be avoided at all costs. Use a virtualenv"
 endif
 
 help:
@@ -44,19 +44,19 @@ clean-test:
 	rm -fr .tox
 
 install-py-requirements: check-root
-	@echo "-- Installing Python dependencies."
+	@echo "-- Installing Python dependencies"
 	pip install -r requirements.txt
 
 install-dev-requirements: check-root
-	@echo "-- Installing Python dev dependencies."
+	@echo "-- Installing Python dev dependencies"
 	pip install -r requirements_dev.txt
 
 install-doc-requirements: check-root
-	@echo "-- Installing Sphinx doc dependencies."
+	@echo "-- Installing Sphinx doc dependencies"
 	pip install -r requirements_doc.txt
 
 install-test-requirements: check-root
-	@echo "-- Installing test dependencies."
+	@echo "-- Installing test dependencies"
 	pip install -r requirements_test.txt
 
 create-env:
@@ -78,7 +78,7 @@ doc-build-test:
 lint: lint-python lint-js
 
 lint-python: install-test-requirements
-	@echo "-- Linting Python files."
+	@echo "-- Linting Python files"
 	rm -f pylint*.log
 	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') > pylint_$(shell date +%FT%T%Z).log || exit 0
 
@@ -86,7 +86,7 @@ lint-js:
     @echo "-- TODO: add js lint | added here for example, to add later"
 
 doc: install-doc-requirements
-	@echo "-- Generate docs html."
+	@echo "-- Generate docs html"
 	cd ../../docs && make html
 
 live-doc: install-doc-requirements

@@ -17,7 +17,7 @@ help:
 	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
 	@echo "test - run all (src/python/tests and docs/check_sphinx) tests"
 	@echo "py-test - run src/python/tests"
-	@echo "doc-test - run docs/check_sphinx tests"
+	@echo "doc-build-test - run docs/check_sphinx tests"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-python - run python files lint check only"
 	@echo "lint-js - run ui/*.js files lint check only"
@@ -63,14 +63,14 @@ create-env:
 	@echo "-- Creating environment file."
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists." || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
-test: py-test doc-test
+test: py-test doc-build-test
 
 py-test:
 	@echo "-- Executing python tests"
 	pip install tox
 	tox -e py35
 
-doc-test:
+doc-build-test:
 	@echo "-- Executing sphinx doc tests"
 	pip install tox
 	tox -e docs
@@ -110,5 +110,5 @@ live-doc: install-doc-requirements
 	live-doc \
 	test \
 	py-test \
-	doc-test
+	doc-build-test
 

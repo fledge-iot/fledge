@@ -45,7 +45,7 @@ Options:
   -r, --run       Install the FogLAMP package and run foglamp
   -d, --daemon    Install the FogLAMP package and run foglamp-d
   --doc           Generate docs html in docs/_build directory
-  --doctest       Run docs/check_sphinx.py"
+  --testdoc       Run docs/check_sphinx.py"
 
 setup_and_run() {
 
@@ -171,10 +171,10 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "TEST_DOC" ]
+    elif [ "$option" == "TEST_DOC_BUILD" ]
     then
         echo "Running Sphinx docs test"
-        make doc-test
+        make doc-build-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
@@ -235,8 +235,8 @@ if [ $# -gt 0 ]
              option="BUILD_DOC"
              ;;
 
-            --doctest)
-              option="TEST_DOC"
+            --testdoc)
+              option="TEST_DOC_BUILD"
               ;;
 
             *)

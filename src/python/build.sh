@@ -46,7 +46,7 @@ Options:
   -d, --daemon    Install the FogLAMP package and run foglamp-d
   --doc           Generate docs html in docs/_build directory
   --testdocbuild  Run docs/check_sphinx.py
-  --livedoc       Live doc serves the built html for docs/ on localhost, observe the changes in .rst files and update the html live"
+  --livedoc       Live doc serves the built html for docs/ on localhost, observe the changes in doc and update the html live"
 
 setup_and_run() {
 
@@ -174,7 +174,7 @@ setup_and_run() {
 
     elif [ "$option" == "TEST_DOC_BUILD" ]
     then
-        echo "Running Sphinx docs test"
+        echo "Running Sphinx doc build test"
         make doc-build-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -183,7 +183,7 @@ setup_and_run() {
 
     elif [ "$option" == "LIVE_DOC" ]
     then
-        echo "Observe the changes in .rst files and update the html live"
+        echo "Observe the changes in doc and update the html live"
         make live-doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then

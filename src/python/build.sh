@@ -41,20 +41,21 @@ Sourcing this script:
 
 Options:
   -a, --activate   Create and activate the virtual environment
-                   and exit. Do not install dependencies.
-                   (must invoke via 'source')
+                   and exit. Do not install dependencies. Must
+                   must invoke via 'source.'
   -c, --clean      Delete the virtual environment and remove
-                   'build' directories
+                   build and cache directories
   -d, --doc        Generate HTML in doc/_build directory
   --doc-build-test Run docs/check_sphinx.py
-  --deactivate     Deactivate the virtual environment
-                   (must invoke via 'source')
+  --deactivate     Deactivate the virtual environment. Must
+                   invoke via 'source.'
   -i, --install    Install FogLAMP packages and scripts
   -l, --lint       Run pylint. Writes output to 
                    pylint-report.txt
-  --live-doc       Run webserver and observe changes in doc
-                   DIRECTORY to automatically generate HTML
-  -p, --py-test     Run only Python tests
+  --live-doc       Run a local webserver that serves files in 
+                   doc/_build and monitors modifications to
+                   files in doc/ and regenerates HTML
+  -p, --py-test    Run only Python tests
   -r, --run        Start FogLAMP
   -s, --service    Start FogLAMP service
   -t, --test       Run all tests
@@ -259,7 +260,7 @@ setup_and_run() {
 
     elif [ "$OPTION" == "TEST_DOC_BUILD" ]
     then
-        echo "Running Sphinx docs test"
+        echo "Running Sphinx docs build test"
         make doc-build-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then

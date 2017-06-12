@@ -70,7 +70,7 @@ node {
             }else if (suite == "${choice_test_doc}"){
                 echo "${choice_test_doc}"
                 sh '''#!/bin/bash -l
-                      ./build.sh --testdocbuild
+                      ./build.sh --doc-build-test
                     '''
             }else if (suite == "${choice_test_python}"){
                 echo "${choice_test_python}"

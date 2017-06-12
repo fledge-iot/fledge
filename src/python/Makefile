@@ -71,7 +71,7 @@ py-test:
 	tox -e py35
 
 doc-build-test:
-	@echo "-- Executing sphinx doc tests"
+	@echo "-- Executing sphinx doc builder tests"
 	pip install tox
 	tox -e docs
 

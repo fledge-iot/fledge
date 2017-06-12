@@ -45,7 +45,8 @@ Options:
   -r, --run       Install the FogLAMP package and run foglamp
   -d, --daemon    Install the FogLAMP package and run foglamp-d
   --doc           Generate docs html in docs/_build directory
-  --testdocbuild  Run docs/check_sphinx.py"
+  --testdocbuild  Run docs/check_sphinx.py
+  --livedoc       Live doc serves the built html for docs/ on localhost, observe the changes in .rst files and update the html live"
 
 setup_and_run() {
 
@@ -180,6 +181,15 @@ setup_and_run() {
             exit 1
         fi
 
+    elif [ "$option" == "LIVE_DOC" ]
+    then
+        echo "Observe the changes in .rst files and update the html live"
+        make live-doc
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
+
     elif [ "$option" == "UNINSTALL" ]
     then
         echo "This will remove the package"
@@ -237,6 +247,10 @@ if [ $# -gt 0 ]
 
             --testdocbuild)
               option="TEST_DOC_BUILD"
+              ;;
+
+            --livedoc)
+              option="LIVE_DOC"
               ;;
 
             *)

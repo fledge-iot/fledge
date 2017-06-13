@@ -13,8 +13,8 @@ node {
          name: 'repo_url'
        ),
        stringParam(
-         defaultValue: 'master',
-         description: 'The git branch you would like to build with.',
+         defaultValue: 'develop',
+         description: 'The git branch you would like to build with',
          name: 'branch'
        ),
        choice(

@@ -13,7 +13,6 @@ from foglamp.controller import start
 def do_something(logf):
     """
     :param logf: log file
-    :return:
     """
     file_handler = logging.FileHandler(logf)
     file_handler.setLevel(logging.DEBUG)
@@ -37,7 +36,6 @@ def start_daemon(pidf, logf, wdir):
     :param pidf: pidfile
     :param logf: log file
     :param wdir: working directory
-    :return:
     """
 
     # XXX: pidfile is a context
@@ -52,7 +50,6 @@ def start_daemon(pidf, logf, wdir):
 def safe_makedirs(directory):
     """
     :param directory: working directory
-    :return:
     """
     directory = os.path.expanduser(directory)
     try:
@@ -75,7 +72,8 @@ def main():
     safe_makedirs(os.path.dirname(args.log_file))
 
     # TODO: ['start', 'stop', 'restart', 'status', 'info']
-    start_daemon(pidf=os.path.expanduser(args.pid_file), logf=os.path.expanduser(args.log_file),
+    start_daemon(pidf=os.path.expanduser(args.pid_file),
+                 logf=os.path.expanduser(args.log_file),
                  wdir=os.path.expanduser(args.working_dir))
 
 

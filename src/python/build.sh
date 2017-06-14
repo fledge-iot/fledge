@@ -20,7 +20,7 @@ fi
 pushd `dirname "$SCRIPT"` > /dev/null
 SCRIPTNAME=$(basename "$SCRIPT")
 
-usage="=== $SCRIPTNAME ===
+USAGE="=== $SCRIPTNAME ===
 
 Activates a Python virtual environment for python3.5 or 
 python3 if python3.5 can not be found. Installs 
@@ -36,44 +36,47 @@ Sourcing this script:
   Sourcing this script causes the shell to inherit the virtual
   environment so, for example, the 'python' command actually 
   runs python3. Deactivate the virtual environment by running
-  \"deactivate\". 
+  \"deactivate\". The environment variable VENV_PATH is
+  created.
 
 Options:
-  -a, --activate  Create and activate the virtual environment
-                  and exit. Do not install dependencies.
-                  (must invoke via 'source')
-  -c, --clean     Delete the virtual environment and remove
-                  'build' directories
-  -d, --doc       Generate html in doc/_build directory
+  -a, --activate   Create and activate the virtual environment
+                   and exit. Do not install dependencies. Must
+                   must invoke via 'source.'
+  -c, --clean      Delete the virtual environment and remove
+                   build and cache directories
+  -d, --doc        Generate HTML in doc/_build directory
   --doc-build-test Run docs/check_sphinx.py
-  --deactivate    Deactivate the virtual environment
-                  (must invoke via 'source')
-  -i, --install   Install FogLAMP packages and scripts
-  -l, --lint      Run pylint. Writes output to 
-                  pylint-report.txt
-  --live-doc      Live doc serves the built html for docs/ on localhost, observe the changes in doc and update the html live
+  --deactivate     Deactivate the virtual environment. Must
+                   invoke via 'source.'
+  -i, --install    Install FogLAMP packages and scripts
+  -l, --lint       Run pylint. Writes output to 
+                   pylint-report.txt
+  --live-doc       Run a local webserver that serves files in 
+                   doc/_build and monitors modifications to
+                   files in doc/ and regenerates HTML
   -p, --py-test    Run only Python tests
-  -r, --run       Start FogLAMP
-  -s, --service   Start FogLAMP daemon
-  -t, --test      Run all tests
-  -u, --uninstall Remove FogLAMP packages and scripts
-  Anything else   Show this help text
+  -r, --run        Start FogLAMP
+  -s, --service    Start FogLAMP service
+  -t, --test       Run all tests
+  -u, --uninstall  Remove FogLAMP packages and scripts
+  Anything else    Show this help text
 
 Exit status code:
   When this script is not invoked via 'source', it exits
   with status code 1 when errors occur (e.g., tests fail)"
 
 setup_and_run() {
-    ALREADY_IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
-    if [ $ALREADY_IN_VENV -gt 0 ]
+    if [ $IN_VENV -gt 0 ]
     then
         echo "-- A virtual environment is already active"
-    fi
+    fi 
 
-    if [ "$option" == "ACTIVATE" ]
+    if [ "$OPTION" == "ACTIVATE" ]
     then
-        if [ $ALREADY_IN_VENV -gt 0 ]
+        if [ $IN_VENV -gt 0 ]
         then
             return
         fi
@@ -85,9 +88,9 @@ setup_and_run() {
         fi
     fi
 
-    if [ "$option" == "DEACTIVATE" ]
+    if [ "$OPTION" == "DEACTIVATE" ]
     then
-        if [ $ALREADY_IN_VENV -gt 0 ]
+        if [ $IN_VENV -gt 0 ] 
         then
             # deactivate doesn't work unless sourcing
             if [ $SOURCING -lt 1 ]
@@ -102,11 +105,11 @@ setup_and_run() {
         return
     fi
 
-    VENV_PATH="venv/$HOSTNAME"
+    VENV_PATH="`pwd`/venv/$HOSTNAME"
 
-    if [ "$option" == "CLEAN" ]
+    if [ "$OPTION" == "CLEAN" ]
     then
-        if [ $ALREADY_IN_VENV -gt 0 ]
+        if [ $IN_VENV -gt 0 ] 
         then
             # deactivate doesn't work unless sourcing
             if [ $SOURCING -lt 1 ]
@@ -119,14 +122,14 @@ setup_and_run() {
             deactivate
         fi
 
-        echo "-- Removing `pwd`/$VENV_PATH"
+        echo "-- Removing $VENV_PATH"
         rm -rf "$VENV_PATH"
 
         make clean
         return
     fi
 
-    if [ $ALREADY_IN_VENV -lt 1 ]
+    if [ $IN_VENV -lt 1 ]
     then
         if [ ! -f "$VENV_PATH/bin/activate" ]
         then
@@ -149,8 +152,6 @@ setup_and_run() {
             fi
 
             # Find Python3.5 or Python3 if it doesn't exist
-            #
-
             python_path=$( which python3.5 )
 
             if [ $? -gt 0 ]
@@ -173,7 +174,7 @@ setup_and_run() {
             virtualenv "--python=$python_path" "$VENV_PATH"
         fi
 
-        echo "-- Activating the virtualenv at `pwd`/$VENV_PATH"
+        echo "-- Activating the virtualenv at $VENV_PATH"
         source "$VENV_PATH/bin/activate"
 
         IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
@@ -185,15 +186,15 @@ setup_and_run() {
         fi
     fi
 
-    if [ "$option" == "ACTIVATE" ]
+    if [ "$OPTION" == "ACTIVATE" ]
     then
         return
     fi
-
+    
     make install-py-requirements
     make create-env
 
-    if [ "$option" == "LINT" ]
+    if [ "$OPTION" == "LINT" ]
     then
         echo "Running lint checker"
         make lint
@@ -202,7 +203,7 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "TEST" ]
+    elif [ "$OPTION" == "TEST" ]
     then
         echo "Running all tests"
         make test
@@ -211,7 +212,7 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "TEST_PYTHON" ]
+    elif [ "$OPTION" == "TEST_PYTHON" ]
     then
         echo "Running pytest"
         make py-test
@@ -220,19 +221,33 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "INSTALL" ]
+    elif [ "$OPTION" == "INSTALL" ]
     then
         pip install -e .
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
 
-    elif [ "$option" == "RUN" ]
+    elif [ "$OPTION" == "RUN" ]
     then
+        pip install -e .
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
         foglamp
 
-    elif [ "$option" == "RUN_DAEMON" ]
+    elif [ "$OPTION" == "RUN_DAEMON" ]
     then
-        foglamp-d
+        pip install -e .
+        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
+        foglampd
 
-    elif [ "$option" == "BUILD_DOC" ]
+    elif [ "$OPTION" == "BUILD_DOC" ]
     then
         echo "Building doc"
         make doc
@@ -241,32 +256,32 @@ setup_and_run() {
             exit 1
         fi
 
-    elif [ "$option" == "TEST_DOC_BUILD" ]
+    elif [ "$OPTION" == "TEST_DOC_BUILD" ]
     then
-        echo "Running Sphinx doc build test"
+        echo "Running Sphinx docs build test"
         make doc-build-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
         fi
-
-    elif [ "$option" == "LIVE_DOC" ]
+        
+    elif [ "$OPTION" == "LIVE_DOC" ]
     then
-        echo "Observe the changes in doc and update the html live"
+        echo "Observe the changes in doc and update HTML live"
         make live-doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
         fi
 
-    elif [ "$option" == "UNINSTALL" ]
+    elif [ "$OPTION" == "UNINSTALL" ]
     then
         echo "This will remove the package"
         pip uninstall FogLAMP <<< y
     fi
 }
 
-option=''
+OPTION=''
 
 if [ $# -gt 0 ]
   then
@@ -275,59 +290,59 @@ if [ $# -gt 0 ]
          case $i in
 
            -a|--activate)
-             option="ACTIVATE"
+             OPTION="ACTIVATE"
              ;;
 
            --deactivate)
-             option="DEACTIVATE"
+             OPTION="DEACTIVATE"
              ;;
 
            -l|--lint)
-             option="LINT"
+             OPTION="LINT"
              ;;
 
            -t|--test)
-             option="TEST"
+             OPTION="TEST"
              ;;
 
            -p|--py-test)
-             option="TEST_PYTHON"
+             OPTION="TEST_PYTHON"
              ;;
 
            -i|--install)
-             option="INSTALL"
+             OPTION="INSTALL"
              ;;
 
             -r|--run)
-             option="RUN"
+             OPTION="RUN"
              ;;
 
             -s|--service)
-             option="RUN_DAEMON"
+             OPTION="RUN_DAEMON"
              ;;
 
             -u|--uninstall)
-             option="UNINSTALL"
+             OPTION="UNINSTALL"
              ;;
 
             -c|--clean)
-             option="CLEAN"
+             OPTION="CLEAN"
              ;;
 
             -d|--doc)
-             option="BUILD_DOC"
+             OPTION="BUILD_DOC"
              ;;
 
             --doc-build-test)
-              option="TEST_DOC_BUILD"
+              OPTION="TEST_DOC_BUILD"
               ;;
 
             --live-doc)
-              option="LIVE_DOC"
+              OPTION="LIVE_DOC"
               ;;
 
             *)
-             echo "${usage}" # anything including -h :]
+             echo "${USAGE}" # anything including -h :]
              break
              ;;
          esac
@@ -338,3 +353,15 @@ if [ $# -gt 0 ]
 fi
 
 popd > /dev/null
+
+# Unset all temporary variables used above
+if [ $SOURCING -gt 0 ]
+then
+    unset IN_VENV
+    unset OPTION
+    unset SCRIPT
+    unset SCRIPTNAME
+    unset SOURCING
+    unset USAGE
+fi
+

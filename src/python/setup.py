@@ -12,7 +12,7 @@ setup(
     entry_points={
         'console_scripts': [
             'foglamp = foglamp_start:main',
-            'foglamp-d = foglamp_daemon:main',
+            'foglampd = foglamp_daemon:main',
         ],
     },
     zip_safe=False

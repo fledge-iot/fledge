@@ -6,7 +6,7 @@ setup(
     description='FogLAMP',
     url='http://github.com/foglamp/FogLAMP',
     author='OSIsoft, LLC',
-    author_email=' ? @osisoft.com',
+    author_email='info@scaledb.com',
     license='Apache 2.0',
     packages=['foglamp'],
     entry_points={

@@ -48,8 +48,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'FogLAMP'
-copyright = '2017, DB Software Inc.'
-author = 'DB Software Inc.'
+copyright = '2017 (c) OSIsoft, LLC'
+author = 'OSIsoft, LLC'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -148,7 +148,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'FogLAMP.tex', 'FogLAMP Documentation',
-     'DB Software Inc.', 'manual'),
+     [author], 'manual'),
 ]
 
 
@@ -169,7 +169,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'FogLAMP', 'FogLAMP Documentation',
-     author, 'FogLAMP', 'One line description of project.',
+     [author], 'FogLAMP', 'The FogLAMP project',
      'Miscellaneous'),
 ]
 

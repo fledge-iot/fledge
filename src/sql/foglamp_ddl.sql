@@ -511,17 +511,18 @@ CREATE INDEX fki_asset_messages_fk2
 -- a software or anything that generates data that is sent to FogLAMP
 CREATE TABLE foglamp.readings (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
-    asset_code character varying(50),                                                                     -- Link with the assets table. If the value is NULL, the asset is not defined.
-    read_key   uuid                        NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'::uuid, -- A unique key used to avoid double-loading. Default with 0s is used when it is ignored.
-    reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                  -- The json object received
-    user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- The user timestamp extracted by the received message
+    asset_code character varying(50),                                     -- Link with the assets table. If the value is NULL, the asset is not defined.
+    read_key   uuid                        UNIQUE,                        -- An optional unique key used to avoid double-loading.
+    reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,  -- The json object received
+    user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),        -- The user timestamp extracted by the received message
     ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
     CONSTRAINT readings_pkey PRIMARY KEY (id)
-         USING INDEX TABLESPACE foglamp,
-    CONSTRAINT readings_fk1 FOREIGN KEY (asset_code)
-    REFERENCES foglamp.assets (code) MATCH SIMPLE
-            ON UPDATE NO ACTION
-            ON DELETE NO ACTION)
+         USING INDEX TABLESPACE foglamp
+--  , CONSTRAINT readings_fk1 FOREIGN KEY (asset_code)
+--  REFERENCES foglamp.assets (code) MATCH SIMPLE
+--          ON UPDATE NO ACTION
+--          ON DELETE NO ACTION
+  )
   WITH ( OIDS = FALSE )
   TABLESPACE foglamp;
 

@@ -67,7 +67,7 @@ class SensorValues(aiocoap.resource.Resource):
             payload = loads(request.payload)
             asset = payload['asset']
             timestamp = payload['timestamp']
-        except RuntimeError:
+        except:
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
         readings = payload.get('readings', {})
@@ -85,9 +85,12 @@ class SensorValues(aiocoap.resource.Resource):
                     except psycopg2.IntegrityError:
                         logging.getLogger('coap-server').exception(
                           'Duplicate key (%s) inserting sensor values:\n%s',
-                          key,  # Maybe the generated key is the problem
+                          key,
                           payload)
-        except RuntimeError:
+        except:
+            logging.getLogger('coap-server').exception(
+                "Database error occurred. Payload:\n%s"
+                , payload)
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR)
 
         return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.VALID)

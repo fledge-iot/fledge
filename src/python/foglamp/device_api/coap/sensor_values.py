@@ -21,7 +21,7 @@ import sqlalchemy as sa
 """CoAP handler for coap://readings URI"""
 
 __author__ = 'Terris Linenbach'
-__version__ = ${VERSION}
+__version__ = '${VERSION}'
 
 _sensor_values_tbl = sa.Table(
     'readings',

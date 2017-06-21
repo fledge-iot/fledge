@@ -63,10 +63,13 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        payload = loads(request.payload)
+        try:
+            payload = loads(request.payload)
+            asset = payload['asset']
+            timestamp = payload['timestamp']
+        except RuntimeError:
+            return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
-        asset = payload['asset']
-        timestamp = payload['timestamp']
         readings = payload.get('readings', {})
         key = payload.get('key')
 
@@ -74,16 +77,19 @@ class SensorValues(aiocoap.resource.Resource):
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
         try:
-            async with aiopg.sa.create_engine("postgresql://foglamp:foglamp@localhost:5432/foglamp") as engine:
+            async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
                 async with engine.acquire() as conn:
-                    await conn.execute(_sensor_values_tbl.insert().values(
-                        asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
-        except psycopg2.IntegrityError:
-            logging.getLogger('coap-server').exception(
-                "Duplicate key (%s) inserting sensor values:\n%s"
-                , key # Maybe the generated key is the problem
-                , original_payload)
+                    try:
+                        await conn.execute(_sensor_values_tbl.insert().values(
+                         asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
+                    except psycopg2.IntegrityError:
+                        logging.getLogger('coap-server').exception(
+                          'Duplicate key (%s) inserting sensor values:\n%s',
+                          key,  # Maybe the generated key is the problem
+                          payload)
+        except RuntimeError:
+            return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR)
 
+        return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.VALID)
         # TODO what should this return?
-        return aiocoap.Message(payload=''.encode("utf-8"))
 

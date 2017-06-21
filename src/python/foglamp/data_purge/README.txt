@@ -27,5 +27,4 @@ Code Description:
 Review: When using psycopg2 for the INSERT process, I "hang" (meaning wait) for all other executions to finish.
 Whereas with SQLAlchemy, both the  INSERT and PURGE processes can co-exist as if running on parallel threads.
 
-Note: I'm honestly NOT trying to by dependent on SQLAlchemy, but rather trying to convey the point that it makes
-    like easier than I had initially thought.
+Note: I'm honestly NOT trying to by dependent on SQLAlchemy, but rather trying to convey the point that it makes like easier than I had initially thought.

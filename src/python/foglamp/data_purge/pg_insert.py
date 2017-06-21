@@ -27,7 +27,7 @@ try:
 except:
     print("Error")
     sys.exit()
-
+print("Insert Start")
 # # Execute Inserts
 i=1
 while True:
@@ -37,5 +37,5 @@ while True:
         print(e)
         sys.exit()
     i+=1
-
+    print(i)
 

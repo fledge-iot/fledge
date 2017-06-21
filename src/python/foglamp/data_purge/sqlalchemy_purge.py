@@ -121,7 +121,7 @@ def database_manage(stmt=""):
         conn.execute("commit")
 
 if __name__ == '__main__':
-    """The main, which in part also acts a scheduler"""
+    """The main, which in part also acts a schedul"""
     f = open('logs.db', 'a')
     f.write('%s\t\t%s\t%s\t%s\n' % ('TIMESTAMP','Total Removed', 'Verify','Reminder'))
     f.close()

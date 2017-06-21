@@ -20,6 +20,8 @@ import sqlalchemy as sa
 
 """CoAP handler for coap://readings URI"""
 
+__author__ = 'Terris Linenbach'
+__version__ = ${VERSION}
 
 _sensor_values_tbl = sa.Table(
     'readings',
@@ -42,7 +44,8 @@ class SensorValues(aiocoap.resource.Resource):
 
     async def render_post(self, request):
         """Sends asset readings to storage layer
-        Input payload looks like:
+
+        request.payload looks like:
         {
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "pump1",
@@ -56,7 +59,8 @@ class SensorValues(aiocoap.resource.Resource):
         }
         """
 
-        # TODO: The format is documented at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
+        # TODO: The payload format is documented
+        # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
         # TODO: Validate request.payload
@@ -91,7 +95,7 @@ class SensorValues(aiocoap.resource.Resource):
                         asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
         except psycopg2.IntegrityError:
             logging.getLogger('coap-server').exception(
-                "Duplicate key (%s) inserting sensor values: %s"
+                "Duplicate key (%s) inserting sensor values:\n%s"
                 , key # Maybe the generated key is the problem
                 , original_payload)
 

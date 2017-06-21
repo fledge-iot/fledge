@@ -63,30 +63,15 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        # TODO: Validate request.payload
-        original_payload = loads(request.payload)
-        
-        payload = dict(original_payload)
+        payload = loads(request.payload)
 
+        asset = payload['asset']
+        timestamp = payload['timestamp']
+        readings = payload.get('readings', {})
         key = payload.get('key')
-
-        if key:
-            del payload['key']
 
         # Comment out to demonstrate IntegrityError
         # key = '123e4567-e89b-12d3-a456-426655440000'
-
-        asset = payload.get('asset')
-
-        if asset is not None:
-            del payload['asset']
-
-        timestamp = payload.get('timestamp')
-
-        readings = payload.get('readings', {})
-
-        if timestamp:
-            del payload['timestamp']
 
         try:
             async with aiopg.sa.create_engine("postgresql://foglamp:foglamp@localhost:5432/foglamp") as engine:

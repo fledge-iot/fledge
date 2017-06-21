@@ -511,7 +511,8 @@ CREATE INDEX fki_asset_messages_fk2
 -- a software or anything that generates data that is sent to FogLAMP
 CREATE TABLE foglamp.readings (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
-    asset_code character varying(50),                                     -- Link with the assets table. If the value is NULL, the asset is not defined.
+    asset_code character varying(50),                                     -- The provided asset code. Not necessarily located in the
+                                                                          -- assets table.
     read_key   uuid                        UNIQUE,                        -- An optional unique key used to avoid double-loading.
     reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,  -- The json object received
     user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),        -- The user timestamp extracted by the received message

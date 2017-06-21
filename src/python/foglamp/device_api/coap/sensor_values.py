@@ -1,12 +1,24 @@
-import uuid
+# -*- coding: utf-8 -*-
+"""FOGLAMP_PRELUDE_BEGIN
+{{FOGLAMP_LICENSE_DESCRIPTION}}
+
+See: http://foglamp.readthedocs.io/
+
+Copyright (c) 2017 OSIsoft, LLC
+License: Apache 2.0
+
+FOGLAMP_PRELUDE_END
+"""
+import logging
+
+from cbor2 import loads
 import psycopg2
 import aiocoap.resource
-import logging
-import sqlalchemy as sa
-from cbor2 import loads
 from sqlalchemy.dialects.postgresql import JSONB
 import aiopg.sa
-import foglamp.env as env
+import sqlalchemy as sa
+
+"""CoAP handler for coap://readings URI"""
 
 
 _sensor_values_tbl = sa.Table(
@@ -19,7 +31,7 @@ _sensor_values_tbl = sa.Table(
 """Defines the table that data will be inserted into"""
 
 class SensorValues(aiocoap.resource.Resource):
-    """Handles other/sensor_values requests"""
+    """CoAP handler for coap://readings URI"""
     def __init__(self):
         super(SensorValues, self).__init__()
 
@@ -29,7 +41,24 @@ class SensorValues(aiocoap.resource.Resource):
         return
 
     async def render_post(self, request):
-        """Sends incoming data to storage layer"""
+        """Sends asset readings to storage layer
+        Input payload looks like:
+        {
+            "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
+            "asset": "pump1",
+            "readings": {
+                "velocity": "500",
+                "temperature": {
+                    "value": "32",
+                    "unit": "kelvin"
+                }
+            }
+        }
+        """
+
+        # TODO: The format is documented at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
+        # and will be moved to a .rst file
+
         # TODO: Validate request.payload
         original_payload = loads(request.payload)
         
@@ -41,7 +70,7 @@ class SensorValues(aiocoap.resource.Resource):
             del payload['key']
 
         # Comment out to demonstrate IntegrityError
-        # key = 'same'
+        # key = '123e4567-e89b-12d3-a456-426655440000'
 
         asset = payload.get('asset')
 
@@ -50,6 +79,8 @@ class SensorValues(aiocoap.resource.Resource):
 
         timestamp = payload.get('timestamp')
 
+        readings = payload.get('readings', {})
+
         if timestamp:
             del payload['timestamp']
 
@@ -57,12 +88,13 @@ class SensorValues(aiocoap.resource.Resource):
             async with aiopg.sa.create_engine("postgresql://foglamp:foglamp@localhost:5432/foglamp") as engine:
                 async with engine.acquire() as conn:
                     await conn.execute(_sensor_values_tbl.insert().values(
-                        asset_code=asset, reading=payload, read_key=key, user_ts=timestamp))
-        except psycopg2.IntegrityError as e:
+                        asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
+        except psycopg2.IntegrityError:
             logging.getLogger('coap-server').exception(
                 "Duplicate key (%s) inserting sensor values: %s"
                 , key # Maybe the generated key is the problem
                 , original_payload)
 
+        # TODO what should this return?
         return aiocoap.Message(payload=''.encode("utf-8"))
 

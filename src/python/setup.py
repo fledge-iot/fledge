@@ -5,9 +5,9 @@ setup(
     version='0.1',
     description='FogLAMP',
     url='http://github.com/foglamp/FogLAMP',
-    author='DB Software Inc.',
+    author='OSIsoft, LLC',
     author_email='info@scaledb.com',
-    license='Unknown',
+    license='Apache 2.0',
     packages=['foglamp'],
     entry_points={
         'console_scripts': [

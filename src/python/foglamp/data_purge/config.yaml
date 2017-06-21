@@ -1,0 +1,3 @@
+last_pi_connection: 2017-07-19 10:32:15 # When was the last time PI retrieved data
+delete: 2 days 12 hours 3 minutes 15 seconds           # How old data to delete
+no_pi_delete: False               # Should data be deleted if PI did retrieve (True or False)

@@ -518,8 +518,8 @@ CREATE TABLE foglamp.destinations (
        id            integer                     NOT NULL DEFAULT nextval('foglamp.destinations_id_seq'::regclass),   -- Sequence ID
        type          smallint                    NOT NULL DEFAULT 1,                                                  -- Enum : 1: OMF, 2: Elasticsearch
        description   character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- A brief description of the destination entry
-       properties    jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic set of properties
-       active_window jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- The window of operations
+       properties    jsonb                       NOT NULL DEFAULT '{ "streaming" : "all" }'::jsonb,                   -- A generic set of properties
+       active_window jsonb                       NOT NULL DEFAULT '[ "always" ]'::jsonb,                              -- The window of operations
        active        boolean                     NOT NULL DEFAULT true,                                               -- When false, all streams to this destination stop and are inactive
        ts            timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Creation or last update
        CONSTRAINT destination_pkey PRIMARY KEY (id)

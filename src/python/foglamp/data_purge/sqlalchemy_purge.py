@@ -1,3 +1,11 @@
+"""
+Date: June 2017
+Description: The following is a simple purger application that not only call execution of deletes, but 
+    also verifies  data was dropped. Since this component is somewhere between the Scheduler, and Database 
+    I there are extra methods imitating those. Secondly, since (to me) it is still not clear where 
+    data would be stored, 
+Lanague: Python + SQLAlchemy
+"""
 import datetime
 import sqlalchemy
 import sys
@@ -5,11 +13,13 @@ import time
 import yaml
 
 t1 = sqlalchemy.Table('t1',sqlalchemy.MetaData(),
-        sqlalchemy.Column('value',sqlalchemy.INTEGER,primary_key=True),
+        sqlalchemy.Column('id',sqlalchemy.INTEGER,primary_key=True),
         sqlalchemy.Column('ts',sqlalchemy.TIMESTAMP))
 
 engine = sqlalchemy.create_engine('postgres://foglamp:foglamp@192.168.0.182/foglamp')
 conn = engine.connect()
+
+open('logs.db','w').close()
 
 def conver_timestamp(set_time=None):
     time_dict={}
@@ -39,30 +49,34 @@ def conver_timestamp(set_time=None):
 def purge():
     with open('config.yaml','r') as conf:
         config = yaml.load(conf)
-    set_time=config['delete']
+    set_time=config['age']
     timestamp = datetime.datetime.strftime(datetime.datetime.now() - conver_timestamp(set_time=set_time),'%Y-%m-%d %H:%M:%S')
-    stmt = t1.delete().where(t1.c.ts <= timestamp)
-    stmt = stmt.compile(compile_kwargs={"literal_binds": True})
+    delete = t1.delete().where(t1.c.ts <= timestamp)
+    delete = delete.compile(compile_kwargs={"literal_binds": True})
+    count1 = t1.count().where(t1.c.ts <= timestamp)
+    count1 = count1.compile(compile_kwargs={"literal_binds": True})
+    count2 = t1.count().where(t1.c.ts > timestamp)
+    count2 = count2.compile(compile_kwargs={"literal_binds": True})
 
-    if config['no_pi_delete'] is True: # If we don't care about when PI was last connected then delete
-        database_manage(stmt)
-    elif datetime.datetime.strptime(timestamp,'%Y-%m-%d %H:%M:%S') < config['last_pi_connection']:
-        database_manage(stmt)
-    else:
-        print("No DELETES")
-    time.sleep(5)
+    lthen=get_count(count1)
+    database_manage(delete)
+    verify=get_count(count1) # Expect 0 each time
+    remainder = get_count(count2)
 
-def database_manage(stmt=""):
-    """Imitate connection to Postgres """
-    stmt = "SELECT COUNT(*) FROM t1"
+    f.write('%s\t\t%s\t%s\n' % (lthen,verify,remainder))
+    return config['wait']
+
+def get_count(stmt):
     try:
         result = conn.execute(stmt)
     except conn.Error as e:
         print(e)
         sys.exit()
     else:
-        print("before "+str(result.fetchall()[0][0]))
+        return int(result.fetchall()[0][0])
 
+def database_manage(stmt=""):
+    """Imitate connection to Postgres """
     try:
         conn.execute(stmt)
     except conn.Error as e:
@@ -71,18 +85,16 @@ def database_manage(stmt=""):
     else:
         conn.execute("commit")
 
-
-    try:
-        result = conn.execute(stmt)
-    except conn.Error as e:
-        print(e)
-        sys.exit()
-    else:
-        print("after  " + str(result.fetchall()[0][0]))
-
 if __name__ == '__main__':
+    f = open('logs.db', 'a')
+    f.write('%s\t%s\t%s\n' % ('Total Removed', 'Verify','Reminder'))
+    f.close()
     # Imitate scheduler
     while True:
-        purge()
-        time.sleep(5)
+        f = open('logs.db', 'a')
+        wait=purge()
+        f.close()
+        time.sleep(wait)
+
+
 

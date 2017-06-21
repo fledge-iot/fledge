@@ -46,8 +46,8 @@ Todo:
 
 import sys
 
-__author__ = ${FULL_NAME}
-__version__ = ${VERSION}
+__author__ = '${FULL_NAME}'
+__version__ = '${VERSION}'
 
 module_level_variable1 = 12345
 

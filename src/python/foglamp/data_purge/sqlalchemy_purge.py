@@ -63,7 +63,10 @@ def purge():
     verify=get_count(count1) # Expect 0 each time
     remainder = get_count(count2)
 
-    f.write('%s\t\t%s\t%s\n' % (lthen,verify,remainder))
+    timestamp = time.time()
+    timestamp = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+    f.write('%s\t%s\t\t%s\t%s\n' % (timestamp,lthen,verify,remainder))
     return config['wait']
 
 def get_count(stmt):
@@ -87,7 +90,7 @@ def database_manage(stmt=""):
 
 if __name__ == '__main__':
     f = open('logs.db', 'a')
-    f.write('%s\t%s\t%s\n' % ('Total Removed', 'Verify','Reminder'))
+    f.write('%s\t\t%s\t%s\t%s\n' % ('TIMESTAMP','Total Removed', 'Verify','Reminder'))
     f.close()
     # Imitate scheduler
     while True:

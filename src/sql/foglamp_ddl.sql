@@ -153,15 +153,6 @@ CREATE SEQUENCE foglamp.assets_id_seq
 ALTER SEQUENCE foglamp.assets_id_seq OWNER TO foglamp;
 
 
-CREATE SEQUENCE foglamp.purge_rules_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-ALTER SEQUENCE foglamp.purge_rules_id_seq OWNER TO foglamp;
-
-
 CREATE SEQUENCE foglamp.destinations_id_seq
     INCREMENT 1
     START 1
@@ -595,24 +586,6 @@ COMMENT ON TABLE foglamp.configuration_changes IS
 - The configuration key is stored in the key column
 - The configuration timestamp is stored in the configuration_ts column
 - The old value is stored in the configuration_value column';
-
-
--- Clean table
-CREATE TABLE foglamp.purge_rules (
-       id         integer                     NOT NULL DEFAULT nextval('foglamp.purge_rules_id_seq'::regclass),
-       type       character(3)                NOT NULL COLLATE pg_catalog."default",                            -- DES (destination) | STR (stream) | PAS (parent asset) | ASS (asset)
-       object_id  bigint,                                                                                       -- Since the rule may not refer to a specific object, this column can be NULL
-       rule       jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                     -- With Type (sent|age|label|batch) and related values
-       rule_check jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                     -- With Type (always|interval|instant)
-       status     smallint                    NOT NULL DEFAULT 0,                                               -- 0:inactive 1:active 2:completed
-       ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT purge_rules_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
-
-ALTER TABLE foglamp.purge_rules OWNER to foglamp;
-COMMENT ON TABLE foglamp.purge_rules IS
-'Rules defined to purge the data.';
 
 
 -- Resources table

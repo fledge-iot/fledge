@@ -42,10 +42,10 @@ INSERT INTO foglamp.log_codes ( code, description )
 DELETE FROM foglamp.configuration;
 
 -- CLEAN: The cleaning process is on by default
---        status    : the process is on or off, it is on by default
---        interval  : the number of seconds the process goes to sleep before it starts again. Default: 30 seconds
+--        age     : Age of the data to be retained
+--        enabled : When true, purging is enabled and data can be removed
 INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'PURGE', '{ "status" : "on", "interval" : 30 }' );
+     VALUES ( 'PURGE', '{ "age" : 259200, "enabled" : true }' );
 
 -- LOGPR: Log Partitioning
 --        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day

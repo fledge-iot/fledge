@@ -24,7 +24,7 @@ USAGE="=== $SCRIPTNAME ===
 
 Activates a Python virtual environment for python3.5 or 
 python3 if python3.5 can not be found. Installs 
-Python dependencies (per requirements.txt) unless 
+Python dependencies (per requirements-all.txt) unless 
 --activate is provided. Additional capabilities are 
 available - see the options below.
 
@@ -46,6 +46,7 @@ Options:
   -c, --clean      Delete the virtual environment and remove
                    build and cache directories
   -d, --doc        Generate HTML in doc/_build directory
+  --dep            Install all Python dependencies
   --doc-build-test Run docs/check_sphinx.py
   --deactivate     Deactivate the virtual environment. Must
                    invoke via 'source.'
@@ -191,12 +192,19 @@ setup_and_run() {
         return
     fi
     
-    make install-py-requirements
+    # TODO install dependencies in specific
+    # requirements-*.txt files either via 'make'
+    # or below
+    make install-requirements
     make create-env
+
+    if [ "$OPTION" == "ALLDEP" ]
+    then
+        make install-all-requirements
+    fi
 
     if [ "$OPTION" == "LINT" ]
     then
-        echo "Running lint checker"
         make lint
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -205,7 +213,6 @@ setup_and_run() {
 
     elif [ "$OPTION" == "TEST" ]
     then
-        echo "Running all tests"
         make test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -214,7 +221,6 @@ setup_and_run() {
 
     elif [ "$OPTION" == "TEST_PYTHON" ]
     then
-        echo "Running pytest"
         make py-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -249,7 +255,6 @@ setup_and_run() {
 
     elif [ "$OPTION" == "BUILD_DOC" ]
     then
-        echo "Building doc"
         make doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -258,7 +263,6 @@ setup_and_run() {
 
     elif [ "$OPTION" == "TEST_DOC_BUILD" ]
     then
-        echo "Running Sphinx docs build test"
         make doc-build-test
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -267,7 +271,6 @@ setup_and_run() {
         
     elif [ "$OPTION" == "LIVE_DOC" ]
     then
-        echo "Observe the changes in doc and update HTML live"
         make live-doc
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
@@ -276,7 +279,6 @@ setup_and_run() {
 
     elif [ "$OPTION" == "UNINSTALL" ]
     then
-        echo "This will remove the package"
         pip uninstall FogLAMP <<< y
     fi
 }
@@ -291,6 +293,10 @@ if [ $# -gt 0 ]
 
            -a|--activate)
              OPTION="ACTIVATE"
+             ;;
+
+           --dep)
+             OPTION="ALLDEP"
              ;;
 
            --deactivate)

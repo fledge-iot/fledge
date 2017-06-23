@@ -40,16 +40,18 @@ Sourcing this script:
   created.
 
 Options:
-  -a, --activate   Create and activate the virtual environment
-                   and exit. Do not install dependencies. Must
-                   must invoke via 'source.'
+  --all-dep        Install all Python dependencies
+  -a, --activate   Create and activate the Python virtual
+                   environment and exit. Do not install
+                   dependencies. Must invoke via 'source.'
   -c, --clean      Delete the virtual environment and remove
                    build and cache directories
   -d, --doc        Generate HTML in doc/_build directory
-  --dep            Install all Python dependencies
   --doc-build-test Run docs/check_sphinx.py
   --deactivate     Deactivate the virtual environment. Must
                    invoke via 'source.'
+  --dev-dep        Install Python dependencies for 
+                   production and testing
   -i, --install    Install FogLAMP packages and scripts
   -l, --lint       Run pylint. Writes output to 
                    pylint-report.txt
@@ -201,9 +203,12 @@ setup_and_run() {
     if [ "$OPTION" == "ALLDEP" ]
     then
         make install-all-requirements
-    fi
 
-    if [ "$OPTION" == "LINT" ]
+    elif [ "$OPTION" == "DEVDEP" ]
+    then
+        make install-dev-requirements
+
+    elif [ "$OPTION" == "LINT" ]
     then
         make lint
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
@@ -295,8 +300,12 @@ if [ $# -gt 0 ]
              OPTION="ACTIVATE"
              ;;
 
-           --dep)
+           --all-dep)
              OPTION="ALLDEP"
+             ;;
+
+           --dev-dep)
+             OPTION="DEVDEP"
              ;;
 
            --deactivate)

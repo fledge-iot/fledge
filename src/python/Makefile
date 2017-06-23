@@ -14,6 +14,7 @@ help:
 	@echo "doc - generate docs html"
 	@echo "doc-build-test - run docs/check_sphinx tests"
 	@echo "install-requirements - install dependencies using requirements.txt"
+	@echo "install-all-requirements - install dependencies using requirements-all.txt"
 	@echo "install-dev-requirements - install dependencies using requirements-dev.txt"
 	@echo "install-lint-requirements - install dependencies using requirements-lint.txt"
 	@echo "install-doc-requirements - install dependencies using requirements-doc.txt"
@@ -52,13 +53,17 @@ install-all-requirements: check-root
 	@echo "-- Installing all Python dependencies"
 	pip install -r requirements-all.txt
 
-install-lint-requirements: check-root
-	@echo "-- Installing Python lint dependencies"
-	pip install -r requirements-lint.txt
+install-dev-requirements: check-root
+	@echo "-- Installing dev dependencies"
+	pip install -r requirements-dev.txt
 
 install-doc-requirements: check-root
 	@echo "-- Installing Sphinx doc dependencies"
 	pip install -r requirements-doc.txt
+
+install-lint-requirements: check-root
+	@echo "-- Installing Python lint dependencies"
+	pip install -r requirements-lint.txt
 
 install-test-requirements: check-root
 	@echo "-- Installing test dependencies"
@@ -103,9 +108,11 @@ live-doc: install-doc-requirements
 	clean-build \
 	clean-pyc \
 	clean-test \
-	install-py-requirements \
+	install-requirements \
+	install-all-requirements \
 	install-dev-requirements \
 	install-doc-requirements \
+	install-lint-requirements \
 	install-test-requirements \
 	create-env\
 	lint \

@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# FOGLAMP_PRELUDE_BEGIN
+# {{FOGLAMP_LICENSE_DESCRIPTION}}
+# See: http://foglamp.readthedocs.io/
+#
+# Copyright (c) 2017 OSIsoft, LLC
+# License: Apache 2.0
+# FOGLAMP_PRELUDE_END
+#
+# __author__ = ${FULL_NAME}
+# __version__ = ${VERSION}
+#
+# Run with --help for description.
+
 # Change the cwd to the directory where this script
 # is located
 SCRIPT=$_
@@ -21,56 +34,61 @@ pushd `dirname "$SCRIPT"` > /dev/null
 SCRIPTNAME=$(basename "$SCRIPT")
 
 USAGE="=== $SCRIPTNAME ===
-
-Activates a Python virtual environment for python3.5 or 
-python3 if python3.5 can not be found. Installs 
-Python dependencies (per requirements-all.txt) unless 
---activate is provided. Additional capabilities are 
-available - see the options below.
+Build utilities for FogLAMP.
 
 Sourcing this script:
-  source build.sh [options]
+  $ source build.sh [options]
   or:
-  . build.sh [options]
+  $ . build.sh [options]
 
-  Sourcing this script causes the shell to inherit the virtual
-  environment so, for example, the 'python' command actually 
-  runs python3. Deactivate the virtual environment by running
-  \"deactivate\". The environment variable VENV_PATH is
-  created.
+  Sourcing this script activates a virtual environment so, for
+  example, the 'python' command actually python3. Deactivate 
+  the virtual environment by running \"deactivate\". The 
+  environment variable VENV_PATH contains a path to the virtual
+  environment's directory.
 
 Options:
-  --all-dep        Install all Python dependencies
-  -a, --activate   Create and activate the Python virtual
-                   environment and exit. Do not install
-                   dependencies. Must invoke via 'source.'
-  -c, --clean      Delete the virtual environment and remove
-                   build and cache directories
-  -d, --doc        Generate HTML in doc/_build directory
-  --doc-build-test Run docs/check_sphinx.py
-  --deactivate     Deactivate the virtual environment. Must
-                   invoke via 'source.'
-  --dev-dep        Install Python dependencies for 
-                   production and testing
-  -i, --install    Install FogLAMP packages and scripts
-  -l, --lint       Run pylint. Writes output to 
-                   pylint-report.txt
-  --live-doc       Run a local webserver that serves files in 
-                   doc/_build and monitors modifications to
-                   files in doc/ and regenerates HTML
-  -p, --py-test    Run only Python tests
-  -r, --run        Start FogLAMP
-  -s, --service    Start FogLAMP service
-  -t, --test       Run all tests
-  -u, --uninstall  Remove FogLAMP packages and scripts
-  Anything else    Show this help text
+  -a, --activate    Create and activate the Python virtual
+                    environment and exit. Do not install
+                    dependencies. Must invoke via 'source.'
+   -c, --clean      Delete the virtual environment and remove
+                    build and cache directories
+  -d, --doc         Generate HTML in doc/_build directory
+  --doc-build-test  Run docs/check_sphinx.py
+  --deactivate      Deactivate the virtual environment. Must
+                    invoke via 'source.'
+  -i, --install     Install production Python dependencies
+                    and FogLAMP-specific packages and scripts
+  --install-all-dep Install all Python dependencies
+  --install-dev-dep Install Python dependencies for 
+                    production and testing
+  -l, --lint        Run pylint. Writes output to 
+                    pylint-report.txt
+  --live-doc        Run a local webserver that serves files in 
+                    doc/_build and monitors modifications to
+                    files in doc/ and regenerates HTML
+  -p, --py-test     Run only Python tests
+  -r, --run         Start FogLAMP
+  -s, --service     Start FogLAMP service
+  -t, --test        Run all tests
+  -u, --uninstall   Remove FogLAMP packages and scripts
+  Anything else     Show this help text
 
 Exit status code:
   When this script is not invoked via 'source', it exits
   with status code 1 when errors occur (e.g., tests fail)"
 
 setup_and_run() {
-    IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+    IN_VENV=$(python3 -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
+    if [ $? -gt 0 ]
+    then
+        echo "*** python3 not found"
+        if [ $SOURCING -lt 1 ]
+        then
+            exit 1
+        fi
+        return
+    fi
 
     if [ $IN_VENV -gt 0 ]
     then
@@ -102,7 +120,7 @@ setup_and_run() {
                 exit 1
             fi
 
-            echo "-- Deactivating virtualenv"
+            echo "-- Deactivating virtual environment"
             deactivate
         fi
         return
@@ -121,7 +139,7 @@ setup_and_run() {
                 exit 1
             fi
 
-            echo "-- Deactivating virtualenv"
+            echo "-- Deactivating virtual environment"
             deactivate
         fi
 
@@ -141,7 +159,7 @@ setup_and_run() {
 
             if [ $? -gt 0 ]
             then
-                pip install virtualenv
+                pip install -r requirements-virtualenv.txt
             fi
 
             if [ $? -gt 0 ]
@@ -173,18 +191,18 @@ setup_and_run() {
                 fi
             fi
 
-            echo "-- Creating virtualenv for ${python_path}"
+            echo "-- Creating virtual environment for ${python_path}"
             virtualenv "--python=$python_path" "$VENV_PATH"
         fi
 
-        echo "-- Activating the virtualenv at $VENV_PATH"
+        echo "-- Activating the virtual environment at $VENV_PATH"
         source "$VENV_PATH/bin/activate"
 
         IN_VENV=$(python -c 'import sys; print ("1" if hasattr(sys, "real_prefix") else "0")')
 
-        if [ $IN_VENV -lt 1 ]
+        if [ $? -gt 0 ] || [ $IN_VENV -lt 1 ]
         then
-            echo "*** virtualenv failed"
+            echo "*** Activating virtual environment failed"
             return
         fi
     fi
@@ -194,10 +212,7 @@ setup_and_run() {
         return
     fi
     
-    # TODO install dependencies in specific
-    # requirements-*.txt files either via 'make'
-    # or below
-    make install-requirements
+    # TODO this will be deleted
     make create-env
 
     if [ "$OPTION" == "ALLDEP" ]
@@ -234,7 +249,7 @@ setup_and_run() {
 
     elif [ "$OPTION" == "INSTALL" ]
     then
-        pip install -e .
+        make install
         if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
         then
             exit 1
@@ -242,19 +257,29 @@ setup_and_run() {
 
     elif [ "$OPTION" == "RUN" ]
     then
-        pip install -e .
-        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        make install
+        if [ $? -gt 0 ] 
         then
-            exit 1
+            if [ $SOURCING -lt 1 ]
+            then
+                exit 1
+            else
+                return
+            fi
         fi
         foglamp
 
     elif [ "$OPTION" == "RUN_DAEMON" ]
     then
-        pip install -e .
-        if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
+        make install
+        if [ $? -gt 0 ] 
         then
-            exit 1
+            if [ $SOURCING -lt 1 ]
+            then
+                exit 1
+            else
+                return
+            fi
         fi
         foglampd
 
@@ -300,11 +325,11 @@ if [ $# -gt 0 ]
              OPTION="ACTIVATE"
              ;;
 
-           --all-dep)
+           --install-all-dep)
              OPTION="ALLDEP"
              ;;
 
-           --dev-dep)
+           --install-dev-dep)
              OPTION="DEVDEP"
              ;;
 

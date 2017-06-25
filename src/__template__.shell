@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# FOGLAMP_PRELUDE_BEGIN
+# {{FOGLAMP_LICENSE_DESCRIPTION}}
+# See: http://foglamp.readthedocs.io/
+#
+# Copyright (c) 2017 OSIsoft, LLC
+# License: Apache 2.0
+# FOGLAMP_PRELUDE_END
+#
+# __author__ = ${FULL_NAME}
+# __version__ = ${VERSION}
+#
+# Run with --help for description.
+
+

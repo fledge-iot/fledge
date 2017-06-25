@@ -48,9 +48,13 @@ def _run(coro):
 
 # http://docs.sqlalchemy.org/en/latest/core/dml.html
 class TestSensorValues:
+    @staticmethod
+    def __setup(mocker):
+        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+
     def test_invalid_payload1(self, mocker):
         """Test Bad Input"""
-        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+        self.__setup(mocker)
         sv = SensorValues()
         request = MagicMock()
         dict_payload = {}
@@ -60,7 +64,7 @@ class TestSensorValues:
 
     def test_invalid_payload2(self, mocker):
         """Test Bad Input"""
-        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+        self.__setup(mocker)
         sv = SensorValues()
         request = MagicMock()
         dict_payload = 'hello world'
@@ -70,7 +74,7 @@ class TestSensorValues:
 
     def test_good_payload(self, mocker):
         """Test Good Input"""
-        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+        self.__setup(mocker)
         sv = SensorValues()
         request = MagicMock()
         dict_payload = {'timestamp':'2017-01-01T00:00:00Z', 'asset':'test'}

@@ -12,11 +12,12 @@ FOGLAMP_PRELUDE_END
 import logging
 
 from cbor2 import loads
-import psycopg2
+import aiocoap
 import aiocoap.resource
-from sqlalchemy.dialects.postgresql import JSONB
+import psycopg2
 import aiopg.sa
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 
 """CoAP handler for coap://readings URI"""
 
@@ -31,6 +32,7 @@ _sensor_values_tbl = sa.Table(
     sa.Column('user_ts', sa.types.TIMESTAMP),
     sa.Column('reading', JSONB))
 """Defines the table that data will be inserted into"""
+
 
 class SensorValues(aiocoap.resource.Resource):
     """CoAP handler for coap://readings URI"""
@@ -63,6 +65,7 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
+        # Required keys in the payload
         try:
             payload = loads(request.payload)
             asset = payload['asset']
@@ -70,10 +73,11 @@ class SensorValues(aiocoap.resource.Resource):
         except:
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
+        # Optional keys in the payload
         readings = payload.get('readings', {})
         key = payload.get('key')
 
-        # Comment out to demonstrate IntegrityError
+        # Comment out to test IntegrityError
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
         try:

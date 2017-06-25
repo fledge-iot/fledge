@@ -1,4 +1,5 @@
 import asyncio
+import aiocoap
 from unittest.mock import MagicMock
 from cbor2 import dumps
 
@@ -47,13 +48,33 @@ def _run(coro):
 
 # http://docs.sqlalchemy.org/en/latest/core/dml.html
 class TestSensorValues:
-    def test_render_post(self, mocker):
+    def test_invalid_payload1(self, mocker):
+        """Test Bad Input"""
         mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
         sv = SensorValues()
         request = MagicMock()
-        dict_payload = {'jack': 4098, 'sape': 4139}
+        dict_payload = {}
         request.payload = dumps(dict_payload)
         return_val = _run(sv.render_post(request))
-        assert return_val is not None
-        # assert sqlalchemy.Table.insert.mock.assert_called_once_with('?')
-        # assert MagicMockConnection.execute.mock.assert_called_once_with('?')
+        assert return_val.code == aiocoap.numbers.codes.Code.BAD_REQUEST
+
+    def test_invalid_payload2(self, mocker):
+        """Test Bad Input"""
+        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+        sv = SensorValues()
+        request = MagicMock()
+        dict_payload = 'hello world'
+        request.payload = dumps(dict_payload)
+        return_val = _run(sv.render_post(request))
+        assert return_val.code == aiocoap.numbers.codes.Code.BAD_REQUEST
+
+    def test_good_payload(self, mocker):
+        """Test Good Input"""
+        mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
+        sv = SensorValues()
+        request = MagicMock()
+        dict_payload = {'timestamp':'2017-01-01T00:00:00Z', 'asset':'test'}
+        request.payload = dumps(dict_payload)
+        return_val = _run(sv.render_post(request))
+        assert return_val.code == aiocoap.numbers.codes.Code.VALID
+

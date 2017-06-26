@@ -1,12 +1,12 @@
+from unittest.mock import MagicMock
 import asyncio
 import aiocoap
-from unittest.mock import MagicMock
 from cbor2 import dumps
 
 from foglamp.device_api.coap.sensor_values import SensorValues
 
 
-def AsyncMock(*args, **kwargs):
+def async_mock(*args, **kwargs):
     m = MagicMock(*args, **kwargs)
 
     async def mock_coro(*args, **kwargs):
@@ -17,7 +17,7 @@ def AsyncMock(*args, **kwargs):
 
 
 class MagicMockConnection(MagicMock):
-    execute = AsyncMock()
+    execute = async_mock()
 
 
 class AcquireContextManager(MagicMock):
@@ -46,13 +46,12 @@ def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
 
 
-# http://docs.sqlalchemy.org/en/latest/core/dml.html
 class TestSensorValues:
     @staticmethod
     def __setup(mocker):
         mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
 
-    def test_invalid_payload1(self, mocker):
+    def test_bad_payload1(self, mocker):
         """Test Bad Input"""
         self.__setup(mocker)
         sv = SensorValues()
@@ -62,12 +61,32 @@ class TestSensorValues:
         return_val = _run(sv.render_post(request))
         assert return_val.code == aiocoap.numbers.codes.Code.BAD_REQUEST
 
-    def test_invalid_payload2(self, mocker):
+    def test_bad_payload2(self, mocker):
         """Test Bad Input"""
         self.__setup(mocker)
         sv = SensorValues()
         request = MagicMock()
         dict_payload = 'hello world'
+        request.payload = dumps(dict_payload)
+        return_val = _run(sv.render_post(request))
+        assert return_val.code == aiocoap.numbers.codes.Code.BAD_REQUEST
+
+    def test_bad_payload3(self, mocker):
+        """Test missing timestamp"""
+        self.__setup(mocker)
+        sv = SensorValues()
+        request = MagicMock()
+        dict_payload = {'asset':'test'}
+        request.payload = dumps(dict_payload)
+        return_val = _run(sv.render_post(request))
+        assert return_val.code == aiocoap.numbers.codes.Code.BAD_REQUEST
+
+    def test_bad_payload4(self, mocker):
+        """Test missing asset"""
+        self.__setup(mocker)
+        sv = SensorValues()
+        request = MagicMock()
+        dict_payload = {'timestamp':'2017-01-01T00:00:00Z'}
         request.payload = dumps(dict_payload)
         return_val = _run(sv.render_post(request))
         assert return_val.code == aiocoap.numbers.codes.Code.BAD_REQUEST

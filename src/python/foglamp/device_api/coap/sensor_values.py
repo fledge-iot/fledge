@@ -9,8 +9,8 @@ License: Apache 2.0
 
 FOGLAMP_PRELUDE_END
 """
-import logging
 
+import logging
 from cbor2 import loads
 import aiocoap
 import aiocoap.resource
@@ -19,7 +19,8 @@ import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-"""CoAP handler for coap://readings URI"""
+"""CoAP handler for coap://other/sensor_readings URI
+"""
 
 __author__ = 'Terris Linenbach'
 __version__ = '${VERSION}'
@@ -36,6 +37,7 @@ _sensor_values_tbl = sa.Table(
 
 class SensorValues(aiocoap.resource.Resource):
     """CoAP handler for coap://readings URI"""
+
     def __init__(self):
         super(SensorValues, self).__init__()
 
@@ -85,12 +87,12 @@ class SensorValues(aiocoap.resource.Resource):
                 async with engine.acquire() as conn:
                     try:
                         await conn.execute(_sensor_values_tbl.insert().values(
-                         asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
+                            asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
                     except psycopg2.IntegrityError:
                         logging.getLogger('coap-server').exception(
-                          'Duplicate key (%s) inserting sensor values:\n%s',
-                          key,
-                          payload)
+                            'Duplicate key (%s) inserting sensor values:\n%s',
+                            key,
+                            payload)
         except:
             logging.getLogger('coap-server').exception(
                 "Database error occurred. Payload:\n%s"
@@ -99,4 +101,3 @@ class SensorValues(aiocoap.resource.Resource):
 
         return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.VALID)
         # TODO what should this return?
-

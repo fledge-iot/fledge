@@ -44,10 +44,10 @@ Todo:
 
 import sys
 
-__author__ = "${FULL_NAME}"
-__version__ = "${VERSION}"
+__author__    = "${FULL_NAME}"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
-__license__ = "Apache 2.0"
+__license__   = "Apache 2.0"
+__version__   = "${VERSION}"
 
 module_level_variable1 = 12345
 

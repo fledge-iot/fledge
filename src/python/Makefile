@@ -1,14 +1,12 @@
-# FOGLAMP_PRELUDE_BEGIN
-# {{FOGLAMP_LICENSE_DESCRIPTION}}
+# FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
-#
-# Copyright (c) 2017 OSIsoft, LLC
-# License: Apache 2.0
-# FOGLAMP_PRELUDE_END
-#
-# __author__ = ${FULL_NAME}
-# __version__ = ${VERSION}
-#
+# FOGLAMP_END
+
+# __author__="${FULL_NAME}"
+# __copyright__="Copyright (c) 2017 OSIsoft, LLC"
+# __license__="Apache 2.0"
+# __version__="${VERSION}"
+
 # FogLAMP build tasks (makefile)
 
 USER := $(shell whoami)
@@ -25,15 +23,14 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
 	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
+	@echo "develop - install dev dependencies and FogLAMP using setup.py"
 	@echo "doc - generate docs html"
 	@echo "doc-build-test - run docs/check_sphinx tests"
 	@echo "install - install production dependencies and FogLAMP using setup.py"
-	@echo "install-requirements - install dependencies using requirements.txt"
-	@echo "install-all-requirements - install dependencies using requirements-all.txt"
-	@echo "install-dev-requirements - install dependencies using requirements-dev.txt"
-	@echo "install-lint-requirements - install dependencies using requirements-lint.txt"
-	@echo "install-doc-requirements - install dependencies using requirements-doc.txt"
-	@echo "install-test-requirements - install dependencies using requirements-test.txt"
+	@echo "install-dep - install dependencies using requirements.txt"
+	@echo "install-dev-dep - install dependencies using requirements-dev.txt"
+	@echo "install-doc-dep - install dependencies using requirements-doc.txt"
+	@echo "install-test-dep - install dependencies using requirements-test.txt"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-js - run ui/*.js files lint check only"
 	@echo "lint-python - run python files lint check only"
@@ -60,54 +57,53 @@ clean-test:
 	rm -fr .cache
 	rm -fr .tox
 
-install-requirements: check-root
-	pip install -r requirements.txt
-
-install-all-requirements: check-root
-	pip install -r requirements-all.txt
-
-install-dev-requirements: check-root
-	pip install -r requirements-dev.txt
-
-install-doc-requirements: check-root
-	pip install -r requirements-doc.txt
-
-install-lint-requirements: check-root
-	pip install -r requirements-lint.txt
-
-install-test-requirements: check-root
-	pip install -r requirements-test.txt
-
-install: install-requirements
-	pip install -e .
-
 # TODO deleteme
 create-env:
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 	
-test: py-test doc-build-test
+develop: install-dev-dep
+	pip install -e .
 
-py-test: install-test-requirements
-	tox -e py35
+doc: install-doc-dep
+	cd ../../docs && make html
 
-doc-build-test: install-doc-requirements
+doc-build-test: install-tox
 	tox -e docs
 
-lint: 
-	lint-python lint-js
+install-dep: check-root
+	pip install -r requirements.txt
 
-lint-python: install-lint-requirements
+install: install-dep
+	pip install -e .
+
+install-dev-dep: check-root
+	pip install -r requirements-dev.txt
+
+install-doc-dep: check-root
+	pip install -r requirements-doc.txt
+
+install-test-dep: check-root
+	pip install -r requirements-test.txt
+
+install-tox: check-root
+	pip install tox
+
+lint: lint-python lint-js
+
+lint-js:
+	@echo "-- TODO: add js lint | added here for example, to add later"
+
+lint-python: install-test-dep
 	rm -f pylint*.log
 	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') > pylint_$(shell date +%FT%T%Z).log || exit 0
 
-lint-js:
-  @echo "-- TODO: add js lint | added here for example, to add later"
-
-doc: install-doc-requirements
-	cd ../../docs && make html
-
-live-doc: install-doc-requirements
+live-doc: install-doc-dep
 	cd ../../docs && make livehtml
+
+py-test: install-tox
+	tox -e py35
+
+test: py-test doc-build-test
 
 .PHONY: \
 	help \
@@ -115,13 +111,12 @@ live-doc: install-doc-requirements
 	clean-build \
 	clean-pyc \
 	clean-test \
+	develop \
 	install \
-	install-requirements \
-	install-all-requirements \
-	install-dev-requirements \
-	install-doc-requirements \
-	install-lint-requirements \
-	install-test-requirements \
+	install-dep \
+	install-dev-dep \
+	install-doc-dep \
+	install-test-dep \
 	create-env\
 	lint \
 	lint-python \
@@ -131,3 +126,4 @@ live-doc: install-doc-requirements
 	test \
 	py-test \
 	doc-build-test
+

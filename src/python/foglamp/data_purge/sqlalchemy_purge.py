@@ -5,12 +5,17 @@ Description: The following is a simple purger application that not only call exe
     I there are extra methods imitating those. Secondly, since (to me) it is still not clear where 
     data would be stored, 
 Lanague: Python + SQLAlchemy
+
+The focus of the code is the purge() method. Beyond that, everything else is extra stuff to show 
 """
 import datetime
+import json
+import os
 import sqlalchemy
 import sys
 import time
 import yaml
+
 
 t1 = sqlalchemy.Table('t1',sqlalchemy.MetaData(),
         sqlalchemy.Column('id',sqlalchemy.INTEGER,primary_key=True),
@@ -18,8 +23,6 @@ t1 = sqlalchemy.Table('t1',sqlalchemy.MetaData(),
 
 engine = sqlalchemy.create_engine('postgres://foglamp:foglamp@192.168.0.182/foglamp')
 conn = engine.connect()
-
-open('logs.db','w').close()
 
 def conver_timestamp(set_time=None):
     """
@@ -57,37 +60,68 @@ def conver_timestamp(set_time=None):
 def purge():
     """
         Actual Purge process
+    The numbers are roughly calculated because INSERTS are consistently running as other processes 
+    are being executed. 
     Returns:
-        amount of time to wait until next excution (based on config.yaml)
+        amount of time to wait until next execution (based on config.yaml)
     """
-    # Reald config (yaml File)
+
+    # Reald config (YAML File) - age, enabled, wait, date
     with open('config.yaml','r') as conf:
         config = yaml.load(conf)
-    set_time=config['age']
+    age_timestamp = datetime.datetime.strftime(datetime.datetime.now() - conver_timestamp(set_time=config['age']),'%Y-%m-%d %H:%M:%S')
+    data = {}
+    if os.path.getsize("logs.json") > 0:
 
-    # Prepare Query stmts
-    timestamp = datetime.datetime.strftime(datetime.datetime.now() - conver_timestamp(set_time=set_time),'%Y-%m-%d %H:%M:%S')
-    delete = t1.delete().where(t1.c.ts <= timestamp)
-    delete = delete.compile(compile_kwargs={"literal_binds": True})
-    # Rows count up to timestamp
-    count1 = t1.count().where(t1.c.ts <= timestamp)
-    count1 = count1.compile(compile_kwargs={"literal_binds": True})
-    # Row count after TIMESTAMP
-    count2 = t1.count().where(t1.c.ts > timestamp)
-    count2 = count2.compile(compile_kwargs={"literal_binds": True})
+        with open('logs.json', 'r') as f:
+            data=json.load(f)
 
-    # Timestamp of execution
-    timestamp = time.time()
-    timestamp = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    if config['enabled'] is True: # If it's enabled
+        purgeStatus = {}
 
-    # Call query execution
-    lthen=get_count(count1)
-    database_manage(delete)
-    verify=get_count(count1) # Expect 0 each time
-    remainder = get_count(count2)
+        # unsentRowsRemoved: How many rows that were not sent to PI were removed
+        if age_timestamp > str(config['pi_date']):
+            query = sqlalchemy.select([sqlalchemy.func.count('*')]).select_from(t1).where(t1.c.ts <= age_timestamp).where(t1.c.ts >= str(config['pi_date']))
+            unsentRowsRemoved=get_count(query)
 
-    # Write to log
-    f.write('%s\t%s\t\t%s\t%s\n' % (timestamp,lthen,verify,remainder))
+        # Number of rows expected to get removed
+        query = sqlalchemy.select([sqlalchemy.func.count('*')]).select_from(t1).where(t1.c.ts <= age_timestamp)
+        expectRemoved = get_count(query)
+
+        # Total Count
+        query = sqlalchemy.select([sqlalchemy.func.count('*')]).select_from(t1)
+        totalCount = get_count(query)
+
+        # Execute DELETE stmt
+        delete = t1.delete().where(t1.c.ts <= age_timestamp)
+        start, end = database_manage(delete)
+
+        # failedRemovals: How many rows that were expected to get removed weren't removed
+        query = sqlalchemy.select([sqlalchemy.func.count('*')]).select_from(t1).where(t1.c.ts <= age_timestamp)
+        failedRemovals = get_count(query)
+
+        # rowsRemaining: How many rows remain remain up-to the delete
+        query = sqlalchemy.select([sqlalchemy.func.count('*')]).select_from(t1).where(t1.c.ts <= start)
+        rowsRemaining = get_count(query)
+
+        # rowsRemoved: How many rows were removed
+        rowsRemoved = totalCount - rowsRemaining
+
+
+
+        purgeStatus['Start Time'] = start
+        purgeStatus['Complete Time'] = end
+        purgeStatus['Rows Remaining'] = rowsRemaining
+        purgeStatus['Rows Removed'] = rowsRemoved
+        purgeStatus['Expected Removed'] = expectRemoved
+        purgeStatus['Failed Remove'] = failedRemovals
+        purgeStatus['Unsent Removed Rows'] = unsentRowsRemoved
+
+        data[start]=purgeStatus
+        f = open('logs.json', 'w')
+        f.write(json.dumps(data))
+        f.close()
+
     return config['wait']
 
 def get_count(stmt):
@@ -112,6 +146,8 @@ def database_manage(stmt=""):
     Args:
         stmt: 
     """
+    start = time.time()
+    start = datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S.%s')
     try:
         conn.execute(stmt)
     except conn.Error as e:
@@ -119,17 +155,17 @@ def database_manage(stmt=""):
         sys.exit()
     else:
         conn.execute("commit")
+    end = time.time()
+    end = datetime.datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S.%s')
+
+    return start, end
 
 if __name__ == '__main__':
     """The main, which in part also acts a schedul"""
-    f = open('logs.db', 'a')
-    f.write('%s\t\t%s\t%s\t%s\n' % ('TIMESTAMP','Total Removed', 'Verify','Reminder'))
-    f.close()
-    # Imitate scheduler
+    open('logs.json', 'w').close()
+
     while True:
-        f = open('logs.db', 'a')
         wait=purge()
-        f.close()
         time.sleep(wait)
 
 

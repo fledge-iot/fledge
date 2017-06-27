@@ -76,7 +76,7 @@ class SensorValues(aiocoap.resource.Resource):
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
         # Optional keys in the payload
-        readings = payload.get('readings', {})
+        readings = payload.get('sensor_values', {})
         key = payload.get('key')
 
         # Comment out to test IntegrityError
@@ -93,7 +93,7 @@ class SensorValues(aiocoap.resource.Resource):
                             'Duplicate key (%s) inserting sensor values:\n%s',
                             key,
                             payload)
-        except:
+        except Exception:
             logging.getLogger('coap-server').exception(
                 "Database error occurred. Payload:\n%s"
                 , payload)

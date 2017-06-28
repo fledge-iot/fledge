@@ -1,14 +1,12 @@
+#!/usr/bin/env python3
+
 # -*- coding: utf-8 -*-
-"""FOGLAMP_PRELUDE_BEGIN
-{{FOGLAMP_LICENSE_DESCRIPTION}}
 
-See: http://foglamp.readthedocs.io/
+# Remove the #!/usr/bin/env line above if this is not an executable script (also remove this line)
 
-Copyright (c) 2017 OSIsoft, LLC
-License: Apache 2.0
-
-FOGLAMP_PRELUDE_END
-"""
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
 
 """Example Google style docstrings.
 
@@ -46,8 +44,10 @@ Todo:
 
 import sys
 
-__author__ = '${FULL_NAME}'
-__version__ = '${VERSION}'
+__author__    = "${FULL_NAME}"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__license__   = "Apache 2.0"
+__version__   = "${VERSION}"
 
 module_level_variable1 = 12345
 

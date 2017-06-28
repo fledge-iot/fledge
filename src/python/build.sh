@@ -58,7 +58,7 @@ Options:
   -i, --install     Install production Python dependencies
                     and FogLAMP-specific packages and scripts
   --install-dev-dep Install Python dependencies for 
-                    production and testing
+                    development and testing
   -l, --lint        Run pylint. Writes output to 
                     pylint-report.txt
   --live-doc        Run a local webserver that serves files in 
@@ -213,7 +213,7 @@ setup_and_run() {
     # TODO this will be deleted
     make create-env
 
-    if [ "$OPTION" == "DEVDEP" ]
+    if [ "$OPTION" == "DEV_DEP" ]
     then
         make install-dev-dep
 
@@ -320,7 +320,7 @@ if [ $# -gt 0 ]
              ;;
 
            --install-dev-dep)
-             OPTION="DEVDEP"
+             OPTION="DEV_DEP"
              ;;
 
            --deactivate)

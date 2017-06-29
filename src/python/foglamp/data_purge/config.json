@@ -1,7 +1,1 @@
-{
-  "retainUnsent": true,
-  "lastConnection": "2018-01-01 00:00:00",
-  "age": "15 minutes",
-  "wait": "3 seconds",
-  "enabled": true
-}
+{"wait": "10 seconds", "lastConnection": "2017-06-29 15:14:06", "enabled": true, "retainUnsent": true, "age": "2 minutes"}

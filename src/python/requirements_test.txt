@@ -1,4 +1,0 @@
-pylint==1.7.1
-pytest==3.1.1
-pytest-mock==1.6.0
-pytest-allure-adaptor==1.7.7

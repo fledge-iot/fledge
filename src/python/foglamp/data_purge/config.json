@@ -1,8 +1,7 @@
 {
-  "age":"15 minutes",
-  "enabled":true,
-  "wait":"3 seconds",
-  "pi_date":"2017-01-01 00:00:00"
+  "retainUnsent": true,
+  "lastConnection": "2018-01-01 00:00:00",
+  "age": "15 minutes",
+  "wait": "3 seconds",
+  "enabled": true
 }
-
-

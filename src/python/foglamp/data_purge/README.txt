@@ -1,31 +1,22 @@
-General Description: FOGL-200 is the responsibility for purge processing, which I began to look in the past few days.
-The work done in this in this the data_purge configuration (thus far) is based on the simple purge process
-(https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/edit#).
+General Description: FOGL-200 is the responsibility for the purge process, which seats somewhere
+between schedualer (calls FOGL-200), and the database layer (recieves requests from FOGL-200)
+Link: https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/
 
-Code Description:
-1. Before testing Inserts there exists a creation of table and continuous inserts
-2. Once the purging process is called (currently needs to initiated), it looks at the config file (config.yaml)
-    Since the config file is called each time, a user can update it on the fly
-3. Based on the config.yaml files the purge process prepares the DELETE statement, and COUNT
-4. It then sends the respective queries to the the database node to be executed.
-5. The database node returns the following
-    - Number of rows less than or equal to the WHERE condition for delete (prior to DELETE execution)
-    - Number of rows less than or equal to the WHERE condition for delete (after DELETE execution) - Expect 0
-    - Number of rows more than or equal to the WHERE condition for delete (after DELETE execution)
-6. Provided these 3 numbers, as well as current timestamp are stored in a logs file (called logs.db)
-7. Finally, based on the configuration file (config.yaml) the purge process sends the schedualer how long to
-    wait, until recalling it.
+Files:
+    - __init__.py: Contains global variables that can be used throughout the directory. In this case,
+        the file contaisn connection information, config/log file names, and table information. ]
+        Please note that the __init__.py currently has "default" information for connecting to db
+         node, and should be updated appropriately if connection fails.
 
- Files:
- - config.yaml: configuration file
- - logs.db: Data logs
- - pg_insert.py: psycopg2 version of the INSERT process
- - pg_purge.py: psycopg2 version of the PURGE process
- - sqlalchemy_insert.py: SQLAlchemy version of the INSERT process
- - sqlalchemy_purge.py: SQLAlchemy version of the PURGE process
+    - sqlalchemy_insert.py: An example of INSERTS being done with SQLAlchemy. This file exists as a tool to
+        show how the purge process will be done.
 
-Review: When using psycopg2 for the INSERT process, I "hang" (meaning wait) for all other executions to finish.
-Whereas with SQLAlchemy, both the  INSERT and PURGE processes can co-exist as if running on parallel threads.
+    - sqlalchemy_purge.py: The file contains more information that there would need to be, but shows how
+        puring would be done against the database, based on a json object containning configuration information.
+        The results of the pruge process are also logged in a JSON object.
 
-Note: I'm honestly NOT trying to by dependent on SQLAlchemy, but rather trying to convey the point that it makes
-    like easier than I had initially thought.
+How to run:
+    A user trying this piece of code should first run INSERTS (sqlalchemy_insert.py) for a few moments before
+    beginning the purge process (sqlalchemy_purge.py). Once the purge process has began, the user can feel free
+    to begin playing with the config.json. Finally, logged information regarding puring can be seen in logs.json.
+    

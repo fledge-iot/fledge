@@ -19,4 +19,6 @@ How to run:
     A user trying this piece of code should first run INSERTS (sqlalchemy_insert.py) for a few moments before
     beginning the purge process (sqlalchemy_purge.py). Once the purge process has began, the user can feel free
     to begin playing with the config.json. Finally, logged information regarding puring can be seen in logs.json.
-    
+
+Unit-test (using py.test):
+    unit_test.py is broken into 2 parts. The first part focuses on making sure that data is

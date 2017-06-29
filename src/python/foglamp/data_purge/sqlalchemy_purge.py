@@ -118,6 +118,7 @@ def purge(tableName=None, configFile=None, logsFile=None):
 
     if config['enabled'] is True: # meaning that config info is authorizing the purge
         age_timestamp = datetime.datetime.strftime(datetime.datetime.now() - conver_timestamp(set_time=config['age']),'%Y-%m-%d %H:%M:%S')
+        print(config['lastConnection'])
         last_connection = datetime.datetime.strptime(config['lastConnection'], '%Y-%m-%d %H:%M:%S')
 
         # Time that purge process begins (NOW) - the script will ignore everything after now for purging

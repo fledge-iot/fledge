@@ -9,16 +9,18 @@ License: Apache 2.0
 
 FOGLAMP_PRELUDE_END
 """
-import logging
 
+import logging
 from cbor2 import loads
-import psycopg2
+import aiocoap
 import aiocoap.resource
-from sqlalchemy.dialects.postgresql import JSONB
+import psycopg2
 import aiopg.sa
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 
-"""CoAP handler for coap://readings URI"""
+"""CoAP handler for coap://other/sensor_readings URI
+"""
 
 __author__ = 'Terris Linenbach'
 __version__ = '${VERSION}'
@@ -32,8 +34,10 @@ _sensor_values_tbl = sa.Table(
     sa.Column('reading', JSONB))
 """Defines the table that data will be inserted into"""
 
+
 class SensorValues(aiocoap.resource.Resource):
     """CoAP handler for coap://readings URI"""
+
     def __init__(self):
         super(SensorValues, self).__init__()
 
@@ -63,6 +67,7 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
+        # Required keys in the payload
         try:
             payload = loads(request.payload)
             asset = payload['asset']
@@ -70,10 +75,11 @@ class SensorValues(aiocoap.resource.Resource):
         except:
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
-        readings = payload.get('readings', {})
+        # Optional keys in the payload
+        readings = payload.get('sensor_values', {})
         key = payload.get('key')
 
-        # Comment out to demonstrate IntegrityError
+        # Comment out to test IntegrityError
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
         try:
@@ -81,13 +87,13 @@ class SensorValues(aiocoap.resource.Resource):
                 async with engine.acquire() as conn:
                     try:
                         await conn.execute(_sensor_values_tbl.insert().values(
-                         asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
+                            asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
                     except psycopg2.IntegrityError:
                         logging.getLogger('coap-server').exception(
-                          'Duplicate key (%s) inserting sensor values:\n%s',
-                          key,
-                          payload)
-        except:
+                            'Duplicate key (%s) inserting sensor values:\n%s',
+                            key,
+                            payload)
+        except Exception:
             logging.getLogger('coap-server').exception(
                 "Database error occurred. Payload:\n%s"
                 , payload)
@@ -95,4 +101,3 @@ class SensorValues(aiocoap.resource.Resource):
 
         return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.VALID)
         # TODO what should this return?
-

@@ -36,7 +36,7 @@ fi
 pushd `dirname "$SCRIPT"` > /dev/null
 
 SCRIPTNAME=$(basename "$SCRIPT")
-SCRIPT_AND_VERSION="$SCRIPTNAME Version: $__version__"
+SCRIPT_AND_VERSION="$SCRIPTNAME $__version__"
 
 ############################################################
 # Usage text for this script

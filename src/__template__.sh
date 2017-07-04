@@ -35,18 +35,19 @@ fi
 pushd `dirname "$SCRIPT"` > /dev/null
 
 SCRIPTNAME=$(basename "$SCRIPT")
+SCRIPT_AND_VERSION="$SCRIPTNAME Version: $__version__"
 
 ############################################################
 # Usage text for this script
 ############################################################
-USAGE="$SCRIPTNAME
+USAGE="$SCRIPT_AND_VERSION
 
 Description
 
 Commands:
   -a, --activate  Activate virtual envirnoment
-  -l, --lint      Check source code with lint
-  Anything else   Show this help text
+  -v, --version   Display this script's version
+  Anything else   Display this help text
 
 Multiple commands can be specified but they all must all be
 specified separately (-al is not supported).
@@ -69,9 +70,9 @@ execute_command() {
       exit 1
     fi
 
-  elif [ "$OPTION" == "LINT" ]
+  elif [ "$OPTION" == "VERSION" ]
   then
-    echo "Linting..."
+    echo $SCRIPT_AND_VERSION
 
   fi
 }
@@ -90,8 +91,8 @@ then
         OPTION="ACTIVATE"
         ;;
 
-      -l|--lint)
-        OPTION="LINT"
+      -v|--version)
+        OPTION="VERSION"
         ;;
 
       *)
@@ -121,6 +122,7 @@ then
   unset RETURN
   unset SCRIPT
   unset SCRIPTNAME
+  unset SCRIPT_AND_VERSION
   unset SOURCING
   unset USAGE
 else

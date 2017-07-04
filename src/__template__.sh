@@ -17,10 +17,11 @@ __version__="${VERSION}"
 # Change the current directory to the directory where this
 # script is located
 ############################################################
-SCRIPT=$_
-if [[ "$SCRIPT" != "$0" ]]
+if [[ "$0" != "$BASH_SOURCE" ]]
 then
-  # See https://unix.stackexchange.com/questions/4650/determining-path-to-sourced-shell-script
+  # See https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced/23009039#23009039
+  # This only works reliably with 'bash'. Other shells probably 
+  # can not 'source' this script.
   SOURCING=1
   SCRIPT=${BASH_SOURCE[@]}
   if [ "$SCRIPT" == "" ]
@@ -42,37 +43,40 @@ SCRIPT_AND_VERSION="$SCRIPTNAME Version: $__version__"
 ############################################################
 USAGE="$SCRIPT_AND_VERSION
 
-Description
+DESCRIPTION
+  This is a script template.
 
-Commands:
-  -a, --activate  Activate virtual envirnoment
+OPTIONS
+  Multiple commands can be specified but they all must all be
+  specified separately (-al is not supported).
+
+  -h, --help      Display this help text
   -v, --version   Display this script's version
-  Anything else   Display this help text
 
-Multiple commands can be specified but they all must all be
-specified separately (-al is not supported).
-
-Exit status code:
+EXIT STATUS
   This script exits with status code 1 when errors occur (e.g., 
-  tests fail) except when it is 'sourced.'"
+  tests fail) except when it is 'sourced.'
+  
+EXAMPLES
+  1) $SCRIPTNAME --version"
 
 ############################################################
 # Execute the command specified in $OPTION
 ############################################################
 execute_command() {
-  if [ "$OPTION" == "ACTIVATE" ]
+  if [ "$OPTION" == "HELP" ]
   then
-    echo "Activating..."
+    echo "${USAGE}"
+
+  elif [ "$OPTION" == "VERSION" ]
+  then
+    echo $SCRIPT_AND_VERSION
 
     # Example: check last shell command for failure
     if [ $? -gt 0 ] && [ $SOURCING -lt 1 ]
     then
       exit 1
     fi
-
-  elif [ "$OPTION" == "VERSION" ]
-  then
-    echo $SCRIPT_AND_VERSION
 
   fi
 }
@@ -87,8 +91,8 @@ then
   for i in "$@"
   do
     case $i in
-      -a|--activate)
-        OPTION="ACTIVATE"
+      -h|--help)
+        OPTION="HELP"
         ;;
 
       -v|--version)
@@ -96,13 +100,15 @@ then
         ;;
 
       *)
-        echo "${USAGE}" # anything including -h :]
+        echo "Unrecognized option: $i"
         RETURN=1
-        break
         ;;
     esac
 
-    execute_command
+    if [ $RETURN -lt 1 ]
+    then
+      execute_command
+    fi
   done
 else
   echo "${USAGE}"
@@ -110,22 +116,25 @@ else
 fi
 
 ############################################################
+# Normal exit
+############################################################
+if [ $SOURCING -lt 1 ]
+then
+  exit $RETURN
+fi
+
+############################################################
 # Unset all temporary variables created by this script
 # and revert to the previous current directory
 # when this script has been sourced
 ############################################################
-if [ $SOURCING -gt 0 ]
-then
-  popd > /dev/null
+popd > /dev/null
 
-  unset OPTION
-  unset RETURN
-  unset SCRIPT
-  unset SCRIPTNAME
-  unset SCRIPT_AND_VERSION
-  unset SOURCING
-  unset USAGE
-else
-  exit $RETURN
-fi
+unset OPTION
+unset RETURN
+unset SCRIPT
+unset SCRIPTNAME
+unset SCRIPT_AND_VERSION
+unset SOURCING
+unset USAGE
 

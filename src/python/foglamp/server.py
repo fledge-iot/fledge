@@ -12,6 +12,8 @@ import sys
 import time
 import daemon
 from daemon import pidfile
+import psutil
+
 
 from foglamp.controller import start as start_controller
 
@@ -29,6 +31,26 @@ WORKING_DIR = '~/var/log'
 pidf = os.path.expanduser(PIDFILE)
 logf = os.path.expanduser(LOGFILE)
 wdir = os.path.expanduser(WORKING_DIR)
+
+
+def find_process_info(process_name):
+    """
+    Find Process start time
+
+    :param process_name: name of the process
+    :return: string start_time or None if no such process exists
+    """
+
+    process = [proc for proc in psutil.process_iter() if proc.name() == process_name]
+
+    if len(process) == 0:
+        return None
+
+    return dict({
+        "pid": process[0].pid,
+        "status": process[0].status(),
+        "start_time": process[0].create_time()
+    })
 
 
 def do_something(logf):

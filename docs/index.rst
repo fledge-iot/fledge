@@ -6,7 +6,7 @@ Welcome to FogLAMP's documentation!
 
    backend
    admin-api
-
+   build-tools
 
 Indices and tables
 ==================

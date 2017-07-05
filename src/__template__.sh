@@ -47,15 +47,15 @@ DESCRIPTION
   This is a script template.
 
 OPTIONS
-  Multiple commands can be specified but they all must all be
-  specified separately (-al is not supported).
+  Multiple commands can be specified but they all must be
+  specified separately (-hv is not supported).
 
   -h, --help      Display this help text
-  -v, --version   Display this script's version
+  -v, --version   Display this script's version information
 
 EXIT STATUS
   This script exits with status code 1 when errors occur (e.g., 
-  tests fail) except when it is 'sourced.'
+  tests fail) except when it is sourced.
   
 EXAMPLES
   1) $SCRIPTNAME --version"
@@ -84,8 +84,6 @@ execute_command() {
 ############################################################
 # Process arguments
 ############################################################
-RETURN=0
-
 if [ $# -gt 0 ]
 then
   for i in "$@"
@@ -93,34 +91,33 @@ then
     case $i in
       -h|--help)
         OPTION="HELP"
-        ;;
+      ;;
 
       -v|--version)
         OPTION="VERSION"
-        ;;
+      ;;
 
       *)
         echo "Unrecognized option: $i"
-        RETURN=1
-        ;;
+
+        if [ $SOURCING -lt 1 ]
+        then
+          exit 1
+        fi
+
+        break
+      ;;
     esac
 
-    if [ $RETURN -lt 1 ]
-    then
-      execute_command
-    fi
+    execute_command
   done
 else
   echo "${USAGE}"
-  RETURN=1
-fi
 
-############################################################
-# Normal exit
-############################################################
-if [ $SOURCING -lt 1 ]
-then
-  exit $RETURN
+  if [ $SOURCING -lt 1 ]
+  then
+    exit 1
+  fi
 fi
 
 ############################################################
@@ -128,13 +125,15 @@ fi
 # and revert to the previous current directory
 # when this script has been sourced
 ############################################################
-popd > /dev/null
+if [ $SOURCING -gt 0 ]
+then
+  popd > /dev/null
 
-unset OPTION
-unset RETURN
-unset SCRIPT
-unset SCRIPTNAME
-unset SCRIPT_AND_VERSION
-unset SOURCING
-unset USAGE
+  unset OPTION
+  unset SCRIPT
+  unset SCRIPTNAME
+  unset SCRIPT_AND_VERSION
+  unset SOURCING
+  unset USAGE
+fi
 

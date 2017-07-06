@@ -18,6 +18,7 @@ ifeq ($(USER), root)
 endif
 
 help:
+	@echo Targets:
 	@echo "clean - remove all build, cache, test"
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
@@ -44,6 +45,7 @@ clean-build:
 	rm -fr build/
 	rm -fr dist/
 	rm -fr .eggs/
+	rm -fr ~/var
 	find . -name '*.egg-info' -exec rm -fr {} +
 	find . -name '*.egg' -exec rm -fr {} +
 
@@ -56,11 +58,18 @@ clean-pyc:
 clean-test:
 	rm -fr .cache
 	rm -fr .tox
+	rm -fr .coverage
+	rm -fr htmlcov/
+	rm -fr ../../allure/
+	rm -f coverage.xml
+
+cov-report:
+	open htmlcov/index.html
 
 # TODO deleteme
 create-env:
 	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
-	
+
 develop: install-dev-dep
 	pip install -e .
 
@@ -95,7 +104,7 @@ lint-js:
 
 lint-python: install-test-dep
 	rm -f pylint*.log
-	pylint $(shell find . -iname "*.py" ! -path './venv*' ! -path './.tox*') > pylint_$(shell date +%FT%T%Z).log || exit 0
+	pylint $(shell pwd) > pylint_$(shell date +%FT%T%Z).log || exit 0
 
 live-doc: install-doc-dep
 	cd ../../docs && make livehtml
@@ -104,6 +113,9 @@ py-test: install-tox
 	tox -e py35
 
 test: py-test doc-build-test
+
+test-report:
+	cd ../../allure/ && allure generate . && allure report open
 
 .PHONY: \
 	help \
@@ -126,4 +138,3 @@ test: py-test doc-build-test
 	test \
 	py-test \
 	doc-build-test
-

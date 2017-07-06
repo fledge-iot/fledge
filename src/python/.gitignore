@@ -48,3 +48,8 @@ pylint_*.log
 
 # tox
 .tox
+
+# Pytest coverage
+.coverage
+htmlcov/
+coverage.xml

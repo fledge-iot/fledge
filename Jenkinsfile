@@ -80,6 +80,14 @@ node {
             }
         }
         ansiColor('xterm'){
+            if (suite != "${choice_test_doc}"){
+                stage ("Test Coverage Report"){
+                    dir ('src/python/'){
+                        step([$class: 'CoberturaPublisher', autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', failNoReports: false, failUnhealthy: false, failUnstable: false, maxNumberOfBuilds: 0, onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false])
+                    }
+                }
+            }
+
             allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/']]])
         }
     }

@@ -1,0 +1,12 @@
+# .coveragerc to control coverage.py
+[run]
+omit =
+    /*/tests/*
+    /*/venv/*
+    /*/.tox/*
+    __template__.py
+
+[report]
+
+[html]
+directory = htmlcov

@@ -847,3 +847,54 @@ CREATE INDEX fki_user_asset_permissions_fk2
     ON foglamp.user_asset_permissions USING btree (asset_id)
     TABLESPACE foglamp;
 
+
+-- List of scheduled Processes
+CREATE TABLE foglamp.scheduled_processes (
+  name   character varying(20)  NOT NULL, -- Name of the process
+  script character varying(255) NOT NULL, -- Full path of the process
+  CONSTRAINT scheduled_processes_pkey PRIMARY KEY (name)
+       USING INDEX TABLESPACE foglamp )
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.scheduled_processes OWNER to foglamp;
+
+
+-- List of schedules
+CREATE TABLE foglamp.schedules (
+  id                uuid                  UNIQUE,   -- Unique uuid, PK
+  process_name      character varying(20) NOT NULL, -- FK process name
+  schedule_name     character varying(20) NOT NULL, -- schedule name
+  schedule_type     smallint              NOT NULL, -- At the moment there are three types
+  schedule_interval time,                           -- Schedule interval
+  schedule_time     time,                           -- Schedule time
+  exclusive         boolean,
+  CONSTRAINT schedules_pkey PRIMARY KEY (id)
+       USING INDEX TABLESPACE foglamp,
+  CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
+  REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
+             ON UPDATE NO ACTION
+             ON DELETE NO ACTION )
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.schedules OWNER to foglamp;
+
+
+-- List of tasks
+CREATE TABLE foglamp.tasks (
+  id           uuid                        UNIQUE,                 -- Unique uuid, PK
+  process_name character varying(20)       NOT NULL,               -- Name of the task
+  state        smallint                    NOT NULL,               -- State of the task: 1-Running, 2-Complete, 3-Cancelled
+  start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
+  end_time     timestamp(6) with time zone,                        -- The date and time the task ended
+  reason       character varying(20),                              -- The reason why the task ended
+  CONSTRAINT tasks_pkey PRIMARY KEY (id)
+       USING INDEX TABLESPACE foglamp,
+  CONSTRAINT tasks_fk1 FOREIGN KEY (process_name)
+  REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
+             ON UPDATE NO ACTION
+             ON DELETE NO ACTION )
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.tasks OWNER to foglamp;
+
+

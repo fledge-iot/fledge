@@ -555,9 +555,10 @@ CREATE INDEX fki_streams_fk1
 
 -- Configuration table
 CREATE TABLE foglamp.configuration (
-       key   character(5)                NOT NULL COLLATE pg_catalog."default",
-       value jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-       ts    timestamp(6) with time zone NOT NULL DEFAULT now(),
+       key         character(5)                NOT NULL COLLATE pg_catalog."default", -- Primary key, the rules are: 1. All uppercase, 2. All 5 characters are filled.
+       description character varying(255)      NOT NULL,                              -- Description, in plan text
+       value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
+       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
        CONSTRAINT configuration_pkey PRIMARY KEY (key)
             USING INDEX TABLESPACE foglamp )
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;
@@ -571,6 +572,8 @@ COMMENT ON TABLE foglamp.configuration IS
 
 
 -- Configuration changes
+-- This table has the same structure of foglamp.configuration, plus the timestamp that identifies the time it has changed
+-- The table is used to keep track of the changes in the "value" column
 CREATE TABLE foglamp.configuration_changes (
        key                 character(5)                NOT NULL COLLATE pg_catalog."default",
        configuration_ts    timestamp(6) with time zone NOT NULL,
@@ -588,6 +591,35 @@ COMMENT ON TABLE foglamp.configuration_changes IS
 - The old value is stored in the configuration_value column';
 
 
+-- Statistics table
+-- The table is used to keep track of the statistics for FogLAMP
+CREATE TABLE foglamp.statistics (
+       key         character(5)                NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
+       description character varying(255)      NOT NULL,                              -- Description, in plan text
+       value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
+       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
+       CONSTRAINT statistics_pkey PRIMARY KEY (key)
+            USING INDEX TABLESPACE foglamp )
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.statistics OWNER to foglamp;
+
+
+-- Statistics history
+-- Keeps history of the statistics in foglamp.statistics
+-- The table is updated at startup
+CREATE TABLE foglamp.statistics_history (
+       key         character(5)                NOT NULL COLLATE pg_catalog."default", -- Coumpund primary key, all uppercase
+       history_ts  timestamp(6) with time zone NOT NULL,                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
+       value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
+       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
+       CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts)
+            USING INDEX TABLESPACE foglamp )
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+
+ALTER TABLE foglamp.statistics_history OWNER to foglamp;
+
+
 -- Resources table
 CREATE TABLE foglamp.resources (
     id          bigint                 NOT NULL DEFAULT nextval('foglamp.resources_id_seq'::regclass),
@@ -595,8 +627,7 @@ CREATE TABLE foglamp.resources (
     description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
     CONSTRAINT  resources_pkey PRIMARY KEY (id)
          USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
 
 ALTER TABLE foglamp.resources OWNER to foglamp;
 COMMENT ON TABLE foglamp.resources IS

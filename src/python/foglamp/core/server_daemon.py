@@ -61,7 +61,7 @@ def start():
 
     pid = get_pid()
 
-    if pid is not None:
+    if pid:
         print("FogLAMP is already running in PID: {}".format(pid))
     else:
         # TODO Output the pid. os.getpid() reports the wrong pid so it's not easy.
@@ -78,7 +78,6 @@ def start():
 def stop():
     """Stops the FogLAMP process if it is running"""
 
-    # Get the pid from the PID_PATHile
     pid = get_pid()
 
     if pid is None:
@@ -158,7 +157,7 @@ def _do_main():
         elif 'status' == sys.argv[1]:
             pid = get_pid()
             if pid:
-                print("FogLAMP is running in PID: {}".format(get_pid()))
+                print("FogLAMP is running in PID: {}".format(pid))
             else:
                 print("FogLAMP is not running")
                 sys.exit(2)

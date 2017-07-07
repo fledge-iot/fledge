@@ -4,10 +4,8 @@ cbor2==4.0.0
 LinkHeader==0.4.3
 
 # deployment
+# packaging enables pip install -e
 packaging==16.8
-
-# env
-PyYAML==3.12
 
 # postgreSQL
 aiopg==0.13.0
@@ -20,6 +18,6 @@ cchardet==2.1.0
 httpie==0.9.9
 PyJWT==1.5.0
 
-# run
+# service
 python-daemon==2.1.2
-psutil==5.2.2
+

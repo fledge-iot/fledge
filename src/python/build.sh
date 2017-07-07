@@ -69,8 +69,6 @@ OPTIONS
                     build and cache directories
   -d, --doc         Generate HTML in docs/_build
   --doc-build-test  Run docs/check_sphinx.py
-  --deactivate      Deactivate the virtual environment. Must
-                    invoke via 'source.'
   -h, --help        Display this help text
   -i, --install     Install production Python dependencies
                     and FogLAMP-specific packages and scripts
@@ -123,9 +121,9 @@ execute_command() {
     return
   fi
 
-  if [ $IN_VENV -gt 0 ]
+  if [ $IN_VENV -lt 1 ]
   then
-    echo "-- A virtual environment is already active"
+    VENV_PATH="`pwd`/venv/$HOSTNAME"
   fi 
 
   if [ "$OPTION" == "ACTIVATE" ]
@@ -142,29 +140,20 @@ execute_command() {
     fi
   fi
 
-  if [ "$OPTION" == "DEACTIVATE" ]
-  then
-    if [ $IN_VENV -gt 0 ] 
-    then
-      # Deactivate doesn't work unless sourcing
-      if [ $SOURCING -lt 1 ]
-      then
-        echo "*** Source this script when using --deactivate"
-        exit 1
-      fi
-
-      echo "-- Deactivating virtual environment"
-      deactivate
-    fi
-    return
-  fi
-
-  VENV_PATH="`pwd`/venv/$HOSTNAME"
-
   if [ "$OPTION" == "CLEAN" ]
   then
     if [ $IN_VENV -gt 0 ] 
     then
+      if [ "$VENV_PATH" == "" ]
+      then
+        echo "*** VENV_PATH not set - invalid virtual environment is in use"
+        if [ $SOURCING -lt 1 ]
+        then
+          exit 1
+        fi
+        return
+      fi
+
       # Deactivate doesn't work unless sourcing
       if [ $SOURCING -lt 1 ]
       then
@@ -245,9 +234,6 @@ execute_command() {
     return
   fi
   
-  # TODO this will be deleted
-  make create-env
-
   if [ "$OPTION" == "DEV_DEP" ]
   then
     make install-dev-dep
@@ -286,30 +272,12 @@ execute_command() {
 
   elif [ "$OPTION" == "RUN" ]
   then
-    make install
-    if [ $? -gt 0 ] 
-    then
-      if [ $SOURCING -lt 1 ]
-      then
-        exit 1
-      else
-        return
-      fi
-    fi
+    echo "Running FogLAMP"
     foglamp
 
   elif [ "$OPTION" == "RUN_DAEMON" ]
   then
-    make install
-    if [ $? -gt 0 ] 
-    then
-      if [ $SOURCING -lt 1 ]
-      then
-        exit 1
-      else
-        return
-      fi
-    fi
+    echo "Running FogLAMP"
     foglampd
 
   elif [ "$OPTION" == "BUILD_DOC" ]
@@ -356,10 +324,6 @@ then
 
       -c|--clean)
         OPTION="CLEAN"
-      ;;
-
-      --deactivate)
-        OPTION="DEACTIVATE"
       ;;
 
       -d|--doc)

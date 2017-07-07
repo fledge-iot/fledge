@@ -1,7 +1,7 @@
 import asyncio
 import aiocoap
 
-from foglamp.device_api.coap.sensor_values import SensorValues
+from foglamp.device.coap.sensor_values import SensorValues
 
 
 def start():

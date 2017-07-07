@@ -80,7 +80,7 @@ OPTIONS
                     docs/_build and monitors modifications to
                     files in docs/ and regenerates HTML
   -p, --py-test     Run only Python tests
-  -s, --start       Start FogLAMP
+  -s, --start       Install and start FogLAMP
   -t, --test        Run all tests
   -u, --uninstall   Remove FogLAMP packages and scripts
   -v, --version     Display this script's version information
@@ -272,6 +272,16 @@ execute_command() {
 
   elif [ "$OPTION" == "START" ]
   then
+    make install
+    if [ $? -gt 0 ] 
+    then
+      if [ $SOURCING -lt 1 ]
+      then
+        exit 1
+      else
+        return
+      fi
+    fi
     foglamp start
 
   elif [ "$OPTION" == "BUILD_DOC" ]

@@ -122,7 +122,7 @@ execute_command() {
 
   if [ $IN_VENV -lt 1 ]
   then
-    VENV_PATH="`pwd`/venv/$HOSTNAME"
+    export VENV_PATH="`pwd`/venv/$HOSTNAME"
   fi 
 
   if [ "$OPTION" == "ACTIVATE" ]
@@ -146,17 +146,18 @@ execute_command() {
       if [ "$VENV_PATH" == "" ]
       then
         echo "*** VENV_PATH not set - invalid virtual environment is in use"
-      if [ $SOURCING -lt 1 ]
-      then
-        exit 1
+        if [ $SOURCING -lt 1 ]
+        then
+          exit 1
+        fi
+
+        return
       fi
-    return
-  fi
 
       # Deactivate doesn't work unless sourcing
       if [ $SOURCING -lt 1 ]
       then
-        echo "*** Source this script when using --clean when virtual environment is active"
+        echo "*** Source this script when using --clean when a virtual environment is active"
         exit 1
       fi
 

@@ -16,7 +16,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-def make_app():
+def _make_app():
     """create the server"""
     app = web.Application(middlewares=[middleware.error_middleware])
     routes.setup(app)
@@ -26,8 +26,5 @@ def make_app():
 def start():
     """starts the server"""
     # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
-    web.run_app(make_app(), host='0.0.0.0', port=8082)
+    web.run_app(_make_app(), host='0.0.0.0', port=8082)
 
-
-if __name__ == "__main__":
-    start()

@@ -18,8 +18,7 @@ import time
 import daemon
 from daemon import pidfile
 
-
-import foglamp.core.server
+from foglamp.core import server
 
 __author__    = "Amarendra K Sinha, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -63,13 +62,11 @@ def _start_server():
     _logger_configured = True
 
     # The main daemon process
-    foglamp.core.server.start()
+    server.start()
 
 
 def start():
-    """
-    Launches FogLAMP
-    """
+    """Launches FogLAMP"""
 
     pid = get_pid()
 
@@ -207,8 +204,4 @@ def main():
             sys.stderr.write(format(str(e)) + "\n");
       
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
 

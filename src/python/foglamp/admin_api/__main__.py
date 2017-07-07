@@ -5,7 +5,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import foglamp.admin_api.server
+from foglamp.admin_api import server
 
 
 __author__ = "Terris Linenbach"
@@ -14,12 +14,4 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-def start():
-    """Starts the server
-    """
-    foglamp.admin_api.server.start()
-
-
-if __name__ == "__main__":
-    start()
-
+server.start()

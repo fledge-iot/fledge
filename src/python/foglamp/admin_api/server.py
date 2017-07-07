@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 
 import asyncio
-from foglamp.admin_api import controller as admin_api_controller
+from foglamp.admin_api import controller
  
- 
+__author__    = "Terris Linenbach"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__license__   = "Apache 2.0"
+__version__   = "${VERSION}"
+
+
 def start():
     """Starts the service"""
-    admin_api_controller.start()
+    controller.start()
     asyncio.get_event_loop().run_forever()
 
-
-if __name__ == "__main__":
-    start()
 

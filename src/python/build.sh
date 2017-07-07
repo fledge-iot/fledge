@@ -68,7 +68,7 @@ OPTIONS
   -c, --clean       Delete the virtual environment and remove
                     build and cache directories
   -d, --doc         Generate HTML in docs/_build
-  --doc-build-test  Run docs/check_sphinx.py
+  --doc-build-test  Run docs/check-sphinx.py
   --deactivate      Deactivate the virtual environment. Must
                     invoke via 'source.'
   -h, --help        Display this help text

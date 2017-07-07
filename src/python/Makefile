@@ -26,7 +26,7 @@ help:
 	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
 	@echo "develop - install dev dependencies and FogLAMP using setup.py"
 	@echo "doc - generate docs html"
-	@echo "doc-build-test - run docs/check_sphinx tests"
+	@echo "doc-build-test - run docs/check-sphinx tests"
 	@echo "install - install production dependencies and FogLAMP using setup.py"
 	@echo "install-dep - install dependencies using requirements.txt"
 	@echo "install-dev-dep - install dependencies using requirements-dev.txt"
@@ -37,9 +37,9 @@ help:
 	@echo "lint-python - run python files lint check only"
 	@echo "live-doc - generate docs and allow autobuild on change in source .rst files"
 	@echo "py-test - run src/python/tests"
-	@echo "test - run all tests (src/python/tests and docs/check_sphinx)"
+	@echo "test - run all tests (src/python/tests and docs/check-sphinx)"
 
-clean: clean-build clean-pyc clean-test
+clean: clean-build clean-doc clean-pyc clean-test
 
 clean-build:
 	rm -fr build/
@@ -48,6 +48,11 @@ clean-build:
 	rm -fr ~/var
 	find . -name '*.egg-info' -exec rm -fr {} +
 	find . -name '*.egg' -exec rm -fr {} +
+
+clean-doc:
+	rm -fr ../../docs/_build/
+	rm -fr ../../docs/.cache/
+	find ../../docs -name '__pycache__' -exec rm -fr {} +
 
 clean-pyc:
 	find . -name '*.pyc' -exec rm -f {} +

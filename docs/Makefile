@@ -7,13 +7,15 @@ SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = FogLAMP
 SOURCEDIR     = .
 BUILDDIR      = _build
+HOSTADDRESS   = 0.0.0.0
+PORTNO        = 8000
 
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 livehtml:
-	sphinx-autobuild -b html "$(SPHINXOPTS)" "$(BUILDDIR)/html"
+	sphinx-autobuild -b html "$(SPHINXOPTS)" "$(BUILDDIR)/html" --host "$(HOSTADDRESS)" --port "$(PORTNO)"
 
 .PHONY: help livehtml Makefile
 

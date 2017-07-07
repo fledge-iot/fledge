@@ -21,8 +21,10 @@ help:
 	@echo Targets:
 	@echo "clean - remove all build, cache, test"
 	@echo "clean-build - remove build artifacts"
+	@echo "clean-doc - remove docs artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
+	@echo "cov-report - generate html test coverage report and open it in browser"
 	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
 	@echo "develop - install dev dependencies and FogLAMP using setup.py"
 	@echo "doc - generate docs html"
@@ -32,12 +34,14 @@ help:
 	@echo "install-dev-dep - install dependencies using requirements-dev.txt"
 	@echo "install-doc-dep - install dependencies using requirements-doc.txt"
 	@echo "install-test-dep - install dependencies using requirements-test.txt"
+	@echo "install-tox - install tox dependency"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-js - run ui/*.js files lint check only"
 	@echo "lint-python - run python files lint check only"
 	@echo "live-doc - generate docs and allow autobuild on change in source .rst files"
 	@echo "py-test - run src/python/tests"
 	@echo "test - run all tests (src/python/tests and docs/check-sphinx)"
+	@echo "test-report - generate allure report for (src/python/tests and docs/check-sphinx) and open it in browser"
 
 clean: clean-build clean-doc clean-pyc clean-test
 
@@ -126,20 +130,24 @@ test-report:
 	help \
 	clean \
 	clean-build \
+	clean-doc \
 	clean-pyc \
 	clean-test \
+	cov-report \
+	create-env \
 	develop \
+	doc \
+	doc-build-test \
 	install \
 	install-dep \
 	install-dev-dep \
 	install-doc-dep \
 	install-test-dep \
-	create-env\
+	install-tox \
 	lint \
-	lint-python \
 	lint-js \
-	doc \
+	lint-python \
 	live-doc \
-	test \
 	py-test \
-	doc-build-test
+	test \
+	test-report

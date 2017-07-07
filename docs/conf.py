@@ -48,7 +48,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'FogLAMP'
-copyright = '2017 (c) OSIsoft, LLC'
+copyright = '2017 OSIsoft, LLC'
 author = 'OSIsoft, LLC'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -84,22 +84,37 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+import sphinx_rtd_theme
+html_theme = "sphinx_rtd_theme"
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# See: https://alabaster.readthedocs.io/en/latest/customization.html#theme-options
 html_theme_options = {
-    'logo': 'images/foglamp.png',
-    'logo_name': True,
-    'description': 'The FogLAMP project',
-    'github_user': 'foglamp',
-    'github_repo': 'FogLAMP',
-    'travis_button': False,
+    'collapse_navigation': False,
+    'display_version': False,
+    'navigation_depth': 3,
 }
 
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+html_logo = 'images/foglamp.png'
+
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+#html_favicon = None
+
+html_context = {
+    'display_github': True, # Add 'Edit on Github' link instead of 'View page source'
+    'github_user': 'foglamp',
+    'github_repo': 'FogLAMP',
+    'github_version': 'develop/docs/',
+    'last_updated': False,
+    'commit': False,
+}
 # Need to explicitly tell Sphinx to include the `about.html` sidebar file
 # which includes the logo, description, GitHub buttons, etc.
 html_sidebars = {

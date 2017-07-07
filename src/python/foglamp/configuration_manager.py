@@ -14,7 +14,9 @@ import logging
 import psycopg2
 import aiopg.sa
 import sqlalchemy as sa
+import asyncio
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import text
 
 """Configuration Manager
 """
@@ -88,8 +90,7 @@ async def _read_category_value(category_key):
 async def _read_category_item(category_key, category_item):
     query_template="""
         SELECT 
-            configuration.value::json->'{}', 
-            configuration.key
+            configuration.value::json->'{}' as value
         FROM 
             foglamp.configuration
         WHERE 
@@ -99,8 +100,8 @@ async def _read_category_item(category_key, category_item):
     try:
         async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
             async with engine.acquire() as conn:
-                async for row in conn.execute(query_full):
-                    return row
+                async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
+                    return row.value
     except Exception:
         logging.getLogger('configuration-manager').exception('Unable to read all category items')
         print("error")
@@ -109,8 +110,7 @@ async def _read_category_item(category_key, category_item):
 async def _read_category_item_value(category_key, category_item):
     query_template="""
         SELECT 
-            configuration.value::json->'{}'->'Value', 
-            configuration.key
+            configuration.value::json->'{}'->'Value' as value
         FROM 
             foglamp.configuration
         WHERE 
@@ -120,12 +120,32 @@ async def _read_category_item_value(category_key, category_item):
     try:
         async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
             async with engine.acquire() as conn:
-                async for row in conn.execute(query_full):
-                    return row
+                async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
+                    return row.value
     except Exception:
         logging.getLogger('configuration-manager').exception('Unable to read all category items')
         print("error")
     return None
+
+
+"""UPDATE foglamp.configuration SET value = jsonb_set(value, '{url,Value}', '"new"') WHERE key='CAT';
+"""
+async def _update_item_value(category_key, category_item, item_value_replacement):
+    query_template = """
+            UPDATE foglamp.configuration 
+            SET value = jsonb_set(value, '{{{},Value}}', '"{}"') 
+            WHERE key='{}'
+        """
+    query_full = query_template.format(category_item, item_value_replacement, category_key)
+    # print(query_full)
+
+    try:
+        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
+            async with engine.acquire() as conn:
+                await conn.execute(query_full)
+    except Exception:
+        logging.getLogger('configuration-manager').exception('Unable to update category_name (%s) category_item (%s) with new Value (%s)', category_key, category_item, item_value_replacement)
+        print("error")
 
 """
 Returns all keys held in the DB
@@ -137,10 +157,10 @@ Results:
     Non-empty
     empty
 """
-async def get_all_category_names():
+def get_all_category_names():
     # TODO: return string?
     # TODO: throw exception if empty?
-    return await _read_all_category_keys()
+    return asyncio.get_event_loop().run_until_complete(_read_all_category_keys())
 
 """
 Return JSON object associated with specified key
@@ -154,10 +174,10 @@ Result
         Nonempty json
     Category does not exist
 """
-async def get_all_category_items(category_name):
+def get_all_category_items(category_name):
     # query DB for JSON obj for corresponding category_name
     # TODO: throw exception if category_name doesn't exist?
-    return await _read_category_value(category_name)
+    return asyncio.get_event_loop().run_until_complete(_read_category_value(category_name))
 
 """
 Return item associated with a category and an item name
@@ -176,8 +196,8 @@ Result:
                 Non-empty item_entries
     Category does not exist
 """
-async def get_category_item(category_name, item_name):
-    return await _read_category_item(category_name, item_name)
+def get_category_item(category_name, item_name):
+    return asyncio.get_event_loop().run_until_complete(_read_category_item(category_name, item_name))
 
 """
 Return “Value” item_entry of a given item in a given category
@@ -201,8 +221,8 @@ Result:
                     “Value” item entry does not exist
     Category does not exist
 """
-async def get_item_value(category_name, item_name):
-    return await _read_category_item_value(category_name, item_name)
+def get_item_value(category_name, item_name):
+    return asyncio.get_event_loop().run_until_complete(_read_category_item_value(category_name, item_name))
 
 """
 TODO: https://stackoverflow.com/questions/26703476/how-to-perform-update-operations-on-columns-of-type-jsonb-in-postgres-9-4
@@ -226,7 +246,7 @@ Result:
     Category_name does not exist
 """
 def set_item_value(category_name, item_name, value_item_entry):
-    pass
+    return asyncio.get_event_loop().run_until_complete(_update_item_value(category_name, item_name, value_item_entry))
 
 """
 Create a configuration category within the configuration database (with merge operation)
@@ -247,10 +267,10 @@ Result:
     Are we only setting up form, or will Value item_entries also be included?
         Default values may be specified when the config category gets created, in this case the newly created config item will have the value taken from the default.
 """
-async def create_category(category_name, category_json_schema):
+def create_category(category_name, category_json_schema):
     # TODO: check if category_name already exists
     # TODO: validate JSON object has proper form
-    await _create_new_category(category_name, category_json_schema)
+    return asyncio.get_event_loop().run_until_complete(_create_new_category(category_name, category_json_schema))
 
 """
 Register interest in a configuration category
@@ -265,51 +285,54 @@ What does a callback look like?
 def register_category(category_name, callback):
     pass
 
-# import asyncio
-# if __name__ == '__main__':
-#     sample_json={
-#       "port" : {
-#           "description" : "Port to listen on",
-#           "default"       : "5432",
-#           "value"         : "5432",
-#           "type"           : "integer"
-#       },
-#       "url" :  {
-#           "description" : "URL to accept data on",
-#           "default"        : "sensor/reading-values",
-#           "Value"          : "sensor/reading-values",
-#           "type"            : "string"
-#        },
-#        "certificate" :  {
-#           "description" : "X509 certificate used to identify ingress interface",
-#           "value"         : "47676565",
-#           "type"           : "x509 certificate"
-#         }
-# }
-#
-#     # sample_json = sample_json.replace('\n','')
-#     # sample_json = sample_json.replace('\r','')
-#     # print("test create_category")
-#     # asyncio.get_event_loop().run_until_complete(create_category('CATEG',sample_json))
-#
-#     print("test get_all_category_names")
-#     rows = asyncio.get_event_loop().run_until_complete(get_all_category_names())
-#     for row in rows:
-#         print(row)
-#
-#     print("test get_all_category_items")
-#     json = asyncio.get_event_loop().run_until_complete(get_all_category_items('CATEG'))
-#     print(json)
-#
-#     print("test get_category_item")
-#     json = asyncio.get_event_loop().run_until_complete(get_category_item('CATEG',"url"))
-#     print(json)
-#
-#     print("test get_item_value")
-#     json = asyncio.get_event_loop().run_until_complete(get_item_value('CATEG', "url"))
-#     print(json)
-#
-#
-#
-#
-#
+if __name__ == '__main__':
+    sample_json={
+      "port" : {
+          "description" : "Port to listen on",
+          "default"       : "5432",
+          "value"         : "5432",
+          "type"           : "integer"
+      },
+      "url" :  {
+          "description" : "URL to accept data on",
+          "default"        : "sensor/reading-values",
+          "Value"          : "sensor/reading-values",
+          "type"            : "string"
+       },
+       "certificate" :  {
+          "description" : "X509 certificate used to identify ingress interface",
+          "value"         : "47676565",
+          "type"           : "x509 certificate"
+        }
+}
+
+    print("test create_category")
+    create_category('CATEG',sample_json)
+
+    print("test get_all_category_names")
+    rows = get_all_category_names()
+    for row in rows:
+        print(row)
+
+    print("test get_all_category_items")
+    json = get_all_category_items('CATEG')
+    print(json)
+    print(type(json))
+
+    print("test get_category_item")
+    json = get_category_item('CATEG',"url")
+    print(json)
+    print(type(json))
+
+    print("test get_item_value")
+    json = get_item_value('CATEG', "url")
+    print(json)
+    print(type(json))
+
+    print("test set_item_value")
+    json = set_item_value('CATEG', "url","blablabla")
+
+    print("test get_item_value")
+    json = get_item_value('CATEG', "url")
+    print(json)
+    print(type(json))

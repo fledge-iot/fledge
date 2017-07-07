@@ -68,7 +68,7 @@ OPTIONS
   -c, --clean       Delete the virtual environment and remove
                     build and cache directories
   -d, --doc         Generate HTML in docs/_build
-  --doc-build-test  Run docs/check_sphinx.py
+  --doc-build-test  Run docs/check-sphinx.py
   -h, --help        Display this help text
   -i, --install     Install production Python dependencies
                     and FogLAMP-specific packages and scripts
@@ -81,7 +81,6 @@ OPTIONS
                     files in docs/ and regenerates HTML
   -p, --py-test     Run only Python tests
   -r, --run         Start FogLAMP
-  -s, --service     Start the FogLAMP service
   -t, --test        Run all tests
   -u, --uninstall   Remove FogLAMP packages and scripts
   -v, --version     Display this script's version information
@@ -147,12 +146,12 @@ execute_command() {
       if [ "$VENV_PATH" == "" ]
       then
         echo "*** VENV_PATH not set - invalid virtual environment is in use"
-        if [ $SOURCING -lt 1 ]
-        then
-          exit 1
-        fi
-        return
+      if [ $SOURCING -lt 1 ]
+      then
+        exit 1
       fi
+    return
+  fi
 
       # Deactivate doesn't work unless sourcing
       if [ $SOURCING -lt 1 ]
@@ -273,12 +272,7 @@ execute_command() {
   elif [ "$OPTION" == "RUN" ]
   then
     echo "Running FogLAMP"
-    foglamp
-
-  elif [ "$OPTION" == "RUN_DAEMON" ]
-  then
-    echo "Running FogLAMP"
-    foglampd
+    foglamp start
 
   elif [ "$OPTION" == "BUILD_DOC" ]
   then
@@ -360,10 +354,6 @@ then
 
       -r|--run)
         OPTION="RUN"
-      ;;
-
-      -s|--service)
-        OPTION="RUN_DAEMON"
       ;;
 
       -t|--test)

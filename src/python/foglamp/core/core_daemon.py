@@ -68,25 +68,22 @@ def _start_server():
 
 def start():
     """
-    Launches the daemon
+    Launches FogLAMP
     """
 
-    # Get the pid from the pidfile
     pid = get_pid()
 
     if pid is not None:
-        message = "Daemon already running under PID {}\n"
-        sys.stderr.write(message.format(pid))
-        return is_running()
+        print("FogLAMP is already running in PID: {}".format(pid))
+    else:
+        print ("Starting FogLAMP\nLogging to {}".format(logf));
 
-    print ("Logging to {}".format(logf));
-
-    with daemon.DaemonContext(
-        working_directory=wdir,
-        umask=0o002,
-        pidfile=daemon.pidfile.TimeoutPIDLockFile(pidf)
-    ) as context:
-        _start_server()
+        with daemon.DaemonContext(
+            working_directory=wdir,
+            umask=0o002,
+            pidfile=daemon.pidfile.TimeoutPIDLockFile(pidf)
+        ) as context:
+            _start_server()
 
 
 def stop():
@@ -94,33 +91,23 @@ def stop():
     Stops the daemon if it is running
     """
 
-    # TODO Document the return code
-
     # Get the pid from the pidfile
     pid = get_pid()
 
     if pid is None:
-        message = "pidfile {} does not exist. Daemon not running.\n"
-        sys.stderr.write(message.format(pidf))
-        return is_running()
+        print("FogLAMP is not running")
+        return 
 
-    # Try killing the daemon process
+    # Kill the daemon process
+    # TODO This should time out and throw an exception
     try:
         while True:
             os.kill(pid, signal.SIGTERM)
             time.sleep(0.1)
-    except OSError as err:
-        err = str(err)
-        # TODO This is not ideal. It is english only.
-        if err.find("No such process") > 0:
-            if os.path.exists(pidf):
-                os.remove(pidf)
-        else:
-            # TODO Throw an exception instead
-            sys.stdout.write(str(err))
-            sys.exit(1)
+    except OSError:
+        pass
 
-    return is_running()
+    print("FogLAMP stopped")
 
 
 def restart():
@@ -128,47 +115,45 @@ def restart():
     Relaunches the daemon
     """
 
-    if is_running():
+    if get_pid():
         stop()
+
     start()
-
-    return is_running()
-
-
-def is_running():
-    """
-    Check if the daemon is running.
-
-    :return boolean status as True|False
-    """
-
-    return get_pid() is not None
 
 
 def get_pid():
     """
-    Returns the PID from pidf
+    Returns the daemon's PID or None if not running
     """
 
     try:
-        pf = open(pidf,'r')
-        pid = int(pf.read().strip())
-        pf.close()
-    except (IOError, TypeError):
+        with open(pidf, 'r') as pf:
+            pid = int(pf.read().strip())
+    except Exception:
+        return None
+
+    # Delete the pid file if the process isn't alive
+    # there is an unavoidable race condition here if another
+    # process is stopping or starting the daemon
+    try:
+        os.kill(pid, 0)
+    except Exception:
         pid = None
 
     return pid
 
 
-def _safe_makedirs(directory):
+def _safe_makedirs(path):
     """
-    :param directory: working directory
+    Creates any missing parent directories
+
+    :param path: The path of the directory to create
     """
 
     try:
-        os.makedirs(directory, 0o750)
+        os.makedirs(path, 0o750)
     except Exception as e:
-        if not os.path.exists(directory):
+        if not os.path.exists(path):
             raise e
 
 
@@ -178,9 +163,7 @@ def _do_main():
     _safe_makedirs(os.path.dirname(logf))
 
     if len(sys.argv) == 1:
-        print("Usage: start|stop|restart|status|info")
-        # TODO throw an exception instead
-        sys.exit(2)
+        raise Exception("Usage: start|stop|restart|status")
     elif len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
             start()
@@ -189,33 +172,41 @@ def _do_main():
         elif 'restart' == sys.argv[1]:
             restart()
         elif 'status' == sys.argv[1]:
-            if is_running():
-                print("FogLAMP is running")
+            pid = get_pid()
+            if pid:
+                print("PID: {}".format(get_pid()))
             else:
                 print("FogLAMP is not running")
-        elif 'info' == sys.argv[1]:
-            print("Pid: {}".format(get_pid()))
+                sys.exit(2)
         else:
-            # TODO throw an exception instead
-            print("Unknown argument: {}".format(sys.argv[1]))
-            sys.exit(2)
+            raise Exception("Unknown argument: {}".format(sys.argv[1]))
+
 
 def main():
     """
     Processes command-line arguments
+
+    COMMAND LINE ARGUMENTS:
+        start
+        status
+        stop
+        restart
+
+    EXIT STATUS:
+        1: An error occurred
+        2: For the 'status' command: FogLAMP is not running (otherwise, 0)
     """
     try:
         _do_main()
     except Exception as e:
-        global _logger_configured
         if _logger_configured:
             logging.getLogger(__name__).exception("Failed")
         else:
             # If the daemon package has been invoked, the following 'write' will
             # do nothing
-            sys.stderr.write("Failed: {}\n".format(str(e)));
+            sys.stderr.write(format(str(e)) + "\n");
       
-        sys.exit(2)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -21,20 +21,15 @@ from daemon import pidfile
 
 from foglamp.core import server
 
-__author__    = "Amarendra K Sinha, Terris Linenbach"
+__author__ = "Amarendra K Sinha, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
-__license__   = "Apache 2.0"
-__version__   = "${VERSION}"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
 
 # Location of daemon files
-PID_PATH = '~/var/run/foglamp.pid'
-LOG_PATH = '~/var/log/foglamp.log'
-WORKING_DIR = '~/var/log'
-
-# Full path location of daemon files
-_pid_path = os.path.expanduser(PID_PATH)
-_log_path = os.path.expanduser(LOG_PATH)
-_working_dir = os.path.expanduser(WORKING_DIR)
+PID_PATH = os.path.expanduser('~/var/run/foglamp.pid')
+LOG_PATH = os.path.expanduser('~/var/log/foglamp.log')
+WORKING_DIR = os.path.expanduser('~/var/log')
 
 _logger_configured = False
 
@@ -42,7 +37,7 @@ _logger_configured = False
 def _start_server():
     # TODO Move log initializer to a module in the foglamp package. The files
     # should rotate etc.
-    file_handler = logging.FileHandler(_log_path)
+    file_handler = logging.FileHandler(LOG_PATH)
     file_handler.setLevel(logging.WARNING)
 
     formatstr = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -69,12 +64,13 @@ def start():
     if pid is not None:
         print("FogLAMP is already running in PID: {}".format(pid))
     else:
-        print ("Starting FogLAMP\nLogging to {}".format(_log_path));
+        # TODO Output the pid. os.getpid() reports the wrong pid so it's not easy.
+        print("Starting FogLAMP\nLogging to {}".format(LOG_PATH))
 
         with daemon.DaemonContext(
-            working_directory=_working_dir,
+            working_directory=WORKING_DIR,
             umask=0o002,
-            pidfile=daemon.pidfile.TimeoutPIDLockFile(_pid_path)
+            pidfile=daemon.pidfile.TimeoutPIDLockFile(PID_PATH)
         ):
             _start_server()
 
@@ -82,7 +78,7 @@ def start():
 def stop():
     """Stops the FogLAMP process if it is running"""
 
-    # Get the pid from the _pid_pathile
+    # Get the pid from the PID_PATHile
     pid = get_pid()
 
     if pid is None:
@@ -114,7 +110,7 @@ def get_pid():
     """Returns FogLAMP's PID or None if not running"""
 
     try:
-        with open(_pid_path, 'r') as pf:
+        with open(PID_PATH, 'r') as pf:
             pid = int(pf.read().strip())
     except Exception:
         return None
@@ -125,7 +121,7 @@ def get_pid():
     try:
         os.kill(pid, 0)
     except Exception:
-        os.remove(_pid_path)
+        os.remove(PID_PATH)
         pid = None
 
     return pid
@@ -146,9 +142,9 @@ def _safe_makedirs(path):
 
 
 def _do_main():
-    _safe_makedirs(_working_dir)
-    _safe_makedirs(os.path.dirname(_pid_path))
-    _safe_makedirs(os.path.dirname(_log_path))
+    _safe_makedirs(WORKING_DIR)
+    _safe_makedirs(os.path.dirname(PID_PATH))
+    _safe_makedirs(os.path.dirname(LOG_PATH))
 
     if len(sys.argv) == 1:
         raise Exception("Usage: start|stop|restart|status")

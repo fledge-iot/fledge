@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import asyncio
 from foglamp.admin_api import controller
  
@@ -13,5 +11,4 @@ def start():
     """Starts the service"""
     controller.start()
     asyncio.get_event_loop().run_forever()
-
 

@@ -8,7 +8,7 @@
 __author__    = "${FULL_NAME}"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__   = "Apache 2.0"
-__version__   = "${VERSION}"#!/usr/bin/env python3
+__version__   = "${VERSION}"
 
 
 def check_all():

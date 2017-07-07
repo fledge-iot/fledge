@@ -1,18 +1,11 @@
-Core Rest Server
-================
+Core Service
+============
 
-Start rest server
------------------
+Starting the Service
+--------------------
 
-  .. code-block:: bash
-
-      cd src/python
-      python -m foglamp.core
-
-TODO
-^^^^
-
-- ``foglamp start`` command will start this as daemon
+- ``foglamp start`` start as daemon
+- ``python -m foglamp.core`` run as a regular process
 
 
 Base URI

@@ -10,6 +10,7 @@
 # FogLAMP build tasks (makefile)
 
 USER := $(shell whoami)
+OS := $(shell uname)
 
 check-root:
 ifeq ($(USER), root)
@@ -73,7 +74,12 @@ clean-test:
 	rm -f coverage.xml
 
 cov-report:
+ifeq ($(OS), Darwin)
 	open htmlcov/index.html
+endif
+ifeq ($(OS), Linux)
+	xdg-open htmlcov/index.html
+endif
 
 # TODO deleteme
 create-env:

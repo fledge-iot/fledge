@@ -42,6 +42,8 @@ Prerequisite
 
  Install allure on your local machine. Use instructions listed `here <http://wiki.qatools.ru/display/AL/Allure+Commandline>`_
 
+ `Note:` Unable to locate package allure-commandline for Ubuntu users. See `link <https://stackoverflow.com/questions/34772906/unable-to-install-allure-cli-on-ubuntu-15-10>`_
+
 How to generate Allure Report (through make)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

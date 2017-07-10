@@ -68,9 +68,7 @@ OPTIONS
   -c, --clean       Delete the virtual environment and remove
                     build and cache directories
   -d, --doc         Generate HTML in docs/_build
-  --doc-build-test  Run docs/check_sphinx.py
-  --deactivate      Deactivate the virtual environment. Must
-                    invoke via 'source.'
+  --doc-build-test  Run docs/check-sphinx.py
   -h, --help        Display this help text
   -i, --install     Install production Python dependencies
                     and FogLAMP-specific packages and scripts
@@ -82,8 +80,7 @@ OPTIONS
                     docs/_build and monitors modifications to
                     files in docs/ and regenerates HTML
   -p, --py-test     Run only Python tests
-  -r, --run         Start FogLAMP
-  -s, --service     Start the FogLAMP service
+  -s, --start       Install and start FogLAMP
   -t, --test        Run all tests
   -u, --uninstall   Remove FogLAMP packages and scripts
   -v, --version     Display this script's version information
@@ -123,9 +120,9 @@ execute_command() {
     return
   fi
 
-  if [ $IN_VENV -gt 0 ]
+  if [ $IN_VENV -lt 1 ]
   then
-    echo "-- A virtual environment is already active"
+    export VENV_PATH="`pwd`/venv/$HOSTNAME"
   fi 
 
   if [ "$OPTION" == "ACTIVATE" ]
@@ -142,33 +139,25 @@ execute_command() {
     fi
   fi
 
-  if [ "$OPTION" == "DEACTIVATE" ]
-  then
-    if [ $IN_VENV -gt 0 ] 
-    then
-      # Deactivate doesn't work unless sourcing
-      if [ $SOURCING -lt 1 ]
-      then
-        echo "*** Source this script when using --deactivate"
-        exit 1
-      fi
-
-      echo "-- Deactivating virtual environment"
-      deactivate
-    fi
-    return
-  fi
-
-  VENV_PATH="`pwd`/venv/$HOSTNAME"
-
   if [ "$OPTION" == "CLEAN" ]
   then
     if [ $IN_VENV -gt 0 ] 
     then
+      if [ "$VENV_PATH" == "" ]
+      then
+        echo "*** VENV_PATH not set - invalid virtual environment is in use"
+        if [ $SOURCING -lt 1 ]
+        then
+          exit 1
+        fi
+
+        return
+      fi
+
       # Deactivate doesn't work unless sourcing
       if [ $SOURCING -lt 1 ]
       then
-        echo "*** Source this script when using --clean when virtual environment is active"
+        echo "*** Source this script when using --clean when a virtual environment is active"
         exit 1
       fi
 
@@ -245,9 +234,6 @@ execute_command() {
     return
   fi
   
-  # TODO this will be deleted
-  make create-env
-
   if [ "$OPTION" == "DEV_DEP" ]
   then
     make install-dev-dep
@@ -284,7 +270,7 @@ execute_command() {
       exit 1
     fi
 
-  elif [ "$OPTION" == "RUN" ]
+  elif [ "$OPTION" == "START" ]
   then
     make install
     if [ $? -gt 0 ] 
@@ -296,21 +282,7 @@ execute_command() {
         return
       fi
     fi
-    foglamp
-
-  elif [ "$OPTION" == "RUN_DAEMON" ]
-  then
-    make install
-    if [ $? -gt 0 ] 
-    then
-      if [ $SOURCING -lt 1 ]
-      then
-        exit 1
-      else
-        return
-      fi
-    fi
-    foglampd
+    foglamp start
 
   elif [ "$OPTION" == "BUILD_DOC" ]
   then
@@ -358,10 +330,6 @@ then
         OPTION="CLEAN"
       ;;
 
-      --deactivate)
-        OPTION="DEACTIVATE"
-      ;;
-
       -d|--doc)
         OPTION="BUILD_DOC"
       ;;
@@ -394,12 +362,8 @@ then
         OPTION="TEST_PYTHON"
       ;;
 
-      -r|--run)
-        OPTION="RUN"
-      ;;
-
-      -s|--service)
-        OPTION="RUN_DAEMON"
+      -s|--start)
+        OPTION="START"
       ;;
 
       -t|--test)

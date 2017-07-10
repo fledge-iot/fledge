@@ -21,25 +21,28 @@ help:
 	@echo Targets:
 	@echo "clean - remove all build, cache, test"
 	@echo "clean-build - remove build artifacts"
+	@echo "clean-doc - remove docs artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
-	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
+	@echo "cov-report - generate html test coverage report and open it in browser"
 	@echo "develop - install dev dependencies and FogLAMP using setup.py"
 	@echo "doc - generate docs html"
-	@echo "doc-build-test - run docs/check_sphinx tests"
+	@echo "doc-build-test - run docs/check-sphinx tests"
 	@echo "install - install production dependencies and FogLAMP using setup.py"
 	@echo "install-dep - install dependencies using requirements.txt"
 	@echo "install-dev-dep - install dependencies using requirements-dev.txt"
 	@echo "install-doc-dep - install dependencies using requirements-doc.txt"
 	@echo "install-test-dep - install dependencies using requirements-test.txt"
+	@echo "install-tox - install tox dependency"
 	@echo "lint - run python and js lint checks"
 	@echo "lint-js - run ui/*.js files lint check only"
 	@echo "lint-python - run python files lint check only"
 	@echo "live-doc - generate docs and allow autobuild on change in source .rst files"
 	@echo "py-test - run src/python/tests"
-	@echo "test - run all tests (src/python/tests and docs/check_sphinx)"
+	@echo "test - run all tests (src/python/tests and docs/check-sphinx)"
+	@echo "test-report - generate allure report for (src/python/tests and docs/check-sphinx) and open it in browser"
 
-clean: clean-build clean-pyc clean-test
+clean: clean-build clean-doc clean-pyc clean-test
 
 clean-build:
 	rm -fr build/
@@ -48,6 +51,11 @@ clean-build:
 	rm -fr ~/var
 	find . -name '*.egg-info' -exec rm -fr {} +
 	find . -name '*.egg' -exec rm -fr {} +
+
+clean-doc:
+	rm -fr ../../docs/_build/
+	rm -fr ../../docs/.cache/
+	find ../../docs -name '__pycache__' -exec rm -fr {} +
 
 clean-pyc:
 	find . -name '*.pyc' -exec rm -f {} +
@@ -65,10 +73,6 @@ clean-test:
 
 cov-report:
 	open htmlcov/index.html
-
-# TODO deleteme
-create-env:
-	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
 develop: install-dev-dep
 	pip install -e .
@@ -121,20 +125,23 @@ test-report:
 	help \
 	clean \
 	clean-build \
+	clean-doc \
 	clean-pyc \
 	clean-test \
+	cov-report \
 	develop \
+	doc \
+	doc-build-test \
 	install \
 	install-dep \
 	install-dev-dep \
 	install-doc-dep \
 	install-test-dep \
-	create-env\
+	install-tox \
 	lint \
-	lint-python \
 	lint-js \
-	doc \
+	lint-python \
 	live-doc \
-	test \
 	py-test \
-	doc-build-test
+	test \
+	test-report

@@ -1,19 +1,11 @@
-Core Rest Server
-===========
+Core Service
+============
 
-Start rest server
------------------
+Starting the Service
+--------------------
 
-  .. code-block:: bash
-
-      cd foglamp/core/
-      python -m server
-
-TODO
-^^^^
-
-- ``foglamp``  will run in foreground
-- ``foglampd`` or ``foglamp start`` command will start this as daemon
+- ``foglamp start`` start as daemon
+- ``python -m foglamp.core`` run as a regular process
 
 
 Base URI
@@ -36,4 +28,4 @@ GET /ping
       }
 
  - unit: seconds
- - 0 if service is down
+

@@ -41,28 +41,38 @@ INSERT INTO foglamp.log_codes ( code, description )
 -- Configuration parameters
 DELETE FROM foglamp.configuration;
 
--- CLEAN: The cleaning process is on by default
---        age     : Age of the data to be retained
---        enabled : When true, purging is enabled and data can be removed
-INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'PURGE', '{ "age" : 259200, "enabled" : true }' );
+-- PURGE: The cleaning process is on by default
+--   age          : Age of data to be retained, all data that is older than this value will be removed by the purge process. This value is expressed in hours.
+--   enabled      : A boolean switch that can be used to disable the purging of data. This is used if the process should be stopped from running.
+--   retainUnsent : Retain data that has not been sent to tany historian yet.
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'PURGE', 'Purge data process', '{ "age" : 72, "enabled" : true, "retainUnsent" : false }' );
 
 -- LOGPR: Log Partitioning
 --        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
-INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'LOGPR', '{ "unit" : "day" }' );
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'LOGPART', 'Log Partitioning', '{ "unit" : "day" }' );
+
+-- SENSR: Sensors and devices
+--        status      : the process is on or off, it is on by default
+--        time window : the time window when the process is active, always active by default (it means every second)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SENSORS',
+              'Sensors and Device Interface',
+              '{ "category" : "CoAP", "configuration" : { "port" : { "description" : "Port to listen on", "default" : "5432", "value" : "5432", "type" : "integer" }, "url" : { "description" : "URL to accept data on", "default" : "sensor/reading-values", "value" : "sensor/reading-values", "type" : "string" }, "certificate" : { "description" : "X509 certificate used to identify ingress interface", "value" : "47676565", "type" : "x509 certificate" } } }' );
 
 -- STRMN: Streaming
 --        status      : the process is on or off, it is on by default
 --        time window : the time window when the process is active, always active by default (it means every second)
-INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'STRMN', '{ "status" : "day", "window" : [ "always" ] }' );
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'STREAMING', 'Streaming', '{ "status" : "day", "window" : [ "always" ] }' );
 
 -- SYPRG: System Purge
 --        retention : data retention in seconds. Default is 3 days (259200 seconds)
 --        last purge: ts of the last purge call
-INSERT INTO foglamp.configuration ( key, value )
-     VALUES ( 'SYPRG', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SYPURGE', 'System Purge', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
+
 
 
 -- DELETE data for roles, resources and permissions
@@ -89,5 +99,15 @@ INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
 INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
      VALUES ( 1, 2, '{ "access": ["create","read","write","delete"] }' );
 
+
+-- Statistics
+INSERT INTO foglamp.statistics ( key, description, value )
+     VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0 ),
+            ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0 ),
+            ( 'SENT',       'The number of readings sent to the historian', 0 ),
+            ( 'UNSENT',     'The number of readings filtered out in the send process', 0 ),
+            ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0 ),
+            ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0 ),
+            ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0 );
 
 

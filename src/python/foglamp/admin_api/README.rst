@@ -8,7 +8,7 @@ This code originated from `JWT AUTHORIZATION IN PYTHON, PART 1 <http://steelkiwi
 
 Starting the server
 -------------------
-The foglamp start script starts the server on port 8080. There is currently no https option.
+The foglamp start script starts the server on port 8081. There is currently no https option.
 
 Authentication
 --------------
@@ -78,17 +78,17 @@ Usage Example
 .. code-block:: bash
 
     foglamp$ curl -X POST -d '{"username":"user", "password": "password"}' \
-    localhost:8080/api/auth/login
+    localhost:8081/api/auth/login
 
     {"refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8", 
     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjEsImV4cCI6MTQ5NjkyMDU1NC4xMDM1OTF9.HlFo1ABpmSLmJocUFjQyH0Y8v4z-3kujvbmC77RZMkg"}
 
     foglamp$ curl -H authorization:eyJhbGciOiJIUzI1NiIsInRY5MTgxNTkuNDc4NzQ1LCJhY2Nlc3MiOjEsInVzZXJfaWQiOjF9.c3zS_EXm1YXsgPMxkyO3sIgDmDWOsx8tZYV512XlV7I \
-    localhost:8080/api/example/whoami
+    localhost:8081/api/example/whoami
 
     {"username": "user"}
 
     foglamp$ curl -X POST -H authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjAsImV4cCI6MTQ5NzQ5OTI1NH0.WXgSegU4AZtucLh1HbbEZmufCAE81ntR-XLOKEYPzE8 \
-    localhost:8080/api/auth/refresh-token
+    localhost:8081/api/auth/refresh-token
 
     {"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTY5MjA3NTguMjAwNjIxLCJ1c2VyX2lkIjoxLCJhY2Nlc3MiOjF9.cgv348fsNjqYrocmPvJbCgUIqJWoJGaUpVaBIxREJPc"}

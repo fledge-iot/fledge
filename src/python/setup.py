@@ -11,8 +11,7 @@ setup(
     packages=['foglamp'],
     entry_points={
         'console_scripts': [
-            'foglamp = foglamp.server:run',
-            'foglampd = foglamp.server:main',
+            'foglamp = foglamp.core.server_daemon:main'
         ],
     },
     zip_safe=False

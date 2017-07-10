@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 from cbor2 import dumps
 from aiocoap.numbers.codes import Code as CoAP_CODES
 
-from foglamp.device_api.coap.sensor_values import SensorValues
+from foglamp.device.coap.sensor_values import SensorValues
 
 __author__    = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -66,7 +66,7 @@ class CreateEngineContextManager(MagicMock):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
-        
+
 def _mock_create_engine(mocker):
     mocker.patch('aiopg.sa.create_engine', return_value=CreateEngineContextManager())
 # END

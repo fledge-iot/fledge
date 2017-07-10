@@ -25,7 +25,6 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test artifacts"
 	@echo "cov-report - generate html test coverage report and open it in browser"
-	@echo "create-env - create environment file if it doesn't exist (copy foglamp-env.example.yaml to foglamp-env.yaml)"
 	@echo "develop - install dev dependencies and FogLAMP using setup.py"
 	@echo "doc - generate docs html"
 	@echo "doc-build-test - run docs/check-sphinx tests"
@@ -74,10 +73,6 @@ clean-test:
 
 cov-report:
 	open htmlcov/index.html
-
-# TODO deleteme
-create-env:
-	[ -f foglamp/foglamp-env.yaml ] && echo "foglamp-env already exists" || cp foglamp/foglamp-env.example.yaml foglamp/foglamp-env.yaml
 
 develop: install-dev-dep
 	pip install -e .
@@ -134,7 +129,6 @@ test-report:
 	clean-pyc \
 	clean-test \
 	cov-report \
-	create-env \
 	develop \
 	doc \
 	doc-build-test \

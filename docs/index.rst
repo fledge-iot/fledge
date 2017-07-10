@@ -7,7 +7,6 @@ Welcome to FogLAMP's documentation!
    setup-installation
 
    rest-service
-   admin-api
 
    build-tools
 

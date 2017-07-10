@@ -554,8 +554,12 @@ CREATE INDEX fki_streams_fk1
 
 
 -- Configuration table
+-- The configuration in JSON format.
+-- The PK is a 10 CHAR code (standard is to keep it UPPERCASE and usually filled with _
+-- Values is a jsonb column
+-- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
-       key         character(5)                NOT NULL COLLATE pg_catalog."default", -- Primary key, the rules are: 1. All uppercase, 2. All 5 characters are filled.
+       key         character(10)               NOT NULL COLLATE pg_catalog."default", -- Primary key, the rules are: 1. All uppercase, 2. All characters are filled.
        description character varying(255)      NOT NULL,                              -- Description, in plan text
        value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
@@ -564,31 +568,21 @@ CREATE TABLE foglamp.configuration (
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;
 
 ALTER TABLE foglamp.configuration OWNER to foglamp;
-COMMENT ON TABLE foglamp.configuration IS
-'The configuration in JSON format.
-- The PK is a 5 CHAR code (standard is to keep it UPPERCASE and filled with _
-- Values is a jsonb column
-- ts is set by default with now().';
 
 
 -- Configuration changes
 -- This table has the same structure of foglamp.configuration, plus the timestamp that identifies the time it has changed
 -- The table is used to keep track of the changes in the "value" column
 CREATE TABLE foglamp.configuration_changes (
-       key                 character(5)                NOT NULL COLLATE pg_catalog."default",
+       key                 character(10)               NOT NULL COLLATE pg_catalog."default",
        configuration_ts    timestamp(6) with time zone NOT NULL,
        configuration_value jsonb                       NOT NULL,
        ts                  timestamp(6) with time zone NOT NULL DEFAULT now(),
-                CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts)
-                     USING INDEX TABLESPACE foglamp )
+       CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts)
+            USING INDEX TABLESPACE foglamp )
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;
 
 ALTER TABLE foglamp.configuration_changes OWNER to foglamp;
-COMMENT ON TABLE foglamp.configuration_changes IS
-'When a configuration changes, this table is used to store the previous configuration.
-- The configuration key is stored in the key column
-- The configuration timestamp is stored in the configuration_ts column
-- The old value is stored in the configuration_value column';
 
 
 -- Statistics table

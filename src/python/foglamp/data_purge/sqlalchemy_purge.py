@@ -8,12 +8,28 @@ Description: The following piece of code is the written purge script, with its m
 import datetime
 import json
 import os
+import sqlalchemy
 import sys
 import time
 
-from __init__ import engine, conn, t1, configFile, logsFile
+# Set variables for connecting to database
+user="foglamp"
+db_user="foglamp"
+host="192.168.0.182"
+db="foglamp"
 
+# Create Connection
+engine = sqlalchemy.create_engine('postgres://%s:%s@%s/%s' % (db_user,user,host,db), pool_size=20, max_overflow=0)
+conn = engine.connect()
 
+# Important files
+configFile = 'config.json'
+logsFile = 'logs.json'
+
+# table being used
+t1 = sqlalchemy.Table('t1',sqlalchemy.MetaData(),
+        sqlalchemy.Column('id',sqlalchemy.INTEGER,primary_key=True),
+        sqlalchemy.Column('ts',sqlalchemy.TIMESTAMP,default=sqlalchemy.func.now()))
 
 def conver_timestamp(set_time=None):
     """
@@ -117,93 +133,78 @@ def purge(tableName=None, configFile=None, logsFile=None):
             data=json.load(f)
 
     if config['enabled'] is True: # meaning that config info is authorizing the purge
-        age_timestamp = datetime.datetime.strftime(datetime.datetime.now() - conver_timestamp(set_time=config['age']),'%Y-%m-%d %H:%M:%S')
-        print(config['lastConnection'])
+        age_timestamp = datetime.datetime.strftime(datetime.datetime.now() - conver_timestamp(set_time=config['age']),'%Y-%m-%d %H:%M:%S.%f')
         last_connection = datetime.datetime.strptime(config['lastConnection'], '%Y-%m-%d %H:%M:%S')
 
         # Time that purge process begins (NOW) - the script will ignore everything after now for purging
+        #   IE `start` will be executed as part of the WHERE condition(s) in all queries that fall under
+        #   config['enabled'] == True.
         start = time.time()
-        start = datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S.%s')
+        start = datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
 
-        # totalCount: Number of rows up to DELETE
-        #   SELECT COUNT(*) FROM tableName WHERE ts <= start;
-        totalCountQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= start)
-        totalCount = get_count(totalCountQuery)
+        # Number of rows inserted until DELETE was called
+        countQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(t1).where(t1.c.ts < start)
+        countBefore = get_count(countQuery)
 
-        # expectDELETE: Number of rows expected to get deleted
-        #   SELECT COUNT(*) FROM tableName WHERE ts <= age AND ts <= start;
-        expectDeleteQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts <= start)
-        expectDelete = get_count(expectDeleteQuery)
+        # Number of rows there were not sent to PI
+        unsentQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(t1).where(t1.c.ts <= last_connection)
+        beforeUnsent = get_count(unsentQuery)
 
-        # unsentExpect: Number of unsent rows that are expected to get DELETE
-        #   SELECT COUNT(*) FROM tableName WHERE ts <= age AND ts > lastConnection AND ts <= start;
-        unsentExpectQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts > last_connection).where(tableName.c.ts <= start)
-        unsentExpect = get_count(unsentExpectQuery)
+        # Enter this if statement iff DELETE is enabled
+        if config['enabled'] is True:
+            # If retainUnsent is True then delete the smaller of age_timestamp and last_connection
+            #   Otherwise delete by age_timestamp
+            if (config['retainUnsent']  is True) and (datetime.datetime.strptime(age_timestamp,'%Y-%m-%d %H:%M:%S.%f') > last_connection):
+                # print('last_connection')
+                deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.ts <= last_connection)
+                execute_delete(stmt=deleteQuery)
 
-        # Delete information that is older than age_timestamp ignoring the last time Pi was connected
-        if config['retainUnsent'] is False:
-            # DELETE all rows that are older (or equal) to the age_timestamp.
-            #   DELETE FROM tableName WHERE ts <= age;
-            deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts <= start)
-            execute_delete(stmt=deleteQuery)
+            # All cases that do not fall under the IF statement usee age rather tha last_connection in their WHERE condition
+            else:
+                # print('age_timestamp')
+                # DELETE all rows that are older (or equal) to the age_timestamp.
+                #   DELETE FROM tableName WHERE ts <= age;
+                deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.ts <= age_timestamp)
+                execute_delete(stmt=deleteQuery)
 
-        # Delete information that is older than both age_timestamp and last_connection date
-        elif config['retainUnsent'] is True:
-            # DELETE all rows that re older (or equal) to age_timestamp, and have been already added to the Pi System
-            #   DELETE FROM tableName WHERE ts <= age AND ts < lastConnection;
-            deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts < last_connection).where(tableName.c.ts <= start)
-            execute_delete(stmt=deleteQuery)
-
-        # Time when DELETE finished executing
         end = time.time()
-        end = datetime.datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S.%s')
+        end = datetime.datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
 
-        # remainingTotal - Number of rows remaining up to the DELETE
-        #   SELECT COUNT(*) FROM tableName WHERE ts <= start;
-        remainingTotalQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= start)
-        remainingTotal = get_count(remainingTotalQuery)
-
-        # notRemoved: Numbers of rows that were not removed, but were expected to
-        #   SELECT COUNT(*) FROM tableName WHERE ts <= age AND ts <= start;
-        # If config['retainUnsent'] is False then expect 0, else expect expectDelete - unsentExpect
-        notRemovedQuery =  sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts <= start)
-        notRemoved = get_count(notRemovedQuery)
-
-        # unsentNotRemovedExpect: Number of rows that were not sent to PI were expected to get DELETED, but were not.
-        #   SELECT COUNT(*) FROM tableName WHERE ts <= age AND ts > lastConnection AND ts <= start
-        # If config['retainUnsent'] is False then expect 0, else expect unsentNotRemovedExpect == unsentExpect
-        unsentNotRemovedExpectQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts > last_connection).where(tableName.c.ts <= start)
-        unsentNotRemovedExpect = get_count(unsentNotRemovedExpectQuery)
-
+        # Number of rows remain up to DELETE command
+        countAfter = get_count(countQuery)
 
         # Add info to purgeStatus
         purgeStatus['startTime'] = start
         purgeStatus['complete'] = end
 
-
-
-
-
         # rowsRemoved: How many rows were removed
-        purgeStatus['rowsRemoved'] = totalCount - remainingTotal
+        purgeStatus['rowsRemoved'] = countBefore - countAfter
 
         # unsentRowsRemoved: How many rows that were not sent to PI were removed
         #   If config['retainUnsent'] is True, then the value should be 0, else it should be greater than 0
-        purgeStatus['unsentRowsRemoved'] = unsentExpect - unsentNotRemovedExpect
+        afterUnsent = get_count(unsentQuery)
+        purgeStatus['unsentRowsRemoved'] = beforeUnsent - afterUnsent
+
 
         # failedRemovals: How many rows that were expected to get removed weren't removed
-        #   Unless there was some disconnection during the DELETE, this value should always return 0
-        purgeStatus['failedRemoval'] = notRemoved
+        #   In cases where "config['retainUnsent']  is False and age_timestamp > last_connection" then failedRemovals
+        #   is the number of rows remaining that are <=  age_timestamp, in all other cases, the exepcted is 0.
+        failedToRemoveQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(t1).where(t1.c.ts <= age_timestamp).where(t1.c.ts < start)
+        purgeStatus['failedRemovals'] = get_count(failedToRemoveQuery)
 
         # rowsRemaining: How many rows remain remain up-to the delete
-        purgeStatus['rowsRemain'] = remainingTotal
+        purgeStatus['rowsRemaining'] = countAfter
 
+        # The purgeStatus dictionary is stored into a dictionary containing all other purge runs, where the key is
+        #   the `start` timestamp.
         data[start] = purgeStatus
 
-    # Write as JSON object.
-    f = open('logs.json','w')
-    f.write(json.dumps(data))
-    f.close()
+        # Write to file
+        f = open('logs.json', 'w')
+        f.write(json.dumps(data))
+        f.close()
+
+    # Calculate how long to sleep fore before rerunning
     return convert_sleep(config['wait'])
 
 def get_count(stmt):

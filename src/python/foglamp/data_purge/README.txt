@@ -1,24 +1,36 @@
 General Description: FOGL-200 is the responsibility for the purge process, which seats somewhere
-between schedualer (calls FOGL-200), and the database layer (recieves requests from FOGL-200)
+between scheduler (calls FOGL-200), and the database layer (recieves requests from FOGL-200)
 Link: https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/
 
+Right now, the code is missing the following piecies:
+- Scheduler --> was replaced by a "main" in sqlalchemy_purge.py that calls the purge process, and returns
+    how long to wait until the next purge iteration
+- Config Information --> A table (or file) that provides information regarding the purge process, such how far
+    back to delete, and when was the last time  Pi System received data. To resolve this problem, there currently
+    exists a config.json file, which contains a json object with that information.
+- logs table --> A table, or file providing vital information regarding the purge process. Again, to resolve the issue,
+    there now is a json file, containing json objects with the needed information
+
+
 Files:
-    - __init__.py: Contains global variables that can be used throughout the directory. In this case,
-        the file contaisn connection information, config/log file names, and table information. ]
-        Please note that the __init__.py currently has "default" information for connecting to db
-         node, and should be updated appropriately if connection fails.
-
-    - sqlalchemy_insert.py: An example of INSERTS being done with SQLAlchemy. This file exists as a tool to
-        show how the purge process will be done.
-
-    - sqlalchemy_purge.py: The file contains more information that there would need to be, but shows how
-        puring would be done against the database, based on a json object containning configuration information.
-        The results of the pruge process are also logged in a JSON object.
-
-How to run:
-    A user trying this piece of code should first run INSERTS (sqlalchemy_insert.py) for a few moments before
-    beginning the purge process (sqlalchemy_purge.py). Once the purge process has began, the user can feel free
-    to begin playing with the config.json. Finally, logged information regarding puring can be seen in logs.json.
-
-Unit-test (using py.test):
-    unit_test.py is broken into 2 parts. The first part focuses on making sure that data is
+    - config.json: JSON object with configuration information
+        - age
+        - retainUnsent
+        - enabled
+        - lastID
+        - wait
+        - lastConnection
+    - logs.json: A JSON object of objects containing information regarding the purge process. Each object
+        is keyed by the start time
+        - rowsRemoved
+        - complete
+        - failedRemovals
+        - unsentRowsRemoved
+        - startTime
+        - rowsRemaining
+    - sqlalchemy_insert.py: TEMPORARY file that does INSERTS against database, this is used as a testing tool
+      for purces processing
+    - sqlalchemy_purge.py: File containing purge script, as well as some extra methods to support reading of configs,
+      and writting to logs.
+    - tests_data_purge.py: A set of pytest cases that run in parallel to the code, making sure values being sent to
+      config and logs files are valid. 

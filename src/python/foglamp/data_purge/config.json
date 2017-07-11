@@ -1,1 +1,1 @@
-{"wait": "10 seconds", "lastConnection": "2017-06-29 15:14:06", "enabled": true, "retainUnsent": true, "age": "2 minutes"}
+{"age": "2 minutes", "retainUnsent": false, "enabled": true, "lastID": 3356255, "wait": "10 seconds", "lastConnection": "2017-07-11 13:39:36"}

@@ -20,24 +20,30 @@ _processes = []  # type: List[Process]
 
 
 def shutdown():
-    """Stops the scheduler"""
+    """Stops the scheduler
+    
+    Terminates long-running processes like the device server.
+    
+    Waits for tasks to finish. There is no way to stop tasks that are already running.
+    """
     for process in _processes:
         process.terminate()
 
 
-async def _start_device():
+async def _start_device_server():
+    """Starts the device server (foglamp.device) as a subprocess"""
     process = await asyncio.create_subprocess_exec(
         'python3', '-m', 'foglamp.device')
 
     global _processes
-    _processes.insert(-1, process)
+    _processes.append(process)
 
 
 async def _main():
     await _start_device()
 
 
-def start(loop):
+def start():
     """Start the scheduler"""
 
     asyncio.ensure_future(_main())

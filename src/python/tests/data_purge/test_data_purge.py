@@ -114,7 +114,7 @@ def execute_query(stmt):
     """
     user = "foglamp"
     db_user = "foglamp"
-    host = "192.168.0.182"
+    host = "127.0.0.1"
     db = "foglamp"
 
     engine = sqlalchemy.create_engine('postgres://%s:%s@%s/%s' % (db_user,  user,  host,  db),  pool_size=20,

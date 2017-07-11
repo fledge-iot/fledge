@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -8,7 +7,6 @@
 """FogLAMP Scheduler"""
 
 import asyncio
-# See https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process
 from asyncio.subprocess import Process
 
 __author__    = "Terris Linenbach"
@@ -16,6 +14,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__   = "Apache 2.0"
 __version__   = "${VERSION}"
 
+# For Process methods, see https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process
+# or upgrade to a version of Python that uses type annotations
 _processes = []  # type: List[Process]
 
 

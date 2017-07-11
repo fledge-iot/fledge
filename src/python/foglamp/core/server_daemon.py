@@ -89,7 +89,7 @@ def stop():
     try:
         while True:
             os.kill(pid, signal.SIGTERM)
-            time.sleep(0.1)
+            time.sleep(5)
     except OSError:
         pass
 
@@ -170,14 +170,15 @@ def main():
     Processes command-line arguments
 
     COMMAND LINE ARGUMENTS:
-        start
-        status
-        stop
-        restart
+        - start
+        - status
+        - stop
+        - restart
 
     EXIT STATUS:
-        1: An error occurred
-        2: For the 'status' command: FogLAMP is not running (otherwise, 0)
+        - 0: Normal
+        - 1: An error occurred
+        - 2: For the 'status' command: FogLAMP is not running
     """
     try:
         _do_main()

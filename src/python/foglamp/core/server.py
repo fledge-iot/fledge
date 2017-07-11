@@ -38,7 +38,7 @@ def start():
     loop = asyncio.get_event_loop()
     scheduler.start(loop)
 
-    for signal_name in (signal.SIGINT, signal.SIGTERM):
+    for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
         loop.add_signal_handler(signal_name, _shutdown, loop)
 
     web.run_app(_make_app(), host='0.0.0.0', port=8082)

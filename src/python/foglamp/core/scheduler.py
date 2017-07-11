@@ -8,42 +8,37 @@
 """FogLAMP Scheduler"""
 
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
+# See https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process
+from asyncio.subprocess import Process
 
 __author__    = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__   = "Apache 2.0"
 __version__   = "${VERSION}"
 
-_executor = None
-"""Static processes"""
+_processes = []  # type: List[Process]
 
 
 def shutdown():
     """Stops the scheduler"""
-    _executor.shutdown()
+    for process in _processes:
+        process.terminate()
 
 
-def _start_device():
-    """Start the device service (temporary)"""
-    try:
-        exec("from foglamp.device import server; server.start()")
-    except BaseException:
-        pass
+async def _start_device():
+    process = await asyncio.create_subprocess_exec(
+        'python3', '-m', 'foglamp.device')
 
-async def _main(loop):
-    while True:
-        await asyncio.sleep(0)
-    pass
+    global _processes
+    _processes.insert(-1, process)
+
+
+async def _main():
+    await _start_device()
 
 
 def start(loop):
     """Start the scheduler"""
 
-    global _executor
-    _executor = ProcessPoolExecutor(1)
-
-    asyncio.ensure_future(loop.run_in_executor(_executor, _start_device))
-
-    # asyncio.ensure_future(_main(loop))
+    asyncio.ensure_future(_main())
 

@@ -86,7 +86,7 @@ develop: install-dev-dep
 
 doc: install-doc-dep
 	make install
-	cd ../../docs && sphinx-apidoc -f -o . $(CODEDIR) && make html
+	cd ../../docs && sphinx-apidoc -fT -o ./api $(CODEDIR) && make html
 
 doc-build-test: install-tox
 	tox -e docs
@@ -120,7 +120,7 @@ lint-python: install-test-dep
 
 live-doc: install-doc-dep
 	make install
-	cd ../../docs && sphinx-apidoc -f -o . $(CODEDIR) && make livehtml
+	cd ../../docs && sphinx-apidoc -fT -o ./api $(CODEDIR) && make livehtml
 
 py-test: install-tox
 	tox -e py35

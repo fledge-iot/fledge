@@ -41,12 +41,12 @@ Note   :
 
 
 Todo:
-    - it should evolve using the DB layer
+    - # TODO FOGL-203 - the current log mechanism should be substituted.
+    - # TODO FOGL-251 - it should evolve using the DB layer
     - only part of the code is using async
 
 """
 
-# Import packages
 import json
 import time
 import requests
@@ -63,50 +63,45 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 # Module information
-__module__    = "OMF Translator"
-__prg_text__  = ", for Linux (x86_64)"
-__company__   = "2017 DB SOFTWARE INC."
-
-__author__    = "2017 DB SOFTWARE INC."
+__author__    = "${FULL_NAME}"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__   = "Apache 2.0"
-__version__   = "1.0.18"
+__version__   = "${VERSION}"
 
+#FIXME: we need to [SHOULD] move this to defaults.py! unless this also needs to be read from database 😃
 _DB_URL     = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 """DB references"""
 
 _LOG_SCREEN = True
 """Enable/Disable screen messages"""
 
+_module_name   = "OMF Translator"
 
 _message_list  = {
     # Information messages
     "i000001": "operation successfully completed",
-    "i000002": __module__ + " - Started",
-    "i000003": __module__ + " - Execution completed.",
+    "i000002": _module_name + " - Started",
+    "i000003": _module_name + " - Execution completed.",
 
     # Warning / Error messages
-    "e000001": __module__ + " - generic error.",
-    "e000002": __module__ + " - cannot retrieve the starting point for sending operation - error details |{0}|.",
-    "e000003": __module__ + " - cannot update the reached position - error details |{0}|.",
-    "e000004": __module__ + " - cannot complete the sending operation - error details |{0}|.",
-    "e000005": __module__ + " - cannot configure the logging mechanism. - error details |{0}|.",
-    "e000006": __module__ + " - cannot initialize the plugin. - error details |{0}|.",
-    "e000007": __module__ + " - an error occurred during the OMF request. - error details |{0}|.",
-    "e000008": __module__ + " - an error occurred during the OMF's objects creation. - error details |{0}|.",
-    "e000009": __module__ + " - cannot retrieve information about the sensor.",
-    "e000010": __module__ + " - unable ro create the JSON message.",
+    "e000001": _module_name + " - generic error.",
+    "e000002": _module_name + " - cannot retrieve the starting point for sending operation - error details |{0}|.",
+    "e000003": _module_name + " - cannot update the reached position - error details |{0}|.",
+    "e000004": _module_name + " - cannot complete the sending operation - error details |{0}|.",
+    "e000005": _module_name + " - cannot configure the logging mechanism. - error details |{0}|.",
+    "e000006": _module_name + " - cannot initialize the plugin. - error details |{0}|.",
+    "e000007": _module_name + " - an error occurred during the OMF request. - error details |{0}|.",
+    "e000008": _module_name + " - an error occurred during the OMF's objects creation. - error details |{0}|.",
+    "e000009": _module_name + " - cannot retrieve information about the sensor.",
+    "e000010": _module_name + " - unable ro create the JSON message.",
 
 }
 """Used messages"""
 
 # Logger
 _log       = ""
-_handler   = ""
-_formatter = ""
 
-# SA related
-_readings_values_tbl = sa.Table(
+_readings_tbl = sa.Table(
     'readings',
     sa.MetaData(),
     sa.Column('id', sa.BigInteger, primary_key=True),
@@ -117,7 +112,7 @@ _readings_values_tbl = sa.Table(
 """Contains the information to send to OMF"""
 
 
-# PI Server references
+# PI Server references - for detailed information http://omf-docs.readthedocs.io/en/v1.0/Data_Msg_Sample.html#data-example
 _server_name    = ""
 _relay_url      = ""
 _producer_token = ""
@@ -125,7 +120,7 @@ _producer_token = ""
 # The size of a block of readings to send in each transmission.
 _block_size = 20
 
-# OMF's objects creation
+# OMF objects creation
 _types           = ""
 _sensor_id       = ""
 _measurement_id  = ""
@@ -135,7 +130,7 @@ _measurement_id  = ""
 _sensor_location = "S.F."
 
 # OMF types definitions
-_type_id             = "8"
+_type_id             = "9"
 _type_measurement_id = "omf_trans_type_measurement_" + _type_id
 _type_sensor_id      = "omf_trans_type_sensor_id_" + _type_id
 
@@ -145,9 +140,6 @@ _pg_conn = ""
 _pg_cur  = ""
 
 
-#
-# Functions
-#
 def plugin_initialize():
     """Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
 
@@ -181,7 +173,7 @@ def plugin_initialize():
         _relay_url   = "http://" + _server_name + ":8118/ingress/messages"
 
         # producerToken
-        _producer_token = "omf_translator_79"
+        _producer_token = "omf_translator_81"
 
         # OMFTypes
         _types = [
@@ -252,19 +244,24 @@ def plugin_initialize():
     return status
 
 
-def debug_msg_write(severityMessage, message):
+def debug_msg_write(severity_message, message):
     """Writes a debug message
+
+    Args:
+        severity_message: string related to the severity - "INFO" | "WARNING" | ERROR
+        message: message to handle
+
+    Note:
+        # TODO FOGL-203 - temporary function that will be removed by FOGL-203
     """
 
     global _log
 
     if _LOG_SCREEN == True:
-
-        if severityMessage == "":
+        if severity_message == "":
             print("{0:}".format(message))
         else:
-            print ("{0:} - {1:<7} - {2} ".format(time.strftime("%Y-%m-%d %H:%M:%S:"), severityMessage ,message) )
-
+            print ("{0:} - {1:<7} - {2} ".format(time.strftime("%Y-%m-%d %H:%M:%S:"), severity_message, message))
     _log.debug(message)
 
     return
@@ -297,9 +294,7 @@ def create_data_values_stream_message(target_stream_id, information_to_send):
     timestamp   = information_to_send.user_ts.isoformat()
     sensor_data = information_to_send.reading
 
-    debug_msg_write("INFO", "Stream ID : |{0}| ".format(target_stream_id))
-    debug_msg_write("INFO", "Sensor ID : |{0}| ".format(asset_code))
-    debug_msg_write("INFO", "Row    ID : |{0}| ".format(str(row_id)))
+    debug_msg_write("INFO", "Stream ID : |{0}| Sensor ID : |{1}| Row    ID : |{2}|  ".format(target_stream_id,asset_code, str(row_id)  ) )
 
     try:
         # Prepares the data for OMF
@@ -317,77 +312,27 @@ def create_data_values_stream_message(target_stream_id, information_to_send):
         #
         # Evaluates which data is available
         #
-        try:
-            data_values_JSON[0]["values"][0]["x"] = sensor_data["x"]
-            data_available = True
-        except Exception:
-            pass
+        sensor_data_keys = ["x", "y", "z","pressure","lux","humidity","temperature","object", "ambient"]
 
-        try:
-            data_values_JSON[0]["values"][0]["y"] = sensor_data["y"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["z"] = sensor_data["z"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["pressure"] = sensor_data["pressure"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["lux"] = sensor_data["lux"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["humidity"] = sensor_data["humidity"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["temperature"] = sensor_data["temperature"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["object"] = sensor_data["object"]
-            data_available = True
-        except Exception:
-            pass
-
-        try:
-            data_values_JSON[0]["values"][0]["ambient"] = sensor_data["ambient"]
-            data_available = True
-        except Exception:
-            pass
+        for data_key in sensor_data_keys:
+            try:
+                data_values_JSON[0]["values"][0][data_key] = sensor_data[data_key]
+                data_available = True
+            except Exception:
+                pass
 
 
-
-        if data_available == True:
+        if data_available:
             debug_msg_write("INFO", "OMF Message   |{0}| ".format(data_values_JSON))
-
         else:
             status = False
             _log.warning(_message_list["e000009"])
 
-
     except Exception as e:
-        status  = False
         message = _message_list["e000010"].format(e)
 
         _log.error(message)
         raise Exception(message)
-
 
     return status, data_values_JSON
 
@@ -426,7 +371,6 @@ def send_OMF_message_to_end_point(message_type, OMF_data):
 
 
     except Exception as e:
-        status  = False
         message = _message_list["e000007"].format(e)
 
         _log.error(message)
@@ -436,7 +380,7 @@ def send_OMF_message_to_end_point(message_type, OMF_data):
 
 
 
-def log_configuration():
+def setup_logger():
     """Configures the log mechanism
 
     Returns:
@@ -445,27 +389,27 @@ def log_configuration():
     Raises:
         Exception: Fails to configure the log
 
+    Todo:
+        # TODO FOGL-203 Configure Python Logging
+
     """
 
     global _log
-    global _handler
-    global _formatter
 
     status = True
 
     try:
-        _log = logging.getLogger(__module__)
+        _log = logging.getLogger(_module_name)
 
         _log.setLevel(logging.DEBUG)
-        _handler = logging.handlers.SysLogHandler(address='/dev/log')  # /var/run/syslog
+        handler = logging.handlers.SysLogHandler(address='/dev/log')  # /var/run/syslog
 
-        _formatter = logging.Formatter('%(module)s.%(funcName)s: %(message)s')
-        _handler.setFormatter(_formatter)
+        formatter = logging.Formatter('%(module)s.%(funcName)s: %(message)s')
+        handler.setFormatter(formatter)
 
-        _log.addHandler(_handler)
+        _log.addHandler(handler)
 
     except Exception as e:
-        status = False
         raise Exception(_message_list["e000005"].format(e))
 
 
@@ -505,7 +449,6 @@ def position_read():
 
 
     except Exception as e:
-        status  = False
         message = _message_list["e000002"].format(e)
 
         _log.error(message)
@@ -542,7 +485,6 @@ def position_update(new_position):
         _pg_conn.commit()
 
     except Exception as e:
-        status  = False
         message =_message_list["e000003"].format(e)
 
         _log.error(message)
@@ -637,7 +579,6 @@ def OMF_object_creation ():
 
 
     except Exception as e:
-        status  = False
         message =_message_list["e000008"].format(e)
 
         _log.error(message)
@@ -681,7 +622,7 @@ async def send_info_to_OMF ():
                     debug_msg_write("INFO", "Last position, already sent |{0}| ".format(str(position)))
 
                     # Reads the rows from the DB and sends to OMF
-                    async for db_row in conn.execute(_readings_values_tbl.select().where(_readings_values_tbl.c.id > position).order_by(_readings_values_tbl.c.id).limit(_block_size)):
+                    async for db_row in conn.execute(_readings_tbl.select().where(_readings_tbl.c.id > position).order_by(_readings_tbl.c.id).limit(_block_size)):
 
                         message =  "### sensor information ######################################################################################################"
                         debug_msg_write("INFO", "{0}".format(message))
@@ -708,7 +649,6 @@ async def send_info_to_OMF ():
 
 
     except Exception as e:
-        status  = False
         message = _message_list["e000004"].format(e)
 
         _log.error(message)
@@ -721,9 +661,13 @@ async def send_info_to_OMF ():
 #
 if __name__ == "__main__":
 
-    log_configuration  ()
+    setup_logger  ()
 
-    start_message    = "\n" + __module__ + " - Ver " + __version__ + "" + __prg_text__ + "\n" + __company__ + "\n"
+    prg_text = ", for Linux (x86_64)"
+    company  = "2017 DB SOFTWARE INC."
+    version  = "1.0.19"
+
+    start_message    = "\n" + _module_name + " - Ver " + version + "" + prg_text + "\n" + company + "\n"
     debug_msg_write ("", "{0}".format(start_message) )
     debug_msg_write ("INFO", _message_list["i000002"])
 

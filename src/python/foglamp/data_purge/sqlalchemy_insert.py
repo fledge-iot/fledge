@@ -12,7 +12,7 @@ import time
 # Set variables for connecting to database
 user="foglamp"
 db_user="foglamp"
-host="192.168.0.182"
+host="127.0.0.1"
 db="foglamp"
 
 # Create Connection

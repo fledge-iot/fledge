@@ -33,4 +33,4 @@ Files:
     - sqlalchemy_purge.py: File containing purge script, as well as some extra methods to support reading of configs,
       and writting to logs.
     - tests_data_purge.py: A set of pytest cases that run in parallel to the code, making sure values being sent to
-      config and logs files are valid. 
+      config and logs files are valid.

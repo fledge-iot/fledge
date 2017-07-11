@@ -36,7 +36,7 @@ def _shutdown(loop):
 def start():
     """starts the server"""
     loop = asyncio.get_event_loop()
-    scheduler.start(loop)
+    scheduler.start()
 
     for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
         loop.add_signal_handler(signal_name, _shutdown, loop)

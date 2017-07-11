@@ -40,7 +40,7 @@ async def _start_device_server():
 
 
 async def _main():
-    await _start_device()
+    await _start_device_server()
 
 
 def start():

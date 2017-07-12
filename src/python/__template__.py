@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
+# TODO: Remove the shebang line above if this is not an executable script. Also remove this line.
 
 # -*- coding: utf-8 -*-
-
-# Remove the #!/usr/bin/env line above if this is not an executable script (also remove this line)
 
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
@@ -35,7 +34,7 @@ Attributes:
 
 Todo:
     * For module TODOs
-    * You have to also use ``sphinx.ext.todo`` extension
+    * You have to also use ``sphinx.ext.todo`` extension <--- TERRIS: What does this mean?
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -78,6 +77,9 @@ def function_with_types_in_docstring(param1, param2):
         https://www.python.org/dev/peps/pep-0484/
 
     """
+
+    # This is a TODO Example
+    # TODO: JIRA-XXXX Short descrption (put longer description in the JIRA)
 
 
 def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
@@ -174,6 +176,8 @@ def example_generator(n):
         yield i
 
 
+# Custom exception class example
+# Put shared exception classes in exceptions.py
 class ExampleError(Exception):
     """Exceptions are documented in the same way as classes.
 
@@ -187,17 +191,18 @@ class ExampleError(Exception):
         Do not include the `self` parameter in the ``Args`` section.
 
     Args:
-        msg (str): Human readable string describing the exception.
+        message (str): Human readable string describing the exception.
         code (:obj:`int`, optional): Error code.
 
     Attributes:
-        msg (str): Human readable string describing the exception.
+        message (str): Human readable string describing the exception.
         code (int): Exception error code.
 
     """
 
-    def __init__(self, msg, code):
-        self.msg = msg
+    def __init__(self, message, code):
+        super().__init__(message)
+        # TERRIS: Should code be declared @property?
         self.code = code
 
 

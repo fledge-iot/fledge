@@ -9,10 +9,10 @@
 import asyncio
 from asyncio.subprocess import Process
 
-__author__    = "Terris Linenbach"
+__author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
-__license__   = "Apache 2.0"
-__version__   = "${VERSION}"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
 
 # For Process methods, see https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process
 # or upgrade to a version of Python that uses type annotations
@@ -41,6 +41,7 @@ async def _start_device_server():
 
 async def _main():
     await _start_device_server()
+    # More is coming
 
 
 def start():

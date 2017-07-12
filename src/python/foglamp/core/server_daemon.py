@@ -43,8 +43,7 @@ _MAX_STOP_RETRY = 5
 
 def _start_server():
     """Starts the core server"""
-    # TODO: FOGL-281
-    # should rotate etc.
+    # TODO: FOGL-281 Use different logging facility
     file_handler = logging.FileHandler(_LOG_PATH)
     file_handler.setLevel(logging.WARNING)
 
@@ -73,7 +72,8 @@ def start():
     if pid:
         print("FogLAMP is already running in PID {}".format(pid))
     else:
-        # TODO: FOGL-282 Output the pid. os.getpid() reports the wrong pid so it's not easy.
+        # If it is desirable to output the pid to the console,
+        # os.getpid() reports the wrong pid so it's not easy.
         print("Starting FogLAMP\nLogging to {}".format(_LOG_PATH))
 
         with daemon.DaemonContext(
@@ -86,6 +86,7 @@ def start():
 
 class TimeoutException(Exception):
     """This exception is raised when the FogLAMP daemon can not be stopped"""
+    pass
 
 
 def stop(pid=None):

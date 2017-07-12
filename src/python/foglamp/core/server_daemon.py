@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -33,6 +33,14 @@ WORKING_DIR = os.path.expanduser('~/var/log')
 
 _logger_configured = False
 
+_WAIT_TERM_SECONDS = 5
+"""How many seconds to wait for the core server process to stop"""
+_MAX_STOP_RETRY = 5
+"""How many times to send TERM signal to core server process when stopping"""
+
+
+# TODO: Some of these functions call print(). They should instead return,
+# say, a boolean value so that their callers can print a message.
 
 def _start_server():
     # TODO Move log initializer to a module in the foglamp package. The files
@@ -44,7 +52,7 @@ def _start_server():
     formatter = logging.Formatter(formatstr)
 
     file_handler.setFormatter(formatter)
- 
+
     logger = logging.getLogger('')
     logger.addHandler(file_handler)
     logger.setLevel(logging.WARNING)
@@ -57,7 +65,7 @@ def _start_server():
 
 
 def start():
-    """Launches FogLAMP"""
+    """Starts FogLAMP"""
 
     pid = get_pid()
 
@@ -75,38 +83,54 @@ def start():
             _start_server()
 
 
-def stop():
-    """Stops the FogLAMP process if it is running"""
+class StopProcessFailed(Exception):
+    pass
 
-    pid = get_pid()
 
-    if pid is None:
+def stop(pid = None):
+    """Stops FogLAMP if it is running
+
+    :param pid: Optional pid of the daemon process
+    """
+
+    if not pid:
+        pid = get_pid()
+
+    if not pid:
         print("FogLAMP is not running")
-        return 
+        return
 
-    # Kill the daemon process
-    # TODO This should time out and throw an exception
+    stoppped = False
+    
     try:
-        while True:
+        for retry_index in range(_MAX_STOP_RETRY):
             os.kill(pid, signal.SIGTERM)
-            time.sleep(5)
-    except OSError:
-        pass
 
+            for seconds_index in range(_WAIT_TERM_SECONDS):
+                os.kill(pid, 0)
+                time.sleep(1)
+    except OSError:
+        stopped = True
+
+    if not stopped:
+        raise StopProcessFailed("Unable to stop FogLAMP")
+    
     print("FogLAMP stopped")
 
 
 def restart():
-    """Relaunches FogLAMP"""
+    """Restarts FogLAMP"""
 
-    if get_pid():
-        stop()
+    pid = get_pid()
+
+    if pid:
+        stop(pid)
 
     start()
 
 
 def get_pid():
-    """Returns FogLAMP's PID or None if not running"""
+    """Returns FogLAMP's process id or None if FogLAMP is not running"""
 
     try:
         with open(PID_PATH, 'r') as pf:
@@ -141,6 +165,7 @@ def _safe_makedirs(path):
 
 
 def _do_main():
+    """Worker function for `main`()"""
     _safe_makedirs(WORKING_DIR)
     _safe_makedirs(os.path.dirname(PID_PATH))
     _safe_makedirs(os.path.dirname(LOG_PATH))
@@ -189,6 +214,6 @@ def main():
             # If the daemon package has been invoked, the following 'write' will
             # do nothing
             sys.stderr.write(format(str(e)) + "\n");
-      
+
         sys.exit(1)
 

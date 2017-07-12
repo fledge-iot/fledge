@@ -34,48 +34,29 @@ _configuration_tbl = sa.Table(
 )
 """Defines the table that data will be inserted into"""
 
+_connection_string = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
+_logger_name = 'configuration-manager'
 
 async def _create_new_category(category_name, category_description, category_json_schema):
-    try:
-        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
-            async with engine.acquire() as conn:
-                try:
-                    await conn.execute(_configuration_tbl.insert().values(key=category_name, value=category_json_schema,
-                                                                          description=category_description))
-                except psycopg2.IntegrityError:
-                    logging.getLogger('configuration-manager').exception(
-                        'Duplicate key (%s) inserting configuration:\n%s', category_name, category_json_schema)
-    except Exception:
-        logging.getLogger('configuration-manager').exception('category_name (%s) category_json_schema:\n%s',
-                                                             category_name, category_json_schema)
-        print("error")
-
+    async with aiopg.sa.create_engine(_connection_string) as engine:
+        async with engine.acquire() as conn:
+            await conn.execute(_configuration_tbl.insert().values(key=category_name, value=category_json_schema,
+                                                                      description=category_description))
 
 async def _read_all_category_keys():
-    try:
-        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
-            async with engine.acquire() as conn:
-                category_names = []
-                async for row in conn.execute(_configuration_tbl.select()):
-                    category_names.append(row.key)
-                return category_names
-    except Exception:
-        logging.getLogger('configuration-manager').exception('Unable to read all category names')
-        print("error")
-
+    async with aiopg.sa.create_engine(_connection_string) as engine:
+        async with engine.acquire() as conn:
+            category_names = []
+            async for row in conn.execute(_configuration_tbl.select()):
+                category_names.append(row.key)
+            return category_names
 
 async def _read_category_value(category_key):
-    try:
-        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(
-                        _configuration_tbl.select().where(_configuration_tbl.c.key == category_key)):
-                    return row.value
-    except Exception:
-        logging.getLogger('configuration-manager').exception('Unable to read all category names')
-        print("error")
-    return None
-
+    async with aiopg.sa.create_engine(_connection_string) as engine:
+        async with engine.acquire() as conn:
+            async for row in conn.execute(
+                    _configuration_tbl.select().where(_configuration_tbl.c.key == category_key)):
+                return row.value
 
 async def _read_category_item(category_key, category_item):
     query_template = """
@@ -87,16 +68,10 @@ async def _read_category_item(category_key, category_item):
             configuration.key='{}'
     """
     query_full = query_template.format(category_item, category_key)
-    try:
-        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
-                    return row.value
-    except Exception:
-        logging.getLogger('configuration-manager').exception('Unable to read all category items')
-        print("error")
-    return None
-
+    async with aiopg.sa.create_engine(_connection_string) as engine:
+        async with engine.acquire() as conn:
+            async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
+                return row.value
 
 async def _read_category_item_value(category_key, category_item):
     query_template = """
@@ -108,16 +83,10 @@ async def _read_category_item_value(category_key, category_item):
             configuration.key='{}'
     """
     query_full = query_template.format(category_item, category_key)
-    try:
-        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
-                    return row.value
-    except Exception:
-        logging.getLogger('configuration-manager').exception('Unable to read all category items')
-        print("error")
-    return None
-
+    async with aiopg.sa.create_engine(_connection_string) as engine:
+        async with engine.acquire() as conn:
+            async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
+                return row.value
 
 async def _update_item_value(category_key, category_item, item_value_replacement):
     query_template = """
@@ -126,18 +95,9 @@ async def _update_item_value(category_key, category_item, item_value_replacement
             WHERE key='{}'
         """
     query_full = query_template.format(category_item, item_value_replacement, category_key)
-    # print(query_full)
-
-    try:
-        async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
-            async with engine.acquire() as conn:
-                await conn.execute(query_full)
-    except Exception:
-        logging.getLogger('configuration-manager').exception(
-            'Unable to update category_name (%s) category_item (%s) with new Value (%s)', category_key, category_item,
-            item_value_replacement)
-        print("error")
-
+    async with aiopg.sa.create_engine(_connection_string) as engine:
+        async with engine.acquire() as conn:
+            await conn.execute(query_full)
 
 async def get_all_category_names():
     """Get all category names in the FogLAMP system
@@ -161,7 +121,7 @@ async def get_all_category_names():
     try:
         return await _read_all_category_keys()
     except:
-        logging.getLogger('configuration-manager').exception(
+        logging.getLogger(_logger_name).exception(
             'Unable to read all category names')
         raise
 
@@ -188,7 +148,7 @@ async def get_all_category_items(category_name):
     try:
         return await _read_category_value(category_name)
     except:
-        logging.getLogger('configuration-manager').exception(
+        logging.getLogger(_logger_name).exception(
             'Unable to get all category names based on category_name {}'.format(category_name))
         raise
 
@@ -216,7 +176,7 @@ async def get_category_item(category_name, item_name):
     try:
         return await _read_category_item(category_name, item_name)
     except:
-        logging.getLogger('configuration-manager').exception(
+        logging.getLogger(_logger_name).exception(
             'Unable to get category item based on category_name {} and item_name {}'.format(category_name, item_name))
         raise
 
@@ -244,7 +204,7 @@ async def get_item_value(category_name, item_name):
     try:
         return await _read_category_item_value(category_name, item_name)
     except:
-        logging.getLogger('configuration-manager').exception(
+        logging.getLogger(_logger_name).exception(
             'Unable to get category item value entry based on category_name {} and item_name {}'.format(category_name,
                                                                                                         item_name))
         raise
@@ -273,7 +233,7 @@ async def set_item_value(category_name, item_name, value_item_entry):
     try:
         return await _update_item_value(category_name, item_name, value_item_entry)
     except:
-        logging.getLogger('configuration-manager').exception(
+        logging.getLogger(_logger_name).exception(
             'Unable to set item value entry based on category_name {} and item_name {} and value_item_entry {}'.format(
                 category_name, item_name, value_item_entry))
         raise
@@ -303,7 +263,7 @@ async def create_category(category_name, category_description, category_json_sch
     try:
         return await _create_new_category(category_name, category_description, category_json_schema)
     except:
-        logging.getLogger('configuration-manager').exception(
+        logging.getLogger(_logger_name).exception(
             'Unable to create new category based on category_name {} and category_description {} and category_json_schema {}'.format(
                 category_name, category_description, category_json_schema))
         raise

@@ -50,6 +50,7 @@ Todo:
 import json
 import time
 import requests
+import sys
 
 import logging
 import logging.handlers
@@ -94,6 +95,8 @@ _message_list  = {
     "e000008": _module_name + " - an error occurred during the OMF's objects creation. - error details |{0}|.",
     "e000009": _module_name + " - cannot retrieve information about the sensor.",
     "e000010": _module_name + " - unable ro create the JSON message.",
+    "e000011": _module_name + " - cannot create the OMF types - error details |{0}|.",
+    "e000012": _module_name + " - cannot recognize the asset_code - error details |{0}|."
 
 }
 """Used messages"""
@@ -109,7 +112,7 @@ _readings_tbl = sa.Table(
     sa.Column('read_key', sa.types.VARCHAR(50)),
     sa.Column('user_ts', sa.types.TIMESTAMP),
     sa.Column('reading', JSONB))
-"""Contains the information to send to OMF"""
+
 
 
 # PI Server references - for detailed information http://omf-docs.readthedocs.io/en/v1.0/Data_Msg_Sample.html#data-example
@@ -118,7 +121,7 @@ _relay_url      = ""
 _producer_token = ""
 
 # The size of a block of readings to send in each transmission.
-_block_size = 20
+_block_size = 50
 
 # OMF objects creation
 _types           = ""
@@ -129,10 +132,31 @@ _measurement_id  = ""
 # OMF object's attributes
 _sensor_location = "S.F."
 
-# OMF types definitions
-_type_id             = "9"
-_type_measurement_id = "omf_trans_type_measurement_" + _type_id
-_type_sensor_id      = "omf_trans_type_sensor_id_" + _type_id
+# OMF types definitions - default vales
+_type_id             = "113"
+
+_type_sensor_id      = "type_sensor_id_"   + _type_id
+_type_measurement_id = "type_measurement_" + _type_id
+
+_sensor_types = ["TI_sensorTag_accelerometer",
+                 "TI_sensorTag_gyroscope",
+                 "TI_sensorTag_magnetometer",
+                 "TI_sensorTag_humidity",
+                 "TI_sensorTag_luxometer",
+                 "TI_sensorTag_pressure",
+                 "TI_sensorTag_temperature"]
+
+_sensor_name_type = {
+    # asset_code                  OMF type
+    "TI sensorTag/accelerometer": "TI_sensorTag_accelerometer",
+    "TI sensorTag/gyroscope":     "TI_sensorTag_gyroscope",
+    "TI sensorTag/magnetometer":  "TI_sensorTag_magnetometer",
+    "TI sensorTag/humidity":      "TI_sensorTag_humidity",
+    "TI sensorTag/luxometer":     "TI_sensorTag_luxometer",
+    "TI sensorTag/pressure":      "TI_sensorTag_pressure",
+    "TI sensorTag/temperature":   "TI_sensorTag_temperature"
+}
+"""Associates the asset code to the corresponding type"""
 
 
 # DB operations
@@ -165,7 +189,8 @@ def plugin_initialize():
     global _type_measurement_id
     global _type_sensor_id
 
-    status = True
+    global _sensor_types
+    global _sensor_name_type
 
     try:
         # URL
@@ -173,75 +198,36 @@ def plugin_initialize():
         _relay_url   = "http://" + _server_name + ":8118/ingress/messages"
 
         # producerToken
-        _producer_token = "omf_translator_81"
+        _producer_token = "omf_translator_b22"
 
         # OMFTypes
-        _types = [
-            {
-                "id": _type_sensor_id,
-                "type": "object",
-                "classification": "static",
-                "properties": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    }
-                }
-            },
-            {
-                "id": _type_measurement_id,
-                "type": "object",
-                "classification": "dynamic",
-                "properties": {
-                    "Time": {
-                        "format": "date-time",
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "x": {
-                        "type": "number"
-                    },
-                    "y": {
-                        "type": "number"
-                    },
-                    "z": {
-                        "type": "number"
-                    },
-                    "pressure": {
-                        "type": "integer"
-                    },
-                    "lux": {
-                        "type": "integer"
-                    },
-                    "humidity": {
-                        "type": "number"
-                    },
-                    "temperature": {
-                        "type": "number"
-                    },
-                    "object": {
-                        "type": "number"
-                    },
-                    "ambient": {
-                        "type": "number"
-                    }
+        _sensor_types = ["TI_sensorTag_accelerometer",
+                         "TI_sensorTag_gyroscope",
+                         "TI_sensorTag_magnetometer",
+                         "TI_sensorTag_humidity",
+                         "TI_sensorTag_luxometer",
+                         "TI_sensorTag_pressure",
+                         "TI_sensorTag_temperature"]
 
-                }
-            }
-        ]
+        _sensor_name_type = {
+            # asset_code                  OMF type
+            "TI sensorTag/accelerometer": "TI_sensorTag_accelerometer",
+            "TI sensorTag/gyroscope":     "TI_sensorTag_gyroscope",
+            "TI sensorTag/magnetometer":  "TI_sensorTag_magnetometer",
+            "TI sensorTag/humidity":      "TI_sensorTag_humidity",
+            "TI sensorTag/luxometer":     "TI_sensorTag_luxometer",
+            "TI sensorTag/pressure":      "TI_sensorTag_pressure",
+            "TI sensorTag/temperature":   "TI_sensorTag_temperature"
+        }
+
 
 
     except Exception as e:
-        status  = False
         message = _message_list["e000006"].format(e)
 
         _log.error(message)
         raise Exception(message)
 
-    return status
 
 
 def debug_msg_write(severity_message, message):
@@ -495,24 +481,213 @@ def position_update(new_position):
 def OMF_types_creation ():
     """Creates the types into OMF
 
-    Returns:
-        status: True if successful, False otherwise.
+    Args:
+        new_position:  Last row already sent to OMF
 
     """
-    global _types
+    global _log
 
-    status = True
+    global _sensor_types
 
-    status = send_OMF_message_to_end_point("Type", _types)
+    try:
+        for type in _sensor_types:
 
-    return status
+
+            type_sensor_id      = "type_sensor_id_"   + _type_id + "_" + type
+            type_measurement_id = "type_measurement_" + _type_id + "_" + type
+
+
+            if type == "TI_sensorTag_accelerometer" or \
+               type == "TI_sensorTag_gyroscope" or \
+               type == "TI_sensorTag_magnetometer":
+                OMF_type = [
+                    {
+                        "id": type_sensor_id,
+                        "type": "object",
+                        "classification": "static",
+                        "properties": {
+                            "Name": {
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "Location": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "id": type_measurement_id,
+                        "type": "object",
+                        "classification": "dynamic",
+                        "properties": {
+                            "Time": {
+                                "format": "date-time",
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "x": {
+                                "type": "number"
+                            },
+                            "y": {
+                                "type": "number"
+                            },
+                            "z": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                ]
+
+            if type == "TI_sensorTag_humidity":
+                OMF_type = [
+                    {
+                        "id": type_sensor_id,
+                        "type": "object",
+                        "classification": "static",
+                        "properties": {
+                            "Name": {
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "Location": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "id": type_measurement_id,
+                        "type": "object",
+                        "classification": "dynamic",
+                        "properties": {
+                            "Time": {
+                                "format": "date-time",
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "humidity": {
+                                "type": "number"
+                            },
+                            "temperature": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                ]
+
+            if type == "TI_sensorTag_luxometer":
+                OMF_type = [
+                    {
+                        "id": type_sensor_id,
+                        "type": "object",
+                        "classification": "static",
+                        "properties": {
+                            "Name": {
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "Location": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "id": type_measurement_id,
+                        "type": "object",
+                        "classification": "dynamic",
+                        "properties": {
+                            "Time": {
+                                "format": "date-time",
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "lux": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                ]
+
+            if type == "TI_sensorTag_pressure":
+                OMF_type = [
+                    {
+                        "id": type_sensor_id,
+                        "type": "object",
+                        "classification": "static",
+                        "properties": {
+                            "Name": {
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "Location": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "id": type_measurement_id,
+                        "type": "object",
+                        "classification": "dynamic",
+                        "properties": {
+                            "Time": {
+                                "format": "date-time",
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "pressure": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                ]
+
+            if type == "TI_sensorTag_temperature":
+                OMF_type = [
+                    {
+                        "id": type_sensor_id,
+                        "type": "object",
+                        "classification": "static",
+                        "properties": {
+                            "Name": {
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "Location": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "id": type_measurement_id,
+                        "type": "object",
+                        "classification": "dynamic",
+                        "properties": {
+                            "Time": {
+                                "format": "date-time",
+                                "type": "string",
+                                "isindex": True
+                            },
+                            "object": {
+                                "type": "number"
+                            },
+                            "ambient": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                ]
+
+            status = send_OMF_message_to_end_point("Type", OMF_type)
+
+    except Exception as e:
+        message =_message_list["e000011"].format(e)
+
+        _log.error(message)
+        raise Exception(message)
+
 
 
 def OMF_object_creation ():
     """Creates an object into OMF
-
-    Returns:
-        status: True if successful, False otherwise.
 
     Raises:
         Exception: an error occurred during the OMF's objects creation.
@@ -526,8 +701,6 @@ def OMF_object_creation ():
 
     global _type_measurement_id
     global _type_sensor_id
-
-    status = True
 
 
     try:
@@ -584,8 +757,6 @@ def OMF_object_creation ():
         _log.error(message)
         raise Exception(message)
 
-    return status
-
 
 async def send_info_to_OMF ():
     """Reads the information from the DB and it sends to OMF
@@ -608,6 +779,12 @@ async def send_info_to_OMF ():
     global _sensor_id
     global _measurement_id
 
+    #FIXME:
+    global _type_sensor_id
+    global _type_measurement_id
+
+    info_handled = False
+    status = True
     db_row = ""
 
     try:
@@ -631,21 +808,37 @@ async def send_info_to_OMF ():
                         _sensor_id      = db_row.asset_code
                         _measurement_id = "measurement_" + _sensor_id
 
-                        OMF_object_creation ()
+                        try:
+                            tmp_type = _sensor_name_type[_sensor_id]
 
-                        debug_msg_write("INFO", "db row |{0}| |{1}| |{2}| ".format(db_row.id, db_row.user_ts, db_row.reading))
+                        except Exception as e:
+                            message = _message_list["e000012"].format(e)
 
-                        # Loads data into OMF
-                        status, values = create_data_values_stream_message(_measurement_id, db_row)
-                        send_OMF_message_to_end_point("Data", values)
+                            _log.error(message)
+                            debug_msg_write("WARNING", "{0}".format(message))
+                        else:
+                            _type_sensor_id      = "type_sensor_id_"   + _type_id + "_" + tmp_type
+                            _type_measurement_id = "type_measurement_" + _type_id + "_" + tmp_type
+
+                            debug_msg_write("INFO", "OMF_object_creation ")
+                            OMF_object_creation ()
+
+                            debug_msg_write("INFO", "db row |{0}| |{1}| |{2}| ".format(db_row.id, db_row.user_ts, db_row.reading))
+
+                            # Loads data into OMF
+                            status, values = create_data_values_stream_message(_measurement_id, db_row)
+                            send_OMF_message_to_end_point("Data", values)
+
+                        info_handled = True
 
                     message = "### completed ######################################################################################################"
                     debug_msg_write("INFO", "{0}".format(message))
 
-                    new_position = db_row.id
-                    debug_msg_write("INFO", "Last position, sent |{0}| ".format(str(new_position)))
+                    if info_handled:
+                        new_position = db_row.id
+                        debug_msg_write("INFO", "Last position, sent |{0}| ".format(str(new_position)))
 
-                    position_update (new_position)
+                        position_update (new_position)
 
 
     except Exception as e:
@@ -665,7 +858,7 @@ if __name__ == "__main__":
 
     prg_text = ", for Linux (x86_64)"
     company  = "2017 DB SOFTWARE INC."
-    version  = "1.0.19"
+    version  = "1.0.21"
 
     start_message    = "\n" + _module_name + " - Ver " + version + "" + prg_text + "\n" + company + "\n"
     debug_msg_write ("", "{0}".format(start_message) )
@@ -678,3 +871,4 @@ if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete( send_info_to_OMF() )
 
     debug_msg_write ("INFO", _message_list["i000003"])
+

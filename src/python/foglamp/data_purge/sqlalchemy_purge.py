@@ -1,17 +1,36 @@
 """
-Date: June 2017
-Description: The following piece of code is the written purge script,  with its main acting as a scheduler,  based on
-    configurations. As of now,  all code is done using SQLAlchemy,  with JSON files storing both config,  and logged 
-    information,  with the knowledge that once the actual scheduler and the database will be done,  then something else
-    will be (potentially) used. 
+Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/edit) 
+    the purge process is suppose to remove data based on either a user_id, or an X amount of time back depending on
+    whether or not the configuration (config.json) reuqires to retain data that has not been sent to the Pi System.
+    
+    Given that the code is dependent on configuration files, sending data to Pi, and connecting to the database, 
+    I have "hard-coded" those dependencies with the use of extra methods, and files. This includes things like: 
+    get_nth_id which updates the config file with a 'random' last ID that was sent to Pi, and the main which also 
+    as a scheduler process. 
+    
+     Specifically the purge process (purge_process_function) does the following: 
+     - Based on the configuration file (retainUnsent) it either removes by the lastID 
+        (in which case retainUnsent is True), or by age (timestamp)
+     - Calculate vital information regarding the purge, and record it in the logs file
+      
+Based on the way things are currently being done, both the logs file (logs.json), and configurations file (config.json)
+will be replaced either databse tables, or some other kind of file. 
 """
 import datetime
 import json
 import os
+import random
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import sys
 import time
+
+
+__author__ = "Ori Shadmon"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__license__ = "Apache 2.0"
+__version__ = "2"
+
 
 # Set variables for connecting to database
 user = "foglamp"
@@ -23,12 +42,13 @@ db = "foglamp"
 engine = sqlalchemy.create_engine('postgres://%s:%s@%s/%s' % (db_user, user, host, db),  pool_size=20,  max_overflow=0)
 conn = engine.connect()
 
-
 # Important files
-configFile = 'config.json'
-logsFile = 'logs.json'
+config_file = 'config.json'
+logs_file = 'logs.json'
 
-readings = sqlalchemy.Table('readings', sqlalchemy.MetaData(), 
+
+# Table purge against
+readings_table = sqlalchemy.Table('readings', sqlalchemy.MetaData(), 
       sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
       sqlalchemy.Column('asset_code', sqlalchemy.VARCHAR(50)),
       sqlalchemy.Column('read_key', sqlalchemy.dialects.postgresql.UUID,
@@ -40,20 +60,18 @@ readings = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                         time.localtime(time.time()))))
 
 
-"""
-Methods that support the purge process. For the most part,  theses methods would be replaced by either a scheduler,  
-Database tool,  and/or proper configuration methodology. 
+"""Methods that support the purge process. For the most part, theses methods would be replaced by either a scheduler,  
+a database API interface,  and/or proper configuration methodology. 
 """
 
 
-def convert_timestamp(set_time=None):
-    """
-    Convert "age" in config file to timedelta. If only an integer is specified,  then 
+def convert_timestamp(set_time: str) -> datetime.timedelta:
+    """Convert "age" in config file to timedelta. If only an integer is specified,  then 
         the code assumes that it is already in minutes (ie age:1 means wait 1 minute) 
     Args:
-        set_time: 
+        set_time (str): Newest amount of  time back to delete
     Returns:
-        timedelta based on age in config file
+        converted set_time to datetime.timedelta value
     """
     if set_time.isdigit():
         return datetime.timedelta(minutes=int(set_time))
@@ -83,12 +101,11 @@ def convert_timestamp(set_time=None):
     return sec+min+hr+day
 
 
-def convert_sleep(set_time=None):
-    """
-    Convert "wait time" in config file to seconds. If only an integer is specified,  then 
-        the code assumes that it is already in seconds (ie wait:1 means wait 1 second) 
+def convert_sleep(set_time: str) -> int:
+    """Convert "wait" in config file to seconds in order to know how long to wait until next purge process. 
+        This method would potentially be replaced by the scheduler 
     Args:
-        set_time: 
+        set_time (str): A string of "values" specified in the config to declare how long to wait till next purge
 
     Returns:
         integer (of seconds) based on wait in config 
@@ -121,32 +138,32 @@ def convert_sleep(set_time=None):
     return sec+min+hr+dy
 
 
-def get_count(stmt):
-    """
-    Imitate connection to Postgres and execute COUNT queries 
+def get_count(stmt: str) -> int:
+    """Immititate connection  to psql that returns result.
+    
+    Since all queries return either an ID (integer) or COUNT (integer) the expected 
+    return value is also an integer. 
+    
     Args:
-        stmt: 
+        stmt (str): generated SQL query   
     Returns:
-        COUNT value
+        Integer value result of SQL query
     """
     try:
-        result = conn.execute(stmt)
+        query_result = conn.execute(stmt)
     except conn.Error as e:
         print(e)
         sys.exit()
     else:
-        return int(result.fetchall()[0][0])
+        return int(query_result.fetchall()[0][0])
 
 
-def execute_delete(stmt=None):
-    """
-    Imitate connection to Postgres and execute DELETE query
+def execute_delete(stmt: str) -> None:
+    """Imitate connection to Postgres and execute DELETE query
     Args:
-        stmt: DELETE stmt 
-    Returns:
-        totalCount
-        start
-        end
+        stmt (str): DELETE stmt 
+    Returns: 
+        The method doesn't return anything
     """
 
     try:
@@ -157,12 +174,32 @@ def execute_delete(stmt=None):
     else:
         conn.execute("commit")
 
-"""
-The actual purge process 
-"""
 
+def get_nth_id() -> None:
+    """Update the config file to have row ID somewhere within the oldest 100 rows.
+    
+    This method would potentially be replaced by the communication with the Pi System which will be
+    aware of what was the last ID sent to the Pi System. 
+    Returns: 
+        Method doesn't return anything
+    """
+    rand = random.randint(1, 100)
 
-def purge(tableName=None,  configFile=None,  logsFile=None):
+    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
+    row_id = get_count(stmt % rand)
+
+    config_info = None
+    with open(config_file, 'r') as conf:
+        config_info = json.load(conf)
+
+    config_info["lastID"] = row_id
+    open(config_file, 'w').close()
+    with open(config_file, 'r+') as conf:
+        conf.write(json.dumps(config_info))
+
+"""The actual purge process 
+"""
+def purge_process_function(tableName=None,  config_file=None,  logs_file=None):
     """
     The actual purge process reads the configuration file,  and based off the information in it does the following: 
         1. Gets important COUNT information that will be stored in the database
@@ -173,107 +210,74 @@ def purge(tableName=None,  configFile=None,  logsFile=None):
     for what the db layer needs to accomplish in order for purging to work. 
     Args:
         tableName
-        configFile
-        logsFile
+        config_file
+        logs_file
     Returns:
         amount of time to wait until next execution (based on config.json)
     """
 
     # Reload config (JSON File) - age,  enabled,  wait,  pi_date
-    with open(configFile, 'r') as conf:
+    with open(config_file, 'r') as conf:
         config = json.load(conf)
 
     data = {}
     purgeStatus = {}
 
-    if os.path.getsize(logsFile) > 0:
-        with open(logsFile,  'r') as f:
+    if os.path.getsize(logs_file) > 0:
+        with open(logs_file,  'r') as f:
             data = json.load(f)
+
 
     if config['enabled'] is True:  # meaning that config info is authorizing the purge
         age_timestamp = datetime.datetime.strftime(datetime.datetime.now() - convert_timestamp(set_time=config['age']),
                                                    '%Y-%m-%d %H:%M:%S.%f')
-        last_connection = datetime.datetime.strptime(config['lastConnection'],  '%Y-%m-%d %H:%M:%S')
+        with open(config_file) as json_data:
+            last_connection_id = json.load(json_data)['lastID']
 
-        # Time that purge process begins (NOW) - the script will ignore everything after now for purging
-        #   IE `start` will be executed as part of the WHERE condition(s) in all queries that fall under
-        #   config['enabled'] == True.
-        start = time.time()
-        start = datetime.datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M:%S')
+        # Time purge process starts
+        purgeStatus['startTime'] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
-        # Number of rows inserted until DELETE was called
-        countQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(readings).where(readings.c.ts < start)
-        countBefore = get_count(countQuery)
+        # Number of rows exist at the point of calling purge
+        totalCountBefore = get_count(sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts < purgeStatus['startTime']))
 
-        # Number of rows there were not sent to PI
-        unsentQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(readings).where(
-            readings.c.ts <= last_connection)
-        beforeUnsent = get_count(unsentQuery)
+        # Number of unsent rows
+        unsentRowsQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.id > last_connection_id).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts < purgeStatus['startTime'])
+        unsentRowsBefore = get_count(unsentRowsQuery)
+        # If unsent data is retained, then the WHERE condition is against the last sent ID
+        if config['retainUnsent'] is True:
+            deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.id <= last_connection_id).where(tableName.c.ts < purgeStatus['startTime'])
+            execute_delete(deleteQuery)
 
-        # Enter this if statement iff DELETE is enabled
-        if config['enabled'] is True:
-            # If retainUnsent is True then delete the smaller of age_timestamp and last_connection
-            #   Otherwise delete by age_timestamp
-            if (config['retainUnsent'] is True) and \
-                    (datetime.datetime.strptime(age_timestamp, '%Y-%m-%d %H:%M:%S.%f') > last_connection):
-                # print('last_connection')
-                deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.ts <= last_connection).where(
-                    tableName.c.id <= config['lastID'])
-                execute_delete(stmt=deleteQuery)
-
-            # All cases that do not fall under the IF statement uses age rather tha last_connection
-            else:
-                # print('age_timestamp')
-                # DELETE all rows that are older (or equal) to the age_timestamp.
-                #   DELETE FROM tableName WHERE ts <= age;
-                deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.ts <= age_timestamp).where(
-                    tableName.c.id <= config['lastID'])
-                execute_delete(stmt=deleteQuery)
-
-        end = time.time()
-        end = datetime.datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M:%S')
-
-        # Number of rows remain up to DELETE command
-        countAfter = get_count(countQuery)
-
-        # Add info to purgeStatus
-        purgeStatus['startTime'] = start
-        purgeStatus['complete'] = end
-
-        # rowsRemoved: How many rows were removed
-        purgeStatus['rowsRemoved'] = countBefore - countAfter
-
-        # unsentRowsRemoved: How many rows that were not sent to PI were removed
-        #   If config['retainUnsent'] is True,  then the value should be 0,  else it should be greater than 0
-        afterUnsent = get_count(unsentQuery)
-        purgeStatus['unsentRowsRemoved'] = beforeUnsent - afterUnsent
-
-        # failedRemovals: How many rows that were expected to get removed weren't removed
-        #   In cases where "config['retainUnsent']  is False and age_timestamp > last_connection" then failedRemovals
-        #   is the number of rows remaining that are <=  age_timestamp,  in all other cases,  the expected is 0.
-        if (config['retainUnsent'] is True) and \
-                (datetime.datetime.strptime(age_timestamp,  '%Y-%m-%d %H:%M:%S.%f') > last_connection):
-            failedToRemoveQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(readings).where(
-                readings.c.ts <= last_connection)
-            purgeStatus['failedRemovals'] = get_count(failedToRemoveQuery)
+            # Number of rows that were expected to get removed, but weren't
+            purgeStatus['failedRemovals'] = get_count(sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.id <= last_connection_id).where(tableName.c.ts < purgeStatus['startTime']))
+        # If unsent data is not retained, then the WHERE condition is against the age
         else:
-            failedToRemoveQuery = sqlalchemy.select([sqlalchemy.func.count()]).select_from(readings).where(
-                readings.c.ts <= age_timestamp)
-            purgeStatus['failedRemovals'] = get_count(failedToRemoveQuery)
+            id = get_count(sqlalchemy.select([tableName.c.id]).select_from(tableName).where(tableName.c.ts <= age_timestamp).order_by(tableName.c.id.desc()).limit(1))
 
-        # rowsRemaining: How many rows remain remain up-to the delete
-        purgeStatus['rowsRemaining'] = countAfter
+            deleteQuery = sqlalchemy.delete(tableName).where(tableName.c.id <= id).where(tableName.c.ts < purgeStatus['startTime'])
+            execute_delete(deleteQuery)
+
+            # Number of rows that were expected to get removed, but weren't
+            purgeStatus['failedRemovals'] = get_count(sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts <= age_timestamp).where(tableName.c.ts < purgeStatus['startTime']))
+
+        totalCountAfter = get_count(sqlalchemy.select([sqlalchemy.func.count()]).select_from(tableName).where(tableName.c.ts < purgeStatus['startTime']))
+        purgeStatus['rowsRemoved'] = totalCountBefore - totalCountAfter
+
+        # Number of unsent rows removed
+        purgeStatus['unsentRowsRemoved'] = unsentRowsBefore - get_count(unsentRowsQuery)
+        # Time  purge process finished
+        purgeStatus['complete'] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+
 
         # The purgeStatus dictionary is stored into a dictionary containing all other purge runs,  where the key is
         #   the `start` timestamp.
-        data[start] = purgeStatus
+        data[purgeStatus['startTime']] = purgeStatus
 
-        # Write to file
-        f = open(logsFile,  'w')
-        f.write(json.dumps(data))
-        f.close()
+    # Write to file
+    f = open(logs_file, 'w')
+    f.write(json.dumps(data))
+    f.close()
 
-    # Calculate how long to sleep fore before rerunning
     return convert_sleep(config['wait'])
 
 """
@@ -290,9 +294,10 @@ if __name__ == '__main__':
     work. 
     """
 
-    open(logsFile,  'w').close()
+    open(logs_file,  'w').close()
 
     while True:
-        wait = purge(tableName=readings, configFile=configFile,  logsFile=logsFile)
+        get_nth_id()
+        wait = purge(tableName=readings_table, config_file=config_file,  logs_file=logs_file)
         time.sleep(wait)
 

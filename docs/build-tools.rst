@@ -57,14 +57,11 @@ Documentation
 -------------
 
  FogLAMP uses `Shphinx <http://www.sphinx-doc.org/en/stable/>`_ for documentation. Additionally it uses sphinx.ext.autodoc and sphinx.ext.ifconfig extensions in the project.
+ FogLAMP docs has two type of .rst files, one created manually (in /docs) and other (in /docs/api) created automatically for the docstring in foglamp package' python files using sphinx-apidoc tool
 
-How to generate documentation for your source code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Commands
+^^^^^^^^
 
- HTML docs are generated from source code docstrings in directory FogLAMP/src/python/foglamp and its subsequent directories using sphinx-apidoc.
- Make use of the following make commands to work with docs.
-
-- ``make doc`` - generates .rst files from your source code and then generates html docs from .rst files present in /docs directory.
-- ``make live-doc`` - generates .rst files from your source code and then generates html docs from .rst files present in /docs directory. You can monitor live changes in your source code docstings with this option.
+- ``make doc`` - Generates html files from .rst files and places them inside _build/html directory. Open the docs/_build/html/index.html file to see the index page of created docs.
+- ``make live-doc`` - Start watchdog on 0.0.0.0:8000 to monitor changes in .rst files, conf.py file and /src/python/foglamp directory and reflects the changes in html format. You can review your docstring changes on fly using this command.
 - ``make doc-build-test`` - run docs/check-sphinx tests. Run this command to ensure the .rst files generated are correct and docstrings in your source code are as per PEP8 guidelines.
-

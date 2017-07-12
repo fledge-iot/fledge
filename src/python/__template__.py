@@ -96,7 +96,10 @@ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
 
 
 def module_level_function(param1, param2=None, *args, **kwargs):
-    """This is an example of a module level function.
+    # The leading r is needed to stop pylint from complaining
+    # about docstrings that contain \
+
+    r"""This is an example of a module level function.
 
     Function parameters should be documented in the ``Args`` section. The name
     of each parameter is required. The type and description of each parameter
@@ -153,10 +156,10 @@ def example_generator(n):
     """Generators have a ``Yields`` section instead of a ``Returns`` section.
 
     Please see https://stackoverflow.com/questions/37549846/how-to-use-yield-inside-async-function
-    Old answer for Python 3.5, You can't yield inside coroutines. Only way is to implement Asynchronous Iterator
-    manually using __aiter__/__anext__ magic methods.
-    In nutshell, go with async-await / coroutine way and consider this example def as how to illustrate working of
-    it in docstring.
+    Old answer for Python 3.5, You can't yield inside coroutines. Only way is to implement
+    Asynchronous Iterator manually using __aiter__/__anext__ magic methods.
+    In nutshell, go with async-await / coroutine way and consider this example def as how to
+    illustrate working of it in docstring.
 
     Args:
         n (int): The upper limit of the range to generate, from 0 to `n` - 1.
@@ -317,4 +320,3 @@ class ExampleClass(object):
 
     def _private_without_docstring(self):
         pass
-

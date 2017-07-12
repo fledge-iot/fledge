@@ -129,27 +129,6 @@ def execute_query(stmt):
     else:
         return int(result.fetchall()[0][0])
 
-def get_nth_id():
-    """
-        Update the config file to have row ID somewhere within the oldest 100 rows  
-        The method runs at the end of each test (parts II through IV) such that the lastID
-        gets updated each time.
-         
-        The return is relevant only for check_id(),  in all other cases it's being ignored. 
-    Returns: 
-        id 
-    """
-    # rand = random.randint(1, 100)
-
-    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT 100)t ORDER BY id DESC LIMIT 1"
-    rowID = execute_query(stmt)
-
-    config_info = read_config()
-    config_info["lastID"] = id
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    return rowID
 
 """ 
 PART I - Verify the update of config files
@@ -210,15 +189,14 @@ def test_update_lastConnection():
     """
     Assert that `lastConnection` is set to NOW
     """
-    now = str(datetime.datetime.now()).split(".")[0]
     config_info = read_config()
-    config_info['lastConnection'] = now
+    config_info['lastConnection'] = 0
     open(configFile,  'w').close()
     with open(configFile,  'r+') as conf:
         conf.write(json.dumps(config_info))
     config_info = read_config()
 
-    assert config_info['lastConnection'] == now
+    assert config_info['lastConnection'] == 0
 
 def test_update_wait():
     """
@@ -247,14 +225,6 @@ def test_update_age():
     config_info = read_config()
 
     assert config_info['age'] == age
-
-def check_id():
-    """
-    Assert that lastID gets updated properly
-    """
-    rowID = get_nth_id()
-    config_info = read_config()
-    assert config_info["lastID"] == rowID
 
 """
 PART II - verify that updates of logs get done correctly

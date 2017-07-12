@@ -100,7 +100,7 @@ def stop(pid = None):
         print("FogLAMP is not running")
         return
 
-    stoppped = False
+    stopped = False
     
     try:
         for retry_index in range(_MAX_STOP_RETRY):

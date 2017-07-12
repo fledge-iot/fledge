@@ -6,6 +6,7 @@
 
 """FogLAMP Scheduler"""
 
+import time
 import asyncio
 from asyncio.subprocess import Process
 
@@ -14,10 +15,27 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# For Process methods, see https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process
-# or upgrade to a version of Python that uses type annotations
-_processes = []  # type: List[Process]
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 
+"""CoAP handler for coap://other/sensor_readings URI 
+"""
+
+_sensor_values_tbl = sa.Table(
+    'readings',
+    sa.MetaData(),
+    sa.Column('asset_code', sa.types.VARCHAR(50)),
+    sa.Column('read_key', sa.types.VARCHAR(50)),
+    sa.Column('user_ts', sa.types.TIMESTAMP),
+    sa.Column('reading', JSONB))
+
+_processes = []  # type: List[Process]
+"""Long running processes
+
+https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process
+"""
+
+_last_check_time = time.now()
 
 def shutdown():
     """Stops the scheduler
@@ -29,6 +47,8 @@ def shutdown():
     for process in _processes:
         process.terminate()
 
+def
+    """Processes interval schedules and starts processes"""
 
 async def _start_device_server():
     """Starts the device server (foglamp.device) as a subprocess"""

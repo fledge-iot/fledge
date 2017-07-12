@@ -845,7 +845,7 @@ CREATE INDEX fki_user_asset_permissions_fk2
 -- List of scheduled Processes
 CREATE TABLE foglamp.scheduled_processes (
   name   character varying(20)  NOT NULL, -- Name of the process
-  script character varying(255) NOT NULL, -- Full path of the process
+  script jsonb, -- Full path of the process
   CONSTRAINT scheduled_processes_pkey PRIMARY KEY (name)
        USING INDEX TABLESPACE foglamp )
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;

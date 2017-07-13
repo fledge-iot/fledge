@@ -188,7 +188,6 @@ def get_nth_id() -> None:
     stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
     row_id = get_count(stmt % rand)
 
-    config_info = None
     with open(config_file, 'r') as conf:
         config_info = json.load(conf)
 
@@ -199,21 +198,21 @@ def get_nth_id() -> None:
 
 """The actual purge process 
 """
-def purge_process_function(tableName=None,  config_file=None,  logs_file=None):
-    """
-    The actual purge process reads the configuration file,  and based off the information in it does the following: 
-        1. Gets important COUNT information that will be stored in the database
-        2. Call the DELETE command so that data will be purged
-        3. Based on prior and post DELETE COUNTS,  calculate information to be logged 
-        4. log information 
-    Since the database layer is yet to be complete,  please consider the queries generated in this method as the basis
-    for what the db layer needs to accomplish in order for purging to work. 
-    Args:
-        tableName
-        config_file
-        logs_file
-    Returns:
-        amount of time to wait until next execution (based on config.json)
+
+
+def purge_process_function(tableName,  config_file,  logs_file) -> int:
+    """The actual process read the configuration file, and based off the information in it does the following:
+    1. Gets previous information found in log file
+    2. Based on the configurations, call the DELETE command to purge the data
+    3. Calculate relevant information kept in logs
+    4. Based on the configuration calculates how long to wait until next purge, and returns that
+    
+    Args: 
+        tableName (sqlalchemy.Table): The name of the table queries run against
+        config_file (file): Name of file containing configuration 
+        logs_file (file): Name of file containing the logs
+    Returns: 
+        Amount of time until next purge process
     """
 
     # Reload config (JSON File) - age,  enabled,  wait,  pi_date
@@ -284,8 +283,7 @@ def purge_process_function(tableName=None,  config_file=None,  logs_file=None):
 The main,  which would be replaced by the scheduler 
 """
 if __name__ == '__main__':
-    """
-    The main / scheduler creates the logs.json file,  and executes the purge (returning how long to wait)
+    """The main / scheduler creates the logs.json file,  and executes the purge (returning how long to wait)
     till the next purge execution. Noticed that the purge process expects the table,  and config file. 
     This is because (theoretically) purge  would be executed on multiple tables,  where each table could 
     have its own configs. 

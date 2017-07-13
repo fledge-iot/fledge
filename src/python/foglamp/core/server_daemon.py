@@ -84,7 +84,7 @@ def start():
             _start_server()
 
 
-class TimeoutException(Exception):
+class TimeoutError(Exception):
     """This exception is raised when the FogLAMP daemon can not be stopped"""
     pass
 
@@ -93,7 +93,7 @@ def stop(pid=None):
     """Stops FogLAMP if it is running
 
     :param pid: Optional process id to stop. If not provided, use pidfile.
-    :raises TimeoutException: Unable to stop FogLAMP
+    :raises TimeoutError: Unable to stop FogLAMP
     """
 
     # TODO: FOGL-274 Stopping is hard.
@@ -111,14 +111,14 @@ def stop(pid=None):
         for _ in range(_MAX_STOP_RETRY):
             os.kill(pid, signal.SIGTERM)
 
-            for _ in range(_WAIT_TERM_SECONDS):
+            for i in range(_WAIT_TERM_SECONDS):
                 os.kill(pid, 0)
                 time.sleep(1)
     except OSError:
         stopped = True
 
     if not stopped:
-        raise TimeoutException("Unable to stop FogLAMP")
+        raise TimeoutError("Unable to stop FogLAMP")
 
     print("FogLAMP stopped")
 

@@ -53,3 +53,4 @@ def enable_debugger(app):
     # dev mode only
     # this will be served at API_SERVER_URL/_debugtoolbar
     aiohttp_debugtoolbar.setup(app)
+

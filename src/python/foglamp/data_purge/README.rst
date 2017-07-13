@@ -1,36 +1,57 @@
-General Description: FOGL-200 is the responsibility for the purge process, which seats somewhere
-between scheduler (calls FOGL-200), and the database layer (recieves requests from FOGL-200)
-Link: https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/
+Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/edit)
+the purge process is suppose to remove data based on either a user_id, or a timestamp every X seconds.
 
-Right now, the code is missing the following piecies:
-- Scheduler --> was replaced by a "main" in sqlalchemy_purge.py that calls the purge process, and returns
-    how long to wait until the next purge iteration
-- Config Information --> A table (or file) that provides information regarding the purge process, such how far
-    back to delete, and when was the last time  Pi System received data. To resolve this problem, there currently
-    exists a config.json file, which contains a json object with that information.
-- logs table --> A table, or file providing vital information regarding the purge process. Again, to resolve the issue,
-    there now is a json file, containing json objects with the needed information
+In order to fully complete the task the following sections need to be completed as well:
+-> Scheduler - which is responsible to call the purge process every N seconds. For the time being, this was replaced
+    by the main of the purge process (under sqlalchemy_purge.py) which calls the the purge_process_function every N
+    seconds, based on the configurations.
 
+-> Configuration Info - This will probably be some sort of file that contains the over all configuration info, which
+    wil also include the purge configuration. For now that file is in the format of a JSON file, and looks something
+    like this: {"enabled": true, "lastID": 1998276, "age": "2 minutes", "retainUnsent": true, "wait": "2 days"}
+        * enabled: whether or not to execute a purge process. Since purge regularly occurs, this variable
+            can disable it
+        * lastID: What was the last row ID sent to the Pi System
+        * age: Remove data that's older than X
+        * retainUnsent: Whether or not to keep information that's older than the given age, and was not
+            sent to the Pi System
+        * wait: How long to wait until execution of next purge process
+This file is required in order for script to successfully run
 
-Files:
-    - config.json: JSON object with configuration information
-        - age
-        - retainUnsent
-        - enabled
-        - lastID
-        - wait
-        - lastConnection
-    - logs.json: A JSON object of objects containing information regarding the purge process. Each object
-        is keyed by the start time
-        - rowsRemoved
-        - complete
-        - failedRemovals
-        - unsentRowsRemoved
-        - startTime
-        - rowsRemaining
-    - sqlalchemy_insert.py: TEMPORARY file that does INSERTS against database, this is used as a testing tool
-      for purces processing
-    - sqlalchemy_purge.py: File containing purge script, as well as some extra methods to support reading of configs,
-      and writting to logs.
-    - tests_data_purge.py: A set of pytest cases that run in parallel to the code, making sure values being sent to
-      config and logs files are valid.
+-> Logged Information: In addition to execution of a purge process, the code also provides information about the size of
+    data that was purged. This information is currently stored as a JSON object with a "primary" key being the start time.
+    Example: {"2017-07-12 14:55:31": {"startTime": "2017-07-12 14:55:31", "complete": "2017-07-12 14:55:31", "unsentRowsRemoved": 0, "rowsRemoved": 70, "failedRemovals": 0}}
+        * startTime: Time that purge was called. The process executes queries against data that is less than this value
+        * complete: Time that purge process ended
+        * unsentRowsRemoved: Number rows that were not sent to the Pi System and were removed
+        * rowsRemoved: Number of rows removed with the purge process
+        * failedRemovals: Number of rows that were expected to get removed but failed
+If file does not exist, then system automatically creates it in the same directory as sqlalchemy_purge.py
+
+-> Database: Connecting to a generic database, that calls required SELECT and DELETE queries that are required as part
+    of the purge process. For now, the queries are generated both by string concatenation, and SQLAlchemy, and uses
+    SQLAlchemy as the connection to the database (postgres).
+
+The code for purging is written in such a way that it can support any table, and set of configurations. For now, the
+file provides readings table in SQLAlchemy format, which is used throughout, but can support any other potential table
+that would be needed. In order to complete purging, the following methods are currently required:
+-> purge_process_function:The purge begins by uploading the information from the configuration file (config.json), and
+    logs file (logs.json) into corresponding variables. It then takes the information from the config file and decides
+    whether or not to remove data, if so the information also provides the age of data that's being removed. Once the
+    purge process is done, it calculates how much data was removed, and stores it into the logs. The calculations are
+    done through multiple SELECT COUNT(*) processes with different WHERE conditions occurring before, and after the
+    DELETE command. Once the purge and calculations are done (and stored), the function returns the amount of wait time
+    until the next purge iteration.
+
+-> get_nth_id: Writes the a random row ID to the config file under `lastID`. This is until the config files are completed,
+    and the `lastID` is generated by the OMF connector. Given that all rows older than or equal to `lastID` are removed,
+    the function is called before the purge process each time.
+
+-> convert_timestamp and convert_sleep take the information in the config (age, and wait respectively), adn converts
+    to the right format. For the age value (convert_timestamp), the function does a subtraction from startTime while
+    convert_sleep takes wait and converts it the length of time to wait until next purge process (in seconds).
+
+-> get_count and execute_delete act as the tool that communicates with the database. The get_count executes queries
+    that require a returned value, such as SELECT COUNT(*), while the execute_delete executes queries that do not,
+    such as DELETE FROM table. Both functions will be replaced by a different tool (or tools) once the database layer
+    is complete.

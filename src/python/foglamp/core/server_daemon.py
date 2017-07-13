@@ -49,7 +49,7 @@ def _safe_make_dirs(path):
             raise exception
 
 
-class TimeoutException(Exception):
+class TimeoutError(Exception):
     """Operation timed out"""
     pass
 
@@ -142,7 +142,7 @@ class Daemon(object):
             stopped = True
 
         if not stopped:
-            raise TimeoutException("Unable to stop FogLAMP")
+            raise TimeoutError("Unable to stop FogLAMP")
 
         print("FogLAMP stopped")
 

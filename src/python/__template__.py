@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
+# TODO: Remove the shebang line above if this is not an executable script. Also remove this line.
 
 # -*- coding: utf-8 -*-
-
-# Remove the #!/usr/bin/env line above if this is not an executable script (also remove this line)
 
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
@@ -35,7 +34,7 @@ Attributes:
 
 Todo:
     * For module TODOs
-    * You have to also use ``sphinx.ext.todo`` extension
+    * You have to also use ``sphinx.ext.todo`` extension <--- TERRIS: What does this mean?
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -79,6 +78,9 @@ def function_with_types_in_docstring(param1, param2):
 
     """
 
+    # This is a TODO Example
+    # TODO: JIRA-XXXX Short descrption (put longer description in the JIRA)
+
 
 def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
     """Example function with PEP 484 type annotations.
@@ -94,7 +96,10 @@ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
 
 
 def module_level_function(param1, param2=None, *args, **kwargs):
-    """This is an example of a module level function.
+    # The leading r is needed to stop pylint from complaining
+    # about docstrings that contain \
+
+    r"""This is an example of a module level function.
 
     Function parameters should be documented in the ``Args`` section. The name
     of each parameter is required. The type and description of each parameter
@@ -151,10 +156,10 @@ def example_generator(n):
     """Generators have a ``Yields`` section instead of a ``Returns`` section.
 
     Please see https://stackoverflow.com/questions/37549846/how-to-use-yield-inside-async-function
-    Old answer for Python 3.5, You can't yield inside coroutines. Only way is to implement Asynchronous Iterator
-    manually using __aiter__/__anext__ magic methods.
-    In nutshell, go with async-await / coroutine way and consider this example def as how to illustrate working of
-    it in docstring.
+    Old answer for Python 3.5, You can't yield inside coroutines. Only way is to implement
+    Asynchronous Iterator manually using __aiter__/__anext__ magic methods.
+    In nutshell, go with async-await / coroutine way and consider this example def as how to
+    illustrate working of it in docstring.
 
     Args:
         n (int): The upper limit of the range to generate, from 0 to `n` - 1.
@@ -174,6 +179,8 @@ def example_generator(n):
         yield i
 
 
+# Custom exception class example
+# Put shared exception classes in exceptions.py
 class ExampleError(Exception):
     """Exceptions are documented in the same way as classes.
 
@@ -187,17 +194,18 @@ class ExampleError(Exception):
         Do not include the `self` parameter in the ``Args`` section.
 
     Args:
-        msg (str): Human readable string describing the exception.
+        message (str): Human readable string describing the exception.
         code (:obj:`int`, optional): Error code.
 
     Attributes:
-        msg (str): Human readable string describing the exception.
+        message (str): Human readable string describing the exception.
         code (int): Exception error code.
 
     """
 
-    def __init__(self, msg, code):
-        self.msg = msg
+    def __init__(self, message, code):
+        super().__init__(message)
+        # TERRIS: Should code be declared @property?
         self.code = code
 
 
@@ -312,4 +320,3 @@ class ExampleClass(object):
 
     def _private_without_docstring(self):
         pass
-

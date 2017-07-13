@@ -43,8 +43,7 @@ _MAX_STOP_RETRY = 5
 
 def _start_server():
     """Starts the core server"""
-    # TODO: FOGL-281
-    # should rotate etc.
+    # TODO: FOGL-281 Use different logging facility
     file_handler = logging.FileHandler(_LOG_PATH)
     file_handler.setLevel(logging.WARNING)
 
@@ -73,7 +72,8 @@ def start():
     if pid:
         print("FogLAMP is already running in PID {}".format(pid))
     else:
-        # TODO: FOGL-282 Output the pid. os.getpid() reports the wrong pid so it's not easy.
+        # If it is desirable to output the pid to the console,
+        # os.getpid() reports the wrong pid so it's not easy.
         print("Starting FogLAMP\nLogging to {}".format(_LOG_PATH))
 
         with daemon.DaemonContext(
@@ -84,15 +84,16 @@ def start():
             _start_server()
 
 
-class TimeoutException(Exception):
+class TimeoutError(Exception):
     """This exception is raised when the FogLAMP daemon can not be stopped"""
+    pass
 
 
 def stop(pid=None):
     """Stops FogLAMP if it is running
 
     :param pid: Optional process id to stop. If not provided, use pidfile.
-    :raises TimeoutException: Unable to stop FogLAMP
+    :raises TimeoutError: Unable to stop FogLAMP
     """
 
     # TODO: FOGL-274 Stopping is hard.
@@ -110,14 +111,14 @@ def stop(pid=None):
         for _ in range(_MAX_STOP_RETRY):
             os.kill(pid, signal.SIGTERM)
 
-            for _ in range(_WAIT_TERM_SECONDS):
+            for i in range(_WAIT_TERM_SECONDS):
                 os.kill(pid, 0)
                 time.sleep(1)
     except OSError:
         stopped = True
 
     if not stopped:
-        raise TimeoutException("Unable to stop FogLAMP")
+        raise TimeoutError("Unable to stop FogLAMP")
 
     print("FogLAMP stopped")
 

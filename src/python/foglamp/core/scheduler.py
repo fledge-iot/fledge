@@ -27,7 +27,11 @@ def shutdown():
     Waits for tasks to finish. There is no way to stop tasks that are already running.
     """
     for process in _processes:
-        process.terminate()
+        try:
+            process.terminate()
+        except ProcessLookupError:
+            # This occurs when the process has terminated already
+            pass
 
 
 async def _start_device_server():

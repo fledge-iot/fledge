@@ -7,8 +7,11 @@
 """FogLAMP Scheduler"""
 
 import time
+from enum import Enum
 import asyncio
-from asyncio.subprocess import Process
+# from asyncio.subprocess import Process
+# from typing import List
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as sa_pg
 
@@ -17,117 +20,100 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 class Scheduler(object):
     """FogLAMP scheduler"""
 
-    class __ScheduleTypes:
-        TIMED = 0
-        INTERVAL = 0
+    class _ScheduleTypes(Enum):
+        """Schedule types"""
+        interval = 1
+        timed = 2
 
-    __scheduled_processes_tbl = None # type: sa.Table
-    __schedules_tbl = None # type: sa.Table
+    class _TaskStates(Enum):
+        """Task states"""
+        running = 1
+        complete = 2
+        canceled = 3
+        interrupted = 4
+
+    # Class attributes (begin)
+    __scheduled_processes_tbl = None  # type: sa.Table
+    __schedules_tbl = None  # type: sa.Table
+    __tasks_tbl = None  # type: sa.Table
+    # Class attributes (end)
 
     def __init__(self):
         """Constructor"""
 
         # Class variables (begin)
-        if __schedules_tbl is None:
-            __schedules_tbl =
-                sa.Table( 'schedules',
-                          sa.Column('process_name', sa.types.VARCHAR(20)),
-                          sa.Column('schedule_type', sa.types.INT),
-                          sa.Column('schedule_interval'),
-                          sa.Column('exclusive')
+        if self.__schedules_tbl is None:
+            self.__schedules_tbl = sa.Table(
+                'schedules',
+                sa.MetaData(),
+                sa.Column('process_name', sa.types.VARCHAR(20)),
+                sa.Column('schedule_type', sa.types.INT),
+                sa.Column('schedule_interval', sa.types.TIME),
+                sa.Column('exclusive', sa.types.BOOLEAN))
 
-                          sa.Table(
-                              'schedules',
-                              sa.MetaData(),
-                              sa.Column('asset_cod', sa.types.VARCHAR(50)),
-                              sa.Column('read_key', sa.types.VARCHAR(50)),
-                              sa.Column('user_ts', sa.types.TIMESTAMP),
-                              sa.Column('reading', JSONB))
+            self.__tasks_tbl = sa.Table(
+                'tasks',
+                sa.MetaData(),
+                sa.Column('id', sa_pg.UUID),
+                sa.Column('process_name', sa.types.VARCHAR(20)),
+                sa.Column('state', sa.types.INT),
+                sa.Column('start_time', sa.types.TIMESTAMP),
+                sa.Column('end_time', sa.types.TIMESTAMP),
+                sa.Column('reason', sa.types.VARCHAR(20)))
 
+            self.__scheduled_processes_tbl = sa.Table(
+                'scheduled_processes',
+                sa.MetaData(),
+                sa.Column('script', sa.types.VARCHAR(100)))
+        # Class variables (end)
 
-            CREATE TABLE foglamp.schedules (
-                id                uuid                  UNIQUE,   -- Unique uuid, PK
-            process_name      character varying(20) NOT NULL, -- FK process name
-            schedule_name     character varying(20) NOT NULL, -- schedule name
-            schedule_type     smallint              NOT NULL, -- At the moment there are three types
-            schedule_interval time,                           -- Schedule interval
-            schedule_time     time,                           -- Schedule time
-            exclusive         boolean,
-                              CONSTRAINT schedules_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
-                                   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
-
-
-            -- List of tasks
-            CREATE TABLE foglamp.tasks (
-                id           uuid                        UNIQUE,                 -- Unique uuid, PK
-            process_name character varying(20)       NOT NULL,               -- Name of the task
-            state        smallint                    NOT NULL,               -- State of the task: 1-Running, 2-Complete, 3-Cancelled
-            start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
-            end_time     timestamp(6) with time zone,                        -- The date and time the task ended
-            reason       character varying(20),                              -- The reason why the task ended
-            CONSTRAINT tasks_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
-            CONSTRAINT tasks_fk1 FOREIGN KEY (process_name)
-            REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
-            ON UPDATE NO ACTION
-            ON DELETE NO ACTION )
-            WITH ( OIDS = FALSE ) TABLESPACE foglamp;
-
-            __scheduled_processes_tbl =
-                sa.Table( 'scheduled_processes',
-                            'script', sa_pg.JSONB )
-
-    # Class variables (end)
         # Instance variables (begin)
-        self.__last_check_time = None
-        self.__start_time = time.now()
+        self.last_check_time = None
+        self.start_time = time.time()
         self.__processes = []  # type: List[Process]
-        r"""Long running processes
+
+        # pylint: disable=line-too-long
+        """Long running processes
 
         A list of
         `Process <https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process>`_
         objects
         """
+        # pylint: enable=line-too-long
         # Instance variables (end)
 
-
-    def shutdown():
+    def stop(self):
         """Stops the scheduler
 
         Terminates long-running processes like the device server.
 
         Waits for tasks to finish. There is no way to stop tasks that are already running.
+
+        :return True if all processes have stopped
         """
-        for process in _processes:
+        # TODO After telling processes to stop, wait for them to stop
+        for process in self.__processes:
             try:
                 process.terminate()
             except ProcessLookupError:
                 # This occurs when the process has terminated already
+                # TODO remove process from the list
                 pass
 
-    def
-        """Processes interval schedules and starts processes"""
-
-    async def _start_device_server():
+    async def _start_device_server(self):
         """Starts the device server (foglamp.device) as a subprocess"""
-        process = await asyncio.create_subprocess_exec(
-            'python3', '-m', 'foglamp.device')
 
-        global _processes
-        _processes.append(process)
+        try:
+            process = await asyncio.create_subprocess_shell("python3 -m foglamp.device")
+            self.__processes.append(process)
+        except Exception:
+            print("failed")
+            # TODO what
 
-
-    async def _main():
-        await _start_device_server()
-        # More is coming
-
-
-    def start():
-        """Start the scheduler"""
-
-        asyncio.ensure_future(_main())
-
+    def start(self):
+        """Starts the scheduler"""
+        asyncio.ensure_future(self._start_device_server())

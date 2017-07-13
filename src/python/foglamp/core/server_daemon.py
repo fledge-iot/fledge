@@ -36,30 +36,25 @@ _MAX_STOP_RETRY = 5
 """How many times to send TERM signal to core server process when stopping"""
 
 
-def _safe_make_dirs(path):
-    """Creates any missing parent directories
-
-    :param path: The path of the directory to create
-    """
-
-    try:
-        os.makedirs(path, 0o750)
-    except OSError as exception:
-        if not os.path.exists(path):
-            raise exception
-
-
-class TimeoutError(Exception):
-    """Operation timed out"""
-    pass
-
-
 class Daemon(object):
     # TODO FOGL-282: Return true/false instead of printing
     """FogLAMP Daemon"""
 
     logging_configured = False
     """Set to true when it's safe to use logging"""
+
+    @staticmethod
+    def _safe_make_dirs(path):
+        """Creates any missing parent directories
+
+        :param path: The path of the directory to create
+        """
+
+        try:
+            os.makedirs(path, 0o750)
+        except OSError as exception:
+            if not os.path.exists(path):
+                raise exception
 
     @classmethod
     def _configure_logging(cls):
@@ -86,15 +81,15 @@ class Daemon(object):
         """Starts the core server"""
 
         cls._configure_logging()
-        Server().start()
+        Server.start()
 
     @classmethod
     def start(cls):
         """Starts FogLAMP"""
 
-        _safe_make_dirs(_WORKING_DIR)
-        _safe_make_dirs(os.path.dirname(_PID_PATH))
-        _safe_make_dirs(os.path.dirname(_LOG_PATH))
+        cls._safe_make_dirs(_WORKING_DIR)
+        cls._safe_make_dirs(os.path.dirname(_PID_PATH))
+        cls._safe_make_dirs(os.path.dirname(_LOG_PATH))
 
         pid = cls.get_pid()
 
@@ -229,7 +224,7 @@ def main():
     """
 
     try:
-        Daemon().main()
+        Daemon.main()
         # pylint: disable=W0703
     except Exception as exception:
         # pylint: enable=W0703

@@ -86,9 +86,8 @@ class Scheduler(object):
 
         # Instance variables (begin)
         self.start_time = time.time()
-        self.check_schedules_seconds = 5
-        self.__last_schedule_time = self.start_time
-        """The last time `schedule()` ran"""
+        self.check_schedules_seconds = 30
+        """Check for tasks to run every this many seconds"""
         self.__scheduled_processes = dict()
         """ scheduled_processes.id to script """
         self.__schedules = dict()
@@ -96,7 +95,7 @@ class Scheduler(object):
         self.__schedule_factors = dict()
         """For interval schedules only
         
-        Maps schedules.id to a "time factor" when process was last executed
+        Maps schedules.id to a "time factor" when a schedule was last started.
         
         A "time factor" is the amount of time the scheduler has been running divided by 
         the schedule's interval time. The division is converted to an integer
@@ -139,6 +138,7 @@ class Scheduler(object):
                 pass
 
         for key in keys_to_delete:
+            logging.getLogger(__name__).info("Stopped %s", key)
             del self.__processes[key]
 
         return all_stopped
@@ -231,8 +231,7 @@ class Scheduler(object):
                            end_time=datetime.datetime.utcnow()))
 
     async def schedule(self):
-        seconds_run = self.start_time - self.__last_schedule_time
-        self.__last_schedule_time = time.time()
+        seconds_run = time.time() - self.start_time
         keys_to_delete = []
 
         for key, schedule in self.__schedules.items():

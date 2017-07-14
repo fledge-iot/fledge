@@ -22,15 +22,13 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_CONNECTION_STRING = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
-
 
 class Scheduler(object):
     """FogLAMP scheduler"""
 
     class _ScheduleType(Enum):
         """Schedule types"""
-        interval = 0
+        interval_seconds = 0
         timed = 1
 
     class _TaskState(Enum):
@@ -40,10 +38,16 @@ class Scheduler(object):
         canceled = 3
         interrupted = 4
 
+    _Schedule = collections.namedtuple(
+        'Schedule',
+        'id type time interval exclusive process_name')
+    """Represents a row in the schedules table"""
+
     # Class attributes (begin)
     __scheduled_processes_tbl = None  # type: sa.Table
     __schedules_tbl = None  # type: sa.Table
     __tasks_tbl = None  # type: sa.Table
+    __CONNECTION_STRING = "postgresql://foglamp:foglamp@localhost:5432/foglamp"
     # Class attributes (end)
 
     def __init__(self):
@@ -82,13 +86,15 @@ class Scheduler(object):
         # Instance variables (begin)
         self.start_time = time.time()
         self.last_check_time = self.start_time
-        self.schedule_seconds = 60
+        self.check_schedules_interval_seconds = 60
         self.__scheduled_processes = dict()
+        """ scheduled_processes.id to script """
         self.__schedules = dict()
+        """ schedules.id to _Schedule """
         self.__schedule_factors = dict()
         """For interval schedules only
         
-        Maps schedule id to a "time factor" when process was last executed
+        Maps schedules.id to a "time factor" when process was last executed
         
         A "time factor" is the amount of time the scheduler has been running divided by 
         the schedule's interval time. The division is converted to an integer
@@ -97,14 +103,13 @@ class Scheduler(object):
         time factor is 2.
         """
         self.__running_exclusive_schedules = set()
-        """A set of session ids that are running, if they are 'exclusive'"""
+        """A set of session ids that are running, for 'exclusive' schedules"""
         self.__processes = dict()
         # pylint: disable=line-too-long
         """Running processes
 
-        A dictionary of
+        tasks.id to
         `Process <https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process>`_
-        objects
         """
         # pylint: enable=line-too-long
         # Instance variables (end)
@@ -118,15 +123,18 @@ class Scheduler(object):
 
         :return True if all processes have stopped
         """
-        # TODO: After telling processes to stop, wait for them to stop
-        logging.getLogger(__name__).info("Stopping")
-        for process in self.__processes:
+        logging.getLogger(__name__).info("Processing stop request")
+        all_stopped = True
+
+        for key, process in self.__processes.items():
             try:
                 process.terminate()
-            except ProcessLookupError:
-                # This occurs when the process has terminated already
-                # TODO remove process from the list
-                pass
+                process.signal(0)
+                all_stopped = False
+            except (ProcessLookupError, OSError):
+                del self.__processes[key]
+
+        return all_stopped
 
     async def _start_device_server(self):
         """Starts the device server (foglamp.device) as a subprocess"""
@@ -140,7 +148,7 @@ class Scheduler(object):
                            self.__scheduled_processes_tbl.c.script])
         query.select_from(self.__scheduled_processes_tbl)
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     self.__scheduled_processes[row.name] = row.script
@@ -155,11 +163,7 @@ class Scheduler(object):
 
         query.select_from(self.__schedules_tbl)
 
-        ScheduleInfo = collections.namedtuple(
-            'ScheduleInfo',
-            'id type time interval exclusive process_name')
-
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     interval_seconds = None
@@ -167,48 +171,48 @@ class Scheduler(object):
                         t = row.interval
                         interval_seconds = 3600*t.hour+60*t.minute+t.second
 
-                    self.__schedules[row.id] = ScheduleInfo(
+                    self.__schedules[row.id] = _Schedule(
                                                 id=row.id,
                                                 type=row.schedule_type,
                                                 time=row.schedule_time,
-                                                interval=interval_seconds,
+                                                interval_seconds=interval_seconds,
                                                 exclusive=row.exclusive,
                                                 process_name=row.process_name)
 
-    async def _start_process(self, schedule_info):
+    async def _start_task(self, schedule):
         # TODO: What if this fails
         process = await asyncio.create_subprocess_exec(
-            self.__scheduled_processes[schedule_info.process_name].script)
+            self.__scheduled_processes[schedule.process_name].script)
 
         task_id = uuid.uuid4()
         self.__processes[task_id] = process
 
-        if schedule_info.exclusive:
-            self.__running_exclusive_schedules.add(schedule_info.id)
+        if schedule.exclusive:
+            self.__running_exclusive_schedules.add(schedule.id)
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(self.__tasks_tbl.insert().values(
                                         id=task_id,
-                                        process_name=schedule_info.process_name,
+                                        process_name=schedule.process_name,
                                         state=self._TaskState.running,
                                         start_time=time.time()))
 
-        asyncio.ensure_future(self._wait_for_task_completion(task_id, schedule_info))
+        asyncio.ensure_future(self._wait_for_task_completion(task_id, schedule))
 
-    async def _wait_for_task_completion(self, task_id, schedule_info):
+    async def _wait_for_task_completion(self, task_id, schedule):
         # TODO: Catch the right exception
         try:
             self.__processes[task_id].wait()
         except Exception:
             pass
 
-        if schedule_info.exclusive:
-            self.__running_exclusive_schedules.remove(schedule_info.id)
+        if schedule.exclusive:
+            self.__running_exclusive_schedules.remove(schedule.id)
 
         del self.__processes[task_id]
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(
                     self.__tasks_tbl.update().
@@ -218,18 +222,35 @@ class Scheduler(object):
                            state=self._TaskState.complete))
 
     async def schedule(self):
-        pass
-    """
-        seconds_run = self.start_time - self.last_check_time
-        For each interval schedule
-            If (seconds_since_start % last_check == 0)
-                if schedule.exclusive and task is already running
-                else
-                    start task
-                    insert task
+        seconds_run = self.__start_time - self.__last_check_time
+        for key, schedule in self.__schedules:
+            if schedule.exclusive:
+                if is running:
+                    next
 
-        # Insert task record
-    """
+            start_task = False
+
+            if schedule.type == self._ScheduleType.interval:
+                if schedule.interval_seconds == 0:
+                    del self.__schedules[key]
+                    start_task = True
+                else:
+                    factor = seconds_run / schedule.interval_seconds
+                    if factor > self.__schedule_factors.get(schedule.id, 0):
+                        self.__schedule_factors[schedule.id] = factor
+                        start_task = True
+
+            if start_task:
+                asyncio.ensure_future(self._start_task(schedule))
+
+
+    async def _schedule(self):
+        await asyncio.ensure_future(self._read_storage())
+        while True:
+            await self.schedule()
+            await asyncio.sleep(self.check_schedules_interval_seconds)
+
+asyncio.ensure_future(self.schedule)
 
     async def _read_storage(self):
         """Read processes and schedules"""
@@ -239,5 +260,5 @@ class Scheduler(object):
     def start(self):
         """Starts the scheduler"""
         asyncio.ensure_future(self._start_device_server())
-        asyncio.ensure_future(self._read_storage())
-        asyncio.ensure_future(self.schedule)
+        asyncio.ensure_future(self._schedule())
+

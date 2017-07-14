@@ -7,6 +7,7 @@ SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = FogLAMP
 SOURCEDIR     = .
 BUILDDIR      = _build
+CODEDIR       = ../src/python/foglamp
 HOSTADDRESS   = 0.0.0.0
 PORTNO        = 8000
 
@@ -15,7 +16,7 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 livehtml:
-	sphinx-autobuild -b html "$(SPHINXOPTS)" "$(BUILDDIR)/html" --host "$(HOSTADDRESS)" --port "$(PORTNO)"
+	sphinx-autobuild -b html "$(SPHINXOPTS)" "$(BUILDDIR)/html" --host "$(HOSTADDRESS)" --port "$(PORTNO)" --watch "$(CODEDIR)"
 
 .PHONY: help livehtml Makefile
 

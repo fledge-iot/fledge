@@ -8,7 +8,7 @@ In order to fully complete the task the following sections need to be completed 
 
 -> Configuration Info - This will probably be some sort of file that contains the over all configuration info, which
     wil also include the purge configuration. For now that file is in the format of a JSON file, and looks something
-    like this: {"enabled": true, "lastID": 1998276, "age": "2 minutes", "retainUnsent": true, "wait": "2 days"}
+    like this: {"enabled": true, "lastID": 1998276, "age": "2 minutes", "retainUnsent": true, "wait": "30 seconds"}
         * enabled: whether or not to execute a purge process. Since purge regularly occurs, this variable
             can disable it
         * lastID: What was the last row ID sent to the Pi System

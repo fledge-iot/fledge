@@ -7,7 +7,8 @@
 """FogLAMP Scheduler"""
 
 import time
-from enum import Enum
+import datetime
+from enum import IntEnum
 import asyncio
 import logging
 import collections
@@ -26,21 +27,21 @@ __version__ = "${VERSION}"
 class Scheduler(object):
     """FogLAMP scheduler"""
 
-    class _ScheduleType(Enum):
-        """Schedule types"""
-        interval_seconds = 0
-        timed = 1
+    class _ScheduleType(IntEnum):
+        """schedules.schedule_type"""
+        INTERVAL = 0
+        TYPES = 1
 
-    class _TaskState(Enum):
-        """Task states"""
-        running = 1
-        complete = 2
-        canceled = 3
-        interrupted = 4
+    class _TaskState(IntEnum):
+        """tasks.task_state"""
+        RUNNING = 1
+        COMPLETE = 2
+        CANCELED = 3
+        INTERRUPTED = 4
 
     _Schedule = collections.namedtuple(
         'Schedule',
-        'id type time interval exclusive process_name')
+        'id type time interval_seconds exclusive process')
     """Represents a row in the schedules table"""
 
     # Class attributes (begin)
@@ -85,7 +86,7 @@ class Scheduler(object):
 
         # Instance variables (begin)
         self.start_time = time.time()
-        self.check_schedules_interval_seconds = 60
+        self.check_schedules_seconds = 5
         self.__last_schedule_time = self.start_time
         """The last time `schedule()` ran"""
         self.__scheduled_processes = dict()
@@ -126,6 +127,7 @@ class Scheduler(object):
         """
         logging.getLogger(__name__).info("Processing stop request")
         all_stopped = True
+        keys_to_delete = []
 
         for key, process in self.__processes.items():
             try:
@@ -133,16 +135,20 @@ class Scheduler(object):
                 process.signal(0)
                 all_stopped = False
             except (ProcessLookupError, OSError):
-                del self.__processes[key]
+                keys_to_delete.append(key)
+                pass
+
+        for key in keys_to_delete:
+            del self.__processes[key]
 
         return all_stopped
 
-    async def _start_device_server(self):
+    async def _start_default(self):
         """Starts the device server (foglamp.device) as a subprocess"""
 
         # TODO what if this fails?
-        process = await asyncio.create_subprocess_exec('python3', '-m', 'foglamp.device')
-        self.__processes[uuid.uuid4()] = process
+        process = await asyncio.create_subprocess_exec('python3', '-m', 'foglamp.storage')
+        self.__processes[str(uuid.uuid4())] = process
 
     async def _get_scheduled_processes(self):
         query = sa.select([self.__scheduled_processes_tbl.c.name,
@@ -167,10 +173,11 @@ class Scheduler(object):
         async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
+                    interval = row.schedule_interval
                     interval_seconds = None
-                    if row.interval is not None:
-                        t = row.interval
-                        interval_seconds = 3600*t.hour+60*t.minute+t.second
+
+                    if interval:
+                        interval_seconds = 3600*interval.hour + 60*interval.minute + interval.second
 
                     self.__schedules[row.id] = self._Schedule(
                                                 id=row.id,
@@ -178,14 +185,15 @@ class Scheduler(object):
                                                 time=row.schedule_time,
                                                 interval_seconds=interval_seconds,
                                                 exclusive=row.exclusive,
-                                                process_name=row.process_name)
+                                                process=row.process_name)
 
     async def _start_task(self, schedule):
         # TODO: What if this fails
+        # TODO: What if the process doesn't exist in scheduled_processes
         process = await asyncio.create_subprocess_exec(
-            self.__scheduled_processes[schedule.process_name].script)
+            *self.__scheduled_processes[schedule.process])
 
-        task_id = uuid.uuid4()
+        task_id = str(uuid.uuid4())
         self.__processes[task_id] = process
 
         if schedule.exclusive:
@@ -195,9 +203,9 @@ class Scheduler(object):
             async with engine.acquire() as conn:
                 await conn.execute(self.__tasks_tbl.insert().values(
                                         id=task_id,
-                                        process_name=schedule.process_name,
-                                        state=self._TaskState.running,
-                                        start_time=time.time()))
+                                        process_name=schedule.process,
+                                        state=int(self._TaskState.RUNNING),
+                                        start_time=datetime.datetime.utcnow()))
 
         asyncio.ensure_future(self._wait_for_task_completion(task_id, schedule))
 
@@ -219,23 +227,23 @@ class Scheduler(object):
                     self.__tasks_tbl.update().
                     where(self.__tasks_tbl.c.id == task_id).
                     values(reason='?',
-                           end_time=time.time(),
-                           state=self._TaskState.complete))
+                           state=int(self._TaskState.COMPLETE),
+                           end_time=datetime.datetime.utcnow()))
 
     async def schedule(self):
         seconds_run = self.start_time - self.__last_schedule_time
         self.__last_schedule_time = time.time()
+        keys_to_delete = []
 
-        for key, schedule in self.__schedules:
-            if schedule.exclusive:
-                if True: # is running:
-                    next
+        for key, schedule in self.__schedules.items():
+            if schedule.exclusive and schedule.id in self.__running_exclusive_schedules:
+                continue
 
             start_task = False
 
-            if schedule.type == self._ScheduleType.interval:
+            if schedule.type == self._ScheduleType.INTERVAL:
                 if schedule.interval_seconds == 0:
-                    del self.__schedules[key]
+                    keys_to_delete.append(key)
                     start_task = True
                 else:
                     factor = seconds_run / schedule.interval_seconds
@@ -246,11 +254,14 @@ class Scheduler(object):
             if start_task:
                 asyncio.ensure_future(self._start_task(schedule))
 
+        for key in keys_to_delete:
+            del self.__schedules[key]
+
     async def _schedule(self):
         await asyncio.ensure_future(self._read_storage())
         while True:
             await self.schedule()
-            await asyncio.sleep(self.check_schedules_interval_seconds)
+            await asyncio.sleep(self.check_schedules_seconds)
 
     async def _read_storage(self):
         """Read processes and schedules"""
@@ -259,6 +270,5 @@ class Scheduler(object):
 
     def start(self):
         """Starts the scheduler"""
-        asyncio.ensure_future(self._start_device_server())
+        # asyncio.ensure_future(self._start_default())
         asyncio.ensure_future(self._schedule())
-

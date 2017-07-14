@@ -10,10 +10,10 @@ import time
 from enum import Enum
 import asyncio
 import logging
-import aiopg.sa
 import collections
 import uuid
 
+import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg_types
 

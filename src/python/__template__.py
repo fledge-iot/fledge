@@ -32,9 +32,12 @@ Attributes:
         one convention to document module level variables and be consistent
         with it.
 
-Todo:
-    * For module TODOs
-    * You have to also use ``sphinx.ext.todo`` extension <--- TERRIS: What does this mean?
+.. todo::
+
+   * For module TODOs in docstring
+   * To show in readthedocs
+   * You have to also use ``sphinx.ext.todo`` extension and enable todo_include_todos in conf.py
+   * see http://www.sphinx-doc.org/en/1.3.6/ext/todo.html#confval-todo_include_todos
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -72,6 +75,11 @@ def function_with_types_in_docstring(param1, param2):
 
     Returns:
         bool: The return value. True for success, False otherwise.
+
+    .. todo::
+
+        This is a todo docstring example
+        For def level todo, if we want to expose this publicly via readthedocs
 
     .. _PEP 484:
         https://www.python.org/dev/peps/pep-0484/
@@ -205,7 +213,6 @@ class ExampleError(Exception):
 
     def __init__(self, message, code):
         super().__init__(message)
-        # TERRIS: Should code be declared @property?
         self.code = code
 
 
@@ -257,7 +264,12 @@ class ExampleClass(object):
 
     @property
     def readonly_property(self):
-        """str: Properties should be documented in their getter method."""
+        """str: Properties should be documented in their getter method.
+
+        When a member needs to be protected and cannot be simply exposed as a public member,
+        Use Python’s property decorator to accomplish the functionality of getters and setters (or mutator method).
+        See the anti-pattern guide, we have, for more details
+        """
         return 'readonly_property'
 
     @property

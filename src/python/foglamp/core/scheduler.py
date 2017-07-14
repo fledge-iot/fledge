@@ -11,8 +11,8 @@ from enum import Enum
 import asyncio
 import logging
 import aiopg.sa
-# from asyncio.subprocess import Process
-# from typing import List
+import collections
+import uuid
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg_types
@@ -22,16 +22,18 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+_CONNECTION_STRING = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
+
 
 class Scheduler(object):
     """FogLAMP scheduler"""
 
-    class _ScheduleTypes(Enum):
+    class _ScheduleType(Enum):
         """Schedule types"""
-        interval = 1
-        timed = 2
+        interval = 0
+        timed = 1
 
-    class _TaskStates(Enum):
+    class _TaskState(Enum):
         """Task states"""
         running = 1
         complete = 2
@@ -57,6 +59,7 @@ class Scheduler(object):
                 sa.Column('process_name', sa.types.VARCHAR(20)),
                 sa.Column('schedule_type', sa.types.INT),
                 sa.Column('schedule_interval', sa.types.TIME),
+                sa.Column('schedule_time', sa.types.TIME),
                 sa.Column('exclusive', sa.types.BOOLEAN))
 
             self.__tasks_tbl = sa.Table(
@@ -77,10 +80,12 @@ class Scheduler(object):
         # Class variables (end)
 
         # Instance variables (begin)
-        self.last_check_time = None
         self.start_time = time.time()
-        self.__processes = []  # type: List[Process]
+        self.last_check_time = self.start_time
+        self.schedule_seconds = 60
+        self.__processes = []
         self.__scheduled_processes = dict()
+        self.__schedules = dict()
 
         # pylint: disable=line-too-long
         """Long running processes
@@ -115,7 +120,7 @@ class Scheduler(object):
         """Starts the device server (foglamp.device) as a subprocess"""
 
         # TODO what if this fails?
-        process = await asyncio.create_subprocess_exec( 'python3', '-m', 'foglamp.device' )
+        process = await asyncio.create_subprocess_exec('python3', '-m', 'foglamp.device')
         self.__processes.append(process)
 
     async def _get_scheduled_processes(self):
@@ -123,19 +128,79 @@ class Scheduler(object):
                            self.__scheduled_processes_tbl.c.script])
         query.select_from(self.__scheduled_processes_tbl)
 
-        async with aiopg.sa.create_engine(
-                'postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     self.__scheduled_processes[row.name] = row.script
 
+    async def _get_schedules(self):
+        query = sa.select([self.__schedules_tbl.c.id,
+                           self.__schedules_tbl.c.schedule_type,
+                           self.__schedules_tbl.c.schedule_interval,
+                           self.__schedules_tbl.c.schedule_time,
+                           self.__schedules_tbl.c.exclusive,
+                           self.__schedules_tbl.c.process_name])
+
+        query.select_from(self.__schedules_tbl)
+
+        Schedule = collections.namedtuple('Schedule', 'type time interval exclusive process_name')
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    self.__schedules[row.id] = Schedule(
+                                                type=row.schedule_type,
+                                                time=row.schedule_time,
+                                                interval=row.schedule_interval,
+                                                exclusive=row.exclusive,
+                                                process_name=row.process_name)
+
+    async def _add_task(self, process_info):
+        row_id = uuid.uuid4()
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                await conn.execute(self.__tasks_tbl.insert().values(
+                                        id=row_id,
+                                        process_name=process_info.name,
+                                        state=self._TaskState.running,
+                                        start_time=time.time()))
+
+        return row_id
+
+    async def _wait_for_process(self, row_id, process):
+        process.wait()
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                await conn.execute(
+                    self.__tasks_tbl.update().
+                    where(self.__tasks_tbl.c.id == row_id).
+                    values(reason='?',
+                           end_time=time.time(),
+                           state=self._TaskState.complete))
+
+    async def schedule(self):
+        pass
+    """
+        seconds_run = self.start_time - self.last_check_time
+        For each interval schedule
+            If (seconds_since_start % last_check == 0)
+                if schedule.exclusive and task is already running
+                else
+                    start task
+                    insert task
+
+        # Insert task record
+    """
+
     async def _read_storage(self):
         """Read processes and schedules"""
         await self._get_scheduled_processes()
-        print(self.__scheduled_processes)
+        await self._get_schedules()
 
     def start(self):
         """Starts the scheduler"""
         asyncio.ensure_future(self._start_device_server())
         asyncio.ensure_future(self._read_storage())
-
+        asyncio.ensure_future(self.schedule)

@@ -33,11 +33,12 @@ class Server:
         if not loop:
             loop = asyncio.get_event_loop()
 
+        cls.__scheduler = scheduler.Scheduler()
+
         # Register signal handlers
         for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
             loop.add_signal_handler(signal_name, cls.stop, loop)
 
-        cls.__scheduler = scheduler.Scheduler()
         cls.__scheduler.start()
 
         # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app

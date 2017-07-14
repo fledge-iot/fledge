@@ -9,11 +9,13 @@
 import time
 from enum import Enum
 import asyncio
+import logging
+import aiopg.sa
 # from asyncio.subprocess import Process
 # from typing import List
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql as sa_pg
+from sqlalchemy.dialects import postgresql as pg_types
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -50,6 +52,8 @@ class Scheduler(object):
             self.__schedules_tbl = sa.Table(
                 'schedules',
                 sa.MetaData(),
+                sa.Column('id', pg_types.UUID),
+                sa.Column('schedule_name', sa.types.VARCHAR(20)),
                 sa.Column('process_name', sa.types.VARCHAR(20)),
                 sa.Column('schedule_type', sa.types.INT),
                 sa.Column('schedule_interval', sa.types.TIME),
@@ -58,7 +62,7 @@ class Scheduler(object):
             self.__tasks_tbl = sa.Table(
                 'tasks',
                 sa.MetaData(),
-                sa.Column('id', sa_pg.UUID),
+                sa.Column('id', pg_types.UUID),
                 sa.Column('process_name', sa.types.VARCHAR(20)),
                 sa.Column('state', sa.types.INT),
                 sa.Column('start_time', sa.types.TIMESTAMP),
@@ -68,13 +72,15 @@ class Scheduler(object):
             self.__scheduled_processes_tbl = sa.Table(
                 'scheduled_processes',
                 sa.MetaData(),
-                sa.Column('script', sa.types.VARCHAR(100)))
+                sa.Column('name', pg_types.VARCHAR(20)),
+                sa.Column('script', pg_types.JSONB))
         # Class variables (end)
 
         # Instance variables (begin)
         self.last_check_time = None
         self.start_time = time.time()
         self.__processes = []  # type: List[Process]
+        self.__scheduled_processes = dict()
 
         # pylint: disable=line-too-long
         """Long running processes
@@ -96,6 +102,7 @@ class Scheduler(object):
         :return True if all processes have stopped
         """
         # TODO After telling processes to stop, wait for them to stop
+        logging.getLogger(__name__).info("Stopping")
         for process in self.__processes:
             try:
                 process.terminate()
@@ -107,13 +114,28 @@ class Scheduler(object):
     async def _start_device_server(self):
         """Starts the device server (foglamp.device) as a subprocess"""
 
-        try:
-            process = await asyncio.create_subprocess_shell("python3 -m foglamp.device")
-            self.__processes.append(process)
-        except Exception:
-            print("failed")
-            # TODO what
+        # TODO what if this fails?
+        process = await asyncio.create_subprocess_exec( 'python3', '-m', 'foglamp.device' )
+        self.__processes.append(process)
+
+    async def _get_scheduled_processes(self):
+        query = sa.select([self.__scheduled_processes_tbl.c.name,
+                           self.__scheduled_processes_tbl.c.script])
+        query.select_from(self.__scheduled_processes_tbl)
+
+        async with aiopg.sa.create_engine(
+                'postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    self.__scheduled_processes[row.name] = row.script
+
+    async def _read_storage(self):
+        """Read processes and schedules"""
+        await self._get_scheduled_processes()
+        print(self.__scheduled_processes)
 
     def start(self):
         """Starts the scheduler"""
         asyncio.ensure_future(self._start_device_server())
+        asyncio.ensure_future(self._read_storage())
+

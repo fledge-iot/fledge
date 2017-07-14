@@ -51,3 +51,17 @@ How to generate Allure Report (through make)
 - ``make test-report``: This generates allure reports, Starting web server for report directory <allure-report> and displays the report in your browser.
 - To stop the web server and exit, press ``Ctrl+C`` from your terminal.
 
+
+
+Documentation
+-------------
+
+ FogLAMP uses `Shphinx <http://www.sphinx-doc.org/en/stable/>`_ for documentation. Additionally it uses sphinx.ext.autodoc and sphinx.ext.ifconfig extensions in the project.
+ FogLAMP docs has two type of .rst files, one created manually (in /docs) and other (in /docs/api) created automatically for the docstring in foglamp package' python files using sphinx-apidoc tool
+
+Commands
+^^^^^^^^
+
+- ``make doc`` - Generates html files from .rst files and places them inside _build/html directory. Open the docs/_build/html/index.html file to see the index page of created docs.
+- ``make live-doc`` - Start watchdog on 0.0.0.0:8000 to monitor changes in .rst files, conf.py file and /src/python/foglamp directory and reflects the changes in html format. You can review your docstring changes on fly using this command.
+- ``make doc-build-test`` - run docs/check-sphinx tests. Run this command to ensure the .rst files generated are correct and docstrings in your source code are as per PEP8 guidelines.

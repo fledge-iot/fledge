@@ -12,7 +12,7 @@ import time
 # Set variables for connecting to database
 user="foglamp"
 db_user="foglamp"
-host="127.0.0.1"
+host="192.168.0.182"
 db="foglamp"
 
 # Create Connection
@@ -53,8 +53,8 @@ def execute_query(stmt):
         return 0
     return int(result)
 
-i= execute_query(("SELECT MAX(%s) FROM %s;" % (readings.c.id,readings)))
-
+i= execute_query(("SELECT MAX(%s) FROM %s;" % (readings.c.id,readings)))+1
+k=0
 while True:
     stmt = readings.insert().values(id=i)
     try:
@@ -63,5 +63,8 @@ while True:
         print("INSERT Error")
         sys.exit()
     i+=1
-
+    k+=1
+    if k == 10000000:
+        time.sleep(10)
+        k=0
 

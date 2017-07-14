@@ -20,7 +20,6 @@ Since INSERTS and DELETE occur simultaneously,  there is a chance that some of t
 - any failedRemoval Test 
 
 """
-import datetime
 import json
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
@@ -29,8 +28,10 @@ import sys
 import time
 
 
-configFile = '../../foglamp/data_purge/config.json'
-logsFile = '../../foglamp/data_purge/logs.json'
+config_file = '../../foglamp/data_purge/config.json'
+logs_file = ' ../../foglamp/data_purge/logs.json'
+
+
 
 readings = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
 sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
@@ -52,9 +53,10 @@ def read_config():
     Returns:
         json data a python dict 
     """
-    with open(configFile) as json_data:
+    with open(config_file) as json_data:
         data = json.load(json_data)
     return data
+
 
 def read_logs():
     """
@@ -63,9 +65,10 @@ def read_logs():
         json data as a python dict 
 
     """
-    with open(logsFile) as json_data:
+    with open(logs_file) as json_data:
         data = json.load(json_data)
     return data
+
 
 def convert_sleep(set_time=None):
     """
@@ -104,6 +107,7 @@ def convert_sleep(set_time=None):
             sys.exit()
     return sec+minute+hr+dy
 
+
 def execute_query(stmt):
     """
     Imitate connection to Postgres and execute query against it
@@ -129,255 +133,87 @@ def execute_query(stmt):
     else:
         return int(result.fetchall()[0][0])
 
-
-""" 
-PART I - Verify the update of config files
-"""
-def test_disable_retainUnsent():
-    """
-    Assert that retainUnsent is disabled (False)   
-    """
-    config_info = read_config()
-    config_info['retainUnsent'] = False
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['retainUnsent'] is False
-
-def test_enable_retainUnsent():
-    """
-    Assert that retainUnsent is enabled (True) 
-    """
-    config_info = read_config()
-    config_info['retainUnsent'] = True
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['retainUnsent'] is True
-
-def test_disable_enabled():
-    """
-    Assert that enabled is disabled (False)
-    """
-    config_info = read_config()
-    config_info['enabled'] = False
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['enabled'] is False
-
-def test_enable_enabled():
-    """
-    Assert that enabled is enabled (True)
-    """
-    config_info = read_config()
-    config_info['enabled'] = True
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['enabled'] is True
-
-def test_update_lastConnection():
-    """
-    Assert that `lastConnection` is set to NOW
-    """
-    config_info = read_config()
-    config_info['lastConnection'] = 0
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['lastConnection'] == 0
-
-def test_update_wait():
-    """
-    Assert that `wait` is set to 30 seconds
-    """
-    wait = '30 seconds'
-    config_info = read_config()
-    config_info['wait'] = wait
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['wait'] == wait
-
-def test_update_age():
-    """
-    Assert that `wait` is set to 2 minutes
-    """
-    age = '2 minutes'
-    config_info = read_config()
-    config_info['age'] = age
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    config_info = read_config()
-
-    assert config_info['age'] == age
-
-"""
-PART II - verify that updates of logs get done correctly
-"""
-
-
-# testing that logs get updated properly when needs to be
-def test_disable_enabled2():
-    """
-    Assert that logs doesn't get updated when `enable` is False
-    """
-    config_info = read_config()
-    config_info['enabled'] = False
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    data_before_wait = read_logs()
-    time.sleep(convert_sleep(config_info['wait'])*2)
-    data_after_wait = read_logs()
-
-    assert data_before_wait == data_after_wait
-
-def test_enable_enabled2():
-    """
-    Assert that logs does get updated when `enable` is True
-    """
-    config_info = read_config()
-    config_info['enabled'] = True
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-    data_before_wait = read_logs()
-    time.sleep(convert_sleep(config_info['wait'])*2)
-    data_after_wait = read_logs()
-
-    assert len(data_before_wait)+1 <= len(data_after_wait)
-
-# Wait tests
-def test_wait_less_than_expected():
-    """
-    Assert that when the wait is less than actual wait (30 seconds),  no rows get inserted.
-        Since the code runs in parallel to the purge process,  there is a chance that 
-        test will fail,  if it runs around the 30 second mark of the wait before purge. 
-    """
-    data_before_wait = read_logs()
-    # By 'default' the config wait is set to 30 seconds
-    data_after_wait = read_logs()
-
-    assert len(data_before_wait) == len(data_after_wait)
-
-def test_wait_expected():
-    """
-    Assert that 1 row (at most) has been added to the JSON object
-        The number of rows for data_after_wait = data_before_wait or data_before_wait+1
-    """
-    config_info = read_config()
-    wait_time = '10 seconds'
-
-    config_info['wait'] = wait_time
-    config_info['enabled'] = True
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-
-    data_before_wait = read_logs()
-    time.sleep(convert_sleep(wait_time))
-    data_after_wait = read_logs()
-
-    assert len(data_before_wait.keys()) + 2 > len(data_after_wait.keys())
-
-"""
-PART III - verify that values in logs are valid ( >= 0)
-"""
-
-def test_rowsRemoved_is_valid():
-    """
-    Assert that the number of rows removed is >= 0,  ie not negative
-    """
-    config_info = read_config()
-    time.sleep(convert_sleep(config_info['wait']) * 2)
-    logs = read_logs()
-
-    assert [logs[date]['rowsRemoved'] >= 0 for date in sorted(list(logs.keys()))]
-
-def test_failedRemovals_is_valid():
-    """
-    Assert that all expected rows were removed
-    """
-    config_info = read_config()
-    time.sleep(convert_sleep(config_info['wait']) * 2)
-    logs = read_logs()
-
-    assert [logs[date]['failedRemovals'] == 0 for date in sorted(list(logs.keys()))]
-
-def test_unsentRowsRemoved_is_valid():
-    """
-    Assert that in general the number of rows removed (that were not sent to PI) is >= 0
-    """
-    config_info = read_config()
-    time.sleep(convert_sleep(config_info['wait']) * 2)
-    logs = read_logs()
-
-    assert [logs[date]['unsentRowsRemoved'] >= 0 for date in sorted(list(logs.keys()))]
-
-def test_rowsRemaining_is_valid():
-    """
-    Assert that the number of rows that remain is >= 0
-    """
-    config_info = read_config()
-    time.sleep(convert_sleep(config_info['wait']) * 2)
-    logs = read_logs()
-
-    assert [logs[date]['rowsRemaining'] >= 0 for date in sorted(list(logs.keys()))]
-
 """
 PART IV - Validate that behavior as configs change 
 """
 
 
-def test_retainUnsent_true():
+def disable_retain_unsent_data():
     """
-    Assert that when retainUnsent is True,  logs[latestDate]['unsentRowsRemoved'] == 0
-    """
-    config_info = read_config()
-    config_info['retainUnsent'] = True
-
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
-        conf.write(json.dumps(config_info))
-
-    time.sleep(convert_sleep(config_info['wait']) * 2)
-    logs = read_logs()
-
-    date = sorted(list(logs.keys()))[-1]
-    assert ((logs[date]['unsentRowsRemoved'] == 0) and (logs[date]['rowsRemaining'] >= 0)
-            and (logs[date]['failedRemovals'] == 0) and (logs[date]['rowsRemoved'] >= 0))
-
-
-def test_retainUnsent_false():
-    """
-    Assert that when retainUnsent is False,  logs[latestDate]['unsentRowsRemoved'] > 0
+    Assert that when retainUnsent is False, unsentRowsRemoved > 0
     """
     config_info = read_config()
     config_info['retainUnsent'] = False
-
-    open(configFile,  'w').close()
-    with open(configFile,  'r+') as conf:
+    config_info['age'] = '5 second'
+    open(config_file, 'w').close()
+    with open(config_file, 'r+') as conf:
         conf.write(json.dumps(config_info))
 
     time.sleep(convert_sleep(config_info['wait']) * 2)
     logs = read_logs()
 
     date = sorted(list(logs.keys()))[-1]
-    assert ((logs[date]['unsentRowsRemoved'] == 0) and (logs[date]['rowsRemaining'] >= 0)
-            and (logs[date]['failedRemovals'] == 0) and (logs[date]['rowsRemoved'] >= 0))
+    print(date)
+    # print(logs[date]['unsentRowsRemoved'])
+    # assert logs[date]['unsentRowsRemoved'] > 0
+
+if __name__ == '__main__':
+    disable_retain_unsent_data()
+
+# def test_enable_unsent_data():
+#     """
+#     Assert that when retainUnsent is True, unsentRowsRemoved = 0
+#     """
+#     config_info = read_config()
+#     config_info['retainUnsent'] = True
+#     config_info['age'] = '5 second'
+#     open(config_file, 'w').close()
+#     with open(config_file, 'r+') as conf:
+#         conf.write(json.dumps(config_info))
+#
+#     time.sleep(convert_sleep(config_info['wait']) * 2)
+#
+#     logs = read_logs()
+#
+#     date = sorted(list(logs.keys()))[-1]
+#     print(logs[date]['unsentRowsRemoved'])
+#     assert logs[date]['unsentRowsRemoved'] == 0
+
+#
+# def test_retainUnsent_true():
+#     """
+#     Assert that when retainUnsent is True,  logs[latestDate]['unsentRowsRemoved'] == 0
+#     """
+#     config_info = read_config()
+#     config_info['retainUnsent'] = True
+#
+#     open(config_file,  'w').close()
+#     with open(config_file,  'r+') as conf:
+#         conf.write(json.dumps(config_info))
+#
+#     time.sleep(convert_sleep(config_info['wait']) * 2)
+#     logs = read_logs()
+#
+#     date = sorted(list(logs.keys()))[-1]
+#     assert ((logs[date]['unsentRowsRemoved'] == 0) and (logs[date]['rowsRemaining'] >= 0)
+#             and (logs[date]['failedRemovals'] == 0) and (logs[date]['rowsRemoved'] >= 0))
+#
+#
+# def test_retainUnsent_false():
+#     """
+#     Assert that when retainUnsent is False,  logs[latestDate]['unsentRowsRemoved'] > 0
+#     """
+#     config_info = read_config()
+#     config_info['retainUnsent'] = False
+#
+#     open(config_file,  'w').close()
+#     with open(config_file,  'r+') as conf:
+#         conf.write(json.dumps(config_info))
+#
+#     time.sleep(convert_sleep(config_info['wait']) * 2)
+#     logs = read_logs()
+#
+#     date = sorted(list(logs.keys()))[-1]
+#     assert ((logs[date]['unsentRowsRemoved'] == 0) and (logs[date]['rowsRemaining'] >= 0)
+#             and (logs[date]['failedRemovals'] == 0) and (logs[date]['rowsRemoved'] >= 0))
 

@@ -85,8 +85,9 @@ class Scheduler(object):
 
         # Instance variables (begin)
         self.start_time = time.time()
-        self.last_check_time = self.start_time
         self.check_schedules_interval_seconds = 60
+        self.__last_schedule_time = self.start_time
+        """The last time `schedule()` ran"""
         self.__scheduled_processes = dict()
         """ scheduled_processes.id to script """
         self.__schedules = dict()
@@ -171,7 +172,7 @@ class Scheduler(object):
                         t = row.interval
                         interval_seconds = 3600*t.hour+60*t.minute+t.second
 
-                    self.__schedules[row.id] = _Schedule(
+                    self.__schedules[row.id] = self._Schedule(
                                                 id=row.id,
                                                 type=row.schedule_type,
                                                 time=row.schedule_time,
@@ -222,10 +223,12 @@ class Scheduler(object):
                            state=self._TaskState.complete))
 
     async def schedule(self):
-        seconds_run = self.__start_time - self.__last_check_time
+        seconds_run = self.start_time - self.__last_schedule_time
+        self.__last_schedule_time = time.time()
+
         for key, schedule in self.__schedules:
             if schedule.exclusive:
-                if is running:
+                if True: # is running:
                     next
 
             start_task = False
@@ -243,14 +246,11 @@ class Scheduler(object):
             if start_task:
                 asyncio.ensure_future(self._start_task(schedule))
 
-
     async def _schedule(self):
         await asyncio.ensure_future(self._read_storage())
         while True:
             await self.schedule()
             await asyncio.sleep(self.check_schedules_interval_seconds)
-
-asyncio.ensure_future(self.schedule)
 
     async def _read_storage(self):
         """Read processes and schedules"""

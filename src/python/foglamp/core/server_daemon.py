@@ -111,8 +111,11 @@ class Daemon(object):
     def stop(cls, pid=None):
         """Stops FogLAMP if it is running
 
-        :param pid: Optional process id to stop. If not provided, use pidfile.
-        :raises TimeoutException: Unable to stop FogLAMP
+        Args:
+            pid: Optional process id to stop. If not specified, the pidfile is read.
+
+        Raises TimeoutError:
+            Unable to stop FogLAMP. Wait and try again.
         """
 
         # TODO: FOGL-274 Stopping is hard.

@@ -93,7 +93,7 @@ class Scheduler(object):
         # Instance variables (begin)
         self.start_time = time.time()
         self.check_schedules_seconds = 30
-        """Frequency to run `process_schedules()`"""
+        """Frequency to run meth:`Scheduler.process_schedules`"""
         self.__last_schedule_time = None
         """The last time `process_schedules()` executed"""
         self.__scheduled_processes = dict()
@@ -133,7 +133,8 @@ class Scheduler(object):
         Sends TERM signal to all running tasks. Does not wait for tasks
         to stop.
 
-        :raises `TasksRunningError` if a task is still running. Wait and try again.
+        Raises TasksRunningError:
+            A task is still running. Wait and try again.
         """
         logging.getLogger(__name__).info("Stop requested")
 
@@ -289,8 +290,6 @@ class Scheduler(object):
             except KeyError:
                 continue
 
-            print(schedule)
-
             if schedule.exclusive and schedule.id in self.__running_exclusive_schedules:
                 continue
 
@@ -321,8 +320,13 @@ class Scheduler(object):
         await self._get_scheduled_processes()
         await self._get_schedules()
 
-    async def _process_schedules(self):
-        """Runs `process_schedules()` in an endless loop"""
+    async def _main(self):
+        """Main loop for the scheduler
+
+        - Reads configuration and schedules.
+        - Runs :meth:`Scheduler.process_schedules` in an endless loop until
+          :meth:`Scheduler.stop` is called
+        """
         # TODO log exception here or add an exception handler in asyncio
         await self._read_storage()
 
@@ -344,7 +348,7 @@ class Scheduler(object):
 
     def start(self):
         """Starts the scheduler"""
-        # self._debug_logging_stdout()
+        self._debug_logging_stdout()
         # await self._start_startup_task('python3', '-m', 'foglamp.storage')
-        asyncio.ensure_future(self._process_schedules())
+        asyncio.ensure_future(self._main())
 

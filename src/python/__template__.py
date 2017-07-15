@@ -250,6 +250,7 @@ class ExampleClass(object):
             param2 (:obj:`int`, optional): Description of `param2`. Multiple
                 lines are supported.
             param3 (:obj:`list` of :obj:`str`): Description of `param3`.
+
         """
         self.attr1 = param1
         self.attr2 = param2
@@ -314,8 +315,12 @@ class ExampleClass(object):
         Special members are any methods or attributes that start with and
         end with a double underscore.
 
-        This behavior can be enabled by changing the following setting in
-        Sphinx's conf.py
+        This behavior can be changed such that private members *are* included
+        by adding the following line to Sphinx's conf.py:
+
+        autodoc_default_flags = ['members', 'undoc-members', 'private-members',
+        'special-members', 'inherited-members', 'show-inheritance']
+
         """
         pass
 

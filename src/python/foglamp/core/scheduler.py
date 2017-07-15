@@ -118,9 +118,9 @@ class Scheduler(object):
     def stop(self):
         """Stops the scheduler
 
-        Terminates long-running processes like the device server.
+        Asks all tasks to terminate
 
-        :return True if all processes have stopped
+        :return True if all tasks have stopped
         """
         logging.getLogger(__name__).info("Processing stop request")
         all_stopped = True
@@ -138,6 +138,7 @@ class Scheduler(object):
 
         for key in keys_to_delete:
             logging.getLogger(__name__).info("Stopped task %s", key)
+            # TODO use safe-delete
             del self.__processes[key]
 
         return all_stopped

@@ -63,7 +63,7 @@ class Daemon(object):
             return
 
         file_handler = logging.FileHandler(_LOG_PATH)
-        file_handler.setLevel(logging.WARNING)
+        file_handler.setLevel(logging.INFO)
 
         format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         formatter = logging.Formatter(format_str)
@@ -72,7 +72,7 @@ class Daemon(object):
 
         logger = logging.getLogger('')
         logger.addHandler(file_handler)
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.INFO)
 
         cls.logging_configured = True
 

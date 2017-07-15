@@ -37,7 +37,9 @@ class Server:
 
         # Register signal handlers
         for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
-            loop.add_signal_handler(signal_name, cls.stop, loop)
+            loop.add_signal_handler(
+                signal_name,
+                lambda: asyncio.ensure_future(cls.stop(loop)))
 
         cls.__scheduler.start()
 
@@ -55,10 +57,17 @@ class Server:
         return app
 
     @classmethod
-    def stop(cls, loop):
-        """Stops the server"""
-        cls.__scheduler.stop()
+    async def stop(cls, loop):
+        """Stops the server
+
+        :return False if the server could not be stopped
+        """
+        if not await cls.__scheduler.stop():
+            return False
 
         for task in asyncio.Task.all_tasks():
             task.cancel()
         loop.stop()
+
+        return True
+

@@ -250,7 +250,6 @@ class ExampleClass(object):
             param2 (:obj:`int`, optional): Description of `param2`. Multiple
                 lines are supported.
             param3 (:obj:`list` of :obj:`str`): Description of `param3`.
-
         """
         self.attr1 = param1
         self.attr2 = param2
@@ -300,6 +299,12 @@ class ExampleClass(object):
         Returns:
             True if successful, False otherwise.
 
+        Raises ExampleError:
+            Explain why this happens
+
+        See also:
+            :meth:`ExampleClass._private`
+
         """
         return True
 
@@ -325,7 +330,10 @@ class ExampleClass(object):
         in the output.
 
         This behavior can be changed such that private members *are* included
-        by changing the following setting in Sphinx's conf.py
+        by adding the following line to Sphinx's conf.py:
+
+        autodoc_default_flags = ['members', 'undoc-members', 'private-members',
+        'special-members', 'inherited-members', 'show-inheritance']
 
         """
         pass

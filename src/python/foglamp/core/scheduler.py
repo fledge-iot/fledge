@@ -13,7 +13,7 @@ import asyncio
 import logging
 import collections
 import uuid
-import sys
+import sys # TODO: Needed for logging delete me
 
 import aiopg.sa
 import sqlalchemy as sa
@@ -28,10 +28,15 @@ __version__ = "${VERSION}"
 class Scheduler(object):
     """FogLAMP scheduler"""
 
+    class TasksRunningError(Exception):
+        """Scheduled tasks are still running"""
+        pass
+
     class _ScheduleType(IntEnum):
         """Enumeration for schedules.schedule_type"""
-        TIMED = 1
-        INTERVAL = 2
+        STARTUP = 1
+        TIMED = 2
+        INTERVAL = 3
 
     class _TaskState(IntEnum):
         """Enumeration for tasks.task_state"""
@@ -89,6 +94,8 @@ class Scheduler(object):
         self.start_time = time.time()
         self.check_schedules_seconds = 30
         """Frequency to run `process_schedules()`"""
+        self.__last_schedule_time = None
+        """The last time `process_schedules()` executed"""
         self.__scheduled_processes = dict()
         """Dictionary of scheduled_processes.id to script. Immutable."""
         self.__stopping = False
@@ -119,11 +126,14 @@ class Scheduler(object):
         # Instance variables (end)
 
     async def stop(self):
-        """Stops the scheduler
+        """Attempts to stop the scheduler
 
-        Sends TERM signal to all running tasks
+        Prevents any new tasks from starting. There is no undo.
 
-        :return True if all tasks have stopped; otherwise False
+        Sends TERM signal to all running tasks. Does not wait for tasks
+        to stop.
+
+        :raises `TasksRunningError` if a task is still running. Wait and try again.
         """
         logging.getLogger(__name__).info("Stop requested")
 
@@ -131,7 +141,10 @@ class Scheduler(object):
 
         # Can not iterate over __processes - it can change mid-iteration
         for key in list(self.__processes.keys()):
-            process = self.__processes[key]
+            try:
+                process = self.__processes[key]
+            except KeyError:
+                continue
 
             logging.getLogger(__name__).info(
                     "Terminating pid %s for task %s",
@@ -140,12 +153,12 @@ class Scheduler(object):
 
             try:
                 process.terminate()
-                await asyncio.sleep(.1)
+                await asyncio.sleep(.1)  # sleep 0 doesn't work
             except ProcessLookupError:
-                pass
+                pass  # Process has already exited
 
         if self.__processes:
-            return False
+            raise self.TasksRunningError()
 
         return True
 
@@ -160,6 +173,7 @@ class Scheduler(object):
                     self.__scheduled_processes[row.name] = row.script
 
     async def _get_schedules(self):
+        # TODO Get processes first, then add to Schedule
         query = sa.select([self.__schedules_tbl.c.id,
                            self.__schedules_tbl.c.schedule_type,
                            self.__schedules_tbl.c.schedule_time,
@@ -260,46 +274,65 @@ class Scheduler(object):
             return
 
         seconds_run = time.time() - self.start_time
-        keys_to_delete = []
+        self.__last_schedule_time = time.time()
 
-        # TODO: __schedules can be altered during execution. Copy it first.
-        for key, schedule in self.__schedules.items():
+        keys_to_delete = []
+        """Startup schedules are deleted after first run"""
+
+        # Can not iterate over __schedules - it can change mid-iteration
+        for key in list(self.__schedules.keys()):
             if self.__stopping:
                 break
+
+            try:
+                schedule = self.__schedules[key]
+            except KeyError:
+                continue
+
+            print(schedule)
 
             if schedule.exclusive and schedule.id in self.__running_exclusive_schedules:
                 continue
 
             if schedule.type == self._ScheduleType.INTERVAL:
-                if schedule.interval_seconds == 0:
-                    # TODO: Restart these processes if they die
-                    logging.getLogger(__name__).info("Starting startup process %s", schedule.process)
-                    keys_to_delete.append(key)
-                    await self._start_startup_task(*self.__scheduled_processes[schedule.process])
-                else:
+                if schedule.interval_seconds:
                     factor = int(seconds_run / schedule.interval_seconds)
                     if factor > self.__schedule_factors.get(schedule.id, 0):
                         self.__schedule_factors[schedule.id] = factor
-                        logging.getLogger(__name__).info("Starting interval process %s", schedule.process)
+                        logging.getLogger(__name__).info(
+                            "Starting interval process '%s'", schedule.process)
                         await self._start_task(schedule)
-            # else if schedule.type == self._ScheduleType.TIMED:
+            elif schedule.type == self._ScheduleType.TIMED:
+                pass
+            elif schedule.type == self._ScheduleType.STARTUP: # Least common type. Check last.
+                logging.getLogger(__name__).info(
+                    "Starting startup process '%s'", schedule.process)
+                keys_to_delete.append(key)
+                await self._start_startup_task(*self.__scheduled_processes[schedule.process])
 
         for key in keys_to_delete:
-            # TODO use safe-delete
-            del self.__schedules[key]
-
-    async def _process_schedules(self):
-        """Run `process_schedules()` in an endless loop"""
-        await self._read_storage()
-        while True:
-            await self.process_schedules()
-            await asyncio.sleep(self.check_schedules_seconds)
+            try:
+                del self.__schedules[key]
+            except KeyError:
+                pass
 
     async def _read_storage(self):
-        """Read processes and schedules"""
+        """Reads schedule information from the storage server"""
         await self._get_scheduled_processes()
         await self._get_schedules()
 
+    async def _process_schedules(self):
+        """Runs `process_schedules()` in an endless loop"""
+        # TODO log exception here or add an exception handler in asyncio
+        await self._read_storage()
+
+        while True:
+            await self.process_schedules()
+            if self.__stopping:
+                return
+            await asyncio.sleep(self.check_schedules_seconds)
+
+    # TODO: Used for development. Delete me.
     @staticmethod
     def _debug_logging_stdout():
         ch = logging.StreamHandler(sys.stdout)
@@ -314,5 +347,4 @@ class Scheduler(object):
         # self._debug_logging_stdout()
         # await self._start_startup_task('python3', '-m', 'foglamp.storage')
         asyncio.ensure_future(self._process_schedules())
-
 

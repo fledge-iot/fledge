@@ -12,7 +12,7 @@ from aiohttp import web
 
 from foglamp.core import routes
 from foglamp.core import middleware
-from foglamp.core import scheduler
+from foglamp.core.scheduler import Scheduler
 
 __author__ = "Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -33,7 +33,7 @@ class Server:
         if not loop:
             loop = asyncio.get_event_loop()
 
-        cls.__scheduler = scheduler.Scheduler()
+        cls.__scheduler = Scheduler()
 
         # Register signal handlers
         for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
@@ -58,16 +58,17 @@ class Server:
 
     @classmethod
     async def stop(cls, loop):
-        """Stops the server
+        """Attempts to stop the server
 
-        :return False if the server could not be stopped
+        If the scheduler stops successfully, the event loop is
+        stopped.
         """
-        if not await cls.__scheduler.stop():
-            return False
+        try:
+            await cls.__scheduler.stop()
+        except Scheduler.TasksRunningError:
+            return
 
         for task in asyncio.Task.all_tasks():
             task.cancel()
         loop.stop()
-
-        return True
 

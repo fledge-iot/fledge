@@ -345,3 +345,10 @@ class ExampleClass(object):
 
     def _private_without_docstring(self):
         pass
+
+
+# TODO: Remove these lines if this module is named __main__.py
+#       or if this is not an executable module
+if __name__ == "main":
+    pass
+

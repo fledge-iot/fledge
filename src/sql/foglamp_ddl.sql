@@ -858,9 +858,10 @@ CREATE TABLE foglamp.schedules (
   id                uuid                  UNIQUE,   -- Unique uuid, PK
   process_name      character varying(20) NOT NULL, -- FK process name
   schedule_name     character varying(20) NOT NULL, -- schedule name
-  schedule_type     smallint              NOT NULL, -- At the moment there are three types
+  schedule_type     smallint              NOT NULL, -- 1 = timed, 2 = interval, 3 = manual, 4 = startup
   schedule_interval time,                           -- Schedule interval
   schedule_time     time,                           -- Schedule time
+  schedule_day      smallint,                       -- ISO day - 1 = Monday, 7 = Sunday
   exclusive         boolean,
   CONSTRAINT schedules_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,

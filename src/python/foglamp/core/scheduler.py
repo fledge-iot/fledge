@@ -41,10 +41,10 @@ class Scheduler(object):
 
     class _ScheduleType(IntEnum):
         """Enumeration for schedules.schedule_type"""
-        STARTUP = 1
-        TIMED = 2
-        INTERVAL = 3
-        MANUAL = 4
+        TIMED = 1
+        INTERVAL = 2
+        MANUAL = 3
+        STARTUP = 4
 
     class _TaskState(IntEnum):
         """Enumeration for tasks.task_state"""
@@ -55,7 +55,7 @@ class Scheduler(object):
 
     _Schedule = collections.namedtuple(
         'Schedule',
-        'id type time interval_seconds exclusive process')
+        'id type time day interval_seconds exclusive process')
     """Represents a row in the schedules table"""
 
     # Class attributes (begin)
@@ -74,9 +74,10 @@ class Scheduler(object):
                 sa.Column('id', pg_types.UUID),
                 sa.Column('schedule_name', sa.types.VARCHAR(20)),
                 sa.Column('process_name', sa.types.VARCHAR(20)),
-                sa.Column('schedule_type', sa.types.INT),
-                sa.Column('schedule_interval', sa.types.TIME),
+                sa.Column('schedule_type', sa.types.SMALLINT),
                 sa.Column('schedule_time', sa.types.TIME),
+                sa.Column('schedule_day', sa.types.SMALLINT),
+                sa.Column('schedule_interval', sa.types.TIME),
                 sa.Column('exclusive', sa.types.BOOLEAN))
 
             self.__tasks_tbl = sa.Table(
@@ -97,29 +98,18 @@ class Scheduler(object):
         # Class variables (end)
 
         # Instance variables (begin)
-        self.start_time = time.time()
+        self._start_time = time.time()
         """When the scheduler started"""
         self.check_schedules_seconds = 20
-        """Frequency to run meth:`Scheduler.process_schedules`, in seconds"""
-        self.paused = False
+        """Frequency, in seconds, to check schedules to start tasks"""
+        self._paused = False
         """When True, the scheduler will not start any new tasks"""
-        self._last_schedule_time = None
-        """The last time `process_schedules()` executed"""
         self._scheduled_processes = dict()
         """Dictionary of scheduled_processes.id to script. Immutable."""
         self._schedules = dict()
         """Dictionary of schedules.id to _Schedule"""
-        self._interval_factors = dict()
-        """For interval schedules
-        
-        Maps schedules.id to a "time factor" when a schedule was last started.
-        
-        A "time factor" is the amount of time the scheduler has been running divided by 
-        the schedule's interval time. The division is converted to an integer
-        using floor(). For example, if the interval time is
-        15 minutes and the process has been running for 35 minutes, the
-        time factor is 2.
-        """
+        self._next_starts = dict()
+        """Dictionary of schedules.id to the next time to start the task"""
         self._running_exclusive_schedules = set()
         """A set of session ids that are running, only for 'exclusive' schedules"""
         self._processes = dict()
@@ -138,14 +128,14 @@ class Scheduler(object):
         Sends TERM signal to all running tasks. Does not wait for tasks to stop.
 
         Prevents any new tasks from starting. This can be undone by setting the
-        paused attribute to False.
+        _paused attribute to False.
 
         Raises TasksRunningError:
             A task is still running. Wait and try again.
         """
         logging.getLogger(__name__).info("Stop requested")
 
-        self.paused = True
+        self._paused = True
 
         # Can not iterate over _processes - it can change mid-iteration
         for key in list(self._processes.keys()):
@@ -169,44 +159,6 @@ class Scheduler(object):
             raise self.TasksRunningError()
 
         return True
-
-    async def _get_scheduled_processes(self):
-        query = sa.select([self.__scheduled_processes_tbl.c.name,
-                           self.__scheduled_processes_tbl.c.script])
-        query.select_from(self.__scheduled_processes_tbl)
-
-        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(query):
-                    self._scheduled_processes[row.name] = row.script
-
-    async def _get_schedules(self):
-        # TODO Get processes first, then add to Schedule
-        query = sa.select([self.__schedules_tbl.c.id,
-                           self.__schedules_tbl.c.schedule_type,
-                           self.__schedules_tbl.c.schedule_time,
-                           self.__schedules_tbl.c.schedule_interval,
-                           self.__schedules_tbl.c.exclusive,
-                           self.__schedules_tbl.c.process_name])
-
-        query.select_from(self.__schedules_tbl)
-
-        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(query):
-                    interval = row.schedule_interval
-                    interval_seconds = None
-
-                    if interval:
-                        interval_seconds = 3600*interval.hour + 60*interval.minute + interval.second
-
-                    self._schedules[row.id] = self._Schedule(
-                                                id=row.id,
-                                                type=row.schedule_type,
-                                                time=row.schedule_time,
-                                                interval_seconds=interval_seconds,
-                                                exclusive=row.exclusive,
-                                                process=row.process_name)
 
     async def _start_startup_task(self, *args):
         """Startup tasks are not tracked in the tasks table"""
@@ -277,20 +229,14 @@ class Scheduler(object):
                            state=int(self._TaskState.COMPLETE),
                            end_time=datetime.datetime.now()))
 
-    async def process_schedules(self):
+    async def _check_schedules(self):
         """Starts tasks according to schedules based on the current time"""
-        if self.paused:
+        if self._paused:
             return
 
-        seconds_run = time.time() - self.start_time
-        self._last_schedule_time = time.time()
-
-        keys_to_delete = []
-        """Startup schedules are deleted after first run"""
-
-        # Can not iterate over _schedules - it can change mid-iteration
-        for key in list(self._schedules.keys()):
-            if self.paused:
+        # Can not iterate over _next_starts - it can change mid-iteration
+        for key in list(self._next_starts.keys()):
+            if self._paused:
                 break
 
             try:
@@ -298,39 +244,82 @@ class Scheduler(object):
             except KeyError:
                 continue
 
-            if schedule.exclusive and schedule.id in self._running_exclusive_schedules:
-                continue
-
-            if schedule.type == self._ScheduleType.INTERVAL:
-                run_task = False
-
-                if not schedule.interval_seconds:
-                    run_task = True
+            if time.time() >= self._next_starts[key]:
+                if schedule.exclusive and schedule.id in self._running_exclusive_schedules:
+                    logging.getLogger(__name__).info(
+                        "Process '%s' not started because it is running", schedule.process)
                 else:
-                    factor = int(seconds_run / schedule.interval_seconds)
-                    if factor > self._interval_factors.get(schedule.id, 0):
-                        run_task = True
-                        self._interval_factors[schedule.id] = factor
+                    logging.getLogger(__name__).info(
+                        "Starting process '%s'", schedule.process)
 
-                if run_task:
-                        logging.getLogger(__name__).info(
-                            "Starting interval process '%s'", schedule.process)
+                    if schedule.type == self._ScheduleType.STARTUP:
+                        await self._start_startup_task(*self._scheduled_processes[schedule.process])
+                    else:
                         await self._start_task(schedule)
 
-            elif schedule.type == self._ScheduleType.TIMED:
-                pass
+                # Set next time
+                if not self._compute_next_start(schedule):
+                    del self._next_starts[key]
 
-            elif schedule.type == self._ScheduleType.STARTUP:  # Least common type. Check last.
-                logging.getLogger(__name__).info(
-                    "Starting startup process '%s'", schedule.process)
-                keys_to_delete.append(key)
-                await self._start_startup_task(*self._scheduled_processes[schedule.process])
+    def _compute_first_start(self, schedule):
+        if schedule.type == self._ScheduleType.INTERVAL:
+            self._next_starts[schedule.id] = self._start_time + schedule.interval_seconds
+        elif schedule.type == self._ScheduleType.TIMED:
+            pass
+        elif schedule.type == self._ScheduleType.STARTUP:
+            self._next_starts[schedule.id] = self._start_time
+            return self._start_time
 
-        for key in keys_to_delete:
-            try:
-                del self._schedules[key]
-            except KeyError:
-                pass
+    def _compute_next_start(self, schedule):
+        if schedule.interval_seconds:
+            self._next_starts[schedule.id] += schedule.interval_seconds
+            return True
+
+        return False
+
+    async def _get_scheduled_processes(self):
+        query = sa.select([self.__scheduled_processes_tbl.c.name,
+                           self.__scheduled_processes_tbl.c.script])
+        query.select_from(self.__scheduled_processes_tbl)
+
+        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    self._scheduled_processes[row.name] = row.script
+
+    async def _get_schedules(self):
+        # TODO Get processes first, then add to Schedule
+        query = sa.select([self.__schedules_tbl.c.id,
+                           self.__schedules_tbl.c.schedule_type,
+                           self.__schedules_tbl.c.schedule_time,
+                           self.__schedules_tbl.c.schedule_day,
+                           self.__schedules_tbl.c.schedule_interval,
+                           self.__schedules_tbl.c.exclusive,
+                           self.__schedules_tbl.c.process_name])
+
+        query.select_from(self.__schedules_tbl)
+
+        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    interval = row.schedule_interval
+                    interval_seconds = None
+
+                    if interval:
+                        interval_seconds = 3600*interval.hour + 60*interval.minute + interval.second
+
+                    schedule = self._Schedule(
+                        id=row.id,
+                        type=row.schedule_type,
+                        day=row.schedule_day,
+                        time=row.schedule_time,
+                        interval_seconds=interval_seconds,
+                        exclusive=row.exclusive,
+                        process=row.process_name)
+
+                    # TODO: Move this to _add_schedule to check for errors
+                    self._schedules[row.id] = schedule
+                    self._compute_first_start(schedule)
 
     async def _read_storage(self):
         """Reads schedule information from the storage server"""
@@ -341,15 +330,15 @@ class Scheduler(object):
         """Main loop for the scheduler
 
         - Reads configuration and schedules
-        - Runs :meth:`Scheduler.process_schedules` in an endless loop until
+        - Runs :meth:`Scheduler._check_schedules` in an endless loop until
           :meth:`Scheduler.stop` is called
         """
         # TODO log exception here or add an exception handler in asyncio
         await self._read_storage()
 
         while True:
-            await self.process_schedules()
-            if self.paused:
+            await self._check_schedules()
+            if self._paused:
                 return
             await asyncio.sleep(self.check_schedules_seconds)
 

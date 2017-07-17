@@ -878,10 +878,16 @@ ALTER TABLE foglamp.schedules OWNER to foglamp;
 CREATE TABLE foglamp.tasks (
   id           uuid                        UNIQUE,                 -- Unique uuid, PK
   process_name character varying(20)       NOT NULL,               -- Name of the task
-  state        smallint                    NOT NULL,               -- State of the task: 1-Running, 2-Complete, 3-Cancelled
+  state        smallint                    NOT NULL,               -- State of the task: 1-Running, 2-Complete, 3-Cancelled Terris:
+                                                                   -- Terris: should there be a "didn't start" state
+                                                                   -- or is this only for tasks that started?
   start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
   end_time     timestamp(6) with time zone,                        -- The date and time the task ended
   reason       character varying(20),                              -- The reason why the task ended
+                                                                   -- Terris: Please enumerate reason codes here
+                                                                   -- Terris: Or 'reason' can be replaced by canceled boolean?
+  pid          int,                                                -- Terris: Make this not NULL if tasks must start to be in this table
+  exit_code    int,                                                -- Process exit status code
   CONSTRAINT tasks_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,
   CONSTRAINT tasks_fk1 FOREIGN KEY (process_name)

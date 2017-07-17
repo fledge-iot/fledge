@@ -1,1 +1,14 @@
-{"age": "5 second", "enabled": true, "wait": "10 seconds", "retainUnsent": false, "lastID": 629102}
+{
+  "age":{
+          "description":"Age of data to be retained, all data that is older than this value will be removed, unless retained. (in Hours)"
+          "type":"int",
+          "default":72,
+          "value_item_entry":1
+  },
+  "retainUnsent":{
+          "description":"Retain data that has not been sent to tany historian yet.",
+          "type":"boolean",
+          "default":false,
+          "value_item_entry":true
+  }
+}

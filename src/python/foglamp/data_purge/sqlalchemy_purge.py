@@ -18,7 +18,6 @@ will be replaced either database tables, or some other kind of file.
 """
 import datetime
 import json
-import os
 import random
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
@@ -29,7 +28,7 @@ import time
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
-__version__ = "2"
+__version__ = "${VERSION}"
 
 
 # Set variables for connecting to database
@@ -39,14 +38,15 @@ _host = "192.168.0.182"
 _db = "foglamp"
 
 # Create Connection
-__engine__ = sqlalchemy.create_engine('postgres://%s:%s@%s/%s' % (_db_user, _user, _host, _db),  pool_size=20,  max_overflow=0)
+__engine__ = sqlalchemy.create_engine('postgres://%s:%s@%s/%s' % (_db_user, _user, _host, _db),  pool_size=20,
+                                      max_overflow=0)
 __conn__ = __engine__.connect()
 
 # Important files
 config_file = 'config.json'
 
 # Table purge against
-__readings_table__ = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
+_READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                   sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
                                   sqlalchemy.Column('asset_code', sqlalchemy.VARCHAR(50)),
                                   sqlalchemy.Column('read_key', sqlalchemy.dialects.postgresql.UUID,
@@ -64,20 +64,19 @@ __readings_table__ = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
 includes the following: 
     -> table to specify which table has been purged, since the process could occur in multiple tables 
     -> total_unsent_rows specifies the total number of unsent rows that existed within range prior to the purge. 
-    based off that, and unsent_rows_removed one can calcualte how many (unsent rows) remain.
+    based off that, and unsent_rows_removed one can calculate how many (unsent rows) remain.
 """
-__logging_table__ = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
-                                     sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True, autoincrement=True),
-                                     sqlalchemy.Column('table', sqlalchemy.VARCHAR(255),
-                                                       default=__readings_table__.name),
-                                     sqlalchemy.Column('start_time', sqlalchemy.VARCHAR(255),
-                                                       default=sqlalchemy.func.current_timestamp),
-                                     sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
-                                                       default=sqlalchemy.func.current_timestamp),
-                                     sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
-                                     sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
-                                     sqlalchemy.Column('total_unsent_rows_removed', sqlalchemy.INTEGER, default=0),
-                                     sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
+_LOGGING_TABLE = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
+                                  sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True, autoincrement=True),
+                                  sqlalchemy.Column('table', sqlalchemy.VARCHAR(255), default=_READING_TABLE.name),
+                                  sqlalchemy.Column('start_time', sqlalchemy.VARCHAR(255),
+                                                    default=sqlalchemy.func.current_timestamp),
+                                  sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
+                                                    default=sqlalchemy.func.current_timestamp),
+                                  sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
+                                  sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
+                                  sqlalchemy.Column('total_unsent_rows_removed', sqlalchemy.INTEGER, default=0),
+                                  sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
 
 """Methods that support the purge process. For the most part, theses methods would be replaced by either a scheduler,  
 a database API interface,  and/or proper configuration methodology. 
@@ -198,15 +197,18 @@ def get_nth_id() -> None:
     with open(config_file, 'r+') as conf:
         conf.write(json.dumps(config_info))
 
+
 def create_purge_logging_table() -> None:
     """Create logging table for purge process. 
-    While it is prefered not to do try/catch, this was the fastest way to execute "DROP IF EXSITS" 
+    While it is preferred not to do try/catch, this was the fastest way to execute "DROP IF EXISTS" 
     """
+
     try:
-        __logging_table__.drop(__engine__)
+        _LOGGING_TABLE.drop(__engine__,)
     except sqlalchemy.exc.ProgrammingError:
         pass
-    __logging_table__.create(__engine__)
+    _LOGGING_TABLE.create(__engine__)
+
 
 """The actual purge process 
 """
@@ -229,9 +231,6 @@ def purge_process_function(table_name) -> int:
     with open(config_file, 'r') as conf:
         config = json.load(conf)
 
-    data = {}
-    purge_status = {}
-
     if config['enabled'] is True:  # meaning that config info is authorizing the purge
         start_time = datetime.datetime.fromtimestamp(time.time())
 
@@ -248,29 +247,29 @@ def purge_process_function(table_name) -> int:
 
         # Number of unsent rows
         number_sent_rows_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-            table_name.c.id > last_connection_id).where(table_name.c.ts < start_time)
+            table_name.c.ts < start_time).where(table_name.c.id > last_connection_id)
 
         unsent_rows_before = int(execute_command_with_return_value(number_sent_rows_query))
 
         """Time purge process starts
         If unsent data is retained, then the WHERE condition is against the last sent ID
         """
-        failed_removal_count = 0
+
         if config['retainUnsent'] is True:
             delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= last_connection_id).where(
-                table_name.c.ts <start_time)
+                table_name.c.ts < start_time)
             execute_command_without_return_value(delete_query)
 
             # Number of rows that were expected to get removed, but weren't
             failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
                 table_name).where(table_name.c.id <= last_connection_id).where(
-                table_name.c.ts <start_time)
+                table_name.c.ts < start_time)
             failed_removal_count = int(execute_command_with_return_value(failed_removal_query))
 
         # If unsent data is not retained, then the WHERE condition is against the age
         else:
-            row_id = int(execute_command_with_return_value(sqlalchemy.select([table_name.c.id]).select_from(table_name).where(
-                table_name.c.ts <= age_timestamp).order_by(table_name.c.id.desc()).limit(1)))
+            row_id = int(execute_command_with_return_value(sqlalchemy.select([table_name.c.id]).select_from(
+                table_name).where(table_name.c.ts <= age_timestamp).order_by(table_name.c.id.desc()).limit(1)))
 
             delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= row_id).where(
                 table_name.c.ts < start_time)
@@ -282,12 +281,8 @@ def purge_process_function(table_name) -> int:
                 table_name.c.ts < start_time)
             failed_removal_count = int(execute_command_with_return_value(failed_removal_query))
 
-        unsent_rows_after = int(execute_command_with_return_value(number_sent_rows_query))
-        unsent_rows_removed = unsent_rows_before - unsent_rows_after
-
-
         total_count_after = int(execute_command_with_return_value(sqlalchemy.select(
-            [sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.ts <start_time)))
+            [sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.ts < start_time)))
         total_rows_removed = total_count_before - total_count_after
 
         # Number of unsent rows removed
@@ -298,28 +293,12 @@ def purge_process_function(table_name) -> int:
             unsent_rows_removed = 0
         # Time  purge process finished
         end_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-        inst_stmt = __logging_table__.insert().values(table=table_name.name, start_time=start_time, end_time=end_time,
-                                                total_rows_removed=total_rows_removed,
-                                                total_unsent_rows_removed=unsent_rows_removed,
-                                                total_unsent_rows = unsent_rows_before,
-                                                total_failed_to_remove=failed_removal_count)
+        inst_stmt = _LOGGING_TABLE.insert().values(table=table_name.name, start_time=start_time, end_time=end_time,
+                                                   total_rows_removed=total_rows_removed,
+                                                   total_unsent_rows_removed=unsent_rows_removed,
+                                                   total_unsent_rows=unsent_rows_before,
+                                                   total_failed_to_remove=failed_removal_count)
         execute_command_without_return_value(inst_stmt)
-    """
-    __logging_table__ = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
-                                     sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True, autoincrement=True),
-                                     sqlalchemy.Column('table', sqlalchemy.VARCHAR(255),
-                                                       default=__readings_table__.name),
-                                     sqlalchemy.Column('start_time', sqlalchemy.VARCHAR(255),
-                                                       default=sqlalchemy.func.current_timestamp),
-                                     sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
-                                                       default=sqlalchemy.func.current_timestamp),
-                                     sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
-                                     sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
-                                     sqlalchemy.Column('total_unsent_rows_removed', sqlalchemy.INTEGER, default=0),
-                                     sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
-
-    """
-
 
     return convert_sleep(config['wait'])
 
@@ -339,7 +318,5 @@ if __name__ == '__main__':
 
     while True:
         get_nth_id()
-        wait = purge_process_function(table_name=__readings_table__)
+        wait = purge_process_function(table_name=_READING_TABLE)
         time.sleep(wait)
-
-

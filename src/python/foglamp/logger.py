@@ -20,7 +20,7 @@ def setup(name):
     """ Configures the log mechanism """
 
     try:
-        handler = handlers.SysLogHandler(address='/dev/log')  # OSX: /var/run/syslog, Ubuntu: /dev/log
+        handler = handlers.SysLogHandler(address='/dev/log')
         formatter = logging.Formatter(
             fmt='[FOGLAMP] %(asctime)s - %(levelname)s :: %(module)s: %(message)s',
             datefmt='%m-%d-%Y %H:%M:%S')

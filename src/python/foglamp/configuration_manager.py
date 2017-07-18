@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
 import logging
 import aiopg.sa
 import sqlalchemy as sa

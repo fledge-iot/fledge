@@ -9,6 +9,6 @@
           "description":"Retain data that has not been sent to tany historian yet.",
           "type":"boolean",
           "default":false,
-          "value_item_entry":true
+          "value_item_entry":false
   }
 }

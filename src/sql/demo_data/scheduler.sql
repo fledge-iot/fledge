@@ -15,5 +15,9 @@ values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 4);
 insert into foglamp.scheduled_processes (name, script) values ('hello', '["echo", "hello"]');
 insert into foglamp.schedules(id, process_name, schedule_name, schedule_type, schedule_interval)
 values ('fdad6cd6-698c-11e7-907b-a6006ad3dba0', 'hello', 'hello', 2, '00:01:00');
+
+insert into foglamp.scheduled_processes (name, script) values ('sleep', '["sleep", "60"]');
+insert into foglamp.schedules(id, process_name, schedule_name, schedule_type, schedule_interval, exclusive)
+values ('fdad6cd6-698c-11e7-907b-a6006ad3dba1', 'sleep', 'sleep', 2, '00:00:05', true);
 */
 

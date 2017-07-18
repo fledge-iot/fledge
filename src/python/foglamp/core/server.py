@@ -61,11 +61,11 @@ class Server:
 
         If the scheduler stops successfully, the event loop is
         stopped.
+
+        Raises TimeoutError:
+            A task is still running. Wait and try again.
         """
-        try:
-            await cls.__scheduler.stop()
-        except Scheduler.TasksRunningError:
-            return
+        await cls.__scheduler.stop()
 
         for task in asyncio.Task.all_tasks():
             task.cancel()

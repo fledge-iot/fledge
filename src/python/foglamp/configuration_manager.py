@@ -4,6 +4,8 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+""" Configuration Manager """
+
 import logging
 import aiopg.sa
 import sqlalchemy as sa
@@ -14,9 +16,6 @@ __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
-"""Configuration Manager
-"""
 
 _configuration_tbl = sa.Table(
     'configuration',
@@ -30,8 +29,7 @@ _configuration_tbl = sa.Table(
 
 _valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password']
 _connection_string = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
-_logger_name = 'configuration-manager'
-_logger = logging.getLogger(_logger_name)
+_logger = logging.getLogger(__name__)
 
 """
 General naming convention:
@@ -54,6 +52,7 @@ category(s)
                 value_val - string (dynamic)
 """
 
+
 async def _merge_category_vals(category_val_new, category_val_storage):
     # preserve all value_vals from category_val_storage
     # use items in category_val_new not in category_val_storage
@@ -63,6 +62,7 @@ async def _merge_category_vals(category_val_new, category_val_storage):
         if item_val_storage is not None:
             item_val_new['value'] = item_val_storage.get('value')
     return category_val_new
+
 
 async def _validate_category_val(category_val, set_value_val_from_default_val=True):
     require_entry_value = not set_value_val_from_default_val
@@ -104,11 +104,13 @@ async def _validate_category_val(category_val, set_value_val_from_default_val=Tr
             item_val['value'] = item_val['default']
     return category_val
 
+
 async def _create_new_category(category_name, category_val, category_description):
     async with aiopg.sa.create_engine(_connection_string) as engine:
         async with engine.acquire() as conn:
             await conn.execute(_configuration_tbl.insert().values(key=category_name, value=category_val,
                                                                   description=category_description))
+
 
 async def _read_all_category_names():
     async with aiopg.sa.create_engine(_connection_string) as engine:
@@ -118,12 +120,14 @@ async def _read_all_category_names():
                 category_info.append((row.key, row.description))
             return category_info
 
+
 async def _read_category_val(category_name):
     async with aiopg.sa.create_engine(_connection_string) as engine:
         async with engine.acquire() as conn:
             async for row in conn.execute(
                     _configuration_tbl.select().where(_configuration_tbl.c.key == category_name)):
                 return row.value
+
 
 async def _read_item_val(category_name, item_name):
     query_template = """
@@ -140,6 +144,7 @@ async def _read_item_val(category_name, item_name):
             async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
                 return row.value
 
+
 async def _read_value_val(category_name, item_name):
     query_template = """
         SELECT 
@@ -155,6 +160,7 @@ async def _read_value_val(category_name, item_name):
             async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
                 return row.value
 
+
 async def _update_value_val(category_name, item_name, new_value_val):
     query_template = """
             UPDATE foglamp.configuration 
@@ -166,11 +172,14 @@ async def _update_value_val(category_name, item_name, new_value_val):
         async with engine.acquire() as conn:
             await conn.execute(query_full)
 
+
 async def _update_category(category_name, category_val, category_description):
     async with aiopg.sa.create_engine(_connection_string) as engine:
         async with engine.acquire() as conn:
-            await conn.execute(_configuration_tbl.update().where(_configuration_tbl.c.key==category_name).values(value=category_val,
-                                                                  description=category_description))
+            await conn.execute(
+                _configuration_tbl.update().where(_configuration_tbl.c.key == category_name).values(value=category_val,
+                                                                                                    description=category_description))
+
 
 async def get_all_category_names():
     """Get all category names in the FogLAMP system
@@ -186,6 +195,7 @@ async def get_all_category_names():
             'Unable to read all category names')
         raise
 
+
 async def get_category_all_items(category_name):
     """Get a specified category's entire configuration (all items).
 
@@ -200,8 +210,9 @@ async def get_category_all_items(category_name):
         return await _read_category_val(category_name)
     except:
         _logger.exception(
-            'Unable to get all category names based on category_name {}'.format(category_name))
+            'Unable to get all category names based on category_name %s', category_name)
         raise
+
 
 async def get_category_item(category_name, item_name):
     """Get a given item within a given category.
@@ -218,8 +229,9 @@ async def get_category_item(category_name, item_name):
         return await _read_item_val(category_name, item_name)
     except:
         _logger.exception(
-            'Unable to get category item based on category_name {} and item_name {}'.format(category_name, item_name))
+            'Unable to get category item based on category_name %s and item_name %s', category_name, item_name)
         raise
+
 
 async def get_category_item_value_entry(category_name, item_name):
     """Get the "value" entry of a given item within a given category.
@@ -236,9 +248,10 @@ async def get_category_item_value_entry(category_name, item_name):
         return await _read_value_val(category_name, item_name)
     except:
         _logger.exception(
-            'Unable to get the "value" entry based on category_name {} and item_name {}'.format(category_name,
-                                                                                                item_name))
+            'Unable to get the "value" entry based on category_name %s and item_name %s', category_name,
+            item_name)
         raise
+
 
 async def set_category_item_value_entry(category_name, item_name, new_value_entry):
     """Set the "value" entry of a given item within a given category.
@@ -255,9 +268,10 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
         return await _update_value_val(category_name, item_name, new_value_entry)
     except:
         _logger.exception(
-            'Unable to set item value entry based on category_name {} and item_name {} and value_item_entry {}'.format(
-                category_name, item_name, new_value_entry))
+            'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
+            category_name, item_name, new_value_entry)
         raise
+
 
 async def create_category(category_name, category_value, category_description=''):
     """Create a new category in the database.
@@ -323,18 +337,19 @@ async def create_category(category_name, category_value, category_description=''
                 category_val_storage = await _validate_category_val(category_val_storage, False)
             except:
                 _logger.exception(
-                    'category_value for category_name {} from storage is corrupted; using category_value without merge'.format(
-                        category_name))
+                    'category_value for category_name %s from storage is corrupted; using category_value without merge',
+                    category_name)
             else:
                 category_val_prepared = await _merge_category_vals(category_val_prepared, category_val_storage)
             return await _update_category(category_name, category_val_prepared, category_description)
 
     except:
         _logger.exception(
-            'Unable to create new category based on category_name {} and category_description {} and category_json_schema {}'.format(
-                category_name, category_description, category_val_prepared))
+            'Unable to create new category based on category_name %s and category_description %s and category_json_schema %s',
+            category_name, category_description, category_val_prepared)
         raise
     return None
+
 
 def register_category(category_name, callback):
     pass
@@ -355,7 +370,7 @@ def register_category(category_name, callback):
 #     sample_json = {
 #         "port": {
 #             "description": "Port to listen on",
-#             "default": "5432",
+#             "default": "5683",
 #             "type": "integer"
 #         },
 #         "url": {
@@ -406,7 +421,7 @@ def register_category(category_name, callback):
 #     sample_json = {
 #         "port2": {
 #             "description": "Port to listen on",
-#             "default": "5432",
+#             "default": "5683",
 #             "type": "integer"
 #         },
 #         "url2": {

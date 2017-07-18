@@ -26,6 +26,7 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
      total_failed_to_remove > 0 then it is safe to assume that that there was an error with INSERTS, and if 
      total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
+#!/usr/bin/python3
 import datetime
 import json
 import random
@@ -45,7 +46,7 @@ __version__ = "${VERSION}"
 _db_type = "postgres"
 _user = "foglamp"
 _db_user = "foglamp"
-_host = "127.0.0.1"
+_host = "192.168.0.182"
 _db = "foglamp"
 
 # Create Connection
@@ -116,19 +117,19 @@ includes the following:
     -> total_unsent_rows specifies the total number of unsent rows that existed within range prior to the purge. 
     based off that, and unsent_rows_removed one can calculate how many (unsent rows) remain.
 """
-_LOGGING_TABLE = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
-                                  sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True, autoincrement=True),
-                                  sqlalchemy.Column('table_name', sqlalchemy.VARCHAR(255), default=_READING_TABLE.name,
-                                                    primary_key=True),
-                                  sqlalchemy.Column('start_time', sqlalchemy.VARCHAR(255),
-                                                    default=sqlalchemy.func.current_timestamp),
-                                  sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
-                                                    default=sqlalchemy.func.current_timestamp),
-                                  sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
-                                  sqlalchemy.Column('total_rows_remaining', sqlalchemy.INTEGER, default=0),
-                                  sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
-
-                                  sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
+_PURGE_LOGGING_TABLE = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
+                                        sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True,
+                                                          autoincrement=True),
+                                        sqlalchemy.Column('table_name', sqlalchemy.VARCHAR(255),
+                                                          default=_READING_TABLE.name, primary_key=True),
+                                        sqlalchemy.Column('start_time', sqlalchemy.VARCHAR(255),
+                                                          default=sqlalchemy.func.current_timestamp),
+                                        sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
+                                                          default=sqlalchemy.func.current_timestamp),
+                                        sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
+                                        sqlalchemy.Column('total_rows_remaining', sqlalchemy.INTEGER, default=0),
+                                        sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
+                                        sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
 
 """Methods that support the purge process.  
 """
@@ -193,11 +194,13 @@ def execute_command_without_return_value(stmt: str) -> None:
 def set_id() -> int:
     """
     Set the ID value for the next purge log table
+    Args: 
+        table that will store id
     Returns:
         Next INT in purge logging table
     """
-    stmt = sqlalchemy.select([_LOGGING_TABLE.c.id]).select_from(_LOGGING_TABLE).order_by(
-        _LOGGING_TABLE.c.id.desc()).limit(1)
+    stmt = sqlalchemy.select([_PURGE_LOGGING_TABLE.c.id]).select_from(_PURGE_LOGGING_TABLE).order_by(
+        _PURGE_LOGGING_TABLE.c.id.desc()).limit(1)
     result = execute_command_with_return_value(stmt)
     if not result:
         return 1
@@ -208,19 +211,18 @@ def set_id() -> int:
 """
 
 
-def purge_process_function(table_name) -> None:
+def purge() -> None:
     """The actual process read the configuration file, and based off the information in it does the following:
     1. Gets previous information found in log file
     2. Based on the configurations, call the DELETE command to purge the data
     3. Calculate relevant information kept in logs
-    4. Based on the configuration calculates how long to wait until next purge, and returns that
-
-    Args:
-        table_name (SQLAlchemy.Table): The name of the table that will be purged. 
-        The reason for this is because  purge process can occur on any of the tables. 
+    4. Based on the configuration calculates how long to wait until next purge, and returns that 
+         
     Returns:
         Amount of time until next purge process
     """
+
+    table_name = _READING_TABLE  # This could be replaced with any table that would need to be purged.
 
     start_time = datetime.datetime.fromtimestamp(time.time())
 
@@ -297,27 +299,21 @@ def purge_process_function(table_name) -> None:
     total_failed_to_remove - total number of rows that failed to remove (this is the confirmation whether  purge 
                                                                             succeeded or not.) 
     """
-    inst_stmt = _LOGGING_TABLE.insert().values(id=set_id(), table_name=table_name.name, start_time=start_time,
-                                               end_time=end_time, total_rows_removed=total_rows_removed,
-                                               total_rows_remaining=total_count_after,
-                                               total_unsent_rows=unsent_rows_before,
-                                               total_failed_to_remove=failed_removal_count)
-
+    inst_stmt = _PURGE_LOGGING_TABLE.insert().values(id=set_id(),
+                                                     table_name=table_name.name, start_time=start_time,
+                                                     end_time=end_time, total_rows_removed=total_rows_removed,
+                                                     total_rows_remaining=total_count_after,
+                                                     total_unsent_rows=unsent_rows_before,
+                                                     total_failed_to_remove=failed_removal_count)
     execute_command_without_return_value(inst_stmt)
 
 
-"""
-The main,  which would be replaced by the scheduler 
-"""
+def purge_main():
+    get_nth_id()  # Will be removed once information is from historian data
+    purge()
+
 if __name__ == '__main__':
-    """The main / scheduler creates the logs.json file,  and executes the purge (returning how long to wait)
-    till the next purge execution. Noticed that the purge process expects the table,  and config file. 
-    This is because (theoretically) purge  would be executed on multiple tables,  where each table could 
-    have its own configs. 
-        
-    As of now,  the example shows only 1 table,  but can be rewritten to show multiple tables without too much
-    work. 
-    """
-    get_nth_id()
-    purge_process_function(table_name=_READING_TABLE)
+    purge_main()
+
+
 

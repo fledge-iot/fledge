@@ -863,6 +863,7 @@ CREATE TABLE foglamp.schedules (
   schedule_time     time,                           -- Schedule time
   schedule_day      smallint,                       -- ISO day - 1 = Monday, 7 = Sunday
   exclusive         boolean,
+  repeat            smallint,                       -- 1 = hourly, 2 = daily , 3 = weekly 
   CONSTRAINT schedules_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,
   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)

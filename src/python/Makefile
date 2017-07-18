@@ -11,6 +11,7 @@
 
 USER := $(shell whoami)
 OS := $(shell uname)
+CODEDIR := ../src/python/foglamp
 
 check-root:
 ifeq ($(USER), root)
@@ -84,7 +85,8 @@ develop: install-dev-dep
 	pip install -e .
 
 doc: install-doc-dep
-	cd ../../docs && make html
+	make install
+	cd ../../docs && sphinx-apidoc -fT -o ./api $(CODEDIR) && make html
 
 doc-build-test: install-tox
 	tox -e docs
@@ -117,7 +119,8 @@ lint-python: install-test-dep
 	pylint $(shell pwd) > pylint_$(shell date +%FT%T%Z).log || exit 0
 
 live-doc: install-doc-dep
-	cd ../../docs && make livehtml
+	make install
+	cd ../../docs && sphinx-apidoc -fT -o ./api $(CODEDIR) && make livehtml
 
 py-test: install-tox
 	tox -e py35

@@ -900,8 +900,8 @@ CREATE TABLE foglamp.purge_logging(
   start_time                    timestamp(6) with time zone     NOT NULL DEFAULT now(), -- Time task starts
   end_time                      timestamp(6) with time zone     NOT NULL DEFAULT now(), -- Time task ends
   total_rows_removed            integer                         NOT NULL,               -- number of rows removed
+  total_rows_remaining          integer                         NOT NULL,               -- number of rows remaining
   total_unsent_rows             integer                         NOT NULL,               -- number of remaining rows
-  total_unsent_rows_removed     integer                         NOT NULL,               -- number of rows that weren't sent to historian removed
   total_failed_to_remove        integer                         NOT NULL,               -- number of rows that failed to get deleted but were suppose to
   CONSTRAINT logging_pk PRIMARY KEY (id, table_name)
   );

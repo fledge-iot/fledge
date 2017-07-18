@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
+# TODO: Remove the shebang line above if this is not an executable script. Also remove this line.
 
 # -*- coding: utf-8 -*-
-
-# Remove the #!/usr/bin/env line above if this is not an executable script (also remove this line)
 
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
@@ -33,9 +32,12 @@ Attributes:
         one convention to document module level variables and be consistent
         with it.
 
-Todo:
-    * For module TODOs
-    * You have to also use ``sphinx.ext.todo`` extension
+.. todo::
+
+   * For module TODOs in docstring
+   * To show in readthedocs
+   * You have to also use ``sphinx.ext.todo`` extension and enable todo_include_todos in conf.py
+   * see http://www.sphinx-doc.org/en/1.3.6/ext/todo.html#confval-todo_include_todos
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -74,10 +76,18 @@ def function_with_types_in_docstring(param1, param2):
     Returns:
         bool: The return value. True for success, False otherwise.
 
+    .. todo::
+
+        This is a todo docstring example
+        For def level todo, if we want to expose this publicly via readthedocs
+
     .. _PEP 484:
         https://www.python.org/dev/peps/pep-0484/
 
     """
+
+    # This is a TODO Example
+    # TODO: JIRA-XXXX Short descrption (put longer description in the JIRA)
 
 
 def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
@@ -94,7 +104,10 @@ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
 
 
 def module_level_function(param1, param2=None, *args, **kwargs):
-    """This is an example of a module level function.
+    # The leading r is needed to stop pylint from complaining
+    # about docstrings that contain \
+
+    r"""This is an example of a module level function.
 
     Function parameters should be documented in the ``Args`` section. The name
     of each parameter is required. The type and description of each parameter
@@ -151,10 +164,10 @@ def example_generator(n):
     """Generators have a ``Yields`` section instead of a ``Returns`` section.
 
     Please see https://stackoverflow.com/questions/37549846/how-to-use-yield-inside-async-function
-    Old answer for Python 3.5, You can't yield inside coroutines. Only way is to implement Asynchronous Iterator
-    manually using __aiter__/__anext__ magic methods.
-    In nutshell, go with async-await / coroutine way and consider this example def as how to illustrate working of
-    it in docstring.
+    Old answer for Python 3.5, You can't yield inside coroutines. Only way is to implement
+    Asynchronous Iterator manually using __aiter__/__anext__ magic methods.
+    In nutshell, go with async-await / coroutine way and consider this example def as how to
+    illustrate working of it in docstring.
 
     Args:
         n (int): The upper limit of the range to generate, from 0 to `n` - 1.
@@ -174,6 +187,8 @@ def example_generator(n):
         yield i
 
 
+# Custom exception class example
+# Put shared exception classes in exceptions.py
 class ExampleError(Exception):
     """Exceptions are documented in the same way as classes.
 
@@ -187,17 +202,17 @@ class ExampleError(Exception):
         Do not include the `self` parameter in the ``Args`` section.
 
     Args:
-        msg (str): Human readable string describing the exception.
+        message (str): Human readable string describing the exception.
         code (:obj:`int`, optional): Error code.
 
     Attributes:
-        msg (str): Human readable string describing the exception.
+        message (str): Human readable string describing the exception.
         code (int): Exception error code.
 
     """
 
-    def __init__(self, msg, code):
-        self.msg = msg
+    def __init__(self, message, code):
+        super().__init__(message)
         self.code = code
 
 
@@ -249,7 +264,12 @@ class ExampleClass(object):
 
     @property
     def readonly_property(self):
-        """str: Properties should be documented in their getter method."""
+        """str: Properties should be documented in their getter method.
+
+        When a member needs to be protected and cannot be simply exposed as a public member,
+        Use Python’s property decorator to accomplish the functionality of getters and setters (or mutator method).
+        See the anti-pattern guide, we have, for more details
+        """
         return 'readonly_property'
 
     @property
@@ -312,4 +332,3 @@ class ExampleClass(object):
 
     def _private_without_docstring(self):
         pass
-

@@ -26,92 +26,120 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# Location of daemon files
-PID_PATH = os.path.expanduser('~/var/run/foglamp.pid')
-LOG_PATH = os.path.expanduser('~/var/log/foglamp.log')
-WORKING_DIR = os.path.expanduser('~/var/log')
+_PID_PATH = os.path.expanduser('~/var/run/foglamp.pid')
+_LOG_PATH = os.path.expanduser('~/var/log/foglamp.log')
+_WORKING_DIR = os.path.expanduser('~/var/log')
 
-_logger_configured = False
+_LOGGER_CONFIGURED = False
+"""Set to true when it's safe to use logger"""
+
+_WAIT_TERM_SECONDS = 5
+"""How many seconds to wait for the core server process to stop"""
+_MAX_STOP_RETRY = 5
+"""How many times to send TERM signal to core server process when stopping"""
+
+# TODO FOGL-282: Return true/false instead of printing
 
 
 def _start_server():
-    # TODO Move log initializer to a module in the foglamp package. The files
-    # should rotate etc.
-    file_handler = logging.FileHandler(LOG_PATH)
+    """Starts the core server"""
+    # TODO: FOGL-281 Use different logging facility
+    file_handler = logging.FileHandler(_LOG_PATH)
     file_handler.setLevel(logging.WARNING)
 
-    formatstr = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    formatter = logging.Formatter(formatstr)
+    format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    formatter = logging.Formatter(format_str)
 
     file_handler.setFormatter(formatter)
- 
+
     logger = logging.getLogger('')
     logger.addHandler(file_handler)
     logger.setLevel(logging.WARNING)
 
-    global _logger_configured
-    _logger_configured = True
+    # pylint: disable=W0603
+    global _LOGGER_CONFIGURED
+    # pylint: enable=W0603
+    _LOGGER_CONFIGURED = True
 
-    # The main daemon process
     server.start()
 
 
 def start():
-    """Launches FogLAMP"""
+    """Starts FogLAMP"""
 
     pid = get_pid()
 
     if pid:
-        print("FogLAMP is already running in PID: {}".format(pid))
+        print("FogLAMP is already running in PID {}".format(pid))
     else:
-        # TODO Output the pid. os.getpid() reports the wrong pid so it's not easy.
-        print("Starting FogLAMP\nLogging to {}".format(LOG_PATH))
+        # If it is desirable to output the pid to the console,
+        # os.getpid() reports the wrong pid so it's not easy.
+        print("Starting FogLAMP\nLogging to {}".format(_LOG_PATH))
 
         with daemon.DaemonContext(
-            working_directory=WORKING_DIR,
+            working_directory=_WORKING_DIR,
             umask=0o002,
-            pidfile=daemon.pidfile.TimeoutPIDLockFile(PID_PATH)
+            pidfile=pidfile.TimeoutPIDLockFile(_PID_PATH)
         ):
             _start_server()
 
 
-def stop():
-    """Stops the FogLAMP process if it is running"""
+class TimeoutError(Exception):
+    """This exception is raised when the FogLAMP daemon can not be stopped"""
+    pass
 
-    pid = get_pid()
 
-    if pid is None:
+def stop(pid=None):
+    """Stops FogLAMP if it is running
+
+    :param pid: Optional process id to stop. If not provided, use pidfile.
+    :raises TimeoutError: Unable to stop FogLAMP
+    """
+
+    # TODO: FOGL-274 Stopping is hard.
+
+    if not pid:
+        pid = get_pid()
+
+    if not pid:
         print("FogLAMP is not running")
-        return 
+        return
 
-    # Kill the daemon process
-    # TODO This should time out and throw an exception
+    stopped = False
+
     try:
-        while True:
+        for _ in range(_MAX_STOP_RETRY):
             os.kill(pid, signal.SIGTERM)
-            time.sleep(0.1)
+
+            for i in range(_WAIT_TERM_SECONDS):
+                os.kill(pid, 0)
+                time.sleep(1)
     except OSError:
-        pass
+        stopped = True
+
+    if not stopped:
+        raise TimeoutError("Unable to stop FogLAMP")
 
     print("FogLAMP stopped")
 
 
 def restart():
-    """Relaunches FogLAMP"""
+    """Restarts FogLAMP"""
 
-    if get_pid():
-        stop()
+    pid = get_pid()
+    if pid:
+        stop(pid)
 
     start()
 
 
 def get_pid():
-    """Returns FogLAMP's PID or None if not running"""
+    """Returns FogLAMP's process id or None if FogLAMP is not running"""
 
     try:
-        with open(PID_PATH, 'r') as pf:
-            pid = int(pf.read().strip())
-    except Exception:
+        with open(_PID_PATH, 'r') as pid_file:
+            pid = int(pid_file.read().strip())
+    except (IOError, ValueError):
         return None
 
     # Delete the pid file if the process isn't alive
@@ -119,12 +147,21 @@ def get_pid():
     # process is stopping or starting the daemon
     try:
         os.kill(pid, 0)
-    except Exception:
-        os.remove(PID_PATH)
+    except OSError:
+        os.remove(_PID_PATH)
         pid = None
 
     return pid
 
+
+def status():
+    """Outputs the status of the FogLAMP process"""
+    pid = get_pid()
+    if pid:
+        print("FogLAMP is running in PID {}".format(pid))
+    else:
+        print("FogLAMP is not running")
+        sys.exit(2)
 
 def _safe_makedirs(path):
     """
@@ -135,59 +172,61 @@ def _safe_makedirs(path):
 
     try:
         os.makedirs(path, 0o750)
-    except Exception as e:
+    except OSError as exception:
         if not os.path.exists(path):
-            raise e
+            raise exception
 
 
 def _do_main():
-    _safe_makedirs(WORKING_DIR)
-    _safe_makedirs(os.path.dirname(PID_PATH))
-    _safe_makedirs(os.path.dirname(LOG_PATH))
+    """Worker function for `main`()"""
+
+    _safe_makedirs(_WORKING_DIR)
+    _safe_makedirs(os.path.dirname(_PID_PATH))
+    _safe_makedirs(os.path.dirname(_LOG_PATH))
 
     if len(sys.argv) == 1:
-        raise Exception("Usage: start|stop|restart|status")
+        raise ValueError("Usage: start|stop|restart|status")
     elif len(sys.argv) == 2:
-        if 'start' == sys.argv[1]:
+        command = sys.argv[1]
+        if command == 'start':
             start()
-        elif 'stop' == sys.argv[1]:
+        elif command == 'stop':
             stop()
-        elif 'restart' == sys.argv[1]:
+        elif command == 'restart':
             restart()
-        elif 'status' == sys.argv[1]:
-            pid = get_pid()
-            if pid:
-                print("FogLAMP is running in PID: {}".format(pid))
-            else:
-                print("FogLAMP is not running")
-                sys.exit(2)
+        elif command == 'status':
+            status()
         else:
-            raise Exception("Unknown argument: {}".format(sys.argv[1]))
+            raise ValueError("Unknown argument: {}".format(sys.argv[1]))
 
 
 def main():
-    """
-    Processes command-line arguments
+    """Processes command-line arguments
 
     COMMAND LINE ARGUMENTS:
-        start
-        status
-        stop
-        restart
+        - start
+        - status
+        - stop
+        - restart
 
     EXIT STATUS:
-        1: An error occurred
-        2: For the 'status' command: FogLAMP is not running (otherwise, 0)
+        - 0: Normal
+        - 1: An error occurred
+        - 2: For the 'status' command: FogLAMP is not running
+
+    :raises ValueError: Invalid or missing arguments provided
     """
     try:
         _do_main()
-    except Exception as e:
-        if _logger_configured:
+    # pylint: disable=W0703
+    except Exception as exception:
+    # pylint: enable=W0703
+        # TODO: FOGL-281
+        if _LOGGER_CONFIGURED:
             logging.getLogger(__name__).exception("Failed")
         else:
             # If the daemon package has been invoked, the following 'write' will
-            # do nothing
-            sys.stderr.write(format(str(e)) + "\n");
-      
-        sys.exit(1)
+            # do nothing because stdout and stderr are routed to /dev/null
+            sys.stderr.write(format(str(exception)) + "\n")
 
+        sys.exit(1)

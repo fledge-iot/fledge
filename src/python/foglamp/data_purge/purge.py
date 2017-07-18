@@ -1,30 +1,40 @@
 """
 Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/edit) 
     the purge process is suppose to remove data based on either a user_id, or an X amount of time back depending on
-    whether or not the configuration (config.json) requires to retain data that has not been sent to the Pi System.
+    whether or not the configuration (config.json) requires to retain data that has not been sent to a  historian.
     
-    Given that the code is dependent on configuration files, sending data to Pi, and connecting to the database, 
-    I have "hard-coded" those dependencies with the use of extra methods, and files. This includes things like: 
-    get_nth_id which updates the config file with a 'random' last ID that was sent to Pi, and the main which also 
-    as a scheduler process. 
+    As of now, all dependencies, with the exception of the database layer have been settled, and being used. These are
+    -> configurations 
+    -> retrieval of last ID sent to the Historian
+     
+     As for the database layer, the code currently uses SQLAlchemy, but can easily be switched out to use some other 
+    tool to communicate with the database. 
     
-     Specifically the purge process (purge_process_function) does the following: 
-     - Based on the configuration file (retainUnsent) it either removes by the lastID 
-        (in which case retainUnsent is True), or by age (timestamp)
-     - Calculate vital information regarding the purge, and record it in the logs file
-      
-Based on the way things are currently being done, both the logs file (logs.json), and configurations file (config.json)
-will be replaced either database tables, or some other kind of file. 
+     Once the purge process is called by the scheduler, it does the following: 
+     1. Connects to the database 
+     2. Retrieve information from the Configuration, and last ID sent to the historian
+     3. Calculates how many rows are in the database to this point (using "NOW()") 
+     4. Either DELETE rows based off age, or lastID (as well as "NOW()")
+     5. Calculate necessary information regarding the purge process 
+        -> total_rows_removed
+        -> total_unsent_rows
+        -> total_rows_remaining
+        -> total_failed_to_remove
+     6. INSERT information into log table 
+     
+     There currently isn't a formal confirmation that the purge process has succeeded, HOWEVER if 
+     total_failed_to_remove > 0 then it is safe to assume that that there was an error with INSERTS, and if 
+     total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
 import datetime
 import json
 import random
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
-import sys
 import time
 
-
+"""Script information and connection to the Database
+"""
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
@@ -32,16 +42,21 @@ __version__ = "${VERSION}"
 
 
 # Set variables for connecting to database
+_db_type = "postgres"
 _user = "foglamp"
 _db_user = "foglamp"
 _host = "192.168.0.182"
 _db = "foglamp"
 
 # Create Connection
-_ENGINE = sqlalchemy.create_engine('postgres://%s:%s@%s/%s' % (_db_user, _user, _host, _db),  pool_size=20,
-                                      max_overflow=0)
+_ENGINE = sqlalchemy.create_engine('%s://%s:%s@%s/%s' % (_db_type, _db_user, _user, _host, _db),  pool_size=20,
+                                   max_overflow=0)
 _CONN = _ENGINE.connect()
 
+"""Temporary methods and variables that exist until the script utilizes other components. In specific: 
+-> configuration API 
+-> Last ID sent to the historian
+"""
 # Important files
 config_file = 'config.json'
 other_config = "other_config.json"
@@ -50,10 +65,36 @@ other_config = "other_config.json"
 with open(config_file, 'r') as conf:
     _CONFIG = json.load(conf)
 
-
+# Will be replaced by the last ID sent to the Historian
 with open(other_config, 'r') as conf:
     _LAST_ID = json.load(conf)['lastID']
 
+
+def get_nth_id() -> None:
+    """Update the config file to have row ID somewhere within the oldest 100 rows.
+
+    This method would potentially be replaced by a mechanism that is aware what was the last value sent to the
+     historian.
+    Returns: 
+        Method doesn't return anything
+    """
+    rand = random.randint(1, 100)
+
+    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
+    row_id = execute_command_with_return_value(stmt % rand)
+    row_id = int(row_id[0][0])
+
+    with open(other_config, 'r') as conf:
+        config_info = json.load(conf)
+
+    config_info["lastID"] = row_id
+    open(other_config, 'w').close()
+    with open(other_config, 'r+') as conf:
+        conf.write(json.dumps(config_info))
+
+
+"""Utilized tables 
+"""
 # Table purge against
 _READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                   sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
@@ -84,12 +125,12 @@ _LOGGING_TABLE = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
                                   sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
                                                     default=sqlalchemy.func.current_timestamp),
                                   sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
+                                  sqlalchemy.Column('total_rows_remaining', sqlalchemy.INTEGER, default=0),
                                   sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
-                                  sqlalchemy.Column('total_unsent_rows_removed', sqlalchemy.INTEGER, default=0),
+
                                   sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
 
-"""Methods that support the purge process. For the most part, theses methods would be replaced by either a scheduler,  
-a database API interface,  and/or proper configuration methodology. 
+"""Methods that support the purge process.  
 """
 
 
@@ -102,7 +143,7 @@ def convert_timestamp(set_time: str) -> datetime.timedelta:
         converted set_time to datetime.timedelta value
     """
     if type(set_time) is int or set_time.isdigit():
-        return datetime.timedelta(hours=int(set_time))
+        return datetime.timedelta(minutes=int(set_time))
     time_dict = {}
     tmp = 0
 
@@ -145,40 +186,22 @@ def execute_command_without_return_value(stmt: str) -> None:
     Args:
         stmt (str): DELETE stmt 
     """
-    print(stmt)
-
     _CONN.execute(stmt)
     _CONN.execute("commit")
 
 
-def set_id():
-    stmt = sqlalchemy.select([_LOGGING_TABLE.c.id]).select_from(_LOGGING_TABLE).order_by(_LOGGING_TABLE.c.id.desc()).limit(1)
+def set_id() -> int:
+    """
+    Set the ID value for the next purge log table
+    Returns:
+        Next INT in purge logging table
+    """
+    stmt = sqlalchemy.select([_LOGGING_TABLE.c.id]).select_from(_LOGGING_TABLE).order_by(
+        _LOGGING_TABLE.c.id.desc()).limit(1)
     result = execute_command_with_return_value(stmt)
     if not result:
         return 1
     return int(result[0][0])+1
-
-def get_nth_id() -> None:
-    """Update the config file to have row ID somewhere within the oldest 100 rows.
-    
-    This method would potentially be replaced by the communication with the Pi System which will be
-    aware of what was the last ID sent to the Pi System. 
-    Returns: 
-        Method doesn't return anything
-    """
-    rand = random.randint(1, 100)
-
-    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
-    row_id = execute_command_with_return_value(stmt % rand)
-    row_id = int(row_id[0][0])
-
-    with open(other_config, 'r') as conf:
-        config_info = json.load(conf)
-
-    config_info["lastID"] = row_id
-    open(other_config, 'w').close()
-    with open(other_config, 'r+') as conf:
-        conf.write(json.dumps(config_info))
 
 
 """The actual purge process 
@@ -193,11 +216,11 @@ def purge_process_function(table_name) -> None:
     4. Based on the configuration calculates how long to wait until next purge, and returns that
 
     Args:
-        table_name (SQLAlchemy.Table): The name of the table queries run against
+        table_name (SQLAlchemy.Table): The name of the table that will be purged. 
+        The reason for this is because  purge process can occur on any of the tables. 
     Returns:
         Amount of time until next purge process
     """
-
 
     start_time = datetime.datetime.fromtimestamp(time.time())
 
@@ -205,15 +228,9 @@ def purge_process_function(table_name) -> None:
         set_time=_CONFIG['age']['value_item_entry']), '%Y-%m-%d %H:%M:%S.%f')
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
-    # Number of rows exist at the point of calling purge
-    total_count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-        table_name.c.ts < start_time)
-    total_count_before = execute_command_with_return_value(total_count_query)
-    total_count_before = int(total_count_before[0][0])
-
     # Number of unsent rows
     number_sent_rows_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-        table_name.c.ts < start_time).where(table_name.c.id > _LAST_ID)
+        table_name.c.ts <= start_time).where(table_name.c.id > _LAST_ID)
 
     unsent_rows_before = execute_command_with_return_value(number_sent_rows_query)
     unsent_rows_before = int(unsent_rows_before[0][0])
@@ -223,57 +240,68 @@ def purge_process_function(table_name) -> None:
     """
 
     if _CONFIG['retainUnsent']['value_item_entry'] is True:
+        count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
+            table_name.c.id <= _LAST_ID).where(table_name.c.ts <= start_time)
+        total_count_before = execute_command_with_return_value(count_query)
+        total_count_before = int(total_count_before[0][0])
+
         delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= _LAST_ID).where(
-            table_name.c.ts < start_time)
+            table_name.c.ts <= start_time)
+
         execute_command_without_return_value(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
             table_name).where(table_name.c.id <= _LAST_ID).where(
-            table_name.c.ts < start_time)
+            table_name.c.ts <= start_time)
+
         failed_removal_count = execute_command_with_return_value(failed_removal_query)
         failed_removal_count = int(failed_removal_count[0][0])
+        total_rows_removed = total_count_before - failed_removal_count
 
     # If unsent data is not retained, then the WHERE condition is against the age
     else:
-        row_id = execute_command_with_return_value(sqlalchemy.select([table_name.c.id]).select_from(
-            table_name).where(table_name.c.ts <= age_timestamp).order_by(table_name.c.id.desc()).limit(1))
-        row_id = row_id[0][0]
+        count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
+            table_name.c.ts <= age_timestamp).where(table_name.c.ts <= start_time)
+        total_count_before = execute_command_with_return_value(count_query)
+        total_count_before = int(total_count_before[0][0])
 
-        delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= row_id).where(
+        delete_query = sqlalchemy.delete(table_name).where(table_name.c.ts <= age_timestamp).where(
             table_name.c.ts < start_time)
         execute_command_without_return_value(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
-            table_name).where(table_name.c.id <= _LAST_ID).where(
-            table_name.c.ts < start_time)
+            table_name).where(table_name.c.ts <= age_timestamp).where(
+            table_name.c.ts <= start_time)
         failed_removal_count = execute_command_with_return_value(failed_removal_query)
         failed_removal_count = int(failed_removal_count[0][0])
+        total_rows_removed = total_count_before - failed_removal_count
 
-    total_count_after = execute_command_with_return_value(sqlalchemy.select(
-        [sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.ts < start_time))
+    # Total number of rows that remain under start_time
+    total_count = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
+        table_name.c.ts < start_time)
+    total_count_after = execute_command_with_return_value(total_count)
     total_count_after = int(total_count_after[0][0])
-    total_rows_removed = total_count_before - total_count_after
 
-    if total_rows_removed <= 0:
-        total_rows_removed = 0
-
-    # Number of unsent rows removed
-    unsent_rows_after = execute_command_with_return_value(number_sent_rows_query)
-    unsent_rows_after = int(unsent_rows_after[0][0])
-
-    unsent_rows_removed = unsent_rows_before - unsent_rows_after
-    if unsent_rows_removed < 0:
-        unsent_rows_removed = 0
     # Time  purge process finished
     end_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
-    inst_stmt = _LOGGING_TABLE.insert().values(id=set_id(), table_name=table_name.name, start_time=start_time, end_time=end_time,
-                                               total_rows_removed = total_rows_removed,
-                                               total_unsent_rows_removed = unsent_rows_removed,
-                                               total_unsent_rows = unsent_rows_before,
-                                               total_failed_to_remove = failed_removal_count)
+    """Column information
+    id - row id PK
+    table_name - table that was purged PK
+    start_time - time that purge process began
+    end_time - time that purge process ended
+    total_rows_removed - number of rows removed 
+    total_unsent_rows - total number of unsent rows under start_time 
+    total_failed_to_remove - total number of rows that failed to remove (this is the confirmation whether  purge 
+                                                                            succeeded or not.) 
+    """
+    inst_stmt = _LOGGING_TABLE.insert().values(id=set_id(), table_name=table_name.name, start_time=start_time,
+                                               end_time=end_time, total_rows_removed=total_rows_removed,
+                                               total_rows_remaining=total_count_after,
+                                               total_unsent_rows=unsent_rows_before,
+                                               total_failed_to_remove=failed_removal_count)
 
     execute_command_without_return_value(inst_stmt)
 

@@ -14,7 +14,7 @@ config_file = '../../foglamp/data_purge/config.json'
 # Set variables for connecting to database
 _user = "foglamp"
 _db_user = "foglamp"
-_host = "192.168.0.182"
+_host = "127.0.0.1"
 _db = "foglamp"
 
 # Create Connection

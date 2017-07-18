@@ -1,6 +1,6 @@
 {
   "age":{
-          "description":"Age of data to be retained, all data that is older than this value will be removed, unless retained. (in Hours)"
+          "description":"Age of data to be retained, all data that is older than this value will be removed, unless retained. (in Hours)",
           "type":"int",
           "default":72,
           "value_item_entry":1

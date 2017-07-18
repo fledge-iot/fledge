@@ -23,7 +23,7 @@ _configuration_tbl = sa.Table(
 )
 """Defines the table that data will be used for CRUD operations"""
 
-_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate']
+_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password']
 _connection_string = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 _logger_name = 'configuration-manager'
 _logger = logging.getLogger(_logger_name)
@@ -181,7 +181,7 @@ async def get_all_category_names():
             'Unable to read all category names')
         raise
 
-async def get_all_items(category_name):
+async def get_category_all_items(category_name):
     """Get a specified category's entire configuration (all items).
 
     Keyword Arguments:
@@ -198,8 +198,8 @@ async def get_all_items(category_name):
             'Unable to get all category names based on category_name {}'.format(category_name))
         raise
 
-async def get_item(category_name, item_name):
-    """Get an item value of a given item within a given category.
+async def get_category_item(category_name, item_name):
+    """Get a given item within a given category.
 
     Keyword Arguments:
     category_name -- name of the category (required)
@@ -216,7 +216,7 @@ async def get_item(category_name, item_name):
             'Unable to get category item based on category_name {} and item_name {}'.format(category_name, item_name))
         raise
 
-async def get_value(category_name, item_name):
+async def get_category_item_value_entry(category_name, item_name):
     """Get the "value" entry of a given item within a given category.
 
     Keyword Arguments:
@@ -235,7 +235,7 @@ async def get_value(category_name, item_name):
                                                                                                 item_name))
         raise
 
-async def set_value(category_name, item_name, new_value_entry):
+async def set_category_item_value_entry(category_name, item_name, new_value_entry):
     """Set the "value" entry of a given item within a given category.
 
     Keyword Arguments:
@@ -335,6 +335,18 @@ def register_category(category_name, callback):
     pass
 
 # async def main_test():
+#     # lifecycle of a component's configuration
+#     # start component
+#     # 1. create a configuration that does not exist - use all default values
+#     # 2. read the configuration back in (cache locally for reuse)
+#     # update config while system is up
+#     # 1. a user updates the "value" entry of an item to non-default value
+#     #    (callback is not implemented to update/notify component once change to config is made)
+#     # restart component
+#     # 1. create/update a configuration that already exists (merge)
+#     # 2. read the configuration back in (cache locally for reuse)
+#
+#
 #     sample_json = {
 #         "port": {
 #             "description": "Port to listen on",
@@ -357,32 +369,33 @@ def register_category(category_name, callback):
 #     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #
 #     print("test get_all_category_names")
-#     rows = await get_all_category_names()
-#     for row in rows:
+#     names_list = await get_all_category_names()
+#     for row in names_list:
+#         # tuple
 #         print(row)
 #
-#     print("test get_all_items")
-#     json = await get_all_items('CATEG')
+#     print("test get_category_all_items")
+#     json = await get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
 #
-#     print("test get_item")
-#     json = await get_item('CATEG', "url")
+#     print("test get_category_item")
+#     json = await get_category_item('CATEG', "url")
 #     print(json)
 #     print(type(json))
 #
-#     print("test get_value")
-#     json = await get_value('CATEG', "url")
-#     print(json)
-#     print(type(json))
+#     print("test get_category_item_value")
+#     string_result = await get_category_item_value_entry('CATEG', "url")
+#     print(string_result)
+#     print(type(string_result))
 #
-#     print("test set_value")
-#     json = await set_value('CATEG', "url", "blablabla")
+#     print("test set_category_item_value_entry")
+#     await set_category_item_value_entry('CATEG', "url", "blablabla")
 #
-#     print("test get_value")
-#     json = await get_value('CATEG', "url")
-#     print(json)
-#     print(type(json))
+#     print("test get_category_item_value")
+#     string_result = await get_category_item_value_entry('CATEG', "url")
+#     print(string_result)
+#     print(type(string_result))
 #
 #     print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
 #     sample_json = {
@@ -405,7 +418,7 @@ def register_category(category_name, callback):
 #     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #
 #     print("test get_all_items")
-#     json = await get_all_items('CATEG')
+#     json = await get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
 #

@@ -202,7 +202,7 @@ class Scheduler(object):
     async def _start_task(self, schedule):
         task_id = str(uuid.uuid4())
         args = self._process_scripts[schedule.process_name]
-        logging.getLogger(__name__).info("Starting schedule '%s' process '%s' task %s\n%s",
+        logging.getLogger(__name__).info("Starting: Schedule '%s' process '%s' task %s\n%s",
                                          schedule.name, schedule.process_name, task_id, args)
 
         process = None
@@ -249,7 +249,7 @@ class Scheduler(object):
 
     def _on_task_completion(self, schedule, process, task_id):
         logging.getLogger(__name__).info(
-            "Process exited: Schedule '%s' process '%s' task %s pid %s\n%s",
+            "Exited: Schedule '%s' process '%s' task %s pid %s\n%s",
             schedule.name,
             schedule.process_name,
             task_id,
@@ -384,7 +384,7 @@ class Scheduler(object):
                 minute=schedule.time.minute,
                 second=schedule.time.second)
 
-            if dt.time() > schedule.time:
+            if current_dt.time() > schedule.time:
                 dt += self.__ONE_DAY
 
         # Advance to the correct day if specified
@@ -413,6 +413,10 @@ class Scheduler(object):
                 datetime.datetime.fromtimestamp(current_time))
         elif schedule.type == self._ScheduleType.STARTUP:
             schedule_execution.next_start_time = current_time
+
+        logging.getLogger(__name__).info(
+            "Scheduled '%s' for %s", schedule.name,
+            datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
     def _schedule_next_task(self, schedule):
         advance_seconds = schedule.repeat_seconds
@@ -451,6 +455,10 @@ class Scheduler(object):
                 schedule_execution.next_start_time = time.mktime(next_dt.timetuple())
         else:
             schedule_execution.next_start_time += advance_seconds
+
+        logging.getLogger(__name__).info(
+            "Scheduled '%s' for %s", schedule.name,
+            datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
         return True
 

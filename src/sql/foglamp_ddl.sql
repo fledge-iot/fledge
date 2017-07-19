@@ -884,7 +884,7 @@ CREATE TABLE foglamp.tasks (
   start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
   end_time     timestamp(6) with time zone,                        -- The date and time the task ended
   reason       character varying(255),                             -- The reason why the task ended
-  pid          NOT NULL int,                                       -- Linux process id
+  pid          int NOT NULL,                                       -- Linux process id
   exit_code    int,                                                -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,

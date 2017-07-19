@@ -38,6 +38,9 @@ _sensor_values_tbl = sa.Table(
 class SensorValues(aiocoap.resource.Resource):
     """CoAP handler for coap://readings URI"""
 
+    _CONNECTION_STRING = "dbname='foglamp'"
+    # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
+
     def __init__(self):
         super(SensorValues, self).__init__()
 
@@ -83,7 +86,7 @@ class SensorValues(aiocoap.resource.Resource):
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
         try:
-            async with aiopg.sa.create_engine('postgresql://foglamp:foglamp@localhost:5432/foglamp') as engine:
+            async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
                 async with engine.acquire() as conn:
                     try:
                         await conn.execute(_sensor_values_tbl.insert().values(

@@ -4,11 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""FogLAMP Scheduler module
-"""
+"""FogLAMP Scheduler module"""
 
 import time
 import datetime
+import math
 from enum import IntEnum
 import asyncio
 import collections
@@ -49,24 +49,38 @@ class Scheduler(object):
         CANCELED = 3
         INTERRUPTED = 4
 
+    class _Repeat(IntEnum):
+        """Enumeration for tasks.task_state"""
+        HOURLY = 1
+        DAILY = 2
+        WEEKLY = 3
+
     _Schedule = collections.namedtuple(
         'Schedule',
-        'id type time day interval_seconds exclusive process')
+        'id name type time day interval repeat repeat_seconds exclusive scheduled_process_name')
     """Represents a row in the schedules table"""
 
     class _ScheduleExecution:
         """Tracks information about schedules"""
-        __slots__ = ['next_start_time', 'exclusive_lock']
+        __slots__ = ['next_start_time', 'task_processes']
 
         def __init__(self):
             self.next_start_time = None
-            self.exclusive_lock = False
+            """When to next start a task for the schedule"""
+            self.task_processes = dict()
+            """Maps a task id to a process"""
 
     # Class attributes (begin)
     __scheduled_processes_tbl = None  # type: sa.Table
     __schedules_tbl = None  # type: sa.Table
     __tasks_tbl = None  # type: sa.Table
-    __CONNECTION_STRING = "postgresql://foglamp:foglamp@localhost:5432/foglamp"
+
+    # Constants:
+    __CONNECTION_STRING = "dbname='foglamp'"
+    # "postgresql://foglamp:foglamp@localhost:5432/foglamp"
+    __HOUR_SECONDS = 3600
+    __DAY_SECONDS = 3600*24
+    __WEEK_SECONDS = 3600*24*7
     # Class attributes (end)
 
     def __init__(self):
@@ -82,6 +96,7 @@ class Scheduler(object):
                 sa.Column('schedule_time', sa.types.TIME),
                 sa.Column('schedule_day', sa.types.SMALLINT),
                 sa.Column('schedule_interval', sa.types.TIME),
+                sa.Column('repeat', sa.types.SMALLINT),
                 sa.Column('exclusive', sa.types.BOOLEAN))
 
             self.__tasks_tbl = sa.Table(
@@ -92,6 +107,7 @@ class Scheduler(object):
                 sa.Column('state', sa.types.INT),
                 sa.Column('start_time', sa.types.TIMESTAMP),
                 sa.Column('end_time', sa.types.TIMESTAMP),
+                sa.Column('pid', sa.types.INT),
                 sa.Column('exit_code', sa.types.INT),
                 sa.Column('reason', sa.types.VARCHAR(20)))
 
@@ -105,8 +121,6 @@ class Scheduler(object):
         # Instance variables (begin)
         self._start_time = None
         """When the scheduler started"""
-        self.check_schedules_seconds = 5
-        """Frequency, in seconds, to check schedules to start tasks"""
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
         self._scheduled_processes = dict()
@@ -115,14 +129,10 @@ class Scheduler(object):
         """Dictionary of schedules.id to _Schedule"""
         self._schedule_executions = dict()
         """Dictionary of schedules.id to _ScheduleExecution"""
-        self._processes = dict()
-        # pylint: disable=line-too-long
-        """Running processes
-
-        Dictionary of tasks.id to
-        `Process <https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.asyncio.subprocess.Process>`_
-        """
-        # pylint: enable=line-too-long
+        self._active_task_count = 0
+        """Number of active tasks"""
+        self._main_sleep_task = None
+        """Coroutine that sleeps in the main loop"""
         # Instance variables (end)
 
     async def stop(self):
@@ -138,108 +148,138 @@ class Scheduler(object):
         """
         logging.getLogger(__name__).info("Stop requested")
 
+        # Stop the main loop
         self._paused = True
+        self._resume_check_schedules()
 
         # Can not iterate over _processes - it can change mid-iteration
-        for key in list(self._processes.keys()):
+        for schedule_id in list(self._schedule_executions.keys()):
             try:
-                process = self._processes[key]
+                schedule_execution = self._schedule_executions[schedule_id]
             except KeyError:
                 continue
 
-            logging.getLogger(__name__).info(
-                    "Terminating pid %s for task %s",
+            for task_id in list(schedule_execution.task_processes):
+                try:
+                    process = schedule_execution.task_processes[task_id]
+                except KeyError:
+                    continue
+
+                logging.getLogger(__name__).info(
+                    "Terminating: Schedule '%s' task %s pid %s\n%s",
+                    self._schedules[schedule_id].name,
+                    task_id,
                     process.pid,
-                    key)
+                    self._scheduled_processes[
+                      self._schedules[schedule_id].scheduled_process_name])
 
-            try:
-                process.send_signal(0)  # Check whether the process is running
-                process.terminate()
-            except (ProcessLookupError, OSError):
-                pass  # Process has terminated
+                try:
+                    process.terminate()
+                except (ProcessLookupError, OSError):
+                    pass  # Process has terminated
 
-            await asyncio.sleep(.1)  # sleep 0 doesn't work
+        await asyncio.sleep(.1)  # sleep 0 doesn't give the process enough time to quit
 
-        if self._processes:
+        if self._active_task_count:
             raise TimeoutError()
-
-        # TODO: _schedule_executions should be empty
-        #if self._schedule_executions:
-        #    await asyncio.sleep(.1)  # sleep 0 doesn't work
 
         self._start_time = None
 
         return True
 
-    async def _start_startup_task(self, *args):
-        """Startup tasks are not tracked in the tasks table"""
-        task_id = str(uuid.uuid4())
-        logging.getLogger(__name__).info("Starting task %s %s", task_id, args)
-
-        # TODO: what if this fails?
-        process = await asyncio.create_subprocess_exec(*args)
-        self._processes[task_id] = process
-        asyncio.ensure_future(self._wait_for_startup_task_completion(task_id))
-
     async def _start_task(self, schedule):
-        # TODO: What if the process doesn't exist in scheduled_processes
         task_id = str(uuid.uuid4())
-        args = self._scheduled_processes[schedule.process]
-        logging.getLogger(__name__).info("Starting task %s %s", task_id, args)
+        args = self._scheduled_processes[schedule.scheduled_process_name]
+        logging.getLogger(__name__).info("Starting schedule '%s' task %s\n%s",
+                                         schedule.name, task_id, args)
+
+        process = None
 
         try:
             process = await asyncio.create_subprocess_exec(*args)
-            self._processes[task_id] = process
-        except Exception as exception:
+        except Exception:
             # TODO catch real exception
             logging.getLogger(__name__).exception(
-                "Unable to start task {} {}".format(task_id, args), exception)
+                "Unable to start schedule '%s' task %s\n%s".format(
+                    schedule.name, task_id, args))
 
-        if schedule.exclusive:
-            self._schedule_executions[schedule.id].exclusive_lock = True
+        if process:
+            logging.getLogger(__name__).info("Started: Schedule '%s' task %s pid %s\n%s",
+                                             schedule.name, task_id, process.pid, args)
+            self._schedule_executions[schedule.id].task_processes[task_id] = process
+        else:
+            self._active_task_count -= 1
 
+        return task_id
+
+    async def _start_startup_task(self, schedule):
+        """Startup tasks are not tracked in the tasks table"""
+        # TODO: what if this fails?
+        task_id = await self._start_task(schedule)
+        asyncio.ensure_future(self._wait_for_startup_task_completion(schedule, task_id))
+
+    async def _start_regular_task(self, schedule):
+        task_id = await self._start_task(schedule)
+
+        # The task row needs to exist before the completion handler runs
         async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(self.__tasks_tbl.insert().values(
-                                        id=task_id,
-                                        process_name=schedule.process,
-                                        state=int(self._TaskState.RUNNING),
-                                        start_time=datetime.datetime.now()))
+                            id=task_id,
+                            pid=self._schedule_executions[schedule.id].task_processes[task_id].pid,
+                            process_name=schedule.scheduled_process_name,
+                            state=int(self._TaskState.RUNNING),
+                            start_time=datetime.datetime.now()))
 
-        asyncio.ensure_future(self._wait_for_task_completion(task_id, schedule))
+        asyncio.ensure_future(self._wait_for_task_completion(schedule, task_id))
 
-    async def _wait_for_startup_task_completion(self, task_id):
+    def _on_task_completion(self, schedule, process, task_id):
+        logging.getLogger(__name__).info(
+            "Terminated: Schedule '%s' task %s pid %s\n%s",
+            schedule.name,
+            task_id,
+            process.pid,
+            self._scheduled_processes[schedule.scheduled_process_name])
+
+        if self._active_task_count:
+            self._active_task_count -= 1
+        else:
+            # This should not happen
+            logging.getLogger(__name__).error("Active task count would be negative")
+
+        schedule_execution = self._schedule_executions[schedule.id]
+
+        if schedule.exclusive and self._schedule_next_task(schedule):
+            self._resume_check_schedules()
+
+        if schedule_execution.next_start_time is None:
+            del self._schedule_executions[schedule.id]
+        else:
+            del schedule_execution.task_processes[task_id]
+
+    async def _wait_for_startup_task_completion(self, schedule, task_id):
         # TODO: Restart if the process terminates unexpectedly
-        # TODO: Catch the right exception
+        process = self._schedule_executions[schedule.id].task_processes[task_id]
+
         try:
-            await self._processes[task_id].wait()
-        except Exception:
+            await process.wait()
+        except Exception:  # TODO: catch real exception
             pass
 
-        logging.getLogger(__name__).info("Task %s stopped", task_id)
+        self._on_task_completion(schedule, process, task_id)
 
-        del self._processes[task_id]
+    async def _wait_for_task_completion(self, schedule, task_id):
+        process = self._schedule_executions[schedule.id].task_processes[task_id]
 
-    async def _wait_for_task_completion(self, task_id, schedule):
-        # TODO: Catch the right exception
         exit_code = None
         try:
-            exit_code = await self._processes[task_id].wait()
-        except Exception:
+            exit_code = await process.wait()
+        except Exception:  # TODO: catch real exception
             pass
 
-        logging.getLogger(__name__).info("Task %s stopped", task_id)
+        self._on_task_completion(schedule, process, task_id)
 
-        del self._processes[task_id]
-
-        if schedule.exclusive:
-            # TODO could this dictionary entry disappear?
-            self._schedule_executions[schedule.id].exclusive_lock = False
-
-            # TODO: FOGL-308 Compute next start time here when repeating
-            # instead of in _check_schedules. Next _check_schedule time
-            # execution time should be recalculated
-            asyncio.ensure_future(self._check_schedules())
+        # Update tasks row
 
         async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
@@ -252,39 +292,66 @@ class Scheduler(object):
 
     async def _check_schedules(self):
         """Starts tasks according to schedules based on the current time"""
-        if self._paused:
-            return
+        least_next_start_time = None
 
         # Can not iterate over _next_starts - it can change mid-iteration
         for key in list(self._schedule_executions.keys()):
             if self._paused:
-                break
+                return None
 
             try:
                 schedule = self._schedules[key]
             except KeyError:
                 continue
 
-            exec_info = self._schedule_executions[key]
+            schedule_execution = self._schedule_executions[key]
 
-            if time.time() >= exec_info.next_start_time:
-                # Set next time before any 'await' calls to avoid reentrancy
-                if not self._compute_next_start(schedule):
-                    del self._schedule_executions[key]
+            if not schedule_execution.next_start_time:
+                continue
 
-                if schedule.exclusive and exec_info.exclusive_lock:
-                    pass
+            if schedule.exclusive and schedule_execution.task_processes:
+                continue
+
+            if time.time() >= schedule_execution.next_start_time:
+                # Because there are so many 'awaits' in this block,
+                # the active task count is incremented prior to any
+                # 'await' calls. Otherwise, a stop() request
+                # would terminate before the process gets
+                # started and tracked. Thus the code
+                # following this increment and all code that is
+                # called must be very careful about exceptions
+                # so that _active_task_count will decremented if
+                # necessary.
+                self._active_task_count += 1
+
+                # Modify next_start_time immediately to avoid reentrancy bugs
+                if not schedule.exclusive and self._schedule_next_task(schedule):
+                    # Track the least next_start_time
+                    next_start_time = schedule.next_start_time
+
+                    if least_next_start_time is None or next_start_time < least_next_start_time:
+                        least_next_start_time = next_start_time
+
+                # Start the task
+                if schedule.type == self._ScheduleType.STARTUP:
+                    await self._start_startup_task(schedule)
                 else:
-                    if schedule.type == self._ScheduleType.STARTUP:
-                        await self._start_startup_task(*self._scheduled_processes[schedule.process])
-                    else:
-                        await self._start_task(schedule)
+                    await self._start_regular_task(schedule)
 
-    def _compute_first_start(self, schedule, current_time):
+        return least_next_start_time
+
+    def _schedule_first_task(self, schedule, current_time):
+        """Compute the first time a schedule should start
+
+        Args:
+            schedule _Schedule:
+            current_time int:
+        """
+        schedule_execution = self._ScheduleExecution()
+        self._schedule_executions[schedule.id] = schedule_execution
+
         if schedule.type == self._ScheduleType.INTERVAL:
-            exec_info = self._ScheduleExecution()
-            exec_info.next_start_time = current_time + schedule.interval_seconds
-            self._schedule_executions[schedule.id] = exec_info
+            schedule_execution.next_start_time = current_time + schedule.repeat_seconds
         elif schedule.type == self._ScheduleType.TIMED:
             # Only support run daily
             add_day = False
@@ -307,30 +374,33 @@ class Scheduler(object):
                 # Go to the next day
                 dt = dt + datetime.timedelta(days=1)
 
-            exec_info = self._ScheduleExecution()
-            exec_info.next_start_time = time.mktime(dt.timetuple())
-
+            schedule_execution.next_start_time = time.mktime(dt.timetuple())
         elif schedule.type == self._ScheduleType.STARTUP:
-            exec_info = self._ScheduleExecution()
-            exec_info.next_start_time = current_time
-            self._schedule_executions[schedule.id] = exec_info
-            return self._start_time
+            schedule_execution.next_start_time = current_time
 
-    def _compute_next_start(self, schedule):
-        if schedule.interval_seconds:
-            exec_info = self._schedule_executions[schedule.id]
+    def _schedule_next_task(self, schedule):
+        advance_seconds = schedule.repeat_seconds
 
-            if schedule.type == self._ScheduleType.TIMED:
-                next_dt = datetime.datetime.fromtimestamp(exec_info.next_start_time)
-                next_dt = next_dt + datetime.timedelta(seconds=schedule.interval_seconds)
+        if self._paused or advance_seconds is None:
+            self.next_start_time = None
+            return False
 
-                exec_info.next_start_time = time.mktime(next_dt.timetuple())
-            else:
-                exec_info.next_start_time += schedule.interval_seconds
+        schedule_execution = self._schedule_executions[schedule.id]
 
-            return True
+        if schedule.exclusive and advance_seconds:
+            advance_seconds += math.ceil(
+                (time.time() - schedule_execution.next_start_time) /
+                advance_seconds)
 
-        return False
+        if schedule.type == self._ScheduleType.TIMED:
+            # This code handles daylight savings time transitions
+            next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
+            next_dt = next_dt + datetime.timedelta(seconds=advance_seconds)
+            schedule_execution.next_start_time = time.mktime(next_dt.timetuple())
+        else:
+            schedule_execution.next_start_time += advance_seconds
+
+        return True
 
     async def _get_scheduled_processes(self):
         query = sa.select([self.__scheduled_processes_tbl.c.name,
@@ -345,11 +415,13 @@ class Scheduler(object):
     async def _get_schedules(self):
         # TODO Get processes first, then add to Schedule
         query = sa.select([self.__schedules_tbl.c.id,
+                           self.__schedules_tbl.c.schedule_name,
                            self.__schedules_tbl.c.schedule_type,
                            self.__schedules_tbl.c.schedule_time,
                            self.__schedules_tbl.c.schedule_day,
                            self.__schedules_tbl.c.schedule_interval,
                            self.__schedules_tbl.c.exclusive,
+                           self.__schedules_tbl.c.repeat,
                            self.__schedules_tbl.c.process_name])
 
         query.select_from(self.__schedules_tbl)
@@ -358,44 +430,71 @@ class Scheduler(object):
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     interval = row.schedule_interval
-                    interval_seconds = None
+                    repeat_seconds = None
 
-                    if interval:
-                        interval_seconds = 3600*interval.hour + 60*interval.minute + interval.second
+                    if row.repeat:
+                        if row.repeat == self._Repeat.HOURLY:
+                            repeat_seconds = self.__HOUR_SECONDS
+                        elif row.repeat == self._Repeat.DAILY:
+                            repeat_seconds = self.__DAY_SECONDS
+                        elif row.repeat == self._Repeat.WEEKLY:
+                            repeat_seconds = self.__WEEK_SECONDS
+                        else:
+                            raise ValueError("Invalid repeat value {}", row.repeat)
+                    elif interval:
+                        repeat_seconds = 3600*interval.hour + 60*interval.minute + interval.second
 
                     schedule = self._Schedule(
                         id=row.id,
+                        name=row.schedule_name,
                         type=row.schedule_type,
                         day=row.schedule_day,
                         time=row.schedule_time,
-                        interval_seconds=interval_seconds,
+                        interval=interval,
+                        repeat=row.repeat,
+                        repeat_seconds=repeat_seconds,
                         exclusive=row.exclusive,
-                        process=row.process_name)
+                        scheduled_process_name=row.process_name)
 
                     # TODO: Move this to _add_schedule to check for errors
                     self._schedules[row.id] = schedule
-                    self._compute_first_start(schedule, self._start_time)
+                    self._schedule_first_task(schedule, self._start_time)
 
     async def _read_storage(self):
         """Reads schedule information from the storage server"""
         await self._get_scheduled_processes()
         await self._get_schedules()
 
+    def _resume_check_schedules(self):
+        if self._main_sleep_task:
+            self._main_sleep_task.cancel()
+
     async def _main(self):
         """Main loop for the scheduler
 
         - Reads configuration and schedules
-        - Runs :meth:`Scheduler._check_schedules` in an endless loop until
-          :meth:`Scheduler.stop` is called
+        - Runs :meth:`Scheduler._check_schedules` in an endless loop
         """
         # TODO log exception here or add an exception handler in asyncio
         await self._read_storage()
 
         while True:
-            await self._check_schedules()
-            if self._paused:
-                return
-            await asyncio.sleep(self.check_schedules_seconds)
+            next_start_time = await self._check_schedules()
+
+            if next_start_time is None:
+                break
+
+            # TODO can the sleep argument be negative?
+            self._main_sleep_task = asyncio.ensure_future(
+                asyncio.sleep(next_start_time - time.time()))
+
+            try:
+                await self._main_sleep_task
+            except asyncio.CancelledError:
+                logging.getLogger(__name__).debug("Main loop awakened")
+                pass
+
+            self._main_sleep_task = None
 
     # TODO: Used for development. Delete me.
     @staticmethod
@@ -410,13 +509,21 @@ class Scheduler(object):
     def start(self):
         """Starts the scheduler
 
-        Raises StartedException:
+        Returns with scheduler running in the background
+
+        Raises RuntimeError:
             Scheduler already started
         """
         if self._start_time:
-            raise ValueError("The scheduler is already running")
+            raise RuntimeError("The scheduler is already running")
 
         self._start_time = time.time()
+
         self._debug_logging_stdout()
+        logging.getLogger(__name__).info("Starting")
+
         asyncio.ensure_future(self._main())
-        # await self._start_startup_task('python3', '-m', 'foglamp.storage')
+
+        # Hard-code storage
+        # await self._start_startup_task(self._schedules['storage'])
+

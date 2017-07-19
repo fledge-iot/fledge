@@ -6,7 +6,7 @@
 
 from foglamp.core import api
 
-__author__ = "Praveen Garg"
+__author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -19,7 +19,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/category/{category_name}', api.get_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api.get_category_item)
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}/{value}', api.set_configuration_item)
-    app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}/{value}', api.set_configuration_item)
+    app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
 
     # enable cors support
     # Note: pip install aiohttp_cors

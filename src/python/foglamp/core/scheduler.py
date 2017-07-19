@@ -76,6 +76,7 @@ class Scheduler(object):
     __DAY_SECONDS = 3600*24
     __WEEK_SECONDS = 3600*24*7
     __MAX_SLEEP = 9999999
+    __ONE_DAY = datetime.timedelta(days=1)
     """When there is nothing to do, sleep for this number of seconds (forever)"""
     # Class attributes (end)
 
@@ -143,7 +144,7 @@ class Scheduler(object):
         """
         logging.getLogger(__name__).info("Stop requested")
 
-        # Stop the main loop
+        """Stop the main loop"""
         self._paused = True
         self._resume_check_schedules()
 
@@ -160,7 +161,9 @@ class Scheduler(object):
                 except KeyError:
                     continue
 
-                # TODO The schedule might disappear
+                # TODO: The schedule might disappear
+                #       This problem is rampant in the code base for
+                #       _schedules and _scheduled_processes
                 schedule = self._schedules[schedule_id]
 
                 logging.getLogger(__name__).info(
@@ -181,6 +184,7 @@ class Scheduler(object):
         if self._active_task_count:
             raise TimeoutError()
 
+        logging.getLogger(__name__).info("Stopped")
         self._start_time = None
 
         return True
@@ -196,7 +200,7 @@ class Scheduler(object):
         try:
             process = await asyncio.create_subprocess_exec(*args)
         except Exception:
-            # TODO catch real exception
+            # TODO: catch real exception
             logging.getLogger(__name__).exception(
                 "Unable to start schedule '%s' process '%s' task %s\n%s".format(
                     schedule.name, schedule.process_name, task_id, args))
@@ -221,7 +225,7 @@ class Scheduler(object):
     async def _start_regular_task(self, schedule):
         task_id = await self._start_task(schedule)
 
-        # The task row needs to exist before the completion handler runs
+        """The task row needs to exist before the completion handler runs"""
         async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(self.__tasks_tbl.insert().values(
@@ -235,18 +239,17 @@ class Scheduler(object):
 
     def _on_task_completion(self, schedule, process, task_id):
         logging.getLogger(__name__).info(
-            "Process exited: Schedule '%s' process '%s' task %s process %s pid %s\n%s",
+            "Process exited: Schedule '%s' process '%s' task %s pid %s\n%s",
             schedule.name,
             schedule.process_name,
             task_id,
-            schedule.process_name,
             process.pid,
             self._process_scripts[schedule.process_name])
 
         if self._active_task_count:
             self._active_task_count -= 1
         else:
-            # This should not happen
+            """This should not happen!"""
             logging.getLogger(__name__).error("Active task count would be negative")
 
         schedule_execution = self._schedule_executions[schedule.id]
@@ -281,8 +284,7 @@ class Scheduler(object):
 
         self._on_task_completion(schedule, process, task_id)
 
-        # Update tasks row
-
+        """Update the task's status"""
         async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(
@@ -296,7 +298,7 @@ class Scheduler(object):
         """Starts tasks according to schedules based on the current time"""
         least_next_start_time = None
 
-        # Can not iterate over _next_starts - it can change mid-iteration
+        """Can not iterate over _next_starts - it can change mid-iteration"""
         for key in list(self._schedule_executions.keys()):
             if self._paused:
                 return None
@@ -317,30 +319,30 @@ class Scheduler(object):
                 continue
 
             if time.time() >= schedule_execution.next_start_time:
-                # Because there are so many 'awaits' in this block,
-                # the active task count is incremented prior to any
-                # 'await' calls. Otherwise, a stop() request
-                # would terminate before the process gets
-                # started and tracked. Thus the code
-                # following this increment and all code that is
-                # called must be very careful about exceptions
-                # so that _active_task_count will decremented if
-                # necessary.
-                self._active_task_count += 1
-
-                # Modify next_start_time immediately to avoid reentrancy bugs
+                """"Because there are so many 'awaits' in this block,
+                the active task count is incremented prior to any
+                'await' calls. Otherwise, a stop() request
+                would terminate before the process gets
+                started and tracked. Thus the code
+                following this increment and all code that is
+                called must be very careful about exceptions
+                so that _active_task_count will decremented if
+                necessary.
+                lf._active_task_count += 1
+                
+                Modify next_start_time immediately to avoid reentrancy bugs
+                """
                 if not schedule.exclusive and self._schedule_next_task(schedule):
                     next_start_time = schedule.next_start_time
                 else:
                     next_start_time = None
 
-                # Start the task
                 if schedule.type == self._ScheduleType.STARTUP:
                     await self._start_startup_task(schedule)
                 else:
                     await self._start_regular_task(schedule)
 
-            # Track the least next_start_time
+            """Track the least next_start_time"""
             if next_start_time is not None and (least_next_start_time is None
                                                  or least_next_start_time > next_start_time):
                 least_next_start_time = next_start_time
@@ -363,6 +365,7 @@ class Scheduler(object):
             # Only support run daily
             add_day = False
 
+            """Handle daylight savings time transitions"""
             dt = datetime.datetime.fromtimestamp(current_time)
             requested_time = schedule.time
 
@@ -379,9 +382,15 @@ class Scheduler(object):
 
             if add_day:
                 # Go to the next day
-                dt = dt + datetime.timedelta(days=1)
+                dt += self.__ONE_DAY
+
+            # Advance to the correct day if specified
+            if schedule.day:
+                while dt.isoweekday() != schedule.day:
+                    dt += self.__ONE_DAY
 
             schedule_execution.next_start_time = time.mktime(dt.timetuple())
+
         elif schedule.type == self._ScheduleType.STARTUP:
             schedule_execution.next_start_time = current_time
 
@@ -395,6 +404,11 @@ class Scheduler(object):
         schedule_execution = self._schedule_executions[schedule.id]
 
         if schedule.exclusive:
+            """next_start_time is not updated for exclusive tasks by the main
+               loop. This attribute is instead updated after the task finishes.
+               Compute the number of intervals that passed during the
+               task's execution.
+            """
             if advance_seconds:
                 advance_seconds *= math.ceil(
                     (time.time() - schedule_execution.next_start_time) /
@@ -403,9 +417,9 @@ class Scheduler(object):
                 advance_seconds = time.time()-schedule_execution.next_start_time
 
         if schedule.type == self._ScheduleType.TIMED:
-            # This code handles daylight savings time transitions
+            """Handle daylight savings time transitions"""
             next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
-            next_dt = next_dt + datetime.timedelta(seconds=advance_seconds)
+            next_dt += datetime.timedelta(seconds=advance_seconds)
             schedule_execution.next_start_time = time.mktime(next_dt.timetuple())
         else:
             schedule_execution.next_start_time += advance_seconds
@@ -423,7 +437,7 @@ class Scheduler(object):
                     self._process_scripts[row.name] = row.script
 
     async def _get_schedules(self):
-        # TODO Get processes first, then add to Schedule
+        # TODO: Get processes first, then add to Schedule
         query = sa.select([self.__schedules_tbl.c.id,
                            self.__schedules_tbl.c.schedule_name,
                            self.__schedules_tbl.c.schedule_type,
@@ -473,7 +487,7 @@ class Scheduler(object):
         - Reads configuration and schedules
         - Runs :meth:`Scheduler._check_schedules` in an endless loop
         """
-        # TODO log exception here or add an exception handler in asyncio
+        # TODO: log exception here or add an exception handler in asyncio
         await self._read_storage()
 
         while True:
@@ -487,7 +501,7 @@ class Scheduler(object):
             else:
                 sleep_seconds = next_start_time - time.time()
 
-            logging.getLogger(__name__).debug("Sleeping for %s seconds", sleep_seconds)
+            logging.getLogger(__name__).info("Sleeping for %s seconds", sleep_seconds)
 
             self._main_sleep_task = asyncio.ensure_future(asyncio.sleep(sleep_seconds))
 
@@ -527,5 +541,6 @@ class Scheduler(object):
 
         asyncio.ensure_future(self._main())
 
-        # Hard-code storage
-        # await self._start_startup_task(self._schedules['storage'])
+        """Hard-code storage server
+        wait self._start_startup_task(self._schedules['storage'])
+        """

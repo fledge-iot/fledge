@@ -28,11 +28,23 @@ __version__ = "${VERSION}"
 
 class Scheduler(object):
     """FogLAMP Task Scheduler
-    
-    Starts and manages subprocesses (called tasks) via entities
-    called Schedules (when to execute) and ProcessSchedules (what to execute).
-    
-    Most methods are coroutines.
+
+    Starts and tracks 'tasks' that run periodically,
+    start-up, and/or manually.
+
+    Schedules specify when to start and restart Tasks. A Task
+    is an operating system process. ScheduleProcesses
+    specify process/command name and parameters.
+
+    Most methods are coroutines and use the default
+    event loop to create tasks.
+
+    This class does not use threads.
+
+    Usage:
+        - Call :meth:`start`
+        - Wait
+        - Call :meth:`stop`
     """
 
     # TODO: Methods that accept a schedule and look in _schedule_execution
@@ -46,10 +58,10 @@ class Scheduler(object):
 
     class _ScheduleType(IntEnum):
         """Enumeration for schedules.schedule_type"""
-        TIMED = 1
-        INTERVAL = 2
-        MANUAL = 3
-        STARTUP = 4
+        STARTUP = 1
+        TIMED = 2
+        INTERVAL = 3
+        MANUAL = 4
 
     class _TaskState(IntEnum):
         """Enumeration for tasks.task_state"""
@@ -73,27 +85,26 @@ class Scheduler(object):
             self.task_processes = dict()
             """Maps a task id to a process"""
 
-    # Class attributes (begin)
-    __scheduled_processes_tbl = None  # type: sa.Table
-    __schedules_tbl = None  # type: sa.Table
-    __tasks_tbl = None  # type: sa.Table
-
-    # Constants:
-    __CONNECTION_STRING = "dbname='foglamp'"
+    """Constant class attributes"""
+    _CONNECTION_STRING = "dbname='foglamp'"
     # "postgresql://foglamp:foglamp@localhost:5432/foglamp"
-    __HOUR_SECONDS = 3600
-    __DAY_SECONDS = 3600*24
-    __WEEK_SECONDS = 3600*24*7
-    __MAX_SLEEP = 9999999
-    __ONE_HOUR = datetime.timedelta(hours=1)
-    __ONE_DAY = datetime.timedelta(days=1)
+    _HOUR_SECONDS = 3600
+    _DAY_SECONDS = 3600*24
+    _WEEK_SECONDS = 3600*24*7
+    _MAX_SLEEP = 9999999
+    _ONE_HOUR = datetime.timedelta(hours=1)
+    _ONE_DAY = datetime.timedelta(days=1)
     """When there is nothing to do, sleep for this number of seconds (forever)"""
-    # Class attributes (end)
+
+    """Mostly constant class attributes"""
+    _scheduled_processes_tbl = None  # type: sa.Table
+    _schedules_tbl = None  # type: sa.Table
+    _tasks_tbl = None  # type: sa.Table
 
     def __init__(self):
         # Class variables (begin)
-        if self.__schedules_tbl is None:
-            self.__schedules_tbl = sa.Table(
+        if self._schedules_tbl is None:
+            self._schedules_tbl = sa.Table(
                 'schedules',
                 sa.MetaData(),
                 sa.Column('id', pg_types.UUID),
@@ -105,7 +116,7 @@ class Scheduler(object):
                 sa.Column('schedule_interval', sa.types.Interval),
                 sa.Column('exclusive', sa.types.BOOLEAN))
 
-            self.__tasks_tbl = sa.Table(
+            self._tasks_tbl = sa.Table(
                 'tasks',
                 sa.MetaData(),
                 sa.Column('id', pg_types.UUID),
@@ -117,7 +128,7 @@ class Scheduler(object):
                 sa.Column('exit_code', sa.types.INT),
                 sa.Column('reason', sa.types.VARCHAR(255)))
 
-            self.__scheduled_processes_tbl = sa.Table(
+            self._scheduled_processes_tbl = sa.Table(
                 'scheduled_processes',
                 sa.MetaData(),
                 sa.Column('name', pg_types.VARCHAR(20)),
@@ -236,9 +247,9 @@ class Scheduler(object):
         task_id = await self._start_task(schedule)
 
         """The task row needs to exist before the completion handler runs"""
-        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
-                await conn.execute(self.__tasks_tbl.insert().values(
+                await conn.execute(self._tasks_tbl.insert().values(
                             id=task_id,
                             pid=self._schedule_executions[schedule.id].task_processes[task_id].pid,
                             process_name=schedule.process_name,
@@ -295,11 +306,11 @@ class Scheduler(object):
         self._on_task_completion(schedule, process, task_id)
 
         """Update the task's status"""
-        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(
-                    self.__tasks_tbl.update().
-                    where(self.__tasks_tbl.c.id == task_id).
+                    self._tasks_tbl.update().
+                    where(self._tasks_tbl.c.id == task_id).
                     values(exit_code=exit_code,
                            state=int(self._TaskState.COMPLETE),
                            end_time=datetime.datetime.now()))
@@ -363,7 +374,7 @@ class Scheduler(object):
 
     def _schedule_next_timed_task(self, schedule, schedule_execution, current_dt):
         """Handle daylight savings time transitions"""
-        if schedule.repeat_seconds == self.__HOUR_SECONDS:
+        if schedule.repeat_seconds == self._HOUR_SECONDS:
             """If hourly repeat, use the current hour. Ignore the specified hour."""
             dt = datetime.datetime(
                 year=current_dt.year,
@@ -374,7 +385,7 @@ class Scheduler(object):
                 second=schedule.time.second)
 
             if dt.time() > schedule.time:
-                dt += self.__ONE_HOUR
+                dt += self._ONE_HOUR
         else:
             dt = datetime.datetime(
                 year=current_dt.year,
@@ -385,12 +396,12 @@ class Scheduler(object):
                 second=schedule.time.second)
 
             if current_dt.time() > schedule.time:
-                dt += self.__ONE_DAY
+                dt += self._ONE_DAY
 
         # Advance to the correct day if specified
         if schedule.day:
             while dt.isoweekday() != schedule.day:
-                dt += self.__ONE_DAY
+                dt += self._ONE_DAY
 
         schedule_execution.next_start_time = time.mktime(dt.timetuple())
 
@@ -463,29 +474,29 @@ class Scheduler(object):
         return True
 
     async def _get_process_scripts(self):
-        query = sa.select([self.__scheduled_processes_tbl.c.name,
-                           self.__scheduled_processes_tbl.c.script])
-        query.select_from(self.__scheduled_processes_tbl)
+        query = sa.select([self._scheduled_processes_tbl.c.name,
+                           self._scheduled_processes_tbl.c.script])
+        query.select_from(self._scheduled_processes_tbl)
 
-        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     self._process_scripts[row.name] = row.script
 
     async def _get_schedules(self):
         # TODO: Get processes first, then add to Schedule
-        query = sa.select([self.__schedules_tbl.c.id,
-                           self.__schedules_tbl.c.schedule_name,
-                           self.__schedules_tbl.c.schedule_type,
-                           self.__schedules_tbl.c.schedule_time,
-                           self.__schedules_tbl.c.schedule_day,
-                           self.__schedules_tbl.c.schedule_interval,
-                           self.__schedules_tbl.c.exclusive,
-                           self.__schedules_tbl.c.process_name])
+        query = sa.select([self._schedules_tbl.c.id,
+                           self._schedules_tbl.c.schedule_name,
+                           self._schedules_tbl.c.schedule_type,
+                           self._schedules_tbl.c.schedule_time,
+                           self._schedules_tbl.c.schedule_day,
+                           self._schedules_tbl.c.schedule_interval,
+                           self._schedules_tbl.c.exclusive,
+                           self._schedules_tbl.c.process_name])
 
-        query.select_from(self.__schedules_tbl)
+        query.select_from(self._schedules_tbl)
 
-        async with aiopg.sa.create_engine(self.__CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     interval = row.schedule_interval
@@ -534,7 +545,7 @@ class Scheduler(object):
                 break
 
             if next_start_time is None:
-                sleep_seconds = self.__MAX_SLEEP
+                sleep_seconds = self._MAX_SLEEP
             else:
                 sleep_seconds = next_start_time - time.time()
 
@@ -563,7 +574,9 @@ class Scheduler(object):
     def start(self):
         """Starts the scheduler
 
-        Returns with scheduler running in the background
+        When this method returns, a nonstop asyncio task starts
+        scheduled tasks and monitors subprocesses. This class
+        does not use threads (tasks run as subprocesses).
 
         Raises RuntimeError:
             Scheduler already started
@@ -578,6 +591,6 @@ class Scheduler(object):
 
         asyncio.ensure_future(self._main())
 
-        """Hard-code storage server
+        """Hard-code storage server:
         wait self._start_startup_task(self._schedules['storage'])
         """

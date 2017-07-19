@@ -17,6 +17,10 @@ Supports a number of REST API:
     - Return a set of sensor readings for the specified asset and sensor
   http://<address>/foglamp/asset/{asset}/{reading}/summary
     - Return a summary (min, max and average) for the specified asset and sensor
+  http://<address>/foglamp/asset/{asset}/{reading}/series
+    - Return a time series (min, max and average) for the specified asset and
+      sensor averages over seconds, minutes or hours. The selection of seconds, minutes
+      or hours is done via the group query parameter
 
   All but the /foglamp/asset API call take a set of optional query parameters
     limit=x     Return the first x rows only
@@ -52,6 +56,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/asset/{asset_code}', asset)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/summary', asset_summary)
+    app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
 
 
 async def asset_counts(request):
@@ -97,7 +102,7 @@ async def asset(request):
 
     query = 'select to_char(user_ts, \'{0}\') as "timestamp", (reading)::json from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code)
 
-    query += where_clause(request)
+    query += _where_clause(request)
 
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
@@ -151,7 +156,7 @@ async def asset_reading(request):
     query = 'select to_char(user_ts, \'{0}\') as "Time", reading->>\'{2}\' from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code, reading)
 
     # Process additional where clause conditions
-    query += where_clause(request)
+    query += _where_clause(request)
 
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
@@ -176,7 +181,7 @@ async def asset_reading(request):
 async def asset_summary(request):
     """
     Browse all the asserts for which we have recorded readings and
-    return a summary for a particulat sensor. The values that are
+    return a summary for a particular sensor. The values that are
     returned are the min, max and average values of the sensor.
 
     The readings summarised can also be time limited by use of the query
@@ -203,7 +208,7 @@ async def asset_summary(request):
 
     query = 'select min(reading->>\'{1}\'), max(reading->>\'{1}\'), avg((reading->>\'{1}\')::float) from readings where asset_code = \'{0}\''.format(asset_code, reading)
 
-    query += where_clause(request)
+    query += _where_clause(request)
     # Select the assets from the readings table
     row = await conn.fetchrow(query);
     columns = ('min', 'max', 'average')
@@ -214,7 +219,72 @@ async def asset_summary(request):
 
     return web.json_response({ reading : results });
 
-def where_clause(request):
+async def asset_averages(request):
+    """
+    Browse all the asserts for which we have recorded readings and
+    return a series of averages per second, minute or hour.
+
+    The readings averaged can also be time limited by use of the query
+    parameter seconds=sss. This defines a number of seconds that the reading
+    must have been processed in. Older readings than this will not be summarised.
+
+    The readings averaged can also be time limited by use of the query
+    parameter minutes=mmm. This defines a number of minutes that the reading
+    must have been processed in. Older readings than this will not be summarised.
+
+    The readings averaged can also be time limited by use of the query
+    parameter hours=hh. This defines a number of hours that the reading
+    must have been processed in. Older readings than this will not be summarised.
+
+    Only one of hour, minutes or seconds should be supplied
+
+    The amount of time covered by each returned value is set using the
+    query parameter group. This may be set to seconds, minutes or hours
+
+    Return the result of the Postgres query 
+    select user_ts avg((reading->>'reading')::float) from readings where asset_code = 'asset_code' group by user_ts
+    """
+
+    conn = await asyncpg.connect(__DB_URL)
+    asset_code =  request.match_info.get('asset_code', '')
+    reading =  request.match_info.get('reading', '')
+
+    ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
+    if 'group' in request.query:
+      if request.query['group'] == 'seconds':
+        ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
+      if request.query['group'] == 'minutes':
+        ts_restraint = 'YYYY-MM-DD HH24:MI'
+      if request.query['group'] == 'hours':
+        ts_restraint = 'YYYY-MM-DD HH24'
+
+
+    query = 'select to_char(user_ts, \'{2}\'), min(reading->>\'{1}\'), max(reading->>\'{1}\'), avg((reading->>\'{1}\')::float) from readings where asset_code = \'{0}\''.format(asset_code, reading, ts_restraint)
+
+    query += _where_clause(request)
+
+    # Add the group by
+    query += ' group by to_char(user_ts, \'{0}\') order by 1'.format(ts_restraint)
+
+    # Add the order by and limit clause
+    limit = __DEFAULT_LIMIT
+    if 'limit' in request.query:
+      limit = request.query['limit']
+    query += ' limit {0}'.format(limit)
+
+    # Select the assets from the readings table
+    rows = await conn.fetch(query);
+    columns = ('time', 'min', 'max', 'average')
+    results = []
+    for row in rows:
+      results.append(dict(zip(columns, row)))
+
+    # Close the connection.
+    await conn.close()
+
+    return web.json_response(results);
+
+def _where_clause(request):
     where_clause = ''
 
     if 'seconds' in request.query:

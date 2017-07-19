@@ -81,6 +81,7 @@ class Scheduler(object):
     __HOUR_SECONDS = 3600
     __DAY_SECONDS = 3600*24
     __WEEK_SECONDS = 3600*24*7
+    __MAX_SLEEP = 999999
     # Class attributes (end)
 
     def __init__(self):
@@ -306,10 +307,12 @@ class Scheduler(object):
 
             schedule_execution = self._schedule_executions[key]
 
-            if not schedule_execution.next_start_time:
+            if schedule.exclusive and schedule_execution.task_processes:
                 continue
 
-            if schedule.exclusive and schedule_execution.task_processes:
+            next_start_time = schedule_execution.next_start_time
+
+            if not next_start_time:
                 continue
 
             if time.time() >= schedule_execution.next_start_time:
@@ -326,17 +329,20 @@ class Scheduler(object):
 
                 # Modify next_start_time immediately to avoid reentrancy bugs
                 if not schedule.exclusive and self._schedule_next_task(schedule):
-                    # Track the least next_start_time
                     next_start_time = schedule.next_start_time
-
-                    if least_next_start_time is None or next_start_time < least_next_start_time:
-                        least_next_start_time = next_start_time
+                else:
+                    next_start_time = None
 
                 # Start the task
                 if schedule.type == self._ScheduleType.STARTUP:
                     await self._start_startup_task(schedule)
                 else:
                     await self._start_regular_task(schedule)
+
+            # Track the least next_start_time
+            if next_start_time is not None and ( least_next_start_time is None
+                                                 or least_next_start_time > next_start_time):
+                least_next_start_time = next_start_time
 
         return least_next_start_time
 
@@ -481,12 +487,17 @@ class Scheduler(object):
         while True:
             next_start_time = await self._check_schedules()
 
-            if next_start_time is None:
-                break
+            if self._paused:
+                break;
 
-            # TODO can the sleep argument be negative?
-            self._main_sleep_task = asyncio.ensure_future(
-                asyncio.sleep(next_start_time - time.time()))
+            if next_start_time is None:
+                sleep_seconds = self.__MAX_SLEEP
+            else:
+                sleep_seconds = next_start_time - time.time()
+
+            logging.getLogger(__name__).debug("Sleeping for %s seconds", sleep_seconds)
+
+            self._main_sleep_task = asyncio.ensure_future(asyncio.sleep(sleep_seconds))
 
             try:
                 await self._main_sleep_task

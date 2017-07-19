@@ -8,16 +8,16 @@ insert into foglamp.scheduled_processes (name, script) values ('device', '["pyth
 
 /* Use this to create guids: https://www.uuidgenerator.net/version1 */
 
-insert into foglamp.schedules(id, process_name, schedule_name, schedule_type)
-values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 4);
+insert into foglamp.schedules(id, process_name, schedule_name, schedule_type, exclusive)
+values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 4, true);
 
 /*
 insert into foglamp.scheduled_processes (name, script) values ('hello', '["echo", "hello"]');
 insert into foglamp.schedules(id, process_name, schedule_name, schedule_type, schedule_interval)
-values ('fdad6cd6-698c-11e7-907b-a6006ad3dba0', 'hello', 'hello', 2, '00:01:00');
+values ('fdad6cd6-698c-11e7-907b-a6006ad3dba0', 'hello', 'hello', 2, '00:00:05');
 
-insert into foglamp.scheduled_processes (name, script) values ('sleep', '["sleep", "60"]');
+insert into foglamp.scheduled_processes (name, script) values ('sleep', '["sleep", "11"]');
 insert into foglamp.schedules(id, process_name, schedule_name, schedule_type, schedule_interval, exclusive)
-values ('fdad6cd6-698c-11e7-907b-a6006ad3dba1', 'sleep', 'sleep', 2, '00:00:05', true);
+values ('fdad6cd6-698c-11e7-907b-a6006ad3dba1', 'sleep', 'sleep', 2, '00:00:10', true);
 */
 

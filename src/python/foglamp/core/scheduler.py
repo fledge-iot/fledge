@@ -9,12 +9,12 @@
 import time
 import datetime
 import math
-from enum import IntEnum
 import asyncio
 import collections
 import uuid
 import logging  # TODO: Delete me
 import sys  # TODO: Needed for logging delete me
+from enum import IntEnum
 
 import aiopg.sa
 import sqlalchemy as sa
@@ -49,15 +49,9 @@ class Scheduler(object):
         CANCELED = 3
         INTERRUPTED = 4
 
-    class _Repeat(IntEnum):
-        """Enumeration for tasks.task_state"""
-        HOURLY = 1
-        DAILY = 2
-        WEEKLY = 3
-
     _Schedule = collections.namedtuple(
         'Schedule',
-        'id name type time day interval repeat repeat_seconds exclusive process_name')
+        'id name type time day interval repeat_seconds exclusive process_name')
     """Represents a row in the schedules table"""
 
     class _ScheduleExecution:
@@ -81,7 +75,8 @@ class Scheduler(object):
     __HOUR_SECONDS = 3600
     __DAY_SECONDS = 3600*24
     __WEEK_SECONDS = 3600*24*7
-    __MAX_SLEEP = 999999
+    __MAX_SLEEP = 9999999
+    """When there is nothing to do, sleep for this number of seconds (forever)"""
     # Class attributes (end)
 
     def __init__(self):
@@ -96,8 +91,7 @@ class Scheduler(object):
                 sa.Column('schedule_type', sa.types.SMALLINT),
                 sa.Column('schedule_time', sa.types.TIME),
                 sa.Column('schedule_day', sa.types.SMALLINT),
-                sa.Column('schedule_interval', sa.types.TIME),
-                sa.Column('repeat', sa.types.SMALLINT),
+                sa.Column('schedule_interval', sa.types.Interval),
                 sa.Column('exclusive', sa.types.BOOLEAN))
 
             self.__tasks_tbl = sa.Table(
@@ -437,7 +431,6 @@ class Scheduler(object):
                            self.__schedules_tbl.c.schedule_day,
                            self.__schedules_tbl.c.schedule_interval,
                            self.__schedules_tbl.c.exclusive,
-                           self.__schedules_tbl.c.repeat,
                            self.__schedules_tbl.c.process_name])
 
         query.select_from(self.__schedules_tbl)
@@ -446,19 +439,9 @@ class Scheduler(object):
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     interval = row.schedule_interval
-                    repeat_seconds = None
 
-                    if row.repeat:
-                        if row.repeat == self._Repeat.HOURLY:
-                            repeat_seconds = self.__HOUR_SECONDS
-                        elif row.repeat == self._Repeat.DAILY:
-                            repeat_seconds = self.__DAY_SECONDS
-                        elif row.repeat == self._Repeat.WEEKLY:
-                            repeat_seconds = self.__WEEK_SECONDS
-                        else:
-                            raise ValueError("Invalid repeat value {}", row.repeat)
-                    elif interval:
-                        repeat_seconds = 3600*interval.hour + 60*interval.minute + interval.second
+                    if interval is not None:
+                        repeat_seconds = interval.total_seconds()
 
                     schedule = self._Schedule(
                         id=row.id,
@@ -467,7 +450,6 @@ class Scheduler(object):
                         day=row.schedule_day,
                         time=row.schedule_time,
                         interval=interval,
-                        repeat=row.repeat,
                         repeat_seconds=repeat_seconds,
                         exclusive=row.exclusive,
                         process_name=row.process_name)

@@ -97,7 +97,7 @@ async def asset(request):
 
     query = 'select to_char(user_ts, \'{0}\') as "timestamp", (reading)::json from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code)
 
-    query += where_clause(request)
+    query += _where_clause(request)
 
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
@@ -151,7 +151,7 @@ async def asset_reading(request):
     query = 'select to_char(user_ts, \'{0}\') as "Time", reading->>\'{2}\' from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code, reading)
 
     # Process additional where clause conditions
-    query += where_clause(request)
+    query += _where_clause(request)
 
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
@@ -203,7 +203,7 @@ async def asset_summary(request):
 
     query = 'select min(reading->>\'{1}\'), max(reading->>\'{1}\'), avg((reading->>\'{1}\')::float) from readings where asset_code = \'{0}\''.format(asset_code, reading)
 
-    query += where_clause(request)
+    query += _where_clause(request)
     # Select the assets from the readings table
     row = await conn.fetchrow(query);
     columns = ('min', 'max', 'average')
@@ -214,7 +214,7 @@ async def asset_summary(request):
 
     return web.json_response({ reading : results });
 
-def where_clause(request):
+def _where_clause(request):
     where_clause = ''
 
     if 'seconds' in request.query:

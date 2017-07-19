@@ -220,31 +220,37 @@ class Scheduler(object):
 
         try:
             process = await asyncio.create_subprocess_exec(*args)
-        except Exception:
+        except IOError:
             # TODO: catch real exception
             logging.getLogger(__name__).exception(
                 "Unable to start schedule '%s' process '%s' task %s\n%s".format(
                     schedule.name, schedule.process_name, task_id, args))
 
         if process:
+            self._schedule_executions[schedule.id].task_processes[task_id] = process
+
             logging.getLogger(__name__).info(
                 "Started: Schedule '%s' process '%s' task %s pid %s\n%s",
                 schedule.name, schedule.process_name, task_id, process.pid, args)
-
-            self._schedule_executions[schedule.id].task_processes[task_id] = process
         else:
             self._active_task_count -= 1
+            del self._schedules[schedule.id]
+            del self._schedule_executions[schedule.id]
+            return None
 
         return task_id
 
     async def _start_startup_task(self, schedule):
         """Startup tasks are not tracked in the tasks table"""
-        # TODO: what if this fails?
         task_id = await self._start_task(schedule)
-        asyncio.ensure_future(self._wait_for_startup_task_completion(schedule, task_id))
+        if task_id:
+            asyncio.ensure_future(self._wait_for_startup_task_completion(schedule, task_id))
 
     async def _start_regular_task(self, schedule):
         task_id = await self._start_task(schedule)
+
+        if not task_id:
+            return
 
         """The task row needs to exist before the completion handler runs"""
         async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:

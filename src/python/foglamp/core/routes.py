@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 from foglamp.core import api
+from foglamp.core import browser
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -15,6 +16,8 @@ __version__ = "${VERSION}"
 def setup(app):
     # app.router.add_route('POST', '/foglamp/a-post-req', api.a_post_req, expect_handler = aiohttp.web.Request.json)
     app.router.add_route('GET', '/foglamp/ping', api.ping)
+
+    browser.setup(app)
 
     # enable cors support
     # Note: pip install aiohttp_cors

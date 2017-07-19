@@ -110,7 +110,7 @@ class Scheduler(object):
                 sa.Column('end_time', sa.types.TIMESTAMP),
                 sa.Column('pid', sa.types.INT),
                 sa.Column('exit_code', sa.types.INT),
-                sa.Column('reason', sa.types.VARCHAR(20)))
+                sa.Column('reason', sa.types.VARCHAR(255)))
 
             self.__scheduled_processes_tbl = sa.Table(
                 'scheduled_processes',

@@ -33,6 +33,7 @@ import random
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import time
+import os
 
 """Script information and connection to the Database
 """
@@ -59,8 +60,9 @@ _CONN = _ENGINE.connect()
 -> Last ID sent to the historian
 """
 # Important files
-config_file = 'config.json'
-other_config = "other_config.json"
+this_dir, this_filename = os.path.split(__file__)
+config_file = os.path.join(this_dir, 'config.json')
+other_config = os.path.join(this_dir, 'other_config.json')
 
 # Will be replaced once FOGL-212 work is done
 with open(config_file, 'r') as conf:

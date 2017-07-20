@@ -11,13 +11,13 @@ Supports a number of REST API:
 
   http://<address>/foglamp/asset
      - Return a summary count of all asset readings
-  http://<address>/foglamp/asset/{asset}
+  http://<address>/foglamp/asset/{asset_code}
     - Return a set of asset readings for the given asset 
-  http://<address>/foglamp/asset/{asset}/{reading}
+  http://<address>/foglamp/asset/{asset_code}/{reading}
     - Return a set of sensor readings for the specified asset and sensor
-  http://<address>/foglamp/asset/{asset}/{reading}/summary
+  http://<address>/foglamp/asset/{asset_code}/{reading}/summary
     - Return a summary (min, max and average) for the specified asset and sensor
-  http://<address>/foglamp/asset/{asset}/{reading}/series
+  http://<address>/foglamp/asset/{asset_code}/{reading}/series
     - Return a time series (min, max and average) for the specified asset and
       sensor averages over seconds, minutes or hours. The selection of seconds, minutes
       or hours is done via the group query parameter
@@ -76,7 +76,7 @@ async def asset_counts(request):
     columns = ('asset_code', 'count')
     results = []
     for row in rows:
-      results.append(dict(zip(columns, row)))
+        results.append(dict(zip(columns, row)))
 
     # Close the connection.
     await conn.close()
@@ -98,7 +98,7 @@ async def asset(request):
     asset_code =  request.match_info.get('asset_code', '')
     limit = __DEFAULT_LIMIT
     if 'limit' in request.query:
-      limit = request.query['limit']
+        limit = request.query['limit']
 
     query = 'select to_char(user_ts, \'{0}\') as "timestamp", (reading)::json from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code)
 
@@ -107,7 +107,7 @@ async def asset(request):
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
     if 'limit' in request.query:
-      limit = request.query['limit']
+        limit = request.query['limit']
 
     orderby = ' order by user_ts limit {0}'.format(limit)
     query += orderby
@@ -116,8 +116,8 @@ async def asset(request):
     rows = await conn.fetch(query)
     results = []
     for row in rows:
-      jrow = { 'timestamp' : row['timestamp'], 'reading' : json.loads(row['reading']) }
-      results.append(jrow)
+        jrow = { 'timestamp' : row['timestamp'], 'reading' : json.loads(row['reading']) }
+        results.append(jrow)
 
     # Close the connection.
     await conn.close()
@@ -161,7 +161,7 @@ async def asset_reading(request):
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
     if 'limit' in request.query:
-      limit = request.query['limit']
+        limit = request.query['limit']
 
     orderby = ' order by user_ts limit {0}'.format(limit)
     query += orderby
@@ -171,7 +171,7 @@ async def asset_reading(request):
     columns = ('timestamp', reading)
     results = []
     for row in rows:
-      results.append(dict(zip(columns, row)))
+        results.append(dict(zip(columns, row)))
 
     # Close the connection.
     await conn.close()
@@ -251,13 +251,12 @@ async def asset_averages(request):
 
     ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
     if 'group' in request.query:
-      if request.query['group'] == 'seconds':
-        ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
-      if request.query['group'] == 'minutes':
-        ts_restraint = 'YYYY-MM-DD HH24:MI'
-      if request.query['group'] == 'hours':
-        ts_restraint = 'YYYY-MM-DD HH24'
-
+        if request.query['group'] == 'seconds':
+            ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
+        elif request.query['group'] == 'minutes':
+            ts_restraint = 'YYYY-MM-DD HH24:MI'
+        elif request.query['group'] == 'hours':
+            ts_restraint = 'YYYY-MM-DD HH24'
 
     query = 'select to_char(user_ts, \'{2}\'), min(reading->>\'{1}\'), max(reading->>\'{1}\'), avg((reading->>\'{1}\')::float) from readings where asset_code = \'{0}\''.format(asset_code, reading, ts_restraint)
 
@@ -269,7 +268,7 @@ async def asset_averages(request):
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
     if 'limit' in request.query:
-      limit = request.query['limit']
+        limit = request.query['limit']
     query += ' limit {0}'.format(limit)
 
     # Select the assets from the readings table
@@ -277,7 +276,7 @@ async def asset_averages(request):
     columns = ('time', 'min', 'max', 'average')
     results = []
     for row in rows:
-      results.append(dict(zip(columns, row)))
+        results.append(dict(zip(columns, row)))
 
     # Close the connection.
     await conn.close()
@@ -288,10 +287,10 @@ def _where_clause(request):
     where_clause = ''
 
     if 'seconds' in request.query:
-      where_clause += ' and user_ts > NOW() - INTERVAL \'{0} seconds\''.format(request.query['seconds'])
+        where_clause += ' and user_ts > NOW() - INTERVAL \'{0} seconds\''.format(request.query['seconds'])
     elif 'minutes' in request.query:
-      where_clause += ' and user_ts > NOW() - INTERVAL \'{0} minutes\''.format(request.query['minutes'])
+        where_clause += ' and user_ts > NOW() - INTERVAL \'{0} minutes\''.format(request.query['minutes'])
     elif 'hours' in request.query:
-      where_clause += ' and user_ts > NOW() - INTERVAL \'{0} hours\''.format(request.query['hours'])
+        where_clause += ' and user_ts > NOW() - INTERVAL \'{0} hours\''.format(request.query['hours'])
 
     return where_clause

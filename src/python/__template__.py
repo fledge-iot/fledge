@@ -62,8 +62,9 @@ on the first line, separated by a colon.
 """
 
 
-def function_with_types_in_docstring(param1, param2):
-    """Example function with types documented in the docstring.
+def function_with_types_in_docstring(param1: int, param2: str) -> bool:
+    """Example function with types declared in the def and
+    also documented in the docstring.
 
     `PEP 484`_ type annotations are supported. If attribute, parameter, and
     return types are annotated according to `PEP 484`_, they do not need to be
@@ -71,13 +72,13 @@ def function_with_types_in_docstring(param1, param2):
 
     Args:
         param1 (int): The first parameter.
+
         param2 (str): The second parameter.
 
     Returns:
         bool: The return value. True for success, False otherwise.
 
     .. todo::
-
         This is a todo docstring example
         For def level todo, if we want to expose this publicly via readthedocs
 

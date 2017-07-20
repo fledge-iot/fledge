@@ -6,11 +6,13 @@
 
 """ Configuration Manager """
 
-import logging
+# import logging
 import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import text
+
+from foglamp import logger
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -29,7 +31,8 @@ _configuration_tbl = sa.Table(
 
 _valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password']
 _connection_string = 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
-_logger = logging.getLogger(__name__)
+# _logger = logging.getLogger(__name__)
+_logger = logger.setup(__name__)
 
 """
 General naming convention:

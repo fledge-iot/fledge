@@ -110,4 +110,22 @@ INSERT INTO foglamp.statistics ( key, description, value )
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0 ),
             ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0 );
 
+-- Schedules
+-- Use this to create guids: https://www.uuidgenerator.net/version1 */
+-- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
+
+insert into foglamp.scheduled_processes (name, script) values ('device', '["python3", "-m", "foglamp.device"]');
+insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
+
+-- Start the device server at start-up
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive)
+values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1,
+'0:0', true);
+
+-- Run the purge process daily at 8 PM
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 2,
+'20:00:00', '24:00:00', true);
 

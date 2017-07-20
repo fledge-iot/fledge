@@ -845,7 +845,7 @@ CREATE INDEX fki_user_asset_permissions_fk2
 -- List of scheduled Processes
 CREATE TABLE foglamp.scheduled_processes (
   name   character varying(20)  NOT NULL, -- Name of the process
-  script character varying(255) NOT NULL, -- Full path of the process
+  script jsonb, -- Full path of the process
   CONSTRAINT scheduled_processes_pkey PRIMARY KEY (name)
        USING INDEX TABLESPACE foglamp )
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;
@@ -855,13 +855,16 @@ ALTER TABLE foglamp.scheduled_processes OWNER to foglamp;
 
 -- List of schedules
 CREATE TABLE foglamp.schedules (
-  id                uuid                  UNIQUE,   -- Unique uuid, PK
+  id                uuid                  NOT NULL, -- PK
   process_name      character varying(20) NOT NULL, -- FK process name
   schedule_name     character varying(20) NOT NULL, -- schedule name
-  schedule_type     smallint              NOT NULL, -- At the moment there are three types
-  schedule_interval time,                           -- Schedule interval
-  schedule_time     time,                           -- Schedule time
-  exclusive         boolean,
+  schedule_type     smallint              NOT NULL, -- 1 = timed, 2 = interval, 3 = manual,
+                                                    -- 4 = startup
+  schedule_interval interval,                       -- Repeat interval
+  schedule_time     time,                           -- Start time
+  schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
+  exclusive         boolean not null default true,  -- true = Only one task can run
+                                                    -- at any given time
   CONSTRAINT schedules_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,
   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
@@ -875,12 +878,14 @@ ALTER TABLE foglamp.schedules OWNER to foglamp;
 
 -- List of tasks
 CREATE TABLE foglamp.tasks (
-  id           uuid                        UNIQUE,                 -- Unique uuid, PK
+  id           uuid                        NOT NULL,               -- PK
   process_name character varying(20)       NOT NULL,               -- Name of the task
-  state        smallint                    NOT NULL,               -- State of the task: 1-Running, 2-Complete, 3-Cancelled
+  state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
   start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
   end_time     timestamp(6) with time zone,                        -- The date and time the task ended
-  reason       character varying(20),                              -- The reason why the task ended
+  reason       character varying(255),                             -- The reason why the task ended
+  pid          int                         NOT NULL,               -- Linux process id
+  exit_code    int,                                                -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,
   CONSTRAINT tasks_fk1 FOREIGN KEY (process_name)

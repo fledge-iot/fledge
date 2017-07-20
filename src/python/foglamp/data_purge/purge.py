@@ -34,6 +34,7 @@ import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import time
 import os
+from foglamp import configuration_manager
 
 """Script information and connection to the Database
 """
@@ -55,18 +56,29 @@ _ENGINE = sqlalchemy.create_engine('%s://%s:%s@%s/%s' % (_db_type, _db_user, _us
                                    max_overflow=0)
 _CONN = _ENGINE.connect()
 
+_DEFAULT_PURGE_CONFIG = {
+    "age": {
+        "description": "Age of data to be retained, all data that is older than this value will be removed, unless retained. (in Hours)",
+        "type": "integer",
+        "default": "72"
+    },
+    "retainUnsent": {
+        "description": "Retain data that has not been sent to any historian yet.",
+        "type": "boolean",
+        "default": "False"
+    }
+}
+
+_CONFIG_CATEGORY_NAME = 'PURGE_READ'
+_CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
+
 """Temporary methods and variables that exist until the script utilizes other components. In specific: 
 -> configuration API 
 -> Last ID sent to the historian
 """
 # Important files
 this_dir, this_filename = os.path.split(__file__)
-config_file = os.path.join(this_dir, 'config.json')
 other_config = os.path.join(this_dir, 'other_config.json')
-
-# Will be replaced once FOGL-212 work is done
-with open(config_file, 'r') as conf:
-    _CONFIG = json.load(conf)
 
 # Will be replaced by the last ID sent to the Historian
 with open(other_config, 'r') as conf:
@@ -213,7 +225,7 @@ def set_id() -> int:
 """
 
 
-def purge() -> None:
+def purge(config) -> None:
     """The actual process read the configuration file, and based off the information in it does the following:
     1. Gets previous information found in log file
     2. Based on the configurations, call the DELETE command to purge the data
@@ -229,7 +241,7 @@ def purge() -> None:
     start_time = datetime.datetime.fromtimestamp(time.time())
 
     age_timestamp = datetime.datetime.strftime(start_time - convert_timestamp(
-        set_time=_CONFIG['age']['value_item_entry']), '%Y-%m-%d %H:%M:%S.%f')
+        set_time=config['age']['value']), '%Y-%m-%d %H:%M:%S.%f')
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
     # Number of unsent rows
@@ -243,7 +255,7 @@ def purge() -> None:
     If unsent data is retained, then the WHERE condition is against the last sent ID
     """
 
-    if _CONFIG['retainUnsent']['value_item_entry'] is True:
+    if config['retainUnsent']['value'] == 'True':
         count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
             table_name.c.id <= _LAST_ID).where(table_name.c.ts <= start_time)
         total_count_before = execute_command_with_return_value(count_query)
@@ -311,8 +323,12 @@ def purge() -> None:
 
 
 def purge_main():
+    import asyncio
+    event_loop = asyncio.get_event_loop()
+    event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME,_DEFAULT_PURGE_CONFIG,_CONFIG_CATEGORY_DESCRIPTION))
+    config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
     get_nth_id()  # Will be removed once information is from historian data
-    purge()
+    purge(config)
 
 if __name__ == '__main__':
     purge_main()

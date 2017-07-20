@@ -111,7 +111,6 @@ async def set_configuration_item(request):
 #  Scheduler Services
 #################################
 
-
 async def get_scheduled_processes(request):
     """Returns the list of all tasks in scheduled_processes table"""
     pass

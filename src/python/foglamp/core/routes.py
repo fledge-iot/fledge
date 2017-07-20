@@ -24,24 +24,26 @@ def setup(app):
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
 
     # Scheduler
-
+    # scheduled_processes - doc under review
     app.router.add_route('GET', '/foglamp/scheduled_processes', api.get_scheduled_processes)
-    app.router.add_route('GET', '/foglamp/scheduled_process/{schudeuled_process_name}', api.get_scheduled_process)
     app.router.add_route('POST', '/foglamp/scheduled_process', api.post_scheduled_process)
-    app.router.add_route('PUT', '/foglamp/scheduled_process/{schudeuled_process_name}', api.put_scheduled_process)
-    app.router.add_route('DELETE', '/foglamp/scheduled_process/{schudeuled_process_name}', api.delete_scheduled_process)
+    app.router.add_route('GET', '/foglamp/scheduled_process/{scheduled_process_name}', api.get_scheduled_process)
+    app.router.add_route('PUT', '/foglamp/scheduled_process/{scheduled_process_name}', api.update_scheduled_process)
+    app.router.add_route('DELETE', '/foglamp/scheduled_process/{scheduled_process_name}', api.delete_scheduled_process)
 
+    # Schedules - As per doc
     app.router.add_route('GET', '/foglamp/schedules', api.get_schedules)
-    app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api.get_schedule)
     app.router.add_route('POST', '/foglamp/schedule', api.post_schedule)
-    app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api.put_schedule)
+    app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api.get_schedule)
+    app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api.update_schedule)
     app.router.add_route('DELETE', '/foglamp/schedule/{schedule_id}', api.delete_schedule)
 
+    # Tasks - As per doc
     app.router.add_route('GET', '/foglamp/tasks', api.get_tasks)
+    app.router.add_route('POST', '/foglamp/task', api.post_task)
     app.router.add_route('GET', '/foglamp/tasks/latest', api.get_tasks_latest)
     app.router.add_route('GET', '/foglamp/task/{task_id}', api.get_task)
-    app.router.add_route('POST', '/foglamp/task', api.post_task)
-    # TODO: Find out why not DELETE a task? Cancel flag can be handled in database upation part.
+    # TODO: Find out why not DELETE/PUT a task? Cancel flag can be handled in database update.
     app.router.add_route('POST', '/foglamp/task/{task_id}/cancel', api.cancel_task)
 
     # enable cors support

@@ -106,3 +106,68 @@ async def set_configuration_item(request):
 
     return web.json_response(result)
 
+
+#################################
+#  Scheduler Services
+#################################
+
+
+async def get_scheduled_processes(request):
+    """Returns the list of all tasks in scheduled_processes table"""
+    pass
+
+async def get_scheduled_process(request):
+    """Return the task info for the given task from scheduled_processes table"""
+    pass
+
+async def post_scheduled_process(request):
+    """Create a new task in the scheduled_processes table"""
+    pass
+
+async def put_scheduled_process(request):
+    """Update a task in the scheduled_processes table"""
+    pass
+
+async def delete_scheduled_process(request):
+    """Delete a task from scheduled_processes table"""
+    pass
+
+async def get_schedules(request):
+    """Returns a list of all the defined schedules from schedules table"""
+    pass
+
+async def get_schedule(request):
+    """Return the information for the given schedule from schedules table"""
+    pass
+
+async def post_schedule(request):
+    """Create a new schedule in schedules table"""
+    pass
+
+async def put_schedule(request):
+    """Update a schedule in schedules table"""
+    pass
+
+async def delete_schedule(request):
+    """Delete a schedule from schedules table"""
+    pass
+
+async def get_tasks(request):
+    """Returns the list of all known task running or completed from tasks table"""
+    pass
+
+async def get_tasks_latest(request):
+    """Returns the list of the most recent task execution for each name from tasks table"""
+    pass
+
+async def get_task(request):
+    """Return the task information for the given task from tasks table"""
+    pass
+
+async def post_task(request):
+    """ create a new task"""
+    pass
+
+async def cancel_task(request):
+    """Cancel a running task from tasks table"""
+    pass

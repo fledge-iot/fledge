@@ -45,8 +45,8 @@ DELETE FROM foglamp.configuration;
 --   age          : Age of data to be retained, all data that is older than this value will be removed by the purge process. This value is expressed in hours.
 --   enabled      : A boolean switch that can be used to disable the purging of data. This is used if the process should be stopped from running.
 --   retainUnsent : Retain data that has not been sent to tany historian yet.
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'PURGE', 'Purge data process', '{ "age" : 72, "enabled" : true, "retainUnsent" : false }' );
+-- INSERT INTO foglamp.configuration ( key, description, value )
+--      VALUES ( 'PURGE', 'Purge data process', '{ "age" : 72, "enabled" : true, "retainUnsent" : false }' );
 
 -- LOGPR: Log Partitioning
 --        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
@@ -126,6 +126,6 @@ values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1,
 -- Run the purge process daily at 8 PM
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
-values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 2,
-'20:00:00', '24:00:00', true);
+values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
+'20:00:00', '00:00:30', true);
 

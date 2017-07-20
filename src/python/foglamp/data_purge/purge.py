@@ -28,12 +28,10 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
 """
 #!/usr/bin/python3
 import datetime
-import json
 import random
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import time
-import os
 from foglamp import configuration_manager
 
 """Script information and connection to the Database
@@ -71,41 +69,6 @@ _DEFAULT_PURGE_CONFIG = {
 
 _CONFIG_CATEGORY_NAME = 'PURGE_READ'
 _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
-
-"""Temporary methods and variables that exist until the script utilizes other components. In specific: 
--> configuration API 
--> Last ID sent to the historian
-"""
-# Important files
-this_dir, this_filename = os.path.split(__file__)
-other_config = os.path.join(this_dir, 'other_config.json')
-
-# Will be replaced by the last ID sent to the Historian
-with open(other_config, 'r') as conf:
-    _LAST_ID = json.load(conf)['lastID']
-
-
-def get_nth_id() -> None:
-    """Update the config file to have row ID somewhere within the oldest 100 rows.
-
-    This method would potentially be replaced by a mechanism that is aware what was the last value sent to the
-     historian.
-    Returns: 
-        Method doesn't return anything
-    """
-    rand = random.randint(1, 100)
-
-    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
-    row_id = execute_command_with_return_value(stmt % rand)
-    row_id = int(row_id[0][0])
-
-    with open(other_config, 'r') as conf:
-        config_info = json.load(conf)
-
-    config_info["lastID"] = row_id
-    open(other_config, 'w').close()
-    with open(other_config, 'r+') as conf:
-        conf.write(json.dumps(config_info))
 
 
 """Utilized tables 
@@ -148,6 +111,20 @@ _PURGE_LOGGING_TABLE = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
 """Methods that support the purge process.  
 """
 
+def get_nth_id() -> int:
+    """Update the config file to have row ID somewhere within the oldest 100 rows.
+    This method would potentially be replaced by a mechanism that is aware what was the last value sent to the
+     historian.
+    Returns:
+        Method doesn't return anything
+    """
+    rand = random.randint(1, 100)
+    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
+    row_id = execute_command_with_return_value(stmt % rand)
+    try:
+        return int(row_id[0][0])
+    except IndexError:
+        return 1
 
 def convert_timestamp(set_time: str) -> datetime.timedelta:
     """Convert "age" in config file to timedelta. If only an integer is specified,  then 
@@ -202,7 +179,6 @@ def execute_command_without_return_value(stmt: str) -> None:
         stmt (str): DELETE stmt 
     """
     _CONN.execute(stmt)
-    _CONN.execute("commit")
 
 
 def set_id() -> int:
@@ -235,7 +211,7 @@ def purge(config) -> None:
     Returns:
         Amount of time until next purge process
     """
-
+    last_id = get_nth_id()
     table_name = _READING_TABLE  # This could be replaced with any table that would need to be purged.
 
     start_time = datetime.datetime.fromtimestamp(time.time())
@@ -246,7 +222,7 @@ def purge(config) -> None:
 
     # Number of unsent rows
     number_sent_rows_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-        table_name.c.ts <= start_time).where(table_name.c.id > _LAST_ID)
+        table_name.c.ts <= start_time).where(table_name.c.id > last_id)
 
     unsent_rows_before = execute_command_with_return_value(number_sent_rows_query)
     unsent_rows_before = int(unsent_rows_before[0][0])
@@ -257,18 +233,18 @@ def purge(config) -> None:
 
     if config['retainUnsent']['value'] == 'True':
         count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-            table_name.c.id <= _LAST_ID).where(table_name.c.ts <= start_time)
+            table_name.c.id <= last_id).where(table_name.c.ts <= start_time)
         total_count_before = execute_command_with_return_value(count_query)
         total_count_before = int(total_count_before[0][0])
 
-        delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= _LAST_ID).where(
+        delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= last_id).where(
             table_name.c.ts <= start_time)
 
         execute_command_without_return_value(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
-            table_name).where(table_name.c.id <= _LAST_ID).where(
+            table_name).where(table_name.c.id <= last_id).where(
             table_name.c.ts <= start_time)
 
         failed_removal_count = execute_command_with_return_value(failed_removal_query)
@@ -327,7 +303,6 @@ def purge_main():
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME,_DEFAULT_PURGE_CONFIG,_CONFIG_CATEGORY_DESCRIPTION))
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
-    get_nth_id()  # Will be removed once information is from historian data
     purge(config)
 
 if __name__ == '__main__':

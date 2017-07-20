@@ -898,7 +898,6 @@ ALTER TABLE foglamp.tasks OWNER to foglamp;
 
 
 -- Table containing information being logged.
-DROP TABLE IF EXISTS foglamp.purge_logging;
 CREATE TABLE foglamp.purge_logging(
   id                            INTEGER                         UNIQUE,    -- Unique uuid, PK
   table_name                    character varying(30)           NOT NULL,               -- name of table being purged, PK

@@ -315,11 +315,11 @@ class Scheduler(object):
         async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(
-                    self._tasks_tbl.update().
-                    where(self._tasks_tbl.c.id == task_id).
-                    values(exit_code=exit_code,
-                           state=int(self._TaskState.COMPLETE),
-                           end_time=datetime.datetime.now()))
+                    self._tasks_tbl.update().where(
+                        self._tasks_tbl.c.id == task_id).values(
+                                exit_code=exit_code,
+                                state=int(self._TaskState.COMPLETE),
+                                end_time=datetime.datetime.now()))
 
     async def _check_schedules(self):
         """Starts tasks according to schedules based on the current time"""
@@ -489,6 +489,16 @@ class Scheduler(object):
                 async for row in conn.execute(query):
                     self._process_scripts[row.name] = row.script
 
+    async def _mark_tasks_interrupted(self):
+        """Any task with a NULL end_time is set to interrupted"""
+        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                await conn.execute(
+                    self._tasks_tbl.update().where(
+                        self._tasks_tbl.c.end_time is None).values(
+                            state=int(self._TaskState.INTERRUPTED),
+                            end_time=datetime.datetime.now()))
+
     async def _get_schedules(self):
         # TODO: Get processes first, then add to Schedule
         query = sa.select([self._schedules_tbl.c.id,
@@ -535,13 +545,14 @@ class Scheduler(object):
         if self._main_sleep_task:
             self._main_sleep_task.cancel()
 
-    async def _main(self):
+    async def _main_loop(self):
         """Main loop for the scheduler
 
         - Reads configuration and schedules
         - Runs :meth:`Scheduler._check_schedules` in an endless loop
         """
         # TODO: log exception here or add an exception handler in asyncio
+        await self._mark_tasks_interrupted()
         await self._read_storage()
 
         while True:
@@ -580,8 +591,8 @@ class Scheduler(object):
     def start(self):
         """Starts the scheduler
 
-        When this method returns, a nonstop asyncio task starts
-        scheduled tasks and monitors subprocesses. This class
+        When this method returns, an asyncio task is
+        scheduled that starts tasks and monitors subprocesses. This class
         does not use threads (tasks run as subprocesses).
 
         Raises RuntimeError:
@@ -595,7 +606,7 @@ class Scheduler(object):
         self._debug_logging_stdout()
         logging.getLogger(__name__).info("Starting")
 
-        asyncio.ensure_future(self._main())
+        asyncio.ensure_future(self._main_loop())
 
         """Hard-code storage server:
         wait self._start_startup_task(self._schedules['storage'])

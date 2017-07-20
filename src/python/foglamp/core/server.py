@@ -34,6 +34,7 @@ class Server:
             loop = asyncio.get_event_loop()
 
         # Register signal handlers
+        # TODO: Move to Scheduler
         for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
             loop.add_signal_handler(
                 signal_name,

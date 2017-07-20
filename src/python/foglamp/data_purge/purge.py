@@ -48,7 +48,7 @@ __version__ = "${VERSION}"
 _db_type = "postgres"
 _user = "foglamp"
 _db_user = "foglamp"
-_host = "127.0.0.1"
+_host = "10.0.0.179"
 _db = "foglamp"
 
 # Create Connection
@@ -81,11 +81,9 @@ this_dir, this_filename = os.path.split(__file__)
 other_config = os.path.join(this_dir, 'other_config.json')
 
 # Will be replaced by the last ID sent to the Historian
-with open(other_config, 'r') as conf:
-    _LAST_ID = json.load(conf)['lastID']
 
 
-def get_nth_id() -> None:
+def get_nth_id() -> int:
     """Update the config file to have row ID somewhere within the oldest 100 rows.
 
     This method would potentially be replaced by a mechanism that is aware what was the last value sent to the
@@ -97,17 +95,14 @@ def get_nth_id() -> None:
 
     stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
     row_id = execute_command_with_return_value(stmt % rand)
-    row_id = int(row_id[0][0])
+    try:
+        return int(row_id[0][0])
+    except IndexError:
+        return 1
 
-    with open(other_config, 'r') as conf:
-        config_info = json.load(conf)
-
-    config_info["lastID"] = row_id
-    open(other_config, 'w').close()
-    with open(other_config, 'r+') as conf:
-        conf.write(json.dumps(config_info))
-
-
+_LAST_ID = get_nth_id()
+print(_LAST_ID)
+sys.exit()
 """Utilized tables 
 """
 # Table purge against

@@ -880,8 +880,7 @@ ALTER TABLE foglamp.schedules OWNER to foglamp;
 CREATE TABLE foglamp.tasks (
   id           uuid                        NOT NULL,               -- PK
   process_name character varying(20)       NOT NULL,               -- Name of the task
-  state        smallint                    NOT NULL,               -- State of the task: 1-Running, 2-Complete, 3-Cancelled
-                                                                   -- or is this only for tasks that started?
+  state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
   start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
   end_time     timestamp(6) with time zone,                        -- The date and time the task ended
   reason       character varying(255),                             -- The reason why the task ended

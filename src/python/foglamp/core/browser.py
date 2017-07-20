@@ -35,7 +35,6 @@ Supports a number of REST API:
 """
 
 import asyncpg
-import asyncio
 import json
 from aiohttp import web
 
@@ -96,9 +95,6 @@ async def asset(request):
 
     conn = await asyncpg.connect(database=__DB_NAME)
     asset_code =  request.match_info.get('asset_code', '')
-    limit = __DEFAULT_LIMIT
-    if 'limit' in request.query:
-        limit = request.query['limit']
 
     query = 'select to_char(user_ts, \'{0}\') as "timestamp", (reading)::json from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code)
 

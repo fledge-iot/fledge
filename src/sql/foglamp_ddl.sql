@@ -863,8 +863,8 @@ CREATE TABLE foglamp.schedules (
   schedule_interval interval,                       -- Repeat interval
   schedule_time     time,                           -- Start time
   schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
-  exclusive         boolean not null default false, -- true: multiple tasks for the schedule
-                                                    -- can not run at the same time
+  exclusive         boolean not null default true,  -- true = Only one task can run
+                                                    -- at any given time
   CONSTRAINT schedules_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,
   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)

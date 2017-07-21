@@ -10,7 +10,7 @@ Welcome to FogLAMP's documentation!
 
    build-tools
 
-   api/foglamp
+   source/foglamp
 
 
 Indices and tables

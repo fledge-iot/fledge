@@ -28,14 +28,6 @@ foglamp\.core\.routes module
     :undoc-members:
     :show-inheritance:
 
-foglamp\.core\.sa\_types module
--------------------------------
-
-.. automodule:: foglamp.core.sa_types
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 foglamp\.core\.scheduler module
 -------------------------------
 

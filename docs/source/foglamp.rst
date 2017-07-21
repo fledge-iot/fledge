@@ -8,6 +8,7 @@ Subpackages
 
     foglamp.admin_api
     foglamp.core
+    foglamp.data_purge
     foglamp.device
     foglamp.translators
 

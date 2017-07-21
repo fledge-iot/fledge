@@ -591,6 +591,7 @@ CREATE TABLE foglamp.statistics (
        key         character(10)               NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
        description character varying(255)      NOT NULL,                              -- Description, in plan text
        value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
+       prev_value bigint NOT NULL DEFAULT 0,                                          -- updated by collector only
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
        CONSTRAINT statistics_pkey PRIMARY KEY (key)
             USING INDEX TABLESPACE foglamp )

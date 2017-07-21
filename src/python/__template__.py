@@ -58,9 +58,9 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-module_level_variable1 = 12345
+_PRIVATE_MODULE_LEVEL_CONSTANT = 12345
 
-module_level_variable2 = 98765
+PUBLIC_MODULE_LEVEL_CONSTANT = 12345
 """int: Module level variable documented inline.
 
 The docstring may span multiple lines. The type may optionally be specified

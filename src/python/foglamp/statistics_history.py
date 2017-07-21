@@ -29,7 +29,7 @@ _STATS_TABLE = sqlalchemy.Table('statistics', sqlalchemy.MetaData(),
                                 sqlalchemy.Column('key', sqlalchemy.CHAR(10), primary_key=True),
                                 sqlalchemy.Column('description', sqlalchemy.VARCHAR('255'), default=''),
                                 sqlalchemy.Column('value', sqlalchemy.BIGINT, default=0),
-                                sqlalchemy.Column('prev_value', sqlalchemy.BIGINT, default=0),
+                                sqlalchemy.Column('previous_value', sqlalchemy.BIGINT, default=0),
                                 sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6), default=
                                 time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))))
 
@@ -62,8 +62,8 @@ def update_stats_value(key=''):
 
     """
     value = random.randint(11,20)
-    prev_value = random.randint(1,10)
-    stmt = _STATS_TABLE.update().values(value=value, prev_value=prev_value,
+    previous_value = random.randint(1,10)
+    stmt = _STATS_TABLE.update().values(value=value, previous_value=previous_value,
                                        ts=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))).where(
         _STATS_TABLE.c.key == key)
 
@@ -97,7 +97,7 @@ def __select_from_statistics_key(key='') -> dict:
     Returns:
 
     """
-    stmt = sqlalchemy.select([_STATS_TABLE.c.value, _STATS_TABLE.c.prev_value,
+    stmt = sqlalchemy.select([_STATS_TABLE.c.value, _STATS_TABLE.c.previous_value,
                               _STATS_TABLE.c.ts]).where(_STATS_TABLE.c.key == key)
 
     result = _CONN.execute(stmt)
@@ -107,7 +107,7 @@ def __select_from_statistics_key(key='') -> dict:
 def stats_hisory_main():
     """
     1. SELECT against the  stats table,
-    2. INSERT into history table, setting value to be the delta between stats.value and stats.prev_value 
+    2. INSERT into history table, setting value to be the delta between stats.value and stats.previous_value 
     3. UPDATE the stats table with new values
     Returns:
 
@@ -115,10 +115,10 @@ def stats_hisory_main():
     for key in _STATS_KEY_VALUE_LIST:
         result_set=__select_from_statistics_key(key=key)
         value = result_set[0][0]
-        prev_value = result_set[0][1]
+        previous_value = result_set[0][1]
         history_ts = time.mktime(result_set[0][2].timetuple())
         history_ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(history_ts))
-        __insert_into_stats_history(key=key, history_ts=history_ts, value=value-prev_value)
+        __insert_into_stats_history(key=key, history_ts=history_ts, value=value-previous_value)
         update_stats_value(key=key) # Temporary function that updates the stats table
 
 if __name__ == '__main__':

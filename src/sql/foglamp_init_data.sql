@@ -101,7 +101,7 @@ INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
 
 
 -- Statistics
-INSERT INTO foglamp.statistics ( key, description, value, prev_value)
+INSERT INTO foglamp.statistics ( key, description, value, previous_value)
      VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0),
             ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0),
             ( 'SENT',       'The number of readings sent to the historian', 0, 0),

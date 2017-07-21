@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 from foglamp.core import api
+from foglamp.core import browser
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -20,6 +21,8 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api.get_category_item)
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}/{value}', api.set_configuration_item)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
+
+    browser.setup(app)
 
     # enable cors support
     # Note: pip install aiohttp_cors

@@ -112,13 +112,31 @@ async def set_configuration_item(request):
 #  Scheduler Services
 #################################
 
+# Schedules
+
 async def get_schedules(request):
     """Returns a list of all the defined schedules from schedules table"""
-    pass
+
+    schedules = await scheduler_db_services.read_schedule()
+
+    return web.json_response(schedules)
+
 
 async def get_schedule(request):
     """Return the information for the given schedule from schedules table"""
-    pass
+
+    schedule_id = request.match_info.get('schedule_id', None)
+
+    if not schedule_id:
+        return web.json_response({'err_msg': 'No such Schedule'})
+
+    schedule = await scheduler_db_services.read_schedule(schedule_id)
+
+    if not schedule:
+        return web.json_response({'err_msg': 'No such Schedule'})
+
+    return web.json_response(schedule)
+
 
 async def post_schedule(request):
     """Create a new schedule in schedules table"""
@@ -132,28 +150,50 @@ async def delete_schedule(request):
     """Delete a schedule from schedules table"""
     pass
 
+
+# Tasks
+
+async def get_task(request):
+    """Returns a task"""
+
+    task_id = request.match_info.get('task_id', None)
+
+    if not task_id:
+        return web.json_response({'err_msg': 'No such Task'})
+
+    task = await scheduler_db_services.read_task(task_id)
+
+    if not task:
+        return web.json_response({'err_msg': 'No such Task'})
+
+    return web.json_response(task)
+
 async def get_tasks(request):
-    """
-    Returns the list of tasks
+    """Returns the list of tasks"""
 
-    :param request:  contains state(optional) and name(optional)
-    :return: list of tasks
-    """
+    task_id = None
+    state = request.query.get('state') if 'state' in request.query else None
+    name = request.query.get('name') if 'name' in request.query else None
 
-    state = request.match_info.get('state', None)
-    name = request.match_info.get('name', None)
-    # return web.json_response({'state': state, 'name':name})
-    tasks = await scheduler_db_services.read_task(state, name)
+    tasks = await scheduler_db_services.read_task(task_id, state, name)
+
+    if not tasks:
+        return web.json_response({'err_msg': 'No such Tasks'})
 
     return web.json_response(tasks)
 
 async def get_tasks_latest(request):
     """Returns the list of the most recent task execution for each name from tasks table"""
-    pass
 
-async def get_task(request):
-    """Return the task information for the given task from tasks table"""
-    pass
+    state = request.query.get('state') if 'state' in request.query else None
+    name = request.query.get('name') if 'name' in request.query else None
+
+    tasks = await scheduler_db_services.read_tasks_latest(state, name)
+
+    if not tasks:
+        return web.json_response({'err_msg': 'No such Tasks'})
+
+    return web.json_response(tasks)
 
 async def post_task(request):
     """ create a new task"""

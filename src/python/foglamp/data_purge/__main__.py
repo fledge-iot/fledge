@@ -5,9 +5,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Core server starter"""
+"""Purge process starter"""
 
-from foglamp.core.server import Server
+from foglamp.data_purge import purge
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -15,4 +15,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-Server.start()
+# TODO: Rename purge_main to main
+purge.purge_main()
+

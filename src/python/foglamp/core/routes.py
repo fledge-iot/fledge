@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 from foglamp.core import api
+from foglamp.core import browser
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -38,6 +39,8 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/task/{task_id}', api.get_task)
     # TODO: Find out why not DELETE/PUT a task? Cancel flag can be handled in database update.
     app.router.add_route('POST', '/foglamp/task/{task_id}/cancel', api.cancel_task)
+
+    browser.setup(app)
 
     # enable cors support
     # Note: pip install aiohttp_cors

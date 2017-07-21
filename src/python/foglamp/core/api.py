@@ -7,6 +7,7 @@
 import time
 from aiohttp import web
 from foglamp import configuration_manager
+from foglamp.core import scheduler_db_services
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -111,26 +112,6 @@ async def set_configuration_item(request):
 #  Scheduler Services
 #################################
 
-async def get_scheduled_processes(request):
-    """Returns the list of all tasks in scheduled_processes table"""
-    pass
-
-async def get_scheduled_process(request):
-    """Return the task info for the given task from scheduled_processes table"""
-    pass
-
-async def post_scheduled_process(request):
-    """Create a new task in the scheduled_processes table"""
-    pass
-
-async def put_scheduled_process(request):
-    """Update a task in the scheduled_processes table"""
-    pass
-
-async def delete_scheduled_process(request):
-    """Delete a task from scheduled_processes table"""
-    pass
-
 async def get_schedules(request):
     """Returns a list of all the defined schedules from schedules table"""
     pass
@@ -143,7 +124,7 @@ async def post_schedule(request):
     """Create a new schedule in schedules table"""
     pass
 
-async def put_schedule(request):
+async def update_schedule(request):
     """Update a schedule in schedules table"""
     pass
 
@@ -152,8 +133,19 @@ async def delete_schedule(request):
     pass
 
 async def get_tasks(request):
-    """Returns the list of all known task running or completed from tasks table"""
-    pass
+    """
+    Returns the list of tasks
+
+    :param request:  contains state(optional) and name(optional)
+    :return: list of tasks
+    """
+
+    state = request.match_info.get('state', None)
+    name = request.match_info.get('name', None)
+    # return web.json_response({'state': state, 'name':name})
+    tasks = await scheduler_db_services.read_task(state, name)
+
+    return web.json_response(tasks)
 
 async def get_tasks_latest(request):
     """Returns the list of the most recent task execution for each name from tasks table"""

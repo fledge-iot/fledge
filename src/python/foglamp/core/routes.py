@@ -24,13 +24,6 @@ def setup(app):
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
 
     # Scheduler
-    # scheduled_processes - doc under review
-    app.router.add_route('GET', '/foglamp/scheduled_processes', api.get_scheduled_processes)
-    app.router.add_route('POST', '/foglamp/scheduled_process', api.post_scheduled_process)
-    app.router.add_route('GET', '/foglamp/scheduled_process/{scheduled_process_name}', api.get_scheduled_process)
-    app.router.add_route('PUT', '/foglamp/scheduled_process/{scheduled_process_name}', api.update_scheduled_process)
-    app.router.add_route('DELETE', '/foglamp/scheduled_process/{scheduled_process_name}', api.delete_scheduled_process)
-
     # Schedules - As per doc
     app.router.add_route('GET', '/foglamp/schedules', api.get_schedules)
     app.router.add_route('POST', '/foglamp/schedule', api.post_schedule)

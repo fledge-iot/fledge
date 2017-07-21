@@ -17,15 +17,18 @@ __version__ = "${VERSION}"
 
 SYSLOG = 0
 """Send log entries to /var/log/syslog"""
-CONSOLE= 1
+CONSOLE = 1
 """Send log entries to STDOUT"""
 
+
 def setup(logger_name: str = None,
+          destination: int = SYSLOG,
           level: int = logging.WARNING,
-          destination: int = SYSLOG) -> logging.Logger:
+          propagate: bool = False) -> logging.Logger:
     """Configures a `logging.Logger`_ object
 
-    Once configured, a logger can also be retrieved via logger.getLogger().
+    Once configured, a logger can also be retrieved via
+    `logging.getLogger`_().
 
     It is inefficient to call this function more than once for the same
     logger name.
@@ -39,6 +42,8 @@ def setup(logger_name: str = None,
             The `logging level`_ to use when filtering log entries.
             Defaults to logging.WARNING.
 
+        propagate (bool):
+            Whether to send log entries to ancestor loggers. Defaults to False.
 
         destination (int):
             - SYSLOG: (the default) Send messages to syslog (view with tail -f /var/log/syslog)
@@ -47,10 +52,11 @@ def setup(logger_name: str = None,
     Returns:
         A `logging.Logger`_ object
 
-
-    .. _logging.Logger: https://docs.python.org/3/library/logging.html
+    .. _logging.Logger: https://docs.python.org/3/library/logging.html#logging.Logger
 
     .. _logging level: https://docs.python.org/3/library/logging.html#levels
+
+    .. _logging.getLogger: https://docs.python.org/3/library/logging.html#logging.getLogger
     """
 
     logger = logging.getLogger(logger_name)
@@ -69,7 +75,7 @@ def setup(logger_name: str = None,
     handler.setFormatter(formatter)
 
     logger.setLevel(level)
-    logger.propagate = False
+    logger.propagate = propagate
     logger.addHandler(handler)
 
     return logger

@@ -11,6 +11,7 @@ packaging==16.8
 aiopg==0.13.0
 SQLAlchemy==1.1.10
 psycopg2==2.7.1
+asyncpg==0.12.0
 
 # rest
 aiohttp==2.1.0

@@ -300,6 +300,12 @@ class ExampleClass(object):
         Returns:
             True if successful, False otherwise.
 
+        Raises ExampleError:
+            Explain why this happens
+
+        See also:
+            :meth:`ExampleClass._private`
+
         """
         return True
 
@@ -309,8 +315,12 @@ class ExampleClass(object):
         Special members are any methods or attributes that start with and
         end with a double underscore.
 
-        This behavior can be enabled by changing the following setting in
-        Sphinx's conf.py
+        This behavior can be changed such that private members *are* included
+        by adding the following line to Sphinx's conf.py:
+
+        autodoc_default_flags = ['members', 'undoc-members', 'private-members',
+        'special-members', 'inherited-members', 'show-inheritance']
+
         """
         pass
 
@@ -325,10 +335,20 @@ class ExampleClass(object):
         in the output.
 
         This behavior can be changed such that private members *are* included
-        by changing the following setting in Sphinx's conf.py
+        by adding the following line to Sphinx's conf.py:
+
+        autodoc_default_flags = ['members', 'undoc-members', 'private-members',
+        'special-members', 'inherited-members', 'show-inheritance']
 
         """
         pass
 
     def _private_without_docstring(self):
         pass
+
+
+# TODO: Remove these lines if this module is named __main__.py
+#       or if this is not an executable module
+if __name__ == "main":
+    pass
+

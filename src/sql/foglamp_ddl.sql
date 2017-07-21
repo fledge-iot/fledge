@@ -863,8 +863,8 @@ CREATE TABLE foglamp.schedules (
   schedule_interval interval,                       -- Repeat interval
   schedule_time     time,                           -- Start time
   schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
-  exclusive         boolean not null default false, -- true: multiple tasks for the schedule
-                                                    -- can not run at the same time
+  exclusive         boolean not null default true,  -- true = Only one task can run
+                                                    -- at any given time
   CONSTRAINT schedules_pkey PRIMARY KEY (id)
        USING INDEX TABLESPACE foglamp,
   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
@@ -897,3 +897,15 @@ CREATE TABLE foglamp.tasks (
 ALTER TABLE foglamp.tasks OWNER to foglamp;
 
 
+-- Table containing information being logged.
+CREATE TABLE foglamp.purge_logging(
+  id                            INTEGER                         UNIQUE,    -- Unique uuid, PK
+  table_name                    character varying(30)           NOT NULL,               -- name of table being purged, PK
+  start_time                    timestamp(6) with time zone     NOT NULL DEFAULT now(), -- Time task starts
+  end_time                      timestamp(6) with time zone     NOT NULL DEFAULT now(), -- Time task ends
+  total_rows_removed            integer                         NOT NULL,               -- number of rows removed
+  total_rows_remaining          integer                         NOT NULL,               -- number of rows remaining
+  total_unsent_rows             integer                         NOT NULL,               -- number of remaining rows
+  total_failed_to_remove        integer                         NOT NULL,               -- number of rows that failed to get deleted but were suppose to
+  CONSTRAINT logging_pk PRIMARY KEY (id, table_name)
+  );

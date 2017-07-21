@@ -67,7 +67,7 @@ async def asset_counts(request):
     select asset_code, count from readings group by asset_code;
     """
 
-    conn = await asyncpg.connect(database='foglamp')
+    conn = await asyncpg.connect(database=__DB_NAME)
 
     # Select the assets from the readings table
     rows = await conn.fetch(

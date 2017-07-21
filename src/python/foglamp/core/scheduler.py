@@ -107,12 +107,11 @@ class Scheduler(object):
         """Constructor"""
 
         """Class attributes"""
-        if self._logger is None:
-            # self._logger = logger.setup(__name__, level=logging.DEBUG, to_console=True)
-            # self._logger = logger.setup(None, level=logging.DEBUG)
-            self._logger = logger.setup(None, level=logging.DEBUG)
+        if not self._logger:
+            # self._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
+            self._logger = logger.setup(__name__, level=logging.INFO)
 
-        if self._schedules_tbl is None:
+        if not self._schedules_tbl:
             self._schedules_tbl = sa.Table(
                 'schedules',
                 sa.MetaData(),

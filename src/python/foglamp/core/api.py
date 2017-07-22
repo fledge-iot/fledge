@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 import time
+import re
 from aiohttp import web
 from foglamp import configuration_manager
 from foglamp.core import scheduler_db_services
@@ -17,15 +18,27 @@ __version__ = "${VERSION}"
 __start_time = time.time()
 
 _help = """
-    -----------------------------------------------------------------------
-    | GET             | /ping                                             |
+    ------------------------------------------------------------------------------
+    | GET             | /foglamp/ping                                             |
 
-    | GET             | /categories                                       |
-    | GET             | /category/{category_name}                         |
-    | GET DELETE      | /category/{category_name}/{config_item}           |
-    | PUT             | /category/{category_name}/{config_item}/{value}   |
+    | GET             | /foglamp/categories                                       |
+    | GET             | /foglamp/category/{category_name}                         |
+    | GET DELETE      | /foglamp/category/{category_name}/{config_item}           |
+    | PUT             | /foglamp/category/{category_name}/{config_item}/{value}   |
 
-    -----------------------------------------------------------------------
+    | GET             | /foglamp/schedules                                        |
+    | POST            | /foglamp/schedule                                         |
+    | GET             | /foglamp/schedule/{schedule_id}                           |
+    | PUT             | /foglamp/schedule/{schedule_id}                           |
+    | DELETE          | /foglamp/schedule/{schedule_id}                           |
+
+    | GET             | /foglamp/tasks                                            |
+    | GET             | /foglamp/tasks/latest                                     |
+    | POST            | /foglamp/task                                             |
+    | GET             | /foglamp/task/{task_id}                                   |
+    | DELETE          | /foglamp/task/{task_id}                                   |
+
+    ------------------------------------------------------------------------------
 """
 
 
@@ -172,7 +185,11 @@ async def get_tasks(request):
     """Returns the list of tasks"""
 
     task_id = None
+
+    # TODO: Use enum in place int state
     state = request.query.get('state') if 'state' in request.query else None
+    state = int(state) if state and re.match("(^[0-9]+$)", state) else 0
+
     name = request.query.get('name') if 'name' in request.query else None
 
     tasks = await scheduler_db_services.read_task(task_id, state, name)
@@ -185,7 +202,10 @@ async def get_tasks(request):
 async def get_tasks_latest(request):
     """Returns the list of the most recent task execution for each name from tasks table"""
 
+    # TODO: Use enum in place int state
     state = request.query.get('state') if 'state' in request.query else None
+    state = int(state) if state and re.match("(^[0-9]+$)", state) else 0
+
     name = request.query.get('name') if 'name' in request.query else None
 
     tasks = await scheduler_db_services.read_tasks_latest(state, name)

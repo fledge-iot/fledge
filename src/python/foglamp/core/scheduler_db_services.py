@@ -14,16 +14,15 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__DSN = "postgresql://foglamp:foglamp@localhost:5432/foglamp"
 __DB_NAME = 'foglamp'
-
+__DSN = "postgresql://foglamp:foglamp@localhost:5432/foglamp"
 
 async def create_schedule(payload):
     pass
 
 async def read_schedule(schedule_id=None):
-    conn = await asyncpg.connect(dsn=__DSN)
-    query = '''
+    conn = await asyncpg.connect(database=__DB_NAME)
+    query = """
         SELECT id::"varchar",
                 process_name,
                 schedule_name,
@@ -33,33 +32,16 @@ async def read_schedule(schedule_id=None):
                 schedule_day::"varchar",
                 exclusive
         from schedules
-    '''
+    """
 
-    # TODO: Investigate why prepared statement is not working
-    # if schedule_id is None:
-    #     _where_clause = ''
-    # else:
-    #     _where_clause = ' WHERE id = \'$1\''
-    #
-    # query += _where_clause
-    #
-    # stmt = await conn.prepare(query)
-    # if schedule_id is None:
-    #     rows = await stmt.fetch()
-    # else:
-    #     rows = await stmt.fetch(schedule_id)
-
-    if not schedule_id:
-        _where_clause = ''
-    else:
-        _where_clause = ' WHERE id = \'{0}\''
+    # FIXME: When schedule_id is not in uuid format, server error occurs
+    _where_clause = " WHERE id = $1" if schedule_id else ""
 
     query += _where_clause
 
-    if schedule_id is not None:
-        query = query.format(schedule_id)
+    stmt = await conn.prepare(query)
 
-    rows = await conn.fetch(query)
+    rows = await stmt.fetch(schedule_id) if schedule_id else await stmt.fetch()
 
     columns = (
         'id',
@@ -92,8 +74,8 @@ async def create_task(payload):
 
 
 async def read_task(task_id=None, state=None, name=None):
-    conn = await asyncpg.connect(dsn=__DSN)
-    query = '''
+    conn = await asyncpg.connect(database=__DB_NAME)
+    query = """
         SELECT
             id::"varchar",
             process_name,
@@ -104,71 +86,30 @@ async def read_task(task_id=None, state=None, name=None):
             pid,
             exit_code
         from tasks
-    '''
+    """
 
-    # TODO: Investigate why prepared statement is not working
-    # if not task_id:
-    #     _where_clause = ''
-    # else:
-    #     _where_clause = ' WHERE id = \'$1\''
-    #
-    # query += _where_clause
-    #
-    # if task_id is not None:
-    #     stmt = await conn.prepare(query)
-    #     rows = await stmt.fetch(task_id)
-    # else:
-    #     if state is None and name is None:
-    #         _where_clause = ''
-    #     elif state is None and name is not None:
-    #         _where_clause = ' WHERE process_name = \'$1\''
-    #     elif state is not None and name is None:
-    #         _where_clause = ' WHERE state = \'$1\''
-    #     else:
-    #         _where_clause = ' WHERE process_name = \'$1\' and state = \'$2\''
-    #
-    #     query += _where_clause
-    #
-    #     stmt = await conn.prepare(query)
-    #     if state is None and name is None:
-    #         rows = await stmt.fetch()
-    #     elif state is None and name is not None:
-    #         rows = await stmt.fetch(name)
-    #     elif state is not None and name is None:
-    #         rows = await stmt.fetch(state)
-    #     else:
-    #         rows = await stmt.fetch(state, name)
-
-    if not task_id:
-        _where_clause = ''
-    else:
-        _where_clause = ' WHERE id = \'{0}\''
+    # FIXME: When task_id is not in uuid format, server error occurs
+    _where_clause = " WHERE id = $1" if task_id else ""
 
     query += _where_clause
 
-    if task_id is not None:
-        query = query.format(task_id)
+    if task_id:
+        stmt = await conn.prepare(query)
+        rows = await stmt.fetch(task_id)
     else:
-        if state is None and name is None:
-            _where_clause = ''
-        elif state is None and name is not None:
-            _where_clause = ' WHERE process_name = \'{0}\''
-        elif state is not None and name is None:
-            _where_clause = ' WHERE state = \'{0}\''
-        else:
-            _where_clause = ' WHERE process_name = \'{0}\' and state = \'{1}\''
+        # TODO: Use enum in place int state
+        _where_clause = "" if not state and not name else \
+                        " WHERE process_name = $1" if not state and name else \
+                        " WHERE state = $1" if state and not name else \
+                        " WHERE process_name = $1 and state = $2"
         query += _where_clause
 
-        if state is None and name is None:
-            pass
-        elif state is None and name is not None:
-            query = query.format(name)
-        elif state is not None and name is None:
-            query = query.format(state)
-        else:
-            query = query.format(name, state)
+        stmt = await conn.prepare(query)
 
-    rows = await conn.fetch(query)
+        rows = await stmt.fetch() if not state and not name else \
+                await stmt.fetch(name) if not state and name else \
+                await stmt.fetch(state) if state and not name else \
+                await stmt.fetch(name, state)
 
     columns = ('id',
         'process_name',
@@ -189,9 +130,9 @@ async def read_task(task_id=None, state=None, name=None):
     return results
 
 async def read_tasks_latest(state=None, name=None):
-    conn = await asyncpg.connect(dsn=__DSN)
-    query = '''
-        SELECT
+    conn = await asyncpg.connect(database=__DB_NAME)
+    query = """
+        SELECT DISTINCT ON (process_name)
             id::"varchar",
             process_name,
             state,
@@ -201,63 +142,25 @@ async def read_tasks_latest(state=None, name=None):
             pid,
             exit_code
         from tasks
-    '''
+    """
 
-    # TODO: Investigate why prepared statement is not working
-    # if state is None and name is None:
-    #     _where_clause = ''
-    # elif state is None and name is not None:
-    #     _where_clause = ' WHERE process_name = \'$1\''
-    # elif state is not None and name is None:
-    #     _where_clause = ' WHERE state = \'$1\''
-    # else:
-    #     _where_clause = ' WHERE process_name = \'$1\' and state = \'$2\''
-    #
-    # query += _where_clause
-    #
-    # stmt = await conn.prepare(query)
-    # if state is None and name is None:
-    #     rows = await stmt.fetch()
-    # elif state is None and name is not None:
-    #     rows = await stmt.fetch(name)
-    # elif state is not None and name is None:
-    #     rows = await stmt.fetch(state)
-    # else:
-    #     rows = await stmt.fetch(state, name)
-
-    if state is None and name is None:
-        _where_clause = ''
-    elif state is None and name is not None:
-        _where_clause = ' WHERE process_name = \'{0}\''
-    elif state is not None and name is None:
-        _where_clause = ' WHERE state = \'{0}\''
-    else:
-        _where_clause = ' WHERE process_name = \'{0}\' and state = \'{1}\''
+    # TODO: Use enum in place int state
+    _where_clause = "" if not state and not name else \
+                    " WHERE process_name = $1" if not state and name else \
+                    " WHERE state = $1" if state and not name else \
+                    " WHERE process_name = $1 and state = $2"
 
     query += _where_clause
 
     _order_clause = ' ORDER BY process_name ASC, start_time DESC'
     query += _order_clause
 
-    if state is None and name is None:
-        pass
-    elif state is None and name is not None:
-        query = query.format(name)
-    elif state is not None and name is None:
-        query = query.format(state)
-    else:
-        query = query.format(name, state)
+    stmt = await conn.prepare(query)
 
-    if state is None and name is None:
-        pass
-    elif state is None and name is not None:
-        query = query.format(name)
-    elif state is not None and name is None:
-        query = query.format(state)
-    else:
-        query = query.format(name, state)
-
-    rows = await conn.fetch(query)
+    rows = await stmt.fetch() if not state and not name else \
+            await stmt.fetch(name) if not state and name else \
+            await stmt.fetch(state) if state and not name else \
+            await stmt.fetch(name, state)
 
     columns = ('id',
         'process_name',

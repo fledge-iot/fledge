@@ -21,9 +21,7 @@ _help = """
 
     | GET             | /categories                                       |
     | GET             | /category/{category_name}                         |
-    | GET DELETE      | /category/{category_name}/{config_item}           |
-    | PUT             | /category/{category_name}/{config_item}/{value}   |
-
+    | GET PUT DELETE  | /category/{category_name}/{config_item}           |
     -----------------------------------------------------------------------
 """
 
@@ -76,7 +74,7 @@ async def get_category_item(request):
     """
 
     :param request: category_name & config_item are required
-    :return:  the configuration item in the given category.
+    :return: the configuration item in the given category.
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
@@ -91,13 +89,15 @@ async def get_category_item(request):
 async def set_configuration_item(request):
     """
 
-    :param request: category_name, config_item are required and value is required only when PUT
+    :param request: category_name, config_item are required and For PUT request {"value" : someValue) is required
     :return: set the configuration item value in the given category.
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
+
     if request.method == 'PUT':
-        value = request.match_info.get('value', None)
+        data = await request.json()
+        value = data['value']
     elif request.method == 'DELETE':
         value = ''
 

@@ -91,6 +91,14 @@ async def set_configuration_item(request):
 
     :param request: category_name, config_item are required and For PUT request {"value" : someValue) is required
     :return: set the configuration item value in the given category.
+
+    :Example:
+
+        For {category_name} PURGE  update/delete value for config_item {age}
+
+        curl -H "Content-Type: application/json" -X PUT -d '{"value":some_value}' http://localhost:8082/foglamp/category/{category_name}/{config_item}
+
+        curl -X DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)

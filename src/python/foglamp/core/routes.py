@@ -6,6 +6,7 @@
 
 from foglamp.core import api
 from foglamp.core import browser
+from aiohttp import web
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -16,10 +17,13 @@ __version__ = "${VERSION}"
 def setup(app):
     # app.router.add_route('POST', '/foglamp/a-post-req', api.a_post_req, expect_handler = aiohttp.web.Request.json)
     app.router.add_route('GET', '/foglamp/ping', api.ping)
+
+    # Configuration
     app.router.add_route('GET', '/foglamp/categories', api.get_categories)
     app.router.add_route('GET', '/foglamp/category/{category_name}', api.get_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api.get_category_item)
-    app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}/{value}', api.set_configuration_item)
+    app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item,
+                         expect_handler=web.Request.json)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
 
     browser.setup(app)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# TODO: Remove the shebang line above if this is not an executable script. Also remove this line.
+# TODO: Remove the #! line above if this is not an executable script. Also remove this line.
 
 # -*- coding: utf-8 -*-
 
@@ -35,14 +35,20 @@ Attributes:
 .. todo::
 
    * For module TODOs in docstring
-   * To show in readthedocs
-   * You have to also use ``sphinx.ext.todo`` extension and enable todo_include_todos in conf.py
-   * see http://www.sphinx-doc.org/en/1.3.6/ext/todo.html#confval-todo_include_todos
+   * To show in readthedocs.io, you have to also use ``sphinx.ext.todo`` extension and enable
+     todo_include_todos in conf.py
+   * See also `Sphinx ToDo`_
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
 
+.. _Sphinx ToDo:
+   http://www.sphinx-doc.org/en/1.3.6/ext/todo.html#confval-todo_include_todos
+
 """
+
+# This is a TODO Example
+# TODO: JIRA-XXXX Short description (put longer description in the JIRA)
 
 import sys
 
@@ -52,46 +58,44 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-module_level_variable1 = 12345
+_PRIVATE_MODULE_LEVEL_CONSTANT = 12345
 
-module_level_variable2 = 98765
+PUBLIC_MODULE_LEVEL_CONSTANT = 12345
 """int: Module level variable documented inline.
 
 The docstring may span multiple lines. The type may optionally be specified
 on the first line, separated by a colon.
+
 """
 
 
 def function_with_types_in_docstring(param1, param2):
-    """Example function with types documented in the docstring.
-
-    `PEP 484`_ type annotations are supported. If attribute, parameter, and
-    return types are annotated according to `PEP 484`_, they do not need to be
-    included in the docstring:
+    """Example function with types declared in the def
 
     Args:
         param1 (int): The first parameter.
-        param2 (str): The second parameter.
+
+        param2 (str):
+            The second parameter.
+            - Bullet point 1
+            - Bullet point 2
 
     Returns:
         bool: The return value. True for success, False otherwise.
 
     .. todo::
-
         This is a todo docstring example
         For def level todo, if we want to expose this publicly via readthedocs
 
-    .. _PEP 484:
-        https://www.python.org/dev/peps/pep-0484/
-
     """
-
-    # This is a TODO Example
-    # TODO: JIRA-XXXX Short descrption (put longer description in the JIRA)
 
 
 def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
     """Example function with PEP 484 type annotations.
+
+    `PEP 484`_ type annotations are supported. If attribute, parameter, and
+    return types are annotated according to `PEP 484`_, they do not need to be
+    included in the docstring.
 
     Args:
         param1: The first parameter.
@@ -99,6 +103,9 @@ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
 
     Returns:
         The return value. True for success, False otherwise.
+
+    .. _PEP 484:
+        https://www.python.org/dev/peps/pep-0484
 
     """
 
@@ -267,8 +274,11 @@ class ExampleClass(object):
         """str: Properties should be documented in their getter method.
 
         When a member needs to be protected and cannot be simply exposed as a public member,
-        Use Python’s property decorator to accomplish the functionality of getters and setters (or mutator method).
-        See the anti-pattern guide, we have, for more details
+        Use Python’s property decorator to accomplish the functionality of getters and
+        setters (or mutator method). See the `anti-patterns`_ for more details.
+
+        .. _anti-patterns:
+            http://docs.quantifiedcode.com/python-anti-patterns
         """
         return 'readonly_property'
 
@@ -289,6 +299,8 @@ class ExampleClass(object):
     def example_method(self, param1, param2):
         """Class methods are similar to regular functions.
 
+        This docstring contains a hyperlink to another method.
+
         Note:
             Do not include the `self` parameter in the ``Args`` section.
             same is applicable for cls, if this has been a class method @classmethod
@@ -304,7 +316,7 @@ class ExampleClass(object):
             Explain why this happens
 
         See also:
-            :meth:`ExampleClass._private`
+            :meth:`_private`
 
         """
         return True

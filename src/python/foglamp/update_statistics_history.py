@@ -83,6 +83,7 @@ def __insert_into_stats_history(key='', history_ts=time.strftime('%Y-%m-%d %H:%M
     stmt = _STATS_HISTORY_TABLE.insert().values(key=key, history_ts=history_ts, value=value)
     _CONN.execute(stmt)
 
+
 def __update_previous_value(key=''):
     """Query: 
     UPDATE 

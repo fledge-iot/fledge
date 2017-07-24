@@ -136,9 +136,12 @@ async def set_configuration_item(request):
 async def get_schedules(request):
     """Returns a list of all the defined schedules from schedules table"""
 
-    schedules = await scheduler_db_services.read_schedule()
+    try:
+        schedules = await scheduler_db_services.read_schedule()
 
-    return web.json_response({'schedules': schedules})
+        return web.json_response({'schedules': schedules})
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
 
 
 async def get_schedule(request):
@@ -149,12 +152,15 @@ async def get_schedule(request):
     if not schedule_id:
         return web.json_response({'err_msg': 'No such Schedule'})
 
-    schedule = await scheduler_db_services.read_schedule(schedule_id)
+    try:
+        schedule = await scheduler_db_services.read_schedule(schedule_id)
 
-    if not schedule:
-        return web.json_response({'err_msg': 'No such Schedule'})
+        if not schedule:
+            return web.json_response({'err_msg': 'No such Schedule'})
 
-    return web.json_response(schedule)
+        return web.json_response(schedule)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
 
 
 async def post_schedule(request):
@@ -180,12 +186,15 @@ async def get_task(request):
     if not task_id:
         return web.json_response({'err_msg': 'No such Task'})
 
-    task = await scheduler_db_services.read_task(task_id)
+    try:
+        task = await scheduler_db_services.read_task(task_id)
 
-    if not task:
-        return web.json_response({'err_msg': 'No such Task'})
+        if not task:
+            return web.json_response({'err_msg': 'No such Task'})
 
-    return web.json_response(task)
+        return web.json_response(task)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
 
 async def get_tasks(request):
     """Returns the list of tasks"""
@@ -202,12 +211,15 @@ async def get_tasks(request):
 
     name = request.query.get('name') if 'name' in request.query else None
 
-    tasks = await scheduler_db_services.read_task(task_id, state, name)
+    try:
+        tasks = await scheduler_db_services.read_task(task_id, state, name)
 
-    if not tasks:
-        return web.json_response({'err_msg': 'No such Tasks'})
+        if not tasks:
+            return web.json_response({'err_msg': 'No such Tasks'})
 
-    return web.json_response({'tasks': tasks})
+        return web.json_response({'tasks': tasks})
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
 
 async def get_tasks_latest(request):
     """Returns the list of the most recent task execution for each name from tasks table"""
@@ -222,12 +234,15 @@ async def get_tasks_latest(request):
 
     name = request.query.get('name') if 'name' in request.query else None
 
-    tasks = await scheduler_db_services.read_tasks_latest(state, name)
+    try:
+        tasks = await scheduler_db_services.read_tasks_latest(state, name)
 
-    if not tasks:
-        return web.json_response({'err_msg': 'No such Tasks'})
+        if not tasks:
+            return web.json_response({'err_msg': 'No such Tasks'})
 
-    return web.json_response({'tasks': tasks})
+        return web.json_response({'tasks': tasks})
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
 
 async def post_task(request):
     """ create a new task"""

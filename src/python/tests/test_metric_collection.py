@@ -42,34 +42,34 @@ _STATS_HISTORY_TABLE = sqlalchemy.Table('statistics_history', sqlalchemy.MetaDat
                                         )
 
 
-def test_value_in_statistics():
+def compare_value_in_statistics():
     """Assert that statistics.value >= 0"""
-    set = []
+    _set = []
     stmt = sqlalchemy.select([_STATS_TABLE.c.value]).select_from(_STATS_TABLE)
     result = _CONN.execute(stmt)
     for value in result.fetchall():
-        set.append(value[0])
+        _set.append(value[0])
 
-    assert(x >= 0 for x in set)
+    assert(x >= 0 for x in _set)
 
 
-def test_value_to_previous_value():
+def compare_value_to_previous_value():
     """Assert that statistics.value >= statistics.previous_value"""
-    set = {}
+    _set = {}
     stmt = sqlalchemy.select([_STATS_TABLE.c.value, _STATS_TABLE.c.previous_value]).select_from(_STATS_TABLE)
     result = _CONN.execute(stmt)
     for value in result.fetchall():
-        set[value[0]]=value[1]
+        _set[value[0]] = value[1]
 
-    assert(x >= set[x] for x in set.keys())
+    assert(x >= _set[x] for x in _set.keys())
 
 
 def compare_value_statistics_history():
     """Assert that statistics_history.value >= 0"""
-    set = []
+    _set = []
     stmt = sqlalchemy.select([_STATS_HISTORY_TABLE.c.value]).select_from(_STATS_HISTORY_TABLE)
     result = _CONN.execute(stmt)
     for value in result.fetchall():
-        set.append(value[0])
+        _set.append(value[0])
 
-    assert(x >= 0 for x in set)
+    assert(x >= 0 for x in _set)

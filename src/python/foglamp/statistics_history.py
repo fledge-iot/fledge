@@ -1,11 +1,10 @@
 """
 The following piece of code takes the information found in the statistics table, and stores it's delta value 
-(statistics.value - statistics.prev_val) inside the statistics_history table. To complete this, SQLAlchemy will be used 
-to execute SELECT statements against statistics, and INSERT against the statistics_history table. 
+(statistics.value - statistics.prev_val) inside the statistics_history table. To complete this, SQLAlchemy will be 
+used to execute SELECT statements against statistics, and INSERT against the statistics_history table.  
 """
 import sqlalchemy
 import time
-import random
 
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -17,7 +16,7 @@ __version__ = "${VERSION}"
 _db_type = "postgres"
 _user = "foglamp"
 _db_user = "foglamp"
-_host = "10.0.0.179"
+_host = "192.168.0.182"
 _db = "foglamp"
 
 # Create Connection
@@ -37,6 +36,7 @@ _STATS_TABLE = sqlalchemy.Table('statistics', sqlalchemy.MetaData(),
 key - Corresponding statistics.key value, so that there is awareness of what the history is of
 history_ts - the newest timestamp in statistics for that key 
 value - delta value between `value` and `prev_val` of statistics
+            The point is to know how many actions happened during the X time
 ts - current timestamp 
 """
 _STATS_HISTORY_TABLE = sqlalchemy.Table('statistics_history', sqlalchemy.MetaData(),
@@ -48,47 +48,43 @@ _STATS_HISTORY_TABLE = sqlalchemy.Table('statistics_history', sqlalchemy.MetaDat
                                         time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
                                         )
 
-# List of PRIMARY KEY values in statistics (based on 'foglamp_init_ddl.sql')
-_STATS_KEY_VALUE_LIST = ['READINGS', 'BUFFERED', 'SENT', 'UNSENT', 'PURGED', 'UNSNPURGED', 'DISCARDED']
 
-def update_stats_value(key=''):
+def __list_stats_keys() -> list:
     """
-    Update values in statistics table
-        This method is TEMPORARY, and will exist until statistics is officallu updated. 
-    Args:
-        key: The row name update is executed against (WHERE condition) 
-
+    generate a list of distinct keys from statistics table 
     Returns:
-
+        list of distinct keys
     """
-    value = random.randint(11,20)
-    previous_value = random.randint(1,10)
-    stmt = _STATS_TABLE.update().values(value=value, previous_value=previous_value,
-                                       ts=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))).where(
-        _STATS_TABLE.c.key == key)
+    key_list = []
+    stmt = sqlalchemy.select([_STATS_TABLE.c.key.distinct()]).select_from(_STATS_TABLE)
+    result = _CONN.execute(stmt)
+    result = result.fetchall()
+    for i in range(len(result)):
+        key_list.append(result[i][0].replace(" ", ""))
 
-    _CONN.execute(stmt)
+    return key_list
+
+# List of PRIMARY KEY values in statistics
+_STATS_KEY_VALUE_LIST = __list_stats_keys()
+
 
 def __insert_into_stats_history(key='', history_ts=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
-                              value=0, ts=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))):
+                                value=0):
     """
     INSERT values in statistics_history
     Args:
         key: corresponding stats_key_value
         history_ts: timestamp in statistics table for corresponding key 
         value: delta between `value` and `prev_val`
-        ts: current_timestamp
     Returns:
         Return the number of rows inserted. Since each process inserts only 1 row, the expected count should always 
         be 1. 
     """
-    stmt = _STATS_HISTORY_TABLE.insert().values(key=key, history_ts=history_ts, value=value, ts=ts)
+    stmt = _STATS_HISTORY_TABLE.insert().values(key=key, history_ts=history_ts, value=value)
     _CONN.execute(stmt)
 
 
-
-
-def __select_from_statistics_key(key='') -> dict:
+def __select_from_statistics(key='') -> dict:
     """
     SELECT data from statistics for the statistics_history table
     Args:
@@ -104,7 +100,7 @@ def __select_from_statistics_key(key='') -> dict:
     return result.fetchall()
 
 
-def stats_hisory_main():
+def stats_history_main():
     """
     1. SELECT against the  stats table,
     2. INSERT into history table, setting value to be the delta between stats.value and stats.previous_value 
@@ -113,16 +109,14 @@ def stats_hisory_main():
 
     """
     for key in _STATS_KEY_VALUE_LIST:
-        result_set=__select_from_statistics_key(key=key)
-        value = result_set[0][0]
-        previous_value = result_set[0][1]
-        history_ts = time.mktime(result_set[0][2].timetuple())
+        stats_select_result = __select_from_statistics(key=key)
+        value = int(stats_select_result[0][0])
+        previous_value = int(stats_select_result[0][1])
+        history_ts = time.mktime(stats_select_result[0][2].timetuple())
         history_ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(history_ts))
+
         __insert_into_stats_history(key=key, history_ts=history_ts, value=value-previous_value)
-        update_stats_value(key=key) # Temporary function that updates the stats table
+
 
 if __name__ == '__main__':
-
-    while True:
-        stats_hisory_main()
-        time.sleep(5)
+    stats_history_main()

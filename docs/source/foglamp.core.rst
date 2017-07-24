@@ -12,6 +12,14 @@ foglamp\.core\.api module
     :undoc-members:
     :show-inheritance:
 
+foglamp\.core\.browser module
+-----------------------------
+
+.. automodule:: foglamp.core.browser
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 foglamp\.core\.middleware module
 --------------------------------
 

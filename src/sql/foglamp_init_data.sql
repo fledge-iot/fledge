@@ -101,14 +101,14 @@ INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
 
 
 -- Statistics
-INSERT INTO foglamp.statistics ( key, description, value, previous_value)
-     VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0),
-            ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0),
-            ( 'SENT',       'The number of readings sent to the historian', 0, 0),
+INSERT INTO foglamp.statistics ( key, description, value, previous_value )
+     VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0 ),
+            ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
+            ( 'SENT',       'The number of readings sent to the historian', 0, 0 ),
             ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
-            ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0),
-            ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0),
-            ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0);
+            ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
+            ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
+            ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0 );
 
 -- Schedules
 -- Use this to create guids: https://www.uuidgenerator.net/version1 */

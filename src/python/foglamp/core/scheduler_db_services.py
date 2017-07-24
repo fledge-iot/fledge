@@ -94,19 +94,10 @@ async def read_task(task_id=None, state=None, name=None):
         stmt = await conn.prepare(query)
         rows = await stmt.fetch(task_id)
     else:
-        # TODO: Use enum in place int state
-        _where_clause = "" if not state and not name else \
-                        " WHERE process_name = $1" if not state and name else \
-                        " WHERE state = $1" if state and not name else \
-                        " WHERE process_name = $1 and state = $2"
+        _where_clause = _get_where_clause(name, state)
         query += _where_clause
-
         stmt = await conn.prepare(query)
-
-        rows = await stmt.fetch() if not state and not name else \
-                await stmt.fetch(name) if not state and name else \
-                await stmt.fetch(state) if state and not name else \
-                await stmt.fetch(name, state)
+        rows = await _get_rows(stmt, name, state)
 
     columns = ('id',
         'process_name',
@@ -141,12 +132,7 @@ async def read_tasks_latest(state=None, name=None):
         from tasks
     """
 
-    # TODO: Use enum in place int state
-    _where_clause = "" if not state and not name else \
-                    " WHERE process_name = $1" if not state and name else \
-                    " WHERE state = $1" if state and not name else \
-                    " WHERE process_name = $1 and state = $2"
-
+    _where_clause = _get_where_clause(name, state)
     query += _where_clause
 
     _order_clause = ' ORDER BY process_name ASC, start_time DESC'
@@ -154,10 +140,7 @@ async def read_tasks_latest(state=None, name=None):
 
     stmt = await conn.prepare(query)
 
-    rows = await stmt.fetch() if not state and not name else \
-            await stmt.fetch(name) if not state and name else \
-            await stmt.fetch(state) if state and not name else \
-            await stmt.fetch(name, state)
+    rows = await _get_rows(stmt, name, state)
 
     columns = ('id',
         'process_name',
@@ -177,6 +160,20 @@ async def read_tasks_latest(state=None, name=None):
 
     return results
 
+def _get_where_clause(name, state):
+    # TODO: Use enum in place int state
+    _where_clause = "" if not state and not name else \
+                    " WHERE process_name = $1" if not state and name else \
+                    " WHERE state = $1" if state and not name else \
+                    " WHERE process_name = $1 and state = $2"
+    return _where_clause
+
+async def _get_rows(stmt, name, state):
+    rows = await stmt.fetch() if not state and not name else \
+            await stmt.fetch(name) if not state and name else \
+            await stmt.fetch(state) if state and not name else \
+            await stmt.fetch(name, state)
+    return rows
 
 # There is no requirement for update_task()
 

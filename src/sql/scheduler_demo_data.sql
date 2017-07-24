@@ -1,12 +1,6 @@
-delete from foglamp.tasks;
-delete from foglamp.schedules;
-delete from foglamp.scheduled_processes;
-
-
-insert into foglamp.scheduled_processes (name, script) values ('device', '["python3", "-m", "foglamp.device"]');
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type, schedule_interval, exclusive)
-values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1, '0:0', true);
-
+delete from foglamp.tasks where process_name in ('hello', 'touch');
+delete from foglamp.schedules where process_name in ('hello', 'touch');
+delete from foglamp.scheduled_processes where name in ('hello', 'touch');
 
 insert into foglamp.scheduled_processes (name, script) values ('hello', '["echo", "hello"]');
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type, schedule_time, schedule_interval, exclusive)

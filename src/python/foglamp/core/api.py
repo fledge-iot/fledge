@@ -23,20 +23,16 @@ _help = """
 
     | GET             | /foglamp/categories                                       |
     | GET             | /foglamp/category/{category_name}                         |
-    | GET DELETE      | /foglamp/category/{category_name}/{config_item}           |
-    | PUT             | /foglamp/category/{category_name}/{config_item}/{value}   |
+    | GET PUT DELETE  | /foglamp/category/{category_name}/{config_item}           |
 
     | GET             | /foglamp/schedules                                        |
     | POST            | /foglamp/schedule                                         |
-    | GET             | /foglamp/schedule/{schedule_id}                           |
-    | PUT             | /foglamp/schedule/{schedule_id}                           |
-    | DELETE          | /foglamp/schedule/{schedule_id}                           |
+    | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
 
     | GET             | /foglamp/tasks                                            |
     | GET             | /foglamp/tasks/latest                                     |
     | POST            | /foglamp/task                                             |
-    | GET             | /foglamp/task/{task_id}                                   |
-    | DELETE          | /foglamp/task/{task_id}                                   |
+    | GET DELETE      | /foglamp/task/{task_id}                                   |
 
     ------------------------------------------------------------------------------
 """
@@ -90,7 +86,7 @@ async def get_category_item(request):
     """
 
     :param request: category_name & config_item are required
-    :return:  the configuration item in the given category.
+    :return: the configuration item in the given category.
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
@@ -105,13 +101,23 @@ async def get_category_item(request):
 async def set_configuration_item(request):
     """
 
-    :param request: category_name, config_item are required and value is required only when PUT
+    :param request: category_name, config_item are required and For PUT request {"value" : someValue) is required
     :return: set the configuration item value in the given category.
+
+    :Example:
+
+        For {category_name} PURGE  update/delete value for config_item {age}
+
+        curl -H "Content-Type: application/json" -X PUT -d '{"value":some_value}' http://localhost:8082/foglamp/category/{category_name}/{config_item}
+
+        curl -X DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
+
     if request.method == 'PUT':
-        value = request.match_info.get('value', None)
+        data = await request.json()
+        value = data['value']
     elif request.method == 'DELETE':
         value = ''
 

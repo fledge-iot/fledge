@@ -20,6 +20,7 @@ import daemon
 from daemon import pidfile
 
 from foglamp.core.server import Server
+from foglamp import logger
 
 __author__ = "Amarendra K Sinha, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -27,10 +28,9 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _PID_PATH = os.path.expanduser('~/var/run/foglamp.pid')
-_LOG_PATH = os.path.expanduser('~/var/log/foglamp.log')
 _WORKING_DIR = os.path.expanduser('~/var/log')
 
-_WAIT_TERM_SECONDS = 5
+_WAIT_STOP_SECONDS = 5
 """How many seconds to wait for the core server process to stop"""
 _MAX_STOP_RETRY = 5
 """How many times to send TERM signal to core server process when stopping"""
@@ -58,22 +58,13 @@ class Daemon(object):
 
     @classmethod
     def _configure_logging(cls):
-        # TODO: FOGL-281 Use different logging facility
+        """Alters the root logger to send messages to syslog
+           with a filter of WARNING
+        """
         if cls.logging_configured:
             return
 
-        file_handler = logging.FileHandler(_LOG_PATH)
-        file_handler.setLevel(logging.INFO)
-
-        format_str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        formatter = logging.Formatter(format_str)
-
-        file_handler.setFormatter(formatter)
-
-        logger = logging.getLogger('')
-        logger.addHandler(file_handler)
-        logger.setLevel(logging.INFO)
-
+        logger.setup()
         cls.logging_configured = True
 
     @classmethod
@@ -89,7 +80,6 @@ class Daemon(object):
 
         cls._safe_make_dirs(_WORKING_DIR)
         cls._safe_make_dirs(os.path.dirname(_PID_PATH))
-        cls._safe_make_dirs(os.path.dirname(_LOG_PATH))
 
         pid = cls.get_pid()
 
@@ -98,7 +88,7 @@ class Daemon(object):
         else:
             # If it is desirable to output the pid to the console,
             # os.getpid() reports the wrong pid so it's not easy.
-            print("Starting FogLAMP\nLogging to {}".format(_LOG_PATH))
+            print("Starting FogLAMP")
 
             with daemon.DaemonContext(
                 working_directory=_WORKING_DIR,
@@ -133,7 +123,7 @@ class Daemon(object):
             for _ in range(_MAX_STOP_RETRY):
                 os.kill(pid, signal.SIGTERM)
 
-                for _ in range(_WAIT_TERM_SECONDS):
+                for _ in range(_WAIT_STOP_SECONDS):  # Ignore the warning
                     os.kill(pid, 0)
                     time.sleep(1)
         except OSError:

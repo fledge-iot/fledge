@@ -132,7 +132,7 @@ async def get_schedules(request):
 
     schedules = await scheduler_db_services.read_schedule()
 
-    return web.json_response(schedules)
+    return web.json_response({'schedules': schedules})
 
 
 async def get_schedule(request):
@@ -188,7 +188,11 @@ async def get_tasks(request):
 
     # TODO: Use enum in place int state
     state = request.query.get('state') if 'state' in request.query else None
-    state = int(state) if state and re.match("(^[0-9]+$)", state) else 0
+    if state:
+        if not re.match("(^[1-4]$)", state):
+            return web.json_response({'err_msg': 'No such Tasks'})
+        else:
+            state = int(state)
 
     name = request.query.get('name') if 'name' in request.query else None
 
@@ -197,14 +201,18 @@ async def get_tasks(request):
     if not tasks:
         return web.json_response({'err_msg': 'No such Tasks'})
 
-    return web.json_response(tasks)
+    return web.json_response({'tasks': tasks})
 
 async def get_tasks_latest(request):
     """Returns the list of the most recent task execution for each name from tasks table"""
 
     # TODO: Use enum in place int state
     state = request.query.get('state') if 'state' in request.query else None
-    state = int(state) if state and re.match("(^[0-9]+$)", state) else 0
+    if state:
+        if not re.match("(^[1-4]$)", state):
+            return web.json_response({'err_msg': 'No such Tasks'})
+        else:
+            state = int(state)
 
     name = request.query.get('name') if 'name' in request.query else None
 
@@ -213,7 +221,7 @@ async def get_tasks_latest(request):
     if not tasks:
         return web.json_response({'err_msg': 'No such Tasks'})
 
-    return web.json_response(tasks)
+    return web.json_response({'tasks': tasks})
 
 async def post_task(request):
     """ create a new task"""

@@ -43,20 +43,17 @@ async def read_schedule(schedule_id=None):
 
     rows = await stmt.fetch(schedule_id) if schedule_id else await stmt.fetch()
 
-    columns = (
-        'id',
-        'process_name',
-        'schedule_name',
-        'schedule_type',
-        'schedule_interval',
-        'schedule_time',
-        'schedule_day',
-        'exclusive'
-    )
-
     results = []
     for row in rows:
-        results.append(dict(zip(columns, row)))
+        results.append(dict(id=row["id"],
+                            process_name=row['process_name'],
+                            schedule=dict(schedule_name=row['schedule_name'],
+                                          schedule_type=row['schedule_type'],
+                                          schedule_interval=row['schedule_interval'],
+                                          schedule_time=row['schedule_time'],
+                                          schedule_day=row['schedule_day'],
+                                          exclusive=row['exclusive']
+                                          )))
 
     await conn.close()
 

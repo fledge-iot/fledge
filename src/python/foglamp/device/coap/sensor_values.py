@@ -17,7 +17,9 @@ import aiocoap.resource
 import psycopg2
 import aiopg.sa
 import sqlalchemy as sa
+import asyncio
 from sqlalchemy.dialects.postgresql import JSONB
+from foglamp import statistics
 
 """CoAP handler for coap://other/sensor_readings URI
 """
@@ -39,15 +41,26 @@ class SensorValues(aiocoap.resource.Resource):
     """CoAP handler for coap://readings URI"""
 
     _CONNECTION_STRING = "dbname='foglamp'"
+
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
+
+    _num_readings = 0
 
     def __init__(self):
         super(SensorValues, self).__init__()
+        asyncio.ensure_future(self._update_statistics())
 
     def register_handlers(self, resource_root):
         """Registers other/sensor_values URI"""
         resource_root.add_resource(('other', 'sensor-values'), self)
         return
+
+    async def _update_statistics(self):
+        while True:
+            await asyncio.sleep(5)
+            await statistics.update_statistics_value('READINGS', self._num_readings)
+            self._num_readings = 0
+
 
     async def render_post(self, request):
         """Sends asset readings to storage layer
@@ -91,6 +104,7 @@ class SensorValues(aiocoap.resource.Resource):
                     try:
                         await conn.execute(_sensor_values_tbl.insert().values(
                             asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
+                        self._num_readings = self._num_readings + 1
                     except psycopg2.IntegrityError:
                         logging.getLogger('coap-server').exception(
                             'Duplicate key (%s) inserting sensor values:\n%s',

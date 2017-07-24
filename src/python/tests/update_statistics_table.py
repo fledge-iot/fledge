@@ -16,7 +16,7 @@ __version__ = "${VERSION}"
 _db_type = "postgres"
 _user = "foglamp"
 _db_user = "foglamp"
-_host = "127.0.0.1"
+_host = "192.168.0.182"
 _db = "foglamp"
 
 # Create Connection
@@ -52,23 +52,6 @@ def __list_stats_keys() -> list:
 _STATS_KEY_VALUE_LIST = __list_stats_keys()
 
 
-def __update_previous_value(key=''):
-    """Query: 
-    UPDATE 
-        statistics 
-    SET 
-        previous_value = (SELECT value FROM statistics WHERE key='READINGS')
-    WHERE 
-        value = (SELECT value FROM statistics WHERE key='READINGS'); 
-    """
-    sub_select_stmt = sqlalchemy.select([_STATS_TABLE.c.value]).select_from(_STATS_TABLE).where(
-        _STATS_TABLE.c.key == key)
-    result = _CONN.execute(sub_select_stmt)
-    result = int(result.fetchall()[0][0])
-    update_stmt = _STATS_TABLE.update().values(previous_value=result).where(key == key)
-    _CONN.execute(update_stmt)
-
-
 def __update_stats_value(key=''):
     """
     Update `value` in statistics table 
@@ -90,6 +73,5 @@ def __update_stats_value(key=''):
 if __name__ == '__main__':
     # Notice that previous_value gets updated prior to value
     for key in _STATS_KEY_VALUE_LIST:
-        __update_previous_value(key=key)
         __update_stats_value(key=key)
 

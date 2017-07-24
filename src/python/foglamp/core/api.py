@@ -141,26 +141,28 @@ async def get_schedules(request):
 
         return web.json_response({'schedules': schedules})
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def get_schedule(request):
     """Return the information for the given schedule from schedules table"""
 
-    schedule_id = request.match_info.get('schedule_id', None)
-
-    if not schedule_id:
-        return web.json_response({'err_msg': 'No such Schedule'})
-
     try:
+        schedule_id = request.match_info.get('schedule_id', None)
+
+        if not schedule_id:
+            raise ValueError('No such Schedule')
+
         schedule = await scheduler_db_services.read_schedule(schedule_id)
 
         if not schedule:
-            return web.json_response({'err_msg': 'No such Schedule'})
+            raise ValueError('No such Schedule')
 
         return web.json_response(schedule)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def post_schedule(request):
@@ -181,68 +183,75 @@ async def delete_schedule(request):
 async def get_task(request):
     """Returns a task"""
 
-    task_id = request.match_info.get('task_id', None)
-
-    if not task_id:
-        return web.json_response({'err_msg': 'No such Task'})
-
     try:
+        task_id = request.match_info.get('task_id', None)
+
+        if not task_id:
+            raise ValueError('No such Task')
+
         task = await scheduler_db_services.read_task(task_id)
 
         if not task:
-            return web.json_response({'err_msg': 'No such Task'})
+            raise ValueError('No such Task')
 
         return web.json_response(task)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
 
 async def get_tasks(request):
     """Returns the list of tasks"""
 
-    task_id = None
-
-    # TODO: Use enum in place int state
-    state = request.query.get('state') if 'state' in request.query else None
-    if state:
-        if not re.match("(^[1-4]$)", state):
-            return web.json_response({'err_msg': 'No such Tasks'})
-        else:
-            state = int(state)
-
-    name = request.query.get('name') if 'name' in request.query else None
-
     try:
+        task_id = None
+
+        # TODO: Use enum in place int state
+        state = request.query.get('state') if 'state' in request.query else None
+        if state:
+            if not re.match("(^[1-4]$)", state):
+                raise ValueError('This state value not permitted')
+            else:
+                state = int(state)
+
+        name = request.query.get('name') if 'name' in request.query else None
+
         tasks = await scheduler_db_services.read_task(task_id, state, name)
 
         if not tasks:
-            return web.json_response({'err_msg': 'No such Tasks'})
+            raise ValueError('No such Tasks')
 
         return web.json_response({'tasks': tasks})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 async def get_tasks_latest(request):
     """Returns the list of the most recent task execution for each name from tasks table"""
 
-    # TODO: Use enum in place int state
-    state = request.query.get('state') if 'state' in request.query else None
-    if state:
-        if not re.match("(^[1-4]$)", state):
-            return web.json_response({'err_msg': 'No such Tasks'})
-        else:
-            state = int(state)
-
-    name = request.query.get('name') if 'name' in request.query else None
-
     try:
+        # TODO: Use enum in place int state
+        state = request.query.get('state') if 'state' in request.query else None
+        if state:
+            if not re.match("(^[1-4]$)", state):
+                raise ValueError('This state value not permitted')
+            else:
+                state = int(state)
+
+        name = request.query.get('name') if 'name' in request.query else None
+
         tasks = await scheduler_db_services.read_tasks_latest(state, name)
 
         if not tasks:
-            return web.json_response({'err_msg': 'No such Tasks'})
+            raise ValueError('No such Task')
 
         return web.json_response({'tasks': tasks})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error.', text=str(ex))
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 async def post_task(request):
     """ create a new task"""

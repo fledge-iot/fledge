@@ -45,6 +45,7 @@ class SensorValues(aiocoap.resource.Resource):
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 
     _num_readings = 0
+    _num_discarded_readings = 0
 
     def __init__(self):
         super(SensorValues, self).__init__()
@@ -60,6 +61,8 @@ class SensorValues(aiocoap.resource.Resource):
             await asyncio.sleep(5)
             await statistics.update_statistics_value('READINGS', self._num_readings)
             self._num_readings = 0
+            await statistics.update_statistics_value('DISCARDED', self._num_discarded_readings)
+            self._num_discarded_readings = 0
 
 
     async def render_post(self, request):
@@ -83,12 +86,15 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
+        self._num_readings = self._num_readings + 1
+
         # Required keys in the payload
         try:
             payload = loads(request.payload)
             asset = payload['asset']
             timestamp = payload['timestamp']
         except:
+            self._num_discarded_readings = self._num_discarded_readings + 1
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
         # Optional keys in the payload
@@ -104,7 +110,6 @@ class SensorValues(aiocoap.resource.Resource):
                     try:
                         await conn.execute(_sensor_values_tbl.insert().values(
                             asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
-                        self._num_readings = self._num_readings + 1
                     except psycopg2.IntegrityError:
                         logging.getLogger('coap-server').exception(
                             'Duplicate key (%s) inserting sensor values:\n%s',

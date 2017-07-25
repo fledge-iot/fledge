@@ -33,6 +33,7 @@ import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import time
 from foglamp import configuration_manager
+from foglamp import statistics
 
 """Script information and connection to the Database
 """
@@ -207,7 +208,7 @@ def set_id() -> int:
 """
 
 
-def purge(config) -> None:
+def purge(config) -> int:
     """The actual process read the configuration file, and based off the information in it does the following:
     1. Gets previous information found in log file
     2. Based on the configurations, call the DELETE command to purge the data
@@ -215,7 +216,7 @@ def purge(config) -> None:
     4. Based on the configuration calculates how long to wait until next purge, and returns that 
          
     Returns:
-        Amount of time until next purge process
+        The number of rows that have been purged
     """
     last_id = get_nth_id()
     table_name = _READING_TABLE  # This could be replaced with any table that would need to be purged.
@@ -312,6 +313,7 @@ def purge(config) -> None:
                  'total_failed_to_remove': failed_removal_count}
 
     insert_into_log(level=level, log=purge_set)
+    return total_rows_removed
 
 
 def insert_into_log(level=0, log=None):
@@ -326,8 +328,9 @@ def purge_main():
     event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_PURGE_CONFIG,
                                                                         _CONFIG_CATEGORY_DESCRIPTION))
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
-    purge(config)
-
+    total_purged = purge(config)
+    event_loop = asyncio.get_event_loop()
+    event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
 
 if __name__ == '__main__':
     purge_main()

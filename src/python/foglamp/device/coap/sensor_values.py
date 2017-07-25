@@ -38,18 +38,23 @@ _sensor_values_tbl = sa.Table(
 
 
 class SensorValues(aiocoap.resource.Resource):
-    """CoAP handler for coap://readings URI"""
+    """CoAP handler for coap://readings URI
+
+        Attributes:
+            _num_readings (int) : number of readings processed through render_post method since initialization or since the last time _update_statistics() was called
+            _num_discarded_readings (int) : number of readings discarded through render_post method since initialization or since the last time _update_statistics() was called
+    """
 
     _CONNECTION_STRING = "dbname='foglamp'"
 
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 
-    _num_readings = 0
-    _num_discarded_readings = 0
 
     def __init__(self):
         super(SensorValues, self).__init__()
         asyncio.ensure_future(self._update_statistics())
+        self._num_readings = 0
+        self._num_discarded_readings = 0
 
     def register_handlers(self, resource_root):
         """Registers other/sensor_values URI"""
@@ -86,7 +91,7 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        self._num_readings = self._num_readings + 1
+        self._num_readings += 1
 
         # Required keys in the payload
         try:
@@ -94,7 +99,7 @@ class SensorValues(aiocoap.resource.Resource):
             asset = payload['asset']
             timestamp = payload['timestamp']
         except:
-            self._num_discarded_readings = self._num_discarded_readings + 1
+            self._num_discarded_readings += 1
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
         # Optional keys in the payload

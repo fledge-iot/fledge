@@ -27,7 +27,7 @@ def setup(app):
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
 
     # Scheduler
-    # Schedules - As per doc
+    # Scheduled_processes - As per doc
     app.router.add_route('GET', '/foglamp/schedule/process', api.get_scheduled_processes)
 
     # Schedules - As per doc

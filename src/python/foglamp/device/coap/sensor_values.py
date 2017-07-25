@@ -17,7 +17,9 @@ import aiocoap.resource
 import psycopg2
 import aiopg.sa
 import sqlalchemy as sa
+import asyncio
 from sqlalchemy.dialects.postgresql import JSONB
+from foglamp import statistics
 
 """CoAP handler for coap://other/sensor_readings URI
 """
@@ -36,18 +38,37 @@ _sensor_values_tbl = sa.Table(
 
 
 class SensorValues(aiocoap.resource.Resource):
-    """CoAP handler for coap://readings URI"""
+    """CoAP handler for coap://readings URI
+
+        Attributes:
+            _num_readings (int) : number of readings processed through render_post method since initialization or since the last time _update_statistics() was called
+            _num_discarded_readings (int) : number of readings discarded through render_post method since initialization or since the last time _update_statistics() was called
+    """
 
     _CONNECTION_STRING = "dbname='foglamp'"
+
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
+
 
     def __init__(self):
         super(SensorValues, self).__init__()
+        asyncio.ensure_future(self._update_statistics())
+        self._num_readings = 0
+        self._num_discarded_readings = 0
 
     def register_handlers(self, resource_root):
         """Registers other/sensor_values URI"""
         resource_root.add_resource(('other', 'sensor-values'), self)
         return
+
+    async def _update_statistics(self):
+        while True:
+            await asyncio.sleep(5)
+            await statistics.update_statistics_value('READINGS', self._num_readings)
+            self._num_readings = 0
+            await statistics.update_statistics_value('DISCARDED', self._num_discarded_readings)
+            self._num_discarded_readings = 0
+
 
     async def render_post(self, request):
         """Sends asset readings to storage layer
@@ -70,12 +91,15 @@ class SensorValues(aiocoap.resource.Resource):
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
+        self._num_readings += 1
+
         # Required keys in the payload
         try:
             payload = loads(request.payload)
             asset = payload['asset']
             timestamp = payload['timestamp']
         except:
+            self._num_discarded_readings += 1
             return aiocoap.Message(payload=''.encode("utf-8"), code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
         # Optional keys in the payload

@@ -26,6 +26,25 @@ def setup(app):
                          expect_handler=web.Request.json)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}', api.set_configuration_item)
 
+    # Scheduler
+    # Scheduled_processes - As per doc
+    app.router.add_route('GET', '/foglamp/schedule/process', api.get_scheduled_processes)
+
+    # Schedules - As per doc
+    app.router.add_route('GET', '/foglamp/schedules', api.get_schedules)
+    app.router.add_route('POST', '/foglamp/schedule', api.post_schedule)
+    app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api.get_schedule)
+    app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api.update_schedule)
+    app.router.add_route('DELETE', '/foglamp/schedule/{schedule_id}', api.delete_schedule)
+
+    # Tasks - As per doc
+    app.router.add_route('GET', '/foglamp/tasks', api.get_tasks)
+    app.router.add_route('POST', '/foglamp/task', api.post_task)
+    app.router.add_route('GET', '/foglamp/tasks/latest', api.get_tasks_latest)
+    app.router.add_route('GET', '/foglamp/task/{task_id}', api.get_task)
+    # TODO: Find out why not DELETE/PUT a task? Cancel flag can be handled in database update.
+    app.router.add_route('POST', '/foglamp/task/{task_id}/cancel', api.cancel_task)
+
     browser.setup(app)
 
     # enable cors support

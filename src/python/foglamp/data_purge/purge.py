@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
 """
 Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/edit) 
     the purge process is suppose to remove data based on either a user_id, or an X amount of time back depending on
@@ -26,7 +32,7 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
      total_failed_to_remove > 0 then it is safe to assume that that there was an error with INSERTS, and if 
      total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
-# !/usr/bin/python3
+
 import datetime
 import random
 import sqlalchemy
@@ -41,7 +47,6 @@ __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
 
 # Set variables for connecting to database
 _db_type = "postgres"
@@ -208,7 +213,7 @@ def set_id() -> int:
 """
 
 
-def purge(config) -> int:
+def purge(config) -> (int, int):
     """The actual process read the configuration file, and based off the information in it does the following:
     1. Gets previous information found in log file
     2. Based on the configurations, call the DELETE command to purge the data
@@ -308,12 +313,12 @@ def purge(config) -> int:
     total_failed_to_remove - total number of rows that failed to remove (this is the confirmation whether  purge 
                                                                             succeeded or not.) 
     """
-    purge_set = {'start_time': start_time, 'end_time': end_time, 'total_rows_removed': total_rows_removed,
-                 'total_rows_remaining': total_count_after, 'total_unsent_rows': unsent_rows_before,
+    purge_set = {'start_time': start_time, 'end_time': end_time, 'rows_removed': total_rows_removed,
+                 'rows_remaining': total_count_after, 'unsent_rows_removed': unsent_rows_before-int(unsent_count[0][0]),
                  'total_failed_to_remove': failed_removal_count}
 
     insert_into_log(level=level, log=purge_set)
-    return total_rows_removed
+    return total_rows_removed, unsent_rows_before-int(unsent_count[0][0])
 
 
 def insert_into_log(level=0, log=None):
@@ -327,10 +332,15 @@ def purge_main():
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_PURGE_CONFIG,
                                                                         _CONFIG_CATEGORY_DESCRIPTION))
+
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
-    total_purged = purge(config)
+    total_purged, unsent_purged = purge(config)
+
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
+
+    event_loop = asyncio.get_event_loop()
+    event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
 
 if __name__ == '__main__':
     purge_main()

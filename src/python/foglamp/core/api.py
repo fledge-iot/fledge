@@ -25,6 +25,8 @@ _help = """
     | GET             | /foglamp/category/{category_name}                         |
     | GET PUT DELETE  | /foglamp/category/{category_name}/{config_item}           |
 
+    | GET             | /foglamp/schedule/process                                 |
+
     | GET             | /foglamp/schedules                                        |
     | POST            | /foglamp/schedule                                         |
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
@@ -130,6 +132,19 @@ async def set_configuration_item(request):
 #################################
 #  Scheduler Services
 #################################
+
+# Scheduled_processes
+
+async def get_scheduled_processes(request):
+    """Returns a list of all the defined scheduled_processes from scheduled_processes table"""
+
+    try:
+        processes = await scheduler_db_services.read_scheduled_processes()
+
+        return web.json_response({'processes': processes})
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
 
 # Schedules
 

@@ -15,7 +15,28 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 __DB_NAME = 'foglamp'
-__DSN = "postgresql://foglamp:foglamp@localhost:5432/foglamp"
+
+
+async def read_scheduled_processes():
+    conn = await asyncpg.connect(database=__DB_NAME)
+    query = """
+        SELECT name, script from scheduled_processes
+    """
+
+    stmt = await conn.prepare(query)
+
+    rows = await stmt.fetch()
+
+    columns = ('name', 'script')
+
+    results = []
+    for row in rows:
+        results.append(dict(zip(columns, row)))
+
+    await conn.close()
+
+    return results
+
 
 async def create_schedule(payload):
     pass

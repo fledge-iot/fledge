@@ -28,6 +28,9 @@ def setup(app):
 
     # Scheduler
     # Schedules - As per doc
+    app.router.add_route('GET', '/foglamp/schedule/process', api.get_scheduled_processes)
+
+    # Schedules - As per doc
     app.router.add_route('GET', '/foglamp/schedules', api.get_schedules)
     app.router.add_route('POST', '/foglamp/schedule', api.post_schedule)
     app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api.get_schedule)

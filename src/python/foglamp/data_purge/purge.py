@@ -313,12 +313,15 @@ def purge(config) -> (int, int):
     total_failed_to_remove - total number of rows that failed to remove (this is the confirmation whether  purge 
                                                                             succeeded or not.) 
     """
+    unsent_rows_removed = unsent_rows_before-int(unsent_count[0][0]) 
+    if unsent_rows_removed < 0: 
+        unsent_rows_removed = 0
     purge_set = {'start_time': start_time, 'end_time': end_time, 'rows_removed': total_rows_removed,
-                 'rows_remaining': total_count_after, 'unsent_rows_removed': unsent_rows_before-int(unsent_count[0][0]),
+                 'rows_remaining': total_count_after, 'unsent_rows_removed': unsent_rows_removed,
                  'total_failed_to_remove': failed_removal_count}
 
     insert_into_log(level=level, log=purge_set)
-    return total_rows_removed, unsent_rows_before-int(unsent_count[0][0])
+    return total_rows_removed, unsent_rows_removed
 
 
 def insert_into_log(level=0, log=None):
@@ -335,7 +338,6 @@ def purge_main():
 
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
     total_purged, unsent_purged = purge(config)
-
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
 

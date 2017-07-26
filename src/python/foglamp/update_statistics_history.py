@@ -9,8 +9,8 @@ The following piece of code takes the information found in the statistics table,
 (statistics.value - statistics.prev_val) inside the statistics_history table. To complete this, SQLAlchemy will be 
 used to execute SELECT statements against statistics, and INSERT against the statistics_history table.  
 """
-import aiopg
 import sqlalchemy
+import sqlalchemy.dialects
 
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -20,8 +20,6 @@ __version__ = "${VERSION}"
 
 # Set variables for connecting to database
 _CONNECTION_STRING = "dbname='foglamp'"
-
-
 
 # Deceleration of tables in SQLAlchemy format
 _STATS_TABLE = sqlalchemy.Table('statistics', sqlalchemy.MetaData(),
@@ -58,19 +56,13 @@ def __query_execution(stmt="") -> sqlalchemy.engine.result.ResultProxy:
     Returns:
         Result of the query 
     """
-    db_type = "postgres"
-    user = "foglamp"
-    db_user = "foglamp"
-    host = "192.168.0.182"
-    db = "foglamp"
-
-    # Create Connection
-    engine = sqlalchemy.create_engine('%s://%s:%s@%s/%s' % (db_type, db_user, user, host, db),  pool_size=20,
-                                       max_overflow=0)
+    
+    engine = sqlalchemy.create_engine('postgres:///foglamp',  pool_size=20, max_overflow=0)
     conn = engine.connect()
     result = conn.execute(stmt)
 
     return result
+
 
 def _list_stats_keys() -> list:
     """
@@ -101,7 +93,6 @@ def _insert_into_stats_history(key='', value=0):
     """
     stmt = _STATS_HISTORY_TABLE.insert().values(key=key, value=value)
     __query_execution(stmt)
-
 
 
 def _update_previous_value(key='', value=0):

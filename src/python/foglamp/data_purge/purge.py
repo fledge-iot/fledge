@@ -79,11 +79,9 @@ _READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                                     default='00000000-0000-0000-0000-000000000000'),
                                   sqlalchemy.Column('reading', sqlalchemy.dialects.postgresql.JSON, default='{}'),
                                   sqlalchemy.Column('user_ts', sqlalchemy.TIMESTAMP(6),
-                                                    default=time.strftime('%Y-%m-%d %H:%M:%S',
-                                                                          time.localtime(time.time()))),
+                                                    default=sqlalchemy.func.current_timestamp()),
                                   sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6),
-                                                    default=time.strftime('%Y-%m-%d %H:%M:%S',
-                                                                          time.localtime(time.time()))))
+                                                    default=sqlalchemy.func.current_timestamp())),
 
 
 """logging table is instead of the log. After much thought, in addition to the discussed information the table also 
@@ -105,8 +103,7 @@ _PURGE_LOGGING_TABLE = sqlalchemy.Table('log', sqlalchemy.MetaData(),
                                         sqlalchemy.Column('level', sqlalchemy.SMALLINT, default=0),
                                         sqlalchemy.Column('log', sqlalchemy.dialects.postgresql.JSONB, default={}),
                                         sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6),
-                                                          default=time.strftime('%Y-%m-%d %H:%M:%S',
-                                                                                time.localtime(time.time()))))
+                                                          default=sqlalchemy.func.current_timestamp()))
 
 
 """Methods that support the purge process.  
@@ -331,4 +328,118 @@ if __name__ == '__main__':
     purge_main()
 
 
+"""Testing
+"""
 
+
+# def insert_into_readings():
+#     """
+#     Insert rows into table
+#     """
+#     stmt = "SELECT MAX(id) FROM readings;"
+#     reading_table_id = execute_command(stmt).fetchall()
+#     if reading_table_id[0][0] is None:
+#         reading_table_id = 1
+#     else:
+#         reading_table_id = int(reading_table_id[0][0])+1
+#     for i in range(1000):
+#         stmt = "INSERT INTO readings(id, asset_code) VALUES (%s, '%s')" % (reading_table_id, reading_table_id)
+#         # stmt = _READING_TABLE.insert().values(id=reading_table_id, asset_code='', )
+#         print(stmt)
+#         execute_command(stmt)
+#         reading_table_id = reading_table_id+1
+#
+#
+# def select_count_from_readings():
+#     """
+#     Get count of readings table
+#     """
+#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_READING_TABLE)
+#     result = execute_command(stmt).fetchall()
+#     return int(result[0][0])
+#
+#
+# def check_log_count():
+#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_PURGE_LOGGING_TABLE)
+#     result = execute_command(stmt).fetchall()
+#     return int(result[0][0])
+#
+#
+# def check_statistics_purge_values():
+#     stmt = "SELECT value FROM statistics WHERE key = 'PURGED'"
+#     purge_count = execute_command(stmt).fetchall()
+#     stmt = "SELECT value FROM statistics WHERE key = 'UNSNPURGED'"
+#     unsent = execute_command(stmt).fetchall()
+#     return int(purge_count[0][0]), int(unsent[0][0])
+#
+#
+# def purge_by_id():
+#     """
+#     Test purge by row ID
+#     :return:
+#     """
+#     event_loop = asyncio.get_event_loop()
+#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
+#                                                                                       'retainUnsent', "True"))
+#
+#     insert_into_readings()
+#     count1 = select_count_from_readings()
+#     log1 = check_log_count()
+#     purge1, unsent1 = check_statistics_purge_values()
+#     purge_main()
+#     count2 = select_count_from_readings()
+#     log2 = check_log_count()
+#     purge2, unsent2 = check_statistics_purge_values()
+#
+#     if count1 > count2:
+#         print("Test Purge - Success")
+#     else:
+#         print("Test Purge - Fail")
+#
+#     if log1 < log2:
+#         print("Test Log Update - Success")
+#     else:
+#         print("Test Log Update - Fail")
+#
+#     if purge1 < purge2 and unsent1 < unsent2:
+#         print("Test Statistics Update - Success")
+#     else:
+#         print("Test Statistics Update - Fail")
+#
+#
+# def purge_by_age():
+#     """Purge by age"""
+#     event_loop = asyncio.get_event_loop()
+#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
+#                                                                                       'retainUnsent', "False"))
+#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
+#                                                                                       'age', "0"))
+#
+#     insert_into_readings()
+#     count1 = select_count_from_readings()
+#     log1 = check_log_count()
+#     purge1, unsent1 = check_statistics_purge_values()
+#     purge_main()
+#     count2 = select_count_from_readings()
+#     log2 = check_log_count()
+#     purge2, unsent2 = check_statistics_purge_values()
+#
+#     if count1 > count2:
+#         print("Test Purge - Success")
+#     else:
+#         print("Test Purge - Fail")
+#
+#     if log1 < log2:
+#         print("Test Log Update - Success")
+#     else:
+#         print("Test Log Update - Fail")
+#
+#     if purge1 < purge2 and unsent1 < unsent2:
+#         print("Test Statistics Update - Success")
+#     else:
+#         print("Test Statistics Update - Fail")
+#
+#
+# if __name__ == '__main__':
+#     purge_by_id()
+#     purge_by_age()

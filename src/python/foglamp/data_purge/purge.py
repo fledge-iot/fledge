@@ -48,16 +48,8 @@ __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# Set variables for connecting to database
-_db_type = "postgres"
-_user = "foglamp"
-_db_user = "foglamp"
-_host = "127.0.0.1"
-_db = "foglamp"
-
 # Create Connection
-_ENGINE = sqlalchemy.create_engine('%s://%s:%s@%s/%s' % (_db_type, _db_user, _user, _host, _db),  pool_size=20,
-                                   max_overflow=0)
+_ENGINE = sqlalchemy.create_engine('postgres:///foglamp',  pool_size=20, max_overflow=0)
 _CONN = _ENGINE.connect()
 
 

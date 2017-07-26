@@ -76,7 +76,7 @@ def _list_stats_keys() -> list:
 
     result = result.fetchall()
     for i in range(len(result)):
-        key_list.append(str(result[i][0]).rstrip().lstrip())
+        key_list.append(str(result[i][0]).strip())
 
     return key_list
 
@@ -139,6 +139,81 @@ def stats_history_main():
         previous_value = int(stats_select_result[0][1])
         _insert_into_stats_history(key=key, value=value-previous_value)
         _update_previous_value(key=key, value=value)
+
+# """Testing of statistics_history
+# """
+# import random
+#
+#
+# def update_statistics_table():
+#     """
+#     Update statistics.value with a value that's 1 to 10 numbers larger
+#     """
+#     stats_key_value_list = _list_stats_keys()
+#     for key in stats_key_value_list:
+#         val = random.randint(1,10)
+#         stmt = sqlalchemy.select([_STATS_TABLE.c.value]).where(_STATS_TABLE.c.key == key)
+#         result = __query_execution(stmt)
+#         result = int(result.fetchall()[0][0])+val
+#         stmt = _STATS_TABLE.update().values(value=result).where(_STATS_TABLE.c.key == key)
+#         __query_execution(stmt)
+#
+#
+# def test_assert_previous_value_equals_value():
+#     """Assert that previous_value = value"""
+#     result_set = {}
+#     stats_key_value_list = _list_stats_keys()
+#     for key in stats_key_value_list:
+#         stmt = sqlalchemy.select([_STATS_TABLE.c.value,
+#                                   _STATS_TABLE.c.previous_value]).where(_STATS_TABLE.c.key == key)
+#         result = __query_execution(stmt).fetchall()
+#         result_set[result[0][0]] = result[0][1]
+#
+#     if (key == result_set[key] for key in sorted(result_set.keys())):
+#         return "SUCCESS"
+#     return "FAIL"
+#
+#
+# def test_assert_previous_value_less_than_value():
+#     """Assert that previous_value < value"""
+#     result_set = {}
+#     stats_key_value_list = _list_stats_keys()
+#     for key in stats_key_value_list:
+#         stmt = sqlalchemy.select([_STATS_TABLE.c.value,
+#                                   _STATS_TABLE.c.previous_value]).where(_STATS_TABLE.c.key == key)
+#         result = __query_execution(stmt).fetchall()
+#         result_set[result[0][0]] = result[0][1]
+#
+#     if (key > result_set[key] for key in sorted(result_set.keys())):
+#         return "SUCCESS"
+#     return "FAIL"
+#
+#
+# def stats_history_table_value():
+#     delta = {}
+#     stats_key_value_list = _list_stats_keys()
+#     for key_value in stats_key_value_list:
+#         stmt = sqlalchemy.select([_STATS_HISTORY_TABLE.c.value]).select_from(_STATS_HISTORY_TABLE).where(
+#             _STATS_HISTORY_TABLE.c.key == key_value)
+#         result = __query_execution(stmt).fetchall()
+#         delta[key_value] = result[0][0]
+#     return delta
+#
+# def test_main():
+#     """Test verification main"""
+#     delta1 = stats_history_table_value()
+#     stats_history_main()
+#     print('TEST A: Verify previous_value = value - ' + test_assert_previous_value_equals_value())
+#     update_statistics_table()
+#     print('TEST B: Verify previous_value < value - ' + test_assert_previous_value_less_than_value())
+#     stats_history_main()
+#     delta2 = stats_history_table_value()
+#     for key in sorted(delta1.keys()):
+#         if delta1[key] != delta2[key]:
+#             print(key+": Stat History Updated - SUCCESS")
+#         else:
+#             print(key + ": Stat History Updated - FAIL")
+
 
 if __name__ == '__main__':
     stats_history_main()

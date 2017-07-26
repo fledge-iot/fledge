@@ -23,9 +23,9 @@ __version__ = "${VERSION}"
 class Server:
     """Core server"""
 
-    # Class attributes (begin)
-    __scheduler = None
-    # Class attributes (end)
+    """Class attributes"""
+    scheduler = None
+    """ foglamp.core.Scheduler """
 
     @classmethod
     def start(cls, loop=None):
@@ -34,14 +34,13 @@ class Server:
             loop = asyncio.get_event_loop()
 
         # Register signal handlers
-        # TODO: Move to Scheduler
         for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
             loop.add_signal_handler(
                 signal_name,
                 lambda: asyncio.ensure_future(cls.stop(loop)))
 
-        cls.__scheduler = Scheduler()
-        cls.__scheduler.start()
+        cls.scheduler = Scheduler()
+        cls.scheduler.start()
 
         # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
         web.run_app(cls._make_app(), host='0.0.0.0', port=8082)
@@ -66,7 +65,7 @@ class Server:
         Raises TimeoutError:
             A task is still running. Wait and try again.
         """
-        await cls.__scheduler.stop()
+        await cls.scheduler.stop()
 
         for task in asyncio.Task.all_tasks():
             task.cancel()

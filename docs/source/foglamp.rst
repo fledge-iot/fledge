@@ -31,6 +31,14 @@ foglamp\.logger module
     :undoc-members:
     :show-inheritance:
 
+foglamp\.statistics module
+--------------------------
+
+.. automodule:: foglamp.statistics
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------

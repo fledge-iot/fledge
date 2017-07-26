@@ -28,24 +28,24 @@ def setup(logger_name: str = None,
     """Configures a `logging.Logger`_ object
 
     Once configured, a logger can also be retrieved via
-    `logging.getLogger`_().
+    `logging.getLogger`_
 
     It is inefficient to call this function more than once for the same
     logger name.
 
     Args:
-        logger_name (str):
+        logger_name:
             The name of the logger to configure. Use None (the default)
             to configure the root logger.
 
-        level (int):
+        level:
             The `logging level`_ to use when filtering log entries.
             Defaults to logging.WARNING.
 
-        propagate (bool):
+        propagate:
             Whether to send log entries to ancestor loggers. Defaults to False.
 
-        destination (int):
+        destination:
             - SYSLOG: (the default) Send messages to syslog (view with tail -f /var/log/syslog)
             - CONSOLE: Send message to stdout
 

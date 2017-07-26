@@ -20,12 +20,62 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg_types
 
 from foglamp import logger
+from foglamp.core.server import Server
 
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+"""Module attributes"""
+_CONNECTION_STRING = "dbname='foglamp'"
+
+
+class Schedule(object):
+    """A schedule base class"""
+    
+    class Type(IntEnum):
+        """Enumeration for schedules.schedule_type"""
+        STARTUP = 1
+        TIMED = 2
+        INTERVAL = 3
+        MANUAL = 4
+        
+    __slots__ = ['id', 'name', 'exclusive']
+
+    def __init__(self, schedule_id: uuid.UUID=None, name: str=None, exclusive: bool=True):
+        if schedule_id is None:
+            schedule_id = uuid.uuid4()
+        self.id = schedule_id
+        """When to next start a task for the schedule"""
+        self.name = name
+        """Maps a task id to a process"""
+        self.exclusive = exclusive
+        """Maps a task id to a process"""
+
+    def put(self) -> None:
+        scheduler = Server.scheduler
+
+
+class IntervalSchedule(Schedule):
+    """A schedule base class"""
+    __slots__ = ['interval']
+
+
+class TimedSchedule(Schedule):
+    """A timed schedule"""
+    pass
+
+
+class ManualSchedule(Schedule):
+    """A schedule that is run manually"""
+    pass
+
+
+class StartUpSchedule(Schedule):
+    """A schedule that is run when the scheduler starts"""
+    pass
 
 
 class Scheduler(object):
@@ -58,13 +108,6 @@ class Scheduler(object):
     # _Process objects. Then add process reference to _Schedule
     # to avoid script lookup.
 
-    class _ScheduleType(IntEnum):
-        """Enumeration for schedules.schedule_type"""
-        STARTUP = 1
-        TIMED = 2
-        INTERVAL = 3
-        MANUAL = 4
-
     class _TaskState(IntEnum):
         """Enumeration for tasks.task_state"""
         RUNNING = 1
@@ -88,7 +131,6 @@ class Scheduler(object):
             """Maps a task id to a process"""
 
     """Constant class attributes"""
-    _CONNECTION_STRING = "dbname='foglamp'"
     _HOUR_SECONDS = 3600
     _DAY_SECONDS = 3600*24
     _WEEK_SECONDS = 3600*24*7
@@ -259,7 +301,7 @@ class Scheduler(object):
             return
 
         """The task row needs to exist before the completion handler runs"""
-        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(self._tasks_tbl.insert().values(
                             id=task_id,
@@ -317,7 +359,7 @@ class Scheduler(object):
         self._on_task_completion(schedule, process, task_id)
 
         """Update the task's status"""
-        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(
                     self._tasks_tbl.update().where(
@@ -371,7 +413,7 @@ class Scheduler(object):
                 else:
                     next_start_time = None
 
-                if schedule.type == self._ScheduleType.STARTUP:
+                if schedule.type == Schedule.Type.STARTUP:
                     await self._start_startup_task(schedule)
                 else:
                     await self._start_regular_task(schedule)
@@ -426,14 +468,14 @@ class Scheduler(object):
         schedule_execution = self._ScheduleExecution()
         self._schedule_executions[schedule.id] = schedule_execution
 
-        if schedule.type == self._ScheduleType.INTERVAL:
+        if schedule.type == Schedule.Type.INTERVAL:
             schedule_execution.next_start_time = current_time + schedule.repeat_seconds
-        elif schedule.type == self._ScheduleType.TIMED:
+        elif schedule.type == Schedule.Type.TIMED:
             self._schedule_next_timed_task(
                 schedule,
                 schedule_execution,
                 datetime.datetime.fromtimestamp(current_time))
-        elif schedule.type == self._ScheduleType.STARTUP:
+        elif schedule.type == Schedule.Type.STARTUP:
             schedule_execution.next_start_time = current_time
 
         self._logger.info(
@@ -462,7 +504,7 @@ class Scheduler(object):
             else:
                 advance_seconds = time.time()-schedule_execution.next_start_time
 
-        if schedule.type == self._ScheduleType.TIMED:
+        if schedule.type == Schedule.Type.TIMED:
             """Handle daylight savings time transitions"""
             next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
             next_dt += datetime.timedelta(seconds=advance_seconds)
@@ -489,14 +531,14 @@ class Scheduler(object):
                            self._scheduled_processes_tbl.c.script])
         query.select_from(self._scheduled_processes_tbl)
 
-        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     self._process_scripts[row.name] = row.script
 
     async def _mark_tasks_interrupted(self):
         """Any task with a NULL end_time is set to interrupted"""
-        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(
                     self._tasks_tbl.update().where(
@@ -517,7 +559,7 @@ class Scheduler(object):
 
         query.select_from(self._schedules_tbl)
 
-        async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     interval = row.schedule_interval

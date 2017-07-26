@@ -33,6 +33,7 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
      total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
 
+import asyncio
 import datetime
 import random
 import sqlalchemy
@@ -49,9 +50,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # Create Connection
-_ENGINE = sqlalchemy.create_engine('postgres:///foglamp',  pool_size=20, max_overflow=0)
-_CONN = _ENGINE.connect()
-
+__CONNECTION_STRING = "postgres:///foglamp"
 
 _DEFAULT_PURGE_CONFIG = {
     "age": {
@@ -123,7 +122,7 @@ def get_nth_id() -> int:
     """
     rand = random.randint(1, 100)
     stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
-    row_id = execute_command_with_return_value(stmt % rand)
+    row_id = execute_command(stmt % rand).fetchall()
     try:
         return int(row_id[0][0])
     except IndexError:
@@ -166,23 +165,17 @@ def convert_timestamp(set_time: str) -> datetime.timedelta:
     return time_in_sec+time_in_min+time_in_hr+time_in_day
 
 
-def execute_command_with_return_value(stmt: str) -> dict:
+def execute_command(stmt: str):
     """Imitate connection to postgres that returns result.    
     Args:
         stmt (str): generated SQL query   
     Returns:
         Returns result set 
     """
-    query_result = _CONN.execute(stmt)
-    return query_result.fetchall()
-
-
-def execute_command_without_return_value(stmt: str) -> None:
-    """Imitate connection to Postgres and a query that doesn't generate results
-    Args:
-        stmt (str): DELETE stmt 
-    """
-    _CONN.execute(stmt)
+    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
+    conn = engine.connect()
+    query_result = conn.execute(stmt)
+    return query_result
 
 
 def set_id() -> int:
@@ -195,7 +188,8 @@ def set_id() -> int:
     """
     stmt = sqlalchemy.select([_PURGE_LOGGING_TABLE.c.id]).select_from(_PURGE_LOGGING_TABLE).order_by(
         _PURGE_LOGGING_TABLE.c.id.desc()).limit(1)
-    result = execute_command_with_return_value(stmt)
+    result = execute_command(stmt)
+    result = result.fetchall()
     if not result:
         return 1
     return int(result[0][0])+1
@@ -228,7 +222,7 @@ def purge(config) -> (int, int):
     number_sent_rows_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
         table_name.c.ts <= start_time).where(table_name.c.id > last_id)
 
-    unsent_rows_before = execute_command_with_return_value(number_sent_rows_query)
+    unsent_rows_before = execute_command(number_sent_rows_query).fetchall()
     unsent_rows_before = int(unsent_rows_before[0][0])
 
     """Time purge process starts
@@ -238,20 +232,20 @@ def purge(config) -> (int, int):
     if config['retainUnsent']['value'] == 'True':
         count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
             table_name.c.id <= last_id).where(table_name.c.ts <= start_time)
-        total_count_before = execute_command_with_return_value(count_query)
+        total_count_before = execute_command(count_query).fetchall()
         total_count_before = int(total_count_before[0][0])
 
         delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= last_id).where(
             table_name.c.ts <= start_time)
 
-        execute_command_without_return_value(delete_query)
+        execute_command(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
             table_name).where(table_name.c.id <= last_id).where(
             table_name.c.ts <= start_time)
 
-        failed_removal_count = execute_command_with_return_value(failed_removal_query)
+        failed_removal_count = execute_command(failed_removal_query).fetchall()
         failed_removal_count = int(failed_removal_count[0][0])
         total_rows_removed = total_count_before - failed_removal_count
 
@@ -259,25 +253,25 @@ def purge(config) -> (int, int):
     else:
         count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
             table_name.c.ts <= age_timestamp).where(table_name.c.ts <= start_time)
-        total_count_before = execute_command_with_return_value(count_query)
+        total_count_before = execute_command(count_query).fetchall()
         total_count_before = int(total_count_before[0][0])
 
         delete_query = sqlalchemy.delete(table_name).where(table_name.c.ts <= age_timestamp).where(
             table_name.c.ts < start_time)
-        execute_command_without_return_value(delete_query)
+        execute_command(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
             table_name).where(table_name.c.ts <= age_timestamp).where(
             table_name.c.ts <= start_time)
-        failed_removal_count = execute_command_with_return_value(failed_removal_query)
+        failed_removal_count = execute_command(failed_removal_query).fetchall()
         failed_removal_count = int(failed_removal_count[0][0])
         total_rows_removed = total_count_before - failed_removal_count
 
     # Total number of rows that remain under start_time
     total_count = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
         table_name.c.ts < start_time)
-    total_count_after = execute_command_with_return_value(total_count)
+    total_count_after = execute_command(total_count).fetchall()
     total_count_after = int(total_count_after[0][0])
 
     # Time  purge process finished
@@ -291,7 +285,7 @@ def purge(config) -> (int, int):
     --> unsent data was purged 
     """
     level = 0
-    unsent_count = execute_command_with_return_value(number_sent_rows_query)
+    unsent_count = execute_command(number_sent_rows_query).fetchall()
     if failed_removal_count > 0:
         level = 1
     elif (int(unsent_count[0][0]) < unsent_rows_before) or (total_count_after <= int(total_count_before * 0.1)):
@@ -319,21 +313,18 @@ def purge(config) -> (int, int):
 def insert_into_log(level=0, log=None):
     """INSERT into log table values"""
     stmt = _PURGE_LOGGING_TABLE.insert().values(id=set_id(), code='PURGE', level=level, log=log)
-    execute_command_without_return_value(stmt)
+    execute_command(stmt)
 
 
 def purge_main():
-    import asyncio
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_PURGE_CONFIG,
                                                                         _CONFIG_CATEGORY_DESCRIPTION))
 
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
     total_purged, unsent_purged = purge(config)
-    event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
 
-    event_loop = asyncio.get_event_loop()
+    event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
     event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
 
 if __name__ == '__main__':

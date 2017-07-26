@@ -19,7 +19,7 @@ __version__ = "${VERSION}"
 
 
 # Set variables for connecting to database
-_CONNECTION_STRING = "dbname='foglamp'"
+_CONNECTION_STRING = "postgres:///foglamp"
 
 # Deceleration of tables in SQLAlchemy format
 _STATS_TABLE = sqlalchemy.Table('statistics', sqlalchemy.MetaData(),
@@ -47,7 +47,7 @@ _STATS_HISTORY_TABLE = sqlalchemy.Table('statistics_history', sqlalchemy.MetaDat
                                         )
 
 
-def __query_execution(stmt="") -> sqlalchemy.engine.result.ResultProxy:
+def __query_execution(stmt=""):
     """
     Execute query and return result
     Args:
@@ -57,7 +57,7 @@ def __query_execution(stmt="") -> sqlalchemy.engine.result.ResultProxy:
         Result of the query 
     """
     
-    engine = sqlalchemy.create_engine('postgres:///foglamp',  pool_size=20, max_overflow=0)
+    engine = sqlalchemy.create_engine(_CONNECTION_STRING,  pool_size=20, max_overflow=0)
     conn = engine.connect()
     result = conn.execute(stmt)
 
@@ -76,7 +76,7 @@ def _list_stats_keys() -> list:
 
     result = result.fetchall()
     for i in range(len(result)):
-        key_list.append(result[i][0].replace(" ", ""))
+        key_list.append(str(result[i][0]).rstrip().lstrip())
 
     return key_list
 

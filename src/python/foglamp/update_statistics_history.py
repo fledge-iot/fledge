@@ -140,6 +140,9 @@ def stats_history_main():
         _insert_into_stats_history(key=key, value=value-previous_value)
         _update_previous_value(key=key, value=value)
 
+if __name__ == '__main__':
+    stats_history_main()
+
 # """Testing of statistics_history
 # """
 # import random
@@ -215,5 +218,3 @@ def stats_history_main():
 #             print(key + ": Stat History Updated - FAIL")
 
 
-if __name__ == '__main__':
-    stats_history_main()

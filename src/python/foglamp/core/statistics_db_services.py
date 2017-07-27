@@ -21,7 +21,7 @@ __DB_NAME = 'foglamp'
 async def read_statistics():
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
-        SELECT * from statistics order by key
+        SELECT rtrim(lower(key)) AS key, description, value, previous_value, ts FROM statistics ORDER BY key
     """
 
     stmt = await conn.prepare(query)
@@ -44,25 +44,22 @@ async def read_statistics():
 
     return results
 
-async def read_statistics_history(limit):
+async def read_statistics_history(limit=None):
     conn = await asyncpg.connect(database=__DB_NAME)
     _limit_clause = " LIMIT $1" if limit else " "
 
     query = """
-                select ts::timestamp(0)::varchar,
-                        key,
-                        value from statistics_history
-                where ts in (select distinct ts from statistics_history order by ts {limit_clause})
-                order by ts, key;
+                SELECT date_trunc('second', ts::timestamptz)::varchar as ts,
+                        rtrim(lower(key)) as key,
+                        value FROM statistics_history
+                WHERE ts IN (SELECT distinct ts FROM statistics_history ORDER BY ts {limit_clause})
+                ORDER BY ts, key;
             """.format(limit_clause=_limit_clause)
 
     stmt = await conn.prepare(query)
     rows = await stmt.fetch(limit) if limit else await stmt.fetch()
 
-    columns = ('ts',
-        'key',
-        'value'
-    )
+    columns = ('ts', 'key', 'value')
 
     results = []
     first_time = True
@@ -72,7 +69,8 @@ async def read_statistics_history(limit):
     for row in rows:
         if temp_ts != row['ts']:
             if not first_time:
-                results.append({temp_ts: temp_dict})
+                temp_dict.update({'ts': temp_ts})
+                results.append(temp_dict)
             temp_dict = {}
             temp_ts = row['ts']
 
@@ -81,7 +79,8 @@ async def read_statistics_history(limit):
         first_time = False
 
     # Append last leftover dict
-    results.append({temp_ts: temp_dict})
+    temp_dict.update({'ts': temp_ts})
+    results.append(temp_dict)
 
     await conn.close()
 

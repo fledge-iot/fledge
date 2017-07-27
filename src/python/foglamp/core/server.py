@@ -27,24 +27,6 @@ class Server:
     scheduler = None
     """ foglamp.core.Scheduler """
 
-    @classmethod
-    def start(cls, loop=None):
-        """Starts the server"""
-        if not loop:
-            loop = asyncio.get_event_loop()
-
-        # Register signal handlers
-        for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
-            loop.add_signal_handler(
-                signal_name,
-                lambda: asyncio.ensure_future(cls.stop(loop)))
-
-        cls.scheduler = Scheduler()
-        cls.scheduler.start()
-
-        # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
-        web.run_app(cls._make_app(), host='0.0.0.0', port=8082)
-
     @staticmethod
     def _make_app():
         """Creates the REST server
@@ -56,6 +38,27 @@ class Server:
         return app
 
     @classmethod
+    async def _start_scheduler(cls):
+        """Starts the scheduler"""
+        cls.scheduler = Scheduler()
+        await cls.scheduler.start()
+
+    @classmethod
+    def start(cls):
+        """Starts the server"""
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.ensure_future(cls._start_scheduler()))
+
+        # Register signal handlers
+        for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
+            loop.add_signal_handler(
+                signal_name,
+                lambda: asyncio.ensure_future(cls.stop(loop)))
+
+        # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
+        web.run_app(cls._make_app(), host='0.0.0.0', port=8082)
+
+    @classmethod
     async def stop(cls, loop):
         """Attempts to stop the server
 
@@ -65,7 +68,9 @@ class Server:
         Raises TimeoutError:
             A task is still running. Wait and try again.
         """
-        await cls.scheduler.stop()
+        if cls.scheduler:
+            await cls.scheduler.stop()
+            cls.scheduler = None
 
         for task in asyncio.Task.all_tasks():
             task.cancel()

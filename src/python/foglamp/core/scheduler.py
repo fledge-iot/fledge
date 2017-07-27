@@ -20,7 +20,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg_types
 
 from foglamp import logger
-from foglamp.core.server import Server
 
 
 __author__ = "Terris Linenbach"
@@ -33,39 +32,31 @@ _CONNECTION_STRING = "dbname='foglamp'"
 
 
 class Schedule(object):
-    """A schedule base class"""
-    
-    class Type(IntEnum):
-        """Enumeration for schedules.schedule_type"""
-        STARTUP = 1
-        TIMED = 2
-        INTERVAL = 3
-        MANUAL = 4
-        
-    __slots__ = ['id', 'name', 'exclusive']
+    """Schedule base class"""
+    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
 
-    def __init__(self, schedule_id: uuid.UUID=None, name: str=None, exclusive: bool=True):
-        if schedule_id is None:
-            schedule_id = uuid.uuid4()
-        self.id = schedule_id
-        """When to next start a task for the schedule"""
-        self.name = name
-        """Maps a task id to a process"""
-        self.exclusive = exclusive
-        """Maps a task id to a process"""
-
-    def put(self) -> None:
-        scheduler = Server.scheduler
+    def __init__(self):
+        self.schedule_id = None
+        self.name = None
+        self.exclusive = True
+        self.repeat = None
+        """datetime.timedelta"""
+        self.process_name = None
 
 
 class IntervalSchedule(Schedule):
-    """A schedule base class"""
-    __slots__ = ['interval']
+    """Interval schedule"""
+    pass
 
 
 class TimedSchedule(Schedule):
-    """A timed schedule"""
-    pass
+    """Timed schedule"""
+    __slots__ = ['time', 'day']
+
+    def __init__(self):
+        super().__init__()
+        self.time = None
+        self.day = None
 
 
 class ManualSchedule(Schedule):
@@ -108,6 +99,13 @@ class Scheduler(object):
     # _Process objects. Then add process reference to _Schedule
     # to avoid script lookup.
 
+    class _ScheduleType(IntEnum):
+        """Enumeration for schedules.schedule_type"""
+        STARTUP = 1
+        TIMED = 2
+        INTERVAL = 3
+        MANUAL = 4
+
     class _TaskState(IntEnum):
         """Enumeration for tasks.task_state"""
         RUNNING = 1
@@ -115,8 +113,9 @@ class Scheduler(object):
         CANCELED = 3
         INTERRUPTED = 4
 
-    _Schedule = collections.namedtuple(
-        'Schedule',
+    # TODO: This will be turned into a class do it is mutable
+    _ScheduleRow = collections.namedtuple(
+        'ScheduleRow',
         'id name type time day interval repeat_seconds exclusive process_name')
     """Represents a row in the schedules table"""
 
@@ -150,13 +149,15 @@ class Scheduler(object):
 
         """Class attributes"""
         if not self._logger:
-            # self._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            self._logger = logger.setup(__name__, level=logging.INFO)
+            self._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
+            # self._logger = logger.setup(__name__)
 
         if not self._schedules_tbl:
+            metadata = sa.MetaData()
+
             self._schedules_tbl = sa.Table(
                 'schedules',
-                sa.MetaData(),
+                metadata,
                 sa.Column('id', pg_types.UUID),
                 sa.Column('schedule_name', sa.types.VARCHAR(20)),
                 sa.Column('process_name', sa.types.VARCHAR(20)),
@@ -168,7 +169,7 @@ class Scheduler(object):
 
             self._tasks_tbl = sa.Table(
                 'tasks',
-                sa.MetaData(),
+                metadata,
                 sa.Column('id', pg_types.UUID),
                 sa.Column('process_name', sa.types.VARCHAR(20)),
                 sa.Column('state', sa.types.INT),
@@ -180,7 +181,7 @@ class Scheduler(object):
 
             self._scheduled_processes_tbl = sa.Table(
                 'scheduled_processes',
-                sa.MetaData(),
+                metadata,
                 sa.Column('name', pg_types.VARCHAR(20)),
                 sa.Column('script', pg_types.JSONB))
 
@@ -304,11 +305,11 @@ class Scheduler(object):
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(self._tasks_tbl.insert().values(
-                            id=task_id,
-                            pid=self._schedule_executions[schedule.id].task_processes[task_id].pid,
-                            process_name=schedule.process_name,
-                            state=int(self._TaskState.RUNNING),
-                            start_time=datetime.datetime.now()))
+                    id=task_id,
+                    pid=self._schedule_executions[schedule.id].task_processes[task_id].pid,
+                    process_name=schedule.process_name,
+                    state=int(self._TaskState.RUNNING),
+                    start_time=datetime.datetime.now()))
 
         asyncio.ensure_future(self._wait_for_task_completion(schedule, task_id))
 
@@ -413,7 +414,7 @@ class Scheduler(object):
                 else:
                     next_start_time = None
 
-                if schedule.type == Schedule.Type.STARTUP:
+                if schedule.type == self._ScheduleType.STARTUP:
                     await self._start_startup_task(schedule)
                 else:
                     await self._start_regular_task(schedule)
@@ -458,24 +459,28 @@ class Scheduler(object):
 
         schedule_execution.next_start_time = time.mktime(dt.timetuple())
 
-    def _schedule_first_task(self, schedule: _Schedule, current_time: int) -> None:
-        """Compute the first time a schedule should start
+    def _schedule_first_task(self, schedule: _ScheduleRow, current_time: int) -> None:
+        """Determines the time when a task for a schedule will start.
 
         Args:
-            schedule _Schedule:
-            current_time int:
+            schedule: The schedule to consider
+
+            current_time:
+                Epoch time to use as the current time when determining
+                when to schedule tasks
+
         """
         schedule_execution = self._ScheduleExecution()
         self._schedule_executions[schedule.id] = schedule_execution
 
-        if schedule.type == Schedule.Type.INTERVAL:
+        if schedule.type == self._ScheduleType.INTERVAL:
             schedule_execution.next_start_time = current_time + schedule.repeat_seconds
-        elif schedule.type == Schedule.Type.TIMED:
+        elif schedule.type == self._ScheduleType.TIMED:
             self._schedule_next_timed_task(
                 schedule,
                 schedule_execution,
                 datetime.datetime.fromtimestamp(current_time))
-        elif schedule.type == Schedule.Type.STARTUP:
+        elif schedule.type == self._ScheduleType.STARTUP:
             schedule_execution.next_start_time = current_time
 
         self._logger.info(
@@ -504,7 +509,7 @@ class Scheduler(object):
             else:
                 advance_seconds = time.time()-schedule_execution.next_start_time
 
-        if schedule.type == Schedule.Type.TIMED:
+        if schedule.type == self._ScheduleType.TIMED:
             """Handle daylight savings time transitions"""
             next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
             next_dt += datetime.timedelta(seconds=advance_seconds)
@@ -568,16 +573,16 @@ class Scheduler(object):
                     if interval is not None:
                         repeat_seconds = interval.total_seconds()
 
-                    schedule = self._Schedule(
-                        id=row.id,
-                        name=row.schedule_name,
-                        type=row.schedule_type,
-                        day=row.schedule_day,
-                        time=row.schedule_time,
-                        interval=interval,
-                        repeat_seconds=repeat_seconds,
-                        exclusive=row.exclusive,
-                        process_name=row.process_name)
+                    schedule = self._ScheduleRow(
+                                        id=row.id,
+                                        name=row.schedule_name,
+                                        type=row.schedule_type,
+                                        day=row.schedule_day,
+                                        time=row.schedule_time,
+                                        interval=interval,
+                                        repeat_seconds=repeat_seconds,
+                                        exclusive=row.exclusive,
+                                        process_name=row.process_name)
 
                     # TODO: Move this to _add_schedule to check for errors
                     self._schedules[row.id] = schedule
@@ -599,8 +604,6 @@ class Scheduler(object):
         - Runs :meth:`Scheduler._check_schedules` in an endless loop
         """
         # TODO: log exception here or add an exception handler in asyncio
-        await self._mark_tasks_interrupted()
-        await self._read_storage()
 
         while True:
             next_start_time = await self._check_schedules()
@@ -625,7 +628,81 @@ class Scheduler(object):
 
             self._main_sleep_task = None
 
-    def start(self):
+    async def reset_for_testing(self):
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                await conn.execute('delete from foglamp.tasks')
+                await conn.execute('delete from foglamp.schedules')
+                await conn.execute('delete from foglamp.scheduled_processes')
+                await conn.execute(
+                    '''insert into foglamp.scheduled_processes(name, script)
+                    values('sleep10', '["sleep", "10"]')''')
+
+    async def save_schedule(self, schedule: Schedule) -> None:
+        """Insert or update a row in the schedules table"""
+        schedule_type = None
+        day = None
+        schedule_time = None
+
+        # TODO: verify schedule object (day, etc)
+
+        if isinstance(schedule, IntervalSchedule):
+            schedule_type = self._ScheduleType.INTERVAL
+        elif isinstance(schedule, StartUpSchedule):
+            schedule_type = self._ScheduleType.STARTUP
+        elif isinstance(schedule, TimedSchedule):
+            schedule_type = self._ScheduleType.TIMED
+            schedule_time = schedule.time
+            day = schedule.day
+        elif isinstance(schedule, ManualSchedule):
+            schedule_type = self._ScheduleType.MANUAL
+
+        schedule_id = str(schedule.schedule_id)
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                result = await conn.execute(
+                    self._schedules_tbl.update().where(
+                        self._schedules_tbl.c.id == schedule_id).values(
+                        schedule_name=schedule.name,
+                        schedule_interval=schedule.repeat,
+                        schedule_day=day,
+                        schedule_time=schedule_time,
+                        exclusive=schedule.exclusive,
+                        process_name=schedule.process_name
+                    ))
+
+                if result.rowcount == 0:
+                    await conn.execute(self._schedules_tbl.insert().values(
+                        id=schedule_id,
+                        schedule_type=int(schedule_type),
+                        schedule_name=schedule.name,
+                        schedule_interval=schedule.repeat,
+                        schedule_day=day,
+                        schedule_time=schedule_time,
+                        exclusive=schedule.exclusive,
+                        process_name=schedule.process_name))
+
+        repeat_seconds = None
+        if schedule.repeat is not None:
+            repeat_seconds = schedule.repeat.total_seconds()
+
+        schedule_row = self._ScheduleRow(
+                                id=schedule.schedule_id,
+                                name=schedule.name,
+                                type=schedule_type,
+                                time=schedule_time,
+                                day=day,
+                                interval=schedule.repeat,
+                                repeat_seconds=repeat_seconds,
+                                exclusive=schedule.exclusive,
+                                process_name=schedule.process_name)
+
+        self._schedules[schedule.schedule_id] = schedule_row
+        self._schedule_first_task(schedule_row, time.time())
+        self._resume_check_schedules()
+
+    async def start(self):
         """Starts the scheduler
 
         When this method returns, an asyncio task is
@@ -641,8 +718,13 @@ class Scheduler(object):
         self._start_time = time.time()
         self._logger.info("Starting")
 
-        asyncio.ensure_future(self._main_loop())
-
         """Hard-code storage server:
         wait self._start_startup_task(self._schedules['storage'])
+         
+        Then wait for it to start.
         """
+
+        await self._mark_tasks_interrupted()
+        await self._read_storage()
+
+        asyncio.ensure_future(self._main_loop())

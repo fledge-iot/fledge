@@ -49,39 +49,39 @@ async def read_statistics_history(limit):
     _limit_clause = " LIMIT $1" if limit else " "
 
     query = """
-                select history_ts::varchar,
+                select ts::varchar,
                         key,
                         value from statistics_history
-                where history_ts in (select distinct history_ts from statistics_history order by history_ts {limit_clause})
-                order by history_ts, key;
+                where ts in (select distinct ts from statistics_history order by ts {limit_clause})
+                order by ts, key;
             """.format(limit_clause=_limit_clause)
 
     stmt = await conn.prepare(query)
     rows = await stmt.fetch(limit) if limit else await stmt.fetch()
 
-    columns = ('history_ts',
+    columns = ('ts',
         'key',
         'value'
     )
 
     results = []
     first_time = True
-    temp_history_ts = None
+    temp_ts = None
     temp_dict = {}
 
     for row in rows:
-        if temp_history_ts != row['history_ts']:
+        if temp_ts != row['ts']:
             if not first_time:
-                results.append({temp_history_ts: temp_dict})
+                results.append({temp_ts: temp_dict})
             temp_dict = {}
-            temp_history_ts = row['history_ts']
+            temp_ts = row['ts']
 
         temp = OrderedDict(zip(columns, row))
         temp_dict.update({temp['key']: temp['value']})
         first_time = False
 
     # Append last leftover dict
-    results.append({temp_history_ts: temp_dict})
+    results.append({temp_ts: temp_dict})
 
     await conn.close()
 

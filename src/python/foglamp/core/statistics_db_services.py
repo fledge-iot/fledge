@@ -21,7 +21,7 @@ __DB_NAME = 'foglamp'
 async def read_statistics():
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
-        SELECT rtrim(lower(key)) AS key, description, value, previous_value, ts FROM statistics ORDER BY key
+        SELECT key, description, value, previous_value, ts FROM statistics ORDER BY key
     """
 
     stmt = await conn.prepare(query)
@@ -50,7 +50,7 @@ async def read_statistics_history(limit=None):
 
     query = """
                 SELECT date_trunc('second', ts::timestamptz)::varchar as ts,
-                        rtrim(lower(key)) as key,
+                        key,
                         value FROM statistics_history
                 WHERE ts IN (SELECT distinct ts FROM statistics_history ORDER BY ts {limit_clause})
                 ORDER BY ts, key;

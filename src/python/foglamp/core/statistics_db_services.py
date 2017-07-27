@@ -49,37 +49,37 @@ async def read_statistics_history(limit=None):
     _limit_clause = " LIMIT $1" if limit else " "
 
     query = """
-                SELECT date_trunc('second', ts::timestamptz)::varchar as ts,
+                SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts,
                         key,
                         value FROM statistics_history
-                WHERE ts IN (SELECT distinct ts FROM statistics_history ORDER BY ts DESC {limit_clause})
-                ORDER BY ts, key;
+                WHERE history_ts IN (SELECT distinct history_ts FROM statistics_history ORDER BY history_ts DESC {limit_clause})
+                ORDER BY history_ts, key;
             """.format(limit_clause=_limit_clause)
 
     stmt = await conn.prepare(query)
     rows = await stmt.fetch(limit) if limit else await stmt.fetch()
 
-    columns = ('ts', 'key', 'value')
+    columns = ('history_ts', 'key', 'value')
 
     results = []
     first_time = True
-    temp_ts = None
+    temp_history_ts = None
     temp_dict = {}
 
     for row in rows:
-        if temp_ts != row['ts']:
+        if temp_history_ts != row['history_ts']:
             if not first_time:
-                temp_dict.update({'ts': temp_ts})
+                temp_dict.update({'history_ts': temp_history_ts})
                 results.append(temp_dict)
             temp_dict = {}
-            temp_ts = row['ts']
+            temp_history_ts = row['history_ts']
 
         temp = OrderedDict(zip(columns, row))
         temp_dict.update({temp['key']: temp['value']})
         first_time = False
 
     # Append last leftover dict
-    temp_dict.update({'ts': temp_ts})
+    temp_dict.update({'history_ts': temp_history_ts})
     results.append(temp_dict)
 
     await conn.close()

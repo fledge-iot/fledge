@@ -19,10 +19,6 @@ __DB_NAME = 'foglamp'
 
 
 async def read_statistics():
-    """
-        Curl -X GET http://localhost:8082/foglamp/statistics
-    """
-
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT * from statistics order by key
@@ -49,10 +45,6 @@ async def read_statistics():
     return results
 
 async def read_statistics_history(limit):
-    """
-        Curl -X GET -d limit=1 http://localhost:8082/foglamp/statistics/history
-    """
-
     conn = await asyncpg.connect(database=__DB_NAME)
     _limit_clause = " LIMIT $1" if limit else " "
 

@@ -283,7 +283,11 @@ async def cancel_task(request):
 #################################
 
 async def get_statistics(request):
-    """returns a general set of statistics"""
+    """
+        Returns a general set of statistics
+
+        Curl -X GET http://localhost:8082/foglamp/statistics
+    """
 
     try:
         statistics = await statistics_db_services.read_statistics()
@@ -294,7 +298,11 @@ async def get_statistics(request):
 
 
 async def get_statistics_history(request):
-    """returns a list of general set of statistics"""
+    """
+        Returns a list of general set of statistics
+
+        Curl -X GET -d limit=1 http://localhost:8082/foglamp/statistics/history
+    """
 
     try:
         limit = request.query.get('limit') if 'limit' in request.query else 0

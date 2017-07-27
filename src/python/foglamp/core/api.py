@@ -8,7 +8,7 @@ import time
 import re
 from aiohttp import web
 from foglamp import configuration_manager
-from foglamp.core import scheduler_db_services
+from foglamp.core import scheduler_db_services, statistics_db_services
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -36,6 +36,8 @@ _help = """
     | POST            | /foglamp/task                                             |
     | GET DELETE      | /foglamp/task/{task_id}                                   |
 
+    | GET             | /foglamp/statistics                                        |
+    | GET             | /foglamp/statistics/history                                |
     ------------------------------------------------------------------------------
 """
 
@@ -275,3 +277,35 @@ async def post_task(request):
 async def cancel_task(request):
     """Cancel a running task from tasks table"""
     pass
+
+#################################
+#  Statistics
+#################################
+
+async def get_statistics(request):
+    """returns a general set of statistics"""
+
+    try:
+        statistics = await statistics_db_services.read_statistics()
+
+        return web.json_response(statistics)
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+async def get_statistics_history(request):
+    """returns a list of general set of statistics"""
+
+    try:
+        limit = request.query.get('limit') if 'limit' in request.query else 2
+
+        statistics = await statistics_db_services.read_statistics_history(int(limit))
+
+        if not statistics:
+            raise ValueError('No statistics available')
+
+        return web.json_response({"interval" : 5, 'statistics': statistics})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))

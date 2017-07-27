@@ -49,7 +49,7 @@ async def read_statistics_history(limit):
     _limit_clause = " LIMIT $1" if limit else " "
 
     query = """
-                select ts::varchar,
+                select ts::timestamp(0)::varchar,
                         key,
                         value from statistics_history
                 where ts in (select distinct ts from statistics_history order by ts {limit_clause})

@@ -39,6 +39,14 @@ foglamp\.statistics module
     :undoc-members:
     :show-inheritance:
 
+foglamp\.update\_statistics\_history module
+-------------------------------------------
+
+.. automodule:: foglamp.update_statistics_history
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------

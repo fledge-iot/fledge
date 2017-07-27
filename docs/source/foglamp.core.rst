@@ -44,6 +44,14 @@ foglamp\.core\.scheduler module
     :undoc-members:
     :show-inheritance:
 
+foglamp\.core\.scheduler\_db\_services module
+---------------------------------------------
+
+.. automodule:: foglamp.core.scheduler_db_services
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 foglamp\.core\.server module
 ----------------------------
 

@@ -72,6 +72,7 @@ _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 """Utilized tables 
 """
 # Table purge against
+# The pruge process utilizes only either id or ts respectively
 _READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                   sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
                                   sqlalchemy.Column('asset_code', sqlalchemy.VARCHAR(50)),
@@ -81,29 +82,25 @@ _READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                   sqlalchemy.Column('user_ts', sqlalchemy.TIMESTAMP(6),
                                                     default=sqlalchemy.func.current_timestamp()),
                                   sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6),
-                                                    default=sqlalchemy.func.current_timestamp())),
+                                                    default=sqlalchemy.func.current_timestamp()))
 
 
-"""logging table is instead of the log. After much thought, in addition to the discussed information the table also 
-includes the following: 
-    -> table to specify which table has been purged, since the process could occur in multiple tables 
-    -> total_unsent_rows specifies the total number of unsent rows that existed within range prior to the purge. 
-    based off that, and unsent_rows_removed one can calculate how many (unsent rows) remain.
-"""
-"""Column Information
+"""log table column information
 id - the row id
 code - process being logged 
 level - Whether or not process succeeded (0 Success | 1 Failure | 2 Warning | 4 Info)
 log - values being logged 
 ts - current timestamp 
 """
-_PURGE_LOGGING_TABLE = sqlalchemy.Table('log', sqlalchemy.MetaData(),
-                                        sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
+# For 'ts' need need to have "onupdate=sqlalchemy.func.current_timestamp()" otherwise code returns sqlalchemy.exc.IntegrityError 
+_LOG_TABLE = sqlalchemy.Table('log', sqlalchemy.MetaData(),
+                                        sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True, autoincrement=True),
                                         sqlalchemy.Column('code', sqlalchemy.CHAR(5), default='PURGE'),
                                         sqlalchemy.Column('level', sqlalchemy.SMALLINT, default=0),
                                         sqlalchemy.Column('log', sqlalchemy.dialects.postgresql.JSONB, default={}),
                                         sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6),
-                                                          default=sqlalchemy.func.current_timestamp()))
+                                                          default=sqlalchemy.func.current_timestamp(),
+                                                          onupdate=sqlalchemy.func.current_timestamp()))
 
 
 """Methods that support the purge process.  
@@ -173,23 +170,6 @@ def execute_command(stmt: str):
     conn = engine.connect()
     query_result = conn.execute(stmt)
     return query_result
-
-
-def set_id() -> int:
-    """
-    Set the ID value for the next purge log table
-    Args: 
-        table that will store id
-    Returns:
-        Next INT in purge logging table
-    """
-    stmt = sqlalchemy.select([_PURGE_LOGGING_TABLE.c.id]).select_from(_PURGE_LOGGING_TABLE).order_by(
-        _PURGE_LOGGING_TABLE.c.id.desc()).limit(1)
-    result = execute_command(stmt)
-    result = result.fetchall()
-    if not result:
-        return 1
-    return int(result[0][0])+1
 
 
 """The actual purge process 
@@ -309,7 +289,7 @@ def purge(config) -> (int, int):
 
 def insert_into_log(level=0, log=None):
     """INSERT into log table values"""
-    stmt = _PURGE_LOGGING_TABLE.insert().values(id=set_id(), code='PURGE', level=level, log=log)
+    stmt = _LOG_TABLE.insert().values(code='PURGE', level=level, log=log)
     execute_command(stmt)
 
 
@@ -360,7 +340,7 @@ if __name__ == '__main__':
 #
 #
 # def check_log_count():
-#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_PURGE_LOGGING_TABLE)
+#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_LOG_TABLE)
 #     result = execute_command(stmt).fetchall()
 #     return int(result[0][0])
 #

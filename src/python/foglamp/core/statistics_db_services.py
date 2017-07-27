@@ -52,7 +52,7 @@ async def read_statistics_history(limit=None):
                 SELECT date_trunc('second', ts::timestamptz)::varchar as ts,
                         key,
                         value FROM statistics_history
-                WHERE ts IN (SELECT distinct ts FROM statistics_history ORDER BY ts {limit_clause})
+                WHERE ts IN (SELECT distinct ts FROM statistics_history ORDER BY ts DESC {limit_clause})
                 ORDER BY ts, key;
             """.format(limit_clause=_limit_clause)
 

@@ -297,7 +297,7 @@ async def get_statistics_history(request):
     """returns a list of general set of statistics"""
 
     try:
-        limit = request.query.get('limit') if 'limit' in request.query else 2
+        limit = request.query.get('limit') if 'limit' in request.query else 0
 
         statistics = await statistics_db_services.read_statistics_history(int(limit))
 

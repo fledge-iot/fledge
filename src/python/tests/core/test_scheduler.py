@@ -25,14 +25,30 @@ class TestScheduler:
         await scheduler.reset_for_testing()
         await scheduler.start()
 
-        start_task = StartUpSchedule()
-        start_task.schedule_id = uuid.uuid4()
-        start_task.name = 'test1'
+        try:
+            startup_schedule = StartUpSchedule()
+            startup_schedule.schedule_id = uuid.uuid4()
+            startup_schedule.name = 'test1'
 
-        start_task.process_name = "sleep10"
+            startup_schedule.process_name = "sleep10"
+            await scheduler.save_schedule(startup_schedule)
 
-        await scheduler.save_schedule(start_task)
-        await asyncio.sleep(10)
-        await scheduler.stop()
+            # TODO: Re-read the task and check the type (need API support)
+
+            await asyncio.sleep(1)
+
+            # TODO: check for task created (need API support)
+
+            await asyncio.sleep(12)
+
+            # TODO: check for task exited (need API support)
+
+            startup_schedule.name = 'test1 updated'
+            await scheduler.save_schedule(startup_schedule)
+
+            # TODO: check for update (need API support)
+
+        finally:
+            await scheduler.stop()
 
 

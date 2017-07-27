@@ -639,7 +639,7 @@ class Scheduler(object):
                     values('sleep10', '["sleep", "10"]')''')
 
     async def save_schedule(self, schedule: Schedule) -> None:
-        """Insert or update a row in the schedules table"""
+        """Update a schedule or create a new one"""
         schedule_type = None
         day = None
         schedule_time = None
@@ -659,6 +659,8 @@ class Scheduler(object):
 
         schedule_id = str(schedule.schedule_id)
 
+        new_schedule = False
+
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 result = await conn.execute(
@@ -673,6 +675,8 @@ class Scheduler(object):
                     ))
 
                 if result.rowcount == 0:
+                    new_schedule = True
+
                     await conn.execute(self._schedules_tbl.insert().values(
                         id=schedule_id,
                         schedule_type=int(schedule_type),
@@ -683,6 +687,7 @@ class Scheduler(object):
                         exclusive=schedule.exclusive,
                         process_name=schedule.process_name))
 
+        # TODO: Move this to _add_schedule
         repeat_seconds = None
         if schedule.repeat is not None:
             repeat_seconds = schedule.repeat.total_seconds()
@@ -699,7 +704,10 @@ class Scheduler(object):
                                 process_name=schedule.process_name)
 
         self._schedules[schedule.schedule_id] = schedule_row
-        self._schedule_first_task(schedule_row, time.time())
+
+        if new_schedule:
+            self._schedule_first_task(schedule_row, time.time())
+
         self._resume_check_schedules()
 
     async def start(self):

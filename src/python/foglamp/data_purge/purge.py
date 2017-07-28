@@ -176,116 +176,72 @@ def execute_command(stmt: str):
 """
 
 
-def purge(config) -> (int, int):
-    """The actual process read the configuration file, and based off the information in it does the following:
-    1. Gets previous information found in log file
-    2. Based on the configurations, call the DELETE command to purge the data
-    3. Calculate relevant information kept in logs
-    4. Based on the configuration calculates how long to wait until next purge, and returns that 
-         
-    Returns:
-        The number of rows that have been purged
-    """
-    last_id = get_nth_id()
-    table_name = _READING_TABLE  # This could be replaced with any table that would need to be purged.
-
-    start_time = datetime.datetime.fromtimestamp(time.time())
-
-    age_timestamp = datetime.datetime.strftime(start_time - convert_timestamp(
-        set_time=config['age']['value']), '%Y-%m-%d %H:%M:%S.%f')
-    start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
-
-    # Number of unsent rows
-    number_sent_rows_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-        table_name.c.ts <= start_time).where(table_name.c.id > last_id)
-
-    unsent_rows_before = execute_command(number_sent_rows_query).fetchall()
-    unsent_rows_before = int(unsent_rows_before[0][0])
-
-    """Time purge process starts
-    If unsent data is retained, then the WHERE condition is against the last sent ID
-    """
-
-    if config['retainUnsent']['value'] == 'True':
-        count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-            table_name.c.id <= last_id).where(table_name.c.ts <= start_time)
-        total_count_before = execute_command(count_query).fetchall()
-        total_count_before = int(total_count_before[0][0])
-
-        delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= last_id).where(
-            table_name.c.ts <= start_time)
-
-        execute_command(delete_query)
-
-        # Number of rows that were expected to get removed, but weren't
-        failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
-            table_name).where(table_name.c.id <= last_id).where(
-            table_name.c.ts <= start_time)
-
-        failed_removal_count = execute_command(failed_removal_query).fetchall()
-        failed_removal_count = int(failed_removal_count[0][0])
-        total_rows_removed = total_count_before - failed_removal_count
-
-    # If unsent data is not retained, then the WHERE condition is against the age
-    else:
-        count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-            table_name.c.ts <= age_timestamp).where(table_name.c.ts <= start_time)
-        total_count_before = execute_command(count_query).fetchall()
-        total_count_before = int(total_count_before[0][0])
-
-        delete_query = sqlalchemy.delete(table_name).where(table_name.c.ts <= age_timestamp).where(
-            table_name.c.ts < start_time)
-        execute_command(delete_query)
-
-        # Number of rows that were expected to get removed, but weren't
-        failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
-            table_name).where(table_name.c.ts <= age_timestamp).where(
-            table_name.c.ts <= start_time)
-        failed_removal_count = execute_command(failed_removal_query).fetchall()
-        failed_removal_count = int(failed_removal_count[0][0])
-        total_rows_removed = total_count_before - failed_removal_count
-
-    # Total number of rows that remain under start_time
-    total_count = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-        table_name.c.ts < start_time)
-    total_count_after = execute_command(total_count).fetchall()
-    total_count_after = int(total_count_after[0][0])
-
-    # Time  purge process finished
-    end_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-
-    """Levels:
-    -> 0 - No issues  (success) 
-    -> 1 - Rows failed to get removed (failure) 
-    -> 2 - (warnings)
-    --> less than 10% of original data remain in database  
-    --> unsent data was purged 
-    """
-    level = 0
-    unsent_count = execute_command(number_sent_rows_query).fetchall()
-    if failed_removal_count > 0:
-        level = 1
-    elif (int(unsent_count[0][0]) < unsent_rows_before) or (total_count_after <= int(total_count_before * 0.1)):
-        level = 2
-
+def purge(config, table_name) -> (int, int):
     """Column information
     start_time - time that purge process began
     end_time - time that purge process ended
+    -------------------------------------------
     total_rows_removed - number of rows removed 
-    total_unsent_rows - total number of unsent rows under start_time 
-    total_failed_to_remove - total number of rows that failed to remove (this is the confirmation whether  purge 
-                                                                            succeeded or not.) 
+        - DELETE stmt returns value
+    ------------------------------------------
+    unsent_rows_removed - number of rows that weren't sent to historian, but were removed
+    failed_removal - number of rows that failed to remove
+        - SELECT stmt of DELETE
+    rows_remaining - total number of rows remain at screenshot 
+        - total_row - total_rows_removed
     """
-    unsent_rows_removed = unsent_rows_before-int(unsent_count[0][0]) 
-    if unsent_rows_removed < 0: 
-        unsent_rows_removed = 0
-    purge_set = {'start_time': start_time, 'end_time': end_time, 'rows_removed': total_rows_removed,
-                 'rows_remaining': total_count_after, 'unsent_rows_removed': unsent_rows_removed,
-                 'total_failed_to_remove': failed_removal_count}
+    start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-    insert_into_log(level=level, log=purge_set)
-    return total_rows_removed, unsent_rows_removed
+    unsent_rows_removed = 0 
+    total_rows_removed = 0
+    last_id = get_nth_id()
+    error_level = 0
+    
+    # Calculate current count and age_timestamp
+    age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() - datetime.timedelta(hours=int(config['age']['value'])), sqlalchemy.func.count()]).select_from(table_name)
+    result = execute_command(age_and_count_query).fetchall()
+    age_timestamp = result[0][0]
+    total_count = result[0][1]
 
+    # MAX possible ID to delete
+    max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
+    max_id = execute_command(max_id_query).fetchall()[0][0]
+
+    # if retainUnsent is True then delete by last_id,  else delete by age
+    if config['retainUnsent']['value'] == "True":
+        delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= last_id)
+        total_rows_removed = execute_command(delete_query).rowcount
+        failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.id <= last_id) 
+        failed_removal = execute_command(failed_removal_query).fetchall()[0][0]
+    
+    else: 
+        delete_query = sqlalchemy.delete(table_name).where(table_name.c.user_ts <= age_timestamp)
+        total_rows_removed = execute_command(delete_query).rowcount
+        failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
+        failed_removal = execute_command(failed_removal_query).fetchall()[0][0]
+        unsent_rows_removed = int(max_id) - last_id
+        if unsent_rows_removed < 0: 
+            unsent_rows_removed = 0
+    
+    # Rows remaining is based on the snapshot taking at the start of the process 
+    rows_remaining = int(total_count) - int(total_rows_removed)
+
+    """Error Levels: 
+    - 0: No errors
+    - 1: Rows failed to remove 
+    - 2: Unsent rows were removed
+    """ 
+    if  failed_removal > 0: 
+        error_level = 1
+    elif unsent_rows_removed > 0: 
+        error_level = 2
+
+    end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+
+    insert_into_log(level=error_level, log={"start_time":start_time, "end_time": end_time, "rowsRemoved": total_rows_removed, "unsentRowsRemoved": unsent_rows_removed,
+        "failedRemovals": failed_removal, "rowsRemaining": rows_remaining})  
+
+    return total_rows_removed, unsent_rows_removed 
 
 def insert_into_log(level=0, log=None):
     """INSERT into log table values"""
@@ -299,7 +255,7 @@ def purge_main():
                                                                         _CONFIG_CATEGORY_DESCRIPTION))
 
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
-    total_purged, unsent_purged = purge(config)
+    total_purged, unsent_purged = purge(config, _READING_TABLE)
 
     event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
     event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))

@@ -47,6 +47,10 @@ def setup(app):
 
     browser.setup(app)
 
+    # Statistics - As per doc
+    app.router.add_route('GET', '/foglamp/statistics', api.get_statistics)
+    app.router.add_route('GET', '/foglamp/statistics/history', api.get_statistics_history)
+
     # enable cors support
     # Note: pip install aiohttp_cors
 

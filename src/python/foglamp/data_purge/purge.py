@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
 """
 Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQuAY0FJNQm09nbYQSjZudKJhY8x5Dq8c/edit) 
     the purge process is suppose to remove data based on either a user_id, or an X amount of time back depending on
@@ -26,13 +32,15 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
      total_failed_to_remove > 0 then it is safe to assume that that there was an error with INSERTS, and if 
      total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
-#!/usr/bin/python3
+
+import asyncio
 import datetime
 import random
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import time
 from foglamp import configuration_manager
+from foglamp import statistics
 
 """Script information and connection to the Database
 """
@@ -41,22 +49,13 @@ __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-# Set variables for connecting to database
-_db_type = "postgres"
-_user = "foglamp"
-_db_user = "foglamp"
-_host = "127.0.0.1"
-_db = "foglamp"
-
 # Create Connection
-_ENGINE = sqlalchemy.create_engine('%s://%s:%s@%s/%s' % (_db_type, _db_user, _user, _host, _db),  pool_size=20,
-                                   max_overflow=0)
-_CONN = _ENGINE.connect()
+__CONNECTION_STRING = "postgres:///foglamp"
 
 _DEFAULT_PURGE_CONFIG = {
     "age": {
-        "description": "Age of data to be retained, all data that is older than this value will be removed, unless retained. (in Hours)",
+        "description": "Age of data to be retained, all data that is older than this value will be removed," +
+                       "unless retained. (in Hours)",
         "type": "integer",
         "default": "72"
     },
@@ -66,7 +65,6 @@ _DEFAULT_PURGE_CONFIG = {
         "default": "False"
     }
 }
-
 _CONFIG_CATEGORY_NAME = 'PURGE_READ'
 _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
@@ -74,6 +72,7 @@ _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 """Utilized tables 
 """
 # Table purge against
+# The pruge process utilizes only either id or ts respectively
 _READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                   sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True),
                                   sqlalchemy.Column('asset_code', sqlalchemy.VARCHAR(50)),
@@ -81,35 +80,32 @@ _READING_TABLE = sqlalchemy.Table('readings', sqlalchemy.MetaData(),
                                                     default='00000000-0000-0000-0000-000000000000'),
                                   sqlalchemy.Column('reading', sqlalchemy.dialects.postgresql.JSON, default='{}'),
                                   sqlalchemy.Column('user_ts', sqlalchemy.TIMESTAMP(6),
-                                                    default=time.strftime('%Y-%m-%d %H:%M:%S',
-                                                                          time.localtime(time.time()))),
+                                                    default=sqlalchemy.func.current_timestamp()),
                                   sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6),
-                                                    default=time.strftime('%Y-%m-%d %H:%M:%S',
-                                                                          time.localtime(time.time()))))
+                                                    default=sqlalchemy.func.current_timestamp()))
 
 
-"""logging table is instead of the log. After much thought, in addition to the discussed information the table also 
-includes the following: 
-    -> table to specify which table has been purged, since the process could occur in multiple tables 
-    -> total_unsent_rows specifies the total number of unsent rows that existed within range prior to the purge. 
-    based off that, and unsent_rows_removed one can calculate how many (unsent rows) remain.
+"""log table column information
+id - the row id
+code - process being logged 
+level - Whether or not process succeeded (0 Success | 1 Failure | 2 Warning | 4 Info)
+log - values being logged 
+ts - current timestamp 
 """
-_PURGE_LOGGING_TABLE = sqlalchemy.Table('purge_logging', sqlalchemy.MetaData(),
-                                        sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True,
-                                                          autoincrement=True),
-                                        sqlalchemy.Column('table_name', sqlalchemy.VARCHAR(255),
-                                                          default=_READING_TABLE.name, primary_key=True),
-                                        sqlalchemy.Column('start_time', sqlalchemy.VARCHAR(255),
-                                                          default=sqlalchemy.func.current_timestamp),
-                                        sqlalchemy.Column('end_time', sqlalchemy.VARCHAR(255),
-                                                          default=sqlalchemy.func.current_timestamp),
-                                        sqlalchemy.Column('total_rows_removed', sqlalchemy.INTEGER, default=0),
-                                        sqlalchemy.Column('total_rows_remaining', sqlalchemy.INTEGER, default=0),
-                                        sqlalchemy.Column('total_unsent_rows', sqlalchemy.INTEGER, default=0),
-                                        sqlalchemy.Column('total_failed_to_remove', sqlalchemy.INTEGER, default=0))
+# For 'ts' need need to have "onupdate=sqlalchemy.func.current_timestamp()" otherwise code returns sqlalchemy.exc.IntegrityError 
+_LOG_TABLE = sqlalchemy.Table('log', sqlalchemy.MetaData(),
+                                        sqlalchemy.Column('id', sqlalchemy.BIGINT, primary_key=True, autoincrement=True),
+                                        sqlalchemy.Column('code', sqlalchemy.CHAR(5), default='PURGE'),
+                                        sqlalchemy.Column('level', sqlalchemy.SMALLINT, default=0),
+                                        sqlalchemy.Column('log', sqlalchemy.dialects.postgresql.JSONB, default={}),
+                                        sqlalchemy.Column('ts', sqlalchemy.TIMESTAMP(6),
+                                                          default=sqlalchemy.func.current_timestamp(),
+                                                          onupdate=sqlalchemy.func.current_timestamp()))
+
 
 """Methods that support the purge process.  
 """
+
 
 def get_nth_id() -> int:
     """Update the config file to have row ID somewhere within the oldest 100 rows.
@@ -120,11 +116,12 @@ def get_nth_id() -> int:
     """
     rand = random.randint(1, 100)
     stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
-    row_id = execute_command_with_return_value(stmt % rand)
+    row_id = execute_command(stmt % rand).fetchall()
     try:
         return int(row_id[0][0])
     except IndexError:
         return 1
+
 
 def convert_timestamp(set_time: str) -> datetime.timedelta:
     """Convert "age" in config file to timedelta. If only an integer is specified,  then 
@@ -162,46 +159,24 @@ def convert_timestamp(set_time: str) -> datetime.timedelta:
     return time_in_sec+time_in_min+time_in_hr+time_in_day
 
 
-def execute_command_with_return_value(stmt: str) -> dict:
+def execute_command(stmt: str):
     """Imitate connection to postgres that returns result.    
     Args:
         stmt (str): generated SQL query   
     Returns:
         Returns result set 
     """
-    query_result = _CONN.execute(stmt)
-    return query_result.fetchall()
-
-
-def execute_command_without_return_value(stmt: str) -> None:
-    """Imitate connection to Postgres and a query that doesn't generate results
-    Args:
-        stmt (str): DELETE stmt 
-    """
-    _CONN.execute(stmt)
-
-
-def set_id() -> int:
-    """
-    Set the ID value for the next purge log table
-    Args: 
-        table that will store id
-    Returns:
-        Next INT in purge logging table
-    """
-    stmt = sqlalchemy.select([_PURGE_LOGGING_TABLE.c.id]).select_from(_PURGE_LOGGING_TABLE).order_by(
-        _PURGE_LOGGING_TABLE.c.id.desc()).limit(1)
-    result = execute_command_with_return_value(stmt)
-    if not result:
-        return 1
-    return int(result[0][0])+1
+    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
+    conn = engine.connect()
+    query_result = conn.execute(stmt)
+    return query_result
 
 
 """The actual purge process 
 """
 
 
-def purge(config) -> None:
+def purge(config) -> (int, int):
     """The actual process read the configuration file, and based off the information in it does the following:
     1. Gets previous information found in log file
     2. Based on the configurations, call the DELETE command to purge the data
@@ -209,7 +184,7 @@ def purge(config) -> None:
     4. Based on the configuration calculates how long to wait until next purge, and returns that 
          
     Returns:
-        Amount of time until next purge process
+        The number of rows that have been purged
     """
     last_id = get_nth_id()
     table_name = _READING_TABLE  # This could be replaced with any table that would need to be purged.
@@ -224,7 +199,7 @@ def purge(config) -> None:
     number_sent_rows_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
         table_name.c.ts <= start_time).where(table_name.c.id > last_id)
 
-    unsent_rows_before = execute_command_with_return_value(number_sent_rows_query)
+    unsent_rows_before = execute_command(number_sent_rows_query).fetchall()
     unsent_rows_before = int(unsent_rows_before[0][0])
 
     """Time purge process starts
@@ -234,20 +209,20 @@ def purge(config) -> None:
     if config['retainUnsent']['value'] == 'True':
         count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
             table_name.c.id <= last_id).where(table_name.c.ts <= start_time)
-        total_count_before = execute_command_with_return_value(count_query)
+        total_count_before = execute_command(count_query).fetchall()
         total_count_before = int(total_count_before[0][0])
 
         delete_query = sqlalchemy.delete(table_name).where(table_name.c.id <= last_id).where(
             table_name.c.ts <= start_time)
 
-        execute_command_without_return_value(delete_query)
+        execute_command(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
             table_name).where(table_name.c.id <= last_id).where(
             table_name.c.ts <= start_time)
 
-        failed_removal_count = execute_command_with_return_value(failed_removal_query)
+        failed_removal_count = execute_command(failed_removal_query).fetchall()
         failed_removal_count = int(failed_removal_count[0][0])
         total_rows_removed = total_count_before - failed_removal_count
 
@@ -255,33 +230,45 @@ def purge(config) -> None:
     else:
         count_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
             table_name.c.ts <= age_timestamp).where(table_name.c.ts <= start_time)
-        total_count_before = execute_command_with_return_value(count_query)
+        total_count_before = execute_command(count_query).fetchall()
         total_count_before = int(total_count_before[0][0])
 
         delete_query = sqlalchemy.delete(table_name).where(table_name.c.ts <= age_timestamp).where(
             table_name.c.ts < start_time)
-        execute_command_without_return_value(delete_query)
+        execute_command(delete_query)
 
         # Number of rows that were expected to get removed, but weren't
         failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(
             table_name).where(table_name.c.ts <= age_timestamp).where(
             table_name.c.ts <= start_time)
-        failed_removal_count = execute_command_with_return_value(failed_removal_query)
+        failed_removal_count = execute_command(failed_removal_query).fetchall()
         failed_removal_count = int(failed_removal_count[0][0])
         total_rows_removed = total_count_before - failed_removal_count
 
     # Total number of rows that remain under start_time
     total_count = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
         table_name.c.ts < start_time)
-    total_count_after = execute_command_with_return_value(total_count)
+    total_count_after = execute_command(total_count).fetchall()
     total_count_after = int(total_count_after[0][0])
 
     # Time  purge process finished
     end_time = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 
+    """Levels:
+    -> 0 - No issues  (success) 
+    -> 1 - Rows failed to get removed (failure) 
+    -> 2 - (warnings)
+    --> less than 10% of original data remain in database  
+    --> unsent data was purged 
+    """
+    level = 0
+    unsent_count = execute_command(number_sent_rows_query).fetchall()
+    if failed_removal_count > 0:
+        level = 1
+    elif (int(unsent_count[0][0]) < unsent_rows_before) or (total_count_after <= int(total_count_before * 0.1)):
+        level = 2
+
     """Column information
-    id - row id PK
-    table_name - table that was purged PK
     start_time - time that purge process began
     end_time - time that purge process ended
     total_rows_removed - number of rows removed 
@@ -289,24 +276,150 @@ def purge(config) -> None:
     total_failed_to_remove - total number of rows that failed to remove (this is the confirmation whether  purge 
                                                                             succeeded or not.) 
     """
-    inst_stmt = _PURGE_LOGGING_TABLE.insert().values(id=set_id(),
-                                                     table_name=table_name.name, start_time=start_time,
-                                                     end_time=end_time, total_rows_removed=total_rows_removed,
-                                                     total_rows_remaining=total_count_after,
-                                                     total_unsent_rows=unsent_rows_before,
-                                                     total_failed_to_remove=failed_removal_count)
-    execute_command_without_return_value(inst_stmt)
+    unsent_rows_removed = unsent_rows_before-int(unsent_count[0][0]) 
+    if unsent_rows_removed < 0: 
+        unsent_rows_removed = 0
+    purge_set = {'start_time': start_time, 'end_time': end_time, 'rows_removed': total_rows_removed,
+                 'rows_remaining': total_count_after, 'unsent_rows_removed': unsent_rows_removed,
+                 'total_failed_to_remove': failed_removal_count}
+
+    insert_into_log(level=level, log=purge_set)
+    return total_rows_removed, unsent_rows_removed
+
+
+def insert_into_log(level=0, log=None):
+    """INSERT into log table values"""
+    stmt = _LOG_TABLE.insert().values(code='PURGE', level=level, log=log)
+    execute_command(stmt)
 
 
 def purge_main():
-    import asyncio
     event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME,_DEFAULT_PURGE_CONFIG,_CONFIG_CATEGORY_DESCRIPTION))
+    event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_PURGE_CONFIG,
+                                                                        _CONFIG_CATEGORY_DESCRIPTION))
+
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
-    purge(config)
+    total_purged, unsent_purged = purge(config)
+
+    event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
+    event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
 
 if __name__ == '__main__':
     purge_main()
 
 
+"""Testing
+"""
 
+
+# def insert_into_readings():
+#     """
+#     Insert rows into table
+#     """
+#     stmt = "SELECT MAX(id) FROM readings;"
+#     reading_table_id = execute_command(stmt).fetchall()
+#     if reading_table_id[0][0] is None:
+#         reading_table_id = 1
+#     else:
+#         reading_table_id = int(reading_table_id[0][0])+1
+#     for i in range(1000):
+#         stmt = "INSERT INTO readings(id, asset_code) VALUES (%s, '%s')" % (reading_table_id, reading_table_id)
+#         # stmt = _READING_TABLE.insert().values(id=reading_table_id, asset_code='', )
+#         print(stmt)
+#         execute_command(stmt)
+#         reading_table_id = reading_table_id+1
+#
+#
+# def select_count_from_readings():
+#     """
+#     Get count of readings table
+#     """
+#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_READING_TABLE)
+#     result = execute_command(stmt).fetchall()
+#     return int(result[0][0])
+#
+#
+# def check_log_count():
+#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_LOG_TABLE)
+#     result = execute_command(stmt).fetchall()
+#     return int(result[0][0])
+#
+#
+# def check_statistics_purge_values():
+#     stmt = "SELECT value FROM statistics WHERE key = 'PURGED'"
+#     purge_count = execute_command(stmt).fetchall()
+#     stmt = "SELECT value FROM statistics WHERE key = 'UNSNPURGED'"
+#     unsent = execute_command(stmt).fetchall()
+#     return int(purge_count[0][0]), int(unsent[0][0])
+#
+#
+# def purge_by_id():
+#     """
+#     Test purge by row ID
+#     :return:
+#     """
+#     event_loop = asyncio.get_event_loop()
+#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
+#                                                                                       'retainUnsent', "True"))
+#
+#     insert_into_readings()
+#     count1 = select_count_from_readings()
+#     log1 = check_log_count()
+#     purge1, unsent1 = check_statistics_purge_values()
+#     purge_main()
+#     count2 = select_count_from_readings()
+#     log2 = check_log_count()
+#     purge2, unsent2 = check_statistics_purge_values()
+#
+#     if count1 > count2:
+#         print("Test Purge - Success")
+#     else:
+#         print("Test Purge - Fail")
+#
+#     if log1 < log2:
+#         print("Test Log Update - Success")
+#     else:
+#         print("Test Log Update - Fail")
+#
+#     if purge1 < purge2 and unsent1 < unsent2:
+#         print("Test Statistics Update - Success")
+#     else:
+#         print("Test Statistics Update - Fail")
+#
+#
+# def purge_by_age():
+#     """Purge by age"""
+#     event_loop = asyncio.get_event_loop()
+#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
+#                                                                                       'retainUnsent', "False"))
+#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
+#                                                                                       'age', "0"))
+#
+#     insert_into_readings()
+#     count1 = select_count_from_readings()
+#     log1 = check_log_count()
+#     purge1, unsent1 = check_statistics_purge_values()
+#     purge_main()
+#     count2 = select_count_from_readings()
+#     log2 = check_log_count()
+#     purge2, unsent2 = check_statistics_purge_values()
+#
+#     if count1 > count2:
+#         print("Test Purge - Success")
+#     else:
+#         print("Test Purge - Fail")
+#
+#     if log1 < log2:
+#         print("Test Log Update - Success")
+#     else:
+#         print("Test Log Update - Fail")
+#
+#     if purge1 < purge2 and unsent1 < unsent2:
+#         print("Test Statistics Update - Success")
+#     else:
+#         print("Test Statistics Update - Fail")
+#
+#
+# if __name__ == '__main__':
+#     purge_by_id()
+#     purge_by_age()

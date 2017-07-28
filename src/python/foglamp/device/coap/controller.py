@@ -45,7 +45,8 @@ def configure_coap() -> (str, str):
 
     return uri, port
     
-
+""" 
+# Original Code
 def start():
     """Registers all CoAP URI handlers"""
     # Retrive CoAP configs
@@ -60,4 +61,23 @@ def start():
     SensorValues().register_handlers(root)
 
     asyncio.Task(aiocoap.Context.create_server_context(root))
+
+"""
+def start():
+    """Registers all CoAP URI handlers"""
+    # Retrive CoAP configs
+    uri, port = configure_coap()
+
+    root = aiocoap.resource.Site()
+
+    # Register CoAP methods
+    root.add_resource(('.well-known', 'core'),
+                      aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
+
+    SensorValues().register_handlers(root)
+
+    asyncio.Task(aiocoap.Context.create_server_context(uri, bind=('::', port)))
+#    asyncio.Task(aiocoap.Context.create_server_context(root))
+
+
 

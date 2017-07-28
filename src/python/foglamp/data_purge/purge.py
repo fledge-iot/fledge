@@ -107,57 +107,14 @@ _LOG_TABLE = sqlalchemy.Table('log', sqlalchemy.MetaData(),
 """
 
 
-def get_nth_id() -> int:
-    """Update the config file to have row ID somewhere within the oldest 100 rows.
-    This method would potentially be replaced by a mechanism that is aware what was the last value sent to the
-     historian.
-    Returns:
-        Method doesn't return anything
+def get_last_id() -> int:
     """
-    rand = random.randint(1, 100)
-    stmt = "SELECT id FROM (SELECT id FROM readings ORDER BY id ASC LIMIT %s)t ORDER BY id DESC LIMIT 1"
-    row_id = execute_command(stmt % rand).fetchall()
-    try:
-        return int(row_id[0][0])
-    except IndexError:
-        return 1
-
-
-def convert_timestamp(set_time: str) -> datetime.timedelta:
-    """Convert "age" in config file to timedelta. If only an integer is specified,  then 
-        the code assumes that it is already in minutes (ie age:1 means wait 1 minute) 
-    Args:
-        set_time (str): Newest amount of  time back to delete
-    Returns:
-        converted set_time to datetime.timedelta value
+    From foglamp.streams retrive the heighest last_object that corresponds to the newest readings table row id sent to Pi/OMF 
+    Returns: 
+        The newest `readings` table row id that was sent to Pi/OMF
     """
-    if type(set_time) is int or set_time.isdigit():
-        return datetime.timedelta(minutes=int(set_time))
-    time_dict = {}
-    tmp = 0
-
-    for value in set_time.split(" "):
-        if value.isdigit() is True:
-            tmp = int(value)
-        else:
-            time_dict[value] = tmp
-
-    time_in_sec = datetime.timedelta(seconds=0)
-    time_in_min = datetime.timedelta(minutes=0)
-    time_in_hr = datetime.timedelta(hours=0)
-    time_in_day = datetime.timedelta(days=0)
-
-    for key in time_dict.keys():
-        if 'sec' in key:
-            time_in_sec = datetime.timedelta(seconds=time_dict[key])
-        elif 'min' in key:
-            time_in_min = datetime.timedelta(minutes=time_dict[key])
-        elif ('hr' in key) or ('hour' in key):
-            time_in_hr = datetime.timedelta(hours=time_dict[key])
-        elif ('day' in key) or ('dy' in key):
-            time_in_day = datetime.timedelta(days=time_dict[key])
-    return time_in_sec+time_in_min+time_in_hr+time_in_day
-
+   stmt = "SELECT MAX(last_object) FROM foglamp.streams;" 
+   return int(conn.execute(stmt).fetchall()[0][0]) 
 
 def execute_command(stmt: str):
     """Imitate connection to postgres that returns result.    
@@ -194,11 +151,12 @@ def purge(config, table_name) -> (int, int):
 
     unsent_rows_removed = 0 
     total_rows_removed = 0
-    last_id = get_nth_id()
+    last_id = get_last_id()
     error_level = 0
     
     # Calculate current count and age_timestamp
-    age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() - datetime.timedelta(hours=int(config['age']['value'])), sqlalchemy.func.count()]).select_from(table_name)
+    age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() - datetime.timedelta(hours=int(config['age']['value'])), 
+        sqlalchemy.func.count()]).select_from(table_name)
     result = execute_command(age_and_count_query).fetchall()
     age_timestamp = result[0][0]
     total_count = result[0][1]
@@ -238,8 +196,8 @@ def purge(config, table_name) -> (int, int):
 
     end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-    insert_into_log(level=error_level, log={"start_time":start_time, "end_time": end_time, "rowsRemoved": total_rows_removed, "unsentRowsRemoved": unsent_rows_removed,
-        "failedRemovals": failed_removal, "rowsRemaining": rows_remaining})  
+    insert_into_log(level=error_level, log={"start_time":start_time, "end_time": end_time, "rowsRemoved": total_rows_removed, "unsentRowsRemoved": 
+        unsent_rows_removed, "failedRemovals": failed_removal, "rowsRemaining": rows_remaining})  
 
     return total_rows_removed, unsent_rows_removed 
 

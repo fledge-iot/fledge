@@ -21,7 +21,7 @@ __DB_NAME = 'foglamp'
 async def read_statistics():
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
-        SELECT key, description, value, previous_value, ts FROM statistics ORDER BY key
+        SELECT key, description, value FROM statistics ORDER BY key
     """
 
     stmt = await conn.prepare(query)
@@ -30,9 +30,7 @@ async def read_statistics():
 
     columns = ('key',
                'description',
-               'value',
-               'previous_value',
-               'ts'
+               'value'
                )
 
     results = {}

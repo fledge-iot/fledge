@@ -36,8 +36,8 @@ _help = """
     | POST            | /foglamp/task                                             |
     | GET DELETE      | /foglamp/task/{task_id}                                   |
 
-    | GET             | /foglamp/statistics                                        |
-    | GET             | /foglamp/statistics/history                                |
+    | GET             | /foglamp/statistics                                       |
+    | GET             | /foglamp/statistics/history                               |
     ------------------------------------------------------------------------------
 """
 
@@ -286,7 +286,7 @@ async def get_statistics(request):
     """
         Returns a general set of statistics
 
-        Example: Curl -X GET http://localhost:8082/foglamp/statistics
+        Example: curl -X GET http://localhost:8082/foglamp/statistics
     """
 
     try:
@@ -301,7 +301,7 @@ async def get_statistics_history(request):
     """
         Returns a list of general set of statistics
 
-        Example: Curl -X GET -d limit=1 http://localhost:8082/foglamp/statistics/history
+        Example: curl -X GET -d limit=1 http://localhost:8082/foglamp/statistics/history
     """
 
     try:
@@ -313,7 +313,7 @@ async def get_statistics_history(request):
             raise ValueError('No statistics available')
 
         # TODO: find out where from this "interval" will be picked and what will be its role in query?
-        return web.json_response({"interval" : 5, 'statistics': statistics})
+        return web.json_response({"interval": 5, 'statistics': statistics})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:

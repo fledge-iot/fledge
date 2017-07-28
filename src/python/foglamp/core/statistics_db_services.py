@@ -19,6 +19,8 @@ __DB_NAME = 'foglamp'
 
 
 async def read_statistics():
+    """Fetch statistics snap shot from statistics table"""
+
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT key, description, value FROM statistics ORDER BY key
@@ -43,6 +45,8 @@ async def read_statistics():
     return results
 
 async def read_statistics_history(limit=None):
+    """Fetch list of statistics, count limited by 'limit' optional, from statistics_history table"""
+
     conn = await asyncpg.connect(database=__DB_NAME)
     _limit_clause = " LIMIT $1" if limit else " "
 
@@ -50,7 +54,9 @@ async def read_statistics_history(limit=None):
                 SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts,
                         key,
                         value FROM statistics_history
-                WHERE date_trunc('second', history_ts::timestamptz)::varchar IN (SELECT distinct date_trunc('second', history_ts::timestamptz)::varchar as history_ts FROM statistics_history ORDER BY history_ts DESC {limit_clause})
+                WHERE date_trunc('second', history_ts::timestamptz)::varchar IN
+                    (SELECT distinct date_trunc('second', history_ts::timestamptz)::varchar as history_ts
+                        FROM statistics_history ORDER BY history_ts DESC {limit_clause})
                 ORDER BY history_ts, key;
             """.format(limit_clause=_limit_clause)
 

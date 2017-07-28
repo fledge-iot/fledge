@@ -50,7 +50,7 @@ async def read_statistics_history(limit=None):
                 SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts,
                         key,
                         value FROM statistics_history
-                WHERE history_ts IN (SELECT distinct history_ts FROM statistics_history ORDER BY history_ts DESC {limit_clause})
+                WHERE date_trunc('second', history_ts::timestamptz)::varchar IN (SELECT distinct date_trunc('second', history_ts::timestamptz)::varchar as history_ts FROM statistics_history ORDER BY history_ts DESC {limit_clause})
                 ORDER BY history_ts, key;
             """.format(limit_clause=_limit_clause)
 

@@ -142,7 +142,7 @@ _sensor_name_type = {}
 """Associates the asset code to the corresponding type"""
 
 
-_DEFAULT_PURGE_CONFIG = {
+_DEFAULT_OMF_CONFIG = {
     "relay_server_name": {
         "description": "Host name/IP of OMF connector relay",
         "type": "string",
@@ -968,7 +968,7 @@ if __name__ == "__main__":
     debug_msg_write("", "{0}".format(start_message))
     debug_msg_write("INFO", _message_list["i000002"])
     event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_PURGE_CONFIG,
+    event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_OMF_CONFIG,
                                                                         _CONFIG_CATEGORY_DESCRIPTION))
     config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
     _server_name = config['relay_server_name']['value']

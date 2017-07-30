@@ -116,6 +116,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 
 insert into foglamp.scheduled_processes (name, script) values ('device', '["python3", "-m", "foglamp.device"]');
 insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
+insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.update_statistics_history"]');
 
 -- Start the device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -123,9 +124,14 @@ schedule_interval, exclusive)
 values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1,
 '0:0', true);
 
--- Run the purge process daily at 8 PM
+-- Run the purge process every 5 minutes
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
-'20:00:00', '00:00:30', true);
+NULL, '00:05:00', true);
 
+-- Run the statistics collector every 15 seconds
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
+NULL, '00:00:15', true);

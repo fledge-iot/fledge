@@ -8,7 +8,7 @@
 
 import sys
 import logging
-from logging import handlers
+from logging.handlers import SysLogHandler
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -16,7 +16,11 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 SYSLOG = 0
-"""Send log entries to /var/log/syslog"""
+r"""Send log entries to /var/log/syslog
+
+- View with: ``tail -f /var/log/syslog | sed 's/#012/\n\t/g'``
+
+"""
 CONSOLE = 1
 """Send log entries to STDOUT"""
 
@@ -25,7 +29,7 @@ def setup(logger_name: str = None,
           destination: int = SYSLOG,
           level: int = logging.WARNING,
           propagate: bool = False) -> logging.Logger:
-    """Configures a `logging.Logger`_ object
+    r"""Configures a `logging.Logger`_ object
 
     Once configured, a logger can also be retrieved via
     `logging.getLogger`_
@@ -46,7 +50,8 @@ def setup(logger_name: str = None,
             Whether to send log entries to ancestor loggers. Defaults to False.
 
         destination:
-            - SYSLOG: (the default) Send messages to syslog (view with tail -f /var/log/syslog)
+            - SYSLOG: (the default) Send messages to syslog.
+                - View with: ``tail -f /var/log/syslog | sed 's/#012/\n\t/g'``
             - CONSOLE: Send message to stdout
 
     Returns:
@@ -62,12 +67,13 @@ def setup(logger_name: str = None,
     logger = logging.getLogger(logger_name)
 
     if destination == SYSLOG:
-        handler = handlers.SysLogHandler(address='/dev/log')
+        handler = SysLogHandler(address='/dev/log')
     elif destination == CONSOLE:
         handler = logging.StreamHandler(sys.stdout)
     else:
         raise ValueError("Invalid destination {}".format(destination))
 
+    # TODO: Consider using %r with message when using syslog .. \n looks better than #
     formatter = logging.Formatter(
         fmt='[FOGLAMP] %(asctime)s - %(levelname)s :: %(module)s: %(message)s',
         datefmt='%m-%d-%Y %H:%M:%S')

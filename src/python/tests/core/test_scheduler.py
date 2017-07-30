@@ -30,7 +30,6 @@ class TestScheduler:
 
         try:
             interval_schedule = IntervalSchedule()
-            interval_schedule.schedule_id = uuid.uuid4()
             interval_schedule.name = 'test1'
             interval_schedule.repeat = datetime.timedelta(seconds=15)
 
@@ -43,7 +42,7 @@ class TestScheduler:
 
             # TODO: check for task created (need API support)
 
-            await asyncio.sleep(10000)
+            await asyncio.sleep(10)
 
             # TODO: check for task exited (need API support)
 
@@ -51,6 +50,7 @@ class TestScheduler:
             await scheduler.save_schedule(interval_schedule)
 
             # TODO: check for update (need API support)
+
         except Exception as e:
             logger.setup(__name__).exception(e)
         finally:

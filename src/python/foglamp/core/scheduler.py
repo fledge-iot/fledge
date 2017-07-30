@@ -6,14 +6,15 @@
 
 """FogLAMP Scheduler module"""
 
-import time
-import datetime
-import math
 import asyncio
 import collections
-import uuid
+import datetime
 import logging
+import math
+import time
+import uuid
 from enum import IntEnum
+from typing import Optional
 
 import aiopg.sa
 import sqlalchemy as sa
@@ -31,17 +32,27 @@ __version__ = "${VERSION}"
 _CONNECTION_STRING = "dbname='foglamp'"
 
 
+class ScheduleNotFoundError(ValueError):
+    def __init__(self, schedule_id: uuid.UUID, *args):
+        self.schedule_id = schedule_id
+        super(ValueError, self).__init__("Schedule not found: {}".format(schedule_id), *args)
+
+
 class Schedule(object):
     """Schedule base class"""
     __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
 
     def __init__(self):
         self.schedule_id = None
+        """uuid.UUID"""
         self.name = None
+        """str"""
         self.exclusive = True
+        """bool"""
         self.repeat = None
         """datetime.timedelta"""
         self.process_name = None
+        """str"""
 
 
 class IntervalSchedule(Schedule):
@@ -56,7 +67,9 @@ class TimedSchedule(Schedule):
     def __init__(self):
         super().__init__()
         self.time = None
+        """int"""
         self.day = None
+        """int from 1 (Monday) to 7 (Sunday)"""
 
 
 class ManualSchedule(Schedule):
@@ -268,8 +281,9 @@ class Scheduler(object):
 
         return True
 
-    async def _start_task(self, schedule: _ScheduleRow):
-        task_id = str(uuid.uuid4())
+    async def _start_task(self, schedule: _ScheduleRow) -> Optional[uuid.UUID]:
+        """Starts a task process"""
+        task_id = uuid.uuid4()
         args = self._process_scripts[schedule.process_name]
         self._logger.info("Starting: Schedule '%s' process '%s' task %s\n%s",
                           schedule.name, schedule.process_name, task_id, args)
@@ -316,7 +330,7 @@ class Scheduler(object):
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 await conn.execute(self._tasks_tbl.insert().values(
-                    id=task_id,
+                    id=str(task_id),
                     pid=self._schedule_executions[schedule.id].task_processes[task_id].process.pid,
                     process_name=schedule.process_name,
                     state=int(self._TaskState.RUNNING),
@@ -328,6 +342,10 @@ class Scheduler(object):
                             schedule: _ScheduleRow,
                             task_process: _TaskProcess,
                             task_id) -> None:
+        """Called when a task process terminates.
+
+        Determines the next start time for exclusive schedules.
+        """
         self._logger.info(
             "Exited: Schedule '%s' process '%s' task %s pid %s\n%s",
             schedule.name,
@@ -375,14 +393,23 @@ class Scheduler(object):
         self._on_task_completion(schedule, task_process, task_id)
 
         # Update the task's status
+        # TODO if no row updated output a WARN row
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
-                await conn.execute(
+                result = await conn.execute(
                     self._tasks_tbl.update().where(
-                        self._tasks_tbl.c.id == task_id).values(
+                        self._tasks_tbl.c.id == str(task_id)).values(
                                 exit_code=exit_code,
                                 state=int(self._TaskState.COMPLETE),
                                 end_time=datetime.datetime.now()))
+                if result.rowcount == 0:
+                    self._logger.warning("Task %s not found. Unable to update its status", task_id)
+
+    async def start_task(self, schedule_id: uuid)->None:
+        try:
+            schedule_execution = self._schedule_executions[schedule_id]
+        except KeyError:
+            raise ScheduleNotFoundError(schedule_id)
 
     async def _check_schedules(self):
         """Starts tasks according to schedules based on the current time"""
@@ -423,7 +450,7 @@ class Scheduler(object):
                 # necessary.
                 self._active_task_count += 1
 
-                # Modify next_start_time immediately to avoid reentrancy bugs"""
+                # Modify next_start_time immediately to avoid reentrancy bugs
                 if not schedule.exclusive and self._schedule_next_task(schedule):
                     next_start_time = schedule_execution.next_start_time
                 else:
@@ -651,9 +678,9 @@ class Scheduler(object):
             if next_start_time is None:
                 sleep_seconds = self._MAX_SLEEP
             else:
-                sleep_seconds = max([0, next_start_time-time.time()])
+                sleep_seconds = next_start_time - time.time()
 
-            if sleep_seconds:
+            if sleep_seconds > 0:
                 self._logger.info("Sleeping for %s seconds", sleep_seconds)
                 self._main_sleep_task = asyncio.ensure_future(asyncio.sleep(sleep_seconds))
 
@@ -680,8 +707,13 @@ class Scheduler(object):
                     '''insert into foglamp.scheduled_processes(name, script)
                     values('sleep10', '["sleep", "10"]')''')
 
-    async def save_schedule(self, schedule: Schedule) -> None:
-        """Update a schedule or create a new one"""
+    async def save_schedule(self, schedule: Schedule):
+        """Creates or update a schedule
+
+        Args:
+            schedule:
+                The id can be None, in which case a new id will be generated
+        """
         schedule_type = None
         day = None
         schedule_time = None
@@ -699,26 +731,34 @@ class Scheduler(object):
         elif isinstance(schedule, ManualSchedule):
             schedule_type = self._ScheduleType.MANUAL
 
-        schedule_id = str(schedule.schedule_id)
-
         is_new_schedule = False
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                result = await conn.execute(
-                    self._schedules_tbl.update().where(
-                        self._schedules_tbl.c.id == schedule_id).values(
-                        schedule_name=schedule.name,
-                        schedule_interval=schedule.repeat,
-                        schedule_day=day,
-                        schedule_time=schedule_time,
-                        exclusive=schedule.exclusive,
-                        process_name=schedule.process_name
-                    ))
+        if schedule.schedule_id is None:
+            is_new_schedule = True
+            schedule.schedule_id = uuid.uuid4()
 
-                if result.rowcount == 0:
-                    is_new_schedule = True
+        schedule_id = str(schedule.schedule_id)
 
+        if not is_new_schedule:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    result = await conn.execute(
+                        self._schedules_tbl.update().where(
+                            self._schedules_tbl.c.id == schedule_id).values(
+                            schedule_name=schedule.name,
+                            schedule_interval=schedule.repeat,
+                            schedule_day=day,
+                            schedule_time=schedule_time,
+                            exclusive=schedule.exclusive,
+                            process_name=schedule.process_name
+                        ))
+
+                    if result.rowcount == 0:
+                        is_new_schedule = True
+
+        if is_new_schedule:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
                     await conn.execute(self._schedules_tbl.insert().values(
                         id=schedule_id,
                         schedule_type=int(schedule_type),

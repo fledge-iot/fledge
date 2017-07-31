@@ -396,8 +396,10 @@ class Scheduler(object):
 
         schedule_execution = self._schedule_executions[schedule.id]
 
+        # Is the schedule configured to repeat or run manually? If not, remove it
+        # from schedule_execution.
         if (len(schedule_execution.task_processes) == 1 and
-                self._paused or (schedule.repeat is None and not schedule_execution.start_now)):
+                (self._paused or (schedule.repeat is None and not schedule_execution.start_now))):
             if schedule_execution.next_start_time:
                 # The above if statement avoids logging this message twice
                 # for nonexclusive schedules
@@ -407,8 +409,8 @@ class Scheduler(object):
         else:
             del schedule_execution.task_processes[task_id]
 
-            if schedule.exclusive and self._schedule_next_task(schedule):
-                self._resume_check_schedules()
+            if schedule.exclusive:
+                self._schedule_next_task(schedule)
         if schedule.type != self._ScheduleType.STARTUP:
             # Update the task's status
             # TODO if no row updated output a WARN row
@@ -424,6 +426,11 @@ class Scheduler(object):
                     if result.rowcount == 0:
                         self._logger.warning("Task %s not found. Unable to update its status",
                                              task_id)
+
+        # Due to maximum active tasks reached it is necessary to
+        # look for schedules that are ready to run even if there
+        # are only manual tasks waiting
+        self._resume_check_schedules()
 
     async def queue_task(self, schedule: Schedule)->None:
         """Requests a task to be started for a schedule
@@ -482,7 +489,7 @@ class Scheduler(object):
 
         # Can not iterate over _next_starts - it can change mid-iteration
         for key in list(self._schedule_executions.keys()):
-            if self._paused or self._active_task_count > self.max_active_tasks:
+            if self._paused or self._active_task_count >= self.max_active_tasks:
                 return None
 
             try:

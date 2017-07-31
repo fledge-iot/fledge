@@ -51,7 +51,7 @@ class TestScheduler:
 
             # TODO: check for update (need API support)
 
-            await scheduler.start_task(interval_schedule)
+            await scheduler.queue_task(interval_schedule)
 
             await asyncio.sleep(5)
 

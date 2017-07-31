@@ -32,7 +32,7 @@ __version__ = "${VERSION}"
 _CONNECTION_STRING = "dbname='foglamp'"
 
 
-class PausedError(RuntimeError):
+class SchedulerPausedError(RuntimeError):
     pass
 
 
@@ -40,7 +40,7 @@ class TaskRunningError(RuntimeError):
     pass
 
 
-class TaskQueuedError(RuntimeError):
+class DuplicateRequestError(RuntimeError):
     pass
 
 
@@ -314,7 +314,7 @@ class Scheduler(object):
 
         """
         if self._paused:
-            raise PausedError
+            raise SchedulerPausedError
 
         task_id = uuid.uuid4()
         args = self._process_scripts[schedule.process_name]
@@ -439,7 +439,8 @@ class Scheduler(object):
             schedule_id: Specifies the schedule
 
         Raises:
-            PausedError
+            SchedulePausedError:
+                The scheduler is stopping
 
             ScheduleNotFoundError
 
@@ -447,12 +448,12 @@ class Scheduler(object):
                 The schedule is marked exclusive and a task
                 is already running for the schedule
 
-            TaskQueuedError:
+            DuplicateRequestError:
                 The task has already been queued for execution
 
         """
         if self._paused:
-            raise PausedError()
+            raise SchedulerPausedError()
 
         try:
             schedule_row = self._schedules[schedule_id]
@@ -465,7 +466,7 @@ class Scheduler(object):
             schedule_execution = None
 
         if schedule_execution and schedule_execution.start_now:
-            raise TaskQueuedError()
+            raise DuplicateRequestError()
 
         if schedule_execution and schedule_row.exclusive and schedule_execution.task_processes:
             raise TaskRunningError(
@@ -478,7 +479,7 @@ class Scheduler(object):
 
         schedule_execution.start_now = True
 
-        self._logger.info("Queued schedule '%s' for execution", schedule.name)
+        self._logger.info("Queued schedule '%s' for execution", schedule_row.name)
         self._resume_check_schedules()
 
     async def _check_schedules(self):
@@ -537,7 +538,7 @@ class Scheduler(object):
                             del self._schedule_executions[schedule.id]
                         except KeyError:
                             pass
-                except PausedError:
+                except SchedulerPausedError:
                     return None
 
             # Keep track of the earliest next_start_time

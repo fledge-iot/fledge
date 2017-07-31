@@ -141,4 +141,4 @@ NULL, '00:00:15', true);
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'omf translator', 'omf translator', 3,
-NULL, '00:00:10', true);
+NULL, '00:00:15', true);

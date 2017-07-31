@@ -37,6 +37,9 @@ class SchedulerPausedError(RuntimeError):
 
 
 class TaskRunningError(RuntimeError):
+    def __init__(self, schedule_id: uuid.UUID, *args):
+        self.schedule_id = schedule_id
+        super(RuntimeError, self).__init__(*args)
     pass
 
 
@@ -469,9 +472,7 @@ class Scheduler(object):
             raise DuplicateRequestError()
 
         if schedule_execution and schedule_row.exclusive and schedule_execution.task_processes:
-            raise TaskRunningError(
-                    "Unable to start a task because the the schedule is marked exclusive"
-                    "and a task is already running for it.")
+            raise TaskRunningError(schedule_id)
 
         if not schedule_execution:
             schedule_execution = self._ScheduleExecution()
@@ -782,6 +783,35 @@ class Scheduler(object):
                     pass
 
                 self._main_sleep_task = None
+
+    async def delete_schedule(self, schedule_id: uuid.UUID):
+        """Deletes a schedule
+
+        Args:
+            schedule_id
+
+        Raises:
+            ScheduleNotFoundError
+
+            TasksRunningError
+        """
+        try:
+            if self._schedule_executions[schedule_id].task_processes:
+                raise TaskRunningError(schedule_id)
+            del self._schedule_executions[schedule_id]
+        except KeyError:
+            pass
+
+        try:
+            del self._schedules[schedule_id]
+        except KeyError:
+            raise ScheduleNotFoundError(schedule_id)
+
+        # TODO If the delete fails, ..
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                await conn.execute(self._schedules_tbl.delete().where(
+                    self._schedules_tbl.c.id == str(schedule_id)))
 
     @staticmethod
     async def reset_for_testing():

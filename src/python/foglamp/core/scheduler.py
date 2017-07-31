@@ -147,11 +147,18 @@ class Scheduler(object):
 
     class _TaskProcess(object):
         """Tracks a running task with some flags"""
-        __slots__ = ['process']
+        __slots__ = ['process', 'script']
 
         def __init__(self):
             self.process = None
             """asyncio.subprocess.Process"""
+            self.script = None
+            """list
+            
+            process_name on Schedule can be changed while a task
+            is executing. In order to report the correct script when the
+            task terminates, the script must be copied
+            """
 
     class _ScheduleExecution(object):
         """Tracks information about schedules"""
@@ -166,6 +173,7 @@ class Scheduler(object):
             """True when a task is queued to start via :meth:`start_task`"""
 
     # Constant class attributes
+    DEFAULT_MAX_ACTIVE_TASKS = 50
     _HOUR_SECONDS = 3600
     _DAY_SECONDS = 3600*24
     _WEEK_SECONDS = 3600*24*7
@@ -223,6 +231,8 @@ class Scheduler(object):
                 sa.Column('script', pg_types.JSONB))
 
         # Instance attributes
+        self.max_active_tasks = self.DEFAULT_MAX_ACTIVE_TASKS
+        """Maximum number of active task subprocesses"""
         self._start_time = None
         """When the scheduler started"""
         self._paused = False
@@ -308,34 +318,34 @@ class Scheduler(object):
 
         task_id = uuid.uuid4()
         args = self._process_scripts[schedule.process_name]
-        self._logger.info("Starting: Schedule '%s' process '%s' task %s\n%s",
-                          schedule.name, schedule.process_name, task_id, args)
 
         # The active task count is incremented prior to any
         # 'await' calls. Otherwise, a stop() request
         # would terminate before the process gets
         # started and tracked.
         self._active_task_count += 1
-
         process = None
 
         try:
             process = await asyncio.create_subprocess_exec(*args)
+        except EnvironmentError:
+            self._logger.exception(
+                "Unable to start schedule '%s' process '%s' task %s\n%s".format(
+                    schedule.name, schedule.process_name, task_id, args))
         finally:
             if not process:
                 self._active_task_count -= 1
-                self._logger.exception(
-                    "Unable to start schedule '%s' process '%s' task %s\n%s".format(
-                        schedule.name, schedule.process_name, task_id, args))
 
         task_process = self._TaskProcess()
         task_process.process = process
+        task_process.script = args
 
         self._schedule_executions[schedule.id].task_processes[task_id] = task_process
 
         self._logger.info(
-            "Started: Schedule '%s' process '%s' task %s pid %s\n%s",
-            schedule.name, schedule.process_name, task_id, process.pid, args)
+            "Process started: Schedule '%s' process '%s' task %s pid %s, %s active tasks\n%s",
+            schedule.name, schedule.process_name, task_id, process.pid,
+            self._active_task_count, args)
 
         if schedule.type == self._ScheduleType.STARTUP:
             # Startup tasks are not tracked in the tasks table
@@ -356,29 +366,33 @@ class Scheduler(object):
 
         return task_id
 
-    def _on_task_completion(self,
-                            schedule: _ScheduleRow,
-                            task_process: _TaskProcess,
-                            task_id: uuid.UUID,
-                            exit_code: int) -> None:
-        """Called when a task process terminates.
+    async def _wait_for_task_completion(self, schedule, task_id):
+        task_process = self._schedule_executions[schedule.id].task_processes[task_id]
 
-        Determines the next start time for exclusive schedules.
-        """
-        self._logger.info(
-            "Exited: Schedule '%s' process '%s' task %s pid %s exit %s\n%s",
-            schedule.name,
-            schedule.process_name,
-            task_id,
-            task_process.process.pid,
-            exit_code,
-            self._process_scripts[schedule.process_name])
+        # TODO: If an exception is raised here, _active_task_count will be
+        # out of sync with reality and the scheduler will never know when
+        # the process terminates. However, if an exception like CanceledError
+        # occurs here, it's assumed that the process needs to stop ASAP and
+        # I/O activities such as writing to the database should be avoided. It is
+        # presumed that all coroutines will be canceled and the process will exit.
+        exit_code = await task_process.process.wait()
 
         if self._active_task_count:
             self._active_task_count -= 1
         else:
             # This should not happen!
             self._logger.error("Active task count would be negative")
+
+        self._logger.info(
+            "Process terminated: Schedule '%s' process '%s' task %s pid %s exit %s,"
+            " %s active tasks\n%s",
+            schedule.name,
+            schedule.process_name,
+            task_id,
+            task_process.process.pid,
+            exit_code,
+            self._active_task_count,
+            task_process.script)
 
         schedule_execution = self._schedule_executions[schedule.id]
 
@@ -395,16 +409,6 @@ class Scheduler(object):
 
             if schedule.exclusive and self._schedule_next_task(schedule):
                 self._resume_check_schedules()
-
-    async def _wait_for_task_completion(self, schedule, task_id):
-        task_process = self._schedule_executions[schedule.id].task_processes[task_id]
-
-        exit_code = None
-        try:
-            exit_code = await task_process.process.wait()
-        finally:
-            self._on_task_completion(schedule, task_process, task_id, exit_code)
-
         if schedule.type != self._ScheduleType.STARTUP:
             # Update the task's status
             # TODO if no row updated output a WARN row
@@ -478,7 +482,7 @@ class Scheduler(object):
 
         # Can not iterate over _next_starts - it can change mid-iteration
         for key in list(self._schedule_executions.keys()):
-            if self._paused:
+            if self._paused or self._active_task_count > self.max_active_tasks:
                 return None
 
             try:
@@ -600,6 +604,8 @@ class Scheduler(object):
             if advance_seconds:
                 advance_seconds *= max([1, math.ceil(
                     (current_time - self._start_time) / advance_seconds)])
+            else:
+                advance_seconds = 0
 
             schedule_execution.next_start_time = current_time + advance_seconds
         elif schedule.type == self._ScheduleType.TIMED:
@@ -732,6 +738,11 @@ class Scheduler(object):
         await self._get_schedules()
 
     def _resume_check_schedules(self):
+        """Wakes up :meth:`_main_loop` so that
+        :meth:`_check_schedules` will be called the next time 'await'
+        is invoked.
+
+        """
         if self._main_sleep_task:
             self._main_sleep_task.cancel()
 

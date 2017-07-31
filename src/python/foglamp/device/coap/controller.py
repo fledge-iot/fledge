@@ -20,7 +20,7 @@ _DEFAULT_COAP_CONFIG = {
     "uri": {
         "description" : "URI to accept data on",
         "type": "string",
-        "default" : "sensor/reading-values",
+        "default" : "sensor-values",
     },
     # certificate is not currently utilized 
     "certificate": {
@@ -43,7 +43,7 @@ def configure_coap() -> (str, str):
     uri = config["uri"]["value"]
     port = config["port"]["value"]
 
-    return uri, port
+    return uri, int(port)
     
 def start():
     """Registers all CoAP URI handlers"""
@@ -56,10 +56,10 @@ def start():
     root.add_resource(('.well-known', 'core'),
                       aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
 
-    SensorValues().register_handlers(root)
+    SensorValues().register_handlers(root, uri)
 
-    asyncio.Task(aiocoap.Context.create_server_context(uri, bind=('::', port)))
-#    asyncio.Task(aiocoap.Context.create_server_context(root))
+    asyncio.Task(aiocoap.Context.create_server_context(root, bind=('::', port)))
+    # asyncio.Task(aiocoap.Context.create_server_context(root))
 
 
 

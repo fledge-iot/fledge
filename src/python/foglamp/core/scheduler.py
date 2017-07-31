@@ -183,7 +183,7 @@ class Scheduler(object):
     def __init__(self):
         """Constructor"""
 
-        """Class attributes"""
+        # Class attributes
         if not self._logger:
             # self._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
             self._logger = logger.setup(__name__, level=logging.DEBUG)
@@ -317,14 +317,16 @@ class Scheduler(object):
         # started and tracked.
         self._active_task_count += 1
 
+        process = None
+
         try:
             process = await asyncio.create_subprocess_exec(*args)
-        except IOError:
-            self._active_task_count -= 1
-            self._logger.exception(
-                "Unable to start schedule '%s' process '%s' task %s\n%s".format(
-                    schedule.name, schedule.process_name, task_id, args))
-            raise
+        finally:
+            if not process:
+                self._active_task_count -= 1
+                self._logger.exception(
+                    "Unable to start schedule '%s' process '%s' task %s\n%s".format(
+                        schedule.name, schedule.process_name, task_id, args))
 
         task_process = self._TaskProcess()
         task_process.process = process
@@ -336,8 +338,8 @@ class Scheduler(object):
             schedule.name, schedule.process_name, task_id, process.pid, args)
 
         if schedule.type == self._ScheduleType.STARTUP:
-            """Startup tasks are not tracked in the tasks table"""
-            asyncio.ensure_future(self._wait_for_startup_task_completion(schedule, task_id))
+            # Startup tasks are not tracked in the tasks table
+            asyncio.ensure_future(self._wait_for_task_completion(schedule, task_id))
         else:
             # The task row needs to exist before the completion handler runs
             async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
@@ -394,40 +396,30 @@ class Scheduler(object):
             if schedule.exclusive and self._schedule_next_task(schedule):
                 self._resume_check_schedules()
 
-    async def _wait_for_startup_task_completion(self, schedule, task_id):
-        task_process = self._schedule_executions[schedule.id].task_processes[task_id]
-
-        exit_code = None
-        try:
-            exit_code = await task_process.process.wait()
-        except Exception:  # TODO: catch real exception
-            pass
-
-        self._on_task_completion(schedule, task_process, task_id, exit_code)
-
     async def _wait_for_task_completion(self, schedule, task_id):
         task_process = self._schedule_executions[schedule.id].task_processes[task_id]
 
         exit_code = None
         try:
             exit_code = await task_process.process.wait()
-        except Exception:  # TODO: catch real exception
-            pass
+        finally:
+            self._on_task_completion(schedule, task_process, task_id, exit_code)
 
-        self._on_task_completion(schedule, task_process, task_id, exit_code)
+        if schedule.type != self._ScheduleType.STARTUP:
+            # Update the task's status
+            # TODO if no row updated output a WARN row
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    result = await conn.execute(
+                        self._tasks_tbl.update().where(
+                            self._tasks_tbl.c.id == str(task_id)).values(
+                                    exit_code=exit_code,
+                                    state=int(self._TaskState.COMPLETE),
+                                    end_time=datetime.datetime.now()))
 
-        # Update the task's status
-        # TODO if no row updated output a WARN row
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                result = await conn.execute(
-                    self._tasks_tbl.update().where(
-                        self._tasks_tbl.c.id == str(task_id)).values(
-                                exit_code=exit_code,
-                                state=int(self._TaskState.COMPLETE),
-                                end_time=datetime.datetime.now()))
-                if result.rowcount == 0:
-                    self._logger.warning("Task %s not found. Unable to update its status", task_id)
+                    if result.rowcount == 0:
+                        self._logger.warning("Task %s not found. Unable to update its status",
+                                             task_id)
 
     async def queue_task(self, schedule: Schedule)->None:
         """Requests a task to be started for a schedule

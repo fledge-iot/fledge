@@ -50,7 +50,9 @@ class Server:
         loop.run_until_complete(asyncio.ensure_future(cls._start_scheduler()))
 
         # Register signal handlers
-        for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
+        # Registering SIGTERM creates an error at shutdown. See
+        # https://github.com/python/asyncio/issues/396
+        for signal_name in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
                 signal_name,
                 lambda: asyncio.ensure_future(cls.stop(loop)))

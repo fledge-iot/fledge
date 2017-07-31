@@ -6,7 +6,6 @@
 
 import asyncio
 import datetime
-import uuid
 
 import pytest
 
@@ -31,25 +30,34 @@ class TestScheduler:
         try:
             interval_schedule = IntervalSchedule()
             interval_schedule.name = 'test1'
-            interval_schedule.repeat = datetime.timedelta(seconds=15)
+            interval_schedule.repeat = datetime.timedelta(seconds=5)
 
             interval_schedule.process_name = "sleep1"
             await scheduler.save_schedule(interval_schedule)
 
             # TODO: Re-read the task and check the type (need API support)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(10)
 
             # TODO: check for task created (need API support)
-
-            await asyncio.sleep(10)
 
             # TODO: check for task exited (need API support)
 
             interval_schedule.name = 'test1 updated'
+            interval_schedule.exclusive = False
+            interval_schedule.repeat = datetime.timedelta(seconds=60)
+
             await scheduler.save_schedule(interval_schedule)
 
             # TODO: check for update (need API support)
+
+            await scheduler.start_task(interval_schedule)
+
+            await asyncio.sleep(5)
+
+            # TODO: check for task created (need API support)
+
+            # TODO: check for task exited (need API support)
 
         except Exception as e:
             logger.setup(__name__).exception(e)

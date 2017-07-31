@@ -32,10 +32,23 @@ __version__ = "${VERSION}"
 _CONNECTION_STRING = "dbname='foglamp'"
 
 
+class PausedError(RuntimeError):
+    pass
+
+
+class TaskRunningError(RuntimeError):
+    pass
+
+
+class TaskQueuedError(RuntimeError):
+    pass
+
+
 class ScheduleNotFoundError(ValueError):
     def __init__(self, schedule_id: uuid.UUID, *args):
         self.schedule_id = schedule_id
-        super(ValueError, self).__init__("Schedule not found: {}".format(schedule_id), *args)
+        super(ValueError, self).__init__(
+            "Schedule not found: {}".format(schedule_id), *args)
 
 
 class Schedule(object):
@@ -50,7 +63,7 @@ class Schedule(object):
         self.exclusive = True
         """bool"""
         self.repeat = None
-        """datetime.timedelta"""
+        """"datetime.timedelta"""
         self.process_name = None
         """str"""
 
@@ -142,13 +155,15 @@ class Scheduler(object):
 
     class _ScheduleExecution(object):
         """Tracks information about schedules"""
-        __slots__ = ['next_start_time', 'task_processes']
+        __slots__ = ['next_start_time', 'task_processes', 'start_now']
 
         def __init__(self):
             self.next_start_time = None
             """When to next start a task for the schedule"""
             self.task_processes = dict()
             """dict of task id to _TaskProcess"""
+            self.start_now = False
+            """True when a task is queued to start via :meth:`start_task`"""
 
     # Constant class attributes
     _HOUR_SECONDS = 3600
@@ -282,76 +297,79 @@ class Scheduler(object):
         return True
 
     async def _start_task(self, schedule: _ScheduleRow) -> Optional[uuid.UUID]:
-        """Starts a task process"""
+        """Starts a task process
+
+        Raises:
+            IOError: If the process could not start
+
+        """
+        if self._paused:
+            raise PausedError
+
         task_id = uuid.uuid4()
         args = self._process_scripts[schedule.process_name]
         self._logger.info("Starting: Schedule '%s' process '%s' task %s\n%s",
                           schedule.name, schedule.process_name, task_id, args)
 
+        # The active task count is incremented prior to any
+        # 'await' calls. Otherwise, a stop() request
+        # would terminate before the process gets
+        # started and tracked.
+        self._active_task_count += 1
+
         try:
             process = await asyncio.create_subprocess_exec(*args)
         except IOError:
-            process = None
-            # TODO: catch real exception
+            self._active_task_count -= 1
             self._logger.exception(
                 "Unable to start schedule '%s' process '%s' task %s\n%s".format(
                     schedule.name, schedule.process_name, task_id, args))
+            raise
 
-        if process:
-            task_process = self._TaskProcess()
-            task_process.process = process
+        task_process = self._TaskProcess()
+        task_process.process = process
 
-            self._schedule_executions[schedule.id].task_processes[task_id] = task_process
+        self._schedule_executions[schedule.id].task_processes[task_id] = task_process
 
-            self._logger.info(
-                "Started: Schedule '%s' process '%s' task %s pid %s\n%s",
-                schedule.name, schedule.process_name, task_id, process.pid, args)
+        self._logger.info(
+            "Started: Schedule '%s' process '%s' task %s pid %s\n%s",
+            schedule.name, schedule.process_name, task_id, process.pid, args)
+
+        if schedule.type == self._ScheduleType.STARTUP:
+            """Startup tasks are not tracked in the tasks table"""
+            asyncio.ensure_future(self._wait_for_startup_task_completion(schedule, task_id))
         else:
-            self._active_task_count -= 1
-            del self._schedules[schedule.id]
-            del self._schedule_executions[schedule.id]
-            return None
+            # The task row needs to exist before the completion handler runs
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    await conn.execute(self._tasks_tbl.insert().values(
+                        id=str(task_id),
+                        pid=(self._schedule_executions[schedule.id].
+                             task_processes[task_id].process.pid),
+                        process_name=schedule.process_name,
+                        state=int(self._TaskState.RUNNING),
+                        start_time=datetime.datetime.now()))
+
+            asyncio.ensure_future(self._wait_for_task_completion(schedule, task_id))
 
         return task_id
-
-    async def _start_startup_task(self, schedule):
-        """Startup tasks are not tracked in the tasks table"""
-        task_id = await self._start_task(schedule)
-        if task_id:
-            asyncio.ensure_future(self._wait_for_startup_task_completion(schedule, task_id))
-
-    async def _start_regular_task(self, schedule):
-        task_id = await self._start_task(schedule)
-
-        if not task_id:
-            return
-
-        # The task row needs to exist before the completion handler runs
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                await conn.execute(self._tasks_tbl.insert().values(
-                    id=str(task_id),
-                    pid=self._schedule_executions[schedule.id].task_processes[task_id].process.pid,
-                    process_name=schedule.process_name,
-                    state=int(self._TaskState.RUNNING),
-                    start_time=datetime.datetime.now()))
-
-        asyncio.ensure_future(self._wait_for_task_completion(schedule, task_id))
 
     def _on_task_completion(self,
                             schedule: _ScheduleRow,
                             task_process: _TaskProcess,
-                            task_id) -> None:
+                            task_id: uuid.UUID,
+                            exit_code: int) -> None:
         """Called when a task process terminates.
 
         Determines the next start time for exclusive schedules.
         """
         self._logger.info(
-            "Exited: Schedule '%s' process '%s' task %s pid %s\n%s",
+            "Exited: Schedule '%s' process '%s' task %s pid %s exit %s\n%s",
             schedule.name,
             schedule.process_name,
             task_id,
             task_process.process.pid,
+            exit_code,
             self._process_scripts[schedule.process_name])
 
         if self._active_task_count:
@@ -360,26 +378,32 @@ class Scheduler(object):
             # This should not happen!
             self._logger.error("Active task count would be negative")
 
-        # TODO this might disappear
         schedule_execution = self._schedule_executions[schedule.id]
 
-        if schedule.exclusive and self._schedule_next_task(schedule):
-            self._resume_check_schedules()
-
-        if schedule_execution.next_start_time is None:
+        if (schedule_execution.task_processes.len() == 1 and
+                self._paused or (schedule.repeat is None and not schedule_execution.start_now)):
+            if schedule_execution.next_start_time:
+                # The above if statement avoids logging this message twice
+                # for nonexclusive schedules
+                self._logger.info(
+                    "Tasks will no longer execute for schedule '%s'", schedule.name)
             del self._schedule_executions[schedule.id]
         else:
             del schedule_execution.task_processes[task_id]
 
+            if schedule.exclusive and self._schedule_next_task(schedule):
+                self._resume_check_schedules()
+
     async def _wait_for_startup_task_completion(self, schedule, task_id):
         task_process = self._schedule_executions[schedule.id].task_processes[task_id]
 
+        exit_code = None
         try:
-            await task_process.process.wait()
+            exit_code = await task_process.process.wait()
         except Exception:  # TODO: catch real exception
             pass
 
-        self._on_task_completion(schedule, task_process, task_id)
+        self._on_task_completion(schedule, task_process, task_id, exit_code)
 
     async def _wait_for_task_completion(self, schedule, task_id):
         task_process = self._schedule_executions[schedule.id].task_processes[task_id]
@@ -390,7 +414,7 @@ class Scheduler(object):
         except Exception:  # TODO: catch real exception
             pass
 
-        self._on_task_completion(schedule, task_process, task_id)
+        self._on_task_completion(schedule, task_process, task_id, exit_code)
 
         # Update the task's status
         # TODO if no row updated output a WARN row
@@ -405,15 +429,60 @@ class Scheduler(object):
                 if result.rowcount == 0:
                     self._logger.warning("Task %s not found. Unable to update its status", task_id)
 
-    async def start_task(self, schedule_id: uuid)->None:
+    async def start_task(self, schedule: Schedule)->None:
+        """Starts a task for a schedule
+
+        Args:
+            schedule:
+                Only the schedule_id needs to be set. It isn't necessary to
+                use a specific child class.
+
+        Raises:
+            PausedError
+
+            ScheduleNotFoundError
+
+            TaskRunningError:
+                The schedule is marked exclusive and a task
+                is already running for the schedule
+
+            TaskQueuedError:
+                The task has already been queued for execution
+
+        """
+        if self._paused:
+            raise PausedError()
+
         try:
-            schedule_execution = self._schedule_executions[schedule_id]
+            schedule_row = self._schedules[schedule.schedule_id]
         except KeyError:
-            raise ScheduleNotFoundError(schedule_id)
+            raise ScheduleNotFoundError(schedule.schedule_id)
+
+        try:
+            schedule_execution = self._schedule_executions[schedule_row.id]
+        except KeyError:
+            schedule_execution = None
+
+        if schedule_execution and schedule_execution.start_now:
+            raise TaskQueuedError()
+
+        if schedule_execution and schedule_row.exclusive and schedule_execution.task_processes:
+            raise TaskRunningError(
+                    "Unable to start a task because the the schedule is marked exclusive"
+                    "and a task is already running for the schedule.")
+
+        if not schedule_execution:
+            schedule_execution = self._ScheduleExecution()
+            self._schedule_executions[schedule_row.id] = schedule_execution
+
+        schedule_execution.start_now = True
+
+        self._logger.info("Queued schedule '%s' for execution", schedule.name)
+        self._resume_check_schedules()
 
     async def _check_schedules(self):
         """Starts tasks according to schedules based on the current time"""
-        least_next_start_time = None
+        earliest_start_time = None
 
         # Can not iterate over _next_starts - it can change mid-iteration
         for key in list(self._schedule_executions.keys()):
@@ -421,52 +490,61 @@ class Scheduler(object):
                 return None
 
             try:
-                schedule = self._schedules[key]
+                schedule_execution = self._schedule_executions[key]
             except KeyError:
                 continue
 
-            schedule_execution = self._schedule_executions[key]
-
-            next_start_time = schedule_execution.next_start_time
-
-            if not next_start_time:
+            try:
+                schedule = self._schedules[key]
+            except KeyError:
                 continue
 
             if schedule.exclusive and schedule_execution.task_processes:
                 continue
 
-            now = time.time()
-            if now >= schedule_execution.next_start_time:
-                # It's time to create a task for this schedule.
-                #
-                # Because there are so many 'awaits' in this block,
-                # the active task count is incremented prior to any
-                # 'await' calls. Otherwise, a stop() request
-                # would terminate before the process gets
-                # started and tracked. Thus the code
-                # following this increment and all code that is
-                # called must be very careful about exceptions
-                # so that _active_task_count will decremented if
-                # necessary.
-                self._active_task_count += 1
+            # next_start_time is None when repeat is None until the
+            # task completes, at which time schedule_execution is removed
+            next_start_time = schedule_execution.next_start_time
 
-                # Modify next_start_time immediately to avoid reentrancy bugs
-                if not schedule.exclusive and self._schedule_next_task(schedule):
+            right_time = time.time() >= next_start_time
+
+            if right_time or schedule_execution.start_now:
+                # Time to start a task
+
+                # Queued manual execution is ignored if it was
+                # already time to run the task. The task doesn't
+                # start twice even when nonexclusive.
+                schedule_execution.start_now = False
+
+                if not right_time:
+                    # Manual start - don't change next_start_time
+                    pass
+                elif not schedule.exclusive and self._schedule_next_task(schedule):
+                    # _schedule_next_task alters next_start_time
                     next_start_time = schedule_execution.next_start_time
                 else:
+                    # Exclusive tasks won't start again until they terminate
+                    # Or the schedule doesn't repeat
                     next_start_time = None
 
-                if schedule.type == self._ScheduleType.STARTUP:
-                    await self._start_startup_task(schedule)
-                else:
-                    await self._start_regular_task(schedule)
+                try:
+                    await self._start_task(schedule)
+                except IOError:
+                    # Avoid constantly running into the same error
+                    if not schedule_execution.task_processes:
+                        try:
+                            del self._schedule_executions[schedule.id]
+                        except KeyError:
+                            pass
+                except PausedError:
+                    return None
 
-            # Track the least next_start_time
-            if next_start_time is not None and (least_next_start_time is None
-                                                or least_next_start_time > next_start_time):
-                least_next_start_time = next_start_time
+            # Keep track of the earliest next_start_time
+            if next_start_time is not None and (earliest_start_time is None
+                                                or earliest_start_time > next_start_time):
+                earliest_start_time = next_start_time
 
-        return least_next_start_time
+        return earliest_start_time
 
     def _schedule_next_timed_task(self, schedule, schedule_execution, current_dt):
         """Handle daylight savings time transitions.
@@ -557,41 +635,45 @@ class Scheduler(object):
         has completed.
 
         """
+        schedule_execution = self._schedule_executions[schedule.id]
         advance_seconds = schedule.repeat_seconds
 
-        # TODO can the schedule executions entry disappear?
-        schedule_execution = self._schedule_executions[schedule.id]
-
         if self._paused or advance_seconds is None:
+            schedule_execution.next_start_time = None
             self._logger.info(
                 "Tasks will no longer execute for schedule '%s'", schedule.name)
-            schedule_execution.next_start_time = None
+            return False
+
+        now = time.time()
+
+        if schedule.exclusive and now < schedule_execution.next_start_time:
+            # The task was started manually
             return False
 
         if advance_seconds:
             advance_seconds *= max([1, math.ceil(
-                (time.time() - schedule_execution.next_start_time) / advance_seconds)])
+                (now - schedule_execution.next_start_time) / advance_seconds)])
 
-        if schedule.type == self._ScheduleType.TIMED:
-            # Handle daylight savings time transitions
-            next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
-            next_dt += datetime.timedelta(seconds=advance_seconds)
+            if schedule.type == self._ScheduleType.TIMED:
+                # Handle daylight savings time transitions
+                next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
+                next_dt += datetime.timedelta(seconds=advance_seconds)
 
-            if schedule.day is not None and next_dt.isoweekday() != schedule.day:
-                # Advance to the next matching day
-                next_dt = datetime.datetime(year=next_dt.year,
-                                            month=next_dt.month,
-                                            day=next_dt.day)
-                self._schedule_next_timed_task(schedule, schedule_execution, next_dt)
+                if schedule.day is not None and next_dt.isoweekday() != schedule.day:
+                    # Advance to the next matching day
+                    next_dt = datetime.datetime(year=next_dt.year,
+                                                month=next_dt.month,
+                                                day=next_dt.day)
+                    self._schedule_next_timed_task(schedule, schedule_execution, next_dt)
+                else:
+                    schedule_execution.next_start_time = time.mktime(next_dt.timetuple())
             else:
-                schedule_execution.next_start_time = time.mktime(next_dt.timetuple())
-        else:
-            # Interval schedule
-            schedule_execution.next_start_time += advance_seconds
+                # Interval schedule
+                schedule_execution.next_start_time += advance_seconds
 
-        self._logger.info(
-            "Scheduled '%s' for %s", schedule.name,
-            datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
+            self._logger.info(
+                "Scheduled '%s' for %s", schedule.name,
+                datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
         return True
 
@@ -785,10 +867,10 @@ class Scheduler(object):
                                 exclusive=schedule.exclusive,
                                 process_name=schedule.process_name)
 
-        if not is_new_schedule:
-            prev_schedule_row = self._schedules[schedule.schedule_id]
-        else:
+        if is_new_schedule:
             prev_schedule_row = None
+        else:
+            prev_schedule_row = self._schedules[schedule.schedule_id]
 
         self._schedules[schedule.schedule_id] = schedule_row
 

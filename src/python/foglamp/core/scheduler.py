@@ -380,7 +380,7 @@ class Scheduler(object):
 
         schedule_execution = self._schedule_executions[schedule.id]
 
-        if (schedule_execution.task_processes.len() == 1 and
+        if (len(schedule_execution.task_processes) == 1 and
                 self._paused or (schedule.repeat is None and not schedule_execution.start_now)):
             if schedule_execution.next_start_time:
                 # The above if statement avoids logging this message twice
@@ -429,8 +429,8 @@ class Scheduler(object):
                 if result.rowcount == 0:
                     self._logger.warning("Task %s not found. Unable to update its status", task_id)
 
-    async def start_task(self, schedule: Schedule)->None:
-        """Starts a task for a schedule
+    async def queue_task(self, schedule: Schedule)->None:
+        """Requests a task to be started for a schedule
 
         Args:
             schedule:
@@ -469,7 +469,7 @@ class Scheduler(object):
         if schedule_execution and schedule_row.exclusive and schedule_execution.task_processes:
             raise TaskRunningError(
                     "Unable to start a task because the the schedule is marked exclusive"
-                    "and a task is already running for the schedule.")
+                    "and a task is already running for it.")
 
         if not schedule_execution:
             schedule_execution = self._ScheduleExecution()

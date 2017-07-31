@@ -63,7 +63,7 @@ class TestScheduler:
 
             # TODO: check for update (need API support)
 
-            await scheduler.queue_task(interval_schedule)
+            await scheduler.queue_task(interval_schedule.schedule_id)
             await asyncio.sleep(10)
 
             # TODO: check for task exited (need API support)

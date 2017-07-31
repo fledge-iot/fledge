@@ -432,13 +432,11 @@ class Scheduler(object):
         # are only manual tasks waiting
         self._resume_check_schedules()
 
-    async def queue_task(self, schedule: Schedule)->None:
+    async def queue_task(self, schedule_id: uuid.UUID)->None:
         """Requests a task to be started for a schedule
 
         Args:
-            schedule:
-                Only the schedule_id needs to be set. It isn't necessary to
-                use a specific child class.
+            schedule_id: Specifies the schedule
 
         Raises:
             PausedError
@@ -457,12 +455,12 @@ class Scheduler(object):
             raise PausedError()
 
         try:
-            schedule_row = self._schedules[schedule.schedule_id]
+            schedule_row = self._schedules[schedule_id]
         except KeyError:
-            raise ScheduleNotFoundError(schedule.schedule_id)
+            raise ScheduleNotFoundError(schedule_id)
 
         try:
-            schedule_execution = self._schedule_executions[schedule_row.id]
+            schedule_execution = self._schedule_executions[schedule_id]
         except KeyError:
             schedule_execution = None
 

@@ -38,6 +38,30 @@ async def read_scheduled_processes():
     return results
 
 
+async def read_scheduled_process_name(scheduled_process_name=None):
+    conn = await asyncpg.connect(database=__DB_NAME)
+    query = """
+        SELECT name, script from scheduled_processes
+    """
+    # FIXME: When schedule_id is not in uuid format, server error occurs
+    _where_clause = " WHERE name = $1" if scheduled_process_name else ""
+    query += _where_clause
+
+    stmt = await conn.prepare(query)
+
+    rows = await stmt.fetch(scheduled_process_name) if scheduled_process_name else await stmt.fetch()
+
+    columns = ('name', 'script')
+
+    results = []
+    for row in rows:
+        results.append(dict(zip(columns, row)))
+
+    await conn.close()
+
+    return results
+
+
 async def create_schedule(payload):
     pass
 

@@ -158,6 +158,28 @@ async def get_scheduled_processes(request):
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
+async def get_scheduled_process(request):
+    """Returns a list of all the defined scheduled_processes from scheduled_processes table"""
+
+    try:
+        scheduled_process_id = request.match_info.get('scheduled_process_id', None)
+
+        if not scheduled_process_id:
+            raise ValueError('No such Scheduled Process')
+
+        scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_id)
+
+        if not scheduled_process:
+            raise ValueError('No such Scheduled Process')
+
+        return web.json_response(scheduled_process)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+
 # Schedules
 
 async def get_schedules(request):
@@ -192,7 +214,7 @@ async def get_schedule(request):
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
-def _check_schedule_post_parameters(schedule_id,
+async def _check_schedule_post_parameters(schedule_id,
                                     schedule_type,
                                     schedule_day,
                                     schedule_time,
@@ -225,11 +247,63 @@ def _check_schedule_post_parameters(schedule_id,
     if not schedule_name or not schedule_process_name:
         errors.append('Schedule name and Process name cannot be empty.')
 
-    # TODO: process_name must be picked from scheduled_processes
+    scheduled_process = await scheduler_db_services.read_scheduled_process_name(schedule_process_name)
+
+    if not scheduled_process:
+        errors.append('No such Scheduled Process name: {}'.format(schedule_process_name))
+
     return errors
 
 
-# TODO: Furthre refactor post and update for common code
+async def _common_action_schedule(data):
+    schedule_id = data.get('schedule_id', None)
+    s_type = data.get('type', 0)
+    schedule_type = int(s_type)
+    schedule_day = data.get('day', None)
+    schedule_time = data.get('time', None)
+    schedule_name = data.get('name', None)
+    schedule_process_name = data.get('process_name', None)
+    schedule_repeat = data.get('repeat', None)
+    schedule_exclusive = data.get('exclusive', None)
+
+    go_no_go = await _check_schedule_post_parameters(schedule_id,
+                                               schedule_type,
+                                               schedule_day,
+                                               schedule_time,
+                                               schedule_name,
+                                               schedule_process_name,
+                                               schedule_repeat,
+                                               schedule_exclusive
+                                               )
+    if not go_no_go:
+        raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
+
+    # Start Scheduler to use its services
+    scheduler = Scheduler()
+    await scheduler.start()
+
+    # Create schedule object as Scheduler.save_schedule requires an object
+    if schedule_type == Scheduler._ScheduleType.TIMED:
+        schedule = TimedSchedule()
+
+        #  day and time are valid only for TIMED schedule
+        schedule.day = schedule_day
+        schedule.time = schedule_time
+    else:
+        schedule = Schedule()
+
+    # Populate scheduler object
+    schedule.id = schedule_id
+    schedule.schedule_type = schedule_type
+    schedule.name = schedule_name
+    schedule.process_name = schedule_process_name
+    schedule.repeat = schedule_repeat
+    schedule.exclusive = schedule_exclusive
+
+    # Save schedule
+    await scheduler.save_schedule(schedule)
+
+    await stop_scheduler(scheduler)
 
 
 async def post_schedule(request):
@@ -242,53 +316,7 @@ async def post_schedule(request):
         if schedule_id:
             raise ValueError('Schedule ID not needed for new Schedule.')
 
-        s_type = data.get('type', 0)
-        schedule_type = int(s_type)
-        schedule_day = data.get('day', None)
-        schedule_time = data.get('time', None)
-        schedule_name = data.get('name', None)
-        schedule_process_name = data.get('process_name', None)
-        schedule_repeat = data.get('repeat', None)
-        schedule_exclusive = data.get('exclusive', None)
-
-        go_no_go = _check_schedule_post_parameters(schedule_id,
-                                                    schedule_type,
-                                                    schedule_day,
-                                                    schedule_time,
-                                                    schedule_name,
-                                                    schedule_process_name,
-                                                    schedule_repeat,
-                                                    schedule_exclusive
-                                                   )
-        if not go_no_go:
-            raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
-
-        # Start Scheduler to use its services
-        scheduler = Scheduler()
-        await scheduler.start()
-
-        # Create schedule object as Scheduler.save_schedule requires an object
-        if schedule_type == Scheduler._ScheduleType.TIMED:
-            schedule = TimedSchedule()
-
-            #  day and time are valid only for TIMED schedule
-            schedule.day = schedule_day
-            schedule.time = schedule_time
-        else:
-            schedule = Schedule()
-
-        #  Populate scheduler object
-        schedule.id = schedule_id
-        schedule.schedule_type = schedule_type
-        schedule.name = schedule_name
-        schedule.process_name = schedule_process_name
-        schedule.repeat = schedule_repeat
-        schedule.exclusive = schedule_exclusive
-
-        # Save schedule
-        await scheduler.save_schedule(schedule)
-
-        await stop_scheduler(scheduler)
+        await _common_action_schedule(data)
 
         return web.json_response({'message': 'Schedule {} created successfully.'.format(schedule_id)})
     except ValueError as ex:
@@ -311,52 +339,7 @@ async def update_schedule(request):
         if not is_schedule:
             raise ValueError('No such Schedule: {}.'.format(schedule_id))
 
-        s_type = data.get('type', 0)
-        schedule_type = int(s_type)
-        schedule_day = data.get('day', None)
-        schedule_time = data.get('time', None)
-        schedule_name = data.get('name', None)
-        schedule_process_name = data.get('process_name', None)
-        schedule_repeat = data.get('repeat', None)
-        schedule_exclusive = data.get('exclusive', None)
-
-        go_no_go = _check_schedule_post_parameters(schedule_id,
-                                                    schedule_type,
-                                                    schedule_day,
-                                                    schedule_time,
-                                                    schedule_name,
-                                                    schedule_process_name,
-                                                    schedule_repeat,
-                                                    schedule_exclusive
-                                                   )
-        if not go_no_go:
-            raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
-
-        # Start Scheduler to use its services
-        scheduler = Scheduler()
-        await scheduler.start()
-
-        # Create schedule object as Scheduler.save_schedule requires an object
-        if schedule_type == Scheduler._ScheduleType.TIMED:
-            schedule = TimedSchedule()
-
-            schedule.day = data.get('day', None)
-            schedule.time = data.get('time', None)
-        else:
-            schedule = Schedule()
-
-        #  Populate scheduler object
-        schedule.id = schedule_id
-        schedule.schedule_type = schedule_type
-        schedule.name = schedule_name
-        schedule.process_name = schedule_process_name
-        schedule.repeat = schedule_repeat
-        schedule.exclusive = schedule_exclusive
-
-        # Update schedule
-        await scheduler.save_schedule(schedule)
-
-        await stop_scheduler(scheduler)
+        await _common_action_schedule(data)
 
         return web.json_response({'message': 'Schedule {} updated successfully.'.format(schedule_id)})
     except ValueError as ex:

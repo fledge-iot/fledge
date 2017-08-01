@@ -4,12 +4,13 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 import asyncio
+import datetime
 import time
 import re
 from aiohttp import web
 from foglamp import configuration_manager
 from foglamp.core import scheduler_db_services, statistics_db_services
-from foglamp.core.scheduler import Scheduler, Schedule, TimedSchedule
+from foglamp.core.scheduler import Scheduler, Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -136,7 +137,6 @@ async def set_configuration_item(request):
 #  Scheduler Services
 #################################
 
-@staticmethod
 async def stop_scheduler(scheduler: Scheduler)->None:
     while True:
         try:
@@ -162,15 +162,15 @@ async def get_scheduled_process(request):
     """Returns a list of all the defined scheduled_processes from scheduled_processes table"""
 
     try:
-        scheduled_process_id = request.match_info.get('scheduled_process_id', None)
+        scheduled_process_name = request.match_info.get('scheduled_process_name', None)
 
-        if not scheduled_process_id:
+        if not scheduled_process_name:
             raise ValueError('No such Scheduled Process')
 
-        scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_id)
+        scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_name)
 
         if not scheduled_process:
-            raise ValueError('No such Scheduled Process')
+            raise ValueError('No such Scheduled Process: {}.'.format(scheduled_process_name))
 
         return web.json_response(scheduled_process)
     except ValueError as ex:
@@ -181,6 +181,9 @@ async def get_scheduled_process(request):
 
 
 # Schedules
+
+# TODO: Api support to get tasks for a given schedule
+# TODO: Api support for how to start a schedule? a task in a schedule?
 
 async def get_schedules(request):
     """Returns a list of all the defined schedules from schedules table"""
@@ -224,47 +227,50 @@ async def _check_schedule_post_parameters(schedule_id,
                                     schedule_exclusive
                                    ):
 
-    errors = []
+    _errors = list()
 
     # Raise error if schedule_type is missing
     if not schedule_type:
-        errors.append('Schedule type cannot be empty.')
+        _errors.append('Schedule type cannot be empty.')
 
     # Raise error if schedule_type is wrong
     if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
                              Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
-        errors.append('Schedule type error: {}'.format(schedule_type))
+        _errors.append('Schedule type error: {}'.format(schedule_type))
 
     if schedule_type == Scheduler._ScheduleType.TIMED:
         # Raise error if day and time are missing for schedule_type = TIMED
         if not schedule_day or not schedule_time:
-            errors.append('Schedule day and time cannot be empty for TIMED schedule.')
+            _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
     # TODO: day and time must be integers
 
     # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
+    # TODO: How to define various values of datetime.timedelta for "repeat"?
 
     # Raise error if name and process_name are missing
     if not schedule_name or not schedule_process_name:
-        errors.append('Schedule name and Process name cannot be empty.')
+        _errors.append('Schedule name and Process name cannot be empty.')
 
-    scheduled_process = await scheduler_db_services.read_scheduled_process_name(schedule_process_name)
+    scheduled_process = await scheduler_db_services.read_scheduled_processes(schedule_process_name)
 
     if not scheduled_process:
-        errors.append('No such Scheduled Process name: {}'.format(schedule_process_name))
+        _errors.append('No such Scheduled Process name: {}'.format(schedule_process_name))
 
-    return errors
+    return _errors
 
 
 async def _common_action_schedule(data):
     schedule_id = data.get('schedule_id', None)
     s_type = data.get('type', 0)
     schedule_type = int(s_type)
-    schedule_day = data.get('day', None)
-    schedule_time = data.get('time', None)
+    s_day = data.get('day', 0)
+    s_time = data.get('time', 0)
+    schedule_day = int(s_day)
+    schedule_time = int(s_time)
     schedule_name = data.get('name', None)
     schedule_process_name = data.get('process_name', None)
-    schedule_repeat = data.get('repeat', None)
-    schedule_exclusive = data.get('exclusive', None)
+    schedule_repeat = datetime.timedelta(seconds=int(data.get('repeat', 1)))
+    schedule_exclusive = data.get('exclusive', True)
 
     go_no_go = await _check_schedule_post_parameters(schedule_id,
                                                schedule_type,
@@ -275,7 +281,7 @@ async def _common_action_schedule(data):
                                                schedule_repeat,
                                                schedule_exclusive
                                                )
-    if not go_no_go:
+    if len(go_no_go) != 0:
         raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
 
     # Start Scheduler to use its services
@@ -283,18 +289,20 @@ async def _common_action_schedule(data):
     await scheduler.start()
 
     # Create schedule object as Scheduler.save_schedule requires an object
-    if schedule_type == Scheduler._ScheduleType.TIMED:
+    if schedule_type == Scheduler._ScheduleType.STARTUP:
+        schedule = StartUpSchedule()
+    elif schedule_type == Scheduler._ScheduleType.TIMED:
         schedule = TimedSchedule()
-
-        #  day and time are valid only for TIMED schedule
         schedule.day = schedule_day
         schedule.time = schedule_time
-    else:
-        schedule = Schedule()
+    elif schedule_type == Scheduler._ScheduleType.INTERVAL:
+        schedule = IntervalSchedule()
+    elif schedule_type == Scheduler._ScheduleType.MANUAL:
+        schedule = ManualSchedule()
 
     # Populate scheduler object
-    schedule.id = schedule_id
-    schedule.schedule_type = schedule_type
+    schedule.schedule_id = schedule_id
+    # schedule.schedule_type = schedule_type
     schedule.name = schedule_name
     schedule.process_name = schedule_process_name
     schedule.repeat = schedule_repeat
@@ -305,9 +313,11 @@ async def _common_action_schedule(data):
 
     await stop_scheduler(scheduler)
 
-
 async def post_schedule(request):
-    """Create a new schedule in schedules table"""
+    """Create a new schedule in schedules table
+
+        Example: curl -d '{"type": 3, "name": "sleep1", "process_name": "sleep1", "repeat": "1"}'  -X POST  http://localhost:8082/foglamp/schedule
+    """
 
     try:
         data = await request.json()
@@ -318,6 +328,7 @@ async def post_schedule(request):
 
         await _common_action_schedule(data)
 
+        # TODO: Ask Terris to return schedule_id from save_schedule
         return web.json_response({'message': 'Schedule {} created successfully.'.format(schedule_id)})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
@@ -326,7 +337,10 @@ async def post_schedule(request):
 
 
 async def update_schedule(request):
-    """Update a schedule in schedules table"""
+    """Update a schedule in schedules table
+
+        Example: curl -d '{"schedule_id": "3115ccf6-101d-4604-8813-253adb9af627", "type": 3, "name": "sleep1 updated", "process_name": "sleep1", "repeat": "1"}'  -X PUT  http://localhost:8082/foglamp/schedule
+    """
 
     try:
         data = await request.json()
@@ -349,7 +363,11 @@ async def update_schedule(request):
 
 
 async def delete_schedule(request):
-    """Delete a schedule from schedules table"""
+    """Delete a schedule from schedules table
+
+        Example: curl -d '{"schedule_id": "fc90ee31-bda9-4e9a-bbf4-f6e927487f67"}'  -X DELETE  http://localhost:8082/foglamp/schedule
+    """
+
     try:
         data = await request.json()
         schedule_id = data.get('schedule_id', None)

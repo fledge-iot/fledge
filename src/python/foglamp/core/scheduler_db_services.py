@@ -17,28 +17,7 @@ __version__ = "${VERSION}"
 __DB_NAME = 'foglamp'
 
 
-async def read_scheduled_processes():
-    conn = await asyncpg.connect(database=__DB_NAME)
-    query = """
-        SELECT name, script from scheduled_processes
-    """
-
-    stmt = await conn.prepare(query)
-
-    rows = await stmt.fetch()
-
-    columns = ('name', 'script')
-
-    results = []
-    for row in rows:
-        results.append(dict(zip(columns, row)))
-
-    await conn.close()
-
-    return results
-
-
-async def read_scheduled_process_name(scheduled_process_name=None):
+async def read_scheduled_processes(scheduled_process_name=None):
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT name, script from scheduled_processes

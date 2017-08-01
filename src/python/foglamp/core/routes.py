@@ -28,14 +28,15 @@ def setup(app):
 
     # Scheduler
     # Scheduled_processes - As per doc
-    app.router.add_route('GET', '/foglamp/schedule/process', api.get_scheduled_processes)
+    app.router.add_route('GET', '/foglamp/scheduled/processes', api.get_scheduled_processes)
+    app.router.add_route('GET', '/foglamp/scheduled/process/{scheduled_process_name}', api.get_scheduled_process)
 
     # Schedules - As per doc
     app.router.add_route('GET', '/foglamp/schedules', api.get_schedules)
     app.router.add_route('POST', '/foglamp/schedule', api.post_schedule)
     app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api.get_schedule)
-    app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api.update_schedule)
-    app.router.add_route('DELETE', '/foglamp/schedule/{schedule_id}', api.delete_schedule)
+    app.router.add_route('PUT', '/foglamp/schedule', api.update_schedule)
+    app.router.add_route('DELETE', '/foglamp/schedule', api.delete_schedule)
 
     # Tasks - As per doc
     app.router.add_route('GET', '/foglamp/tasks', api.get_tasks)

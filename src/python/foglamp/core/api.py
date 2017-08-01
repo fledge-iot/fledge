@@ -192,58 +192,98 @@ async def get_schedule(request):
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
+def _check_schedule_post_parameters(schedule_id,
+                                    schedule_type,
+                                    schedule_day,
+                                    schedule_time,
+                                    schedule_name,
+                                    schedule_process_name,
+                                    schedule_repeat,
+                                    schedule_exclusive
+                                   ):
+
+    errors = []
+
+    # Raise error if schedule_type is missing
+    if not schedule_type:
+        errors.append('Schedule type cannot be empty.')
+
+    # Raise error if schedule_type is wrong
+    if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
+                             Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+        errors.append('Schedule type error: {}'.format(schedule_type))
+
+    if schedule_type == Scheduler._ScheduleType.TIMED:
+        # Raise error if day and time are missing for schedule_type = TIMED
+        if not schedule_day or not schedule_time:
+            errors.append('Schedule day and time cannot be empty for TIMED schedule.')
+    # TODO: day and time must be integers
+
+    # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
+
+    # Raise error if name and process_name are missing
+    if not schedule_name or not schedule_process_name:
+        errors.append('Schedule name and Process name cannot be empty.')
+
+    # TODO: process_name must be picked from scheduled_processes
+    return errors
+
+
+# TODO: Furthre refactor post and update for common code
+
+
 async def post_schedule(request):
     """Create a new schedule in schedules table"""
 
     try:
         data = await request.json()
-        schedule_id = data.get('schedule_id', None)
 
+        schedule_id = data.get('schedule_id', None)
         if schedule_id:
             raise ValueError('Schedule ID not needed for new Schedule.')
+
+        s_type = data.get('type', 0)
+        schedule_type = int(s_type)
+        schedule_day = data.get('day', None)
+        schedule_time = data.get('time', None)
+        schedule_name = data.get('name', None)
+        schedule_process_name = data.get('process_name', None)
+        schedule_repeat = data.get('repeat', None)
+        schedule_exclusive = data.get('exclusive', None)
+
+        go_no_go = _check_schedule_post_parameters(schedule_id,
+                                                    schedule_type,
+                                                    schedule_day,
+                                                    schedule_time,
+                                                    schedule_name,
+                                                    schedule_process_name,
+                                                    schedule_repeat,
+                                                    schedule_exclusive
+                                                   )
+        if not go_no_go:
+            raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
 
         # Start Scheduler to use its services
         scheduler = Scheduler()
         await scheduler.start()
-
-        schedule_type = data.get('schedule_type', None)
-
-        # Raise error if schedule_type is missing
-        if not schedule_type:
-            raise ValueError('Schedule type cannot be empty.')
-
-        # Raise error if schedule_type is wrong
-        if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
-                                 Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
-            raise ValueError('Schedule type error: {}'.format(schedule_type))
 
         # Create schedule object as Scheduler.save_schedule requires an object
         if schedule_type == Scheduler._ScheduleType.TIMED:
             schedule = TimedSchedule()
 
             #  day and time are valid only for TIMED schedule
-            schedule.day = data.get('day', None)
-            schedule.time = data.get('time', None)
-
-            # Raise error if day and time are missing for schedule_type = TIMED
-            if not schedule.day or not schedule.time:
-                raise ValueError('Schedule day and time cannot be empty for TIMED schedule.')
+            schedule.day = schedule_day
+            schedule.time = schedule_time
         else:
             schedule = Schedule()
 
         #  Populate scheduler object
         schedule.id = schedule_id
-        schedule.schedule_type = int(schedule_type)
-
-        schedule.name = data.get('name', None)
-        schedule.process_name = data.get('process_name', None)
-
-        # Raise error if name and process_name are missing
-        if not schedule.name or not schedule.process_name:
-            raise ValueError('Schedule name and Process name cannot be empty.')
-
-        schedule.repeat = data.get('repeat', None)
-        schedule.exclusive = data.get('exclusive', None)
+        schedule.schedule_type = schedule_type
+        schedule.name = schedule_name
+        schedule.process_name = schedule_process_name
+        schedule.repeat = schedule_repeat
+        schedule.exclusive = schedule_exclusive
 
         # Save schedule
         await scheduler.save_schedule(schedule)
@@ -271,20 +311,30 @@ async def update_schedule(request):
         if not is_schedule:
             raise ValueError('No such Schedule: {}.'.format(schedule_id))
 
+        s_type = data.get('type', 0)
+        schedule_type = int(s_type)
+        schedule_day = data.get('day', None)
+        schedule_time = data.get('time', None)
+        schedule_name = data.get('name', None)
+        schedule_process_name = data.get('process_name', None)
+        schedule_repeat = data.get('repeat', None)
+        schedule_exclusive = data.get('exclusive', None)
+
+        go_no_go = _check_schedule_post_parameters(schedule_id,
+                                                    schedule_type,
+                                                    schedule_day,
+                                                    schedule_time,
+                                                    schedule_name,
+                                                    schedule_process_name,
+                                                    schedule_repeat,
+                                                    schedule_exclusive
+                                                   )
+        if not go_no_go:
+            raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
+
         # Start Scheduler to use its services
         scheduler = Scheduler()
         await scheduler.start()
-
-        schedule_type = data.get('schedule_type', None)
-
-        # Raise error if schedule_type is missing
-        if not schedule_type:
-            raise ValueError('Schedule type cannot be empty.')
-
-        # Raise error if schedule_type is wrong
-        if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
-                                 Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
-            raise ValueError('Schedule type error: {}'.format(schedule_type))
 
         # Create schedule object as Scheduler.save_schedule requires an object
         if schedule_type == Scheduler._ScheduleType.TIMED:
@@ -292,26 +342,16 @@ async def update_schedule(request):
 
             schedule.day = data.get('day', None)
             schedule.time = data.get('time', None)
-
-            # Raise error if day and time are missing for schedule_type = TIMED
-            if not schedule.day or not schedule.time:
-                raise ValueError('Schedule day and time cannot be empty for TIMED schedule.')
         else:
             schedule = Schedule()
 
         #  Populate scheduler object
         schedule.id = schedule_id
-        schedule.schedule_type = int(schedule_type)
-
-        schedule.name = data.get('name', None)
-        schedule.process_name = data.get('process_name', None)
-
-        # Raise error if name and process_name are missing
-        if not schedule.name or not schedule.process_name:
-            raise ValueError('Schedule name and Process name cannot be empty.')
-
-        schedule.repeat = data.get('repeat', None)
-        schedule.exclusive = data.get('exclusive', None)
+        schedule.schedule_type = schedule_type
+        schedule.name = schedule_name
+        schedule.process_name = schedule_process_name
+        schedule.repeat = schedule_repeat
+        schedule.exclusive = schedule_exclusive
 
         # Update schedule
         await scheduler.save_schedule(schedule)

@@ -36,6 +36,10 @@ class SchedulerPausedError(RuntimeError):
     pass
 
 
+class SchedulerStoppedError(RuntimeError):
+    pass
+
+
 class TaskRunningError(RuntimeError):
     def __init__(self, schedule_id: uuid.UUID, *args):
         self.schedule_id = schedule_id
@@ -165,13 +169,15 @@ class Scheduler(object):
 
     class _ScheduleExecution(object):
         """Tracks information about schedules"""
-        __slots__ = ['next_start_time', 'task_processes', 'start_now']
+        __slots__ = ['next_start_time', 'task_processes', 'start_now', 'in_use']
 
         def __init__(self):
             self.next_start_time = None
             """When to next start a task for the schedule"""
             self.task_processes = dict()
             """dict of task id to _TaskProcess"""
+            self.in_use = False
+            """True when this item is in use and shouldn't be deleted"""
             self.start_now = False
             """True when a task is queued to start via :meth:`start_task`"""
 
@@ -194,16 +200,18 @@ class Scheduler(object):
     def __init__(self):
         """Constructor"""
 
-        # Class attributes
-        if not self._logger:
-            # self._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            self._logger = logger.setup(__name__, level=logging.DEBUG)
-            # self._logger = logger.setup(__name__)
+        cls = Scheduler
 
-        if not self._schedules_tbl:
+        # Class attributes
+        if not cls._logger:
+            # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
+            cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            # cls._logger = logger.setup(__name__)
+
+        if cls._schedules_tbl is None:
             metadata = sa.MetaData()
 
-            self._schedules_tbl = sa.Table(
+            cls._schedules_tbl = sa.Table(
                 'schedules',
                 metadata,
                 sa.Column('id', pg_types.UUID),
@@ -215,7 +223,7 @@ class Scheduler(object):
                 sa.Column('schedule_interval', sa.types.Interval),
                 sa.Column('exclusive', sa.types.BOOLEAN))
 
-            self._tasks_tbl = sa.Table(
+            cls._tasks_tbl = sa.Table(
                 'tasks',
                 metadata,
                 sa.Column('id', pg_types.UUID),
@@ -227,7 +235,7 @@ class Scheduler(object):
                 sa.Column('exit_code', sa.types.INT),
                 sa.Column('reason', sa.types.VARCHAR(255)))
 
-            self._scheduled_processes_tbl = sa.Table(
+            cls._scheduled_processes_tbl = sa.Table(
                 'scheduled_processes',
                 metadata,
                 sa.Column('name', pg_types.VARCHAR(20)),
@@ -263,6 +271,9 @@ class Scheduler(object):
             A task is still running. Wait and try again.
         """
         self._logger.info("Stop requested")
+
+        if not self._start_time:
+            return
 
         # Stop the main loop
         self._paused = True
@@ -313,36 +324,27 @@ class Scheduler(object):
         """Starts a task process
 
         Raises:
-            IOError: If the process could not start
+            EnvironmentError: If the process could not start
 
         """
         if self._paused:
             raise SchedulerPausedError
 
-        task_id = uuid.uuid4()
         args = self._process_scripts[schedule.process_name]
-
-        # The active task count is incremented prior to any
-        # 'await' calls. Otherwise, a stop() request
-        # would terminate before the process gets
-        # started and tracked.
-        self._active_task_count += 1
-        process = None
 
         try:
             process = await asyncio.create_subprocess_exec(*args)
         except EnvironmentError:
             self._logger.exception(
-                "Unable to start schedule '%s' process '%s' task %s\n%s".format(
-                    schedule.name, schedule.process_name, task_id, args))
-        finally:
-            if not process:
-                self._active_task_count -= 1
+                "Unable to start schedule '%s' process '%s'\n%s".format(
+                    schedule.name, schedule.process_name, args))
+            raise
 
         task_process = self._TaskProcess()
         task_process.process = process
         task_process.script = args
 
+        task_id = uuid.uuid4()
         self._schedule_executions[schedule.id].task_processes[task_id] = task_process
 
         self._logger.info(
@@ -458,6 +460,9 @@ class Scheduler(object):
         if self._paused:
             raise SchedulerPausedError()
 
+        if not self._start_time:
+            raise SchedulerStoppedError()
+
         try:
             schedule_row = self._schedules[schedule_id]
         except KeyError:
@@ -513,7 +518,6 @@ class Scheduler(object):
 
             if right_time or schedule_execution.start_now:
                 # Time to start a task
-
                 # Queued manual execution is ignored if it was
                 # already time to run the task. The task doesn't
                 # start twice even when nonexclusive.
@@ -530,17 +534,27 @@ class Scheduler(object):
                     # Or the schedule doesn't repeat
                     next_start_time = None
 
+                # The active task count is incremented prior to any
+                # 'await' calls. Otherwise, a stop() request
+                # would terminate before the process gets
+                # started and tracked.
+                self._active_task_count += 1
+                schedule_execution.in_use = True
                 try:
                     await self._start_task(schedule)
-                except IOError:
-                    # Avoid constantly running into the same error
-                    if not schedule_execution.task_processes:
-                        try:
-                            del self._schedule_executions[schedule.id]
-                        except KeyError:
-                            pass
+                    success = True
                 except SchedulerPausedError:
                     return None
+                finally:
+                    schedule_execution.in_use = False
+                    if not success:
+                        self._active_task_count -= 1
+                        if not schedule_execution.task_processes:
+                            # Avoid constantly running into the same error
+                            try:
+                                del self._schedule_executions[schedule.id]
+                            except KeyError:
+                                pass
 
             # Keep track of the earliest next_start_time
             if next_start_time is not None and (earliest_start_time is None
@@ -796,7 +810,8 @@ class Scheduler(object):
             TasksRunningError
         """
         try:
-            if self._schedule_executions[schedule_id].task_processes:
+            schedule_execution = self._schedule_executions[schedule_id]
+            if schedule_execution.in_use or schedule_execution.task_processes:
                 raise TaskRunningError(schedule_id)
             del self._schedule_executions[schedule_id]
         except KeyError:

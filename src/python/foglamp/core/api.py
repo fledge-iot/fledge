@@ -3,12 +3,13 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
+import asyncio
 import time
 import re
 from aiohttp import web
 from foglamp import configuration_manager
 from foglamp.core import scheduler_db_services, statistics_db_services
+from foglamp.core.scheduler import Scheduler, Schedule, TimedSchedule
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -135,6 +136,15 @@ async def set_configuration_item(request):
 #  Scheduler Services
 #################################
 
+@staticmethod
+async def stop_scheduler(scheduler: Scheduler)->None:
+    while True:
+        try:
+            await scheduler.stop()
+            break
+        except TimeoutError:
+            await asyncio.sleep(1)
+
 # Scheduled_processes
 
 async def get_scheduled_processes(request):
@@ -184,15 +194,164 @@ async def get_schedule(request):
 
 async def post_schedule(request):
     """Create a new schedule in schedules table"""
-    pass
+
+    try:
+        data = await request.json()
+        schedule_id = data.get('schedule_id', None)
+
+        if schedule_id:
+            raise ValueError('Schedule ID not needed for new Schedule.')
+
+        # Start Scheduler to use its services
+        scheduler = Scheduler()
+        await scheduler.start()
+
+        schedule_type = data.get('schedule_type', None)
+
+        # Raise error if schedule_type is missing
+        if not schedule_type:
+            raise ValueError('Schedule type cannot be empty.')
+
+        # Raise error if schedule_type is wrong
+        if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
+                                 Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+            raise ValueError('Schedule type error: {}'.format(schedule_type))
+
+        # Create schedule object as Scheduler.save_schedule requires an object
+        if schedule_type == Scheduler._ScheduleType.TIMED:
+            schedule = TimedSchedule()
+
+            #  day and time are valid only for TIMED schedule
+            schedule.day = data.get('day', None)
+            schedule.time = data.get('time', None)
+
+            # Raise error if day and time are missing for schedule_type = TIMED
+            if not schedule.day or not schedule.time:
+                raise ValueError('Schedule day and time cannot be empty for TIMED schedule.')
+        else:
+            schedule = Schedule()
+
+        #  Populate scheduler object
+        schedule.id = schedule_id
+        schedule.schedule_type = int(schedule_type)
+
+        schedule.name = data.get('name', None)
+        schedule.process_name = data.get('process_name', None)
+
+        # Raise error if name and process_name are missing
+        if not schedule.name or not schedule.process_name:
+            raise ValueError('Schedule name and Process name cannot be empty.')
+
+        schedule.repeat = data.get('repeat', None)
+        schedule.exclusive = data.get('exclusive', None)
+
+        # Save schedule
+        await scheduler.save_schedule(schedule)
+
+        await stop_scheduler(scheduler)
+
+        return web.json_response({'message': 'Schedule {} created successfully.'.format(schedule_id)})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
 
 async def update_schedule(request):
     """Update a schedule in schedules table"""
-    pass
+
+    try:
+        data = await request.json()
+        schedule_id = data.get('schedule_id', None)
+
+        if not schedule_id:
+            raise ValueError('No such Schedule.')
+
+        is_schedule = await scheduler_db_services.read_schedule(schedule_id)
+        if not is_schedule:
+            raise ValueError('No such Schedule: {}.'.format(schedule_id))
+
+        # Start Scheduler to use its services
+        scheduler = Scheduler()
+        await scheduler.start()
+
+        schedule_type = data.get('schedule_type', None)
+
+        # Raise error if schedule_type is missing
+        if not schedule_type:
+            raise ValueError('Schedule type cannot be empty.')
+
+        # Raise error if schedule_type is wrong
+        if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
+                                 Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+            raise ValueError('Schedule type error: {}'.format(schedule_type))
+
+        # Create schedule object as Scheduler.save_schedule requires an object
+        if schedule_type == Scheduler._ScheduleType.TIMED:
+            schedule = TimedSchedule()
+
+            schedule.day = data.get('day', None)
+            schedule.time = data.get('time', None)
+
+            # Raise error if day and time are missing for schedule_type = TIMED
+            if not schedule.day or not schedule.time:
+                raise ValueError('Schedule day and time cannot be empty for TIMED schedule.')
+        else:
+            schedule = Schedule()
+
+        #  Populate scheduler object
+        schedule.id = schedule_id
+        schedule.schedule_type = int(schedule_type)
+
+        schedule.name = data.get('name', None)
+        schedule.process_name = data.get('process_name', None)
+
+        # Raise error if name and process_name are missing
+        if not schedule.name or not schedule.process_name:
+            raise ValueError('Schedule name and Process name cannot be empty.')
+
+        schedule.repeat = data.get('repeat', None)
+        schedule.exclusive = data.get('exclusive', None)
+
+        # Update schedule
+        await scheduler.save_schedule(schedule)
+
+        await stop_scheduler(scheduler)
+
+        return web.json_response({'message': 'Schedule {} updated successfully.'.format(schedule_id)})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
 
 async def delete_schedule(request):
     """Delete a schedule from schedules table"""
-    pass
+    try:
+        data = await request.json()
+        schedule_id = data.get('schedule_id', None)
+
+        if not schedule_id:
+            raise ValueError('No such Schedule.')
+
+        is_schedule = await scheduler_db_services.read_schedule(schedule_id)
+        if not is_schedule:
+            raise ValueError('No such Schedule: {}.'.format(schedule_id))
+
+        # Start Scheduler to use its services
+        scheduler = Scheduler()
+        await scheduler.start()
+
+        await scheduler.delete_schedule(schedule_id)
+
+        await stop_scheduler(scheduler)
+
+        return web.json_response({'message': 'Schedule {} deleted successfully.'.format(schedule_id)})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
 
 
 # Tasks

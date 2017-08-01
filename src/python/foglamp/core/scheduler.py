@@ -32,11 +32,7 @@ __version__ = "${VERSION}"
 _CONNECTION_STRING = "dbname='foglamp'"
 
 
-class SchedulerPausedError(RuntimeError):
-    pass
-
-
-class SchedulerStoppedError(RuntimeError):
+class NotReadyError(RuntimeError):
     pass
 
 
@@ -242,10 +238,12 @@ class Scheduler(object):
                 sa.Column('script', pg_types.JSONB))
 
         # Instance attributes
-        self.max_active_tasks = self.DEFAULT_MAX_ACTIVE_TASKS
-        """Maximum number of active task subprocesses"""
+        self._ready = False
+        """True when the scheduler is ready to accept API calls"""
         self._start_time = None
         """When the scheduler started"""
+        self.max_active_tasks = self.DEFAULT_MAX_ACTIVE_TASKS
+        """Maximum number of active task subprocesses"""
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
         self._process_scripts = dict()
@@ -267,8 +265,8 @@ class Scheduler(object):
         Prevents any new tasks from starting. This can be undone by setting the
         _paused attribute to False.
 
-        Raises TimeoutError:
-            A task is still running. Wait and try again.
+        Raises:
+            TimeoutError: A task is still running. Wait and try again.
         """
         self._logger.info("Stop requested")
 
@@ -316,6 +314,8 @@ class Scheduler(object):
             raise TimeoutError()
 
         self._logger.info("Stopped")
+
+        self._ready = False
         self._start_time = None
 
         return True
@@ -328,7 +328,7 @@ class Scheduler(object):
 
         """
         if self._paused:
-            raise SchedulerPausedError
+            raise NotReadyError
 
         args = self._process_scripts[schedule.process_name]
 
@@ -457,11 +457,8 @@ class Scheduler(object):
                 The task has already been queued for execution
 
         """
-        if self._paused:
-            raise SchedulerPausedError()
-
-        if not self._start_time:
-            raise SchedulerStoppedError()
+        if self._paused or not self._ready:
+            raise NotReadyError()
 
         try:
             schedule_row = self._schedules[schedule_id]
@@ -543,7 +540,7 @@ class Scheduler(object):
                 try:
                     await self._start_task(schedule)
                     success = True
-                except SchedulerPausedError:
+                except NotReadyError:
                     return None
                 finally:
                     schedule_execution.in_use = False
@@ -798,38 +795,8 @@ class Scheduler(object):
 
                 self._main_sleep_task = None
 
-    async def delete_schedule(self, schedule_id: uuid.UUID):
-        """Deletes a schedule
-
-        Args:
-            schedule_id
-
-        Raises:
-            ScheduleNotFoundError
-
-            TasksRunningError
-        """
-        try:
-            schedule_execution = self._schedule_executions[schedule_id]
-            if schedule_execution.in_use or schedule_execution.task_processes:
-                raise TaskRunningError(schedule_id)
-            del self._schedule_executions[schedule_id]
-        except KeyError:
-            pass
-
-        try:
-            del self._schedules[schedule_id]
-        except KeyError:
-            raise ScheduleNotFoundError(schedule_id)
-
-        # TODO If the delete fails, ..
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                await conn.execute(self._schedules_tbl.delete().where(
-                    self._schedules_tbl.c.id == str(schedule_id)))
-
     @staticmethod
-    async def reset_for_testing():
+    async def populate_test_data():
         """Delete all schedule-related tables and insert processes for testing"""
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
@@ -849,7 +816,13 @@ class Scheduler(object):
         Args:
             schedule:
                 The id can be None, in which case a new id will be generated
+
+        Raises:
+            NotReadyError: The scheduler is not ready for requests
         """
+        if self._paused or not self._ready:
+            raise NotReadyError()
+
         schedule_type = None
         day = None
         schedule_time = None
@@ -940,6 +913,53 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, time.time())
             self._resume_check_schedules()
 
+    async def delete_schedule(self, schedule_id: uuid.UUID):
+        """Deletes a schedule
+
+        Args:
+            schedule_id
+
+        Raises:
+            ScheduleNotFoundError
+
+            TasksRunningError
+
+            NotReadyError
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        try:
+            schedule_execution = self._schedule_executions[schedule_id]
+            if schedule_execution.in_use or schedule_execution.task_processes:
+                raise TaskRunningError(schedule_id)
+            del self._schedule_executions[schedule_id]
+        except KeyError:
+            pass
+
+        try:
+            del self._schedules[schedule_id]
+        except KeyError:
+            raise ScheduleNotFoundError(schedule_id)
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                await conn.execute(self._schedules_tbl.delete().where(
+                    self._schedules_tbl.c.id == str(schedule_id)))
+
+    async def cancel_task(self, task_id: uuid.UUID)->None:
+        """Cancels a running task
+
+        Args:
+
+        Raises:
+            NotReadyError
+
+            TaskNotFoundError
+        """
+        if self._paused or not self._ready:
+            raise NotReadyError()
+
     async def start(self):
         """Starts the scheduler
 
@@ -947,8 +967,8 @@ class Scheduler(object):
         scheduled that starts tasks and monitors subprocesses. This class
         does not use threads (tasks run as subprocesses).
 
-        Raises RuntimeError:
-            Scheduler already started
+        Raises:
+            RuntimeError: Scheduler already started
         """
         if self._start_time:
             raise RuntimeError("The scheduler is already running")
@@ -963,4 +983,5 @@ class Scheduler(object):
         await self._mark_tasks_interrupted()
         await self._read_storage()
 
+        self._ready = True
         asyncio.ensure_future(self._main_loop())

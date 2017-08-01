@@ -32,7 +32,7 @@ class TestScheduler:
     async def test1(self):
         scheduler = Scheduler()
 
-        await scheduler.reset_for_testing()
+        await scheduler.populate_test_data()
         await scheduler.start()
 
         interval_schedule = IntervalSchedule()
@@ -81,7 +81,7 @@ class TestScheduler:
     async def test_delete(self):
         scheduler = Scheduler()
 
-        await scheduler.reset_for_testing()
+        await scheduler.populate_test_data()
         await scheduler.start()
 
         interval_schedule = IntervalSchedule()

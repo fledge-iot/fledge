@@ -404,7 +404,16 @@ class Scheduler(object):
         schedule_execution = self._schedule_executions[schedule.id]
         del schedule_execution.task_processes[task_process.task_id]
 
-        if self._paused or schedule.repeat is None and not schedule_execution.start_now:
+        # Pick up modifications to the schedule
+        # Or maybe it's been deleted
+        try:
+            schedule = self._schedules[schedule.id]
+            schedule_deleted = False
+        except KeyError:
+            schedule_deleted = True
+
+        if self._paused or schedule_deleted or (
+                            schedule.repeat is None and not schedule_execution.start_now):
             if schedule_execution.next_start_time:
                 schedule_execution.next_start_time = None
                 self._logger.info(
@@ -436,6 +445,8 @@ class Scheduler(object):
         # Due to maximum active tasks reached it is necessary to
         # look for schedules that are ready to run even if there
         # are only manual tasks waiting
+        # TODO Do this only if len(_task_processes) >= max_processes or
+        # an exclusive task finished and ( start_now or schedule.repeats )
         self._resume_check_schedules()
 
         # This must occur after all awaiting! The size of _task_processes
@@ -596,13 +607,20 @@ class Scheduler(object):
         if schedule.type == self._ScheduleType.INTERVAL:
             advance_seconds = schedule.repeat_seconds
 
+            # When modifying a schedule, this is imprecise if the
+            # schedule is exclusive and a task is running. When the
+            # task finishes, next_start_time will be incremented
+            # by at least schedule.repeat, thus missing the interval at
+            # start_time + advance_seconds. Fixing this required an if statement
+            # in _schedule_next_task. Search for AVOID_ALTER_NEXT_START
+
             if advance_seconds:
                 advance_seconds *= max([1, math.ceil(
                     (current_time - self._start_time) / advance_seconds)])
             else:
                 advance_seconds = 0
 
-            schedule_execution.next_start_time = current_time + advance_seconds
+            schedule_execution.next_start_time = self._start_time + advance_seconds
         elif schedule.type == self._ScheduleType.TIMED:
             self._schedule_next_timed_task(
                 schedule,
@@ -612,7 +630,7 @@ class Scheduler(object):
             schedule_execution.next_start_time = current_time
 
         self._logger.info(
-            "Scheduled '%s' for %s", schedule.name,
+            "Scheduled task for schedule '%s' to start at %s", schedule.name,
             datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
     def _schedule_next_task(self, schedule):
@@ -635,13 +653,14 @@ class Scheduler(object):
             schedule_execution.next_start_time = None
             self._logger.info(
                 "Tasks will no longer execute for schedule '%s'", schedule.name)
-            return False
+            return
 
         now = time.time()
 
         if schedule.exclusive and now < schedule_execution.next_start_time:
             # The task was started manually
-            return False
+            # Or the schedule was modified after the task started (AVOID_ALTER_NEXT_START)
+            return
 
         if advance_seconds:
             advance_seconds *= max([1, math.ceil(
@@ -665,10 +684,8 @@ class Scheduler(object):
                 schedule_execution.next_start_time += advance_seconds
 
             self._logger.info(
-                "Scheduled '%s' for %s", schedule.name,
+                "Scheduled task for schedule '%s' to start at %s", schedule.name,
                 datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
-
-        return True
 
     async def _get_process_scripts(self):
         query = sa.select([self._scheduled_processes_tbl.c.name,

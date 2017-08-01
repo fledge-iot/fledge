@@ -69,6 +69,17 @@ class TaskState(IntEnum):
     INTERRUPTED = 4
 
 
+class Task(object):
+    """Tasks"""
+    __slots__ = ['task_id', 'process_name']
+
+    def __init__(self):
+        self.task_id = None
+        """uuid.UUID"""
+        self.process_name = None
+        """str"""
+
+
 class Schedule(object):
     """Schedule base class"""
     __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
@@ -309,9 +320,11 @@ class Scheduler(object):
 
             try:
                 task_process.process.terminate()
-                await asyncio.sleep(.1)  # sleep .01 doesn't give the process enough time to quit
             except ProcessLookupError:
                 pass  # Process has terminated
+
+        if self._task_processes:
+            await asyncio.sleep(5)  # sleep .01 doesn't give the process enough time to quit
 
         if self._task_processes:
             raise TimeoutError()
@@ -807,6 +820,9 @@ class Scheduler(object):
                 await conn.execute(
                     '''insert into foglamp.scheduled_processes(name, script)
                     values('sleep10', '["sleep", "10"]')''')
+                await conn.execute(
+                    '''insert into foglamp.scheduled_processes(name, script)
+                    values('sleep30', '["sleep", "30"]')''')
 
     async def save_schedule(self, schedule: Schedule):
         """Creates or update a schedule
@@ -935,6 +951,27 @@ class Scheduler(object):
                 await conn.execute(self._schedules_tbl.delete().where(
                     self._schedules_tbl.c.id == str(schedule_id)))
 
+    async def get_active_tasks(self):
+        """Retrieves a list of all tasks that are currently running
+
+        Returns:
+            An empty list if no tasks are running
+
+            A list of Task objects
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        tasks = []
+
+        for (task_id, task_process) in self._task_processes.items():
+            task = Task()
+            task.task_id = task_id
+            task.process_name = task_process.schedule.process_name
+            tasks.append(task)
+
+        return tasks
+
     async def cancel_task(self, task_id: uuid.UUID)->None:
         """Cancels a running task
 
@@ -1008,4 +1045,3 @@ class Scheduler(object):
         self._ready = True
 
         self._main_loop_task = asyncio.ensure_future(self._main_loop())
-

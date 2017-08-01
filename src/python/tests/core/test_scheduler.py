@@ -119,3 +119,21 @@ class TestScheduler:
 
         await self.stop_scheduler(scheduler)
 
+    @pytest.mark.asyncio
+    async def test_cancel(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'cancel_test'
+        interval_schedule.process_name = "sleep30"
+        await scheduler.save_schedule(interval_schedule)
+
+        await asyncio.sleep(5)
+        tasks = await scheduler.get_active_tasks()
+        await scheduler.cancel_task(tasks[0].task_id)
+
+        await self.stop_scheduler(scheduler)
+

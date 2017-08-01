@@ -29,7 +29,25 @@ class TestScheduler:
                 await asyncio.sleep(1)
 
     @pytest.mark.asyncio
-    async def test1(self):
+    async def test_stop(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.exclusive = False
+        interval_schedule.name = 'sleep1'
+        interval_schedule.process_name = "sleep1"
+        interval_schedule.repeat = datetime.timedelta(seconds=1)
+
+        await scheduler.save_schedule(interval_schedule)
+        await asyncio.sleep(10)
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_save(self):
         scheduler = Scheduler()
 
         await scheduler.populate_test_data()

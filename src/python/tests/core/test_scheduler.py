@@ -8,6 +8,7 @@ import asyncio
 import datetime
 
 import pytest
+import uuid
 
 from foglamp.core.scheduler import Scheduler, IntervalSchedule, ScheduleNotFoundError
 
@@ -29,7 +30,25 @@ class TestScheduler:
                 await asyncio.sleep(1)
 
     @pytest.mark.asyncio
-    async def test1(self):
+    async def test_stop(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.exclusive = False
+        interval_schedule.name = 'sleep1'
+        interval_schedule.process_name = "sleep1"
+        interval_schedule.repeat = datetime.timedelta(seconds=1)
+
+        await scheduler.save_schedule(interval_schedule)
+        await asyncio.sleep(10)
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_save(self):
         scheduler = Scheduler()
 
         await scheduler.populate_test_data()
@@ -101,3 +120,45 @@ class TestScheduler:
 
         await self.stop_scheduler(scheduler)
 
+    @pytest.mark.asyncio
+    async def test_cancel(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'cancel_test'
+        interval_schedule.process_name = "sleep30"
+        await scheduler.save_schedule(interval_schedule)
+
+        await asyncio.sleep(5)
+        tasks = await scheduler.get_running_tasks()
+        await scheduler.cancel_task(tasks[0].task_id)
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_get_schedule(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'get_schedules_test'
+        interval_schedule.process_name = "sleep30"
+        await scheduler.save_schedule(interval_schedule)
+
+        schedules = await scheduler.get_schedules()
+        assert len(schedules) == 1
+
+        await scheduler.get_schedule(interval_schedule.schedule_id)
+
+        try:
+            await scheduler.get_schedule(uuid.uuid4())
+            assert False
+        except ScheduleNotFoundError:
+            pass
+
+        await self.stop_scheduler(scheduler)

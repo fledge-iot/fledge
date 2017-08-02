@@ -58,8 +58,7 @@ import aiopg
 import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-from foglamp import statistics
-
+from foglamp import statistics,configuration_manager
 # Module information
 __author__ = "${FULL_NAME}"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -143,6 +142,17 @@ _sensor_name_type = {}
 """Associates the asset code to the corresponding type"""
 
 
+_DEFAULT_OMF_CONFIG = {
+    "relay_server_name": {
+        "description": "Host name/IP of OMF connector relay",
+        "type": "string",
+        "default": "WIN-4M7ODKB0RH2"
+    }
+}
+_CONFIG_CATEGORY_NAME = 'OMF_TRANS'
+_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
+
+
 # DB operations
 _pg_conn = ""
 _pg_cur = ""
@@ -182,7 +192,6 @@ def initialize_plugin():
 
     try:
         # URL
-        _server_name = "192.168.0.221"
         _relay_url = "http://" + _server_name + ":8118/ingress/messages"
 
         # OMF types definition - xxx
@@ -950,7 +959,6 @@ async def _update_statistics():
     _num_discarded_readings = 0
 
 if __name__ == "__main__":
-
     setup_logger()
 
     prg_text = ", for Linux (x86_64)"
@@ -959,11 +967,17 @@ if __name__ == "__main__":
     start_message = "\n" + _module_name + " - Ver " + version + "" + prg_text + "\n" + __copyright__ + "\n"
     debug_msg_write("", "{0}".format(start_message))
     debug_msg_write("INFO", _message_list["i000002"])
+    event_loop = asyncio.get_event_loop()
+    event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_OMF_CONFIG,
+                                                                        _CONFIG_CATEGORY_DESCRIPTION))
+    config = event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
+    _server_name = config['relay_server_name']['value']
 
     initialize_plugin()
     omf_types_creation()
 
-    asyncio.get_event_loop().run_until_complete(send_info_to_omf())
-    asyncio.get_event_loop().run_until_complete(_update_statistics())
+
+    event_loop.run_until_complete(send_info_to_omf())
+    event_loop.run_until_complete(_update_statistics())
 
     debug_msg_write("INFO", _message_list["i000003"])

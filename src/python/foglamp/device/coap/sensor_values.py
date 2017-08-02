@@ -56,9 +56,9 @@ class SensorValues(aiocoap.resource.Resource):
         self._num_readings = 0
         self._num_discarded_readings = 0
 
-    def register_handlers(self, resource_root):
+    def register_handlers(self, resource_root, uri):
         """Registers other/sensor_values URI"""
-        resource_root.add_resource(('other', 'sensor-values'), self)
+        resource_root.add_resource(('other', uri), self)
         return
 
     async def _update_statistics(self):

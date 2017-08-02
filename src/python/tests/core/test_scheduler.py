@@ -8,6 +8,7 @@ import asyncio
 import datetime
 
 import pytest
+import uuid
 
 from foglamp.core.scheduler import Scheduler, IntervalSchedule, ScheduleNotFoundError
 
@@ -138,7 +139,7 @@ class TestScheduler:
         await self.stop_scheduler(scheduler)
 
     @pytest.mark.asyncio
-    async def test_get_schedules(self):
+    async def test_get_schedule(self):
         scheduler = Scheduler()
 
         await scheduler.populate_test_data()
@@ -153,5 +154,11 @@ class TestScheduler:
         assert len(schedules) == 1
 
         await scheduler.get_schedule(interval_schedule.schedule_id)
+
+        try:
+            await scheduler.get_schedule(uuid.uuid4())
+            assert False
+        except ScheduleNotFoundError:
+            pass
 
         await self.stop_scheduler(scheduler)

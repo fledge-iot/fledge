@@ -11,6 +11,7 @@ used to execute SELECT statements against statistics, and INSERT against the sta
 """
 import sqlalchemy
 import sqlalchemy.dialects
+from datetime import datetime
 
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -81,7 +82,7 @@ def _list_stats_keys() -> list:
     return key_list
 
 
-def _insert_into_stats_history(key='', value=0):
+def _insert_into_stats_history(key='', value=0, history_ts=None):
     """
     INSERT values in statistics_history
     Args:
@@ -91,7 +92,7 @@ def _insert_into_stats_history(key='', value=0):
         Return the number of rows inserted. Since each process inserts only 1 row, the expected count should always 
         be 1. 
     """
-    stmt = _STATS_HISTORY_TABLE.insert().values(key=key, value=value)
+    stmt = _STATS_HISTORY_TABLE.insert().values(key=key, value=value, history_ts=history_ts)
     __query_execution(stmt)
 
 
@@ -132,12 +133,12 @@ def stats_history_main():
 
     # List of distinct statistics.keys values
     stats_key_value_list = _list_stats_keys()
-
+    current_time = datetime.now()
     for key in stats_key_value_list:
         stats_select_result = _select_from_statistics(key=key)
         value = int(stats_select_result[0][0])
         previous_value = int(stats_select_result[0][1])
-        _insert_into_stats_history(key=key, value=value-previous_value)
+        _insert_into_stats_history(key=key, value=value-previous_value, history_ts=current_time)
         _update_previous_value(key=key, value=value)
 
 if __name__ == '__main__':

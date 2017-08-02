@@ -62,16 +62,16 @@ class ScheduleNotFoundError(ValueError):
             "Schedule not found: {}".format(schedule_id), *args)
 
 
-class TaskState(IntEnum):
-    """Enumeration for tasks.task_state"""
-    RUNNING = 1
-    COMPLETE = 2
-    CANCELED = 3
-    INTERRUPTED = 4
-
-
 class Task(object):
-    """Tasks"""
+    """A task represents an operating system process"""
+
+    class TaskState(IntEnum):
+        """Enumeration for tasks.task_state"""
+        RUNNING = 1
+        COMPLETE = 2
+        CANCELED = 3
+        INTERRUPTED = 4
+
     __slots__ = ['task_id', 'process_name', 'state', 'cancel_requested', 'start_time',
                  'end_time', 'state']
 
@@ -80,10 +80,21 @@ class Task(object):
         """Unique identifier"""
         self.process_name = None  # type: str
         """From the scheduled_processes table"""
-        self.state = None  # type: TaskState
+        self.state = None  # type: Task.TaskState
         self.cancel_requested = None  # type: datetime.datetime
         self.start_time = None  # type: datetime.datetime
         self.end_time = None  # type: datetime.datetime
+
+
+class ScheduledProcess(object):
+    """Represents a program that a Task can run"""
+
+    __slots__ = ['name', 'script']
+
+    def __init__(self):
+        self.name = None  # type: str
+        """Unique identifier"""
+        self.script = None  # type: List[ str ]
 
 
 class Schedule(object):
@@ -398,7 +409,7 @@ class Scheduler(object):
                         pid=(self._schedule_executions[schedule.id].
                              task_processes[task_id].process.pid),
                         process_name=schedule.process_name,
-                        state=int(TaskState.RUNNING),
+                        state=int(Task.TaskState.RUNNING),
                         start_time=datetime.datetime.now()))
 
             asyncio.ensure_future(self._wait_for_task_completion(task_process))
@@ -428,11 +439,12 @@ class Scheduler(object):
         schedule_execution = self._schedule_executions[schedule.id]
         del schedule_execution.task_processes[task_process.task_id]
 
+        schedule_deleted = False
+
         # Pick up modifications to the schedule
         # Or maybe it's been deleted
         try:
             schedule = self._schedules[schedule.id]
-            schedule_deleted = False
         except KeyError:
             schedule_deleted = True
 
@@ -447,9 +459,9 @@ class Scheduler(object):
 
         if schedule.type != self._ScheduleType.STARTUP:
             if exit_code < 0 and task_process.cancel_requested:
-                state = TaskState.CANCELED
+                state = Task.TaskState.CANCELED
             else:
-                state = TaskState.COMPLETE
+                state = Task.TaskState.COMPLETE
 
             # Update the task's status
             # TODO if no row updated output a WARN row
@@ -728,7 +740,7 @@ class Scheduler(object):
                 await conn.execute(
                     self._tasks_tbl.update().where(
                         self._tasks_tbl.c.end_time is None).values(
-                            state=int(TaskState.INTERRUPTED),
+                            state=int(Task.TaskState.INTERRUPTED),
                             end_time=datetime.datetime.now()))
 
     async def _get_schedules(self):
@@ -968,8 +980,6 @@ class Scheduler(object):
                                   schedule_row: _ScheduleRow) -> Schedule:
         schedule_type = schedule_row.type
 
-        schedule = None
-
         if schedule_type == cls._ScheduleType.STARTUP:
             schedule = StartUpSchedule()
         elif schedule_type == cls._ScheduleType.TIMED:
@@ -978,6 +988,8 @@ class Scheduler(object):
             schedule = IntervalSchedule()
         elif schedule_type == cls._ScheduleType.MANUAL:
             schedule = ManualSchedule()
+        else:
+            raise ValueError("Unknown schedule type {}", schedule_type)
 
         schedule.schedule_id = schedule_id
         schedule.exclusive = schedule_row.exclusive
@@ -990,6 +1002,22 @@ class Scheduler(object):
             schedule.time = schedule_row.time
 
         return schedule
+
+    async def get_scheduled_processes(self) -> List[ScheduledProcess]:
+        """Retrieves all rows from the scheduled_processes table
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        processes = []
+
+        for (name, script) in self._process_scripts.items():
+            process = ScheduledProcess()
+            process.name = name
+            process.script = script
+            processes.append(process)
+
+        return processes
 
     async def get_schedules(self) -> List[Schedule]:
         """Retrieves all schedules
@@ -1037,7 +1065,7 @@ class Scheduler(object):
             task = Task()
             task.task_id = task_id
             task.process_name = task_process.schedule.process_name
-            task.state = TaskState.RUNNING
+            task.state = Task.TaskState.RUNNING
             if task_process.cancel_requested is not None:
                 task.cancel_requested = (
                     datetime.datetime.fromtimestamp(task_process.cancel_requested))

@@ -10,7 +10,7 @@ import datetime
 import pytest
 import uuid
 
-from foglamp.core.scheduler import Scheduler, IntervalSchedule, ScheduleNotFoundError
+from foglamp.core.scheduler import Scheduler, IntervalSchedule, ScheduleNotFoundError, Task
 
 
 __author__ = "Terris Linenbach"
@@ -146,7 +146,7 @@ class TestScheduler:
         await scheduler.start()
 
         interval_schedule = IntervalSchedule()
-        interval_schedule.name = 'get_schedules_test'
+        interval_schedule.name = 'get_schedule_test'
         interval_schedule.process_name = "sleep30"
         await scheduler.save_schedule(interval_schedule)
 
@@ -171,7 +171,7 @@ class TestScheduler:
         await scheduler.start()
 
         interval_schedule = IntervalSchedule()
-        interval_schedule.name = 'cancel_test'
+        interval_schedule.name = 'get_task'
         interval_schedule.process_name = "sleep30"
         await scheduler.save_schedule(interval_schedule)
 
@@ -179,6 +179,34 @@ class TestScheduler:
         tasks = await scheduler.get_running_tasks()
 
         task = await scheduler.get_task(tasks[0].task_id)
+        assert task
 
         await self.stop_scheduler(scheduler)
 
+    @pytest.mark.asyncio
+    async def test_get_tasks(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'get_tasks'
+        interval_schedule.process_name = "sleep5"
+        interval_schedule.repeat = datetime.timedelta(seconds=1)
+        interval_schedule.exclusive = False
+        await scheduler.save_schedule(interval_schedule)
+
+        await asyncio.sleep(15)
+
+        tasks = await scheduler.get_tasks(50)
+        assert len(tasks) > 1
+        assert tasks[0].state == Task.State.RUNNING
+        assert tasks[-1].state == Task.State.COMPLETE
+
+        assert len(tasks)
+        tasks2 = await scheduler.get_tasks(1)
+        assert len(tasks2) == 1
+        assert tasks[0].start_time == tasks2[0].start_time
+
+        await self.stop_scheduler(scheduler)

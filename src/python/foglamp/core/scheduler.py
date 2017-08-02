@@ -559,13 +559,14 @@ class Scheduler(object):
                 if not right_time:
                     # Manual start - don't change next_start_time
                     pass
-                elif not schedule.exclusive and self._schedule_next_task(schedule):
-                    # _schedule_next_task alters next_start_time
-                    next_start_time = schedule_execution.next_start_time
-                else:
+                elif schedule.exclusive:
                     # Exclusive tasks won't start again until they terminate
                     # Or the schedule doesn't repeat
                     next_start_time = None
+                else:
+                    # _schedule_next_task alters next_start_time
+                    self._schedule_next_task(schedule)
+                    next_start_time = schedule_execution.next_start_time
 
                 await self._start_task(schedule)
 
@@ -670,7 +671,7 @@ class Scheduler(object):
             "Scheduled task for schedule '%s' to start at %s", schedule.name,
             datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
-    def _schedule_next_task(self, schedule):
+    def _schedule_next_task(self, schedule)->None:
         """Computes the next time to start a task for a schedule.
 
         This method is called only for schedules that have repeat != None.
@@ -847,6 +848,9 @@ class Scheduler(object):
                 await conn.execute(
                     '''insert into foglamp.scheduled_processes(name, script)
                     values('sleep30', '["sleep", "30"]')''')
+                await conn.execute(
+                    '''insert into foglamp.scheduled_processes(name, script)
+                    values('sleep5', '["sleep", "5"]')''')
 
     async def save_schedule(self, schedule: Schedule):
         """Creates or update a schedule
@@ -1105,6 +1109,39 @@ class Scheduler(object):
 
         raise TaskNotFoundError(task_id)
 
+    async def get_tasks(self, limit: int)->List[Task]:
+        """Retrieves tasks
+
+        The result set is ordered by start_time descending
+
+        Args:
+            limit: Return at most this number of rows
+        """
+        query = sa.select([self._tasks_tbl.c.id,
+                           self._tasks_tbl.c.process_name,
+                           self._tasks_tbl.c.state,
+                           self._tasks_tbl.c.start_time,
+                           self._tasks_tbl.c.end_time,
+                           self._tasks_tbl.c.exit_code,
+                           self._tasks_tbl.c.reason]).select_from(self._tasks_tbl).order_by(
+                                self._tasks_tbl.c.start_time.desc()).limit(limit)
+
+        tasks = []
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    task = Task()
+                    task.task_id = row.id
+                    task.state = Task.State(row.state)
+                    task.start_time = row.start_time
+                    task.process_name = row.process_name
+                    task.end_time = row.end_time
+                    task.exit_code = row.exit_code
+                    task.reason = row.reason
+
+                    tasks.append(task)
+        return tasks
 
     async def cancel_task(self, task_id: uuid.UUID)->None:
         """Cancels a running task

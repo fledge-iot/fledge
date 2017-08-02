@@ -227,13 +227,16 @@ class Scheduler(object):
     def __init__(self):
         """Constructor"""
 
-        cls = Scheduler
-
         # Class attributes
+        #
+        # Do not alter class attributes using
+        # 'self.' Otherwise they will become
+        # instance attributes.
+        cls = type(self)
         if not cls._logger:
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            cls._logger = logger.setup(__name__, level=logging.DEBUG)
-            # cls._logger = logger.setup(__name__)
+            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            cls._logger = logger.setup(__name__)
 
         if cls._schedules_tbl is None:
             metadata = sa.MetaData()

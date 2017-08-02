@@ -330,11 +330,10 @@ class Scheduler(object):
             except ProcessLookupError:
                 pass  # Process has terminated
 
-        if self._task_processes:
-            for _ in range(self._STOP_WAIT_SECONDS):
-                if not self._task_processes:
-                    break
-                await asyncio.sleep(1)
+        for _ in range(self._STOP_WAIT_SECONDS):
+            if not self._task_processes:
+                break
+            await asyncio.sleep(1)
 
         if self._task_processes:
             raise TimeoutError()

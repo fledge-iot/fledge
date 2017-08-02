@@ -197,7 +197,10 @@ async def get_schedules(request):
 
 
 async def get_schedule(request):
-    """Return the information for the given schedule from schedules table"""
+    """Return the information for the given schedule from schedules table
+
+        Example: curl -X GET  http://localhost:8082/foglamp/schedule/ac6dd55d-f55d-44f7-8741-984604bf2384
+    """
 
     try:
         schedule_id = request.match_info.get('schedule_id', None)
@@ -209,6 +212,41 @@ async def get_schedule(request):
 
         if not schedule:
             raise ValueError('No such Schedule')
+
+        return web.json_response(schedule)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+async def start_schedule(request):
+    """Starts a given schedule
+
+        Example: curl -X GET  http://localhost:8082/foglamp/schedule/start/fd439e5b-86ba-499a-86d3-34a6e5754b5a
+    """
+
+    try:
+        schedule_id = request.match_info.get('schedule_id', None)
+
+        if not schedule_id:
+            raise ValueError('No such Schedule')
+
+        schedule = await scheduler_db_services.read_schedule(schedule_id)
+
+        if not schedule:
+            raise ValueError('No such Schedule')
+
+        # Start Scheduler to use its services
+        scheduler = Scheduler()
+        await scheduler.start()
+
+        # Start schedule
+        await scheduler.queue_task(schedule_id)
+
+        await asyncio.sleep(10)
+
+        await stop_scheduler(scheduler)
 
         return web.json_response(schedule)
     except ValueError as ex:
@@ -229,38 +267,66 @@ async def _check_schedule_post_parameters(schedule_id,
 
     _errors = list()
 
-    # Raise error if schedule_type is missing
-    if not schedule_type:
-        _errors.append('Schedule type cannot be empty.')
+    if not schedule_id: # Add a new schedule
+        # Raise error if schedule_type is missing
+        if not schedule_type:
+            _errors.append('Schedule type cannot be empty.')
 
-    # Raise error if schedule_type is wrong
-    if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
-                             Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
-        _errors.append('Schedule type error: {}'.format(schedule_type))
+        # Raise error if schedule_type is wrong
+        if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
+                                 Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+            _errors.append('Schedule type error: {}'.format(schedule_type))
 
-    if schedule_type == Scheduler._ScheduleType.TIMED:
-        # Raise error if day and time are missing for schedule_type = TIMED
-        if not schedule_day or not schedule_time:
-            _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-    # TODO: day and time must be integers
+        if schedule_type == Scheduler._ScheduleType.TIMED:
+            # Raise error if day and time are missing for schedule_type = TIMED
+            if not schedule_day or not schedule_time:
+                _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
+            # TODO: day and time must be integers
 
-    # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
-    # TODO: How to define various values of datetime.timedelta for "repeat"?
+        if schedule_type == Scheduler._ScheduleType.INTERVAL:
+            pass
+            # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
+            # TODO: How to define various values of datetime.timedelta for "repeat"?
 
-    # Raise error if name and process_name are missing
-    if not schedule_name or not schedule_process_name:
-        _errors.append('Schedule name and Process name cannot be empty.')
+        # Raise error if name and process_name are missing
+        if not schedule_name or not schedule_process_name:
+            _errors.append('Schedule name and Process name cannot be empty.')
 
-    scheduled_process = await scheduler_db_services.read_scheduled_processes(schedule_process_name)
+        scheduled_process = await scheduler_db_services.read_scheduled_processes(schedule_process_name)
 
-    if not scheduled_process:
-        _errors.append('No such Scheduled Process name: {}'.format(schedule_process_name))
+        if not scheduled_process:
+            _errors.append('No such Scheduled Process name: {}'.format(schedule_process_name))
+    else: # Update an existing schedule
+        if not schedule_type:
+            # Raise error if schedule_type is wrong
+            if schedule_type not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
+                                     Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+                _errors.append('Schedule type error: {}'.format(schedule_type))
+
+            if schedule_type == Scheduler._ScheduleType.TIMED:
+                # Raise error if day and time are missing for schedule_type = TIMED
+                if not schedule_day or not schedule_time:
+                    _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
+                # TODO: day and time must be integers
+
+            if schedule_type == Scheduler._ScheduleType.INTERVAL:
+                pass
+                # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
+                # TODO: How to define various values of datetime.timedelta for "repeat"?
+
+        # Raise error if name and process_name are missing
+        if not schedule_process_name:
+            _errors.append('Schedule name and Process name cannot be empty.')
+
+            scheduled_process = await scheduler_db_services.read_scheduled_processes(schedule_process_name)
+
+            if not scheduled_process:
+                _errors.append('No such Scheduled Process name: {}'.format(schedule_process_name))
 
     return _errors
 
 
-async def _common_action_schedule(data):
-    schedule_id = data.get('schedule_id', None)
+async def _execute_add_update_schedule(data, schedule_id):
     s_type = data.get('type', 0)
     schedule_type = int(s_type)
     s_day = data.get('day', 0)
@@ -311,12 +377,16 @@ async def _common_action_schedule(data):
     # Save schedule
     await scheduler.save_schedule(schedule)
 
+    updated_schedule_id = schedule.schedule_id
+
     await stop_scheduler(scheduler)
+
+    return updated_schedule_id
 
 async def post_schedule(request):
     """Create a new schedule in schedules table
 
-        Example: curl -d '{"type": 3, "name": "sleep1", "process_name": "sleep1", "repeat": "1"}'  -X POST  http://localhost:8082/foglamp/schedule
+        Example: curl -d '{"type": 3, "name": "sleep30", "process_name": "sleep30", "repeat": "45"}'  -X POST  http://localhost:8082/foglamp/schedule
     """
 
     try:
@@ -326,10 +396,10 @@ async def post_schedule(request):
         if schedule_id:
             raise ValueError('Schedule ID not needed for new Schedule.')
 
-        await _common_action_schedule(data)
+        updated_schedule_id = await _execute_add_update_schedule(data, schedule_id)
 
         # TODO: Ask Terris to return schedule_id from save_schedule
-        return web.json_response({'message': 'Schedule {} created successfully.'.format(schedule_id)})
+        return web.json_response({'message': 'Schedule created successfully.', 'id': str(updated_schedule_id)})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -339,12 +409,12 @@ async def post_schedule(request):
 async def update_schedule(request):
     """Update a schedule in schedules table
 
-        Example: curl -d '{"schedule_id": "3115ccf6-101d-4604-8813-253adb9af627", "type": 3, "name": "sleep1 updated", "process_name": "sleep1", "repeat": "1"}'  -X PUT  http://localhost:8082/foglamp/schedule
+        Example: curl -d '{"type": 4, "name": "sleep30 updated", "process_name": "sleep30", "repeat": "15"}'  -X PUT  http://localhost:8082/foglamp/schedule/84fe4ea1-df9c-4c87-bb78-cab2e7d5d2cc
     """
 
     try:
         data = await request.json()
-        schedule_id = data.get('schedule_id', None)
+        schedule_id = request.match_info.get('schedule_id', None)
 
         if not schedule_id:
             raise ValueError('No such Schedule.')
@@ -353,9 +423,9 @@ async def update_schedule(request):
         if not is_schedule:
             raise ValueError('No such Schedule: {}.'.format(schedule_id))
 
-        await _common_action_schedule(data)
+        updated_schedule_id = await _execute_add_update_schedule(data, schedule_id)
 
-        return web.json_response({'message': 'Schedule {} updated successfully.'.format(schedule_id)})
+        return web.json_response({'message': 'Schedule updated successfully.', 'id': str(updated_schedule_id)})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -365,12 +435,11 @@ async def update_schedule(request):
 async def delete_schedule(request):
     """Delete a schedule from schedules table
 
-        Example: curl -d '{"schedule_id": "fc90ee31-bda9-4e9a-bbf4-f6e927487f67"}'  -X DELETE  http://localhost:8082/foglamp/schedule
+        Example: curl -X DELETE  http://localhost:8082/foglamp/schedule/dc9bfc01-066a-4cc0-b068-9c35486db87f
     """
 
     try:
-        data = await request.json()
-        schedule_id = data.get('schedule_id', None)
+        schedule_id = request.match_info.get('schedule_id', None)
 
         if not schedule_id:
             raise ValueError('No such Schedule.')
@@ -387,7 +456,7 @@ async def delete_schedule(request):
 
         await stop_scheduler(scheduler)
 
-        return web.json_response({'message': 'Schedule {} deleted successfully.'.format(schedule_id)})
+        return web.json_response({'message': 'Schedule deleted successfully.', 'id': schedule_id})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:

@@ -14,6 +14,7 @@ import math
 import time
 import uuid
 from enum import IntEnum
+from typing import List
 
 import aiopg.sa
 import sqlalchemy as sa
@@ -71,13 +72,18 @@ class TaskState(IntEnum):
 
 class Task(object):
     """Tasks"""
-    __slots__ = ['task_id', 'process_name']
+    __slots__ = ['task_id', 'process_name', 'state', 'cancel_requested', 'start_time',
+                 'end_time', 'state']
 
     def __init__(self):
-        self.task_id = None
-        """uuid.UUID"""
-        self.process_name = None
-        """str"""
+        self.task_id = None  # type: uuid.UUID
+        """Unique identifier"""
+        self.process_name = None  # type: str
+        """From the scheduled_processes table"""
+        self.state = None  # type: TaskState
+        self.cancel_requested = None  # type: datetime.datetime
+        self.start_time = None  # type: datetime.datetime
+        self.end_time = None  # type: datetime.datetime
 
 
 class Schedule(object):
@@ -160,17 +166,16 @@ class Scheduler(object):
 
     class _TaskProcess(object):
         """Tracks a running task with some flags"""
-        __slots__ = ['task_id', 'process', 'cancel_requested', 'schedule']
+        __slots__ = ['task_id', 'process', 'cancel_requested', 'schedule', 'start_time']
 
         def __init__(self):
-            self.task_id = None
-            """uuid.UUID"""
-            self.process = None
-            """asyncio.subprocess.Process"""
-            self.cancel_requested = None
-            """int: epoch time when cancel was requested"""
-            self.schedule = None
-            """_Schedule:"""
+            self.task_id = None  # type: uuid.UUID
+            self.process = None  # type: asyncio.subprocess.Process
+            self.cancel_requested = None  # type: int
+            """Epoch time when cancel was requested"""
+            self.schedule = None  # _ScheduleRow
+            self.start_time = None  # type: int
+            """Epoch time when the task was started"""
 
     # TODO: Methods that accept a schedule and look in _schedule_executions
     # should accept schedule_execution instead. Add reference to schedule
@@ -195,9 +200,11 @@ class Scheduler(object):
     _DAY_SECONDS = 3600*24
     _WEEK_SECONDS = 3600*24*7
     _MAX_SLEEP = 9999999
+    """When there is nothing to do, sleep for this number of seconds (forever)"""
     _ONE_HOUR = datetime.timedelta(hours=1)
     _ONE_DAY = datetime.timedelta(days=1)
-    """When there is nothing to do, sleep for this number of seconds (forever)"""
+    _STOP_WAIT_SECONDS = 5
+    """Wait this number of seconds in :meth:`stop` for tasks to stop"""
 
     # Mostly constant class attributes
     _scheduled_processes_tbl = None  # type: sa.Table
@@ -255,7 +262,7 @@ class Scheduler(object):
         self._start_time = None
         """When the scheduler started"""
         self.max_task_processes = self.DEFAULT_MAX_ACTIVE_TASKS
-        """Maximum number of active task subprocesses"""
+        """Maximum number of active tasks"""
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
         self._process_scripts = dict()
@@ -324,7 +331,7 @@ class Scheduler(object):
                 pass  # Process has terminated
 
         if self._task_processes:
-            await asyncio.sleep(5)  # sleep .01 doesn't give the process enough time to quit
+            await asyncio.sleep(self._STOP_WAIT_SECONDS)
 
         if self._task_processes:
             raise TimeoutError()
@@ -353,6 +360,9 @@ class Scheduler(object):
         # the start of the awaited coroutine.
         args = self._process_scripts[schedule.process_name]
 
+        task_process = self._TaskProcess()
+        task_process.start_time = time.time()
+
         try:
             process = await asyncio.create_subprocess_exec(*args)
         except EnvironmentError:
@@ -362,7 +372,6 @@ class Scheduler(object):
             raise
 
         task_id = uuid.uuid4()
-        task_process = self._TaskProcess()
         task_process.process = process
         task_process.schedule = schedule
         task_process.task_id = task_id
@@ -951,7 +960,65 @@ class Scheduler(object):
                 await conn.execute(self._schedules_tbl.delete().where(
                     self._schedules_tbl.c.id == str(schedule_id)))
 
-    async def get_active_tasks(self):
+    @classmethod
+    def _schedule_row_to_schedule(cls,
+                                  schedule_id: uuid.UUID,
+                                  schedule_row: _ScheduleRow) -> Schedule:
+        schedule_type = schedule_row.type
+
+        schedule = None
+
+        if schedule_type == cls._ScheduleType.STARTUP:
+            schedule = StartUpSchedule()
+        elif schedule_type == cls._ScheduleType.TIMED:
+            schedule = TimedSchedule()
+        elif schedule_type == cls._ScheduleType.INTERVAL:
+            schedule = IntervalSchedule()
+        elif schedule_type == cls._ScheduleType.MANUAL:
+            schedule = ManualSchedule()
+
+        schedule.schedule_id = schedule_id
+        schedule.exclusive = schedule_row.exclusive
+        schedule.name = schedule_row.name
+        schedule.process_name = schedule_row.process_name
+        schedule.repeat = schedule_row.repeat
+
+        if schedule_type == cls._ScheduleType.TIMED:
+            schedule.day = schedule_row.day
+            schedule.time = schedule_row.time
+
+        return schedule
+
+    async def get_schedules(self) -> List[Schedule]:
+        """Retrieves all schedules
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        schedules = []
+
+        for (schedule_id, schedule_row) in self._schedules.items():
+            schedules.append(self._schedule_row_to_schedule(schedule_id, schedule_row))
+
+        return schedules
+
+    async def get_schedule(self, schedule_id: uuid.UUID) -> Schedule:
+        """Retrieves a schedule from its id
+
+        Raises:
+            ScheduleNotFoundException
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        try:
+            schedule_row = self._schedules[schedule_id]
+        except KeyError:
+            raise ScheduleNotFoundError(schedule_id)
+
+        return self._schedule_row_to_schedule(schedule_id, schedule_row)
+
+    async def get_running_tasks(self) -> List[Task]:
         """Retrieves a list of all tasks that are currently running
 
         Returns:
@@ -968,6 +1035,11 @@ class Scheduler(object):
             task = Task()
             task.task_id = task_id
             task.process_name = task_process.schedule.process_name
+            task.state = TaskState.RUNNING
+            if task_process.cancel_requested is not None:
+                task.cancel_requested = (
+                    datetime.datetime.fromtimestamp(task_process.cancel_requested))
+            task.start_time = datetime.datetime.fromtimestamp(task_process.start_time)
             tasks.append(task)
 
         return tasks
@@ -1016,7 +1088,7 @@ class Scheduler(object):
         """Starts the scheduler
 
         When this method returns, an asyncio task is
-        scheduled that starts tasks and monitors subprocesses. This class
+        scheduled that starts tasks and monitors their subprocesses. This class
         does not use threads (tasks run as subprocesses).
 
         Raises:

@@ -65,7 +65,7 @@ class ScheduleNotFoundError(ValueError):
 class Task(object):
     """A task represents an operating system process"""
 
-    class TaskState(IntEnum):
+    class State(IntEnum):
         """Enumeration for tasks.task_state"""
         RUNNING = 1
         COMPLETE = 2
@@ -73,17 +73,18 @@ class Task(object):
         INTERRUPTED = 4
 
     __slots__ = ['task_id', 'process_name', 'state', 'cancel_requested', 'start_time',
-                 'end_time', 'state']
+                 'end_time', 'state', 'exit_code', 'reason']
 
     def __init__(self):
         self.task_id = None  # type: uuid.UUID
         """Unique identifier"""
         self.process_name = None  # type: str
-        """From the scheduled_processes table"""
-        self.state = None  # type: Task.TaskState
+        self.reason = None  # type: str
+        self.state = None  # type: Task.State
         self.cancel_requested = None  # type: datetime.datetime
         self.start_time = None  # type: datetime.datetime
         self.end_time = None  # type: datetime.datetime
+        self.exit_code = None  # type: int
 
 
 class ScheduledProcess(object):
@@ -409,7 +410,7 @@ class Scheduler(object):
                         pid=(self._schedule_executions[schedule.id].
                              task_processes[task_id].process.pid),
                         process_name=schedule.process_name,
-                        state=int(Task.TaskState.RUNNING),
+                        state=int(Task.State.RUNNING),
                         start_time=datetime.datetime.now()))
 
             asyncio.ensure_future(self._wait_for_task_completion(task_process))
@@ -459,9 +460,9 @@ class Scheduler(object):
 
         if schedule.type != self._ScheduleType.STARTUP:
             if exit_code < 0 and task_process.cancel_requested:
-                state = Task.TaskState.CANCELED
+                state = Task.State.CANCELED
             else:
-                state = Task.TaskState.COMPLETE
+                state = Task.State.COMPLETE
 
             # Update the task's status
             # TODO if no row updated output a WARN row
@@ -470,9 +471,9 @@ class Scheduler(object):
                     result = await conn.execute(
                         self._tasks_tbl.update().where(
                             self._tasks_tbl.c.id == str(task_process.task_id)).values(
-                                    exit_code=exit_code,
-                                    state=int(state),
-                                    end_time=datetime.datetime.now()))
+                            exit_code=exit_code,
+                            state=int(state),
+                            end_time=datetime.datetime.now()))
 
                     if result.rowcount == 0:
                         self._logger.warning("Task %s not found. Unable to update its status",
@@ -740,7 +741,7 @@ class Scheduler(object):
                 await conn.execute(
                     self._tasks_tbl.update().where(
                         self._tasks_tbl.c.end_time is None).values(
-                            state=int(Task.TaskState.INTERRUPTED),
+                            state=int(Task.State.INTERRUPTED),
                             end_time=datetime.datetime.now()))
 
     async def _get_schedules(self):
@@ -1065,7 +1066,7 @@ class Scheduler(object):
             task = Task()
             task.task_id = task_id
             task.process_name = task_process.schedule.process_name
-            task.state = Task.TaskState.RUNNING
+            task.state = Task.State.RUNNING
             if task_process.cancel_requested is not None:
                 task.cancel_requested = (
                     datetime.datetime.fromtimestamp(task_process.cancel_requested))
@@ -1073,6 +1074,37 @@ class Scheduler(object):
             tasks.append(task)
 
         return tasks
+
+    async def get_task(self, task_id: uuid.UUID)->Task:
+        """Retrieves a task given its id"""
+        query = sa.select([self._tasks_tbl.c.id,
+                           self._tasks_tbl.c.process_name,
+                           self._tasks_tbl.c.state,
+                           self._tasks_tbl.c.start_time,
+                           self._tasks_tbl.c.end_time,
+                           self._tasks_tbl.c.exit_code,
+                           self._tasks_tbl.c.reason])
+
+        query.select_from(self._tasks_tbl)
+
+        query.where(self._tasks_tbl.c.id == task_id)
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    task = Task()
+                    task.task_id = row.id
+                    task.state = Task.State(row.state)
+                    task.start_time = row.start_time
+                    task.process_name = row.process_name
+                    task.end_time = row.end_time
+                    task.exit_code = row.exit_code
+                    task.reason = row.reason
+
+                    return task
+
+        raise TaskNotFoundError(task_id)
+
 
     async def cancel_task(self, task_id: uuid.UUID)->None:
         """Cancels a running task

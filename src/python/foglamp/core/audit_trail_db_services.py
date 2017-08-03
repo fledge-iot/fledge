@@ -5,6 +5,9 @@
 # FOGLAMP_END
 
 import asyncpg
+import json
+from enum import IntEnum
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -13,6 +16,13 @@ __version__ = "${VERSION}"
 
 __DB_NAME = 'foglamp'
 
+
+class _Severity(IntEnum):
+    """Enumeration for log.severity"""
+    FATAL = 1
+    ERROR = 2
+    WARNING = 3
+    INFORMATION = 4
 
 async def read_audit_entries(limit=None):
     """
@@ -26,17 +36,21 @@ async def read_audit_entries(limit=None):
     conn = await asyncpg.connect(database=__DB_NAME)
     _limit_clause = " LIMIT $1" if limit else " "
 
+    # TODO: source, severity filter and allow skip (offset) with limit
     # Select the code, ts, level, log from the log table
-    query = 'SELECT code AS source, (ts)::varchar AS timestamp, level AS severity, log AS details FROM log ' \
-            'ORDER BY ts DESC {limit_clause}'.format(limit_clause=_limit_clause)
+    query = """
+                SELECT code AS source, (ts)::varchar AS timestamp, level AS severity, log AS details 
+                FROM log ORDER BY timestamp DESC {limit_clause}
+            """.format(limit_clause=_limit_clause)
 
     stmt = await conn.prepare(query)
     rows = await stmt.fetch(limit) if limit else await stmt.fetch()
-    columns = ('source', 'timestamp', 'severity', 'details')
 
     results = []
     for row in rows:
-        results.append(dict(zip(columns, row)))
+        data = {'source': row['source'], 'timestamp': row['timestamp'], 'severity': _Severity(row['severity']).name,
+                'details': json.loads(row['details'])}
+        results.append(data)
 
     # Close the connection.
     await conn.close()

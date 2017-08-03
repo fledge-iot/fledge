@@ -62,28 +62,40 @@ class ScheduleNotFoundError(ValueError):
             "Schedule not found: {}".format(schedule_id), *args)
 
 
-class TaskState(IntEnum):
-    """Enumeration for tasks.task_state"""
-    RUNNING = 1
-    COMPLETE = 2
-    CANCELED = 3
-    INTERRUPTED = 4
-
-
 class Task(object):
-    """Tasks"""
+    """A task represents an operating system process"""
+
+    class State(IntEnum):
+        """Enumeration for tasks.task_state"""
+        RUNNING = 1
+        COMPLETE = 2
+        CANCELED = 3
+        INTERRUPTED = 4
+
     __slots__ = ['task_id', 'process_name', 'state', 'cancel_requested', 'start_time',
-                 'end_time', 'state']
+                 'end_time', 'state', 'exit_code', 'reason']
 
     def __init__(self):
         self.task_id = None  # type: uuid.UUID
         """Unique identifier"""
         self.process_name = None  # type: str
-        """From the scheduled_processes table"""
-        self.state = None  # type: TaskState
+        self.reason = None  # type: str
+        self.state = None  # type: Task.State
         self.cancel_requested = None  # type: datetime.datetime
         self.start_time = None  # type: datetime.datetime
         self.end_time = None  # type: datetime.datetime
+        self.exit_code = None  # type: int
+
+
+class ScheduledProcess(object):
+    """Represents a program that a Task can run"""
+
+    __slots__ = ['name', 'script']
+
+    def __init__(self):
+        self.name = None  # type: str
+        """Unique identifier"""
+        self.script = None  # type: List[ str ]
 
 
 class Schedule(object):
@@ -215,13 +227,16 @@ class Scheduler(object):
     def __init__(self):
         """Constructor"""
 
-        cls = Scheduler
-
         # Class attributes
+        #
+        # Do not alter class attributes using
+        # 'self.' Otherwise they will become
+        # instance attributes.
+        cls = type(self)
         if not cls._logger:
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            cls._logger = logger.setup(__name__, level=logging.DEBUG)
-            # cls._logger = logger.setup(__name__)
+            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            cls._logger = logger.setup(__name__)
 
         if cls._schedules_tbl is None:
             metadata = sa.MetaData()
@@ -398,7 +413,7 @@ class Scheduler(object):
                         pid=(self._schedule_executions[schedule.id].
                              task_processes[task_id].process.pid),
                         process_name=schedule.process_name,
-                        state=int(TaskState.RUNNING),
+                        state=int(Task.State.RUNNING),
                         start_time=datetime.datetime.now()))
 
             asyncio.ensure_future(self._wait_for_task_completion(task_process))
@@ -428,11 +443,12 @@ class Scheduler(object):
         schedule_execution = self._schedule_executions[schedule.id]
         del schedule_execution.task_processes[task_process.task_id]
 
+        schedule_deleted = False
+
         # Pick up modifications to the schedule
         # Or maybe it's been deleted
         try:
             schedule = self._schedules[schedule.id]
-            schedule_deleted = False
         except KeyError:
             schedule_deleted = True
 
@@ -447,9 +463,9 @@ class Scheduler(object):
 
         if schedule.type != self._ScheduleType.STARTUP:
             if exit_code < 0 and task_process.cancel_requested:
-                state = TaskState.CANCELED
+                state = Task.State.CANCELED
             else:
-                state = TaskState.COMPLETE
+                state = Task.State.COMPLETE
 
             # Update the task's status
             # TODO if no row updated output a WARN row
@@ -458,9 +474,9 @@ class Scheduler(object):
                     result = await conn.execute(
                         self._tasks_tbl.update().where(
                             self._tasks_tbl.c.id == str(task_process.task_id)).values(
-                                    exit_code=exit_code,
-                                    state=int(state),
-                                    end_time=datetime.datetime.now()))
+                            exit_code=exit_code,
+                            state=int(state),
+                            end_time=datetime.datetime.now()))
 
                     if result.rowcount == 0:
                         self._logger.warning("Task %s not found. Unable to update its status",
@@ -546,13 +562,14 @@ class Scheduler(object):
                 if not right_time:
                     # Manual start - don't change next_start_time
                     pass
-                elif not schedule.exclusive and self._schedule_next_task(schedule):
-                    # _schedule_next_task alters next_start_time
-                    next_start_time = schedule_execution.next_start_time
-                else:
+                elif schedule.exclusive:
                     # Exclusive tasks won't start again until they terminate
                     # Or the schedule doesn't repeat
                     next_start_time = None
+                else:
+                    # _schedule_next_task alters next_start_time
+                    self._schedule_next_task(schedule)
+                    next_start_time = schedule_execution.next_start_time
 
                 await self._start_task(schedule)
 
@@ -657,7 +674,7 @@ class Scheduler(object):
             "Scheduled task for schedule '%s' to start at %s", schedule.name,
             datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
-    def _schedule_next_task(self, schedule):
+    def _schedule_next_task(self, schedule)->None:
         """Computes the next time to start a task for a schedule.
 
         This method is called only for schedules that have repeat != None.
@@ -728,7 +745,7 @@ class Scheduler(object):
                 await conn.execute(
                     self._tasks_tbl.update().where(
                         self._tasks_tbl.c.end_time is None).values(
-                            state=int(TaskState.INTERRUPTED),
+                            state=int(Task.State.INTERRUPTED),
                             end_time=datetime.datetime.now()))
 
     async def _get_schedules(self):
@@ -834,6 +851,9 @@ class Scheduler(object):
                 await conn.execute(
                     '''insert into foglamp.scheduled_processes(name, script)
                     values('sleep30', '["sleep", "30"]')''')
+                await conn.execute(
+                    '''insert into foglamp.scheduled_processes(name, script)
+                    values('sleep5', '["sleep", "5"]')''')
 
     async def save_schedule(self, schedule: Schedule):
         """Creates or update a schedule
@@ -968,8 +988,6 @@ class Scheduler(object):
                                   schedule_row: _ScheduleRow) -> Schedule:
         schedule_type = schedule_row.type
 
-        schedule = None
-
         if schedule_type == cls._ScheduleType.STARTUP:
             schedule = StartUpSchedule()
         elif schedule_type == cls._ScheduleType.TIMED:
@@ -978,6 +996,8 @@ class Scheduler(object):
             schedule = IntervalSchedule()
         elif schedule_type == cls._ScheduleType.MANUAL:
             schedule = ManualSchedule()
+        else:
+            raise ValueError("Unknown schedule type {}", schedule_type)
 
         schedule.schedule_id = schedule_id
         schedule.exclusive = schedule_row.exclusive
@@ -990,6 +1010,22 @@ class Scheduler(object):
             schedule.time = schedule_row.time
 
         return schedule
+
+    async def get_scheduled_processes(self) -> List[ScheduledProcess]:
+        """Retrieves all rows from the scheduled_processes table
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        processes = []
+
+        for (name, script) in self._process_scripts.items():
+            process = ScheduledProcess()
+            process.name = name
+            process.script = script
+            processes.append(process)
+
+        return processes
 
     async def get_schedules(self) -> List[Schedule]:
         """Retrieves all schedules
@@ -1037,13 +1073,77 @@ class Scheduler(object):
             task = Task()
             task.task_id = task_id
             task.process_name = task_process.schedule.process_name
-            task.state = TaskState.RUNNING
+            task.state = Task.State.RUNNING
             if task_process.cancel_requested is not None:
                 task.cancel_requested = (
                     datetime.datetime.fromtimestamp(task_process.cancel_requested))
             task.start_time = datetime.datetime.fromtimestamp(task_process.start_time)
             tasks.append(task)
 
+        return tasks
+
+    async def get_task(self, task_id: uuid.UUID)->Task:
+        """Retrieves a task given its id"""
+        query = sa.select([self._tasks_tbl.c.id,
+                           self._tasks_tbl.c.process_name,
+                           self._tasks_tbl.c.state,
+                           self._tasks_tbl.c.start_time,
+                           self._tasks_tbl.c.end_time,
+                           self._tasks_tbl.c.exit_code,
+                           self._tasks_tbl.c.reason])
+
+        query.select_from(self._tasks_tbl)
+
+        query.where(self._tasks_tbl.c.id == task_id)
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    task = Task()
+                    task.task_id = row.id
+                    task.state = Task.State(row.state)
+                    task.start_time = row.start_time
+                    task.process_name = row.process_name
+                    task.end_time = row.end_time
+                    task.exit_code = row.exit_code
+                    task.reason = row.reason
+
+                    return task
+
+        raise TaskNotFoundError(task_id)
+
+    async def get_tasks(self, limit: int)->List[Task]:
+        """Retrieves tasks
+
+        The result set is ordered by start_time descending
+
+        Args:
+            limit: Return at most this number of rows
+        """
+        query = sa.select([self._tasks_tbl.c.id,
+                           self._tasks_tbl.c.process_name,
+                           self._tasks_tbl.c.state,
+                           self._tasks_tbl.c.start_time,
+                           self._tasks_tbl.c.end_time,
+                           self._tasks_tbl.c.exit_code,
+                           self._tasks_tbl.c.reason]).select_from(self._tasks_tbl).order_by(
+                                self._tasks_tbl.c.start_time.desc()).limit(limit)
+
+        tasks = []
+
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+            async with engine.acquire() as conn:
+                async for row in conn.execute(query):
+                    task = Task()
+                    task.task_id = row.id
+                    task.state = Task.State(row.state)
+                    task.start_time = row.start_time
+                    task.process_name = row.process_name
+                    task.end_time = row.end_time
+                    task.exit_code = row.exit_code
+                    task.reason = row.reason
+
+                    tasks.append(task)
         return tasks
 
     async def cancel_task(self, task_id: uuid.UUID)->None:

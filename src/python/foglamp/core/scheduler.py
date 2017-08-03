@@ -1000,14 +1000,18 @@ class Scheduler(object):
             raise ValueError("Unknown schedule type {}", schedule_type)
 
         schedule.schedule_id = schedule_id
+        schedule.type = schedule_type
         schedule.exclusive = schedule_row.exclusive
         schedule.name = schedule_row.name
         schedule.process_name = schedule_row.process_name
-        schedule.repeat = schedule_row.repeat
+        schedule.repeat = str(schedule_row.repeat)
 
         if schedule_type == cls._ScheduleType.TIMED:
             schedule.day = schedule_row.day
-            schedule.time = schedule_row.time
+            schedule.time = str(schedule_row.time)
+        else:
+            schedule.day = None
+            schedule.time = None
 
         return schedule
 

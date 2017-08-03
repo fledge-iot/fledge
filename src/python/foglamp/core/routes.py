@@ -43,6 +43,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/tasks', api.get_tasks)
     app.router.add_route('POST', '/foglamp/task', api.post_task)
     app.router.add_route('GET', '/foglamp/tasks/latest', api.get_tasks_latest)
+    app.router.add_route('GET', '/foglamp/tasks/running', api.get_tasks_running)
     app.router.add_route('GET', '/foglamp/task/{task_id}', api.get_task)
     # TODO: Find out why not DELETE/PUT a task? Cancel flag can be handled in database update.
     app.router.add_route('POST', '/foglamp/task/{task_id}/cancel', api.cancel_task)

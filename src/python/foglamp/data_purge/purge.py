@@ -120,7 +120,7 @@ def get_last_id():
         last id sent to OMF
     """
 
-    result = execute_command(sqlalchemy.select([sqlalchemy.func.max(_STREAMS_TABLE .c.last_object)]).select_from(_STREAMS_TABLE))
+    result = execute_command(sqlalchemy.select([sqlalchemy.func.max(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE))
     result = int(result.fetchall()[0][0])
     return result
 
@@ -174,22 +174,16 @@ def purge(config, table_name):
     total_count = result[0][1]
 
     delete_query = sqlalchemy.delete(table_name).where(table_name.c.user_ts <= age_timestamp)
-    failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(
-        table_name.c.user_ts <= age_timestamp)
+    failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
 
     # MAX possible ID to delete
-    max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(
-        table_name.c.user_ts <= age_timestamp)
-
-    max_id = execute_command(max_id_query)
-    max_id = int(max_id.fetchall()[0][0])
+    max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
+    max_id = int(execute_command(max_id_query).fetchall()[0][0])
 
     # if retainUnsent is True then delete by both age_timestamp & last_id; else only by age_timestamp
     if config['retainUnsent']['value'] == "True":
-        total_rows_removed = execute_command(delete_query.where(
-            table_name.c.id <= sqlalchemy.func.max(_STREAMS_TABLE .c.last_object))).rowcount
-        failed_removal = execute_command(failed_removal_query.where(
-            table_name.c.id <= last_id)).fetchall()[0][0]
+        total_rows_removed = execute_command(delete_query.where(table_name.c.id <= last_id)).rowcount
+        failed_removal = execute_command(failed_removal_query.where(table_name.c.id <= last_id)).fetchall()[0][0]
     else: 
         total_rows_removed = execute_command(delete_query).rowcount
         failed_removal = execute_command(failed_removal_query).fetchall()[0][0]
@@ -237,137 +231,11 @@ def purge_main():
     event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
 
 if __name__ == '__main__':
+#    event_loop = asyncio.get_event_loop()
+#    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'age','0'))
+#    # Test behaveior when retainUnsent is True
+#    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'retainUnsent','True'))
+#    # Test behavior when retainUnsent is False
+#    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'retainUnsent','False'))
     purge_main()
 
-
-"""Testing
-"""
-
-#
-# def insert_into_readings():
-#     """
-#     Insert rows into table
-#     """
-#     execute_command("DELETE FROM readings;")
-#     for i in range(20000):
-#         stmt = "INSERT INTO readings(asset_code) VALUES ('')"
-#         execute_command(stmt)
-#     execute_command("commit")
-#     update_streams()
-#
-#
-# def update_streams():
-#     """
-#     Update value in streams table
-#     """
-#     execute_command("DELETE FROM foglamp.streams;")
-#     execute_command("DELETE FROM  foglamp.destinations")
-#     execute_command("INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());")
-#     execute_command("""INSERT INTO foglamp.streams
-#                         (id,destination_id,description, last_object,ts)
-#                     VALUES(1,1,'OMF', 1,now());""")
-#     rand_value = random.randint(select_count_from_readings()-50, select_count_from_readings()+50)
-#     execute_command("UPDATE foglamp.streams SET last_object=%s, ts=now() WHERE description='OMF';" % rand_value)
-#
-#
-# def select_count_from_readings():
-#     """
-#     Get count of readings table
-#     """
-#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_READING_TABLE)
-#     result = execute_command(stmt).fetchall()
-#     return int(result[0][0])
-#
-#
-# def check_log_count():
-#     """
-#     Check count of logs table
-#     """
-#     stmt = sqlalchemy.select([sqlalchemy.func.count()]).select_from(_LOG_TABLE)
-#     result = execute_command(stmt).fetchall()
-#     return int(result[0][0])
-#
-#
-# def check_statistics_purge_values():
-#     """
-#     Verify values in statistics related to purge
-#     """
-#     stmt = "SELECT value FROM statistics WHERE key = 'PURGED'"
-#     purge_count = execute_command(stmt).fetchall()
-#     stmt = "SELECT value FROM statistics WHERE key = 'UNSNPURGED'"
-#     unsent = execute_command(stmt).fetchall()
-#     return int(purge_count[0][0]), int(unsent[0][0])
-#
-#
-# def purge_by_age():
-#     """
-#     Test purge by row age
-#     :return:
-#     """
-#     event_loop = asyncio.get_event_loop()
-#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
-#                                                                                       'retainUnsent', "False"))
-#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
-#                                                                                       'age', "0"))
-#
-#     # insert_into_readings()
-#     count1 = select_count_from_readings()
-#     log1 = check_log_count()
-#     purge1, unsent1 = check_statistics_purge_values()
-#     purge_main()
-#     count2 = select_count_from_readings()
-#     log2 = check_log_count()
-#     purge2, unsent2 = check_statistics_purge_values()
-#
-#     if count1 > count2:
-#         print("Test Purge - Success")
-#     else:
-#         print("Test Purge - Fail")
-#
-#     if log1 < log2:
-#         print("Test Log Update - Success")
-#     else:
-#         print("Test Log Update - Fail")
-#
-#     if purge1 < purge2 and unsent1 < unsent2:
-#         print("Test Statistics Update - Success")
-#     else:
-#         print("Test Statistics Update - Fail")
-#
-#
-# def purge_by_id():
-#     event_loop = asyncio.get_event_loop()
-#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
-#                                                                                       'retainUnsent', "True"))
-#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
-#                                                                                       'age', "0"))
-#     count1 = select_count_from_readings()
-#     log1 = check_log_count()
-#     purge1, unsent1 = check_statistics_purge_values()
-#     purge_main()
-#     count2 = select_count_from_readings()
-#     log2 = check_log_count()
-#     purge2, unsent2 = check_statistics_purge_values()
-#
-#     if count1 > count2:
-#         print("Test Purge - Success")
-#     else:
-#         print("Test Purge - Fail")
-#
-#     if log1 < log2:
-#         print("Test Log - Success")
-#     else:
-#         print("Test Log - Fail")
-#
-#     if purge1 < purge2 and unsent1 < unsent2:
-#         print("Test Statistics Update - Success")
-#     else:
-#         print("Test Statistics Update - Fail")
-#
-# if __name__ == '__main__':
-#     event_loop = asyncio.get_event_loop()
-#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
-#                                                                                       'retainUnsent', "False"))
-#     event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,
-#                                                                                       'age', "0"))
-#     purge_main()

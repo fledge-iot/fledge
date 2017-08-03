@@ -111,20 +111,6 @@ _STREAMS_TABLE = sqlalchemy.Table('streams', sqlalchemy.MetaData(),
 
 """Methods that support the purge process.  
 """
-
-
-def get_last_id():
-    """
-    retrive last (newest) ID sent to OMF
-    :return:
-        last id sent to OMF
-    """
-
-    result = execute_command(sqlalchemy.select([sqlalchemy.func.max(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE))
-    result = int(result.fetchall()[0][0])
-    return result
-
-
 def execute_command(stmt):
     """Imitate connection to postgres that returns result.    
     Args:
@@ -160,17 +146,16 @@ def purge(config, table_name):
 
     unsent_rows_removed = 0
     total_rows_removed = 0
-    last_id = get_last_id()
+    last_id = sqlalchemy.select([sqlalchemy.func.max(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
     error_level = 0
 
 
     # Calculate current count and age_timestamp
-    age_and_count_query = sqlalchemy.select([
-        sqlalchemy.func.current_timestamp() - datetime.timedelta(hours=int(config['age']['value'])),
-        sqlalchemy.func.count()]).select_from(table_name)
+    age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() - datetime.timedelta(hours=int(config['age']['value'])),
+         sqlalchemy.func.count()]).select_from(table_name)
 
     result = execute_command(age_and_count_query).fetchall()
-    age_timestamp = result[0][0]
+    age_timestamp = result[0][0] 
     total_count = result[0][1]
 
     delete_query = sqlalchemy.delete(table_name).where(table_name.c.user_ts <= age_timestamp)

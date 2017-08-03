@@ -181,9 +181,6 @@ async def get_scheduled_process(request):
 #################################
 
 
-# TODO: Api support to get tasks for a given schedule
-# TODO: Api support for how to start a schedule? a task in a schedule?
-
 async def get_schedules(request):
     """Returns a list of all the defined schedules from schedules table"""
 

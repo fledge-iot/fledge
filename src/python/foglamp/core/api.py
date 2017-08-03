@@ -321,13 +321,23 @@ async def get_statistics_history(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
-#################################
+####################################
 #  Audit Trail
-#################################
+####################################
 
 async def get_audit_entries(request):
+    """
+    Returns a list of audit trail entries sorted with most recent first
+
+    :Example:
+
+        curl -X GET http://localhost:8082/foglamp/audit
+
+        curl -X GET http://localhost:8082/foglamp/audit?limit=5
+    """
     try:
-        audit_entries = await audit_trail_db_services.read_audit_entries()
+        limit = request.query.get('limit') if 'limit' in request.query else 0
+        audit_entries = await audit_trail_db_services.read_audit_entries(int(limit))
 
         return web.json_response({'audit': audit_entries})
 

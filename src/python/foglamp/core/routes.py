@@ -51,6 +51,9 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/statistics', api.get_statistics)
     app.router.add_route('GET', '/foglamp/statistics/history', api.get_statistics_history)
 
+    # Audit trail - As per doc
+    app.router.add_route('GET', '/foglamp/audit', api.get_audit_entries)
+
     # enable cors support
     # Note: pip install aiohttp_cors
 

@@ -147,34 +147,33 @@ def purge(config, table_name):
     unsent_rows_removed = 0
     total_rows_removed = 0
     last_id = sqlalchemy.select([sqlalchemy.func.max(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
-    error_level = 0
-
+    last_id = int(execute_command(last_id).fetchall()[0][0])
 
     # Calculate current count and age_timestamp
     age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() - datetime.timedelta(hours=int(config['age']['value'])),
          sqlalchemy.func.count()]).select_from(table_name)
 
     result = execute_command(age_and_count_query).fetchall()
-    age_timestamp = result[0][0] 
+    age_timestamp = result[0][0]    
     total_count = result[0][1]
 
     delete_query = sqlalchemy.delete(table_name).where(table_name.c.user_ts <= age_timestamp)
     failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
-
-    # MAX possible ID to delete
-    max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
-    max_id = int(execute_command(max_id_query).fetchall()[0][0])
-
+    max_id = None 
     # if retainUnsent is True then delete by both age_timestamp & last_id; else only by age_timestamp
     if config['retainUnsent']['value'] == "True":
         total_rows_removed = execute_command(delete_query.where(table_name.c.id <= last_id)).rowcount
+        print(total_rows_removed)
         failed_removal = execute_command(failed_removal_query.where(table_name.c.id <= last_id)).fetchall()[0][0]
+
     else: 
         total_rows_removed = execute_command(delete_query).rowcount
-        failed_removal = execute_command(failed_removal_query).fetchall()[0][0]
-        unsent_rows_removed = max_id - last_id
-        if unsent_rows_removed < 0: 
-            unsent_rows_removed = 0
+        failed_removal = execute_command(failed_removal_query).fetchall()[0][0] 
+        while max_id is None: 
+           max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
+           max_id = execute_command(max_id_query).fetchall()[0][0]
+           print(max_id)
+        int(max_id)
     
     # Rows remaining is based on the snapshot taking at the start of the process 
     rows_remaining = int(total_count) - int(total_rows_removed)
@@ -184,6 +183,7 @@ def purge(config, table_name):
     - 1: Rows failed to remove 
     - 2: Unsent rows were removed
     """ 
+    error_level = 0
     if failed_removal > 0:
         error_level = 1
     elif unsent_rows_removed > 0: 
@@ -217,7 +217,7 @@ def purge_main():
 
 if __name__ == '__main__':
 #    event_loop = asyncio.get_event_loop()
-#    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'age','0'))
+#    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'age','-1'))
 #    # Test behaveior when retainUnsent is True
 #    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'retainUnsent','True'))
 #    # Test behavior when retainUnsent is False

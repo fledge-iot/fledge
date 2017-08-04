@@ -23,28 +23,9 @@ __version__ = "${VERSION}"
 class Server:
     """Core server"""
 
-    # Class attributes (begin)
-    __scheduler = None
-    # Class attributes (end)
-
-    @classmethod
-    def start(cls, loop=None):
-        """Starts the server"""
-        if not loop:
-            loop = asyncio.get_event_loop()
-
-        # Register signal handlers
-        # TODO: Move to Scheduler
-        for signal_name in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
-            loop.add_signal_handler(
-                signal_name,
-                lambda: asyncio.ensure_future(cls.stop(loop)))
-
-        cls.__scheduler = Scheduler()
-        cls.__scheduler.start()
-
-        # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
-        web.run_app(cls._make_app(), host='0.0.0.0', port=8082)
+    """Class attributes"""
+    scheduler = None
+    """ foglamp.core.Scheduler """
 
     @staticmethod
     def _make_app():
@@ -57,6 +38,29 @@ class Server:
         return app
 
     @classmethod
+    async def _start_scheduler(cls):
+        """Starts the scheduler"""
+        cls.scheduler = Scheduler()
+        await cls.scheduler.start()
+
+    @classmethod
+    def start(cls):
+        """Starts the server"""
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.ensure_future(cls._start_scheduler()))
+
+        # Register signal handlers
+        # Registering SIGTERM creates an error at shutdown. See
+        # https://github.com/python/asyncio/issues/396
+        for signal_name in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                signal_name,
+                lambda: asyncio.ensure_future(cls.stop(loop)))
+
+        # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
+        web.run_app(cls._make_app(), host='0.0.0.0', port=8082)
+
+    @classmethod
     async def stop(cls, loop):
         """Attempts to stop the server
 
@@ -66,7 +70,9 @@ class Server:
         Raises TimeoutError:
             A task is still running. Wait and try again.
         """
-        await cls.__scheduler.stop()
+        if cls.scheduler:
+            await cls.scheduler.stop()
+            cls.scheduler = None
 
         for task in asyncio.Task.all_tasks():
             task.cancel()

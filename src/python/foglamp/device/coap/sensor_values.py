@@ -37,6 +37,29 @@ _sensor_values_tbl = sa.Table(
 """Defines the table that data will be inserted into"""
 
 
+class BlockResource(aiocoap.resource.Resource):
+    """
+    Block resource which supports GET and PUT methods. It sends large
+    responses, which trigger blockwise transfer.
+    """
+
+    def __init__(self):
+        super(BlockResource, self).__init__()
+        self.content = ("This is the resource's default content. It is padded "\
+                "with numbers to be large enough to trigger blockwise "\
+                "transfer.\n" + "0123456789\n" * 100).encode("ascii")
+
+    async def render_get(self, request):
+        return aiocoap.Message(payload=self.content)
+
+    async def render_put(self, request):
+        print('PUT payload: %s' % loads(request.payload))
+        self.content = request.payload
+        payload = ("accepted the new payload. inspect it here in "\
+                "Python's repr format:\n\n%r"%self.content).encode('utf8')
+        return aiocoap.Message(payload=payload)
+
+
 class SensorValues(aiocoap.resource.Resource):
     """CoAP handler for coap://readings URI
 

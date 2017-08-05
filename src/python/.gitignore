@@ -53,3 +53,6 @@ pylint_*.log
 .coverage
 htmlcov/
 coverage.xml
+
+# temporary
+out/

@@ -15,18 +15,18 @@ interface of FogLAMP using CoAP.
 
 fogbench
 
- -h --help        Print this help
- -i --interval    The interval in seconds between each iteration (default: 0)
- -k --keep        Do not delete (keep) the running sample (default: no)
- -o --output      Set the output file
- -p --payload     Type of payload and protocol (default: sensor/coap)
- -t --template    Set the template to use
- -v --version     Display the version and exit
- -H --host        The FogLAMP host (default: localhost)
- -I --iterations  The number of iterations of the test (default: 1)
- -O --occurrences The number of occurrences of the template (default: 1)
- -P --port        The FogLAMP port. Default depends on payload and protocol
- -S --statistic   The type of statistics to collect
+ [IN]   -h --help        Print this help
+        -i --interval    The interval in seconds between each iteration (default: 0)
+ [IN]   -k --keep        Do not delete (keep) the running sample (default: no)
+ [IN]   -o --output      Set the output file
+        -p --payload     Type of payload and protocol (default: sensor/coap)
+        -t --template    Set the template to use
+ [IN]   -v --version     Display the version and exit
+        -H --host        The FogLAMP host (default: localhost)
+        -I --iterations  The number of iterations of the test (default: 1)
+        -O --occurrences The number of occurrences of the template (default: 1)
+        -P --port        The FogLAMP port. Default depends on payload and protocol
+        -S --statistic   The type of statistics to collect
 
  Example:
 
@@ -36,6 +36,10 @@ fogbench
      or
 
      $ python -m benchmarks.fogbench
+
+ Help:
+
+     $ python -m fogbench -h
 
  .. todo::
 
@@ -47,10 +51,12 @@ fogbench
    * Try generators
 
 """
+import sys
 import os
 import random
 import json
 from datetime import datetime, timezone
+import argparse
 
 import asyncio
 from aiocoap import *
@@ -81,8 +87,9 @@ def read_templates():
     return templates
 
 
-def parse_template_and_prepare_json(file_name=u"fogbench_sensor_coap.template.json"):
-    template_file = os.path.join(os.path.dirname(__file__), "templates/"+file_name)
+def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.template.json",
+                                    _write_to_file=None):
+    template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
 
     with open(template_file) as data_file:
         data = json.load(data_file)
@@ -90,9 +97,9 @@ def parse_template_and_prepare_json(file_name=u"fogbench_sensor_coap.template.js
 
     supported_format_types = ["number", "enum"]
     for d in data:
-        _sensor_value_object_formats = d["sensor_values"]
         x_sensor_values = dict()
 
+        _sensor_value_object_formats = d["sensor_values"]
         for fmt in _sensor_value_object_formats:
             if fmt["type"] not in supported_format_types:
                 raise InvalidSensorValueObjectTemplateFormat(u"Invalid format, "
@@ -124,16 +131,15 @@ def parse_template_and_prepare_json(file_name=u"fogbench_sensor_coap.template.js
 
         # print(json.dumps(sensor_value_object))
 
-        write_to_file = os.path.join(os.path.dirname(__file__), "out/_1.json")
-        with open(write_to_file, 'a') as the_file:
+        with open(_write_to_file, 'a') as the_file:
             json.dump(sensor_value_object, the_file)
             the_file.write(os.linesep)
 
 
-def read_out_file():
+def read_out_file(_file=None, _keep=False):
     from pprint import pprint
-    write_to_file = os.path.join(os.path.dirname(__file__), "out/_1.json")
-    with open(write_to_file) as f:
+    # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
+    with open(_file) as f:
         readings_list = [json.loads(line) for line in f]
     pprint(readings_list)
 
@@ -142,6 +148,8 @@ def read_out_file():
     for r in readings_list:
         loop.run_until_complete(send_to_coap(r))
 
+    if not _keep:
+        os.remove(_file)
 
 async def send_to_coap(payload):
     """
@@ -167,8 +175,27 @@ async def send_to_coap(payload):
     print('Result: %s\n%r'%(response.code, response.payload))
 
 
-parse_template_and_prepare_json()
-read_out_file()  # and send to coap
+def check_coap_server():
+    # TODO: Temporary info
+    print(">>> $ python -m foglamp.device ; To see payload on console & ensure CoAP server is listening on {}:{}".format("localhost", 5683))
+
+parser = argparse.ArgumentParser(prog='fogbench')
+parser.description = '%(prog)s -- a Python script used to test FogLAMP (simulate payloads)'
+parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/device interface of FogLAMP using CoAP'
+parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
+parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'], help='Do not delete the running sample (default: no)')
+parser.add_argument('-o', '--output', help='set the output file, WITHOUT extension')
+parser.add_argument('-H', '--host', help='CoAP server host address (default: localhost)', action=check_coap_server())
+namespace = parser.parse_args(sys.argv[1:])
+
+# could have set default in add_argument, but may be we don't want and this _1 is temp
+# should use <template-name_timestamp> or <pid.json>  etc ...
+outfile = '{0}.json'.format(namespace.output if namespace.output else '_1')
+output_file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
+keep_the_file = True if namespace.keep in ['y', 'yes'] else False
+
+parse_template_and_prepare_json(_write_to_file=output_file)
+read_out_file(_file=output_file, _keep=keep_the_file)  # and send to coap
 
 """ Expected output from given template
 { 

@@ -334,10 +334,19 @@ async def get_audit_entries(request):
         curl -X GET http://localhost:8082/foglamp/audit
 
         curl -X GET http://localhost:8082/foglamp/audit?limit=5
+
+        curl -X GET http://localhost:8082/foglamp/audit?source=PURGE
+
+        curl -X GET http://localhost:8082/foglamp/audit?severity=ERROR
+
+        curl -X GET http://localhost:8082/foglamp/audit?source=LOGGN&severity=INFORMATION&limit=10
     """
     try:
         limit = request.query.get('limit') if 'limit' in request.query else 0
-        audit_entries = await audit_trail_db_services.read_audit_entries(int(limit))
+        source = request.query.get('source') if 'source' in request.query else None
+        severity = request.query.get('severity') if 'severity' in request.query else None
+        audit_entries = await audit_trail_db_services.read_audit_entries(limit=int(limit),
+                                                                         source=source, severity=severity)
 
         return web.json_response({'audit': audit_entries})
 

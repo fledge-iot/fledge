@@ -24,25 +24,34 @@ class _Severity(IntEnum):
     WARNING = 3
     INFORMATION = 4
 
-async def read_audit_entries(limit=None):
+async def read_audit_entries(limit=None, source=None, severity=None):
     """
 
     Args:
         limit: the number of audit entries returned to the number specified
+        source: filter the audit entries to be only those from the specified source
+        severity: filter the audit entries to only those of the specified severity
 
     Returns:
         list of audit trail entries sorted with most recent first
     """
     conn = await asyncpg.connect(database=__DB_NAME)
     _limit_clause = " LIMIT $1" if limit else " "
+    _where_clause = " "
 
-    # TODO: source, severity filter and allow skip (offset) with limit
+    if (source is not None) and (severity is not None):
+        _where_clause = " WHERE code='{0}' AND level={1} ".format(source, _Severity[severity].value)
+    elif source is not None:
+        _where_clause = " WHERE code='{0}' ".format(source)
+    elif severity is not None:
+        _where_clause = " WHERE level={0} ".format(_Severity[severity].value)
+
+    # TODO: skip (offset) with limit
     # Select the code, ts, level, log from the log table
     query = """
                 SELECT code AS source, (ts)::varchar AS timestamp, level AS severity, log AS details 
-                FROM log ORDER BY timestamp DESC {limit_clause}
-            """.format(limit_clause=_limit_clause)
-
+                FROM log{where_clause}ORDER BY timestamp DESC{limit_clause}
+            """.format(limit_clause=_limit_clause, where_clause=_where_clause)
     stmt = await conn.prepare(query)
     rows = await stmt.fetch(limit) if limit else await stmt.fetch()
 

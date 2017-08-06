@@ -10,6 +10,7 @@ License: Apache 2.0
 FOGLAMP_PRELUDE_END
 """
 
+import uuid
 import logging
 from cbor2 import loads
 import aiocoap
@@ -36,6 +37,9 @@ _sensor_values_tbl = sa.Table(
     sa.Column('reading', JSONB))
 """Defines the table that data will be inserted into"""
 
+_CONNECTION_STRING = "dbname='foglamp'"
+                     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
+
 
 class BlockResource(aiocoap.resource.Resource):
     """
@@ -53,11 +57,39 @@ class BlockResource(aiocoap.resource.Resource):
         return aiocoap.Message(payload=self.content)
 
     async def render_put(self, request):
-        print('PUT payload: %s' % loads(request.payload))
+        json_payload = loads(request.payload)
+        print('PUT payload: %s' % json_payload)
         self.content = request.payload
         payload = ("accepted the new payload. inspect it here in "\
                 "Python's repr format:\n\n%r"%self.content).encode('utf8')
+
+        # asset_code_and_sensor = json_payload["asset"].split("/")
+        # if len(asset_code_and_sensor) == 2:
+        #     asset_code = asset_code_and_sensor[0]
+        #     _sensor = asset_code_and_sensor[1]
+        # elif len(asset_code_and_sensor) == 1:
+        #     asset_code = asset_code_and_sensor[0]
+        #     _sensor = asset_code # or ?
+        # # print(asset_code, _sensor)
+
+        _key = uuid.uuid4()
+        # un-comment next line to save to readings table
+        # await self.save_readings(json_payload["asset"], _key, json_payload["sensor_values"], json_payload["timestamp"])
         return aiocoap.Message(payload=payload)
+
+    async def save_readings(self, asset, key, sensor_values, timestamp):
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    try:
+                        await conn.execute(_sensor_values_tbl.insert().values(
+                            asset_code=asset, reading=sensor_values, read_key=key, user_ts=timestamp))
+                    except:
+                        # TODO make me better
+                        raise "could not save to readings table"
+
+        except:
+            raise "DB error occured"
 
 
 class SensorValues(aiocoap.resource.Resource):
@@ -67,11 +99,6 @@ class SensorValues(aiocoap.resource.Resource):
             _num_readings (int) : number of readings processed through render_post method since initialization or since the last time _update_statistics() was called
             _num_discarded_readings (int) : number of readings discarded through render_post method since initialization or since the last time _update_statistics() was called
     """
-
-    _CONNECTION_STRING = "dbname='foglamp'"
-
-    # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
-
 
     def __init__(self):
         super(SensorValues, self).__init__()
@@ -133,7 +160,7 @@ class SensorValues(aiocoap.resource.Resource):
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
         try:
-            async with aiopg.sa.create_engine(self._CONNECTION_STRING) as engine:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
                 async with engine.acquire() as conn:
                     try:
                         await conn.execute(_sensor_values_tbl.insert().values(

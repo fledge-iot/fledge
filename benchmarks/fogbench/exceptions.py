@@ -19,7 +19,7 @@ __version__ = "${VERSION}"
 class FogbenchError(Exception):
     """
     All errors specific to fogbench will be
-    subclassed from FoglbenchError which is subclassed from Exception.
+    subclassed from FogbenchError which is subclassed from Exception.
     """
     pass
 

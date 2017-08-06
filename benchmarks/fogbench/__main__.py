@@ -92,6 +92,7 @@ def parse_template_and_prepare_json(file_name=u"fogbench_sensor_coap.template.js
     for d in data:
         _sensor_value_object_formats = d["sensor_values"]
         x_sensor_values = dict()
+
         for fmt in _sensor_value_object_formats:
             if fmt["type"] == "number":
                 # check float precision if any
@@ -112,8 +113,6 @@ def parse_template_and_prepare_json(file_name=u"fogbench_sensor_coap.template.js
             # print(fmt["name"])
             x_sensor_values[fmt["name"]] = reading
 
-
-
         # print(d["name"])
 
         sensor_value_object = dict()
@@ -133,10 +132,13 @@ def read_out_file():
     from pprint import pprint
     write_to_file = os.path.join(os.path.dirname(__file__), "out/_1.json")
     with open(write_to_file) as f:
-        my_list = [json.loads(line) for line in f]
-    pprint(my_list)
-    for l in my_list:
-        asyncio.get_event_loop().run_until_complete(send_to_coap(l))
+        readings_list = [json.loads(line) for line in f]
+    pprint(readings_list)
+
+    loop = asyncio.get_event_loop()
+
+    for r in readings_list:
+        loop.run_until_complete(send_to_coap(r))
 
 
 async def send_to_coap(payload):
@@ -153,7 +155,6 @@ async def send_to_coap(payload):
     await asyncio.sleep(2)
 
     # payload = b"some blah text ....\n" * 30
-    # payload =  payload["asset"].encode()
 
     request = Message(payload=dumps(payload), code=PUT)
     request.opt.uri_host = 'localhost'

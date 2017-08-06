@@ -29,7 +29,13 @@ fogbench
  -S --statistic   The type of statistics to collect
 
  Example:
-     $ python -m  foglamp.benchmarks
+
+     $ cd benchmarks
+     $ python -m fogbench
+
+     or
+
+     $ python -m benchmarks.fogbench
 
  .. todo::
 

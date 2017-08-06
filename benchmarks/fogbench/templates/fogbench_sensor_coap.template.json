@@ -2,7 +2,7 @@
   { "name"          : "TI sensorTag/luxometer",
     "sensor_values" : [ { "name": "lux", "type": "number", "min": 0, "max": 130000, "precision":3 } ] },
   { "name"          : "TI sensorTag/pressure",
-    "sensor_values" : [ { "name": "pressure", "type": "number", "min": 800.0, "max": 1100.0 } ] },
+    "sensor_values" : [ { "name": "pressure", "type": "number", "min": 800.0, "max": 1100.0, "precision":1 } ] },
   { "name"          : "TI sensorTag/humidity",
     "sensor_values" : [ { "name": "humidity",    "type": "number", "min": 0.0, "max": 100.0 },
                         { "name": "temperature", "type": "number", "min": 0.0, "max": 50.0  } ] },

@@ -86,31 +86,33 @@ def parse_template_and_prepare_json(file_name=u"fogbench_sensor_coap.template.js
 
     with open(template_file) as data_file:
         data = json.load(data_file)
+        # print(data)
 
-    # print(data)
-
+    supported_format_types = ["number", "enum"]
     for d in data:
         _sensor_value_object_formats = d["sensor_values"]
         x_sensor_values = dict()
 
         for fmt in _sensor_value_object_formats:
+            if fmt["type"] not in supported_format_types:
+                raise InvalidSensorValueObjectTemplateFormat(u"Invalid format, "
+                                                             u"Can not parse type {}".format(fmt["type"]))
             if fmt["type"] == "number":
                 # check float precision if any
-                precision = fmt.get("precision", 0)
+                precision = fmt.get("precision", None)
                 min_val = fmt.get("min", None)
                 max_val = fmt.get("max", None)
                 if min_val is None or max_val is None:
                     raise InvalidSensorValueObjectTemplateFormat(u"Invalid format, "
-                                                         u"Min and Max values must be defined for type number.")
+                                                                 u"Min and Max values must be defined for type number.")
                 # print(precision)
                 # print(min_val)
                 # print(max_val)
                 reading = round(random.uniform(min_val, max_val), precision)
-                # print(reading)
             elif fmt["type"] == "enum":
                 reading = random.choice(fmt["list"])
 
-            # print(fmt["name"])
+            print(fmt["name"], reading)
             x_sensor_values[fmt["name"]] = reading
 
         # print(d["name"])

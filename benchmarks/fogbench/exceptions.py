@@ -24,7 +24,11 @@ class FogbenchError(Exception):
     pass
 
 
-class InvalidSensorValueObjectTemplateFormat(FogbenchError):
+class InvalidTemplateFormat(FogbenchError):
+    pass
+
+
+class InvalidSensorValueObjectTemplateFormat(InvalidTemplateFormat):
     def __init__(self, msg):
         self.msg = msg
 

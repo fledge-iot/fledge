@@ -14,3 +14,6 @@ docs/.cache/
 # Allure
 allure/
 allure-report/
+
+# TODO: remove out directory
+benchmarks/fogbench/out/*

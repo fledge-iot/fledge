@@ -50,8 +50,8 @@ import asyncio
 from aiocoap import *
 from cbor2 import dumps
 
-from foglamp import logger
-from foglamp.benchmarks.exceptions import *
+# FIXME: remove relative import
+from .exceptions import *
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -60,7 +60,8 @@ __version__ = "${VERSION}"
 
 
 _FOGBENCH_VERSION = u"0.1"
-_logger = logger.setup(__name__)
+# TODO: have its own sys/ console logger
+# _logger = logger.setup(__name__)
 
 
 # TODO: move stuff to fogbench.py
@@ -158,7 +159,7 @@ async def send_to_coap(payload):
 
 
 parse_template_and_prepare_json()
-read_out_file() # and send to coap
+read_out_file()  # and send to coap
 
 """ Expected output from given template
 { 

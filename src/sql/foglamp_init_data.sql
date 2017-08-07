@@ -142,3 +142,7 @@ insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'omf translator', 'omf translator', 3,
 NULL, '00:00:15', true);
+
+-- Temporary  omf translator configuration
+INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());
+INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF', 0,now());  

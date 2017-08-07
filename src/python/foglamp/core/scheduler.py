@@ -1004,11 +1004,11 @@ class Scheduler(object):
         schedule.exclusive = schedule_row.exclusive
         schedule.name = schedule_row.name
         schedule.process_name = schedule_row.process_name
-        schedule.repeat = str(schedule_row.repeat)
+        schedule.repeat = schedule_row.repeat
 
         if schedule_type == cls._ScheduleType.TIMED:
             schedule.day = schedule_row.day
-            schedule.time = str(schedule_row.time)
+            schedule.time = schedule_row.time
         else:
             schedule.day = None
             schedule.time = None

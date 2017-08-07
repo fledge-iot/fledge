@@ -204,7 +204,7 @@ async def get_schedules(request):
                 'name': sch.name,
                 'process_name': sch.process_name,
                 'type': sch.type,
-                'repeat': sch.repeat,
+                'repeat': str(sch.repeat),
                 'day': sch.day,
                 'time': sch.time,
                 'exclusive': sch.exclusive
@@ -238,7 +238,7 @@ async def get_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': sch.type,
-            'repeat': sch.repeat,
+            'repeat': str(sch.repeat),
             'day': sch.day,
             'time': sch.time,
             'exclusive': sch.exclusive
@@ -279,7 +279,7 @@ async def start_schedule(request):
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
-def _extract_args(data):
+def _extract_args(data, curr_value=None):
     """
     Private method to extract data from the post payload
 
@@ -289,25 +289,31 @@ def _extract_args(data):
 
     _schedule = dict()
 
-    _schedule['schedule_id'] = data.get('schedule_id', None)
+    _schedule['schedule_id'] = curr_value['schedule_id'] if curr_value else None
 
-    s_type = data.get('type', 0)
+    s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
     _schedule['schedule_type'] = int(s_type)
 
-    s_day = data.get('day', 0)
-    s_time = data.get('time', 0)
+    s_day = data.get('day') if  'day' in data else curr_value['schedule_day'] if curr_value else 0
     _schedule['schedule_day'] = int(s_day)
+
+    s_time = data.get('time') if  'time' in data else curr_value['schedule_time'] if curr_value else 0
     _schedule['schedule_time'] = int(s_time)
 
-    _schedule['schedule_name'] = data.get('name', None)
-    _schedule['schedule_process_name'] = data.get('process_name', None)
-    _schedule['schedule_repeat'] = data.get('repeat', 0)
-    _schedule['schedule_exclusive'] = data.get('exclusive', True)
+    s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value else 0
+    _schedule['schedule_repeat'] = int(s_repeat)
+
+    _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
+
+    _schedule['schedule_process_name'] = data.get('process_name') if  'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
+
+    _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value['schedule_exclusive'] if curr_value else 'True'
+    _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
 
     return _schedule
 
 
-async def _check_schedule_post_parameters(data):
+async def _check_schedule_post_parameters(data, curr_value=None):
     """
     Private method to validate post data for creating a new schedule or updating an existing schedule
 
@@ -315,12 +321,12 @@ async def _check_schedule_post_parameters(data):
     :return: list errors
     """
 
-    _schedule = _extract_args(data)
+    _schedule = _extract_args(data, curr_value)
 
     _errors = list()
 
-    # Raise error if schedule_type is missing
-    if not _schedule.get('schedule_type'):
+    # Raise error if schedule_type is missing for a new schedule
+    if 'schedule_id' not in _schedule and not _schedule.get('schedule_type'):
         _errors.append('Schedule type cannot be empty.')
 
     # Raise error if schedule_type is wrong
@@ -328,9 +334,8 @@ async def _check_schedule_post_parameters(data):
                                               Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
         _errors.append('Schedule type error: {}'.format(_schedule.get('schedule_type')))
 
-    # Raise error if day, time are missing or are non integers
+    # Raise error if day and time are missing for schedule_type = TIMED
     if _schedule.get('schedule_type') == Scheduler._ScheduleType.TIMED:
-        # Raise error if day and time are missing for schedule_type = TIMED
         if not _schedule.get('schedule_day') or not _schedule.get('schedule_time'):
             _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
         elif not isinstance(_schedule.get('schedule_day'), int):
@@ -338,14 +343,26 @@ async def _check_schedule_post_parameters(data):
         elif not isinstance(_schedule.get('schedule_time'), int):
             _errors.append('Time must be an integer.')
 
-    # Raise error if repeat_unit, repeat are missing or are non integers
+    # Raise error if repeat is missing or is non integers
     if _schedule.get('schedule_type') == Scheduler._ScheduleType.INTERVAL:
         if 'schedule_repeat' not in _schedule:
             _errors.append('repeat is required for INTERVAL Schedule type.')
         elif not isinstance(int(_schedule.get('schedule_repeat')), int):
             _errors.append('Repeat must be an integer.')
 
-    # Raise error if name and process_name are missing
+    # Raise error if day is non integer
+    if not isinstance(_schedule.get('schedule_day'), int):
+        _errors.append('Day must be an integer.')
+
+    # Raise error if time is non integer
+    if not isinstance(_schedule.get('schedule_time'), int):
+        _errors.append('Time must be an integer.')
+
+    # Raise error if repeat is non integer
+    if not isinstance(int(_schedule.get('schedule_repeat')), int):
+        _errors.append('Repeat must be an integer.')
+
+    # Raise error if name and process_name are missing for a new schedule
     if not _schedule.get('schedule_name') or not _schedule.get('schedule_process_name'):
         _errors.append('Schedule name and Process name cannot be empty.')
 
@@ -354,10 +371,14 @@ async def _check_schedule_post_parameters(data):
     if not scheduled_process:
         _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
 
+    # Raise error if exclusive is wrong
+    if _schedule.get('schedule_exclusive') not in ['True', 'False']:
+        _errors.append('Schedule exclusive error: {}'.format(_schedule.get('schedule_exclusive')))
+
     return _errors
 
 
-async def _execute_add_update_schedule(data):
+async def _execute_add_update_schedule(data, curr_value=None):
     """
     Private method common to create a new schedule and update an existing schedule
 
@@ -365,7 +386,7 @@ async def _execute_add_update_schedule(data):
     :return: schedule_id (new for created, existing for updated)
     """
 
-    _schedule = _extract_args(data)
+    _schedule = _extract_args(data, curr_value)
 
     # Create schedule object as Scheduler.save_schedule requires an object
     if _schedule.get('schedule_type') == Scheduler._ScheduleType.STARTUP:
@@ -386,7 +407,7 @@ async def _execute_add_update_schedule(data):
     schedule.process_name = _schedule.get('schedule_process_name')
     schedule.repeat = datetime.timedelta(seconds=_schedule['schedule_repeat'])
 
-    schedule.exclusive = _schedule.get('schedule_exclusive')
+    schedule.exclusive = True if _schedule.get('schedule_exclusive') == 'True' else False
 
     # Save schedule
     await server.Server.scheduler.save_schedule(schedule)
@@ -437,16 +458,25 @@ async def update_schedule(request):
         if not schedule_id:
             raise ValueError('No such Schedule.')
 
-        is_schedule = await scheduler_db_services.read_schedule(schedule_id)
-        if not is_schedule:
+        schedule = await scheduler_db_services.read_schedule(schedule_id)
+        if not schedule:
             raise ValueError('No such Schedule: {}.'.format(schedule_id))
 
-        go_no_go = await _check_schedule_post_parameters(data)
+        curr_value = dict()
+        curr_value['schedule_id'] = schedule[0]['id']
+        curr_value['schedule_process_name'] = schedule[0]['process_name']
+        curr_value['schedule_name'] = schedule[0]['schedule']['schedule_name']
+        curr_value['schedule_type'] = schedule[0]['schedule']['schedule_type']
+        curr_value['schedule_repeat'] = schedule[0]['schedule']['schedule_interval']
+        curr_value['schedule_time'] = schedule[0]['schedule']['schedule_time']
+        curr_value['schedule_day'] = schedule[0]['schedule']['schedule_day']
+        curr_value['schedule_exclusive'] = schedule[0]['schedule']['exclusive']
+
+        go_no_go = await _check_schedule_post_parameters(data, curr_value)
         if len(go_no_go) != 0:
             raise ValueError("Errors in request: {}".format(','.join(go_no_go)))
 
-        data['schedule_id'] = schedule_id
-        updated_schedule_id = await _execute_add_update_schedule(data)
+        updated_schedule_id = await _execute_add_update_schedule(data, curr_value)
 
         return web.json_response({'message': 'Schedule updated successfully.', 'id': str(updated_schedule_id)})
     except ValueError as ex:

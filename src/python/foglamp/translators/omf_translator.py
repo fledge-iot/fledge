@@ -128,7 +128,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_b113"
+        "default": "omf_translator_b116"
 
     },
     "channelID": {
@@ -640,6 +640,8 @@ def create_data_values_stream_message(data_values, target_stream_id, information
 def send_omf_message_to_end_point(message_type, omf_data):
     """Sends data for OMF - it retries the operation using a sleep time increased *2 for every retry
 
+    it logs a WARNING only at the end of the retry mechanism
+
     Args:
         message_type: possible values - Type | Container | Data
         omf_data:     message to send
@@ -648,14 +650,16 @@ def send_omf_message_to_end_point(message_type, omf_data):
         Exception: an error occurred during the OMF request
 
     """
+
+    global _omf_max_retry
+
     sleep_time = _omf_retry_sleep_time
 
-    status = 0
-    retry = 1
-    loop_continue = True
     message = ""
+    status = 0
+    num_retry = 1
 
-    while loop_continue:
+    while num_retry < _omf_max_retry:
         try:
             status = 0
             msg_header = {'producertoken': _producer_token,
@@ -673,21 +677,15 @@ def send_omf_message_to_end_point(message_type, omf_data):
                                                                         response.status_code,
                                                                         response.text))
 
+            break
+
         except Exception as e:
             message = _message_list["e000007"].format(e)
             status = 1
 
-        if status == 0:
-            loop_continue = False
-
-        elif retry < _omf_max_retry:
-
             time.sleep(sleep_time)
-            retry += 1
+            num_retry += 1
             sleep_time *= 2
-
-        else:
-            loop_continue = False
 
     if status != 0:
         _logger.warning(message)
@@ -731,10 +729,10 @@ def position_read():
 
 
 def position_update(new_position):
-    """Updates reached position in the communication with PTCROMF
+    """Updates reached position in the communication with PICROMF
 
     Args:
-        new_position:  Last row already sent to the PTCROMF
+        new_position:  Last row already sent to the PICROMF
 
     Todo:
         it should evolve using the DB layer

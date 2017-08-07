@@ -933,7 +933,7 @@ class Scheduler(object):
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(
-                                id=schedule.schedule_id,
+                                id=str(schedule.schedule_id),
                                 name=schedule.name,
                                 type=schedule_type,
                                 time=schedule_time,
@@ -943,7 +943,7 @@ class Scheduler(object):
                                 exclusive=schedule.exclusive,
                                 process_name=schedule.process_name)
 
-        self._schedules[schedule.schedule_id] = schedule_row
+        self._schedules[str(schedule.schedule_id)] = schedule_row
 
         # Did the schedule change in a way that will affect task scheduling?
 

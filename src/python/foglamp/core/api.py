@@ -301,7 +301,7 @@ def _extract_args(data):
 
     _schedule['schedule_name'] = data.get('name', None)
     _schedule['schedule_process_name'] = data.get('process_name', None)
-    _schedule['schedule_repeat'] = datetime.timedelta(seconds=int(data.get('repeat', 1)))
+    _schedule['schedule_repeat'] = data.get('repeat', 0)
     _schedule['schedule_exclusive'] = data.get('exclusive', True)
 
     return _schedule
@@ -310,6 +310,7 @@ def _extract_args(data):
 async def _check_schedule_post_parameters(data):
     """
     Private method to validate post data for creating a new schedule or updating an existing schedule
+
     :param data:
     :return: list errors
     """
@@ -318,61 +319,40 @@ async def _check_schedule_post_parameters(data):
 
     _errors = list()
 
-    if not _schedule.get('schedule_id'): # Add a new schedule
-        # Raise error if schedule_type is missing
-        if not _schedule.get('schedule_type'):
-            _errors.append('Schedule type cannot be empty.')
+    # Raise error if schedule_type is missing
+    if not _schedule.get('schedule_type'):
+        _errors.append('Schedule type cannot be empty.')
 
-        # Raise error if schedule_type is wrong
-        if _schedule.get('schedule_type') not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
-                                 Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
-            _errors.append('Schedule type error: {}'.format(_schedule.get('schedule_type')))
+    # Raise error if schedule_type is wrong
+    if _schedule.get('schedule_type') not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
+                                              Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+        _errors.append('Schedule type error: {}'.format(_schedule.get('schedule_type')))
 
-        if _schedule.get('schedule_type') == Scheduler._ScheduleType.TIMED:
-            # Raise error if day and time are missing for schedule_type = TIMED
-            if not _schedule.get('schedule_day') or not _schedule.get('schedule_time'):
-                _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-            # TODO: day and time must be integers
+    # Raise error if day, time are missing or are non integers
+    if _schedule.get('schedule_type') == Scheduler._ScheduleType.TIMED:
+        # Raise error if day and time are missing for schedule_type = TIMED
+        if not _schedule.get('schedule_day') or not _schedule.get('schedule_time'):
+            _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
+        elif not isinstance(_schedule.get('schedule_day'), int):
+            _errors.append('Day must be an integer.')
+        elif not isinstance(_schedule.get('schedule_time'), int):
+            _errors.append('Time must be an integer.')
 
-        if _schedule.get('schedule_type') == Scheduler._ScheduleType.INTERVAL:
-            pass
-            # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
-            # TODO: How to define various values of datetime.timedelta for "repeat"?
+    # Raise error if repeat_unit, repeat are missing or are non integers
+    if _schedule.get('schedule_type') == Scheduler._ScheduleType.INTERVAL:
+        if 'schedule_repeat' not in _schedule:
+            _errors.append('repeat is required for INTERVAL Schedule type.')
+        elif not isinstance(int(_schedule.get('schedule_repeat')), int):
+            _errors.append('Repeat must be an integer.')
 
-        # Raise error if name and process_name are missing
-        if not _schedule.get('schedule_name') or not _schedule.get('schedule_process_name'):
-            _errors.append('Schedule name and Process name cannot be empty.')
+    # Raise error if name and process_name are missing
+    if not _schedule.get('schedule_name') or not _schedule.get('schedule_process_name'):
+        _errors.append('Schedule name and Process name cannot be empty.')
 
-        scheduled_process = await scheduler_db_services.read_scheduled_processes(_schedule.get('schedule_process_name'))
-
-        if not scheduled_process:
-            _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
-    else: # Update an existing schedule
-        if not _schedule.get('schedule_type'):
-            # Raise error if schedule_type is wrong
-            if _schedule.get('schedule_type') not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
-                                     Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
-                _errors.append('Schedule type error: {}'.format(_schedule.get('schedule_type')))
-
-            if _schedule.get('schedule_type') == Scheduler._ScheduleType.TIMED:
-                # Raise error if day and time are missing for schedule_type = TIMED
-                if not _schedule.get('schedule_day') or not _schedule.get('schedule_time'):
-                    _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-                # TODO: day and time must be integers
-
-            if _schedule.get('schedule_type') == Scheduler._ScheduleType.INTERVAL:
-                pass
-                # TODO: Check for repeat value if schedule_type is INTERVAL. Repeat must be integers
-                # TODO: How to define various values of datetime.timedelta for "repeat"?
-
-        # Raise error if name and process_name are missing
-        if not _schedule.get('schedule_process_name'):
-            _errors.append('Schedule name and Process name cannot be empty.')
-
-            scheduled_process = await scheduler_db_services.read_scheduled_processes(_schedule.get('schedule_process_name'))
-
-            if not scheduled_process:
-                _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
+    # Raise error if scheduled_process name is wrong
+    scheduled_process = await scheduler_db_services.read_scheduled_processes(_schedule.get('schedule_process_name'))
+    if not scheduled_process:
+        _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
 
     return _errors
 
@@ -404,7 +384,8 @@ async def _execute_add_update_schedule(data):
     # schedule.schedule_type = schedule_type
     schedule.name = _schedule.get('schedule_name')
     schedule.process_name = _schedule.get('schedule_process_name')
-    schedule.repeat = _schedule.get('schedule_repeat')
+    schedule.repeat = datetime.timedelta(seconds=_schedule['schedule_repeat'])
+
     schedule.exclusive = _schedule.get('schedule_exclusive')
 
     # Save schedule

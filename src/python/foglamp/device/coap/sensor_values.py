@@ -10,7 +10,6 @@ License: Apache 2.0
 FOGLAMP_PRELUDE_END
 """
 
-import uuid
 import logging
 from cbor2 import loads
 import aiocoap
@@ -72,9 +71,8 @@ class BlockResource(aiocoap.resource.Resource):
         #     _sensor = asset_code # or ?
         # # print(asset_code, _sensor)
 
-        _key = uuid.uuid4()
         # un-comment next line to save to readings table
-        # await self.save_readings(json_payload["asset"], _key, json_payload["sensor_values"], json_payload["timestamp"])
+        await self.save_readings(json_payload["asset"], json_payload["_key"], json_payload["sensor_values"], json_payload["timestamp"])
         return aiocoap.Message(payload=payload)
 
     async def save_readings(self, asset, key, sensor_values, timestamp):
@@ -119,7 +117,6 @@ class SensorValues(aiocoap.resource.Resource):
             await statistics.update_statistics_value('DISCARDED', self._num_discarded_readings)
             self._num_discarded_readings = 0
 
-
     async def render_post(self, request):
         """Sends asset readings to storage layer
 
@@ -146,6 +143,8 @@ class SensorValues(aiocoap.resource.Resource):
         # Required keys in the payload
         try:
             payload = loads(request.payload)
+            print('PUT payload: %s' % payload)
+
             asset = payload['asset']
             timestamp = payload['timestamp']
         except:

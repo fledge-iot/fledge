@@ -25,6 +25,8 @@ Initial configuration
 
 Note
 ----
+- OMF information available at - http://omf-docs.readthedocs.io/en/v1.0/Data_Msg_Sample.html#data-example
+
 - logs : tail -f /var/log/syslog | grep omf_translator
 
 - block_size identifies the number of rows to send for each execution

@@ -42,7 +42,6 @@ _DB_URL = 'postgresql:///foglamp'
 
 _module_name = "OMF Translator"
 
-
 _message_list = {
 
     # Information messages
@@ -85,26 +84,24 @@ _readings_tbl = sa.Table(
     sa.Column('reading', JSONB))
 
 
-# PI Server OMF reference - for detailed information
-# http://omf-docs.readthedocs.io/en/v1.0/Data_Msg_Sample.html#data-example
-
 _event_loop = ""
 
 # Managed by initialize_plugin
 _relay_url = ""
 _producer_token = ""
 _channel_id = 1
+
 """Channel Id for the OMF translator"""
+
 _omf_max_retry = 5
 _omf_retry_sleep_time = 1
 
-
-# The size of a block of readings to send in each transmission.
 _block_size = 1000
+"""The size of a block of readings to send in each transmission"""
+
 
 # OMF objects creation
 _types = ""
-
 
 # OMF object's attributes
 _sensor_location = "S.F."
@@ -128,7 +125,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_b116"
+        "default": "omf_translator_b117"
 
     },
     "channelID": {
@@ -138,7 +135,7 @@ _DEFAULT_OMF_CONFIG = {
 
     },
     "OMFMaxRetry": {
-        "description": "Max number of retry for the communication with the OMF PI Connector Relay",
+        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
         "type": "integer",
         "default": "5"
 
@@ -149,7 +146,12 @@ _DEFAULT_OMF_CONFIG = {
         "default": "1"
 
     },
+    "blockSize": {
+        "description": "The size of a block of readings to send in each transmission.",
+        "type": "integer",
+        "default": "1000"
 
+    },
 
 }
 _CONFIG_CATEGORY_NAME = 'OMF_TRANS'
@@ -158,16 +160,16 @@ _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
 _config = ""
 """Configurations retrieved from the Configuration Manager"""
 
-
 # DB operations
 _pg_conn = ""
 _pg_cur = ""
 
-
 # statistics
 _num_sent = 0
+
+# internal statistic
 _num_unsent = 0
-"""rows unsent to OMF, for errors in the communication"""
+"""rows that generate errors in the preparation process, before sending them to OMF"""
 
 
 def initialize_plugin():
@@ -198,6 +200,8 @@ def initialize_plugin():
     global _OMF_types_definition
     global _channel_id
 
+    global _block_size
+
     global _omf_max_retry
     global _omf_retry_sleep_time
 
@@ -205,6 +209,8 @@ def initialize_plugin():
         _event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_NAME, _DEFAULT_OMF_CONFIG,
                                                                              _CONFIG_CATEGORY_DESCRIPTION))
         _config = _event_loop.run_until_complete(configuration_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
+
+        _block_size = _omf_max_retry = int(_config['blockSize']['value'])
 
         # OMF parameters
         _omf_max_retry = int(_config['OMFMaxRetry']['value'])
@@ -572,12 +578,12 @@ def initialize_plugin():
 
 
 def create_data_values_stream_message(data_values, target_stream_id, information_to_send):
-    """Creates the JSON data for OMF
+    """Creates the JSON data for PICROMF
 
     Args:
         data_values:          data to send
-        target_stream_id:     OMF container ID
-        information_to_send:  information retrieved that should be prepared for OMF
+        target_stream_id:     PICROMF container ID
+        information_to_send:  information retrieved that should be prepared for PICROMF
 
     Returns:
         data_values_json: information converted in JSON format
@@ -598,7 +604,7 @@ def create_data_values_stream_message(data_values, target_stream_id, information
                   .format(target_stream_id, asset_code, str(row_id)))
 
     try:
-        # Prepares the data for OMF
+        # Prepares the data for PICROMF
         new_data_values = [
             {
                 "containerid": target_stream_id,
@@ -638,7 +644,7 @@ def create_data_values_stream_message(data_values, target_stream_id, information
 
 
 def send_omf_message_to_end_point(message_type, omf_data):
-    """Sends data for OMF - it retries the operation using a sleep time increased *2 for every retry
+    """Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
 
     it logs a WARNING only at the end of the retry mechanism
 
@@ -672,6 +678,10 @@ def send_omf_message_to_end_point(message_type, omf_data):
 
             response = requests.post(_relay_url, headers=msg_header, data=omf_data_json, verify=False,
                                      timeout=30)
+
+            # FIXME: temporary/testing code
+            if response.status_code == 400:
+                raise RuntimeError(response.text)
 
             _logger.debug("Response |{0}| message: |{1}| |{2}| ".format(message_type,
                                                                         response.status_code,
@@ -815,7 +825,7 @@ def omf_objects_creation():
 
 
 def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id):
-    """Creates an object into OMF
+    """Creates an object into PICROMF
 
     Raises:
         Exception: an error occurred during the OMF's objects creation.
@@ -825,7 +835,7 @@ def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, t
     global _sensor_location
 
     try:
-        # OSI/OMF objects definition
+        # PICROMF objects definition
         containers = [
             {
                 "id": tmp_measurement_id,
@@ -1002,7 +1012,7 @@ def sending_init():
     """
 
     try:
-        _logger.info("{0}".format("INIT START "))
+        _logger.debug("{0}".format("omf_translator_perf - INIT START "))
 
         prg_text = ", for Linux (x86_64)"
 
@@ -1015,7 +1025,7 @@ def sending_init():
         omf_types_creation()
         omf_objects_creation()
 
-        _logger.info("{0}".format("INIT END"))
+        _logger.debug("{0}".format("omf_translator_perf - INIT END "))
 
     except Exception as e:
         message = _message_list["e000018"].format(e)
@@ -1053,7 +1063,7 @@ if __name__ == "__main__":
 
         _event_loop.run_until_complete(send_info_to_picromf())
 
-        _logger.debug(_message_list["i000003"])
+        _logger.info(_message_list["i000003"])
 
     except Exception as ex:
         tmp_message = _message_list["e000004"].format(ex)

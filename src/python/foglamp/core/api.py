@@ -278,7 +278,15 @@ async def start_schedule(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
+
 def _extract_args(data):
+    """
+    Private method to extract data from the post payload
+
+    :param data:
+    :return: object schedule
+    """
+
     _schedule = dict()
 
     _schedule['schedule_id'] = data.get('schedule_id', None)
@@ -298,7 +306,14 @@ def _extract_args(data):
 
     return _schedule
 
+
 async def _check_schedule_post_parameters(data):
+    """
+    Private method to validate post data for creating a new schedule or updating an existing schedule
+    :param data:
+    :return: list errors
+    """
+
     _schedule = _extract_args(data)
 
     _errors = list()
@@ -363,6 +378,13 @@ async def _check_schedule_post_parameters(data):
 
 
 async def _execute_add_update_schedule(data):
+    """
+    Private method common to create a new schedule and update an existing schedule
+
+    :param data:
+    :return: schedule_id (new for created, existing for updated)
+    """
+
     _schedule = _extract_args(data)
 
     # Create schedule object as Scheduler.save_schedule requires an object

@@ -55,9 +55,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit', api.get_audit_entries)
 
     # enable cors support
-    # Note: pip install aiohttp_cors
-
-    # enable_cors(app)
+    enable_cors(app)
 
     # enable a live debugger (watcher) for requests, see https://github.com/aio-libs/aiohttp-debugtoolbar
     # this will neutralize error middleware

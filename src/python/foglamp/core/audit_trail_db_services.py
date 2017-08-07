@@ -37,12 +37,13 @@ async def read_audit_entries(limit=None, offset=None, source=None, severity=None
         list of audit trail entries sorted with most recent first
     """
     conn = await asyncpg.connect(database=__DB_NAME)
+    
     _limit_clause = " LIMIT {0}".format(limit) if limit else " "
-    _where_clause = " "
     _offset_clause = " "
     if limit:
         _offset_clause = " OFFSET {0}".format(offset) if offset else " "
 
+    _where_clause = " "
     if source and severity:
         _where_clause = " WHERE code='{0}' AND level={1} ".format(source, _Severity[severity].value)
     elif source:

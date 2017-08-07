@@ -5,7 +5,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Pushes information stored in FogLAMP into OSI/OMF
+""" Pushes information stored in FogLAMP into PICROMF (PI Connector Relay OMF)
 The information are sent in chunks,
 the table foglamp.streams and block_size are used for this handling
 
@@ -67,7 +67,8 @@ _message_list = {
     "e000014": _module_name + " - cannot start the sending process - error details |{0}|.",
     "e000015": _module_name + " - cannot update statistics - error details |{0}|.",
     "e000016": _module_name + " - cannot update reached position/statistics during a previous error - details |{0}|.",
-    "e000017": _module_name + " - cannot complete data preparation - details |{0}|."
+    "e000017": _module_name + " - cannot complete data preparation - details |{0}|.",
+    "e000018": _module_name + " - cannot complete the initialization - details |{0}|."
 
 }
 """Messages used for Information, Warning and Error notice"""
@@ -99,8 +100,7 @@ _omf_retry_sleep_time = 1
 
 
 # The size of a block of readings to send in each transmission.
-# FIXME:
-_block_size = 2
+_block_size = 1000
 
 # OMF objects creation
 _types = ""
@@ -128,7 +128,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_b108"
+        "default": "omf_translator_b113"
 
     },
     "channelID": {
@@ -622,7 +622,8 @@ def create_data_values_stream_message(data_values, target_stream_id, information
                 pass
 
         if data_available:
-            data_values.append(new_data_values)
+            # note : append produces an not properly constructed OMF message
+            data_values.extend(new_data_values)
 
             _logger.debug("OMF Message |{0}| ".format(data_values))
         else:
@@ -730,10 +731,10 @@ def position_read():
 
 
 def position_update(new_position):
-    """Updates reached position in the communication with CR
+    """Updates reached position in the communication with PTCROMF
 
     Args:
-        new_position:  Last row already sent to the CR
+        new_position:  Last row already sent to the PTCROMF
 
     Todo:
         it should evolve using the DB layer
@@ -892,9 +893,9 @@ async def send_info_to_picromf():
         data_available, new_position = await data_preparation(data_to_send)
 
         if data_available:
-            _logger.info("{0}".format("OMF START "))
+            _logger.debug("{0}".format("omf_translator_perf - OMF START "))
             send_omf_message_to_end_point("Data", data_to_send)
-            _logger.info("{0}".format("OMF END "))
+            _logger.debug("{0}".format("omf_translator_perf - OMF END "))
 
             position_update(new_position)
             await update_statistics()
@@ -907,7 +908,7 @@ async def send_info_to_picromf():
 
 
 async def data_preparation(values):
-    """Extracts and prepares data to send
+    """Extracts from the DB Layer and prepares the data for the sending operation
 
     Raises:
         Exception: cannot complete data preparation
@@ -936,9 +937,9 @@ async def data_preparation(values):
                     position = position_read()
                     _logger.debug("Last position, already sent |{0}| ".format(str(position)))
 
-                    _logger.info("{0}".format("LOOP START "))
+                    _logger.debug("{0}".format("omf_translator_perf - DB read START "))
 
-                    # Reads the rows from the Storage layer and sends them to OMF
+                    # Reads rows from the Storage layer and sends them to the PICROMF
                     async for db_row in conn.execute(_readings_tbl.select()
                                                      .where(_readings_tbl.c.id > position)
                                                      .order_by(_readings_tbl.c.id).limit(_block_size)):
@@ -967,10 +968,10 @@ async def data_preparation(values):
                             try:
                                 create_data_values_stream_message(values, measurement_id, db_row)
 
-                                # Updates statistics
+                                # Used for the statistics update
                                 _num_sent += 1
 
-                                # Updates latest position sent
+                                # Latest position reached
                                 new_position = db_row.id
 
                                 data_available = True
@@ -984,7 +985,7 @@ async def data_preparation(values):
                     message = "### completed ##################################################"
                     _logger.debug("{0}".format(message))
 
-                    _logger.info("{0}".format("LOOP END "))
+                    _logger.debug("{0}".format("omf_translator_perf - DB read END "))
 
     except Exception as e:
         message = _message_list["e000017"].format(e)
@@ -996,10 +997,10 @@ async def data_preparation(values):
 
 
 def sending_init():
-    """Initialize the information sending
+    """Initialize before sending the information to PICROMF
 
-    Raises:
-
+    Raises :
+        Exception - cannot complete the initialization
     """
 
     try:
@@ -1019,13 +1020,18 @@ def sending_init():
         _logger.info("{0}".format("INIT END"))
 
     except Exception as e:
-        message = _message_list["e000014"].format(e)
+        message = _message_list["e000018"].format(e)
 
         _logger.exception(message)
         raise Exception(message)
 
 
 async def update_statistics():
+    """Updates FogLAMP statistics
+
+    Raises :
+        Exception - cannot update statistics
+    """
 
     try:
         await statistics.update_statistics_value('SENT', _num_sent)
@@ -1043,6 +1049,8 @@ if __name__ == "__main__":
         _logger = logger.setup(__name__)
         _event_loop = asyncio.get_event_loop()
 
+        _logger.debug("{0}".format("omf_translator_perf - START "))
+
         sending_init()
 
         _event_loop.run_until_complete(send_info_to_picromf())
@@ -1054,5 +1062,4 @@ if __name__ == "__main__":
 
         _logger.exception(tmp_message)
 
-    # FIXME:
-    _logger.info("{0}".format("END"))
+    _logger.debug("{0}".format("omf_translator_perf - END "))

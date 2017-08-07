@@ -43,11 +43,11 @@ async def read_audit_entries(limit=None, offset=None, source=None, severity=None
     if limit:
         _offset_clause = " OFFSET {0}".format(offset) if offset else " "
 
-    if (source is not None) and (severity is not None):
+    if source and severity:
         _where_clause = " WHERE code='{0}' AND level={1} ".format(source, _Severity[severity].value)
-    elif source is not None:
+    elif source:
         _where_clause = " WHERE code='{0}' ".format(source)
-    elif severity is not None:
+    elif severity:
         _where_clause = " WHERE level={0} ".format(_Severity[severity].value)
 
     # Select the code, ts, level, log from the log table

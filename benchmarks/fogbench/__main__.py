@@ -57,6 +57,7 @@ import random
 import json
 from datetime import datetime, timezone
 import argparse
+import uuid
 
 import asyncio
 from aiocoap import *
@@ -88,7 +89,7 @@ def read_templates():
 
 
 def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.template.json",
-                                    _write_to_file=None):
+                                    _write_to_file=None, _occurrences=1):
     template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
 
     with open(template_file) as data_file:
@@ -128,11 +129,18 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
         sensor_value_object["asset"] = d['name']
         sensor_value_object["sensor_values"] = x_sensor_values
         sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
-
+        sensor_value_object["key"] = uuid.uuid4().hex
         # print(json.dumps(sensor_value_object))
 
+        temp_list = []
+        # if _occurrences > 1:
+        #     temp_list.append(sensor_value_object)
+
         with open(_write_to_file, 'a') as the_file:
-            json.dump(sensor_value_object, the_file)
+            if len(temp_list):
+                json.dump(temp_list*_occurrences, the_file)
+            else:
+                json.dump(sensor_value_object, the_file)
             the_file.write(os.linesep)
 
 
@@ -166,13 +174,15 @@ async def send_to_coap(payload):
 
     # payload = b"some blah text ....\n" * 30
 
-    request = Message(payload=dumps(payload), code=PUT)
+    # request = Message(payload=dumps(payload), code=PUT)
+    request = Message(payload=dumps(payload), code=POST)
     request.opt.uri_host = 'localhost'
-    request.opt.uri_path = ("other", "block")
-    # request.opt.uri_path = (".well-known", "core")
+    # request.opt.uri_path = ("other", "block")
+    request.opt.uri_path = ("other", "sensor-values")
     response = await context.request(request).response
 
-    print('Result: %s\n%r'%(response.code, response.payload))
+    # print('Result: %s\n%r' % (response.code, response.payload))
+    print('Result: %s\n' % response.code)
 
 
 def check_coap_server():
@@ -185,7 +195,12 @@ parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/dev
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
 parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'], help='Do not delete the running sample (default: no)')
 parser.add_argument('-o', '--output', help='set the output file, WITHOUT extension')
+
+parser.add_argument('-I', '--iterations', help='The number of iterations of the test (default: 1)')
+parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
+
 parser.add_argument('-H', '--host', help='CoAP server host address (default: localhost)', action=check_coap_server())
+
 namespace = parser.parse_args(sys.argv[1:])
 
 # could have set default in add_argument, but may be we don't want and this _1 is temp
@@ -194,7 +209,11 @@ outfile = '{0}.json'.format(namespace.output if namespace.output else '_1')
 output_file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
 keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 
-parse_template_and_prepare_json(_write_to_file=output_file)
+# iterations and occurrences
+arg_iterations = int(namespace.iterations) if namespace.iterations else 1
+arg_occurrences = int(namespace.occurrences) if namespace.occurrences else 1
+
+parse_template_and_prepare_json(_write_to_file=output_file, _occurrences=arg_occurrences)
 read_out_file(_file=output_file, _keep=keep_the_file)  # and send to coap
 
 """ Expected output from given template

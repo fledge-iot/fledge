@@ -73,6 +73,12 @@ __version__ = "${VERSION}"
 
 
 _FOGBENCH_VERSION = u"0.1"
+_START_TIME = ''
+_END_TIME = ''
+_TOT_MSGS_TRANSFERRED = 0
+_TOT_BYTE_TRANSFERRED = 0
+_NUM_ITERATED = 0
+
 # TODO: have its own sys/ console logger
 # _logger = logger.setup(__name__)
 
@@ -144,8 +150,14 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
             the_file.write(os.linesep)
 
 
-def read_out_file(_file=None, _keep=False):
+def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
+    global _START_TIME
+    global _END_TIME
+    global _TOT_MSGS_TRANSFERRED
+    global _TOT_BYTE_TRANSFERRED
+    global _NUM_ITERATED
     from pprint import pprint
+    import time
     # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
     with open(_file) as f:
         readings_list = [json.loads(line) for line in f]
@@ -153,8 +165,20 @@ def read_out_file(_file=None, _keep=False):
 
     loop = asyncio.get_event_loop()
 
-    for r in readings_list:
-        loop.run_until_complete(send_to_coap(r))
+    _START_TIME = "{!s}".format(datetime.now(tz=timezone.utc))
+    while _iterations > 0:
+        # TODO: Fix key for next iteration
+        for r in readings_list:
+            loop.run_until_complete(send_to_coap(r))
+            _TOT_MSGS_TRANSFERRED += 1
+            _TOT_BYTE_TRANSFERRED += sys.getsizeof(r)
+        _iterations -= 1
+        _NUM_ITERATED += 1
+        if _iterations != 0:
+            print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
+            time.sleep(_interval)
+            # TODO: For next iteration, add time.sleep to payload timestamp
+    _END_TIME = "{!s}".format(datetime.now(tz=timezone.utc))
 
     if not _keep:
         os.remove(_file)
@@ -185,6 +209,30 @@ async def send_to_coap(payload):
     print('Result: %s\n' % response.code)
 
 
+def display_statistics(stats_type):
+    print(u"{} statistics: ".format(stats_type))
+    global _START_TIME
+    global _END_TIME
+    global _TOT_MSGS_TRANSFERRED
+    global _TOT_BYTE_TRANSFERRED
+    global _NUM_ITERATED
+    if stats_type == 'total' or stats_type == 'st':
+        print(u"Start Time::{}".format(_START_TIME))
+    if stats_type == 'total' or stats_type == 'et':
+        print(u"End Time::{}".format(_END_TIME))
+    if stats_type == 'total' or stats_type == 'mt':
+        print(u"Total Messages Transferred::{}".format(_TOT_MSGS_TRANSFERRED))
+    if stats_type == 'total' or stats_type == 'bt':
+        print(u"Total Bytes Transferred::{}".format(_TOT_BYTE_TRANSFERRED))
+    if stats_type == 'total' or stats_type == 'itr':
+        print(u"Total Iterations::{}".format(_NUM_ITERATED))
+    if stats_type == 'total' or stats_type == 'mt_itr':
+        print(u"Total Messages per Iteration::{}".format(_TOT_MSGS_TRANSFERRED/_NUM_ITERATED))
+    if stats_type == 'total' or stats_type == 'bt_itr':
+        print(u"Total Bytes per Iteration::{}".format(_TOT_BYTE_TRANSFERRED/_NUM_ITERATED))
+    # TODO: Stats of Min, Avg Max msgs/sec bytes/sec per for all iterations
+
+
 def check_coap_server():
     # TODO: Temporary info
     print(">>> $ python -m foglamp.device ; To see payload on console & ensure CoAP server is listening on {}:{}".format("localhost", 5683))
@@ -193,13 +241,18 @@ parser = argparse.ArgumentParser(prog='fogbench')
 parser.description = '%(prog)s -- a Python script used to test FogLAMP (simulate payloads)'
 parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/device interface of FogLAMP using CoAP'
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
-parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'], help='Do not delete the running sample (default: no)')
+parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'],
+                    help='Do not delete the running sample (default: no)')
 parser.add_argument('-o', '--output', help='set the output file, WITHOUT extension')
 
 parser.add_argument('-I', '--iterations', help='The number of iterations of the test (default: 1)')
 parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
 
 parser.add_argument('-H', '--host', help='CoAP server host address (default: localhost)', action=check_coap_server())
+parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
+
+parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
+                                                                    'itr', 'mt_itr', 'bt_itr'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
 
@@ -213,8 +266,14 @@ keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 arg_iterations = int(namespace.iterations) if namespace.iterations else 1
 arg_occurrences = int(namespace.occurrences) if namespace.occurrences else 1
 
+# interval between each iteration
+arg_interval = int(namespace.interval) if namespace.interval else 0
+
+arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
+
 parse_template_and_prepare_json(_write_to_file=output_file, _occurrences=arg_occurrences)
-read_out_file(_file=output_file, _keep=keep_the_file)  # and send to coap
+read_out_file(_file=output_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
+display_statistics(arg_stats_type)
 
 """ Expected output from given template
 { 

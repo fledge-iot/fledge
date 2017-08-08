@@ -178,7 +178,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
         if _iterations != 0:
             print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
             time.sleep(_interval)
-            # TODO: For next iteration, add time.sleep to payload timestamp
+            # TODO: For next iteration, add interval to payload timestamp
     _END_TIME = "{!s}".format(datetime.now(tz=timezone.utc))
 
     if not _keep:
@@ -191,18 +191,20 @@ async def send_to_coap(payload):
      port 5683 (official IANA assigned CoAP port),
      URI "/other/sensor-values".
 
-    Request is sent 2 seconds after initialization.
+    # TODO: NO?  Request is sent 2 seconds after initialization.
     """
 
     context = await Context.create_client_context()
 
-    await asyncio.sleep(2)
+    # await asyncio.sleep(2)
 
     # request = Message(payload=dumps(payload), code=PUT)
     request = Message(payload=dumps(payload), code=POST)
     request.opt.uri_host = 'localhost'
     # request.opt.uri_path = ("other", "block")
     request.opt.uri_path = ("other", "sensor-values")
+
+    # TODO: check, should we wait for acknowledgement response
     response = await context.request(request).response
 
     # print('Result: %s\n%r' % (response.code, response.payload))
@@ -217,9 +219,9 @@ def display_statistics(stats_type):
     global _TOT_BYTE_TRANSFERRED
     global _NUM_ITERATED
     if stats_type == 'total' or stats_type == 'st':
-        print(u"Start Time::{}".format(_START_TIME))
+        print(u"Start Time::{} | {}".format(_START_TIME, datetime.now()))
     if stats_type == 'total' or stats_type == 'et':
-        print(u"End Time::{}".format(_END_TIME))
+        print(u"End Time::{} | {}".format(_END_TIME, datetime.now()))
     if stats_type == 'total' or stats_type == 'mt':
         print(u"Total Messages Transferred::{}".format(_TOT_MSGS_TRANSFERRED))
     if stats_type == 'total' or stats_type == 'bt':
@@ -231,6 +233,7 @@ def display_statistics(stats_type):
     if stats_type == 'total' or stats_type == 'bt-itr':
         print(u"Total Bytes per Iteration::{}".format(_TOT_BYTE_TRANSFERRED/_NUM_ITERATED))
     # TODO: Stats of Min, Avg Max msgs/sec bytes/sec per for all iterations
+    # should we also show total time diff? end_time - start_time
 
 
 def check_coap_server():

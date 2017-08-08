@@ -166,7 +166,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
 
     loop = asyncio.get_event_loop()
 
-    _START_TIME = "{!s}".format(datetime.now(tz=timezone.utc))
+    _START_TIME = datetime.now()
     while _iterations > 0:
         # TODO: Fix key for next iteration
         for r in readings_list:
@@ -179,7 +179,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
             print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
             time.sleep(_interval)
             # TODO: For next iteration, add interval to payload timestamp
-    _END_TIME = "{!s}".format(datetime.now(tz=timezone.utc))
+    _END_TIME = datetime.now()
 
     if not _keep:
         os.remove(_file)
@@ -219,9 +219,9 @@ def display_statistics(stats_type):
     global _TOT_BYTE_TRANSFERRED
     global _NUM_ITERATED
     if stats_type == 'total' or stats_type == 'st':
-        print(u"Start Time::{} | {}".format(_START_TIME, datetime.now()))
+        print(u"Start Time::{}".format(datetime.strftime(_START_TIME, "%Y-%m-%d %H:%M:%S.%f")))
     if stats_type == 'total' or stats_type == 'et':
-        print(u"End Time::{} | {}".format(_END_TIME, datetime.now()))
+        print(u"End Time::{}".format(datetime.strftime(_END_TIME, "%Y-%m-%d %H:%M:%S.%f")))
     if stats_type == 'total' or stats_type == 'mt':
         print(u"Total Messages Transferred::{}".format(_TOT_MSGS_TRANSFERRED))
     if stats_type == 'total' or stats_type == 'bt':

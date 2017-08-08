@@ -88,105 +88,7 @@ async def get_scheduled_process(request):
 #################################
 
 
-async def get_schedules(request):
-    """
-    Returns a list of all the defined schedules from schedules table
-    """
-
-    try:
-        # schedules = await scheduler_db_services.read_schedule()
-        schedule_list = await server.Server.scheduler.get_schedules()
-
-        schedules = []
-        for sch in schedule_list:
-            schedules.append({
-                'id': str(sch.schedule_id),
-                'name': sch.name,
-                'process_name': sch.process_name,
-                'type': sch.type,
-                'repeat': str(sch.repeat),
-                'day': sch.day,
-                'time': sch.time,
-                'exclusive': sch.exclusive
-            })
-
-        return web.json_response({'schedules': schedules})
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
-
-
-async def get_schedule(request):
-    """
-    Return the information for the given schedule from schedules table
-
-    :Example: curl -X GET  http://localhost:8082/foglamp/schedule/ac6dd55d-f55d-44f7-8741-984604bf2384
-    """
-
-    try:
-        schedule_id = request.match_info.get('schedule_id', None)
-
-        if not schedule_id:
-            raise ValueError('No such Schedule')
-
-        # schedule = await scheduler_db_services.read_schedule(schedule_id)
-        sch = await server.Server.scheduler.get_schedule(schedule_id)
-        if not sch:
-            raise ValueError('No such Schedule')
-
-        schedule = {
-            'id': str(sch.schedule_id),
-            'name': sch.name,
-            'process_name': sch.process_name,
-            'type': sch.type,
-            'repeat': str(sch.repeat),
-            'day': sch.day,
-            'time': sch.time,
-            'exclusive': sch.exclusive
-        }
-
-        return web.json_response(schedule)
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
-
-
-async def start_schedule(request):
-    """
-    Starts a given schedule
-
-    :Example: curl -X GET  http://localhost:8082/foglamp/schedule/start/fd439e5b-86ba-499a-86d3-34a6e5754b5a
-    """
-
-    try:
-        schedule_id = request.match_info.get('schedule_id', None)
-
-        if not schedule_id:
-            raise ValueError('No such Schedule')
-
-        schedule = await scheduler_db_services.read_schedule(schedule_id)
-
-        if not schedule:
-            raise ValueError('No such Schedule')
-
-        # Start schedule
-        await server.Server.scheduler.queue_task(schedule_id)
-
-        return web.json_response(schedule)
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
-
-
-def _extract_args(data, curr_value=None):
-    """
-    Private method to extract data from the post payload
-
-    :param data:
-    :return: object schedule
-    """
-
+def _extract_args(data, curr_value):
     _schedule = dict()
 
     _schedule['schedule_id'] = curr_value['schedule_id'] if curr_value else None
@@ -194,18 +96,18 @@ def _extract_args(data, curr_value=None):
     s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
     _schedule['schedule_type'] = int(s_type)
 
-    s_day = data.get('day') if  'day' in data else curr_value['schedule_day'] if curr_value else 0
+    s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value['schedule_day'] else 0
     _schedule['schedule_day'] = int(s_day)
 
-    s_time = data.get('time') if  'time' in data else curr_value['schedule_time'] if curr_value else 0
+    s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value['schedule_time'] else 0
     _schedule['schedule_time'] = int(s_time)
 
-    s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value else 0
+    s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat']else 0
     _schedule['schedule_repeat'] = int(s_repeat)
 
     _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
 
-    _schedule['schedule_process_name'] = data.get('process_name') if  'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
+    _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
 
     _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value['schedule_exclusive'] if curr_value else 'True'
     _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
@@ -315,6 +217,97 @@ async def _execute_add_update_schedule(data, curr_value=None):
     updated_schedule_id = schedule.schedule_id
 
     return updated_schedule_id
+
+
+async def get_schedules(request):
+    """
+    Returns a list of all the defined schedules from schedules table
+    """
+
+    try:
+        # schedules = await scheduler_db_services.read_schedule()
+        schedule_list = await server.Server.scheduler.get_schedules()
+
+        schedules = []
+        for sch in schedule_list:
+            schedules.append({
+                'id': str(sch.schedule_id),
+                'name': sch.name,
+                'process_name': sch.process_name,
+                'type': sch.type,
+                'repeat': str(sch.repeat),
+                'day': sch.day,
+                'time': sch.time,
+                'exclusive': sch.exclusive
+            })
+
+        return web.json_response({'schedules': schedules})
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+async def get_schedule(request):
+    """
+    Return the information for the given schedule from schedules table
+
+    :Example: curl -X GET  http://localhost:8082/foglamp/schedule/ac6dd55d-f55d-44f7-8741-984604bf2384
+    """
+
+    try:
+        schedule_id = request.match_info.get('schedule_id', None)
+
+        if not schedule_id:
+            raise ValueError('No such Schedule')
+
+        # schedule = await scheduler_db_services.read_schedule(schedule_id)
+        sch = await server.Server.scheduler.get_schedule(schedule_id)
+        if not sch:
+            raise ValueError('No such Schedule')
+
+        schedule = {
+            'id': str(sch.schedule_id),
+            'name': sch.name,
+            'process_name': sch.process_name,
+            'type': sch.type,
+            'repeat': str(sch.repeat),
+            'day': sch.day,
+            'time': sch.time,
+            'exclusive': sch.exclusive
+        }
+
+        return web.json_response(schedule)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+async def start_schedule(request):
+    """
+    Starts a given schedule
+
+    :Example: curl -X GET  http://localhost:8082/foglamp/schedule/start/fd439e5b-86ba-499a-86d3-34a6e5754b5a
+    """
+
+    try:
+        schedule_id = request.match_info.get('schedule_id', None)
+
+        if not schedule_id:
+            raise ValueError('No such Schedule')
+
+        schedule = await scheduler_db_services.read_schedule(schedule_id)
+
+        if not schedule:
+            raise ValueError('No such Schedule')
+
+        # Start schedule
+        await server.Server.scheduler.queue_task(schedule_id)
+
+        return web.json_response(schedule)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def post_schedule(request):

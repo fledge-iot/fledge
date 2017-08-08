@@ -1,0 +1,17 @@
+INSERT INTO readings VALUES (1, 'TI sensorTag/humidity', NULL, '{"humidity": 49.7, "temperature": 26.2}', '2017-07-27 11:24:31.06+05:30', '2017-07-27 11:24:34.002636+05:30');
+INSERT INTO readings VALUES (2, 'TI sensorTag/humidity', NULL, '{"humidity": 23.6, "temperature": 38.9}', '2017-07-18 17:41:31.042+05:30', '2017-07-18 17:41:31.162004+05:30');
+INSERT INTO readings VALUES (3, 'TI sensorTag/temperature', NULL, '{"object": 16.7, "ambient": 25.7}', '2017-07-27 11:24:14.365+05:30', '2017-07-27 11:24:34.051965+05:30');
+INSERT INTO readings VALUES (4, 'TI sensorTag/temperature', NULL, '{"object": 22.8, "ambient": 28.8}', '2017-07-18 17:41:53.359+05:30', '2017-07-18 17:41:53.404875+05:30');
+INSERT INTO readings VALUES (5, 'TI sensorTag/luxometer', NULL, '{"lux": 125}', '2017-07-27 11:23:59.845+05:30', '2017-07-27 11:24:34.107374+05:30');
+INSERT INTO readings VALUES (6, 'TI sensorTag/luxometer', NULL, '{"lux": 54}', '2017-07-18 17:41:52.619+05:30', '2017-07-18 17:41:52.657359+05:30');
+INSERT INTO readings VALUES (7, 'TI sensorTag/magnetometer', NULL, '{"x": 13.34, "y": 1.35, "z": 52.92}', '2017-07-27 11:24:00.351+05:30', '2017-07-27 11:24:34.110301+05:30');
+INSERT INTO readings VALUES (8, 'TI sensorTag/gyroscope', NULL, '{"x": 2, "y": 2.48, "z": -5.51}', '2017-07-27 11:23:50.338+05:30', '2017-07-27 11:24:34.324562+05:30');
+INSERT INTO readings VALUES (9, 'TI sensorTag/pressure', NULL, '{"pressure": 980}', '2017-07-27 11:23:59.087+05:30', '2017-07-27 11:24:34.782112+05:30');
+INSERT INTO readings VALUES (10, 'TI sensorTag/pressure', NULL, '{"pressure": 975}', '2017-07-18 17:41:53.163+05:30', '2017-07-18 17:41:53.217196+05:30');
+INSERT INTO readings VALUES (11, 'TI sensorTag/keys', NULL, '{"left": false, "right": true, "magnet": false}', '2017-07-27 11:25:52.046+05:30', '2017-07-27 11:25:52.06154+05:30');
+INSERT INTO readings VALUES (12, 'TI sensorTag/accelerometer', NULL, '{"x": 0.28, "y": 0.76, "z": -0.61}', '2017-07-27 11:25:52.331+05:30', '2017-07-27 11:25:52.360964+05:30');
+INSERT INTO readings VALUES (13, 'mouse', NULL, '{"button": "up"}', '2017-07-27 11:26:40.302+05:30', '2017-07-27 11:26:40.315059+05:30');
+INSERT INTO readings VALUES (14, 'mouse', NULL, '{"button": "down"}', '2017-07-27 11:26:46.921+05:30', '2017-07-27 11:26:46.933344+05:30');
+INSERT INTO readings VALUES (15, 'clock', NULL, '{"tick": "tock"}', '2017-07-19 17:47:17.202+05:30', '2017-07-19 17:47:17.220829+05:30');
+INSERT INTO readings VALUES (16, 'clock', NULL, '{"tick":""}', '2017-07-19 18:47:17.206+05:30', '2017-07-19 18:47:17.226112+05:30');
+INSERT INTO readings VALUES (17, 'clock', NULL, '{"tick": "tock"}', '2017-07-19 19:47:17.209+05:30', '2017-07-19 19:47:17.22927+05:30');

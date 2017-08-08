@@ -12,6 +12,14 @@ foglamp\.core\.api module
     :undoc-members:
     :show-inheritance:
 
+foglamp\.core\.audit\_trail\_db\_services module
+------------------------------------------------
+
+.. automodule:: foglamp.core.audit_trail_db_services
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 foglamp\.core\.browser module
 -----------------------------
 
@@ -64,6 +72,14 @@ foglamp\.core\.server\_daemon module
 ------------------------------------
 
 .. automodule:: foglamp.core.server_daemon
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+foglamp\.core\.statistics\_db\_services module
+----------------------------------------------
+
+.. automodule:: foglamp.core.statistics_db_services
     :members:
     :undoc-members:
     :show-inheritance:

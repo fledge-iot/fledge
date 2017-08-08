@@ -4,15 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import asyncio
-import datetime
 import time
-import re
+
 from aiohttp import web
-from foglamp import configuration_manager
-from foglamp.core import scheduler_db_services, statistics_db_services, audit_trail_db_services
-from foglamp.core.scheduler import Scheduler, Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule
-from foglamp.core import server
+
+from foglamp.core.api import audit_trail_db_services
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -23,23 +19,9 @@ __start_time = time.time()
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET             | /foglamp/ping                                             |
     | GET             | /foglamp/audit                                            |
     -------------------------------------------------------------------------------
 """
-
-
-async def ping(request):
-    """
-
-    :param request:
-    :return: basic health information json payload
-    {'uptime': 32892} Time in seconds since FogLAMP started
-    """
-    since_started = time.time() - __start_time
-
-    return web.json_response({'uptime': since_started})
-
 
 ####################################
 #  Audit Trail

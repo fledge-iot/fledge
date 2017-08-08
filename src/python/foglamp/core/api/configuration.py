@@ -4,15 +4,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import asyncio
-import datetime
 import time
-import re
 from aiohttp import web
 from foglamp import configuration_manager
-from foglamp.core import scheduler_db_services, statistics_db_services, audit_trail_db_services
-from foglamp.core.scheduler import Scheduler, Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule
-from foglamp.core import server
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

@@ -4,9 +4,13 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from foglamp.core import api, api_configuration, api_scheduler, api_statistics
-from foglamp.core import browser
 from aiohttp import web
+from foglamp.core.api import common as api_commom
+from foglamp.core.api import configuration as api_configuration
+from foglamp.core.api import scheduler as api_scheduler
+from foglamp.core.api import statistics as api_statistics
+from foglamp.core.api import audit as api_audit
+from foglamp.core.api import browser
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -15,8 +19,8 @@ __version__ = "${VERSION}"
 
 
 def setup(app):
-    # app.router.add_route('POST', '/foglamp/a-post-req', api.a_post_req, expect_handler = aiohttp.web.Request.json)
-    app.router.add_route('GET', '/foglamp/ping', api.ping)
+    # app.router.add_route('POST', '/foglamp/a-post-req', api_a_post_req, expect_handler = aiohttp.web.Request.json)
+    app.router.add_route('GET', '/foglamp/ping', api_commom.ping)
 
     # Configuration
     app.router.add_route('GET', '/foglamp/categories', api_configuration.get_categories)
@@ -41,7 +45,6 @@ def setup(app):
 
     # Tasks - As per doc
     app.router.add_route('GET', '/foglamp/tasks', api_scheduler.get_tasks)
-    app.router.add_route('POST', '/foglamp/task', api_scheduler.post_task)
     app.router.add_route('GET', '/foglamp/tasks/latest', api_scheduler.get_tasks_latest)
     app.router.add_route('GET', '/foglamp/tasks/running', api_scheduler.get_tasks_running)
     app.router.add_route('GET', '/foglamp/task/{task_id}', api_scheduler.get_task)
@@ -55,10 +58,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/statistics/history', api_statistics.get_statistics_history)
 
     # Audit trail - As per doc
-    app.router.add_route('GET', '/foglamp/audit', api.get_audit_entries)
+    app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
 
     # enable cors support
-    enable_cors(app)
+    # enable_cors(app)
 
     # enable a live debugger (watcher) for requests, see https://github.com/aio-libs/aiohttp-debugtoolbar
     # this will neutralize error middleware

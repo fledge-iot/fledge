@@ -41,7 +41,6 @@ def setup(app):
 
     # Tasks - As per doc
     app.router.add_route('GET', '/foglamp/tasks', api_scheduler.get_tasks)
-    app.router.add_route('POST', '/foglamp/task', api_scheduler.post_task)
     app.router.add_route('GET', '/foglamp/tasks/latest', api_scheduler.get_tasks_latest)
     app.router.add_route('GET', '/foglamp/tasks/running', api_scheduler.get_tasks_running)
     app.router.add_route('GET', '/foglamp/task/{task_id}', api_scheduler.get_task)

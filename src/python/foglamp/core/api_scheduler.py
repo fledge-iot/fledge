@@ -4,14 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import asyncio
 import datetime
 import time
-import re
 from aiohttp import web
-from foglamp import configuration_manager
-from foglamp.core import scheduler_db_services, statistics_db_services, audit_trail_db_services
-from foglamp.core.scheduler import Scheduler, Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule
+from foglamp.core import scheduler_db_services
+from foglamp.core.scheduler import Scheduler, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
 from foglamp.core import server
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
@@ -31,7 +28,6 @@ _help = """
 
     | GET             | /foglamp/tasks                                            |
     | GET             | /foglamp/tasks/latest                                     |
-    | POST            | /foglamp/task                                             |
     | GET DELETE      | /foglamp/task/{task_id}                                   |
     -------------------------------------------------------------------------------
 """
@@ -132,8 +128,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Schedule type cannot be empty.')
 
     # Raise error if schedule_type is wrong
-    if _schedule.get('schedule_type') not in [Scheduler._ScheduleType.INTERVAL, Scheduler._ScheduleType.TIMED,
-                                              Scheduler._ScheduleType.MANUAL, Scheduler._ScheduleType.STARTUP]:
+    if _schedule.get('schedule_type') not in list(Scheduler._ScheduleType):
         _errors.append('Schedule type error: {}'.format(_schedule.get('schedule_type')))
 
     # Raise error if day and time are missing for schedule_type = TIMED
@@ -446,11 +441,10 @@ async def get_tasks(request):
     try:
         task_id = None
 
-        # TODO: Use enum in place int state
         state = request.query.get('state') if 'state' in request.query else None
         if state:
-            if not re.match("(^[1-4]$)", state):
-                raise ValueError('This state value not permitted')
+            if state not in list(Task.State):
+                raise ValueError('This state value {} not permitted.'.format(state))
             else:
                 state = int(state)
 
@@ -476,11 +470,10 @@ async def get_tasks_latest(request):
     """
 
     try:
-        # TODO: Use enum in place int state
         state = request.query.get('state') if 'state' in request.query else None
         if state:
-            if not re.match("(^[1-4]$)", state):
-                raise ValueError('This state value not permitted')
+            if state not in list(Task.State):
+                raise ValueError('This state value {} not permitted.'.format(state))
             else:
                 state = int(state)
 
@@ -521,10 +514,6 @@ async def get_tasks_running(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
-
-async def post_task(request):
-    """ create a new task"""
-    pass
 
 async def cancel_task(request):
     """Cancel a running task from tasks table"""

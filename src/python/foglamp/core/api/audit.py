@@ -15,7 +15,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__start_time = time.time()
 
 _help = """
     -------------------------------------------------------------------------------
@@ -61,4 +60,3 @@ async def get_audit_entries(request):
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
-

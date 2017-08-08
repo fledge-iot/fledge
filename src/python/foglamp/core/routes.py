@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 from aiohttp import web
-from foglamp.core.api import common as api_commom
+from foglamp.core.api import common as api_common
 from foglamp.core.api import configuration as api_configuration
 from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
@@ -20,7 +20,7 @@ __version__ = "${VERSION}"
 
 def setup(app):
     # app.router.add_route('POST', '/foglamp/a-post-req', api_a_post_req, expect_handler = aiohttp.web.Request.json)
-    app.router.add_route('GET', '/foglamp/ping', api_commom.ping)
+    app.router.add_route('GET', '/foglamp/ping', api_common.ping)
 
     # Configuration
     app.router.add_route('GET', '/foglamp/categories', api_configuration.get_categories)
@@ -61,7 +61,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
 
     # enable cors support
-    # enable_cors(app)
+    enable_cors(app)
 
     # enable a live debugger (watcher) for requests, see https://github.com/aio-libs/aiohttp-debugtoolbar
     # this will neutralize error middleware

@@ -32,9 +32,14 @@ _help = """
 
 async def get_statistics(request):
     """
-    Returns a general set of statistics
+    Args:
+        request:
 
-    :Example: curl -X GET http://localhost:8082/foglamp/statistics
+    Returns:
+            a general set of statistics
+
+    :Example:
+            curl -X GET http://localhost:8082/foglamp/statistics
     """
 
     try:
@@ -47,9 +52,14 @@ async def get_statistics(request):
 
 async def get_statistics_history(request):
     """
-    Returns a list of general set of statistics
+    Args:
+        request:
 
-    :Example: curl -X GET -d limit=1 http://localhost:8082/foglamp/statistics/history
+    Returns:
+            a list of general set of statistics
+
+    :Example:
+            curl -X GET http://localhost:8082/foglamp/statistics/history?limit=1
     """
 
     try:

@@ -47,6 +47,7 @@ __DB_NAME = 'foglamp'
 __DEFAULT_LIMIT = 20
 __TIMESTAMP_FMT = 'YYYY-MM-DD HH24:MI:SS.MS'
 
+
 def setup(app):
     """
     Add the routes for the API endpoints supported by the data browser
@@ -94,7 +95,7 @@ async def asset(request):
     """
 
     conn = await asyncpg.connect(database=__DB_NAME)
-    asset_code =  request.match_info.get('asset_code', '')
+    asset_code = request.match_info.get('asset_code', '')
 
     query = 'select to_char(user_ts, \'{0}\') as "timestamp", (reading)::json from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code)
 
@@ -112,7 +113,7 @@ async def asset(request):
     rows = await conn.fetch(query)
     results = []
     for row in rows:
-        jrow = { 'timestamp' : row['timestamp'], 'reading' : json.loads(row['reading']) }
+        jrow = {'timestamp': row['timestamp'], 'reading': json.loads(row['reading'])}
         results.append(jrow)
 
     # Close the connection.
@@ -146,8 +147,8 @@ async def asset_reading(request):
     """
 
     conn = await asyncpg.connect(database=__DB_NAME)
-    asset_code =  request.match_info.get('asset_code', '')
-    reading =  request.match_info.get('reading', '')
+    asset_code = request.match_info.get('asset_code', '')
+    reading = request.match_info.get('reading', '')
 
     query = 'select to_char(user_ts, \'{0}\') as "Time", reading->>\'{2}\' from readings where asset_code = \'{1}\''.format(__TIMESTAMP_FMT, asset_code, reading)
 
@@ -199,8 +200,8 @@ async def asset_summary(request):
     """
 
     conn = await asyncpg.connect(database=__DB_NAME)
-    asset_code =  request.match_info.get('asset_code', '')
-    reading =  request.match_info.get('reading', '')
+    asset_code = request.match_info.get('asset_code', '')
+    reading = request.match_info.get('reading', '')
 
     query = 'select min(reading->>\'{1}\'), max(reading->>\'{1}\'), avg((reading->>\'{1}\')::float) from readings where asset_code = \'{0}\''.format(asset_code, reading)
 
@@ -213,7 +214,7 @@ async def asset_summary(request):
     # Close the connection.
     await conn.close()
 
-    return web.json_response({ reading : results })
+    return web.json_response({reading: results})
 
 async def asset_averages(request):
     """
@@ -242,8 +243,8 @@ async def asset_averages(request):
     """
 
     conn = await asyncpg.connect(database=__DB_NAME)
-    asset_code =  request.match_info.get('asset_code', '')
-    reading =  request.match_info.get('reading', '')
+    asset_code = request.match_info.get('asset_code', '')
+    reading = request.match_info.get('reading', '')
 
     ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
     if 'group' in request.query:
@@ -278,6 +279,7 @@ async def asset_averages(request):
     await conn.close()
 
     return web.json_response(results)
+
 
 def _where_clause(request):
     where_clause = ''

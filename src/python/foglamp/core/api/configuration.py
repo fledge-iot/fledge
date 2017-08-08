@@ -4,7 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import time
 from aiohttp import web
 from foglamp import configuration_manager
 
@@ -12,8 +11,6 @@ __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
-__start_time = time.time()
 
 _help = """
     -------------------------------------------------------------------------------
@@ -29,9 +26,14 @@ _help = """
 
 async def get_categories(request):
     """
+    Args:
+         request:
 
-    :param request:
-    :return: the list of known categories in the configuration database
+    Returns:
+            the list of known categories in the configuration database
+
+    :Example:
+            curl -X GET http://localhost:8082/foglamp/asset
     """
     categories = await configuration_manager.get_all_category_names()
     categories_json = [{"key": c[0], "description": c[1]} for c in categories]
@@ -41,9 +43,16 @@ async def get_categories(request):
 
 async def get_category(request):
     """
+    Args:
+         request: category_name is required
 
-    :param request:  category_name is required
-    :return: the configuration items in the given category.
+    Returns:
+            the configuration items in the given category.
+
+    :Example:
+            curl -X GET http://localhost:8082/foglamp/asset/mouse
+
+            curl -X GET http://localhost:8082/foglamp/asset/TI%20sensorTag%2Ftemperature
     """
     category_name = request.match_info.get('category_name', None)
     category = await configuration_manager.get_category_all_items(category_name)
@@ -57,9 +66,14 @@ async def get_category(request):
 
 async def get_category_item(request):
     """
+    Args:
+         request: category_name & config_item are required
 
-    :param request: category_name & config_item are required
-    :return: the configuration item in the given category.
+    Returns:
+            the configuration item in the given category.
+
+    :Example:
+            curl -X GET http://localhost:8082/foglamp/asset/TI%20sensorTag%2Ftemperature/ambient
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
@@ -73,15 +87,17 @@ async def get_category_item(request):
 
 async def set_configuration_item(request):
     """
+    Args:
+         request: category_name, config_item are required
+         and For PUT request {"value" : someValue) is required
 
-    :param request: category_name, config_item are required and For PUT request {"value" : someValue) is required
-    :return: set the configuration item value in the given category.
+    Returns:
+            set the configuration item value in the given category.
 
     :Example:
-
         For {category_name} PURGE  update/delete value for config_item {age}
 
-        curl -H "Content-Type: application/json" -X PUT -d '{"value":some_value}' http://localhost:8082/foglamp/category/{category_name}/{config_item}
+        curl -X PUT -H "Content-Type: application/json" -d '{"value":some_value}' http://localhost:8082/foglamp/category/{category_name}/{config_item}
 
         curl -X DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}
     """
@@ -98,4 +114,3 @@ async def set_configuration_item(request):
     result = await configuration_manager.get_category_item(category_name, config_item)
 
     return web.json_response(result)
-

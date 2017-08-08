@@ -203,4 +203,3 @@ async def _get_rows(stmt, name, state):
 
 async def delete_task(payload):
     pass
-

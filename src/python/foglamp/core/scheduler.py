@@ -209,7 +209,7 @@ class Scheduler(object):
             """True when a task is queued to start via :meth:`start_task`"""
 
     # Constant class attributes
-    DEFAULT_MAX_ACTIVE_TASKS = 50
+    DEFAULT_MAX_RUNNING_TASKS = 50
     _HOUR_SECONDS = 3600
     _DAY_SECONDS = 3600*24
     _WEEK_SECONDS = 3600*24*7
@@ -274,7 +274,7 @@ class Scheduler(object):
         """True when the scheduler is ready to accept API calls"""
         self._start_time = None
         """When the scheduler started"""
-        self.max_task_processes = self.DEFAULT_MAX_ACTIVE_TASKS
+        self.max_running_tasks = self.DEFAULT_MAX_RUNNING_TASKS
         """Maximum number of active tasks"""
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
@@ -530,7 +530,7 @@ class Scheduler(object):
 
         # Can not iterate over _schedule_executions - it can change mid-iteration
         for schedule_id in list(self._schedule_executions.keys()):
-            if self._paused or len(self._task_processes) >= self.max_task_processes:
+            if self._paused or len(self._task_processes) >= self.max_running_tasks:
                 return None
 
             schedule_execution = self._schedule_executions[schedule_id]
@@ -554,8 +554,11 @@ class Scheduler(object):
                     del self._schedule_executions[schedule_id]
                 continue
 
-            now = self.current_time if self.current_time else time.time()
-            right_time = now >= next_start_time
+            if next_start_time and not schedule_execution.start_now:
+                now = self.current_time if self.current_time else time.time()
+                right_time = now >= next_start_time
+            else:
+                right_time = False
 
             if right_time or schedule_execution.start_now:
                 # Start a task
@@ -821,10 +824,10 @@ class Scheduler(object):
             if self._check_processes_pending:
                 self._check_processes_pending = False
                 sleep_seconds = 0
-            elif next_start_time is None:
-                sleep_seconds = self._MAX_SLEEP
-            else:
+            elif next_start_time:
                 sleep_seconds = next_start_time - time.time()
+            else:
+                sleep_seconds = self._MAX_SLEEP
 
             if sleep_seconds > 0:
                 self._logger.info("Sleeping for %s seconds", sleep_seconds)
@@ -835,6 +838,10 @@ class Scheduler(object):
                     self._main_sleep_task = None
                 except asyncio.CancelledError:
                     self._logger.debug("Main loop awakened")
+            else:
+                # Relinquish control for each loop iteration to avoid starving
+                # other coroutines
+                await asyncio.sleep(0)
 
     @staticmethod
     async def populate_test_data():

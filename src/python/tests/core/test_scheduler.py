@@ -119,12 +119,20 @@ class TestScheduler:
 
         startup_schedule = StartUpSchedule()
         startup_schedule.name = 'startup schedule'
-        startup_schedule.process_name = 'sleep10'
+        startup_schedule.process_name = 'sleep30'
 
         await scheduler.save_schedule(startup_schedule)
+
+        await asyncio.sleep(1)
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 0
+
         await scheduler.get_schedule(startup_schedule.schedule_id)
 
         await self.stop_scheduler(scheduler)
+
+        scheduler = Scheduler()
+        await scheduler.start()
 
         await asyncio.sleep(2)
 
@@ -146,8 +154,9 @@ class TestScheduler:
 
         await scheduler.save_schedule(manual_schedule)
         manual_schedule = await scheduler.get_schedule(manual_schedule.schedule_id)
+
         await scheduler.queue_task(manual_schedule.schedule_id)
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
 
         tasks = await scheduler.get_running_tasks()
         assert len(tasks) == 1
@@ -161,28 +170,29 @@ class TestScheduler:
         await scheduler.populate_test_data()
         await scheduler.start()
 
+        # 2 maximum tasks
+        scheduler.max_running_tasks = 2
+
         interval_schedule = IntervalSchedule()
         interval_schedule.repeat = datetime.timedelta(seconds=1)
-        interval_schedule.name = 'sleep10 max active'
+        interval_schedule.name = 'max active'
         interval_schedule.exclusive = False
         interval_schedule.process_name = 'sleep10'
 
-        scheduler.max_active_tasks = 2
         await scheduler.save_schedule(interval_schedule)
 
         await asyncio.sleep(32)
-        scheduler.max_active_tasks = 1
-        await asyncio.sleep(10)
+        scheduler.max_running_tasks = 0
 
-        tasks = await scheduler.get_tasks(5)
-        assert len(tasks) == 4
+        tasks = await scheduler.get_tasks(10)
+        assert len(tasks) == 2
 
-        scheduler.max_active_tasks = Scheduler.DEFAULT_MAX_ACTIVE_TASKS
+        scheduler.max_running_tasks = Scheduler.DEFAULT_MAX_RUNNING_TASKS
 
         await asyncio.sleep(10)
 
         tasks = await scheduler.get_running_tasks()
-        assert len(tasks) == Scheduler.DEFAULT_MAX_ACTIVE_TASKS
+        assert len(tasks) == Scheduler.DEFAULT_MAX_RUNNING_TASKS
 
         await scheduler.queue_task(interval_schedule.schedule_id)
         await asyncio.sleep(10)

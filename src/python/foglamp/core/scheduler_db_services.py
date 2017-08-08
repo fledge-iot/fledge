@@ -17,15 +17,18 @@ __version__ = "${VERSION}"
 __DB_NAME = 'foglamp'
 
 
-async def read_scheduled_processes():
+async def read_scheduled_processes(scheduled_process_name=None):
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT name, script from scheduled_processes
     """
+    # FIXME: When schedule_id is not in uuid format, server error occurs
+    _where_clause = " WHERE name = $1" if scheduled_process_name else ""
+    query += _where_clause
 
     stmt = await conn.prepare(query)
 
-    rows = await stmt.fetch()
+    rows = await stmt.fetch(scheduled_process_name) if scheduled_process_name else await stmt.fetch()
 
     columns = ('name', 'script')
 

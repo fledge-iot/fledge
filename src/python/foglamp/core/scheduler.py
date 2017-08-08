@@ -933,7 +933,7 @@ class Scheduler(object):
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(
-                                id=schedule.schedule_id,
+                                id=str(schedule.schedule_id),
                                 name=schedule.name,
                                 type=schedule_type,
                                 time=schedule_time,
@@ -943,7 +943,7 @@ class Scheduler(object):
                                 exclusive=schedule.exclusive,
                                 process_name=schedule.process_name)
 
-        self._schedules[schedule.schedule_id] = schedule_row
+        self._schedules[str(schedule.schedule_id)] = schedule_row
 
         # Did the schedule change in a way that will affect task scheduling?
 
@@ -1000,6 +1000,7 @@ class Scheduler(object):
             raise ValueError("Unknown schedule type {}", schedule_type)
 
         schedule.schedule_id = schedule_id
+        schedule.type = schedule_type
         schedule.exclusive = schedule_row.exclusive
         schedule.name = schedule_row.name
         schedule.process_name = schedule_row.process_name
@@ -1008,6 +1009,9 @@ class Scheduler(object):
         if schedule_type == cls._ScheduleType.TIMED:
             schedule.day = schedule_row.day
             schedule.time = schedule_row.time
+        else:
+            schedule.day = None
+            schedule.time = None
 
         return schedule
 

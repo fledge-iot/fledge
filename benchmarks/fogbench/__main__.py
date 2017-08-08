@@ -58,6 +58,7 @@ import json
 from datetime import datetime, timezone
 import argparse
 import uuid
+import collections
 
 import asyncio
 from aiocoap import *
@@ -103,6 +104,21 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
         # print(data)
 
     supported_format_types = ["number", "enum"]
+    for _ in range(_occurrences):
+        readings_ = _prepare_sensor_reading(data, supported_format_types)
+        for r in readings_:
+            _write_readings_to_file(_write_to_file, r)
+
+
+def _write_readings_to_file(to_file, r):
+        with open(to_file, 'a') as the_file:
+            json.dump(r, the_file)
+            the_file.write(os.linesep)
+
+
+def _prepare_sensor_reading(data, supported_format_types):
+    readings = []
+
     for d in data:
         x_sensor_values = dict()
 
@@ -126,7 +142,7 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
             elif fmt["type"] == "enum":
                 reading = random.choice(fmt["list"])
 
-            print(fmt["name"], reading)
+            # print(fmt["name"], reading)
             x_sensor_values[fmt["name"]] = reading
 
         # print(d["name"])
@@ -137,17 +153,10 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
         sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
         sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
+        ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))
+        readings.append(ord_dict)
 
-        temp_list = []
-        # if _occurrences > 1:
-        #     temp_list.append(sensor_value_object)
-
-        with open(_write_to_file, 'a') as the_file:
-            if len(temp_list):
-                json.dump(temp_list*_occurrences, the_file)
-            else:
-                json.dump(sensor_value_object, the_file)
-            the_file.write(os.linesep)
+    return readings
 
 
 def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):

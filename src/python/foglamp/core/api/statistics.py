@@ -5,8 +5,10 @@
 # FOGLAMP_END
 
 import time
+
 from aiohttp import web
-from foglamp.core import statistics_db_services
+
+from foglamp.core.api import statistics_db_services
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

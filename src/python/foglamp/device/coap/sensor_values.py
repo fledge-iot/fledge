@@ -73,7 +73,7 @@ class BlockResource(aiocoap.resource.Resource):
 
         # un-comment next line to save to readings table
         # await self.save_readings(json_payload["asset"], json_payload["key"],
-                                 json_payload["sensor_values"], json_payload["timestamp"])
+                                 # json_payload["sensor_values"], json_payload["timestamp"])
         return aiocoap.Message(payload=payload)
 
     async def save_readings(self, asset, key, sensor_values, timestamp):

@@ -151,6 +151,7 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
 
 
 def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
+    # TODO: Create class and move global variables to __init__
     global _START_TIME
     global _END_TIME
     global _TOT_MSGS_TRANSFERRED
@@ -225,9 +226,9 @@ def display_statistics(stats_type):
         print(u"Total Bytes Transferred::{}".format(_TOT_BYTE_TRANSFERRED))
     if stats_type == 'total' or stats_type == 'itr':
         print(u"Total Iterations::{}".format(_NUM_ITERATED))
-    if stats_type == 'total' or stats_type == 'mt_itr':
+    if stats_type == 'total' or stats_type == 'mt-itr':
         print(u"Total Messages per Iteration::{}".format(_TOT_MSGS_TRANSFERRED/_NUM_ITERATED))
-    if stats_type == 'total' or stats_type == 'bt_itr':
+    if stats_type == 'total' or stats_type == 'bt-itr':
         print(u"Total Bytes per Iteration::{}".format(_TOT_BYTE_TRANSFERRED/_NUM_ITERATED))
     # TODO: Stats of Min, Avg Max msgs/sec bytes/sec per for all iterations
 
@@ -252,7 +253,7 @@ parser.add_argument('-H', '--host', help='CoAP server host address (default: loc
 parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
 
 parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
-                                                                    'itr', 'mt_itr', 'bt_itr'], help='The type of statistics to collect (default: total)')
+                                                                    'itr', 'mt-itr', 'bt-itr'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
 

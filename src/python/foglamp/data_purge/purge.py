@@ -146,7 +146,7 @@ def purge(config, table_name):
 
     unsent_rows_removed = 0
     total_rows_removed = 0
-    last_id = sqlalchemy.select([sqlalchemy.func.max(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
+    last_id = sqlalchemy.select([sqlalchemy.func.min(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
     last_id = int(execute_command(last_id).fetchall()[0][0])
 
     # Calculate current count and age_timestamp
@@ -159,22 +159,20 @@ def purge(config, table_name):
 
     delete_query = sqlalchemy.delete(table_name).where(table_name.c.user_ts <= age_timestamp)
     failed_removal_query = sqlalchemy.select([sqlalchemy.func.count()]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
-    max_id = None 
+    max_id = 0
     # if retainUnsent is True then delete by both age_timestamp & last_id; else only by age_timestamp
-    if config['retainUnsent']['value'] == "True":
+    if config['retainUnsent']['value'] == 'True':
         total_rows_removed = execute_command(delete_query.where(table_name.c.id <= last_id)).rowcount
-        print(total_rows_removed)
         failed_removal = execute_command(failed_removal_query.where(table_name.c.id <= last_id)).fetchall()[0][0]
-
     else: 
+        max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
+        max_id = execute_command(max_id_query).fetchall()[0][0]
         total_rows_removed = execute_command(delete_query).rowcount
         failed_removal = execute_command(failed_removal_query).fetchall()[0][0] 
-        while max_id is None: 
-           max_id_query = sqlalchemy.select([sqlalchemy.func.max(table_name.c.id)]).select_from(table_name).where(table_name.c.user_ts <= age_timestamp)
-           max_id = execute_command(max_id_query).fetchall()[0][0]
-           print(max_id)
-        int(max_id)
-    
+        unsent_rows_removed = int(max_id) - int(last_id)
+    if unsent_rows_removed < 0: 
+        unsent_rows_removed = 0 
+           
     # Rows remaining is based on the snapshot taking at the start of the process 
     rows_remaining = int(total_count) - int(total_rows_removed)
 
@@ -216,6 +214,8 @@ def purge_main():
     event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
 
 if __name__ == '__main__':
+#    """Testing""" 
+#    execute_command("update streams set last_object=(select avg(id) from readings) where last_object=(select min(last_object) from streams);")
 #    event_loop = asyncio.get_event_loop()
 #    event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(_CONFIG_CATEGORY_NAME,'age','-1'))
 #    # Test behaveior when retainUnsent is True

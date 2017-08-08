@@ -100,7 +100,7 @@ class ScheduledProcess(object):
 
 class Schedule(object):
     """Schedule base class"""
-    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
+    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat', 'type']
 
     def __init__(self):
         self.schedule_id = None
@@ -113,6 +113,8 @@ class Schedule(object):
         """"datetime.timedelta"""
         self.process_name = None
         """str"""
+        self.type = None
+        """int"""
 
 
 class IntervalSchedule(Schedule):
@@ -927,6 +929,15 @@ class Scheduler(object):
                         exclusive=schedule.exclusive,
                         process_name=schedule.process_name))
 
+        # Added by: Amarendra
+        # Required as saving a TIMED schedule
+        if isinstance(schedule, TimedSchedule):
+            sch_h, sch_m, sch_s = schedule_time.split(':')
+            now = datetime.datetime.now()
+            new_schedule_time = now.replace(hour=int(sch_h), minute=int(sch_m), second=int(sch_s), microsecond=0).time()
+        else:
+            new_schedule_time = None
+
         # TODO: Move this to _add_schedule for error checking
         repeat_seconds = None
         if schedule.repeat is not None:
@@ -936,7 +947,7 @@ class Scheduler(object):
                                 id=str(schedule.schedule_id),
                                 name=schedule.name,
                                 type=schedule_type,
-                                time=schedule_time,
+                                time=new_schedule_time,
                                 day=day,
                                 repeat=schedule.repeat,
                                 repeat_seconds=repeat_seconds,

@@ -196,7 +196,9 @@ async def _execute_add_update_schedule(data, curr_value=None):
     elif _schedule.get('schedule_type') == Scheduler._ScheduleType.TIMED:
         schedule = TimedSchedule()
         schedule.day = _schedule.get('schedule_day')
-        schedule.time = _schedule.get('schedule_time')
+        m, s = divmod(_schedule.get('schedule_time'), 60)
+        h, m = divmod(m, 60)
+        schedule.time = "{hours}:{minutes}:{seconds}".format(hours=h, minutes=m, seconds=s)
     elif _schedule.get('schedule_type') == Scheduler._ScheduleType.INTERVAL:
         schedule = IntervalSchedule()
     elif _schedule.get('schedule_type') == Scheduler._ScheduleType.MANUAL:
@@ -237,7 +239,7 @@ async def get_schedules(request):
                 'type': sch.type,
                 'repeat': str(sch.repeat),
                 'day': sch.day,
-                'time': sch.time,
+                'time': str(sch.time),
                 'exclusive': sch.exclusive
             })
 
@@ -271,7 +273,7 @@ async def get_schedule(request):
             'type': sch.type,
             'repeat': str(sch.repeat),
             'day': sch.day,
-            'time': sch.time,
+            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 

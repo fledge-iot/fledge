@@ -59,8 +59,8 @@ class BlockResource(aiocoap.resource.Resource):
         json_payload = loads(request.payload)
         print('PUT payload: %s' % json_payload)
         self.content = request.payload
-        payload = ("accepted the new payload. inspect it here in "\
-                "Python's repr format:\n\n%r"%self.content).encode('utf8')
+        payload = ("accepted the new payload. inspect here in repr format:"
+                   "\n\n%r" % self.content).encode('utf8')
 
         # asset_code_and_sensor = json_payload["asset"].split("/")
         # if len(asset_code_and_sensor) == 2:
@@ -72,7 +72,8 @@ class BlockResource(aiocoap.resource.Resource):
         # # print(asset_code, _sensor)
 
         # un-comment next line to save to readings table
-        await self.save_readings(json_payload["asset"], json_payload["_key"], json_payload["sensor_values"], json_payload["timestamp"])
+        # await self.save_readings(json_payload["asset"], json_payload["key"],
+                                 json_payload["sensor_values"], json_payload["timestamp"])
         return aiocoap.Message(payload=payload)
 
     async def save_readings(self, asset, key, sensor_values, timestamp):
@@ -105,7 +106,7 @@ class SensorValues(aiocoap.resource.Resource):
         self._num_discarded_readings = 0
 
     def register_handlers(self, resource_root, uri):
-        """Registers other/sensor_values URI"""
+        """Registers other/sensor-values URI"""
         resource_root.add_resource(('other', uri), self)
         return
 
@@ -143,7 +144,7 @@ class SensorValues(aiocoap.resource.Resource):
         # Required keys in the payload
         try:
             payload = loads(request.payload)
-            print('PUT payload: %s' % payload)
+            print('POSTed payload: %s' % payload)
 
             asset = payload['asset']
             timestamp = payload['timestamp']

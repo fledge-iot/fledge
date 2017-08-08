@@ -9,7 +9,7 @@
 import asyncio
 import collections
 import datetime
-import logging
+# import logging  # Needed for dev only
 import math
 import time
 import uuid
@@ -229,12 +229,8 @@ class Scheduler(object):
     def __init__(self):
         """Constructor"""
 
+        cls = Scheduler
         # Class attributes
-        #
-        # Do not alter class attributes using
-        # 'self.' Otherwise they will become
-        # instance attributes.
-        cls = type(self)
         if not cls._logger:
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
             # cls._logger = logger.setup(__name__, level=logging.DEBUG)
@@ -296,6 +292,8 @@ class Scheduler(object):
         """Coroutine for _main_loop_task, to ensure it has finished"""
         self._main_sleep_task = None
         """Coroutine that sleeps in the main loop"""
+        self.current_time = None
+        """Time to use when determining when to start tasks, for testing"""
 
     async def stop(self):
         """Attempts to stop the scheduler
@@ -556,7 +554,8 @@ class Scheduler(object):
                     del self._schedule_executions[schedule_id]
                 continue
 
-            right_time = time.time() >= next_start_time
+            now = self.current_time if self.current_time else time.time()
+            right_time = now >= next_start_time
 
             if right_time or schedule_execution.start_now:
                 # Start a task
@@ -596,7 +595,7 @@ class Scheduler(object):
            Assume 'repeat' is not null.
 
         """
-        if schedule.repeat_seconds < self._DAY_SECONDS:
+        if schedule.repeat_seconds is not None and schedule.repeat_seconds < self._DAY_SECONDS:
             # If repeat is less than a day, use the current hour.
             # Ignore the hour specified in the schedule's time.
             dt = datetime.datetime(
@@ -772,8 +771,10 @@ class Scheduler(object):
                     if interval is not None:
                         repeat_seconds = interval.total_seconds()
 
+                    schedule_id = uuid.UUID(row.id)
+
                     schedule = self._ScheduleRow(
-                                        id=row.id,
+                                        id=schedule_id,
                                         name=row.schedule_name,
                                         type=row.schedule_type,
                                         day=row.schedule_day,
@@ -783,8 +784,7 @@ class Scheduler(object):
                                         exclusive=row.exclusive,
                                         process_name=row.process_name)
 
-                    # TODO: Move this to _add_schedule to check for errors
-                    self._schedules[row.id] = schedule
+                    self._schedules[schedule_id] = schedule
                     self._schedule_first_task(schedule, self._start_time)
 
     async def _read_storage(self):
@@ -870,11 +870,18 @@ class Scheduler(object):
         if self._paused or not self._ready:
             raise NotReadyError()
 
-        schedule_type = None
+        # TODO should these checks be moved to the storage layer?
+        if schedule.name is None or len(schedule.name) == 0:
+            raise ValueError("name can not be empty")
+
+        if schedule.repeat is not None and not isinstance(schedule.repeat, datetime.timedelta):
+            raise ValueError('repeat must be of type datetime.time')
+
+        if schedule.exclusive is None:
+            raise ValueError('exclusive can not be None')
+
         day = None
         schedule_time = None
-
-        # TODO: verify schedule object (day, etc)
 
         if isinstance(schedule, IntervalSchedule):
             schedule_type = self._ScheduleType.INTERVAL
@@ -883,9 +890,19 @@ class Scheduler(object):
         elif isinstance(schedule, TimedSchedule):
             schedule_type = self._ScheduleType.TIMED
             schedule_time = schedule.time
+
+            if schedule_time is not None and not isinstance(schedule_time, datetime.time):
+                raise ValueError('time must be of type datetime.time')
+
             day = schedule.day
+
+            # TODO Remove this check when the database has constraint
+            if day is not None and (day < 1 or day > 7):
+                raise ValueError("day must be between 1 and 7")
         elif isinstance(schedule, ManualSchedule):
             schedule_type = self._ScheduleType.MANUAL
+        else:
+            raise ValueError("Unsupported schedule type")
 
         prev_schedule_row = None
 
@@ -929,32 +946,22 @@ class Scheduler(object):
                         exclusive=schedule.exclusive,
                         process_name=schedule.process_name))
 
-        # Added by: Amarendra
-        # Required as saving a TIMED schedule
-        if isinstance(schedule, TimedSchedule):
-            sch_h, sch_m, sch_s = schedule_time.split(':')
-            now = datetime.datetime.now()
-            new_schedule_time = now.replace(hour=int(sch_h), minute=int(sch_m), second=int(sch_s), microsecond=0).time()
-        else:
-            new_schedule_time = None
-
-        # TODO: Move this to _add_schedule for error checking
         repeat_seconds = None
         if schedule.repeat is not None:
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(
-                                id=str(schedule.schedule_id),
+                                id=schedule.schedule_id,
                                 name=schedule.name,
                                 type=schedule_type,
-                                time=new_schedule_time,
+                                time=schedule_time,
                                 day=day,
                                 repeat=schedule.repeat,
                                 repeat_seconds=repeat_seconds,
                                 exclusive=schedule.exclusive,
                                 process_name=schedule.process_name)
 
-        self._schedules[str(schedule.schedule_id)] = schedule_row
+        self._schedules[schedule.schedule_id] = schedule_row
 
         # Did the schedule change in a way that will affect task scheduling?
 
@@ -965,7 +972,10 @@ class Scheduler(object):
                 prev_schedule_row.day != schedule_row.day or
                 prev_schedule_row.repeat_seconds != schedule_row.repeat_seconds or
                 prev_schedule_row.exclusive != schedule_row.exclusive):
-            self._schedule_first_task(schedule_row, time.time())
+
+            now = self.current_time if self.current_time else time.time()
+            self._schedule_first_task(schedule_row, now)
+
             self._resume_check_schedules()
 
     async def delete_schedule(self, schedule_id: uuid.UUID):
@@ -1115,7 +1125,7 @@ class Scheduler(object):
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     task = Task()
-                    task.task_id = row.id
+                    task.task_id = uuid.UUID(row.id)
                     task.state = Task.State(row.state)
                     task.start_time = row.start_time
                     task.process_name = row.process_name
@@ -1150,7 +1160,7 @@ class Scheduler(object):
             async with engine.acquire() as conn:
                 async for row in conn.execute(query):
                     task = Task()
-                    task.task_id = row.id
+                    task.task_id = uuid.UUID(row.id)
                     task.state = Task.State(row.state)
                     task.start_time = row.start_time
                     task.process_name = row.process_name
@@ -1222,7 +1232,7 @@ class Scheduler(object):
 
         self._logger.info("Starting")
 
-        self._start_time = time.time()
+        self._start_time = self.current_time if self.current_time else time.time()
 
         # Hard-code storage server:
         # wait self._start_startup_task(self._schedules['storage'])

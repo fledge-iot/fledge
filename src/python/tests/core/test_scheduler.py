@@ -6,11 +6,14 @@
 
 import asyncio
 import datetime
-
-import pytest
+import os
+import time
 import uuid
 
-from foglamp.core.scheduler import Scheduler, IntervalSchedule, ScheduleNotFoundError, Task
+import pytest
+
+from foglamp.core.scheduler import (Scheduler, IntervalSchedule, ScheduleNotFoundError, Task,
+                                    TimedSchedule, ManualSchedule, StartUpSchedule)
 
 
 __author__ = "Terris Linenbach"
@@ -48,51 +51,184 @@ class TestScheduler:
         await self.stop_scheduler(scheduler)
 
     @pytest.mark.asyncio
-    async def test_save(self):
+    async def test_create_interval(self):
         scheduler = Scheduler()
 
         await scheduler.populate_test_data()
         await scheduler.start()
 
         interval_schedule = IntervalSchedule()
-        interval_schedule.name = 'sleep1'
-        interval_schedule.process_name = "sleep1"
+        interval_schedule.name = 'sleep10'
+        interval_schedule.process_name = "sleep10"
         interval_schedule.repeat = datetime.timedelta(seconds=1)
 
         await scheduler.save_schedule(interval_schedule)
 
-        # TODO: Re-read the task and check the type (need API support)
+        await self.stop_scheduler(scheduler)
 
-        await asyncio.sleep(10)
+    @pytest.mark.asyncio
+    async def test_update(self):
+        scheduler = Scheduler()
 
-        # TODO: check for task created (need API support)
+        await scheduler.populate_test_data()
+        await scheduler.start()
 
-        # TODO: check for task exited (need API support)
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'sleep10'
+        interval_schedule.process_name = "sleep10"
 
+        await scheduler.save_schedule(interval_schedule)
+
+        tasks = await scheduler.get_running_tasks()
+        await asyncio.sleep(1)
+        assert len(tasks) == 0
+
+        interval_schedule.name = 'updated'
+        interval_schedule.process_name = "sleep1"
+        interval_schedule.repeat = datetime.timedelta(seconds=5)
+
+        await scheduler.save_schedule(interval_schedule)
+        await asyncio.sleep(6)
+
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 1
+
+        interval_schedule.exclusive = False
+        await scheduler.save_schedule(interval_schedule)
+
+        # Check able to get same schedule after restart
+        # Check fields have been modified
+        await self.stop_scheduler(scheduler)
+        scheduler = Scheduler()
+        await scheduler.start()
+
+        schedule = await scheduler.get_schedule(interval_schedule.schedule_id)
+        assert schedule.process_name == 'sleep1'
+        assert schedule.name == 'updated'
+        assert schedule.repeat.seconds == 5
+        assert not schedule.exclusive
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_startup_schedule(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        startup_schedule = StartUpSchedule()
+        startup_schedule.name = 'startup schedule'
+        startup_schedule.process_name = 'sleep10'
+
+        await scheduler.save_schedule(startup_schedule)
+        await scheduler.get_schedule(startup_schedule.schedule_id)
+
+        await self.stop_scheduler(scheduler)
+
+        await asyncio.sleep(2)
+
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 1
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_manual_schedule(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        manual_schedule = ManualSchedule()
+        manual_schedule.name = 'manual task'
+        manual_schedule.process_name = 'sleep10'
+
+        await scheduler.save_schedule(manual_schedule)
+        manual_schedule = await scheduler.get_schedule(manual_schedule.schedule_id)
+        await scheduler.queue_task(manual_schedule.schedule_id)
+        await asyncio.sleep(2)
+
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 1
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_max_processes(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.repeat = datetime.timedelta(seconds=1)
         interval_schedule.name = 'sleep10 max active'
         interval_schedule.exclusive = False
         interval_schedule.process_name = 'sleep10'
+
         scheduler.max_active_tasks = 2
-
         await scheduler.save_schedule(interval_schedule)
-        await asyncio.sleep(30)
 
-        # TODO: Verify exactly 3 tasks ran
+        await asyncio.sleep(32)
+        scheduler.max_active_tasks = 1
+        await asyncio.sleep(10)
+
+        tasks = await scheduler.get_tasks(5)
+        assert len(tasks) == 4
 
         scheduler.max_active_tasks = Scheduler.DEFAULT_MAX_ACTIVE_TASKS
-        interval_schedule.repeat = datetime.timedelta(seconds=30)
-        interval_schedule.process_name = 'sleep1'
-        interval_schedule.name = 'manual runner'
-        await scheduler.save_schedule(interval_schedule)
 
         await asyncio.sleep(10)
 
-        # TODO: check for update (need API support)
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == Scheduler.DEFAULT_MAX_ACTIVE_TASKS
 
         await scheduler.queue_task(interval_schedule.schedule_id)
         await asyncio.sleep(10)
 
-        # TODO: check for task exited (need API support)
+        tasks = await scheduler.get_tasks(5)
+        assert len(tasks) == 0
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_timed_schedule(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        timed_schedule = TimedSchedule()
+
+        # Monday August 8 2017 8:00:00 AM PDT
+        now = 1502204400
+        scheduler.current_time = now
+
+        timed_schedule.name = 'timed'
+        timed_schedule.process_name = 'sleep10'
+        timed_schedule.day = 2
+        timed_schedule.time = datetime.time(hour=8)
+
+        os.environ["TZ"] = "PST8PDT"
+        time.tzset()
+
+        await scheduler.save_schedule(timed_schedule)
+        await asyncio.sleep(1)
+
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 1
+
+        timed_schedule = await scheduler.get_schedule(
+                            uuid.UUID(str(timed_schedule.schedule_id)))
+
+        assert timed_schedule.time.hour == 8
+        assert timed_schedule.time.minute == 0
+        assert timed_schedule.time.second == 0
+        assert timed_schedule.day == 2
+
+        del os.environ["TZ"]
+        time.tzset()
 
         await self.stop_scheduler(scheduler)
 
@@ -129,7 +265,7 @@ class TestScheduler:
 
         interval_schedule = IntervalSchedule()
         interval_schedule.name = 'cancel_test'
-        interval_schedule.process_name = "sleep30"
+        interval_schedule.process_name = 'sleep30'
         await scheduler.save_schedule(interval_schedule)
 
         await asyncio.sleep(5)

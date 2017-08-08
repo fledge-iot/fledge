@@ -45,37 +45,44 @@
 -- SCHEMA CREATION
 ----------------------------------------------------------------------
 
+-- Disconnect all users
+SELECT pg_terminate_backend(pg_stat_activity.pid)
+FROM pg_stat_activity
+WHERE pg_stat_activity.datname = 'foglamp'
+  AND pid <> pg_backend_pid();
+
 
 -- Dropping objects
 DROP SCHEMA IF EXISTS foglamp CASCADE;
 DROP DATABASE IF EXISTS foglamp;
 DROP TABLESPACE IF EXISTS foglamp;
-DROP USER IF EXISTS foglamp;
 
--- Create the foglamp user
-CREATE USER foglamp WITH
-  LOGIN
-  SUPERUSER
-  INHERIT
-  CREATEDB
-  CREATEROLE
-  REPLICATION;
+-- Do not DROP the foglamp user if you are using the default DB for FogLAMP
+-- DROP USER IF EXISTS foglamp;
 
-ALTER USER foglamp ENCRYPTED PASSWORD 'foglamp';
+-- ...and do not Create the foglamp user
+-- CREATE USER foglamp WITH
+--   LOGIN
+--  SUPERUSER
+--  INHERIT
+--  CREATEDB
+--  CREATEROLE
+--  REPLICATION;
+
+--ALTER USER foglamp ENCRYPTED PASSWORD 'foglamp';
 
 
 -- Create the foglamp tablespace
+-- NOTE: use the default location if you are installing the default DB for FogLAMP
 CREATE TABLESPACE foglamp
   OWNER foglamp
-  LOCATION '/var/lib/postgresql/9.6/';
+  LOCATION '/usr/local/pgsql/';
 
 
 -- Create the foglamp database
 CREATE DATABASE foglamp WITH
     OWNER = foglamp
     ENCODING = 'UTF8'
-    LC_COLLATE = 'en_GB.UTF-8'
-    LC_CTYPE = 'en_GB.UTF-8'
     TABLESPACE = foglamp
     CONNECTION LIMIT = -1;
 
@@ -244,7 +251,7 @@ COMMENT ON TABLE foglamp.log_codes IS
 CREATE TABLE foglamp.log (
        id    bigint                      NOT NULL DEFAULT nextval('foglamp.log_id_seq'::regclass),
        code  character(5)                NOT NULL,                                                -- The process that logged the action
-       level smallint                    NOT NULL DEFAULT 0,                                      -- 0 Success - 1 Failure - 2 Warning - 4 Info
+       level smallint                    NOT NULL DEFAULT 0,                                      -- 1 Fatal - 2 Error - 3 Warning - 4 Information
        log   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                            -- Generic log structure
        ts    timestamp(6) with time zone NOT NULL DEFAULT now(),
        CONSTRAINT log_pkey PRIMARY KEY (id)

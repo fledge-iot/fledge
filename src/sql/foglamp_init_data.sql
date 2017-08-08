@@ -114,35 +114,28 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 -- Use this to create guids: https://www.uuidgenerator.net/version1 */
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
-insert into foglamp.scheduled_processes (name, script) values ('device', '["python3", "-m", "foglamp.device"]');
-insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
-insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.update_statistics_history"]');
-insert into foglamp.scheduled_processes (name, script) values ('omf translator', '["python3", "-m", "foglamp.translators.omf_translator"]');
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('device', '["python3", "-m", "foglamp.device"]');
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('purge', '["python3", "-m", "foglamp.data_purge"]');
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('stats collector', '["python3", "-m", "foglamp.update_statistics_history"]');
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('omf translator', '["python3", "-m", "foglamp.translators.omf_translator"]');
 
 -- Start the device server at start-up
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive)
-values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1,
-'0:0', true);
+INSERT INTO foglamp.schedules( id, schedule_name, process_name, schedule_type, schedule_interval, exclusive )
+     VALUES ( 'ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1, '0:0', true );
 
 -- Run the purge process every 5 minutes
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
-NULL, '00:05:00', true);
+INSERT INTO foglamp.schedules( id, schedule_name, process_name, schedule_type, schedule_time, schedule_interval, exclusive )
+     VALUES ( 'cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3, NULL, '00:05:00', true );
 
 -- Run the statistics collector every 15 seconds
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
-NULL, '00:00:15', true);
+INSERT INTO foglamp.schedules( id, schedule_name, process_name, schedule_type, schedule_time, schedule_interval, exclusive )
+     VALUES ( '2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3, NULL, '00:00:15', true );
 
 -- Run the omf transfalor every 15 seconds
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'omf translator', 'omf translator', 3,
-NULL, '00:00:15', true);
+INSERT INTO foglamp.schedules( id, schedule_name, process_name, schedule_type, schedule_time, schedule_interval, exclusive )
+     VALUES ( '2b614d26-760f-11e7-b5a5-be2e44b06b34', 'omf translator', 'omf translator', 3, NULL, '00:00:15', true );
 
 -- Temporary  omf translator configuration
-INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF', 0,now());  
+INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 1, 'OMF', now() );
+INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 1, 1, 'OMF', 0, now() );  
+

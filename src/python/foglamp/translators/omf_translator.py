@@ -59,14 +59,14 @@ _message_list = {
     "e000007": _module_name + " - an error occurred during the OMF request. - error details |{0}|.",
     "e000008": _module_name + " - an error occurred during the OMF's objects creation. - error details |{0}|.",
     "e000009": _module_name + " - cannot retrieve information about the sensor.",
-    "e000010": _module_name + " - unable ro create the JSON message.",
+    "e000010": _module_name + " - unable to extend the in memory structure with the data.",
     "e000011": _module_name + " - cannot create the OMF types - error details |{0}|.",
     "e000012": _module_name + " - unknown asset_code - asset |{0}| - error details |{1}|.",
     "e000013": _module_name + " - cannot prepare sensor information for PICROMF - error details |{0}|.",
     "e000014": _module_name + " - cannot start the sending process - error details |{0}|.",
     "e000015": _module_name + " - cannot update statistics - error details |{0}|.",
     "e000016": _module_name + " - cannot update reached position/statistics during a previous error - details |{0}|.",
-    "e000017": _module_name + " - cannot complete data preparation - details |{0}|.",
+    "e000017": _module_name + " - cannot complete loading data in memory - details |{0}|.",
     "e000018": _module_name + " - cannot complete the initialization - details |{0}|."
 
 }
@@ -125,7 +125,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_b117"
+        "default": "omf_translator_b123"
 
     },
     "channelID": {
@@ -577,33 +577,30 @@ def initialize_plugin():
         raise Exception(message)
 
 
-def create_data_values_stream_message(data_values, target_stream_id, information_to_send):
-    """Creates the JSON data for PICROMF
+def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
+    """Extends in memory data structure reading data from the Storage Layer
 
     Args:
-        data_values:          data to send
-        target_stream_id:     PICROMF container ID
-        information_to_send:  information retrieved that should be prepared for PICROMF
-
-    Returns:
-        data_values_json: information converted in JSON format
+        data_values:          data to send - updated/used by reference
+        target_stream_id:     OMF container ID
+        information_to_send:  information retrieved from the Storage Layer that should be prepared for the PICROMF
 
     Raises:
-        Exception: unable ro create the JSON message.
+        Exception: unable to extend the in memory structure with the data
 
     """
 
     data_available = False
 
-    row_id = information_to_send.id
-    asset_code = information_to_send.asset_code
-    timestamp = information_to_send.user_ts.isoformat()
-    sensor_data = information_to_send.reading
-
-    _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
-                  .format(target_stream_id, asset_code, str(row_id)))
-
     try:
+        row_id = information_to_send.id
+        asset_code = information_to_send.asset_code
+        timestamp = information_to_send.user_ts.isoformat()
+        sensor_data = information_to_send.reading
+
+        _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
+                      .format(target_stream_id, asset_code, str(row_id)))
+
         # Prepares the data for PICROMF
         new_data_values = [
             {
@@ -616,9 +613,7 @@ def create_data_values_stream_message(data_values, target_stream_id, information
             }
         ]
 
-        #
         # Evaluates which data is available
-        #
         for data_key in _sensor_data_keys:
             try:
                 new_data_values[0]["values"][0][data_key] = sensor_data[data_key]
@@ -631,7 +626,7 @@ def create_data_values_stream_message(data_values, target_stream_id, information
             # note : append produces an not properly constructed OMF message
             data_values.extend(new_data_values)
 
-            _logger.debug("OMF Message |{0}| ".format(data_values))
+            _logger.debug("OMF Message |{0}| ".format(new_data_values))
         else:
             message = _message_list["e000009"]
             _logger.warning(message)
@@ -643,7 +638,7 @@ def create_data_values_stream_message(data_values, target_stream_id, information
         raise Exception(message)
 
 
-def send_omf_message_to_end_point(message_type, omf_data):
+def send_in_memory_data_to_picromf(message_type, omf_data):
     """Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
 
     it logs a WARNING only at the end of the retry mechanism
@@ -784,7 +779,7 @@ def omf_types_creation():
             omf_type[0]["id"] = tmp_type_sensor_id
             omf_type[1]["id"] = tmp_type_measurement_id
 
-            send_omf_message_to_end_point("Type", omf_type)
+            send_in_memory_data_to_picromf("Type", omf_type)
 
     except Exception as e:
         message = _message_list["e000011"].format(e)
@@ -874,9 +869,9 @@ def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, t
             }]
         }]
 
-        send_omf_message_to_end_point("Container", containers)
-        send_omf_message_to_end_point("Data", static_data)
-        send_omf_message_to_end_point("Data", link_data)
+        send_in_memory_data_to_picromf("Container", containers)
+        send_in_memory_data_to_picromf("Data", static_data)
+        send_in_memory_data_to_picromf("Data", link_data)
 
     except Exception as e:
         message = _message_list["e000008"].format(e)
@@ -885,8 +880,8 @@ def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, t
         raise Exception(message)
 
 
-async def send_info_to_picromf():
-    """Reads the information from the Storage Layer and them PICROMF
+async def send_data_to_picromf():
+    """Reads data from the Storage Layer sends them PICROMF
 
     Raises:
         Exception: cannot complete the sending operation
@@ -898,11 +893,11 @@ async def send_info_to_picromf():
     data_to_send = []
 
     try:
-        data_available, new_position = await data_preparation(data_to_send)
+        data_available, new_position = await in_memory_data_load(data_to_send)
 
         if data_available:
             _logger.debug("{0}".format("omf_translator_perf - OMF START "))
-            send_omf_message_to_end_point("Data", data_to_send)
+            send_in_memory_data_to_picromf("Data", data_to_send)
             _logger.debug("{0}".format("omf_translator_perf - OMF END "))
 
             position_update(new_position)
@@ -915,11 +910,11 @@ async def send_info_to_picromf():
         raise Exception(message)
 
 
-async def data_preparation(values):
-    """Extracts from the DB Layer and prepares the data for the sending operation
+async def in_memory_data_load(values):
+    """Extracts data from the DB Layer loading in memory
 
     Raises:
-        Exception: cannot complete data preparation
+        Exception: cannot complete loading data in memory
 
     Todo:
         it should evolve using the DB layer
@@ -974,7 +969,7 @@ async def data_preparation(values):
                                                                              db_row.reading))
 
                             try:
-                                create_data_values_stream_message(values, measurement_id, db_row)
+                                in_memory_load_new_data(values, measurement_id, db_row)
 
                                 # Used for the statistics update
                                 _num_sent += 1
@@ -1004,8 +999,8 @@ async def data_preparation(values):
     return data_available,  new_position
 
 
-def sending_init():
-    """Initialize before sending the information to PICROMF
+def send_init():
+    """Setup the correct state to being able to send data to the PICROMF
 
     Raises :
         Exception - cannot complete the initialization
@@ -1016,7 +1011,7 @@ def sending_init():
 
         prg_text = ", for Linux (x86_64)"
 
-        start_message = " " + _module_name + "" + prg_text + " " + __copyright__ + " "
+        start_message = "" + _module_name + "" + prg_text + " " + __copyright__ + " "
         _logger.info("{0}".format(start_message))
         _logger.info(_message_list["i000002"])
 
@@ -1059,9 +1054,9 @@ if __name__ == "__main__":
 
         _logger.debug("{0}".format("omf_translator_perf - START "))
 
-        sending_init()
+        send_init()
 
-        _event_loop.run_until_complete(send_info_to_picromf())
+        _event_loop.run_until_complete(send_data_to_picromf())
 
         _logger.info(_message_list["i000003"])
 

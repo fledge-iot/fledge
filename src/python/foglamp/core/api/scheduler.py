@@ -5,8 +5,6 @@
 # FOGLAMP_END
 
 import datetime
-import time
-
 from aiohttp import web
 
 from foglamp.core import server
@@ -18,7 +16,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__start_time = time.time()
 
 _help = """
     -------------------------------------------------------------------------------

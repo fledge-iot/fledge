@@ -8,8 +8,6 @@ import time
 
 from aiohttp import web
 
-from foglamp.core.api import audit_trail_db_services
-
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -26,10 +24,15 @@ _help = """
 
 async def ping(request):
     """
+    Args:
+        request:
 
-    :param request:
-    :return: basic health information json payload
-    {'uptime': 32892} Time in seconds since FogLAMP started
+    Returns:
+            basic health information json payload
+            {'uptime': 32892} Time in seconds since FogLAMP started
+
+    :Example:
+            curl -X GET http://localhost:8082/foglamp/ping
     """
     since_started = time.time() - __start_time
 

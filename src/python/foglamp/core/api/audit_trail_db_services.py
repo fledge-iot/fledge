@@ -26,15 +26,17 @@ class _Severity(IntEnum):
 
 async def read_audit_entries(limit=None, offset=None, source=None, severity=None):
     """
-
     Args:
         limit: the number of audit entries returned to the number specified
+
         source: filter the audit entries to be only those from the specified source
+
         severity: filter the audit entries to only those of the specified severity
+
         offset: skip the first n entries in the audit table, used with limit to implemented paged interfaces
 
     Returns:
-        list of audit trail entries sorted with most recent first
+            list of audit trail entries sorted with most recent first
     """
     conn = await asyncpg.connect(database=__DB_NAME)
 

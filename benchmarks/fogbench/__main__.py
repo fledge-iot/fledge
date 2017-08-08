@@ -135,7 +135,7 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
         sensor_value_object["asset"] = d['name']
         sensor_value_object["sensor_values"] = x_sensor_values
         sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
-        sensor_value_object["key"] = uuid.uuid4().hex
+        sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
 
         temp_list = []
@@ -185,18 +185,17 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
 
 async def send_to_coap(payload):
     """
-    PUT request to localhost
-    port 5683 (official IANA assigned CoAP port), URI "/other/block".
-    Request is sent 2 seconds after initialization.
+    POST request to:
+     localhost
+     port 5683 (official IANA assigned CoAP port),
+     URI "/other/sensor-values".
 
-    Payload is bigger than 1kB, and thus is sent as several blocks.
+    Request is sent 2 seconds after initialization.
     """
 
     context = await Context.create_client_context()
 
     await asyncio.sleep(2)
-
-    # payload = b"some blah text ....\n" * 30
 
     # request = Message(payload=dumps(payload), code=PUT)
     request = Message(payload=dumps(payload), code=POST)
@@ -235,7 +234,8 @@ def display_statistics(stats_type):
 
 def check_coap_server():
     # TODO: Temporary info
-    print(">>> $ python -m foglamp.device ; To see payload on console & ensure CoAP server is listening on {}:{}".format("localhost", 5683))
+    print(">>> $ python -m foglamp.device ; To see payload on console "
+          "& ensure CoAP server is listening on {}:{}".format("localhost", 5683))
 
 parser = argparse.ArgumentParser(prog='fogbench')
 parser.description = '%(prog)s -- a Python script used to test FogLAMP (simulate payloads)'

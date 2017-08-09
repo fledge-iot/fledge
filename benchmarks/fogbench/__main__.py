@@ -18,7 +18,7 @@ fogbench
  [IN]   -h --help        Print this help
         -i --interval    The interval in seconds between each iteration (default: 0)
  [IN]   -k --keep        Do not delete (keep) the running sample (default: no)
- FIXME: [IN]   -o --output      Set the output file for statistics
+ [IN]   -o --output      Set the output file for statistics
         -p --payload     Type of payload and protocol (default: sensor/coap)
  [IN]   -t --template    Set the template to use
  [IN]   -v --version     Display the version and exit
@@ -227,28 +227,29 @@ async def send_to_coap(payload):
     print('Result: %s\n' % response.code)
 
 
-def display_statistics(stats_type):
-    print(u"{} statistics: \n".format(stats_type))
+def get_statistics(_stats_type=None, _out_file=None):
+    stat = ''
+    stat += (u"{} statistics: \n".format(_stats_type))
     global _start_time
     global _end_time
     global _tot_msgs_transferred
     global _tot_byte_transferred
     global _num_iterated
-    if stats_type == 'total' or stats_type == 'st':
-        print(u"Start Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
-    if stats_type == 'total' or stats_type == 'et':
-        print(u"End Time::{}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
-    if stats_type == 'total' or stats_type == 'mt':
-        print(u"Total Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
-    if stats_type == 'total' or stats_type == 'bt':
-        print(u"Total Bytes Transferred::{}\n".format(sum(_tot_byte_transferred)))
-    if stats_type == 'total' or stats_type == 'itr':
-        print(u"Total Iterations::{}".format(_num_iterated))
-    if stats_type == 'total' or stats_type == 'mt-itr':
-        print(u"Total Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
-    if stats_type == 'total' or stats_type == 'bt-itr':
-        print(u"Total Bytes per Iteration::{}\n".format(sum(_tot_byte_transferred)/_num_iterated))
-    if stats_type == 'total' or stats_type == 'rates':
+    if _stats_type == 'total' or _stats_type == 'st':
+        stat += (u"\nStart Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
+    if _stats_type == 'total' or _stats_type == 'et':
+        stat += (u"\nEnd Time::{}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
+    if _stats_type == 'total' or _stats_type == 'mt':
+        stat += (u"\nTotal Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
+    if _stats_type == 'total' or _stats_type == 'bt':
+        stat += (u"\nTotal Bytes Transferred::{}\n".format(sum(_tot_byte_transferred)))
+    if _stats_type == 'total' or _stats_type == 'itr':
+        stat += (u"\nTotal Iterations::{}".format(_num_iterated))
+    if _stats_type == 'total' or _stats_type == 'mt-itr':
+        stat += (u"\nTotal Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
+    if _stats_type == 'total' or _stats_type == 'bt-itr':
+        stat += (u"\nTotal Bytes per Iteration::{}\n".format(sum(_tot_byte_transferred)/_num_iterated))
+    if _stats_type == 'total' or _stats_type == 'rates':
         _msg_rate = []
         _byte_rate = []
         for itr in range(_num_iterated):
@@ -256,12 +257,17 @@ def display_statistics(stats_type):
             # print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
-        print(u"Min message rate::{}".format(min(_msg_rate)))
-        print(u"Max message rate::{}".format(max(_msg_rate)))
-        print(u"Avg message rate::{}".format(sum(_msg_rate)/_num_iterated))
-        print(u"Min Byte rate::{}".format(min(_byte_rate)))
-        print(u"Max Byte rate::{}".format(max(_byte_rate)))
-        print(u"Avg Byte rate::{}".format(sum(_byte_rate)/_num_iterated))
+        stat += (u"\nMin message rate::{}".format(min(_msg_rate)))
+        stat += (u"\nMax message rate::{}".format(max(_msg_rate)))
+        stat += (u"\nAvg message rate::{}".format(sum(_msg_rate)/_num_iterated))
+        stat += (u"\nMin Byte rate::{}".format(min(_byte_rate)))
+        stat += (u"\nMax Byte rate::{}".format(max(_byte_rate)))
+        stat += (u"\nAvg Byte rate::{}".format(sum(_byte_rate)/_num_iterated))
+    if _out_file:
+        with open(_out_file, 'w') as f:
+            f.write(stat)
+    else:
+        print(stat)
     # should we also show total time diff? end_time - start_time
 
 
@@ -276,8 +282,8 @@ parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/dev
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
 parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'],
                     help='Do not delete the running sample (default: no)')
-parser.add_argument('-t', '--template', required=True, help='set the template file, json extension')
-parser.add_argument('-o', '--output', help='set the output file, WITHOUT extension')
+parser.add_argument('-t', '--template', required=True, help='Set the template file, json extension')
+parser.add_argument('-o', '--output', default=None, help='Set the statistics output file')
 
 parser.add_argument('-I', '--iterations', help='The number of iterations of the test (default: 1)')
 parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
@@ -290,8 +296,7 @@ parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st
 
 namespace = parser.parse_args(sys.argv[1:])
 infile = '{0}'.format(namespace.template if namespace.template else '')
-outfile = 'sample_{0}.json'.format(namespace.output if namespace.output else os.getpid())
-output_file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
+statistics_file = os.path.join(os.path.dirname(__file__), "out/{}".format(namespace.output)) if namespace.output else None
 keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 
 # iterations and occurrences
@@ -303,9 +308,10 @@ arg_interval = int(namespace.interval) if namespace.interval else 0
 
 arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
 
-parse_template_and_prepare_json(_template_file=infile, _write_to_file=output_file, _occurrences=arg_occurrences)
-read_out_file(_file=output_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
-display_statistics(arg_stats_type)
+sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(os.getpid()))
+parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)
+read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
+get_statistics(_stats_type=arg_stats_type, _out_file=statistics_file)
 
 """ Expected output from given template
 { 

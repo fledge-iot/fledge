@@ -4,11 +4,15 @@
 
 echo "Installing FogLAMP..."
 
+# Check the foglamp user
+
+# Copy executables in the bin directory
+cp ${HOME}/FogLAMP/extras/bin/* ${HOME}/bin/.
+
 # Build the environment
 cd ${HOME}/FogLAMP/src/python
 source build.sh -a
 source build.sh -i
-
 
 echo "Installation Completed."
 exit 0

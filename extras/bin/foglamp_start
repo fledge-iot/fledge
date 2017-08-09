@@ -2,4 +2,7 @@
 
 pg_start
 
+cd ${HOME}/FogLAMP/src/python
+venv/foglamp-core/bin/python3.5 -m foglamp.core
+
 exit 0

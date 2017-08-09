@@ -24,9 +24,9 @@ fogbench
  [IN]   -v --version     Display the version and exit
         -H --host        The FogLAMP host (default: localhost)
         -I --iterations  The number of iterations of the test (default: 1)
-        -O --occurrences The number of occurrences of the template (default: 1)
+ [IN]   -O --occurrences The number of occurrences of the template (default: 1)
         -P --port        The FogLAMP port. Default depends on payload and protocol
-        -S --statistic   The type of statistics to collect
+ [IN]   -S --statistic   The type of statistics to collect
 
  Example:
 
@@ -153,7 +153,7 @@ def _prepare_sensor_reading(data, supported_format_types):
         sensor_value_object["asset"] = d['name']
         sensor_value_object["sensor_values"] = x_sensor_values
         sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
-        sensor_value_object["key"] = str(uuid.uuid4())
+        sensor_value_object["keypython -m fogbench -S rates"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
         ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))
         readings.append(ord_dict)
@@ -253,7 +253,7 @@ def display_statistics(stats_type):
         _byte_rate = []
         for itr in range(_num_iterated):
             time_taken = _end_time[itr] - _start_time[itr]
-            #print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
+            print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
         print(u"Min message rate::{}".format(min(_msg_rate)))
@@ -289,9 +289,7 @@ parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st
 
 namespace = parser.parse_args(sys.argv[1:])
 
-# could have set default in add_argument, but may be we don't want and this _1 is temp
-# should use <template-name_timestamp> or <pid.json>  etc ...
-outfile = '{0}.json'.format(namespace.output if namespace.output else '_1')
+outfile = 'sample_{0}'.format(namespace.output if namespace.output else os.getpid())
 output_file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
 keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 

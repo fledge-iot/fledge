@@ -8,6 +8,6 @@ pg_start
 
 cd ${HOME}/FogLAMP/src/python
 source ./build.sh -a
-python -m foglamp.core
+foglamp start
 
 exit 0

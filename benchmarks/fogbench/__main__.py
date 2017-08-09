@@ -169,12 +169,11 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
     global _tot_byte_transferred
     global _num_iterated
 
-    from pprint import pprint
+#    from pprint import pprint
     import time
     # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
     with open(_file) as f:
         readings_list = [json.loads(line) for line in f]
-    pprint(readings_list)
 
     loop = asyncio.get_event_loop()
 
@@ -223,46 +222,34 @@ async def send_to_coap(payload):
     # TODO: check, should we wait for acknowledgement response
     response = await context.request(request).response
 
-    # print('Result: %s\n%r' % (response.code, response.payload))
-    print('Result: %s\n' % response.code)
-
-
 def get_statistics(_stats_type=None, _out_file=None):
     stat = ''
-    stat += (u"{} statistics: \n".format(_stats_type))
     global _start_time
     global _end_time
     global _tot_msgs_transferred
     global _tot_byte_transferred
     global _num_iterated
-    if _stats_type == 'total' or _stats_type == 'st':
-        stat += (u"\nStart Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
-    if _stats_type == 'total' or _stats_type == 'et':
-        stat += (u"\nEnd Time::{}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
-    if _stats_type == 'total' or _stats_type == 'mt':
-        stat += (u"\nTotal Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
-    if _stats_type == 'total' or _stats_type == 'bt':
-        stat += (u"\nTotal Bytes Transferred::{}\n".format(sum(_tot_byte_transferred)))
-    if _stats_type == 'total' or _stats_type == 'itr':
-        stat += (u"\nTotal Iterations::{}".format(_num_iterated))
-    if _stats_type == 'total' or _stats_type == 'mt-itr':
-        stat += (u"\nTotal Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
-    if _stats_type == 'total' or _stats_type == 'bt-itr':
-        stat += (u"\nTotal Bytes per Iteration::{}\n".format(sum(_tot_byte_transferred)/_num_iterated))
-    if _stats_type == 'total' or _stats_type == 'rates':
+    if _stats_type == 'total':
+        stat += (u"Total Statistics:\n")
+        stat += (u"\nStart Time: {}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
+        stat += (u"\nEnd Time: {}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
+        stat += (u"\nTotal Messages Transferred: {}".format(sum(_tot_msgs_transferred)))
+        stat += (u"\nTotal Bytes Transferred: {}\n".format(sum(_tot_byte_transferred)))
+        stat += (u"\nTotal Iterations: {}".format(_num_iterated))
+        stat += (u"\nTotal Messages per Iteration: {}".format(sum(_tot_msgs_transferred)/_num_iterated))
+        stat += (u"\nTotal Bytes per Iteration: {}\n".format(sum(_tot_byte_transferred)/_num_iterated))
         _msg_rate = []
         _byte_rate = []
         for itr in range(_num_iterated):
             time_taken = _end_time[itr] - _start_time[itr]
-            # print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
-        stat += (u"\nMin message rate::{}".format(min(_msg_rate)))
-        stat += (u"\nMax message rate::{}".format(max(_msg_rate)))
-        stat += (u"\nAvg message rate::{}".format(sum(_msg_rate)/_num_iterated))
-        stat += (u"\nMin Byte rate::{}".format(min(_byte_rate)))
-        stat += (u"\nMax Byte rate::{}".format(max(_byte_rate)))
-        stat += (u"\nAvg Byte rate::{}".format(sum(_byte_rate)/_num_iterated))
+        stat += (u"\nMin message rate: {}".format(min(_msg_rate)))
+        stat += (u"\nMax message rate: {}".format(max(_msg_rate)))
+        stat += (u"\nAvg message rate: {}\n".format(sum(_msg_rate)/_num_iterated))
+        stat += (u"\nMin Byte rate: {}".format(min(_byte_rate)))
+        stat += (u"\nMax Byte rate: {}".format(max(_byte_rate)))
+        stat += (u"\nAvg Byte rate: {}".format(sum(_byte_rate)/_num_iterated))
     if _out_file:
         with open(_out_file, 'w') as f:
             f.write(stat)

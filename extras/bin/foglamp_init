@@ -27,7 +27,6 @@ done
 
 # Step 2: Set the Python Environment
 cd ${HOME}/FogLAMP/src/python
-source build.sh -a
 source build.sh -i
 
 pg_stop

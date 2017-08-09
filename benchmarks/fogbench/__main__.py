@@ -74,11 +74,13 @@ __version__ = "${VERSION}"
 
 
 _FOGBENCH_VERSION = u"0.1"
-_START_TIME = ''
-_END_TIME = ''
-_TOT_MSGS_TRANSFERRED = 0
-_TOT_BYTE_TRANSFERRED = 0
-_NUM_ITERATED = 0
+
+_start_time = []
+_end_time = []
+_tot_msgs_transferred = []
+_tot_byte_transferred = []
+_num_iterated = 0
+"""Statistics to be collected"""
 
 # TODO: have its own sys/ console logger
 # _logger = logger.setup(__name__)
@@ -161,11 +163,12 @@ def _prepare_sensor_reading(data, supported_format_types):
 
 def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
     # TODO: Create class and move global variables to __init__
-    global _START_TIME
-    global _END_TIME
-    global _TOT_MSGS_TRANSFERRED
-    global _TOT_BYTE_TRANSFERRED
-    global _NUM_ITERATED
+    global _start_time
+    global _end_time
+    global _tot_msgs_transferred
+    global _tot_byte_transferred
+    global _num_iterated
+
     from pprint import pprint
     import time
     # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
@@ -175,20 +178,24 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
 
     loop = asyncio.get_event_loop()
 
-    _START_TIME = datetime.now()
     while _iterations > 0:
         # TODO: Fix key for next iteration
+        msg_transferred_itr = 0  # Messages transferred in every iteration
+        byte_transferred_itr = 0  # Bytes transferred in every iteration
+        _start_time.append(datetime.now())  # Start time of every iteration
         for r in readings_list:
             loop.run_until_complete(send_to_coap(r))
-            _TOT_MSGS_TRANSFERRED += 1
-            _TOT_BYTE_TRANSFERRED += sys.getsizeof(r)
+            msg_transferred_itr += 1
+            byte_transferred_itr += sys.getsizeof(r)
+        _end_time.append(datetime.now())  # End time of every iteration
+        _tot_msgs_transferred.append(msg_transferred_itr)
+        _tot_byte_transferred.append(byte_transferred_itr)
         _iterations -= 1
-        _NUM_ITERATED += 1
+        _num_iterated += 1
         if _iterations != 0:
             print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
             time.sleep(_interval)
             # TODO: For next iteration, add interval to payload timestamp
-    _END_TIME = datetime.now()
 
     if not _keep:
         os.remove(_file)
@@ -222,26 +229,39 @@ async def send_to_coap(payload):
 
 def display_statistics(stats_type):
     print(u"{} statistics: ".format(stats_type))
-    global _START_TIME
-    global _END_TIME
-    global _TOT_MSGS_TRANSFERRED
-    global _TOT_BYTE_TRANSFERRED
-    global _NUM_ITERATED
+    global _start_time
+    global _end_time
+    global _tot_msgs_transferred
+    global _tot_byte_transferred
+    global _num_iterated
     if stats_type == 'total' or stats_type == 'st':
-        print(u"Start Time::{}".format(datetime.strftime(_START_TIME, "%Y-%m-%d %H:%M:%S.%f")))
+        print(u"Start Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
     if stats_type == 'total' or stats_type == 'et':
-        print(u"End Time::{}".format(datetime.strftime(_END_TIME, "%Y-%m-%d %H:%M:%S.%f")))
+        print(u"End Time::{}".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
     if stats_type == 'total' or stats_type == 'mt':
-        print(u"Total Messages Transferred::{}".format(_TOT_MSGS_TRANSFERRED))
+        print(u"Total Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
     if stats_type == 'total' or stats_type == 'bt':
-        print(u"Total Bytes Transferred::{}".format(_TOT_BYTE_TRANSFERRED))
+        print(u"Total Bytes Transferred::{}".format(sum(_tot_byte_transferred)))
     if stats_type == 'total' or stats_type == 'itr':
-        print(u"Total Iterations::{}".format(_NUM_ITERATED))
+        print(u"Total Iterations::{}".format(_num_iterated))
     if stats_type == 'total' or stats_type == 'mt-itr':
-        print(u"Total Messages per Iteration::{}".format(_TOT_MSGS_TRANSFERRED/_NUM_ITERATED))
+        print(u"Total Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
     if stats_type == 'total' or stats_type == 'bt-itr':
-        print(u"Total Bytes per Iteration::{}".format(_TOT_BYTE_TRANSFERRED/_NUM_ITERATED))
-    # TODO: Stats of Min, Avg Max msgs/sec bytes/sec per for all iterations
+        print(u"Total Bytes per Iteration::{}".format(sum(_tot_byte_transferred)/_num_iterated))
+    if stats_type == 'total' or stats_type == 'rates':
+        _msg_rate = []
+        _byte_rate = []
+        for itr in range(_num_iterated):
+            time_taken = _end_time[itr] - _start_time[itr]
+            #print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
+            _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
+            _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
+        print(u"Min message rate::{}".format(min(_msg_rate)))
+        print(u"Max message rate::{}".format(max(_msg_rate)))
+        print(u"Avg message rate::{}".format(sum(_msg_rate)/_num_iterated))
+        print(u"Min Byte rate::{}".format(min(_byte_rate)))
+        print(u"Max Byte rate::{}".format(max(_byte_rate)))
+        print(u"Avg Byte rate::{}".format(sum(_byte_rate)/_num_iterated))
     # should we also show total time diff? end_time - start_time
 
 
@@ -265,7 +285,7 @@ parser.add_argument('-H', '--host', help='CoAP server host address (default: loc
 parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
 
 parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
-                                                                    'itr', 'mt-itr', 'bt-itr'], help='The type of statistics to collect (default: total)')
+                                                                    'itr', 'mt-itr', 'bt-itr', 'rates'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
 

@@ -115,7 +115,8 @@ class Schedule(object):
         self.exclusive = True  # type: bool
         self.repeat = None  # type: datetime.timedelta
         self.process_name = None  # type: str
-        self.schedule_type = schedule_type  # type: Schedule.Type
+        self.schedule_type = schedule_type
+        """ Type """
 
 
 class IntervalSchedule(Schedule):
@@ -901,15 +902,7 @@ class Scheduler(object):
         if schedule.exclusive is None:
             raise ValueError('exclusive can not be None')
 
-        day = None
-        schedule_time = None
-
-        if isinstance(schedule, IntervalSchedule):
-            schedule_type = Schedule.Type.INTERVAL
-        elif isinstance(schedule, StartUpSchedule):
-            schedule_type = Schedule.Type.STARTUP
-        elif isinstance(schedule, TimedSchedule):
-            schedule_type = Schedule.Type.TIMED
+        if isinstance(schedule, TimedSchedule):
             schedule_time = schedule.time
 
             if schedule_time is not None and not isinstance(schedule_time, datetime.time):
@@ -920,10 +913,9 @@ class Scheduler(object):
             # TODO Remove this check when the database has constraint
             if day is not None and (day < 1 or day > 7):
                 raise ValueError("day must be between 1 and 7")
-        elif isinstance(schedule, ManualSchedule):
-            schedule_type = Schedule.Type.MANUAL
         else:
-            raise ValueError("Unsupported schedule type")
+            day = None
+            schedule_time = None
 
         prev_schedule_row = None
 
@@ -959,7 +951,7 @@ class Scheduler(object):
                 async with engine.acquire() as conn:
                     await conn.execute(self._schedules_tbl.insert().values(
                         id=str(schedule.schedule_id),
-                        schedule_type=int(schedule_type),
+                        schedule_type=int(schedule.schedule_type),
                         schedule_name=schedule.name,
                         schedule_interval=schedule.repeat,
                         schedule_day=day,
@@ -974,7 +966,7 @@ class Scheduler(object):
         schedule_row = self._ScheduleRow(
                                 id=schedule.schedule_id,
                                 name=schedule.name,
-                                type=schedule_type,
+                                type=schedule.schedule_type,
                                 time=schedule_time,
                                 day=day,
                                 repeat=schedule.repeat,
@@ -985,9 +977,7 @@ class Scheduler(object):
         self._schedules[schedule.schedule_id] = schedule_row
 
         # Did the schedule change in a way that will affect task scheduling?
-
-        if schedule_type in [Schedule.Type.INTERVAL,
-                             Schedule.Type.TIMED] and (
+        if schedule.schedule_type in [Schedule.Type.INTERVAL, Schedule.Type.TIMED] and (
                 is_new_schedule or
                 prev_schedule_row.time != schedule_row.time or
                 prev_schedule_row.day != schedule_row.day or
@@ -996,7 +986,6 @@ class Scheduler(object):
 
             now = self.current_time if self.current_time else time.time()
             self._schedule_first_task(schedule_row, now)
-
             self._resume_check_schedules()
 
     async def delete_schedule(self, schedule_id: uuid.UUID):

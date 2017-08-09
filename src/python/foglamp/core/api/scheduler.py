@@ -497,30 +497,6 @@ async def get_tasks_latest(request):
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
-async def get_tasks_running(request):
-    """
-    Returns a list of all running tasks
-
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks/running
-    """
-
-    try:
-        task_list = await server.Server.scheduler.get_running_tasks()
-
-        tasks = []
-        for task in task_list:
-            tasks.append({
-                'id': str(task.task_id),
-                'process_name': task.process_name,
-                'state': task.state,
-                'start_time': str(task.start_time)
-            })
-
-        return web.json_response({'tasks': tasks})
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
-
-
 async def cancel_task(request):
     """Cancel a running task from tasks table
 

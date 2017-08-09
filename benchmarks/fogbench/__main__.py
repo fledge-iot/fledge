@@ -227,7 +227,7 @@ async def send_to_coap(payload):
     print('Result: %s\n' % response.code)
 
 
-def get_statistics(_stats_type=None, _out_file=False):
+def get_statistics(_stats_type=None, _out_file=None):
     stat = ''
     stat += (u"{} statistics: \n".format(_stats_type))
     global _start_time
@@ -282,8 +282,8 @@ parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/dev
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
 parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'],
                     help='Do not delete the running sample (default: no)')
-parser.add_argument('-t', '--template', required=True, help='set the template file, json extension')
-parser.add_argument('-o', '--output', default=None, help='set the output file, WITHOUT extension')
+parser.add_argument('-t', '--template', required=True, help='Set the template file, json extension')
+parser.add_argument('-o', '--output', default=None, help='Set the statistics output file')
 
 parser.add_argument('-I', '--iterations', help='The number of iterations of the test (default: 1)')
 parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
@@ -296,8 +296,7 @@ parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st
 
 namespace = parser.parse_args(sys.argv[1:])
 infile = '{0}'.format(namespace.template if namespace.template else '')
-statfile = '{0}'.format(namespace.output if namespace.output else '')
-statistics_file = os.path.join(os.path.dirname(__file__), "out/{}".format(statfile)) if statfile != '' else False
+statistics_file = os.path.join(os.path.dirname(__file__), "out/{}".format(namespace.output)) if namespace.output else None
 keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 
 # iterations and occurrences
@@ -309,8 +308,7 @@ arg_interval = int(namespace.interval) if namespace.interval else 0
 
 arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
 
-samplefile = "foglamp_running_sample.{}".format(format(os.getpid()))
-sample_file = os.path.join(os.path.dirname(__file__), "{}".format(samplefile))
+sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(format(os.getpid())))
 parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)
 read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
 get_statistics(_stats_type=arg_stats_type, _out_file=statistics_file)

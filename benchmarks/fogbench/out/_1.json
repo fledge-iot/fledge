@@ -1,0 +1,9 @@
+{"asset": "TI sensorTag/luxometer", "key": "fb07741d-3fd5-4707-b4da-688211da6c10", "sensor_values": {"lux": 25590.477}, "timestamp": "2017-08-09 06:08:02.294335+00:00"}
+{"asset": "TI sensorTag/pressure", "key": "861914e8-72fc-404e-9369-e3b1bac71730", "sensor_values": {"pressure": 996.4}, "timestamp": "2017-08-09 06:08:02.294388+00:00"}
+{"asset": "TI sensorTag/humidity", "key": "f2276791-bf6e-403d-9819-878bf647733b", "sensor_values": {"humidity": 90, "temperature": 35}, "timestamp": "2017-08-09 06:08:02.294411+00:00"}
+{"asset": "TI sensorTag/temperature", "key": "7ba03f85-24b5-414c-99b9-798d218eaace", "sensor_values": {"object": 22, "ambient": 28}, "timestamp": "2017-08-09 06:08:02.294430+00:00"}
+{"asset": "TI sensorTag/accelerometer", "key": "9e19fcf6-8515-4623-a1fe-75189b3ec454", "sensor_values": {"x": 1, "z": 0, "y": 0}, "timestamp": "2017-08-09 06:08:02.294447+00:00"}
+{"asset": "TI sensorTag/gyroscope", "key": "f7eebe5e-3531-458b-a492-6e29b5b120a2", "sensor_values": {"x": 77, "z": 195, "y": 51}, "timestamp": "2017-08-09 06:08:02.294464+00:00"}
+{"asset": "TI sensorTag/magnetometer", "key": "69627e9d-2c94-4586-8cc3-2688dfee17ff", "sensor_values": {"x": -75, "z": 221, "y": -66}, "timestamp": "2017-08-09 06:08:02.294479+00:00"}
+{"asset": "mouse", "key": "06138820-4e89-4c48-abe0-da1afd43b36e", "sensor_values": {"button": "up"}, "timestamp": "2017-08-09 06:08:02.294498+00:00"}
+{"asset": "wall clock", "key": "17143c0c-960a-499b-95f9-b664a33a9fe8", "sensor_values": {"tick": "tock"}, "timestamp": "2017-08-09 06:08:02.294514+00:00"}

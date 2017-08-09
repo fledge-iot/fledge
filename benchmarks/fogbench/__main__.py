@@ -18,15 +18,15 @@ fogbench
  [IN]   -h --help        Print this help
         -i --interval    The interval in seconds between each iteration (default: 0)
  [IN]   -k --keep        Do not delete (keep) the running sample (default: no)
- [IN]   -o --output      Set the output file
+ [IN]   -o --output      Set the output file for statistics
         -p --payload     Type of payload and protocol (default: sensor/coap)
-        -t --template    Set the template to use
+ [IN]   -t --template    Set the template to use
  [IN]   -v --version     Display the version and exit
-        -H --host        The FogLAMP host (default: localhost)
+ FIXME: [IN]       -H --host        The FogLAMP host (default: localhost)
         -I --iterations  The number of iterations of the test (default: 1)
-        -O --occurrences The number of occurrences of the template (default: 1)
+ [IN]   -O --occurrences The number of occurrences of the template (default: 1)
         -P --port        The FogLAMP port. Default depends on payload and protocol
-        -S --statistic   The type of statistics to collect
+ [IN]   -S --statistic   The type of statistics to collect
 
  Example:
 
@@ -58,6 +58,7 @@ import json
 from datetime import datetime, timezone
 import argparse
 import uuid
+import collections
 
 import asyncio
 from aiocoap import *
@@ -73,6 +74,14 @@ __version__ = "${VERSION}"
 
 
 _FOGBENCH_VERSION = u"0.1"
+
+_start_time = []
+_end_time = []
+_tot_msgs_transferred = []
+_tot_byte_transferred = []
+_num_iterated = 0
+"""Statistics to be collected"""
+
 # TODO: have its own sys/ console logger
 # _logger = logger.setup(__name__)
 
@@ -88,15 +97,30 @@ def read_templates():
     return templates
 
 
-def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.template.json",
+def parse_template_and_prepare_json(_template_file,
                                     _write_to_file=None, _occurrences=1):
-    template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
+    # template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
 
-    with open(template_file) as data_file:
+    with open(_template_file) as data_file:
         data = json.load(data_file)
         # print(data)
 
     supported_format_types = ["number", "enum"]
+    for _ in range(_occurrences):
+        readings_ = _prepare_sensor_reading(data, supported_format_types)
+        for r in readings_:
+            _write_readings_to_file(_write_to_file, r)
+
+
+def _write_readings_to_file(to_file, r):
+        with open(to_file, 'a') as the_file:
+            json.dump(r, the_file)
+            the_file.write(os.linesep)
+
+
+def _prepare_sensor_reading(data, supported_format_types):
+    readings = []
+
     for d in data:
         x_sensor_values = dict()
 
@@ -120,7 +144,7 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
             elif fmt["type"] == "enum":
                 reading = random.choice(fmt["list"])
 
-            print(fmt["name"], reading)
+            # print(fmt["name"], reading)
             x_sensor_values[fmt["name"]] = reading
 
         # print(d["name"])
@@ -131,21 +155,22 @@ def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.templa
         sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
         sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
+        ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))
+        readings.append(ord_dict)
 
-        temp_list = []
-        # if _occurrences > 1:
-        #     temp_list.append(sensor_value_object)
-
-        with open(_write_to_file, 'a') as the_file:
-            if len(temp_list):
-                json.dump(temp_list*_occurrences, the_file)
-            else:
-                json.dump(sensor_value_object, the_file)
-            the_file.write(os.linesep)
+    return readings
 
 
-def read_out_file(_file=None, _keep=False):
+def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
+    # TODO: Create class and move global variables to __init__
+    global _start_time
+    global _end_time
+    global _tot_msgs_transferred
+    global _tot_byte_transferred
+    global _num_iterated
+
     from pprint import pprint
+    import time
     # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
     with open(_file) as f:
         readings_list = [json.loads(line) for line in f]
@@ -153,8 +178,24 @@ def read_out_file(_file=None, _keep=False):
 
     loop = asyncio.get_event_loop()
 
-    for r in readings_list:
-        loop.run_until_complete(send_to_coap(r))
+    while _iterations > 0:
+        # TODO: Fix key for next iteration
+        msg_transferred_itr = 0  # Messages transferred in every iteration
+        byte_transferred_itr = 0  # Bytes transferred in every iteration
+        _start_time.append(datetime.now())  # Start time of every iteration
+        for r in readings_list:
+            loop.run_until_complete(send_to_coap(r))
+            msg_transferred_itr += 1
+            byte_transferred_itr += sys.getsizeof(r)
+        _end_time.append(datetime.now())  # End time of every iteration
+        _tot_msgs_transferred.append(msg_transferred_itr)
+        _tot_byte_transferred.append(byte_transferred_itr)
+        _iterations -= 1
+        _num_iterated += 1
+        if _iterations != 0:
+            print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
+            time.sleep(_interval)
+            # TODO: For next iteration, add interval to payload timestamp
 
     if not _keep:
         os.remove(_file)
@@ -166,22 +207,68 @@ async def send_to_coap(payload):
      port 5683 (official IANA assigned CoAP port),
      URI "/other/sensor-values".
 
-    Request is sent 2 seconds after initialization.
+    # TODO: NO?  Request is sent 2 seconds after initialization.
     """
 
     context = await Context.create_client_context()
 
-    await asyncio.sleep(2)
+    # await asyncio.sleep(2)
 
     # request = Message(payload=dumps(payload), code=PUT)
     request = Message(payload=dumps(payload), code=POST)
     request.opt.uri_host = 'localhost'
     # request.opt.uri_path = ("other", "block")
     request.opt.uri_path = ("other", "sensor-values")
+
+    # TODO: check, should we wait for acknowledgement response
     response = await context.request(request).response
 
     # print('Result: %s\n%r' % (response.code, response.payload))
     print('Result: %s\n' % response.code)
+
+
+def get_statistics(_stats_type=None, _out_file=None):
+    stat = ''
+    stat += (u"{} statistics: \n".format(_stats_type))
+    global _start_time
+    global _end_time
+    global _tot_msgs_transferred
+    global _tot_byte_transferred
+    global _num_iterated
+    if _stats_type == 'total' or _stats_type == 'st':
+        stat += (u"\nStart Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
+    if _stats_type == 'total' or _stats_type == 'et':
+        stat += (u"\nEnd Time::{}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
+    if _stats_type == 'total' or _stats_type == 'mt':
+        stat += (u"\nTotal Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
+    if _stats_type == 'total' or _stats_type == 'bt':
+        stat += (u"\nTotal Bytes Transferred::{}\n".format(sum(_tot_byte_transferred)))
+    if _stats_type == 'total' or _stats_type == 'itr':
+        stat += (u"\nTotal Iterations::{}".format(_num_iterated))
+    if _stats_type == 'total' or _stats_type == 'mt-itr':
+        stat += (u"\nTotal Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
+    if _stats_type == 'total' or _stats_type == 'bt-itr':
+        stat += (u"\nTotal Bytes per Iteration::{}\n".format(sum(_tot_byte_transferred)/_num_iterated))
+    if _stats_type == 'total' or _stats_type == 'rates':
+        _msg_rate = []
+        _byte_rate = []
+        for itr in range(_num_iterated):
+            time_taken = _end_time[itr] - _start_time[itr]
+            # print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
+            _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
+            _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
+        stat += (u"\nMin message rate::{}".format(min(_msg_rate)))
+        stat += (u"\nMax message rate::{}".format(max(_msg_rate)))
+        stat += (u"\nAvg message rate::{}".format(sum(_msg_rate)/_num_iterated))
+        stat += (u"\nMin Byte rate::{}".format(min(_byte_rate)))
+        stat += (u"\nMax Byte rate::{}".format(max(_byte_rate)))
+        stat += (u"\nAvg Byte rate::{}".format(sum(_byte_rate)/_num_iterated))
+    if _out_file:
+        with open(_out_file, 'w') as f:
+            f.write(stat)
+    else:
+        print(stat)
+    # should we also show total time diff? end_time - start_time
 
 
 def check_coap_server():
@@ -193,28 +280,38 @@ parser = argparse.ArgumentParser(prog='fogbench')
 parser.description = '%(prog)s -- a Python script used to test FogLAMP (simulate payloads)'
 parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/device interface of FogLAMP using CoAP'
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
-parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'], help='Do not delete the running sample (default: no)')
-parser.add_argument('-o', '--output', help='set the output file, WITHOUT extension')
+parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'],
+                    help='Do not delete the running sample (default: no)')
+parser.add_argument('-t', '--template', required=True, help='Set the template file, json extension')
+parser.add_argument('-o', '--output', default=None, help='Set the statistics output file')
 
 parser.add_argument('-I', '--iterations', help='The number of iterations of the test (default: 1)')
 parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
 
 parser.add_argument('-H', '--host', help='CoAP server host address (default: localhost)', action=check_coap_server())
+parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
+
+parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
+                                                                    'itr', 'mt-itr', 'bt-itr', 'rates'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
-
-# could have set default in add_argument, but may be we don't want and this _1 is temp
-# should use <template-name_timestamp> or <pid.json>  etc ...
-outfile = '{0}.json'.format(namespace.output if namespace.output else '_1')
-output_file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
+infile = '{0}'.format(namespace.template if namespace.template else '')
+statistics_file = os.path.join(os.path.dirname(__file__), "out/{}".format(namespace.output)) if namespace.output else None
 keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 
 # iterations and occurrences
 arg_iterations = int(namespace.iterations) if namespace.iterations else 1
 arg_occurrences = int(namespace.occurrences) if namespace.occurrences else 1
 
-parse_template_and_prepare_json(_write_to_file=output_file, _occurrences=arg_occurrences)
-read_out_file(_file=output_file, _keep=keep_the_file)  # and send to coap
+# interval between each iteration
+arg_interval = int(namespace.interval) if namespace.interval else 0
+
+arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
+
+sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(os.getpid()))
+parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)
+read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
+get_statistics(_stats_type=arg_stats_type, _out_file=statistics_file)
 
 """ Expected output from given template
 { 

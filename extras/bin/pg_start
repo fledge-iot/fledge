@@ -2,6 +2,7 @@
 
 set -e
 
+check_user
 check_classic
 
 if [ `pg_status | grep -c "server is running"` -gt 0 ]; then

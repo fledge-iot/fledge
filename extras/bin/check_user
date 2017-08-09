@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$USER" == 'foglamp' ]; then
+  if [ "$HOME" == '/home/foglamp' ]; then
+    exit 0
+  else
+    echo "This version of FogLAMP can be executed only if the home directory of the user \"foglamp\" is \"/home/foglamp\""
+    exit 1
+  fi
+else
+  echo "This version of FogLAMP can be executed only by the user \"foglamp\" in sudo classic mode"
+  exit 1
+fi

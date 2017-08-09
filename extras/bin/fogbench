@@ -2,6 +2,7 @@
 
 set -e
 
+check_user
 check_classic
 
 cd ${HOME}/FogLAMP/benchmarks

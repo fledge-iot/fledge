@@ -232,12 +232,12 @@ def get_statistics(_stats_type=None, _out_file=None):
     if _stats_type == 'total':
         stat += (u"Total Statistics:\n")
         stat += (u"\nStart Time: {}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
-        stat += (u"\nEnd Time: {}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
+        stat += (u"\nEnd Time:   {}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
         stat += (u"\nTotal Messages Transferred: {}".format(sum(_tot_msgs_transferred)))
-        stat += (u"\nTotal Bytes Transferred: {}\n".format(sum(_tot_byte_transferred)))
+        stat += (u"\nTotal Bytes Transferred:    {}\n".format(sum(_tot_byte_transferred)))
         stat += (u"\nTotal Iterations: {}".format(_num_iterated))
         stat += (u"\nTotal Messages per Iteration: {}".format(sum(_tot_msgs_transferred)/_num_iterated))
-        stat += (u"\nTotal Bytes per Iteration: {}\n".format(sum(_tot_byte_transferred)/_num_iterated))
+        stat += (u"\nTotal Bytes per Iteration:    {}\n".format(sum(_tot_byte_transferred)/_num_iterated))
         _msg_rate = []
         _byte_rate = []
         for itr in range(_num_iterated):
@@ -278,8 +278,7 @@ parser.add_argument('-O', '--occurrences', help='The number of occurrences of th
 parser.add_argument('-H', '--host', help='CoAP server host address (default: localhost)', action=check_coap_server())
 parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
 
-parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
-                                                                    'itr', 'mt-itr', 'bt-itr', 'rates'], help='The type of statistics to collect (default: total)')
+parser.add_argument('-S', '--statistics', default='total', choices=['total'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
 infile = '{0}'.format(namespace.template if namespace.template else '')

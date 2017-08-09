@@ -7,9 +7,19 @@ if [ "$debian_chroot" != 'classic' ]; then
   exit 1
 fi
 
-echo "Installing FogLAMP..."
+if [ "$USER" == 'foglamp' ]; then
+  if [ "$HOME" == '/home/foglamp' ]; then
+    exit 0
+  else
+    echo "This version of FogLAMP can be executed only if the home directory of the user \"foglamp\" is \"/home/foglamp\""
+    exit 1
+  fi
+else
+  echo "This version of FogLAMP can be executed only by the user \"foglamp\" in sudo classic mode"
+  exit 1
+fi
 
-# Check the foglamp user
+echo "Installing FogLAMP..."
 
 # Copy executables in the bin directory
 cp ${HOME}/FogLAMP/extras/bin/* ${HOME}/bin/.

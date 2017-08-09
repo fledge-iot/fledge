@@ -2,6 +2,7 @@
 
 set -e
 
+check_user
 check_classic
 
 /usr/local/pgsql/bin/pg_ctl -D /usr/local/pgsql/data status

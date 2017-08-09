@@ -2,6 +2,7 @@
 
 set -e
 
+check_user
 check_classic
 
 /usr/local/pgsql/bin/psql -d postgres -f /home/foglamp/FogLAMP/src/sql/foglamp_ddl.sql

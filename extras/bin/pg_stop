@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+
+check_classic
 
 if [ `pg_status | grep -c "no server running"` -gt 0 ]; then
 

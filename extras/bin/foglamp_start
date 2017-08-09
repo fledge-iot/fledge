@@ -1,8 +1,13 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
+
+check_classic
 
 pg_start
 
 cd ${HOME}/FogLAMP/src/python
-venv/foglamp-core/bin/python3.5 -m foglamp.core
+source ./build.sh -a
+python -m foglamp.core
 
 exit 0

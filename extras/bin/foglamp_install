@@ -1,6 +1,11 @@
 #!/bin/bash
-#set -x
 
+set -e
+
+if [ "$debian_chroot" != 'classic' ]; then
+  echo "FogLAMP must run in classic mode. Type \"sudo classic\" first and run this command again."
+  exit 1
+fi
 
 echo "Installing FogLAMP..."
 

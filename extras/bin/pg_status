@@ -1,2 +1,7 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
+
+check_classic
+
 /usr/local/pgsql/bin/pg_ctl -D /usr/local/pgsql/data status

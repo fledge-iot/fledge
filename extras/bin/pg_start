@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
+
+check_classic
 
 if [ `pg_status | grep -c "server is running"` -gt 0 ]; then
 

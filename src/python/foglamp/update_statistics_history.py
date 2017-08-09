@@ -20,7 +20,8 @@ __version__ = "${VERSION}"
 
 
 # Set variables for connecting to database
-_CONNECTION_STRING = "postgres:///foglamp"
+#_CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
+_CONNECTION_STRING = "postgresql://foglamp/foglamp?host=/tmp/"
 
 # Deceleration of tables in SQLAlchemy format
 _STATS_TABLE = sqlalchemy.Table('statistics', sqlalchemy.MetaData(),
@@ -58,7 +59,7 @@ def __query_execution(stmt=""):
         Result of the query 
     """
     
-    engine = sqlalchemy.create_engine(_CONNECTION_STRING,  pool_size=20, max_overflow=0)
+    engine = sqlalchemy.create_engine( _CONNECTION_STRING,  pool_size=20, max_overflow=0)
     conn = engine.connect()
     result = conn.execute(stmt)
 

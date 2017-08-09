@@ -33,7 +33,7 @@ else
   SCRIPT=$0
 fi
 
-pushd `dirname "$SCRIPT"` > /dev/null
+# pushd `dirname "$SCRIPT"` > /dev/null
 SCRIPTNAME=$(basename "$SCRIPT")
 SCRIPT_AND_VERSION="$SCRIPTNAME $__version__"
 
@@ -408,7 +408,7 @@ fi
 ############################################################
 if [ $SOURCING -gt 0 ]
 then
-  popd > /dev/null
+#  popd > /dev/null
 
   unset IN_VENV
   unset OPTION

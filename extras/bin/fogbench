@@ -1,5 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
+set -e
+
+check_classic
 
 cd ${HOME}/FogLAMP/benchmarks
 python -m fogbench $1 $2 $3 $4 $5 $6 $7 $8 $9

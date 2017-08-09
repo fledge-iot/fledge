@@ -1,5 +1,9 @@
 #!/bin/sh
 
+set -e
+
+check_classic
+
 pg_stop
 
 exit 0

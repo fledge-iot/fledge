@@ -279,13 +279,13 @@ class Scheduler(object):
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
         self._process_scripts = dict()
-        """Dictionary of schedules.id to script"""
+        """Dictionary of scheduled_processes.name to script"""
         self._schedules = dict()
-        """Dictionary of schedules.id to immutable _Schedule"""
+        """Dictionary of schedules.id to _ScheduleRow"""
         self._schedule_executions = dict()
         """Dictionary of schedules.id to _ScheduleExecution"""
         self._task_processes = dict()
-        """task id to _TaskProcess"""
+        """Dictionary of tasks.id to _TaskProcess"""
         self._check_processes_pending = None
         """bool: True when request to run check_processes"""
         self._main_loop_task = None

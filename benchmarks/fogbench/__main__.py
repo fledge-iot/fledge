@@ -308,7 +308,7 @@ arg_interval = int(namespace.interval) if namespace.interval else 0
 
 arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
 
-sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(format(os.getpid())))
+sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(os.getpid()))
 parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)
 read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
 get_statistics(_stats_type=arg_stats_type, _out_file=statistics_file)

@@ -171,6 +171,17 @@ class TestScheduler:
         await scheduler.start()
 
         # 2 maximum tasks
+
+        # 1 runs at 1 second
+        # 2 runs at 2 seconds
+        # 3 runs at 11 seconds
+        # 4 runs at 12 seconds
+        # 5 runs at 21 seconds
+        # 6 runs at 22 seconds
+        # 7 runs at 31 seconds
+        # 8 runs at 32 seconds
+        # Total: 6
+
         scheduler.max_running_tasks = 2
 
         interval_schedule = IntervalSchedule()
@@ -181,24 +192,23 @@ class TestScheduler:
 
         await scheduler.save_schedule(interval_schedule)
 
-        await asyncio.sleep(32)
+        await asyncio.sleep(30.3)
         scheduler.max_running_tasks = 0
 
         tasks = await scheduler.get_tasks(10)
+        assert len(tasks) == 6
+
+        tasks = await scheduler.get_running_tasks()
         assert len(tasks) == 2
+
+        # They end...
+        await asyncio.sleep(20)
 
         scheduler.max_running_tasks = Scheduler.DEFAULT_MAX_RUNNING_TASKS
 
         await asyncio.sleep(10)
-
         tasks = await scheduler.get_running_tasks()
-        assert len(tasks) == Scheduler.DEFAULT_MAX_RUNNING_TASKS
-
-        await scheduler.queue_task(interval_schedule.schedule_id)
-        await asyncio.sleep(10)
-
-        tasks = await scheduler.get_tasks(5)
-        assert len(tasks) == 0
+        assert len(tasks) >= 9
 
         await self.stop_scheduler(scheduler)
 
@@ -211,7 +221,7 @@ class TestScheduler:
 
         timed_schedule = TimedSchedule()
 
-        # Monday August 8 2017 8:00:00 AM PDT
+        # Tuesday August 8 2017 8:00:00 AM PDT
         now = 1502204400
         scheduler.current_time = now
 

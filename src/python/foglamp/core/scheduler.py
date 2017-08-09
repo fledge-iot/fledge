@@ -274,7 +274,7 @@ class Scheduler(object):
         """True when the scheduler is ready to accept API calls"""
         self._start_time = None
         """When the scheduler started"""
-        self.max_running_tasks = self.DEFAULT_MAX_RUNNING_TASKS
+        self._max_running_tasks = self.DEFAULT_MAX_RUNNING_TASKS
         """Maximum number of active tasks"""
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
@@ -294,6 +294,23 @@ class Scheduler(object):
         """Coroutine that sleeps in the main loop"""
         self.current_time = None
         """Time to use when determining when to start tasks, for testing"""
+
+    @property
+    def max_running_tasks(self)->int:
+        """Returns the maximum number of tasks that can run at any given time
+
+        Defaults to DEFAULT_MAX_RUNNING_TASKS
+        """
+        return self._max_running_tasks
+
+    @max_running_tasks.setter
+    def max_running_tasks(self, value: int)->None:
+        """Alters the maximum number of tasks that can run at any given time
+
+        Use 0 or a negative value to suspend task creation
+        """
+        self._max_running_tasks = value
+        self._resume_check_schedules()
 
     async def stop(self):
         """Attempts to stop the scheduler

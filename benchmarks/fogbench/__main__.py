@@ -180,13 +180,18 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
 
     while _iterations > 0:
         # TODO: Fix key for next iteration
+
+        # Dryrun to calculate messages and size
         msg_transferred_itr = 0  # Messages transferred in every iteration
         byte_transferred_itr = 0  # Bytes transferred in every iteration
+        for r in readings_list:
+            msg_transferred_itr += 1
+            byte_transferred_itr += sys.getsizeof(r)
+
+        # And now the real loop
         _start_time.append(datetime.now())  # Start time of every iteration
         for r in readings_list:
             loop.run_until_complete(send_to_coap(r))
-            msg_transferred_itr += 1
-            byte_transferred_itr += sys.getsizeof(r)
         _end_time.append(datetime.now())  # End time of every iteration
         _tot_msgs_transferred.append(msg_transferred_itr)
         _tot_byte_transferred.append(byte_transferred_itr)
@@ -222,6 +227,7 @@ async def send_to_coap(payload):
 
     # TODO: check, should we wait for acknowledgement response
     response = await context.request(request).response
+
 
 def get_statistics(_stats_type=None, _out_file=None):
     stat = ''

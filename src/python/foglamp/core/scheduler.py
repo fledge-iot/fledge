@@ -100,7 +100,7 @@ class ScheduledProcess(object):
 
 class Schedule(object):
     """Schedule base class"""
-    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat', 'type']
+    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
 
     def __init__(self):
         self.schedule_id = None
@@ -113,8 +113,6 @@ class Schedule(object):
         """"datetime.timedelta"""
         self.process_name = None
         """str"""
-        self.type = None
-        """int"""
 
 
 class IntervalSchedule(Schedule):
@@ -129,7 +127,7 @@ class TimedSchedule(Schedule):
     def __init__(self):
         super().__init__()
         self.time = None
-        """int"""
+        """datetime.time"""
         self.day = None
         """int from 1 (Monday) to 7 (Sunday)"""
 

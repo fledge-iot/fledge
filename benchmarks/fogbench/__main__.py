@@ -228,7 +228,7 @@ async def send_to_coap(payload):
 
 
 def display_statistics(stats_type):
-    print(u"{} statistics: ".format(stats_type))
+    print(u"{} statistics: \n".format(stats_type))
     global _start_time
     global _end_time
     global _tot_msgs_transferred
@@ -237,23 +237,23 @@ def display_statistics(stats_type):
     if stats_type == 'total' or stats_type == 'st':
         print(u"Start Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
     if stats_type == 'total' or stats_type == 'et':
-        print(u"End Time::{}".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
+        print(u"End Time::{}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
     if stats_type == 'total' or stats_type == 'mt':
         print(u"Total Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
     if stats_type == 'total' or stats_type == 'bt':
-        print(u"Total Bytes Transferred::{}".format(sum(_tot_byte_transferred)))
+        print(u"Total Bytes Transferred::{}\n".format(sum(_tot_byte_transferred)))
     if stats_type == 'total' or stats_type == 'itr':
         print(u"Total Iterations::{}".format(_num_iterated))
     if stats_type == 'total' or stats_type == 'mt-itr':
         print(u"Total Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
     if stats_type == 'total' or stats_type == 'bt-itr':
-        print(u"Total Bytes per Iteration::{}".format(sum(_tot_byte_transferred)/_num_iterated))
+        print(u"Total Bytes per Iteration::{}\n".format(sum(_tot_byte_transferred)/_num_iterated))
     if stats_type == 'total' or stats_type == 'rates':
         _msg_rate = []
         _byte_rate = []
         for itr in range(_num_iterated):
             time_taken = _end_time[itr] - _start_time[itr]
-            print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
+            # print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
         print(u"Min message rate::{}".format(min(_msg_rate)))

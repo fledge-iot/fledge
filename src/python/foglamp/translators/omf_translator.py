@@ -37,7 +37,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # FIXME: it will be removed using the DB layer
-_DB_URL = 'postgresql:///foglamp'
+_DB_URL = "host='/tmp/' dbname='foglamp'"
 """DB references"""
 
 _module_name = "OMF Translator"

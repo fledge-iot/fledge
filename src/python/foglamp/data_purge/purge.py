@@ -50,7 +50,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # Create Connection
-__CONNECTION_STRING = "postgres:///foglamp"
+__CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
 
 _DEFAULT_PURGE_CONFIG = {
     "age": {

@@ -29,7 +29,10 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # Module attributes
-_CONNECTION_STRING = "dbname='foglamp'"
+
+# Connection String - The PostgreSQL Storage Layer prepared for FogLAMP uses a 
+# Unix socket file in /tmp
+_CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
 
 
 class NotReadyError(RuntimeError):

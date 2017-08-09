@@ -28,7 +28,7 @@ _statistics_tbl = sa.Table(
 )
 """Defines the table that data will be used for CRUD operations"""
 
-_connection_string = "dbname='foglamp'"
+_connection_string = "host='/tmp/' dbname='foglamp'"
 _logger = logger.setup(__name__)
 
 async def _update_statistics_value(statistics_key, value_increment):

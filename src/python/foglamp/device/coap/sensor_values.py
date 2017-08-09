@@ -45,7 +45,7 @@ class SensorValues(aiocoap.resource.Resource):
             _num_discarded_readings (int) : number of readings discarded through render_post method since initialization or since the last time _update_statistics() was called
     """
 
-    _CONNECTION_STRING = "dbname='foglamp'"
+    _CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
 
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 

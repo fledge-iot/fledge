@@ -18,11 +18,11 @@ fogbench
  [IN]   -h --help        Print this help
         -i --interval    The interval in seconds between each iteration (default: 0)
  [IN]   -k --keep        Do not delete (keep) the running sample (default: no)
- [IN]   -o --output      Set the output file
+ FIXME: [IN]   -o --output      Set the output file for statistics
         -p --payload     Type of payload and protocol (default: sensor/coap)
-        -t --template    Set the template to use
+ [IN]   -t --template    Set the template to use
  [IN]   -v --version     Display the version and exit
-        -H --host        The FogLAMP host (default: localhost)
+ FIXME: [IN]       -H --host        The FogLAMP host (default: localhost)
         -I --iterations  The number of iterations of the test (default: 1)
  [IN]   -O --occurrences The number of occurrences of the template (default: 1)
         -P --port        The FogLAMP port. Default depends on payload and protocol
@@ -97,11 +97,11 @@ def read_templates():
     return templates
 
 
-def parse_template_and_prepare_json(_template_file=u"fogbench_sensor_coap.template.json",
+def parse_template_and_prepare_json(_template_file,
                                     _write_to_file=None, _occurrences=1):
-    template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
+    # template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
 
-    with open(template_file) as data_file:
+    with open(_template_file) as data_file:
         data = json.load(data_file)
         # print(data)
 
@@ -153,7 +153,7 @@ def _prepare_sensor_reading(data, supported_format_types):
         sensor_value_object["asset"] = d['name']
         sensor_value_object["sensor_values"] = x_sensor_values
         sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
-        sensor_value_object["keypython -m fogbench -S rates"] = str(uuid.uuid4())
+        sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
         ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))
         readings.append(ord_dict)
@@ -276,6 +276,7 @@ parser.epilog = 'The initial version of %(prog)s is meant to test the sensor/dev
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(_FOGBENCH_VERSION))
 parser.add_argument('-k', '--keep', default=False, choices=['y', 'yes', 'n', 'no'],
                     help='Do not delete the running sample (default: no)')
+parser.add_argument('-t', '--template', required=True, help='set the template file, json extension')
 parser.add_argument('-o', '--output', help='set the output file, WITHOUT extension')
 
 parser.add_argument('-I', '--iterations', help='The number of iterations of the test (default: 1)')
@@ -288,8 +289,8 @@ parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st
                                                                     'itr', 'mt-itr', 'bt-itr', 'rates'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
-
-outfile = 'sample_{0}'.format(namespace.output if namespace.output else os.getpid())
+infile = '{0}'.format(namespace.template if namespace.template else '')
+outfile = 'sample_{0}.json'.format(namespace.output if namespace.output else os.getpid())
 output_file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
 keep_the_file = True if namespace.keep in ['y', 'yes'] else False
 
@@ -302,7 +303,7 @@ arg_interval = int(namespace.interval) if namespace.interval else 0
 
 arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
 
-parse_template_and_prepare_json(_write_to_file=output_file, _occurrences=arg_occurrences)
+parse_template_and_prepare_json(_template_file=infile, _write_to_file=output_file, _occurrences=arg_occurrences)
 read_out_file(_file=output_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
 display_statistics(arg_stats_type)
 

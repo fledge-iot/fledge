@@ -99,9 +99,10 @@ def read_templates():
 
 def parse_template_and_prepare_json(_template_file,
                                     _write_to_file=None, _occurrences=1):
-    # template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
+    template_file = os.path.join(os.path.dirname(__file__), "templates/" + _template_file)
 
-    with open(_template_file) as data_file:
+#    with open(_template_file) as data_file:
+    with open(template_file) as data_file:
         data = json.load(data_file)
         # print(data)
 
@@ -244,12 +245,12 @@ def get_statistics(_stats_type=None, _out_file=None):
             time_taken = _end_time[itr] - _start_time[itr]
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
-        stat += (u"\nMin message rate: {}".format(min(_msg_rate)))
-        stat += (u"\nMax message rate: {}".format(max(_msg_rate)))
-        stat += (u"\nAvg message rate: {}\n".format(sum(_msg_rate)/_num_iterated))
-        stat += (u"\nMin Byte rate: {}".format(min(_byte_rate)))
-        stat += (u"\nMax Byte rate: {}".format(max(_byte_rate)))
-        stat += (u"\nAvg Byte rate: {}".format(sum(_byte_rate)/_num_iterated))
+        stat += (u"\nMin messages/second: {}".format(min(_msg_rate)))
+        stat += (u"\nMax messages/second: {}".format(max(_msg_rate)))
+        stat += (u"\nAvg messages/second: {}\n".format(sum(_msg_rate)/_num_iterated))
+        stat += (u"\nMin Bytes/second: {}".format(min(_byte_rate)))
+        stat += (u"\nMax Bytes/second: {}".format(max(_byte_rate)))
+        stat += (u"\nAvg Bytes/second: {}".format(sum(_byte_rate)/_num_iterated))
     if _out_file:
         with open(_out_file, 'w') as f:
             f.write(stat)

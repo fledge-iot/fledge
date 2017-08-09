@@ -56,7 +56,7 @@ class BlockResource(aiocoap.resource.Resource):
 
     async def render_put(self, request):
         json_payload = loads(request.payload)
-        print('PUT payload: %s' % json_payload)
+#        print('PUT payload: %s' % json_payload)
         self.content = request.payload
         payload = ("accepted the new payload. inspect here in repr format:"
                    "\n\n%r" % self.content).encode('utf8')
@@ -147,7 +147,7 @@ class SensorValues(aiocoap.resource.Resource):
         # Required keys in the payload
         try:
             payload = loads(request.payload)
-            print('POSTed payload: %s' % payload)
+#            print('POSTed payload: %s' % payload)
 
             asset = payload['asset']
             timestamp = payload['timestamp']

@@ -204,11 +204,11 @@ class TestScheduler:
         # They end...
         await asyncio.sleep(20)
 
-        scheduler.max_running_tasks = Scheduler.DEFAULT_MAX_RUNNING_TASKS
+        scheduler.max_running_tasks = 10
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(11)
         tasks = await scheduler.get_running_tasks()
-        assert len(tasks) >= 9
+        assert len(tasks) == 10
 
         await self.stop_scheduler(scheduler)
 

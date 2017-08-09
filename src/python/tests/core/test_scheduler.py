@@ -120,6 +120,7 @@ class TestScheduler:
         startup_schedule = StartUpSchedule()
         startup_schedule.name = 'startup schedule'
         startup_schedule.process_name = 'sleep30'
+        startup_schedule.repeat = datetime.timedelta(seconds=0)
 
         await scheduler.save_schedule(startup_schedule)
 
@@ -133,6 +134,21 @@ class TestScheduler:
 
         scheduler = Scheduler()
         await scheduler.start()
+
+        await asyncio.sleep(2)
+
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 1
+
+        scheduler.max_running_tasks = 0
+        await scheduler.cancel_task(tasks[0].task_id)
+
+        await asyncio.sleep(2)
+
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 0
+
+        scheduler.max_running_tasks = 1
 
         await asyncio.sleep(2)
 

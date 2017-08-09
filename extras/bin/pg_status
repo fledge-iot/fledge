@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/local/pgsql/bin/pg_ctl -D /usr/local/pgsql/data status

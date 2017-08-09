@@ -1,0 +1,14 @@
+#!/bin/bash
+#set -x
+
+
+echo "Installing FogLAMP..."
+
+# Build the environment
+cd ${HOME}/FogLAMP/src/python
+source build.sh -a
+source build.sh -i
+
+
+echo "Installation Completed."
+exit 0

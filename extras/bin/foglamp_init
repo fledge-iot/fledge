@@ -1,0 +1,34 @@
+#!/bin/bash
+#set -x
+
+
+echo "Initializing FogLAMP..."
+pg_start
+
+# Step 1: Start PostgreSQL and prepare the Schema
+cycle=30
+while [ "$cycle" -gt 0 ]; do
+  if [ `pg_status | grep -c "server is running"` -gt 0 ]; then
+    build_db > /dev/null
+    cycle=0
+  else
+    if [ "$cycle" -eq 1 ]; then
+      echo "FogLAMP cannot be initialized."
+      exit 3
+    else
+      echo -n "."
+      cycle=$((cycle -1))
+      sleep 1
+    fi
+  fi
+done
+
+# Step 2: Set the Python Environment
+cd ${HOME}/FogLAMP/src/python
+source build.sh -a
+source build.sh -i
+
+pg_stop
+
+echo "Initialization Completed."
+exit 0

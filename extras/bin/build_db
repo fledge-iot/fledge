@@ -1,0 +1,5 @@
+#!/bin/sh
+/usr/local/pgsql/bin/psql -d postgres -f /home/foglamp/FogLAMP/src/sql/foglamp_ddl.sql
+/usr/local/pgsql/bin/psql -d foglamp -f /home/foglamp/FogLAMP/src/sql/foglamp_init_data.sql
+
+exit 0

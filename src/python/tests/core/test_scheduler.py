@@ -13,7 +13,7 @@ import uuid
 import pytest
 
 from foglamp.core.scheduler import (Scheduler, IntervalSchedule, ScheduleNotFoundError, Task,
-                                    TimedSchedule, ManualSchedule, StartUpSchedule)
+                                    Schedule, TimedSchedule, ManualSchedule, StartUpSchedule)
 
 
 __author__ = "Terris Linenbach"
@@ -58,6 +58,8 @@ class TestScheduler:
         await scheduler.start()
 
         interval_schedule = IntervalSchedule()
+        assert interval_schedule.schedule_type == Schedule.Type.INTERVAL
+
         interval_schedule.name = 'sleep10'
         interval_schedule.process_name = "sleep10"
         interval_schedule.repeat = datetime.timedelta(seconds=1)

@@ -99,25 +99,29 @@ class ScheduledProcess(object):
 
 
 class Schedule(object):
-    """Schedule base class"""
-    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
+    class Type(IntEnum):
+        """Enumeration for schedules.schedule_type"""
+        STARTUP = 1
+        TIMED = 2
+        INTERVAL = 3
+        MANUAL = 4
 
-    def __init__(self):
-        self.schedule_id = None
-        """uuid.UUID"""
-        self.name = None
-        """str"""
-        self.exclusive = True
-        """bool"""
-        self.repeat = None
-        """"datetime.timedelta"""
-        self.process_name = None
-        """str"""
+    """Schedule base class"""
+    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat', 'schedule_type']
+
+    def __init__(self, schedule_type: Type):
+        self.schedule_id = None  # type: uuid.UUID
+        self.name = None  # type: str
+        self.exclusive = True  # type: bool
+        self.repeat = None  # type: datetime.timedelta
+        self.process_name = None  # type: str
+        self.schedule_type = schedule_type  # type: Schedule.Type
 
 
 class IntervalSchedule(Schedule):
     """Interval schedule"""
-    pass
+    def __init__(self):
+        super().__init__(self.Type.INTERVAL)
 
 
 class TimedSchedule(Schedule):
@@ -125,7 +129,7 @@ class TimedSchedule(Schedule):
     __slots__ = ['time', 'day']
 
     def __init__(self):
-        super().__init__()
+        super().__init__(self.Type.TIMED)
         self.time = None
         """datetime.time"""
         self.day = None
@@ -134,12 +138,14 @@ class TimedSchedule(Schedule):
 
 class ManualSchedule(Schedule):
     """A schedule that is run manually"""
-    pass
+    def __init__(self):
+        super().__init__(self.Type.MANUAL)
 
 
 class StartUpSchedule(Schedule):
     """A schedule that is run when the scheduler starts"""
-    pass
+    def __init__(self):
+        super().__init__(self.Type.STARTUP)
 
 
 class Scheduler(object):
@@ -162,13 +168,6 @@ class Scheduler(object):
         - Wait
         - Call :meth:`stop`
     """
-
-    class _ScheduleType(IntEnum):
-        """Enumeration for schedules.schedule_type"""
-        STARTUP = 1
-        TIMED = 2
-        INTERVAL = 3
-        MANUAL = 4
 
     # TODO: Document the fields
     _ScheduleRow = collections.namedtuple(
@@ -416,7 +415,7 @@ class Scheduler(object):
             schedule.name, schedule.process_name, task_id, process.pid,
             len(self._task_processes), args)
 
-        if schedule.type == self._ScheduleType.STARTUP:
+        if schedule.type == Schedule.Type.STARTUP:
             # Startup tasks are not tracked in the tasks table
             asyncio.ensure_future(self._wait_for_task_completion(task_process))
         else:
@@ -476,7 +475,7 @@ class Scheduler(object):
         elif schedule.exclusive:
             self._schedule_next_task(schedule)
 
-        if schedule.type != self._ScheduleType.STARTUP:
+        if schedule.type != Schedule.Type.STARTUP:
             if exit_code < 0 and task_process.cancel_requested:
                 state = Task.State.CANCELED
             else:
@@ -664,7 +663,7 @@ class Scheduler(object):
             schedule_execution = self._ScheduleExecution()
             self._schedule_executions[schedule.id] = schedule_execution
 
-        if schedule.type == self._ScheduleType.INTERVAL:
+        if schedule.type == Schedule.Type.INTERVAL:
             advance_seconds = schedule.repeat_seconds
 
             # When modifying a schedule, this is imprecise if the
@@ -681,12 +680,12 @@ class Scheduler(object):
                 advance_seconds = 0
 
             schedule_execution.next_start_time = self._start_time + advance_seconds
-        elif schedule.type == self._ScheduleType.TIMED:
+        elif schedule.type == Schedule.Type.TIMED:
             self._schedule_next_timed_task(
                 schedule,
                 schedule_execution,
                 datetime.datetime.fromtimestamp(current_time))
-        elif schedule.type == self._ScheduleType.STARTUP:
+        elif schedule.type == Schedule.Type.STARTUP:
             schedule_execution.next_start_time = current_time
 
         self._logger.info(
@@ -726,7 +725,7 @@ class Scheduler(object):
             advance_seconds *= max([1, math.ceil(
                 (now - schedule_execution.next_start_time) / advance_seconds)])
 
-            if schedule.type == self._ScheduleType.TIMED:
+            if schedule.type == Schedule.Type.TIMED:
                 # Handle daylight savings time transitions
                 next_dt = datetime.datetime.fromtimestamp(schedule_execution.next_start_time)
                 next_dt += datetime.timedelta(seconds=advance_seconds)
@@ -906,11 +905,11 @@ class Scheduler(object):
         schedule_time = None
 
         if isinstance(schedule, IntervalSchedule):
-            schedule_type = self._ScheduleType.INTERVAL
+            schedule_type = Schedule.Type.INTERVAL
         elif isinstance(schedule, StartUpSchedule):
-            schedule_type = self._ScheduleType.STARTUP
+            schedule_type = Schedule.Type.STARTUP
         elif isinstance(schedule, TimedSchedule):
-            schedule_type = self._ScheduleType.TIMED
+            schedule_type = Schedule.Type.TIMED
             schedule_time = schedule.time
 
             if schedule_time is not None and not isinstance(schedule_time, datetime.time):
@@ -922,7 +921,7 @@ class Scheduler(object):
             if day is not None and (day < 1 or day > 7):
                 raise ValueError("day must be between 1 and 7")
         elif isinstance(schedule, ManualSchedule):
-            schedule_type = self._ScheduleType.MANUAL
+            schedule_type = Schedule.Type.MANUAL
         else:
             raise ValueError("Unsupported schedule type")
 
@@ -987,8 +986,8 @@ class Scheduler(object):
 
         # Did the schedule change in a way that will affect task scheduling?
 
-        if schedule_type in [self._ScheduleType.INTERVAL,
-                             self._ScheduleType.TIMED] and (
+        if schedule_type in [Schedule.Type.INTERVAL,
+                             Schedule.Type.TIMED] and (
                 is_new_schedule or
                 prev_schedule_row.time != schedule_row.time or
                 prev_schedule_row.day != schedule_row.day or
@@ -1031,13 +1030,13 @@ class Scheduler(object):
                                   schedule_row: _ScheduleRow) -> Schedule:
         schedule_type = schedule_row.type
 
-        if schedule_type == cls._ScheduleType.STARTUP:
+        if schedule_type == Schedule.Type.STARTUP:
             schedule = StartUpSchedule()
-        elif schedule_type == cls._ScheduleType.TIMED:
+        elif schedule_type == Schedule.Type.TIMED:
             schedule = TimedSchedule()
-        elif schedule_type == cls._ScheduleType.INTERVAL:
+        elif schedule_type == Schedule.Type.INTERVAL:
             schedule = IntervalSchedule()
-        elif schedule_type == cls._ScheduleType.MANUAL:
+        elif schedule_type == Schedule.Type.MANUAL:
             schedule = ManualSchedule()
         else:
             raise ValueError("Unknown schedule type {}", schedule_type)
@@ -1048,7 +1047,7 @@ class Scheduler(object):
         schedule.process_name = schedule_row.process_name
         schedule.repeat = schedule_row.repeat
 
-        if schedule_type == cls._ScheduleType.TIMED:
+        if schedule_type == Schedule.Type.TIMED:
             schedule.day = schedule_row.day
             schedule.time = schedule_row.time
         else:

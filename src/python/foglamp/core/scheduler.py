@@ -100,7 +100,7 @@ class ScheduledProcess(object):
 
 class Schedule(object):
     """Schedule base class"""
-    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat']
+    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat', 'type']
 
     def __init__(self):
         self.schedule_id = None
@@ -113,6 +113,8 @@ class Schedule(object):
         """"datetime.timedelta"""
         self.process_name = None
         """str"""
+        self.type = None
+        """int"""
 
 
 class IntervalSchedule(Schedule):
@@ -927,23 +929,32 @@ class Scheduler(object):
                         exclusive=schedule.exclusive,
                         process_name=schedule.process_name))
 
+        # Added by: Amarendra
+        # Required as saving a TIMED schedule
+        if isinstance(schedule, TimedSchedule):
+            sch_h, sch_m, sch_s = schedule_time.split(':')
+            now = datetime.datetime.now()
+            new_schedule_time = now.replace(hour=int(sch_h), minute=int(sch_m), second=int(sch_s), microsecond=0).time()
+        else:
+            new_schedule_time = None
+
         # TODO: Move this to _add_schedule for error checking
         repeat_seconds = None
         if schedule.repeat is not None:
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(
-                                id=schedule.schedule_id,
+                                id=str(schedule.schedule_id),
                                 name=schedule.name,
                                 type=schedule_type,
-                                time=schedule_time,
+                                time=new_schedule_time,
                                 day=day,
                                 repeat=schedule.repeat,
                                 repeat_seconds=repeat_seconds,
                                 exclusive=schedule.exclusive,
                                 process_name=schedule.process_name)
 
-        self._schedules[schedule.schedule_id] = schedule_row
+        self._schedules[str(schedule.schedule_id)] = schedule_row
 
         # Did the schedule change in a way that will affect task scheduling?
 
@@ -1000,6 +1011,7 @@ class Scheduler(object):
             raise ValueError("Unknown schedule type {}", schedule_type)
 
         schedule.schedule_id = schedule_id
+        schedule.type = schedule_type
         schedule.exclusive = schedule_row.exclusive
         schedule.name = schedule_row.name
         schedule.process_name = schedule_row.process_name
@@ -1008,6 +1020,9 @@ class Scheduler(object):
         if schedule_type == cls._ScheduleType.TIMED:
             schedule.day = schedule_row.day
             schedule.time = schedule_row.time
+        else:
+            schedule.day = None
+            schedule.time = None
 
         return schedule
 

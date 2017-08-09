@@ -1,24 +1,15 @@
 foglamp\.core package
 =====================
 
+Subpackages
+-----------
+
+.. toctree::
+
+    foglamp.core.api
+
 Submodules
 ----------
-
-foglamp\.core\.api module
--------------------------
-
-.. automodule:: foglamp.core.api
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-foglamp\.core\.browser module
------------------------------
-
-.. automodule:: foglamp.core.browser
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 foglamp\.core\.middleware module
 --------------------------------
@@ -40,14 +31,6 @@ foglamp\.core\.scheduler module
 -------------------------------
 
 .. automodule:: foglamp.core.scheduler
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-foglamp\.core\.scheduler\_db\_services module
----------------------------------------------
-
-.. automodule:: foglamp.core.scheduler_db_services
     :members:
     :undoc-members:
     :show-inheritance:

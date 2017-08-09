@@ -1,8 +1,7 @@
 import asyncio
 import aiocoap
-
 from foglamp import configuration_manager
-from foglamp.device.coap.sensor_values import SensorValues
+from foglamp.device.coap.sensor_values import SensorValues, BlockResource
 
 """Configuration for the CoAP are based on https://docs.google.com/document/d/1wPg-XzkdLPgFlC3JjpSaMivVH3VyjKvGa4TVJJukvdg/edit#heading=h.ru11tt2gnb6g"""
 
@@ -55,6 +54,7 @@ def start():
     # Register CoAP methods
     root.add_resource(('.well-known', 'core'),
                       aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
+    root.add_resource(('other', 'block'), BlockResource())
 
     SensorValues().register_handlers(root, uri)
 

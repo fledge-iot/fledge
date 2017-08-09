@@ -1043,7 +1043,6 @@ class Scheduler(object):
             raise ValueError("Unknown schedule type {}", schedule_type)
 
         schedule.schedule_id = schedule_id
-        schedule.type = schedule_type
         schedule.exclusive = schedule_row.exclusive
         schedule.name = schedule_row.name
         schedule.process_name = schedule_row.process_name

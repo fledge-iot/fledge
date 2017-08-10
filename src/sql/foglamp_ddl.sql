@@ -608,6 +608,7 @@ CREATE TABLE foglamp.statistics_history (
        history_ts  timestamp(6) with time zone NOT NULL,                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
+       id          bigint,                                                            -- Used by the FogLAMP statistics into PI
        CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts)
             USING INDEX TABLESPACE foglamp )
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;

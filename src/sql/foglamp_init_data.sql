@@ -145,4 +145,7 @@ NULL, '00:00:15', true);
 
 -- Temporary  omf translator configuration
 INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF', 0,now());  
+INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF translator', 0,now());  
+
+-- Temporary FogLAMP statistics into PI configuration
+INSERT INTO foglamp.streams (id,destination_id,description, last_object,ts ) VALUES (2,1,'FogLAMP statistics into PI', 0,now());

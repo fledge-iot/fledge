@@ -118,6 +118,7 @@ insert into foglamp.scheduled_processes (name, script) values ('device', '["pyth
 insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
 insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.update_statistics_history"]');
 insert into foglamp.scheduled_processes (name, script) values ('omf translator', '["python3", "-m", "foglamp.translators.omf_translator"]');
+insert into foglamp.scheduled_processes (name, script) values ('statistics to pi', '["python3", "-m", "foglamp.translators.statistics_to_pi"]');
 
 -- Start the device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -136,6 +137,13 @@ insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
 NULL, '00:00:15', true);
+
+-- Run FogLAMP statistics into PI  every 30 seconds
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
+NULL, '00:00:30', true);
+
 
 -- Run the omf transfalor every 15 seconds
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,

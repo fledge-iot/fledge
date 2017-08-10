@@ -5,14 +5,19 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Pushes information stored in FogLAMP into PICROMF (PI Connector Relay OMF)
-The information are sent in chunks,
-the table foglamp.streams and block_size are used for this handling
+""" Pushes FogLAMP statistics into PI
+
+Note :
+Temporary useful commands :
+    chmod 755  /home/foglamp/Development/FogLAMP/src/python/foglamp/translators/statistics_to_pi.py
+
+    UPDATE foglamp.statistics_history SET id=1 WHERE id IS NULL;
+
+
 
 .. todo::
    - # TODO: FOGL-251 - it should evolve using the DB layer
    - only part of the code is using async
-
 """
 
 import json
@@ -40,7 +45,7 @@ __version__ = "${VERSION}"
 _DB_URL = 'postgresql:///foglamp'
 """DB references"""
 
-_module_name = "OMF Translator"
+_module_name = "statistics_to_pi"
 
 _message_list = {
 
@@ -74,14 +79,13 @@ _message_list = {
 
 _logger = ""
 
-_readings_tbl = sa.Table(
-    'readings',
+_statistics_history_tbl = sa.Table(
+    'statistics_history',
     sa.MetaData(),
-    sa.Column('id', sa.BigInteger, primary_key=True),
-    sa.Column('asset_code', sa.types.VARCHAR(50)),
-    sa.Column('read_key', sa.types.VARCHAR(50)),
-    sa.Column('user_ts', sa.types.TIMESTAMP),
-    sa.Column('reading', JSONB))
+    sa.Column('key', sa.BigInteger, primary_key=True),
+    sa.Column('value', sa.types.INTEGER),
+    sa.Column('id', sa.types.INTEGER),
+    sa.Column('ts', sa.types.TIMESTAMP))
 
 
 _event_loop = ""
@@ -89,7 +93,7 @@ _event_loop = ""
 # Managed by initialize_plugin
 _relay_url = ""
 _producer_token = ""
-_channel_id = 1
+_channel_id = 2
 
 """Channel Id for the OMF translator"""
 
@@ -125,13 +129,13 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_b123"
+        "default": "statistics_011"
 
     },
     "channelID": {
-        "description": "Channel ID for the OMF translator",
+        "description": "Channel ID for the FogLAMP statistics into PI",
         "type": "integer",
-        "default": "1"
+        "default": "2"
 
     },
     "OMFMaxRetry": {
@@ -154,8 +158,8 @@ _DEFAULT_OMF_CONFIG = {
     },
 
 }
-_CONFIG_CATEGORY_NAME = 'OMF_TRANS'
-_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
+_CONFIG_CATEGORY_NAME = 'STAT_PI'
+_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of FogLAMP statistics into PI'
 
 _config = ""
 """Configurations retrieved from the Configuration Manager"""
@@ -223,43 +227,47 @@ def initialize_plugin():
         _relay_url = _config['URL']['value']
 
         # OMF types definition - xxx
-        _type_id = "150"
+        _type_id = "200"
 
         # producerToken
         _producer_token = _config['producerToken']['value']
 
         # OMFTypes
-        _sensor_data_keys = ["x", "y", "z", "pressure", "lux", "humidity", "temperature",
-                             "object", "ambient", "left", "right", "magnet", "button"]
-        """Available proprieties in the reading field"""
+        _sensor_data_keys = [
+            "buffered",
+            "purged",
+            "unsnpurged",
+            "sent",
+            "readings",
+            "discarded",
+            "unsent"
+        ]
 
-        _sensor_types = ["TI_sensorTag_accelerometer",
-                         "TI_sensorTag_gyroscope",
-                         "TI_sensorTag_magnetometer",
-                         "TI_sensorTag_humidity",
-                         "TI_sensorTag_luxometer",
-                         "TI_sensorTag_pressure",
-                         "TI_sensorTag_temperature",
+        """Available proprieties"""
 
-                         "TI_sensorTag_keys",
-                         "mouse"
-                         ]
+        _sensor_types = [
+            "buffered",
+            "purged",
+            "unsnpurged",
+            "sent",
+            "readings",
+            "discarded",
+            "unsent"
+        ]
 
         _sensor_name_type = {
-            # asset_code                  OMF type
-            "TI sensorTag/accelerometer": "TI_sensorTag_accelerometer",
-            "TI sensorTag/gyroscope":     "TI_sensorTag_gyroscope",
-            "TI sensorTag/magnetometer":  "TI_sensorTag_magnetometer",
-            "TI sensorTag/humidity":      "TI_sensorTag_humidity",
-            "TI sensorTag/luxometer":     "TI_sensorTag_luxometer",
-            "TI sensorTag/pressure":      "TI_sensorTag_pressure",
-            "TI sensorTag/temperature":   "TI_sensorTag_temperature",
-            "TI sensorTag/keys":          "TI_sensorTag_keys",
-            "mouse":                      "mouse"
+            # asset_code     OMF type
+            "buffered": "buffered",
+            "purged": "purged",
+            "unsnpurged": "unsnpurged",
+            "sent": "sent",
+            "readings": "readings",
+            "discarded": "discarded",
+            "unsent": "unsent"
         }
 
         _OMF_types_definition = {
-            "TI_sensorTag_accelerometer": [
+            "buffered": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -284,19 +292,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "x": {
-                            "type": "number"
-                        },
-                        "y": {
-                            "type": "number"
-                        },
-                        "z": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_gyroscope": [
+            "purged": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -321,19 +323,14 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "x": {
-                            "type": "number"
-                        },
-                        "y": {
-                            "type": "number"
-                        },
-                        "z": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_magnetometer": [
+
+            "unsnpurged": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -358,21 +355,15 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "x": {
-                            "type": "number"
-                        },
-                        "y": {
-                            "type": "number"
-                        },
-                        "z": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_humidity": [
+            "sent": [
                 {
-                    "id":  "xxx",
+                    "id": "xxx",
                     "type": "object",
                     "classification": "static",
                     "properties": {
@@ -386,7 +377,7 @@ def initialize_plugin():
                     }
                 },
                 {
-                    "id":  "xxx",
+                    "id": "xxx",
                     "type": "object",
                     "classification": "dynamic",
                     "properties": {
@@ -395,16 +386,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "humidity": {
-                            "type": "number"
-                        },
-                        "temperature": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_luxometer": [
+            "readings": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -429,78 +417,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "lux": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            ],
-            "TI_sensorTag_pressure": [
-                {
-                    "id":  "xxx",
-                    "type": "object",
-                    "classification": "static",
-                    "properties": {
-                        "Name": {
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "Location": {
-                            "type": "string"
-                        }
-                    }
-                },
-                {
-                    "id":  "xxx",
-                    "type": "object",
-                    "classification": "dynamic",
-                    "properties": {
-                        "Time": {
-                            "format": "date-time",
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "pressure": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            ],
-            "TI_sensorTag_temperature": [
-                {
-                    "id": "xxx",
-                    "type": "object",
-                    "classification": "static",
-                    "properties": {
-                        "Name": {
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "Location": {
-                            "type": "string"
-                        }
-                    }
-                },
-                {
-                    "id": "xxx",
-                    "type": "object",
-                    "classification": "dynamic",
-                    "properties": {
-                        "Time": {
-                            "format": "date-time",
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "object": {
-                            "type": "number"
-                        },
-                        "ambient": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_keys": [
+            "discarded": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -525,19 +448,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "left": {
-                            "type": "string"
-                        },
-                        "right": {
-                            "type": "string"
-                        },
-                        "magnet": {
-                            "type": "string"
+                        "value": {
+                            "type": "number"
                         }
                     }
                 }
             ],
-            "mouse": [
+            "unsent": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -562,8 +479,8 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "button": {
-                            "type": "string"
+                        "value": {
+                            "type": "number"
                         }
                     }
                 }
@@ -590,13 +507,11 @@ def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
 
     """
 
-    data_available = False
-
     try:
         row_id = information_to_send.id
-        asset_code = information_to_send.asset_code
-        timestamp = information_to_send.user_ts.isoformat()
-        sensor_data = information_to_send.reading
+        asset_code = information_to_send.key.strip().lower()
+        timestamp = information_to_send.ts.isoformat()
+        sensor_data = information_to_send.value
 
         _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
                       .format(target_stream_id, asset_code, str(row_id)))
@@ -613,23 +528,12 @@ def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
             }
         ]
 
-        # Evaluates which data is available
-        for data_key in _sensor_data_keys:
-            try:
-                new_data_values[0]["values"][0][data_key] = sensor_data[data_key]
+        new_data_values[0]["values"][0]["value"] = sensor_data
 
-                data_available = True
-            except KeyError:
-                pass
+        # note : append produces an not properly constructed OMF message
+        data_values.extend(new_data_values)
 
-        if data_available:
-            # note : append produces an not properly constructed OMF message
-            data_values.extend(new_data_values)
-
-            _logger.debug("OMF Message |{0}| ".format(new_data_values))
-        else:
-            message = _message_list["e000009"]
-            _logger.warning(message)
+        _logger.debug("in memory info |{0}| ".format(new_data_values))
 
     except Exception as e:
         message = _message_list["e000010"].format(e)
@@ -771,7 +675,6 @@ def omf_types_creation():
 
     try:
         for sensor_type in _sensor_types:
-
             tmp_type_sensor_id = "type_sensor_id_" + _type_id + "_" + sensor_type
             tmp_type_measurement_id = "type_measurement_" + _type_id + "_" + sensor_type
 
@@ -789,7 +692,7 @@ def omf_types_creation():
 
 
 def omf_objects_creation():
-    """Creates all the OMF objects
+    """Sends to PICROMF the request for the creation of all the objects
 
     Raises:
         Exception: an error occurred during the OMF's objects creation.
@@ -820,7 +723,7 @@ def omf_objects_creation():
 
 
 def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id):
-    """Creates an object into PICROMF
+    """Sends to PICROMF the request for the creation of an object
 
     Raises:
         Exception: an error occurred during the OMF's objects creation.
@@ -890,10 +793,20 @@ async def send_data_to_picromf():
         it should evolve using the DB layer
 
     """
+
+    global _pg_conn
+    global _pg_cur
+
     data_to_send = []
 
     try:
-        data_available, new_position = await in_memory_data_load(data_to_send)
+        # Reads the position from which the data should be send
+        _pg_conn = psycopg2.connect(_DB_URL)
+        _pg_cur = _pg_conn.cursor()
+        position = position_read()
+        _logger.debug("Last position, already sent |{0}| ".format(str(position)))
+
+        data_available, new_position = await in_memory_data_load(position, data_to_send)
 
         if data_available:
             _logger.debug("{0}".format("omf_translator_perf - OMF START "))
@@ -901,7 +814,6 @@ async def send_data_to_picromf():
             _logger.debug("{0}".format("omf_translator_perf - OMF END "))
 
             position_update(new_position)
-            await update_statistics()
 
     except Exception as e:
         message = _message_list["e000004"].format(e)
@@ -910,7 +822,7 @@ async def send_data_to_picromf():
         raise Exception(message)
 
 
-async def in_memory_data_load(values):
+async def in_memory_data_load(position, values):
     """Extracts data from the DB Layer loading in memory
 
     Raises:
@@ -921,9 +833,6 @@ async def in_memory_data_load(values):
 
     """
 
-    global _pg_conn
-    global _pg_cur
-
     global _num_sent
     global _num_unsent
 
@@ -931,27 +840,22 @@ async def in_memory_data_load(values):
     data_available = False
 
     try:
-        _pg_conn = psycopg2.connect(_DB_URL)
-        _pg_cur = _pg_conn.cursor()
-
         async with aiopg.sa.create_engine(_DB_URL) as engine:
             async with engine.acquire() as conn:
-
-                    position = position_read()
-                    _logger.debug("Last position, already sent |{0}| ".format(str(position)))
 
                     _logger.debug("{0}".format("omf_translator_perf - DB read START "))
 
                     # Reads rows from the Storage layer and sends them to the PICROMF
-                    async for db_row in conn.execute(_readings_tbl.select()
-                                                     .where(_readings_tbl.c.id > position)
-                                                     .order_by(_readings_tbl.c.id).limit(_block_size)):
+                    async for db_row in conn.execute(_statistics_history_tbl.select()
+                                                     .where(_statistics_history_tbl.c.id > position)
+                                                     .order_by(_statistics_history_tbl.c.id).limit(_block_size)):
 
                         message = "### sensor information ##################################################"
                         _logger.debug("{0}".format(message))
 
                         # Identification of the object/sensor
-                        sensor_id = db_row.asset_code
+                        sensor_id = db_row.key
+                        sensor_id = sensor_id.strip().lower()
                         measurement_id = "measurement_" + sensor_id
 
                         tmp_type = ""
@@ -964,9 +868,9 @@ async def in_memory_data_load(values):
 
                             _logger.warning(message)
                         else:
-                            _logger.debug("db row |{0}| |{1}| |{2}| ".format(db_row.id,
-                                                                             db_row.user_ts,
-                                                                             db_row.reading))
+                            _logger.debug("db row |{0}| |{1}| |{2}| ".format(db_row.key,
+                                                                             db_row.value,
+                                                                             db_row.ts))
 
                             try:
                                 in_memory_load_new_data(values, measurement_id, db_row)
@@ -1007,7 +911,7 @@ def send_init():
     """
 
     try:
-        _logger.debug("{0}".format("omf_translator_perf - INIT START "))
+        _logger.debug("{0}".format("statistics_to_pi_perf - INIT START "))
 
         prg_text = ", for Linux (x86_64)"
 
@@ -1020,27 +924,10 @@ def send_init():
         omf_types_creation()
         omf_objects_creation()
 
-        _logger.debug("{0}".format("omf_translator_perf - INIT END "))
+        _logger.debug("{0}".format("statistics_to_pi_perf - INIT END "))
 
     except Exception as e:
         message = _message_list["e000018"].format(e)
-
-        _logger.exception(message)
-        raise Exception(message)
-
-
-async def update_statistics():
-    """Updates FogLAMP statistics
-
-    Raises :
-        Exception - cannot update statistics
-    """
-
-    try:
-        await statistics.update_statistics_value('SENT', _num_sent)
-
-    except Exception as e:
-        message = _message_list["e000015"].format(e)
 
         _logger.exception(message)
         raise Exception(message)
@@ -1052,7 +939,7 @@ if __name__ == "__main__":
         _logger = logger.setup(__name__)
         _event_loop = asyncio.get_event_loop()
 
-        _logger.debug("{0}".format("omf_translator_perf - START "))
+        _logger.debug("{0}".format("statistics_to_pi_perf - START "))
 
         send_init()
 
@@ -1065,4 +952,4 @@ if __name__ == "__main__":
 
         _logger.exception(tmp_message)
 
-    _logger.debug("{0}".format("omf_translator_perf - END "))
+    _logger.debug("{0}".format("statistics_to_pi_perf - END "))

@@ -180,6 +180,16 @@ CREATE SEQUENCE foglamp.readings_id_seq
 ALTER SEQUENCE foglamp.readings_id_seq OWNER TO foglamp;
 
 
+CREATE SEQUENCE foglamp.statistics_history_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+ALTER SEQUENCE foglamp.statistics_history_id_seq OWNER TO foglamp;
+
+
+
 CREATE SEQUENCE foglamp.resources_id_seq
     INCREMENT 1
     START 1
@@ -604,10 +614,11 @@ ALTER TABLE foglamp.statistics OWNER to foglamp;
 -- Keeps history of the statistics in foglamp.statistics
 -- The table is updated at startup
 CREATE TABLE foglamp.statistics_history (
-       key         character(10)               NOT NULL COLLATE pg_catalog."default", -- Coumpund primary key, all uppercase
-       history_ts  timestamp(6) with time zone NOT NULL,                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
-       value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
-       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
+       id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass), 
+       key         character(10)               NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
+       history_ts  timestamp(6) with time zone NOT NULL,                                                      -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
+       value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
+       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change
        CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts)
             USING INDEX TABLESPACE foglamp )
   WITH ( OIDS = FALSE ) TABLESPACE foglamp;

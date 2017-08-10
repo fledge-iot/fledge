@@ -306,7 +306,7 @@ async def post_schedule(request):
     """
     Create a new schedule in schedules table
 
-    :Example: curl -d '{"type": 3, "name": "sleep30", "process_name": "sleep30", "repeat": "45"}'  -X POST  http://localhost:8082/foglamp/schedule
+    :Example: curl -d '{"type": 3, "name": "sleep30test", "process_name": "sleep30", "repeat": "45"}'  -X POST  http://localhost:8082/foglamp/schedule
     """
 
     try:
@@ -421,7 +421,6 @@ async def get_task(request):
 
         task = {
             'id': str(tsk.task_id),
-            'name': tsk.name,
             'process_name': tsk.process_name,
             'state': tsk.state,
             'start_time': str(tsk.start_time),
@@ -515,7 +514,7 @@ async def cancel_task(request):
             raise ValueError('No such Task: {}'.format(task_id))
 
         # Cancel Task
-        await server.Server.scheduler.cancel_task(task_id)
+        await server.Server.scheduler.cancel_task(uuid.UUID(task_id))
 
         return web.json_response({'id': task_id, 'message': 'Task cancelled successfully'})
     except ValueError as ex:

@@ -12,6 +12,13 @@ if [ `pg_status | grep -c "server is running"` -gt 0 ]; then
 else
 
   echo -n "Starting the FogLAMP Storage Layer, please wait..."
+
+  # Set the LD_LIBRARY_PATH variable
+  if [ `uname -m` == "armv7l" ]; then
+    LD_LIBRARY_PATH=/usr/local/pgsql/lib:/usr/local/pgsql/lib/arm-linux-gnueabihf
+    export LD_LIBRARY_PATH
+  fi
+
   /usr/local/pgsql/bin/pg_ctl -w -D /usr/local/pgsql/data start > /dev/null
 
   cycle=30

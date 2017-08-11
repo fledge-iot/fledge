@@ -23,6 +23,8 @@
                         { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
   { "name"          : "mouse",
     "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
+  { "name"          : "mouse",
+    "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
   { "name"          : "wall clock",
     "sensor_values" : [ { "name": "tick", "type": "enum", "list": [ "tock" ] } ] }
 ]

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+echo "Write Speed:"
+sync
+dd if=/dev/zero of=/tmp/testfile bs=100k count=1k  && sync
+
+echo
+echo "Read Speed:"
+sync
+dd if=/tmp/testfile of=/dev/null bs=4k count=1k  && sync
+rm /tmp/testfile
+
+

@@ -1,30 +1,70 @@
 #!/bin/bash
 
 set -e
+#set -x
+
 
 if [ "$debian_chroot" != 'classic' ]; then
   echo "FogLAMP must run in classic mode. Type \"sudo classic\" first and run this command again."
   exit 1
 fi
 
-if [ "$USER" == 'foglamp' ]; then
-  if [ "$HOME" == '/home/foglamp' ]; then
-    exit 0
-  else
-    echo "This version of FogLAMP can be executed only if the home directory of the user \"foglamp\" is \"/home/foglamp\""
-    exit 1
-  fi
-else
+if [ "$USER" != 'foglamp' ]; then
   echo "This version of FogLAMP can be executed only by the user \"foglamp\" in sudo classic mode"
   exit 1
 fi
 
-echo "Installing FogLAMP..."
+if [ "$HOME" != '/home/foglamp' ]; then
+  echo "This version of FogLAMP can be executed only if the home directory of the user \"foglamp\" is \"/home/foglamp\""
+  exit 1
+fi
+
+echo "This script will remove data and code of the previous versions of FogLAMP."
+echo -n "Enter YES if you want to continue: "
+read continue_installation
+
+if [ "$continue_installation" != 'YES' ]; then
+  echo "Goodbye."
+  exit 0
+fi
 
 # Copy executables in the bin directory
-cp ${HOME}/FogLAMP/extras/bin/* ${HOME}/bin/.
+echo -n "Copying scripts into ~/bin..."
+cp -R ${HOME}/FogLAMP/extras/bin ${HOME}/.
+echo "Done."
+
+# Retrieve and install PostgreSQL
+cd ${HOME}
+case `uname -m` in
+
+  x86_64)
+    pg_tar="foglamp_pgsql-9.6.3_x86_64-Ubuntu-Core-16.04.4.tgz"
+    ;;
+
+  armv7l)
+    pg_tar="foglamp_pgsql-9.6.3_arm64-Ubuntu-Core-16.04.2.tgz"
+    ;;
+
+  *)
+    echo "This architecture is not supported by FogLAMP."
+    exit 1
+    ;;
+
+esac
+
+echo
+echo "Retrieving the FogLAMP Storage Layer..."
+wget "https://s3.amazonaws.com/foglamp/${pg_tar}" -O "${pg_tar}"
+
+echo
+echo "Installing the FogLAMP Storage Layer..."
+sudo rm -rf /usr/local/pgsql
+sudo tar xzvf "${pg_tar}" -C /
+sudo chown -R foglamp:foglamp /usr/local/pgsql
 
 # Build the environment
+echo
+echo "Setting the running environment..."
 cd ${HOME}/FogLAMP/src/python
 source build.sh -i
 source build.sh -a

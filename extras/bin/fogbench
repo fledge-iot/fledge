@@ -5,7 +5,10 @@ set -e
 check_user
 check_classic
 
+cd ${HOME}/FogLAMP/src/python
+source ./build.sh -a
+
 cd ${HOME}/FogLAMP/benchmarks
-python -m fogbench $1 $2 $3 $4 $5 $6 $7 $8 $9
+python3.5 -m fogbench $1 $2 $3 $4 $5 $6 $7 $8 $9
 
 exit 0

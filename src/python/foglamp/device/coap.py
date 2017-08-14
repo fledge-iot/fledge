@@ -4,10 +4,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""CoAP handler for coap://other/sensor_readings URI"""
+"""CoAP handler for sensor readings"""
 
 import asyncio
-import logging
 
 import aiocoap.resource
 from cbor2 import loads
@@ -18,7 +17,12 @@ from foglamp import logger
 from foglamp.device.ingest import Ingest
 
 
-_LOGGER = logger.setup(__name__)  # type: logging.Logger
+__author__ = "Terris Linenbach"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
+_LOGGER = logger.setup(__name__)
 
 # pylint: disable=line-too-long
 # Configuration: https://docs.google.com/document/d/1wPg-XzkdLPgFlC3JjpSaMivVH3VyjKvGa4TVJJukvdg/edit#heading=h.ru11tt2gnb6g
@@ -41,7 +45,7 @@ _DEFAULT_CONFIG = {
 
 
 async def start():
-    """Registers CoAP URI handler"""
+    """Registers CoAP handler to accept sensor readings"""
 
     # Retrieve CoAP configuration
     await configuration_manager.create_category(
@@ -59,13 +63,13 @@ async def start():
     root.add_resource(('.well-known', 'core'),
                       aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
 
-    root.add_resource(('other', uri), SensorValues())
+    root.add_resource(('other', uri), IngestReadings())
 
     asyncio.Task(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
 
 
-class SensorValues(aiocoap.resource.Resource):
-    """CoAP handler for coap://readings URI"""
+class IngestReadings(aiocoap.resource.Resource):
+    """CoAP handler for incoming sensor readings"""
 
     @staticmethod
     async def render_post(request):

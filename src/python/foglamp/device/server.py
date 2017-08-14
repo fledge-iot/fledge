@@ -6,16 +6,18 @@
 
 import asyncio
 
-from foglamp.device.coap import controller
+from foglamp.device import coap
 
-__author__    = "Terris Linenbach"
+"""Starts the device server"""
+
+__author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
-__license__   = "Apache 2.0"
-__version__   = "${VERSION}"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
 
 
 def start():
     """Starts the device service"""
-    controller.start()
+    asyncio.ensure_future(coap.start())
     asyncio.get_event_loop().run_forever()
 

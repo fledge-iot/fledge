@@ -9,16 +9,6 @@ if [ "$debian_chroot" != 'classic' ]; then
   exit 1
 fi
 
-if [ "$USER" != 'foglamp' ]; then
-  echo "This version of FogLAMP can be executed only by the user \"foglamp\" in sudo classic mode"
-  exit 1
-fi
-
-if [ "$HOME" != '/home/foglamp' ]; then
-  echo "This version of FogLAMP can be executed only if the home directory of the user \"foglamp\" is \"/home/foglamp\""
-  exit 1
-fi
-
 echo "This script will remove data and code of the previous versions of FogLAMP."
 echo -n "Enter YES if you want to continue: "
 read continue_installation
@@ -60,7 +50,8 @@ echo
 echo "Installing the FogLAMP Storage Layer..."
 sudo rm -rf /usr/local/pgsql
 sudo tar xzvf "${pg_tar}" -C /
-sudo chown -R foglamp:foglamp /usr/local/pgsql
+my_user=${USER}
+sudo chown -R ${my_user}:${my_user} /usr/local/pgsql
 
 # Build the environment
 echo

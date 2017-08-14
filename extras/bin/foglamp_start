@@ -2,7 +2,6 @@
 
 set -e
 
-check_user
 check_classic
 
 pg_start

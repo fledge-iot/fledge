@@ -2,7 +2,6 @@
 
 set -e
 
-check_user
 check_classic
 
 # Set the LD_LIBRARY_PATH variable

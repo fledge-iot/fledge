@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 from aiocoap.numbers.codes import Code as CoAP_CODES
 from cbor2 import dumps
 
-from foglamp.device.coap import SensorValues
+from foglamp.device.coap import IngestReadings
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -20,8 +20,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-class TestSensorValues(object):
-    """Unit tests for SensorValues
+class TestIngestReadings(object):
+    """Unit tests for foglamp.device.coap.IngestReadings
     """
     __requests = [
         ({}, CoAP_CODES.BAD_REQUEST),
@@ -37,7 +37,7 @@ class TestSensorValues(object):
     @pytest.mark.asyncio
     async def test_payload(self, dict_payload, expected):
         """Runs all test cases in the __requests array"""
-        sv = SensorValues()
+        sv = IngestReadings()
         request = MagicMock()
         request.payload = dumps(dict_payload)
         return_val = await sv.render_post(request)

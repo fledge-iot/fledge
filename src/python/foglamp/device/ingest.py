@@ -7,7 +7,6 @@
 """FogLAMP Sensor Readings Ingest API"""
 
 import asyncio
-import logging
 
 import aiopg.sa
 import psycopg2
@@ -23,7 +22,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__)  # type: logging.Logger
+_LOGGER = logger.setup(__name__)
 
 _READINGS_TBL = sa.Table(
     'readings',
@@ -52,11 +51,11 @@ class Ingest(object):
     _num_discarded_readings = 0  # type: int
     """number of readings rejected before statistics were flushed to the database"""
 
-    _sleep_task = None  # type:
-    """Asyncio task that is sleeping"""
+    _write_statistics_loop_task = None  # type: asyncio.Future
+    """Asyncio task for :meth:`_write_statistics_loop`"""
 
-    _write_statistics_loop_task = None  # type:
-    """Asyncio task that is sleeping"""
+    _sleep_task = None  # type: asyncio.Future
+    """Asyncio task for asyncio.sleep"""
 
     _stop = False  # type: bool
     """Set to true when the server needs to stop"""

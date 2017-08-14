@@ -222,7 +222,7 @@ class Scheduler(object):
     _scheduled_processes_tbl = None  # type: sa.Table
     _schedules_tbl = None  # type: sa.Table
     _tasks_tbl = None  # type: sa.Table
-    _logger = None
+    _logger = None  # type: logging.Logger
 
     def __init__(self):
         """Constructor"""
@@ -270,7 +270,7 @@ class Scheduler(object):
         # Instance attributes
         self._ready = False
         """True when the scheduler is ready to accept API calls"""
-        self._start_time = None
+        self._start_time = None  # type: int
         """When the scheduler started"""
         self._max_running_tasks = self.DEFAULT_MAX_RUNNING_TASKS
         """Maximum number of active tasks"""
@@ -284,13 +284,13 @@ class Scheduler(object):
         """Dictionary of schedules.id to _ScheduleExecution"""
         self._task_processes = dict()
         """Dictionary of tasks.id to _TaskProcess"""
-        self._check_processes_pending = None
+        self._check_processes_pending = False
         """bool: True when request to run check_processes"""
-        self._scheduler_loop_task = None
-        """Coroutine for _scheduler_loop_task, to ensure it has finished"""
-        self._main_sleep_task = None
-        """Coroutine that sleeps in the main loop"""
-        self.current_time = None
+        self._scheduler_loop_task = None  # type: asyncio.Future
+        """Task for :meth:`_scheduler_loop`, to ensure it has finished"""
+        self._main_sleep_task = None  # type: asyncio.Future
+        """Task for asyncio.sleep used by :meth:`_scheduler_loop`"""
+        self.current_time = None  # type: int
         """Time to use when determining when to start tasks, for testing"""
 
     @property

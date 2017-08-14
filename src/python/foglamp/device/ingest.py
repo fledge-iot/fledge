@@ -137,6 +137,7 @@ class Ingest(object):
 
         Raises KeyError: data is missing a required field
         Raises IOError: some type of failure occurred
+        Raises TypeError: bad data provided
         """
 
         # TODO: The data format is documented

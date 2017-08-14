@@ -69,7 +69,8 @@ class SensorValues(aiocoap.resource.Resource):
 
     @staticmethod
     async def render_post(request):
-        # Required keys in the payload
+        code = aiocoap.numbers.codes.Code.BAD_REQUEST
+
         try:
             payload = loads(request.payload)
 
@@ -79,12 +80,15 @@ class SensorValues(aiocoap.resource.Resource):
                 # TODO what should this return?
                 return aiocoap.Message(payload=''.encode("utf-8"),
                                        code=aiocoap.numbers.codes.Code.VALID)
-            except (KeyError, IOError):
-                _LOGGER.exception("Failed processing payload: %s", payload)
+            except (KeyError, TypeError):
+                _LOGGER.exception("Invalid payload: %s", payload)
+            except Exception:
+                code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
+                _LOGGER.exception("Error saving sensor readings: %s", payload)
         except CBORDecodeError:
             Ingest.increment_discarded_messages()
-            _LOGGER.exception("Failed parsing input message")
+            _LOGGER.exception("Failed parsing readings payload")
 
-        # failure
+        # Failure
         return aiocoap.Message(payload=''.encode("utf-8"),
-                               code=aiocoap.numbers.codes.Code.BAD_REQUEST)
+                               code=code)

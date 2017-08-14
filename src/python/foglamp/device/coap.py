@@ -59,10 +59,9 @@ async def start():
     root.add_resource(('.well-known', 'core'),
                       aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
 
-    SensorValues().register_handlers(root, uri)
     root.add_resource(('other', uri), SensorValues())
 
-    asyncio.Task(aiocoap.Context.create_server_context(root, bind=('::', port)))
+    asyncio.Task(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
 
 
 class SensorValues(aiocoap.resource.Resource):
@@ -75,15 +74,15 @@ class SensorValues(aiocoap.resource.Resource):
             payload = loads(request.payload)
 
             try:
-                Ingest.add_readings(payload)
+                await Ingest.add_readings(payload)
                 # Success
                 # TODO what should this return?
                 return aiocoap.Message(payload=''.encode("utf-8"),
                                        code=aiocoap.numbers.codes.Code.VALID)
-            except:
+            except (KeyError, IOError):
                 _LOGGER.exception("Failed processing payload: %s", payload)
         except CBORDecodeError:
-            ingest.increment_discarded_messages()
+            Ingest.increment_discarded_messages()
             _LOGGER.exception("Failed parsing input message")
 
         # failure

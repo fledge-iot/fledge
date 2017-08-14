@@ -25,7 +25,7 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)  # type: logging.Logger
 
-_SENSOR_VALUES_TBL = sa.Table(
+_READINGS_TBL = sa.Table(
     'readings',
     sa.MetaData(),
     sa.Column('asset_code', sa.types.VARCHAR(50)),
@@ -39,7 +39,7 @@ _CONNECTION_STRING = "dbname='foglamp'"
 
 class Ingest(object):
     # Class attributes
-    _num_readings  = 0  # type: int
+    _num_readings = 0  # type: int
     """number of readings processed through render_post method since initialization 
     or since the last time _update_statistics() was called"""
 
@@ -66,42 +66,44 @@ class Ingest(object):
             cls._num_discarded_readings = 0
 
     @classmethod
-    async def add_sensor_readings(cls, payload: dict)->None:
+    async def add_readings(cls, data: dict)->None:
         """Sends asset readings to storage layer
 
-        request.payload looks like:
-        {
-            "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
-            "asset": "pump1",
-            "readings": {
-                "velocity": "500",
-                "temperature": {
-                    "value": "32",
-                    "unit": "kelvin"
+        Args:
+            data:
+            {
+                "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
+                "asset": "pump1",
+                "readings": {
+                    "velocity": "500",
+                    "temperature": {
+                        "value": "32",
+                        "unit": "kelvin"
+                    }
                 }
             }
-        }
 
-        Raises KeyError: payload is missing a required field
+        Raises KeyError: data is missing a required field
+        Raises IOError: some type of failure occurred
         """
 
-        # TODO: The payload format is documented
+        # TODO: The data format is documented
         # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
         cls._num_readings += 1
 
-        # Required keys in the payload
+        # Required keys in the data
         try:
-            asset = payload['asset']
-            timestamp = payload['timestamp']
+            asset = data['asset']
+            timestamp = data['timestamp']
         except KeyError:
             cls._num_discarded_readings += 1
             raise
 
-        # Optional keys in the payload
-        readings = payload.get('sensor_values', {})
-        key = payload.get('key')
+        # Optional keys in the data
+        readings = data.get('sensor_values', {})
+        key = data.get('key')
 
         # Comment out to test IntegrityError
         # key = '123e4567-e89b-12d3-a456-426655440000'
@@ -110,16 +112,16 @@ class Ingest(object):
             async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
                 async with engine.acquire() as conn:
                     try:
-                        await conn.execute(_SENSOR_VALUES_TBL.insert().values(
+                        await conn.execute(_READINGS_TBL.insert().values(
                             asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
                     except psycopg2.IntegrityError:
                         _LOGGER.exception(
                             'Duplicate key (%s) inserting sensor values:\n%s',
                             key,
-                            payload)
-        except Exception as error:
+                            data)
+        except IOError:
             cls._num_discarded_readings += 1
             _LOGGER.exception(
-                "Database error occurred. Payload:\n%s"
-                , payload)
-            raise IOError(error.message)
+                "Database error occurred. Payload:\n%s",
+                data)
+            raise

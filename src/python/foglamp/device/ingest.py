@@ -36,34 +36,90 @@ _READINGS_TBL = sa.Table(
 
 _CONNECTION_STRING = "dbname='foglamp'"
 
+_STATISTICS_WRITE_FREQUENCY_SECONDS = 5
+
 
 class Ingest(object):
+    """Adds sensor readings to FogLAMP
+
+    Internally tracks readings-related statistics.
+    """
+
     # Class attributes
     _num_readings = 0  # type: int
-    """number of readings processed through render_post method since initialization 
-    or since the last time _update_statistics() was called"""
+    """number of readings accepted before statistics were flushed to the database"""
 
     _num_discarded_readings = 0  # type: int
-    """number of readings discarded through render_post method since initialization 
-    or since the last time _update_statistics() was called"""
+    """number of readings rejected before statistics were flushed to the database"""
 
-    @staticmethod
-    def start():
-        asyncio.ensure_future(Ingest._update_statistics())
+    _sleep_task = None  # type:
+    """Asyncio task that is sleeping"""
+
+    _update_statistics_task = None  # type:
+    """Asyncio task that is sleeping"""
+
+    _stop = False  # type: bool
+    """Set to true when the server needs to stop"""
+
+    @classmethod
+    def start(cls):
+        """Starts the server"""
+        cls._update_statistics_task = asyncio.ensure_future(cls._update_statistics())
+
+    @classmethod
+    async def stop(cls):
+        if cls._stop or cls._update_statistics_task is None:
+            return
+
+        cls._stop = True
+
+        if cls._sleep_task is not None:
+            cls._sleep_task.cancel()
+            cls._sleep_task = None
+
+        await cls._update_statistics_task
+        cls._update_statistics_task = None
 
     @classmethod
     def increment_discarded_messages(cls):
         cls._num_discarded_readings += 1
 
     @classmethod
-    async def _update_statistics(cls):
-        """Periodically write statistics to the database"""
-        while True:
-            await asyncio.sleep(5)
+    async def _write_statistics(cls):
+        """Writes statistics to database"""
+        # TODO Move READINGS and DISCARDED to globals
+        try:
             await statistics.update_statistics_value('READINGS', cls._num_readings)
             cls._num_readings = 0
+
             await statistics.update_statistics_value('DISCARDED', cls._num_discarded_readings)
             cls._num_discarded_readings = 0
+        # TODO need real exception
+        except Exception:
+            _LOGGER.exception("Error occurred while writing statistics")
+
+    @classmethod
+    async def _update_statistics(cls):
+        """Periodically write statistics to the database"""
+        _LOGGER.info("Ingest statistics writer started")
+
+        while not cls._stop:
+            # stop() calls _sleep_task.cancel().
+            # Tracking _sleep_task separately is cleaner than canceling
+            # this entire coroutine because allowing database activity to be
+            # interrupted will result in strange behavior.
+            cls._sleep_task = asyncio.ensure_future(
+                                asyncio.sleep(_STATISTICS_WRITE_FREQUENCY_SECONDS))
+
+            try:
+                await cls._sleep_task
+            except asyncio.CancelledError:
+                pass
+
+            cls._sleep_task = None
+            await cls._write_statistics()
+
+        _LOGGER.info("Ingest statistics writer stopped")
 
     @classmethod
     async def add_readings(cls, data: dict)->None:
@@ -119,7 +175,8 @@ class Ingest(object):
                             'Duplicate key (%s) inserting sensor values:\n%s',
                             key,
                             data)
-        except IOError:
+        # TODO: Catch real exception
+        except Exception:
             cls._num_discarded_readings += 1
             _LOGGER.exception(
                 "Database error occurred. Payload:\n%s",

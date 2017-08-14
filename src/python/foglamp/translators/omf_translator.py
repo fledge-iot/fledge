@@ -24,8 +24,6 @@ from foglamp import logger
 # Import packages - DB operations
 import psycopg2
 import asyncio
-import aiopg
-import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from foglamp import statistics, configuration_manager
@@ -111,8 +109,7 @@ _type_id = "0"
 
 _OMF_types_definition = []
 _sensor_data_keys = []
-_sensor_types = []
-_sensor_name_type = {}
+_asset_code_type = {}
 """Associates the asset code to the corresponding type"""
 
 
@@ -125,7 +122,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_b123"
+        "default": "omf_translator_305"
 
     },
     "channelID": {
@@ -149,7 +146,7 @@ _DEFAULT_OMF_CONFIG = {
     "blockSize": {
         "description": "The size of a block of readings to send in each transmission.",
         "type": "integer",
-        "default": "1000"
+        "default": "10000"
 
     },
 
@@ -194,8 +191,7 @@ def initialize_plugin():
     global _type_id
 
     global _sensor_data_keys
-    global _sensor_types
-    global _sensor_name_type
+    global _asset_code_type
 
     global _OMF_types_definition
     global _channel_id
@@ -233,19 +229,7 @@ def initialize_plugin():
                              "object", "ambient", "left", "right", "magnet", "button"]
         """Available proprieties in the reading field"""
 
-        _sensor_types = ["TI_sensorTag_accelerometer",
-                         "TI_sensorTag_gyroscope",
-                         "TI_sensorTag_magnetometer",
-                         "TI_sensorTag_humidity",
-                         "TI_sensorTag_luxometer",
-                         "TI_sensorTag_pressure",
-                         "TI_sensorTag_temperature",
-
-                         "TI_sensorTag_keys",
-                         "mouse"
-                         ]
-
-        _sensor_name_type = {
+        _asset_code_type = {
             # asset_code                  OMF type
             "TI sensorTag/accelerometer": "TI_sensorTag_accelerometer",
             "TI sensorTag/gyroscope":     "TI_sensorTag_gyroscope",
@@ -577,13 +561,13 @@ def initialize_plugin():
         raise Exception(message)
 
 
-def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
+def transform_in_memory_row(data_to_send, row, target_stream_id):
     """Extends in memory data structure reading data from the Storage Layer
 
     Args:
-        data_values:          data to send - updated/used by reference
+        data_to_send:          data to send - updated/used by reference
         target_stream_id:     OMF container ID
-        information_to_send:  information retrieved from the Storage Layer that should be prepared for the PICROMF
+        row:  information retrieved from the Storage Layer that should be prepared for the PICROMF
 
     Raises:
         Exception: unable to extend the in memory structure with the data
@@ -593,16 +577,16 @@ def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
     data_available = False
 
     try:
-        row_id = information_to_send.id
-        asset_code = information_to_send.asset_code
-        timestamp = information_to_send.user_ts.isoformat()
-        sensor_data = information_to_send.reading
+        row_id = row[0]
+        asset_code = row[1]
+        timestamp = row[2].isoformat()
+        sensor_data = row[3]
 
         _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
                       .format(target_stream_id, asset_code, str(row_id)))
 
         # Prepares the data for PICROMF
-        new_data_values = [
+        new_data = [
             {
                 "containerid": target_stream_id,
                 "values": [
@@ -614,9 +598,9 @@ def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
         ]
 
         # Evaluates which data is available
-        for data_key in _sensor_data_keys:
+        for data_key in sensor_data:
             try:
-                new_data_values[0]["values"][0][data_key] = sensor_data[data_key]
+                new_data[0]["values"][0][data_key] = sensor_data[data_key]
 
                 data_available = True
             except KeyError:
@@ -624,9 +608,9 @@ def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
 
         if data_available:
             # note : append produces an not properly constructed OMF message
-            data_values.extend(new_data_values)
+            data_to_send.extend(new_data)
 
-            _logger.debug("OMF Message |{0}| ".format(new_data_values))
+            _logger.debug("OMF Message |{0}| ".format(new_data))
         else:
             message = _message_list["e000009"]
             _logger.warning(message)
@@ -767,10 +751,9 @@ def omf_types_creation():
 
     """
 
-    global _sensor_types
-
     try:
-        for sensor_type in _sensor_types:
+        for asset_code in _asset_code_type:
+            sensor_type = _asset_code_type[asset_code]
 
             tmp_type_sensor_id = "type_sensor_id_" + _type_id + "_" + sensor_type
             tmp_type_measurement_id = "type_measurement_" + _type_id + "_" + sensor_type
@@ -799,12 +782,12 @@ def omf_objects_creation():
     global _sensor_location
 
     try:
-        for sensor_info in _sensor_name_type:
+        for sensor_info in _asset_code_type:
 
             tmp_sensor_id = sensor_info
             tmp_measurement_id = "measurement_" + tmp_sensor_id
 
-            tmp_type = _sensor_name_type[tmp_sensor_id]
+            tmp_type = _asset_code_type[tmp_sensor_id]
 
             tmp_type_sensor_id = "type_sensor_id_" + _type_id + "_" + tmp_type
             tmp_type_measurement_id = "type_measurement_" + _type_id + "_" + tmp_type
@@ -890,10 +873,22 @@ async def send_data_to_picromf():
         it should evolve using the DB layer
 
     """
+
+    global _pg_conn
+    global _pg_cur
+
     data_to_send = []
 
     try:
-        data_available, new_position = await in_memory_data_load(data_to_send)
+        # Reads the position from which the data should be send
+        _pg_conn = psycopg2.connect(_DB_URL)
+        _pg_cur = _pg_conn.cursor()
+        position = position_read()
+        _logger.debug("Last position, already sent |{0}| ".format(str(position)))
+
+        raw_data = load_data_in_memory(position)
+
+        data_available, new_position = transform_in_memory_data(data_to_send, raw_data)
 
         if data_available:
             _logger.debug("{0}".format("omf_translator_perf - OMF START "))
@@ -903,14 +898,14 @@ async def send_data_to_picromf():
             position_update(new_position)
             await update_statistics()
 
-    except Exception as e:
-        message = _message_list["e000004"].format(e)
+    except Exception:
+        message = _message_list["e000004"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-async def in_memory_data_load(values):
+def load_data_in_memory(position):
     """Extracts data from the DB Layer loading in memory
 
     Raises:
@@ -924,6 +919,35 @@ async def in_memory_data_load(values):
     global _pg_conn
     global _pg_cur
 
+    try:
+        _logger.debug("{0}".format("omf_translator_perf - DB read START "))
+
+        sql_cmd = "SELECT id, asset_code, user_ts, reading FROM foglamp.readings WHERE id> {0} ORDER BY id LIMIT {1}"\
+                  .format(position, _block_size)
+
+        _pg_cur.execute(sql_cmd)
+        rows = _pg_cur.fetchall()
+
+    except Exception as e:
+        message = _message_list["e000017"].format(e)
+
+        _logger.exception(message)
+        raise Exception(message)
+
+    return rows
+
+
+def transform_in_memory_data(data_to_send, raw_data):
+    """Extracts data from the DB Layer loading in memory
+
+    Raises:
+        Exception: cannot complete loading data in memory
+
+    Todo:
+        it should evolve using the DB layer
+
+    """
+
     global _num_sent
     global _num_unsent
 
@@ -931,64 +955,41 @@ async def in_memory_data_load(values):
     data_available = False
 
     try:
-        _pg_conn = psycopg2.connect(_DB_URL)
-        _pg_cur = _pg_conn.cursor()
+        _logger.debug("{0}".format("omf_translator_perf - DB read START "))
 
-        async with aiopg.sa.create_engine(_DB_URL) as engine:
-            async with engine.acquire() as conn:
+        for row in raw_data:
+            row_id = row[0]
+            asset_code = row[1]
 
-                    position = position_read()
-                    _logger.debug("Last position, already sent |{0}| ".format(str(position)))
+            # Identification of the object/sensor
+            measurement_id = "measurement_" + asset_code
 
-                    _logger.debug("{0}".format("omf_translator_perf - DB read START "))
+            tmp_type = ""
+            try:
+                # Evaluates if it is a known asset code
+                tmp_type = _asset_code_type[asset_code]
 
-                    # Reads rows from the Storage layer and sends them to the PICROMF
-                    async for db_row in conn.execute(_readings_tbl.select()
-                                                     .where(_readings_tbl.c.id > position)
-                                                     .order_by(_readings_tbl.c.id).limit(_block_size)):
+            except Exception as e:
+                message = _message_list["e000012"].format(tmp_type, e)
 
-                        message = "### sensor information ##################################################"
-                        _logger.debug("{0}".format(message))
+                _logger.warning(message)
+            else:
+                try:
+                    transform_in_memory_row(data_to_send, row, measurement_id)
 
-                        # Identification of the object/sensor
-                        sensor_id = db_row.asset_code
-                        measurement_id = "measurement_" + sensor_id
+                    # Used for the statistics update
+                    _num_sent += 1
 
-                        tmp_type = ""
-                        try:
-                            # Evaluates if it is a known types
-                            tmp_type = _sensor_name_type[sensor_id]
+                    # Latest position reached
+                    new_position = row_id
 
-                        except Exception as e:
-                            message = _message_list["e000012"].format(tmp_type, e)
+                    data_available = True
 
-                            _logger.warning(message)
-                        else:
-                            _logger.debug("db row |{0}| |{1}| |{2}| ".format(db_row.id,
-                                                                             db_row.user_ts,
-                                                                             db_row.reading))
+                except Exception as e:
+                    _num_unsent += 1
 
-                            try:
-                                in_memory_load_new_data(values, measurement_id, db_row)
-
-                                # Used for the statistics update
-                                _num_sent += 1
-
-                                # Latest position reached
-                                new_position = db_row.id
-
-                                data_available = True
-
-                            except Exception as e:
-                                _num_unsent += 1
-
-                                message = _message_list["e000013"].format(e)
-                                _logger.warning(message)
-
-                    message = "### completed ##################################################"
-                    _logger.debug("{0}".format(message))
-
-                    _logger.debug("{0}".format("omf_translator_perf - DB read END "))
+                    message = _message_list["e000013"].format(e)
+                    _logger.warning(message)
 
     except Exception as e:
         message = _message_list["e000017"].format(e)

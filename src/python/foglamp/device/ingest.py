@@ -55,7 +55,7 @@ class Ingest(object):
     _sleep_task = None  # type:
     """Asyncio task that is sleeping"""
 
-    _update_statistics_task = None  # type:
+    _write_statistics_loop_task = None  # type:
     """Asyncio task that is sleeping"""
 
     _stop = False  # type: bool
@@ -64,11 +64,11 @@ class Ingest(object):
     @classmethod
     def start(cls):
         """Starts the server"""
-        cls._update_statistics_task = asyncio.ensure_future(cls._update_statistics())
+        cls._write_statistics_loop_task = asyncio.ensure_future(cls._write_statistics_loop())
 
     @classmethod
     async def stop(cls):
-        if cls._stop or cls._update_statistics_task is None:
+        if cls._stop or cls._write_statistics_loop_task is None:
             return
 
         cls._stop = True
@@ -77,30 +77,16 @@ class Ingest(object):
             cls._sleep_task.cancel()
             cls._sleep_task = None
 
-        await cls._update_statistics_task
-        cls._update_statistics_task = None
+        await cls._write_statistics_loop_task
+        cls._write_statistics_loop_task = None
 
     @classmethod
     def increment_discarded_messages(cls):
         cls._num_discarded_readings += 1
 
     @classmethod
-    async def _write_statistics(cls):
-        """Writes statistics to database"""
-        # TODO Move READINGS and DISCARDED to globals
-        try:
-            await statistics.update_statistics_value('READINGS', cls._num_readings)
-            cls._num_readings = 0
-
-            await statistics.update_statistics_value('DISCARDED', cls._num_discarded_readings)
-            cls._num_discarded_readings = 0
-        # TODO need real exception
-        except Exception:
-            _LOGGER.exception("Error occurred while writing statistics")
-
-    @classmethod
-    async def _update_statistics(cls):
-        """Periodically write statistics to the database"""
+    async def _write_statistics_loop(cls):
+        """Periodically commits collected readings statistics"""
         _LOGGER.info("Ingest statistics writer started")
 
         while not cls._stop:
@@ -117,7 +103,17 @@ class Ingest(object):
                 pass
 
             cls._sleep_task = None
-            await cls._write_statistics()
+
+            try:
+                # TODO Move READINGS and DISCARDED to globals
+                await statistics.update_statistics_value('READINGS', cls._num_readings)
+                cls._num_readings = 0
+
+                await statistics.update_statistics_value('DISCARDED', cls._num_discarded_readings)
+                cls._num_discarded_readings = 0
+            # TODO catch real exception
+            except Exception:
+                _LOGGER.exception("An error occurred while writing readings statistics")
 
         _LOGGER.info("Ingest statistics writer stopped")
 

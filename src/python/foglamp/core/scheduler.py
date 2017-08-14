@@ -286,8 +286,8 @@ class Scheduler(object):
         """Dictionary of tasks.id to _TaskProcess"""
         self._check_processes_pending = None
         """bool: True when request to run check_processes"""
-        self._main_loop_task = None
-        """Coroutine for _main_loop_task, to ensure it has finished"""
+        self._scheduler_loop_task = None
+        """Coroutine for _scheduler_loop_task, to ensure it has finished"""
         self._main_sleep_task = None
         """Coroutine that sleeps in the main loop"""
         self.current_time = None
@@ -332,8 +332,8 @@ class Scheduler(object):
             # Stop the main loop
             self._paused = True
             self._resume_check_schedules()
-            await self._main_loop_task
-            self._main_loop_task = None
+            await self._scheduler_loop_task
+            self._scheduler_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration
         for task_id in list(self._task_processes.keys()):
@@ -811,7 +811,7 @@ class Scheduler(object):
         await self._get_schedules()
 
     def _resume_check_schedules(self):
-        """Wakes up :meth:`_main_loop` so that
+        """Wakes up :meth:`_scheduler_loop` so that
         :meth:`_check_schedules` will be called the next time 'await'
         is invoked.
 
@@ -825,7 +825,7 @@ class Scheduler(object):
         else:
             self._check_processes_pending = True
 
-    async def _main_loop(self):
+    async def _scheduler_loop(self):
         """Main loop for the scheduler"""
         # TODO: log exception here or add an exception handler in asyncio
 
@@ -1252,4 +1252,4 @@ class Scheduler(object):
 
         self._ready = True
 
-        self._main_loop_task = asyncio.ensure_future(self._main_loop())
+        self._scheduler_loop_task = asyncio.ensure_future(self._scheduler_loop())

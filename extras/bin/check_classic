@@ -1,8 +1,0 @@
-#!/bin/bash
-
-if [ "$debian_chroot" == 'classic' ]; then
-  exit 0
-else
-  echo "FogLAMP must run in classic mode. Type \"sudo classic\" first and run this command again."
-  exit 1
-fi

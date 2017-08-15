@@ -146,26 +146,21 @@ class Ingest(object):
             if asset is None:
                 raise ValueError("asset can not be None")
 
-            if not isinstance(asset, str):
-                raise TypeError("Asset must be a string")
-
             if timestamp is None:
                 raise ValueError("timestamp can not be None")
-
-            if not isinstance(timestamp, datetime.datetime):
-                raise TypeError("timestamp must be a datetime.datetime")
-
-            if key is not None and not isinstance(key, uuid.UUID):
-                raise TypeError("key must be a uuid.UUID")
 
             if readings is None:
                 readings = dict()
             elif not isinstance(readings, dict):
-                raise TypeError("readings must be a dict")
+                # Postgres allows values like 5 be converted to JSON
+                # Downstream processors can not handle this
+                raise ValueError("readings type must be dict")
+
+            # SQLAlchemy / Postgres convert/verify datatypes ...
 
             try:
                 # How to test an insert error:
-                # key = 'tom'
+                # key = 6
                 async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
                     async with engine.acquire() as conn:
                         try:
@@ -174,13 +169,13 @@ class Ingest(object):
                                 user_ts=timestamp))
                             cls._readings += 1
                         except psycopg2.IntegrityError:
-                            _LOGGER.exception(
-                                'Duplicate key (%s) inserting sensor values. Asset: %s\n%s',
+                            # This exception is also thrown for NULL violations
+                            _LOGGER.warning(
+                                "Duplicate key (%s) inserting sensor values. Asset: '%s'"
+                                " Readings:\n%s",
                                 key, asset, readings)
-            except Exception:
-                _LOGGER.exception(
-                    "Insert failed. Asset: '%s' Readings:\n%s", asset, readings)
-                raise
+            except (psycopg2.DataError, psycopg2.ProgrammingError) as e:
+                raise ValueError(e)
         except Exception:
             cls._discarded_readings += 1
             raise

@@ -24,15 +24,18 @@ class TestIngestReadings(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """
     __REQUESTS = [
-        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test'}, CoAP_CODES.VALID),
-        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test2',
-          'readings': {'a': 5}}, CoAP_CODES.VALID),
-        ({}, CoAP_CODES.BAD_REQUEST),
-        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test2',
+        ("bad request", CoAP_CODES.BAD_REQUEST),
+        ({'timestamp': 'bad timestamp', 'asset': 'test'}, CoAP_CODES.BAD_REQUEST),
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test',
           'readings': 5}, CoAP_CODES.BAD_REQUEST),
-        ({}, CoAP_CODES.BAD_REQUEST),
-        ('hello world', CoAP_CODES.BAD_REQUEST),
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test', 'key': 5}, CoAP_CODES.BAD_REQUEST),
         ({'asset': 'test'}, CoAP_CODES.BAD_REQUEST),
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test'}, CoAP_CODES.VALID),
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 5}, CoAP_CODES.VALID),
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test2',
+         'readings': {'a': 5}}, CoAP_CODES.VALID),
+        ({}, CoAP_CODES.BAD_REQUEST),
+        ({}, CoAP_CODES.BAD_REQUEST),
         ({'timestamp': '2017-01-01T00:00:00Z'}, CoAP_CODES.BAD_REQUEST),
     ]
     """An array of tuples consisting of (payload, expected status code)

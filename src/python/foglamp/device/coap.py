@@ -7,8 +7,6 @@
 """CoAP handler for sensor readings"""
 
 import asyncio
-import dateutil.parser
-import uuid
 
 import aiocoap.resource
 from cbor2 import loads
@@ -112,17 +110,15 @@ class IngestReadings(aiocoap.resource.Resource):
         try:
             payload = loads(request.payload)
 
-            # Required inputs
-            asset = payload['asset']
-            timestamp = dateutil.parser.parse(payload['timestamp'])
+            if not isinstance(payload, dict):
+                raise ValueError("Payload type must be dict:\n{}".format(payload))
 
-            try:
-                # Comment out to test IntegrityError
-                # key = '123e4567-e89b-12d3-a456-426655440000'
-                key = payload['key']
-                key = uuid.UUID(key)
-            except KeyError:
-                key = None
+            asset = payload.get('asset')
+            timestamp = payload.get('timestamp')
+
+            key = payload.get('key')
+            # Comment out to test IntegrityError
+            # key = '123e4567-e89b-12d3-a456-426655440000'
 
             # readings and sensor_readings are optional
             try:
@@ -145,9 +141,8 @@ class IngestReadings(aiocoap.resource.Resource):
             except Exception:
                 code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
                 raise
-        except Exception:
+        except Exception as e:
             if increment_discarded_counter:
                 Ingest.increment_discarded_readings()
             _LOGGER.exception("Add readings failed for payload:\n%s", payload)
-            return aiocoap.Message(payload=''.encode("utf-8"), code=code)
-            # TODO is payload required if it's empty?
+            return aiocoap.Message(payload=str(e).encode("utf-8"), code=code)

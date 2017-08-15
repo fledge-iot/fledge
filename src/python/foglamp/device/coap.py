@@ -8,6 +8,7 @@
 
 import asyncio
 import dateutil.parser
+import uuid
 
 import aiocoap.resource
 from cbor2 import loads
@@ -109,17 +110,24 @@ class IngestReadings(aiocoap.resource.Resource):
             asset = payload['asset']
             timestamp = dateutil.parser.parse(payload['timestamp'])
         except (KeyError, TypeError, CBORDecodeError, ValueError):
-            Ingest.increment_discarded_messages()
+            Ingest.increment_discarded_readings()
             _LOGGER.exception("Failed parsing readings payload")
             return aiocoap.Message(payload=''.encode("utf-8"),
                                    code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
         # Optional keys in the data
-        key = payload.get('key')
-        readings = payload.get('sensor_values', {})
+        try:
+            # Comment out to test IntegrityError
+            # key = '123e4567-e89b-12d3-a456-426655440000'
+            key = payload['key']
+            key = uuid.UUID(key)
+        except KeyError:
+            key = None
 
-        # Comment out to test IntegrityError
-        # key = '123e4567-e89b-12d3-a456-426655440000'
+        try:
+            readings = payload['readings']
+        except KeyError:
+            readings = payload.get('sensor_values')
 
         try:
             await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,

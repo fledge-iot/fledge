@@ -23,8 +23,10 @@ __version__ = "${VERSION}"
 class TestIngestReadings(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """
-    __requests = [
+    __REQUESTS = [
         ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test'}, CoAP_CODES.VALID),
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test2',
+          'readings': {'a': 5}}, CoAP_CODES.VALID),
         ({}, CoAP_CODES.BAD_REQUEST),
         ('hello world', CoAP_CODES.BAD_REQUEST),
         ({'asset': 'test'}, CoAP_CODES.BAD_REQUEST),
@@ -33,10 +35,10 @@ class TestIngestReadings(object):
     """An array of tuples consisting of (payload, expected status code)
     """
 
-    @pytest.mark.parametrize("dict_payload, expected", __requests)
+    @pytest.mark.parametrize("dict_payload, expected", __REQUESTS)
     @pytest.mark.asyncio
     async def test_payload(self, dict_payload, expected):
-        """Runs all test cases in the __requests array"""
+        """Runs all test cases in the __REQUESTS array"""
         sv = IngestReadings()
         request = MagicMock()
         request.payload = dumps(dict_payload)

@@ -8,6 +8,7 @@
 
 import asyncio
 import datetime
+import uuid
 
 import aiopg.sa
 import psycopg2
@@ -42,7 +43,7 @@ _STATISTICS_WRITE_FREQUENCY_SECONDS = 5
 class Ingest(object):
     """Adds sensor readings to FogLAMP
 
-    Internally tracks readings-related statistics.
+    Also tracks readings-related statistics.
     """
 
     # Class attributes
@@ -68,6 +69,10 @@ class Ingest(object):
 
     @classmethod
     async def stop(cls):
+        """Stops the server
+
+        Saves any pending statistics are saved
+        """
         if cls._stop or cls._write_statistics_loop_task is None:
             return
 
@@ -81,7 +86,8 @@ class Ingest(object):
         cls._write_statistics_loop_task = None
 
     @classmethod
-    def increment_discarded_messages(cls):
+    def increment_discarded_readings(cls):
+        """Increments the number of discarded sensor readings"""
         cls._num_discarded_readings += 1
 
     @classmethod
@@ -119,8 +125,20 @@ class Ingest(object):
 
     @classmethod
     async def add_readings(cls, asset: str, timestamp: datetime.datetime,
-                           key: str = None, readings: dict = None)->None:
-        """Sends asset readings to storage layer and manages statistics"""
+                           key: uuid.UUID = None, readings: dict = None)->None:
+        """Add asset readings to FogLAMP
+
+        Args:
+            asset: Identifies the asset to which the readings belong
+            timestamp: When the readings were taken
+            key:
+                Unique key for these readings. If this method is called multiple with the same
+                key, the readings are only written to the database once
+            readings: A dictionary of sensor readings
+        """
+
+        if readings is None:
+            readings = dict()
 
         try:
             async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:

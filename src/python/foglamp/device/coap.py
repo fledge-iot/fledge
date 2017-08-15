@@ -7,6 +7,7 @@
 """CoAP handler for sensor readings"""
 
 import asyncio
+import dateutil.parser
 
 import aiocoap.resource
 from cbor2 import loads
@@ -69,30 +70,67 @@ async def start():
 
 
 class IngestReadings(aiocoap.resource.Resource):
-    """CoAP handler for incoming sensor readings"""
+    """Handles incoming sensor readings from CoAP"""
 
     @staticmethod
     async def render_post(request):
-        code = aiocoap.numbers.codes.Code.BAD_REQUEST
+        """Store sensor readings from CoAP to FogLAMP
 
+        Args:
+            request:
+                The payload is a cbor-encoded array that is supposed to decode to JSON
+                conforming to the following:
+
+                .. code-block:: python
+
+                    {
+                        "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
+                        "asset": "pump1",
+                        "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
+                        "readings": {
+                            "velocity": "500",
+                            "temperature": {
+                                "value": "32",
+                                "unit": "kelvin"
+                            }
+                        }
+                    }
+        """
+
+        # TODO: The payload is documented at
+        # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
+        # and will be moved to a .rst file
+
+        # TODO For aiocoap.Message, is payload required?
         try:
             payload = loads(request.payload)
 
-            try:
-                await Ingest.add_readings(payload)
-                # Success
-                # TODO what should this return?
-                return aiocoap.Message(payload=''.encode("utf-8"),
-                                       code=aiocoap.numbers.codes.Code.VALID)
-            except (KeyError, TypeError):
-                _LOGGER.exception("Invalid payload: %s", payload)
-            except Exception:
-                code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
-                _LOGGER.exception("Error saving sensor readings: %s", payload)
-        except CBORDecodeError:
+            # Required inputs
+            asset = payload['asset']
+            timestamp = dateutil.parser.parse(payload['timestamp'])
+        except (KeyError, TypeError, CBORDecodeError, ValueError):
             Ingest.increment_discarded_messages()
             _LOGGER.exception("Failed parsing readings payload")
+            return aiocoap.Message(payload=''.encode("utf-8"),
+                                   code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
-        # Failure
-        return aiocoap.Message(payload=''.encode("utf-8"),
-                               code=code)
+        # Optional keys in the data
+        key = payload.get('key')
+        readings = payload.get('sensor_values', {})
+
+        # Comment out to test IntegrityError
+        # key = '123e4567-e89b-12d3-a456-426655440000'
+
+        try:
+            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,
+                                      readings=readings)
+
+            # Success
+            # TODO what should this return?
+            return aiocoap.Message(payload=''.encode("utf-8"),
+                                   code=aiocoap.numbers.codes.Code.VALID)
+        # TODO catch real exception
+        except Exception:
+            _LOGGER.exception("Error saving sensor readings: %s", payload)
+            return aiocoap.Message(payload=''.encode("utf-8"),
+                                   code=aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR)

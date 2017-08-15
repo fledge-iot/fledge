@@ -24,11 +24,11 @@ class TestIngestReadings(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """
     __requests = [
+        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test'}, CoAP_CODES.VALID),
         ({}, CoAP_CODES.BAD_REQUEST),
         ('hello world', CoAP_CODES.BAD_REQUEST),
         ({'asset': 'test'}, CoAP_CODES.BAD_REQUEST),
         ({'timestamp': '2017-01-01T00:00:00Z'}, CoAP_CODES.BAD_REQUEST),
-        ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test'}, CoAP_CODES.VALID)
     ]
     """An array of tuples consisting of (payload, expected status code)
     """

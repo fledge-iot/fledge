@@ -7,6 +7,7 @@
 """FogLAMP Sensor Readings Ingest API"""
 
 import asyncio
+import datetime
 
 import aiopg.sa
 import psycopg2
@@ -117,48 +118,9 @@ class Ingest(object):
         _LOGGER.info("Ingest statistics writer stopped")
 
     @classmethod
-    async def add_readings(cls, data: dict)->None:
-        """Sends asset readings to storage layer
-
-        Args:
-            data:
-            {
-                "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
-                "asset": "pump1",
-                "readings": {
-                    "velocity": "500",
-                    "temperature": {
-                        "value": "32",
-                        "unit": "kelvin"
-                    }
-                }
-            }
-
-        Raises KeyError: data is missing a required field
-        Raises IOError: some type of failure occurred
-        Raises TypeError: bad data provided
-        """
-
-        # TODO: The data format is documented
-        # at https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
-        # and will be moved to a .rst file
-
-        cls._num_readings += 1
-
-        # Required keys in the data
-        try:
-            asset = data['asset']
-            timestamp = data['timestamp']
-        except KeyError:
-            cls._num_discarded_readings += 1
-            raise
-
-        # Optional keys in the data
-        readings = data.get('sensor_values', {})
-        key = data.get('key')
-
-        # Comment out to test IntegrityError
-        # key = '123e4567-e89b-12d3-a456-426655440000'
+    async def add_readings(cls, asset: str, timestamp: datetime.datetime,
+                           key: str = None, readings: dict = None)->None:
+        """Sends asset readings to storage layer and manages statistics"""
 
         try:
             async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
@@ -166,15 +128,15 @@ class Ingest(object):
                     try:
                         await conn.execute(_READINGS_TBL.insert().values(
                             asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
+                        cls._num_readings += 1
                     except psycopg2.IntegrityError:
                         _LOGGER.exception(
-                            'Duplicate key (%s) inserting sensor values:\n%s',
-                            key,
-                            data)
+                            'Duplicate key (%s) inserting sensor values. Asset: %s\n%s',
+                            key, asset, readings)
         # TODO: Catch real exception
         except Exception:
             cls._num_discarded_readings += 1
             _LOGGER.exception(
-                "Database error occurred. Payload:\n%s",
-                data)
+                'Insert failed. Asset: %s\n%s',
+                asset, readings)
             raise

@@ -91,9 +91,9 @@ install-dep:
 install: install-dep
 	pip install -e .
 	git clone https://github.com/RPi-Distro/RTIMULib.git
-    cd RTIMULib/Linux/python
-    python3 setup.py build
-    python3 setup.py install
+	cd RTIMULib/Linux/python
+	python3 setup.py build
+	python3 setup.py install
 
 install-dev-dep: 
 	pip install -r requirements-dev.txt

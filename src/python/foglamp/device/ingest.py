@@ -33,7 +33,7 @@ _READINGS_TBL = sa.Table(
     sa.Column('reading', JSONB))
 """Defines the table that data will be inserted into"""
 
-_CONNECTION_STRING = "dbname='foglamp'"
+_CONNECTION_STRING = "user='foglamp' host='/tmp/' dbname='foglamp'"
 
 _STATISTICS_WRITE_FREQUENCY_SECONDS = 5
 

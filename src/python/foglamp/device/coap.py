@@ -12,7 +12,6 @@ import uuid
 
 import aiocoap.resource
 from cbor2 import loads
-from cbor2.decoder import CBORDecodeError
 
 from foglamp import configuration_manager
 from foglamp import logger
@@ -98,47 +97,57 @@ class IngestReadings(aiocoap.resource.Resource):
                     }
         """
 
+        # TODO: aiocoap handlers must be defensive about exceptions. If an exception
+        # is raised out of a handler, it is permanently disabled by aiocoap.
+        # Therefore, Exception is caught instead of specific exceptions.
+
         # TODO: The payload is documented at
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        # TODO For aiocoap.Message, is payload required?
+        code = aiocoap.numbers.codes.Code.BAD_REQUEST
+        payload = None
+        increment_discarded_counter = True
+
         try:
             payload = loads(request.payload)
 
             # Required inputs
             asset = payload['asset']
             timestamp = dateutil.parser.parse(payload['timestamp'])
-        except (KeyError, TypeError, CBORDecodeError, ValueError):
-            Ingest.increment_discarded_readings()
-            _LOGGER.exception("Failed parsing readings payload")
-            return aiocoap.Message(payload=''.encode("utf-8"),
-                                   code=aiocoap.numbers.codes.Code.BAD_REQUEST)
 
-        # Optional keys in the data
-        try:
-            # Comment out to test IntegrityError
-            # key = '123e4567-e89b-12d3-a456-426655440000'
-            key = payload['key']
-            key = uuid.UUID(key)
-        except KeyError:
-            key = None
+            try:
+                # Comment out to test IntegrityError
+                # key = '123e4567-e89b-12d3-a456-426655440000'
+                key = payload['key']
+                key = uuid.UUID(key)
+            except KeyError:
+                key = None
 
-        try:
-            readings = payload['readings']
-        except KeyError:
-            readings = payload.get('sensor_values')
+            # readings and sensor_readings are optional
+            try:
+                readings = payload['readings']
+            except KeyError:
+                readings = payload.get('sensor_values')  # sensor_values is deprecated
 
-        try:
-            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,
-                                      readings=readings)
+            increment_discarded_counter = False
 
-            # Success
-            # TODO what should this return?
-            return aiocoap.Message(payload=''.encode("utf-8"),
-                                   code=aiocoap.numbers.codes.Code.VALID)
-        # TODO catch real exception
+            try:
+                await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,
+                                          readings=readings)
+
+                # Success
+                # TODO is payload required if it's empty?
+                return aiocoap.Message(payload=''.encode("utf-8"),
+                                       code=aiocoap.numbers.codes.Code.VALID)
+            except (ValueError, TypeError):
+                raise
+            except Exception:
+                code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
+                raise
         except Exception:
-            _LOGGER.exception("Error saving sensor readings: %s", payload)
-            return aiocoap.Message(payload=''.encode("utf-8"),
-                                   code=aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR)
+            if increment_discarded_counter:
+                Ingest.increment_discarded_readings()
+            _LOGGER.exception("Add readings failed for payload:\n%s", payload)
+            return aiocoap.Message(payload=''.encode("utf-8"), code=code)
+            # TODO is payload required if it's empty?

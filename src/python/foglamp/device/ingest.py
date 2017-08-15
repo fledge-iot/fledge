@@ -47,10 +47,10 @@ class Ingest(object):
     """
 
     # Class attributes
-    _num_readings = 0  # type: int
+    _readings = 0  # type: int
     """number of readings accepted before statistics were flushed to the database"""
 
-    _num_discarded_readings = 0  # type: int
+    _discarded_readings = 0  # type: int
     """number of readings rejected before statistics were flushed to the database"""
 
     _write_statistics_loop_task = None  # type: asyncio.Future
@@ -88,7 +88,7 @@ class Ingest(object):
     @classmethod
     def increment_discarded_readings(cls):
         """Increments the number of discarded sensor readings"""
-        cls._num_discarded_readings += 1
+        cls._discarded_readings += 1
 
     @classmethod
     async def _write_statistics_loop(cls):
@@ -112,11 +112,11 @@ class Ingest(object):
 
             try:
                 # TODO Move READINGS and DISCARDED to globals
-                await statistics.update_statistics_value('READINGS', cls._num_readings)
-                cls._num_readings = 0
+                await statistics.update_statistics_value('READINGS', cls._readings)
+                cls._readings = 0
 
-                await statistics.update_statistics_value('DISCARDED', cls._num_discarded_readings)
-                cls._num_discarded_readings = 0
+                await statistics.update_statistics_value('DISCARDED', cls._discarded_readings)
+                cls._discarded_readings = 0
             # TODO catch real exception
             except Exception:
                 _LOGGER.exception("An error occurred while writing readings statistics")
@@ -135,26 +135,51 @@ class Ingest(object):
                 Unique key for these readings. If this method is called multiple with the same
                 key, the readings are only written to the database once
             readings: A dictionary of sensor readings
+
+        Raises:
+            Exception:
+                If this method raises an Exception, the discarded readings counter is
+                also incremented.
         """
 
-        if readings is None:
-            readings = dict()
-
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    try:
-                        await conn.execute(_READINGS_TBL.insert().values(
-                            asset_code=asset, reading=readings, read_key=key, user_ts=timestamp))
-                        cls._num_readings += 1
-                    except psycopg2.IntegrityError:
-                        _LOGGER.exception(
-                            'Duplicate key (%s) inserting sensor values. Asset: %s\n%s',
-                            key, asset, readings)
-        # TODO: Catch real exception
+            if asset is None:
+                raise ValueError("asset can not be None")
+
+            if not isinstance(asset, str):
+                raise TypeError("Asset must be a string")
+
+            if timestamp is None:
+                raise ValueError("timestamp can not be None")
+
+            if not isinstance(timestamp, datetime.datetime):
+                raise TypeError("timestamp must be a datetime.datetime")
+
+            if key is not None and not isinstance(key, uuid.UUID):
+                raise TypeError("key must be a uuid.UUID")
+
+            if readings is None:
+                readings = dict()
+            elif not isinstance(readings, dict):
+                raise TypeError("readings must be a dict")
+
+            try:
+                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                    async with engine.acquire() as conn:
+                        try:
+                            await conn.execute(_READINGS_TBL.insert().values(
+                                asset_code=asset, reading=readings, read_key=key,
+                                user_ts=timestamp))
+                            cls._readings += 1
+                        except psycopg2.IntegrityError:
+                            _LOGGER.exception(
+                                'Duplicate key (%s) inserting sensor values. Asset: %s\n%s',
+                                key, asset, readings)
+            except Exception:
+                _LOGGER.exception(
+                    'Insert failed. Asset: %s\n%s',
+                    asset, readings)
+                raise
         except Exception:
-            cls._num_discarded_readings += 1
-            _LOGGER.exception(
-                'Insert failed. Asset: %s\n%s',
-                asset, readings)
+            cls._discarded_readings += 1
             raise

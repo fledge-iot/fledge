@@ -156,6 +156,9 @@ class Ingest(object):
                 # Downstream processors can not handle this
                 raise ValueError("readings type must be dict")
 
+            # Comment out to test IntegrityError
+            # key = '123e4567-e89b-12d3-a456-426655440000'
+
             # SQLAlchemy / Postgres convert/verify datatypes ...
 
             try:

@@ -117,8 +117,6 @@ class IngestReadings(aiocoap.resource.Resource):
             timestamp = payload.get('timestamp')
 
             key = payload.get('key')
-            # Comment out to test IntegrityError
-            # key = '123e4567-e89b-12d3-a456-426655440000'
 
             # readings and sensor_readings are optional
             try:

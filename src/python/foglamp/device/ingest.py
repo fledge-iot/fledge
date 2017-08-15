@@ -164,6 +164,8 @@ class Ingest(object):
                 raise TypeError("readings must be a dict")
 
             try:
+                # How to test an insert error:
+                # key = 'tom'
                 async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
                     async with engine.acquire() as conn:
                         try:
@@ -177,8 +179,7 @@ class Ingest(object):
                                 key, asset, readings)
             except Exception:
                 _LOGGER.exception(
-                    'Insert failed. Asset: %s\n%s',
-                    asset, readings)
+                    "Insert failed. Asset: '%s' Readings:\n%s", asset, readings)
                 raise
         except Exception:
             cls._discarded_readings += 1

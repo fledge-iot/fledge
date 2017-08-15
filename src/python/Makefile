@@ -13,12 +13,6 @@ USER := $(shell whoami)
 OS := $(shell uname)
 CODEDIR := ../src/python/foglamp
 
-check-root:
-ifeq ($(USER), root)
-	@echo "WARNING: Installing as root should be avoided. Use a virtual environment."
-	exit 1
-endif
-
 help:
 	@echo Targets:
 	@echo "clean - remove all build, cache, test"
@@ -91,22 +85,26 @@ doc: install-doc-dep
 doc-build-test: install-tox
 	tox -e docs
 
-install-dep: check-root
+install-dep: 
 	pip install -r requirements.txt
 
 install: install-dep
 	pip install -e .
+	git clone https://github.com/RPi-Distro/RTIMULib.git
+    cd RTIMULib/Linux/python
+    python3 setup.py build
+    python3 setup.py install
 
-install-dev-dep: check-root
+install-dev-dep: 
 	pip install -r requirements-dev.txt
 
-install-doc-dep: check-root
+install-doc-dep: 
 	pip install -r requirements-doc.txt
 
-install-test-dep: check-root
+install-test-dep: 
 	pip install -r requirements-test.txt
 
-install-tox: check-root
+install-tox: 
 	pip install tox
 
 lint: lint-python lint-js

@@ -113,9 +113,7 @@ foglamp_start() {
 
   storage_start
 
-  cd ${FOGLAMP_DIR}/src/python
-  source ./build.sh -a
-  ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp start
+  sudo su -c "cd ${FOGLAMP_DIR}/src/python ; source ./build.sh -a ; ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp start"
 
 }
 
@@ -138,9 +136,7 @@ foglamp_init() {
 ##
 foglamp_status() {
 
-  cd ${FOGLAMP_DIR}/src/python
-  source ./build.sh -a
-  ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp status
+  sudo su -c "cd ${FOGLAMP_DIR}/src/python ; source ./build.sh -a ; ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp status"
 
 }
 
@@ -150,9 +146,7 @@ foglamp_status() {
 ##
 foglamp_stop() {
 
-  cd ${FOGLAMP_DIR}/src/python
-  source ./build.sh -a
-  ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp stop
+  sudo su -c "cd ${FOGLAMP_DIR}/src/python ; source ./build.sh -a ; ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp stop"
 
   storage_stop
   
@@ -211,9 +205,7 @@ foglamp_install() {
   # Build the environment
   echo
   echo "Setting the running environment..."
-  cd ${HOME}/FogLAMP/src/python
-  source build.sh -i
-  source build.sh -a
+  sudo su -c "cd ${HOME}/FogLAMP/src/python ; source build.sh -i"
 
   echo "Installation Completed."
 

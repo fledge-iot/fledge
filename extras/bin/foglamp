@@ -115,7 +115,7 @@ foglamp_start() {
 
   cd ${FOGLAMP_DIR}/src/python
   source ./build.sh -a
-  ${FOGLAMP_DIR}/src/python/venv/foglamp-core/bin/foglamp start
+  ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp start
 
 }
 
@@ -140,7 +140,7 @@ foglamp_status() {
 
   cd ${FOGLAMP_DIR}/src/python
   source ./build.sh -a
-  ${FOGLAMP_DIR}/src/python/venv/foglamp-core/bin/foglamp status
+  ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp status
 
 }
 
@@ -152,7 +152,7 @@ foglamp_stop() {
 
   cd ${FOGLAMP_DIR}/src/python
   source ./build.sh -a
-  ${FOGLAMP_DIR}/src/python/venv/foglamp-core/bin/foglamp stop
+  ${FOGLAMP_DIR}/src/python/venv/${HOSTNAME}/bin/foglamp stop
 
   storage_stop
   

@@ -2,7 +2,14 @@
 
 set -e
 
-check_classic
+# If FogLAMP is running on Ubuntu core, it must run in classic mode
+if [ `snap list | grep -c 'core'` -gt 0 ]; then
+  if [ "$debian_chroot" != 'classic' ]; then
+    echo "FogLAMP must run in classic mode. Type \"sudo classic\" first and run this command again."
+    exit 1
+  fi
+fi
+
 
 # Set the LD_LIBRARY_PATH variable
 if [ `uname -m` == "armv7l" ]; then
@@ -10,4 +17,4 @@ if [ `uname -m` == "armv7l" ]; then
   export LD_LIBRARY_PATH
 fi
 
-/usr/local/pgsql/bin/psql $1 $2 $3 $4 $5 $6 $7 $8 $9 
+/usr/local/pgsql/bin/psql "$@"

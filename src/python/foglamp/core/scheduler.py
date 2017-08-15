@@ -32,7 +32,7 @@ __version__ = "${VERSION}"
 
 # Connection String - The PostgreSQL Storage Layer prepared for FogLAMP uses a 
 # Unix socket file in /tmp
-_CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
+_CONNECTION_STRING = "host='/tmp/' dbname='foglamp' user='foglamp'"
 
 
 class NotReadyError(RuntimeError):

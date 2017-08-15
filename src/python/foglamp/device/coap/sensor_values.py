@@ -36,7 +36,7 @@ _sensor_values_tbl = sa.Table(
     sa.Column('reading', JSONB))
 """Defines the table that data will be inserted into"""
 
-_CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
+_CONNECTION_STRING = "host='/tmp/' dbname='foglamp' user='foglamp'"
 
 
 class BlockResource(aiocoap.resource.Resource):
@@ -98,7 +98,7 @@ class SensorValues(aiocoap.resource.Resource):
             _num_discarded_readings (int) : number of readings discarded through render_post method since initialization or since the last time _update_statistics() was called
     """
 
-    _CONNECTION_STRING = "host='/tmp/' dbname='foglamp'"
+    _CONNECTION_STRING = "host='/tmp/' dbname='foglamp' user='foglamp'"
 
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 

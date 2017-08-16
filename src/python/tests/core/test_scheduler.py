@@ -374,6 +374,14 @@ class TestScheduler:
 
         await asyncio.sleep(15)
 
+        tasks = await scheduler.get_tasks(
+            where=Task.attr.state == int(Task.State.INTERRUPTED))
+        assert not tasks
+
+        tasks = await scheduler.get_tasks(
+            where=(Task.attr.end_time == None))
+        assert tasks
+
         tasks = await scheduler.get_tasks(50)
         assert len(tasks) > 1
         assert tasks[0].state == Task.State.RUNNING
@@ -385,7 +393,7 @@ class TestScheduler:
         tasks = await scheduler.get_tasks(
             where=Task.attr.state.in_(int(Task.State.RUNNING)),
             sort=[Task.attr.state.desc], offset=50)
-        assert len(tasks) == 0
+        assert not tasks
 
         tasks = await scheduler.get_tasks(
             where=(Task.attr.state == int(Task.State.RUNNING)).or_(
@@ -395,21 +403,21 @@ class TestScheduler:
                 Task.attr.state.in_(int(Task.State.RUNNING)).or_(
                     Task.attr.state.in_(int(Task.State.RUNNING)))),
             sort=(Task.attr.state.desc, Task.attr.start_time))
-        assert len(tasks)
+        assert tasks
 
         tasks = await scheduler.get_tasks(
             where=Where.or_(Task.attr.state == int(Task.State.RUNNING),
                             Task.attr.state == int(Task.State.RUNNING)))
-        assert len(tasks)
+        assert tasks
 
         tasks = await scheduler.get_tasks(
             where=(Task.attr.state == int(Task.State.RUNNING)) | (
                 Task.attr.state.in_(int(Task.State.RUNNING))))
-        assert len(tasks)
+        assert tasks
 
         tasks = await scheduler.get_tasks(
             where=(Task.attr.state == int(Task.State.RUNNING)) & (
                 Task.attr.state.in_(int(Task.State.RUNNING))))
-        assert len(tasks)
+        assert tasks
 
         await self.stop_scheduler(scheduler)

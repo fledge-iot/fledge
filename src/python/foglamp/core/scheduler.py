@@ -85,10 +85,10 @@ class QueryExpr(object):
         return LogicExpr(LogicExpr.Operator.OR, argv, self)
 
     def __and__(self, other):
-        return self.and_(other)
+        return Query.and_(self, other)
 
     def __or__(self, other):
-        return self.or_(other)
+        return Query.or_(self, other)
 
     @property
     def query(self):

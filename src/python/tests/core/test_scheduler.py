@@ -404,7 +404,12 @@ class TestScheduler:
 
         tasks = await scheduler.get_tasks(
             where=(Task.attr.state == int(Task.State.RUNNING)) | (
-                    Task.attr.state.in_(int(Task.State.RUNNING))))
+                Task.attr.state.in_(int(Task.State.RUNNING))))
+        assert len(tasks)
+
+        tasks = await scheduler.get_tasks(
+            where=(Task.attr.state == int(Task.State.RUNNING)) & (
+                Task.attr.state.in_(int(Task.State.RUNNING))))
         assert len(tasks)
 
         await self.stop_scheduler(scheduler)

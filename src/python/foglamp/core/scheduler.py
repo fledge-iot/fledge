@@ -9,7 +9,7 @@
 import asyncio
 import collections
 import datetime
-import logging
+# import logging  # For development only
 import math
 import time
 import uuid
@@ -391,7 +391,7 @@ class Scheduler(object):
     _scheduled_processes_tbl = None  # type: sqlalchemy.Table
     _schedules_tbl = None  # type: sqlalchemy.Table
     _tasks_tbl = None  # type: sqlalchemy.Table
-    _logger = None
+    _logger = None  # type: logging.Logger
 
     def __init__(self):
         """Constructor"""
@@ -399,9 +399,9 @@ class Scheduler(object):
         cls = Scheduler
         # Class attributes
         if not cls._logger:
-            # cls._logger = logger.setup(__name__)
+            cls._logger = logger.setup(__name__)
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
 
         if cls._schedules_tbl is None:
             metadata = sqlalchemy.MetaData()
@@ -1369,8 +1369,7 @@ class Scheduler(object):
 
         tasks = []
 
-        if self._logger.getEffectiveLevel() == logging.DEBUG:
-            self._logger.debug("Running task query: %s", query)
+        self._logger.debug("Running task query: %s", query)
 
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:

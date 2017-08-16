@@ -14,13 +14,12 @@ __license__="Apache 2.0"
 __version__="${VERSION}"
 
 ############################################################
-# Change the cwd to the directory where this script
-# is located
+# Sourcing?
 ############################################################
 if [[ "$0" != "$BASH_SOURCE" ]]
 then
   # See https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced/23009039#23009039
-  # This only works reliably with 'bash'. Other shells probably 
+  # This only works reliably with 'bash'. Other shells probably
   # can not 'source' this script.
   SOURCING=1
   SCRIPT=${BASH_SOURCE[@]}
@@ -33,6 +32,10 @@ else
   SCRIPT=$0
 fi
 
+############################################################
+# Change the cwd to the directory where this script
+# is located
+############################################################
 pushd `dirname "$SCRIPT"` > /dev/null
 SCRIPTNAME=$(basename "$SCRIPT")
 SCRIPT_AND_VERSION="$SCRIPTNAME $__version__"
@@ -65,6 +68,8 @@ OPTIONS
   -a, --activate    Create and activate the Python virtual
                     environment and exit. Do not install
                     dependencies. Must invoke via 'source.'
+                    This is the default option when invoked via
+                    'source.'
   -c, --clean       Delete the virtual environment and remove
                     build and cache directories
   -d, --doc         Generate HTML in docs/_build
@@ -393,10 +398,12 @@ then
     execute_command
   done
 else
-  echo "${USAGE}"
-
-  if [ $SOURCING -lt 1 ]
+  if [ $SOURCING -gt 0 ]
   then
+    OPTION="ACTIVATE"
+    execute_command
+  else
+    echo "${USAGE}"
     exit 1
   fi
 fi

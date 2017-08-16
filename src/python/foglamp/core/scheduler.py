@@ -21,6 +21,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg_types
 
 from foglamp import logger
+from foglamp import configuration_manager
 
 
 __author__ = "Terris Linenbach"
@@ -115,8 +116,7 @@ class Schedule(object):
         self.exclusive = True  # type: bool
         self.repeat = None  # type: datetime.timedelta
         self.process_name = None  # type: str
-        self.schedule_type = schedule_type
-        """ Type """
+        self.schedule_type = schedule_type  # type: Type
 
 
 class IntervalSchedule(Schedule):
@@ -131,10 +131,9 @@ class TimedSchedule(Schedule):
 
     def __init__(self):
         super().__init__(self.Type.TIMED)
-        self.time = None
-        """datetime.time"""
-        self.day = None
-        """int from 1 (Monday) to 7 (Sunday)"""
+        self.time = None  # type: datetime.time
+        self.day = None  # type: int
+        """1 (Monday) to 7 (Sunday)"""
 
 
 class ManualSchedule(Schedule):
@@ -162,8 +161,6 @@ class Scheduler(object):
     Most methods are coroutines and use the default
     event loop to create tasks.
 
-    This class does not use threads.
-
     Usage:
         - Call :meth:`start`
         - Wait
@@ -185,7 +182,7 @@ class Scheduler(object):
             self.process = None  # type: asyncio.subprocess.Process
             self.cancel_requested = None  # type: int
             """Epoch time when cancel was requested"""
-            self.schedule = None  # _ScheduleRow
+            self.schedule = None  # type: _ScheduleRow
             self.start_time = None  # type: int
             """Epoch time when the task was started"""
 
@@ -199,7 +196,7 @@ class Scheduler(object):
         __slots__ = ['next_start_time', 'task_processes', 'start_now']
 
         def __init__(self):
-            self.next_start_time = None
+            self.next_start_time = None  # type: int
             """When to next start a task for the schedule"""
             self.task_processes = dict()
             """dict of task id to _TaskProcess"""
@@ -207,16 +204,27 @@ class Scheduler(object):
             """True when a task is queued to start via :meth:`start_task`"""
 
     # Constant class attributes
-    DEFAULT_MAX_RUNNING_TASKS = 50
+    _DEFAULT_MAX_RUNNING_TASKS = 50
+    """Maximum number of running tasks allowed at any given time"""
+    _DEFAULT_MAX_TASK_AGE_DAYS = 30
+    """Maximum age of rows in the task table that have finished, in days"""
+    _DELETE_TASKS_LIMIT = 500
+    """The maximum number of rows to delete in the tasks table in a single transaction"""
+
     _HOUR_SECONDS = 3600
     _DAY_SECONDS = 3600*24
     _WEEK_SECONDS = 3600*24*7
-    _MAX_SLEEP = 9999999
-    """When there is nothing to do, sleep for this number of seconds (forever)"""
     _ONE_HOUR = datetime.timedelta(hours=1)
     _ONE_DAY = datetime.timedelta(days=1)
+
+    _MAX_SLEEP = 9999999
+    """When there is nothing to do, sleep for this number of seconds (forever)"""
+
     _STOP_WAIT_SECONDS = 5
     """Wait this number of seconds in :meth:`stop` for tasks to stop"""
+
+    _PURGE_TASKS_FREQUENCY_SECONDS = _DAY_SECONDS
+    """How frequently to purge the tasks table"""
 
     # Mostly constant class attributes
     _scheduled_processes_tbl = None  # type: sa.Table
@@ -228,7 +236,8 @@ class Scheduler(object):
         """Constructor"""
 
         cls = Scheduler
-        # Class attributes
+
+        # Initialize class attributes
         if not cls._logger:
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
             # cls._logger = logger.setup(__name__, level=logging.DEBUG)
@@ -270,10 +279,10 @@ class Scheduler(object):
         # Instance attributes
         self._ready = False
         """True when the scheduler is ready to accept API calls"""
-        self._start_time = None
+        self._start_time = None  # type: int
         """When the scheduler started"""
-        self._max_running_tasks = self.DEFAULT_MAX_RUNNING_TASKS
-        """Maximum number of active tasks"""
+        self._max_running_tasks = None  # type: int
+        """Maximum number of tasks that can execute at any given time"""
         self._paused = False
         """When True, the scheduler will not start any new tasks"""
         self._process_scripts = dict()
@@ -284,20 +293,24 @@ class Scheduler(object):
         """Dictionary of schedules.id to _ScheduleExecution"""
         self._task_processes = dict()
         """Dictionary of tasks.id to _TaskProcess"""
-        self._check_processes_pending = None
+        self._check_processes_pending = False
         """bool: True when request to run check_processes"""
-        self._main_loop_task = None
+        self._main_loop_task = None  # type: asyncio.Task
         """Coroutine for _main_loop_task, to ensure it has finished"""
-        self._main_sleep_task = None
+        self._main_sleep_task = None # type: asyncio.Task
         """Coroutine that sleeps in the main loop"""
-        self.current_time = None
+        self.current_time = None  # type: int
         """Time to use when determining when to start tasks, for testing"""
+        self._last_task_purge_time = None  # type: int
+        """When the tasks table was last purged"""
+        self._max_task_row_age_seconds = None  # type: int
+        """Delete finished task rows when they become this old"""
+        self._purge_tasks_task = None  # type: asyncio.Task
+        """Asynico task for :meth:`purge_tasks`, if scheduled to run"""
 
     @property
     def max_running_tasks(self)->int:
         """Returns the maximum number of tasks that can run at any given time
-
-        Defaults to DEFAULT_MAX_RUNNING_TASKS
         """
         return self._max_running_tasks
 
@@ -330,7 +343,10 @@ class Scheduler(object):
 
         if not self._paused:
             # Stop the main loop
+            # Wait for tasks purge task to finish
             self._paused = True
+            if self._purge_tasks_task is not None:
+                await self._purge_tasks_task
             self._resume_check_schedules()
             await self._main_loop_task
             self._main_loop_task = None
@@ -412,7 +428,7 @@ class Scheduler(object):
         self._schedule_executions[schedule.id].task_processes[task_id] = task_process
 
         self._logger.info(
-            "Process started: Schedule '%s' process '%s' task %s pid %s, %s active tasks\n%s",
+            "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s",
             schedule.name, schedule.process_name, task_id, process.pid,
             len(self._task_processes), args)
 
@@ -446,7 +462,7 @@ class Scheduler(object):
 
         self._logger.info(
             "Process terminated: Schedule '%s' process '%s' task %s pid %s exit %s,"
-            " %s active tasks\n%s",
+            " %s running tasks\n%s",
             schedule.name,
             schedule.process_name,
             task_process.task_id,
@@ -497,7 +513,7 @@ class Scheduler(object):
                         self._logger.warning("Task %s not found. Unable to update its status",
                                              task_process.task_id)
 
-        # Due to maximum active tasks reached it is necessary to
+        # Due to maximum running tasks reached, it is necessary to
         # look for schedules that are ready to run even if there
         # are only manual tasks waiting
         # TODO Do this only if len(_task_processes) >= max_processes or
@@ -834,6 +850,8 @@ class Scheduler(object):
 
             if self._paused:
                 break
+
+            self._check_purge_tasks()
 
             # Determine how long to sleep
             if self._check_processes_pending:
@@ -1219,6 +1237,64 @@ class Scheduler(object):
             task_process.process.terminate()
         except ProcessLookupError:
             pass  # Process has terminated
+
+    async def _check_purge_tasks(self):
+        """Schedules :meth:`_purge_tasks` to run if sufficient time has elapsed
+        since it last ran
+        """
+
+        if self._purge_tasks_task is None and (self._last_task_purge_time is None or (
+                time.time() - self._last_task_purge_time) >= self._PURGE_TASKS_FREQUENCY_SECONDS):
+            self._purge_tasks_task = asyncio.ensure_future(self._purge_tasks())
+
+    async def _purge_tasks(self):
+        """Deletes rows from the tasks table"""
+        delete = self._tasks_tbl.delete()
+        delete.where(self._tasks_tbl.c.state != int(Task.State.RUNNING)
+                     and self._tasks_tbl.c.start_time < datetime.datetime.fromtimestamp(
+                        time.time()-self._max_task_row_age_seconds))
+
+        delete.limit(self._DELETE_TASKS_LIMIT)
+
+        self._logger.debug("Delete query: %s", delete)
+
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    while not self._paused:
+                        result = await conn.execute(delete)
+                        if result.rowcount < self._DELETE_TASKS_LIMIT:
+                            break
+        except Exception:
+            self._logger.exception('Task purge failed: %s', delete)
+        finally:
+            self._purge_tasks_task = None
+
+        self._last_task_purge_time = time.time()
+
+    async def _read_config(self):
+        """Reads configuration"""
+        default_config = {
+            "max_running_tasks": {
+                "description": "The maximum number of tasks that can be running at any given time",
+                "type": "integer",
+                "default": self._DEFAULT_MAX_RUNNING_TASKS,
+            },
+            "max_task_row_age": {
+                "description": "The maximum age, in days (based on the start time), for a rows "
+                               "in the tasks table that do not have a status of 'running'",
+                "type": "integer",
+                "default": self._MAX_TASK_AGE_DAYS
+            },
+        }
+
+        await configuration_manager.create_category('SCHEDULER', default_config,
+                                                    'Scheduler configuration')
+
+        config = await configuration_manager.get_category_all_items('SCHEDULER')
+
+        self._max_running_tasks = int(config['max_running_tasks'])
+        self._max_task_row_age_seconds = int(config['max_task_row_age'])*self._DAY_SECONDS
 
     async def start(self):
         """Starts the scheduler

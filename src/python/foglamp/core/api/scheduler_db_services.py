@@ -41,9 +41,6 @@ async def read_scheduled_processes(scheduled_process_name=None):
     return results
 
 
-async def create_schedule(payload):
-    pass
-
 async def read_schedule(schedule_id=None):
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
@@ -82,16 +79,6 @@ async def read_schedule(schedule_id=None):
     await conn.close()
 
     return results
-
-async def update_schedule(payload):
-    pass
-
-async def delete_schedule(payload):
-    pass
-
-
-async def create_task(payload):
-    pass
 
 
 async def read_task(task_id=None, state=None, name=None):
@@ -140,6 +127,7 @@ async def read_task(task_id=None, state=None, name=None):
     await conn.close()
 
     return results
+
 
 async def read_tasks_latest(state=None, name=None):
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -198,8 +186,3 @@ async def _get_rows(stmt, name, state):
             await stmt.fetch(state) if state and not name else \
             await stmt.fetch(name, state)
     return rows
-
-# There is no requirement for update_task()
-
-async def delete_task(payload):
-    pass

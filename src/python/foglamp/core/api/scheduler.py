@@ -225,13 +225,12 @@ async def get_schedules(request):
         schedule_list = await server.Server.scheduler.get_schedules()
 
         schedules = []
-        y = [t.name for t in list(Schedule.Type)]
         for sch in schedule_list:
             schedules.append({
                 'id': str(sch.schedule_id),
                 'name': sch.name,
                 'process_name': sch.process_name,
-                'type': y[int(sch.schedule_type) - 1],
+                'type': Schedule.Type(int(sch.schedule_type)).name,
                 'repeat': str(sch.repeat),
                 'day': sch.day,
                 'time': str(sch.time),
@@ -264,7 +263,7 @@ async def get_schedule(request):
             'id': str(sch.schedule_id),
             'name': sch.name,
             'process_name': sch.process_name,
-            'type': [t.name for t in list(Schedule.Type)][int(sch.schedule_type) - 1],
+            'type': Schedule.Type(int(sch.schedule_type)).name ,
             'repeat': str(sch.repeat),
             'day': sch.day,
             'time': str(sch.time),
@@ -333,14 +332,14 @@ async def post_schedule(request):
             'id': str(sch.schedule_id),
             'name': sch.name,
             'process_name': sch.process_name,
-            'type': [t.name for t in list(Schedule.Type)][int(sch.schedule_type) - 1],
+            'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': str(sch.repeat),
             'day': sch.day,
             'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
-        return web.json_response({'id': str(updated_schedule_id), 'schedule': schedule})
+        return web.json_response({'schedule': schedule})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -389,14 +388,14 @@ async def update_schedule(request):
             'id': str(sch.schedule_id),
             'name': sch.name,
             'process_name': sch.process_name,
-            'type': [t.name for t in list(Schedule.Type)][int(sch.schedule_type) - 1],
+            'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': str(sch.repeat),
             'day': sch.day,
             'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
-        return web.json_response({'id': str(updated_schedule_id), 'schedule': schedule})
+        return web.json_response({'schedule': schedule})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -455,7 +454,7 @@ async def get_task(request):
         task = {
             'id': str(tsk.task_id),
             'process_name': tsk.process_name,
-            'state': [t.name for t in list(Task.State)][int(tsk.state) - 1],
+            'state': Task.State(int(tsk.state)).name,
             'start_time': str(tsk.start_time),
             'end_time': str(tsk.end_time),
             'exit_code': tsk.exit_code,
@@ -487,9 +486,8 @@ async def get_tasks(request):
             if state.upper() not in [t.name for t in list(Task.State)]:
                 raise ValueError('This state value {} not permitted.'.format(state))
             else:
-                y = list(Task.State)
                 z = dict()
-                for i in y:
+                for i in list(Task.State):
                     z.update({i.name: i.value})
                 state = z[state.upper()]
 
@@ -505,7 +503,7 @@ async def get_tasks(request):
             new_tasks.append(
                 {'id': str(task['id']),
                      'process_name': task['process_name'],
-                     'state': [t.name for t in list(Task.State)][int(task['state']) - 1],
+                     'state': Task.State(int(task['state'])).name ,
                      'start_time': str(task['start_time']),
                      'end_time': str(task['end_time']),
                      'exit_code': task['exit_code'],
@@ -535,9 +533,8 @@ async def get_tasks_latest(request):
             if state.upper() not in [t.name for t in list(Task.State)]:
                 raise ValueError('This state value {} not permitted.'.format(state))
             else:
-                y = list(Task.State)
                 z = dict()
-                for i in y:
+                for i in list(Task.State):
                     z.update({i.name: i.value})
                 state = z[state.upper()]
 

@@ -9,12 +9,12 @@
 import asyncio
 import collections
 import datetime
-# import logging  # Needed for dev only
+import logging
 import math
 import time
 import uuid
 from enum import IntEnum
-from typing import List, Tuple
+from typing import Iterable, List, Tuple, Union
 
 import aiopg.sa
 import sqlalchemy
@@ -69,11 +69,11 @@ class LogicOp:
 
 class Query(object):
     @staticmethod
-    def and_(*argv):
+    def and_(*argv)->LogicOp:  # This should be Tuple[Query] but Python doesn't allow it
         return LogicOp(LogicOp.Operator.AND, argv)
 
     @staticmethod
-    def or_(*argv)->LogicOp:
+    def or_(*argv)->LogicOp:  # This should be Tuple[Query] but Python doesn't allow it
         return LogicOp(LogicOp.Operator.OR, argv)
 
     @property
@@ -82,14 +82,16 @@ class Query(object):
 
 
 class LogicOp(Query):
+    __slots__ = ['_queries', '_operator']
+
     class Operator(IntEnum):
         """Enumeration for tasks.task_state"""
         OR = 1
         AND = 2
 
-    def __init__(self, operator: Operator, argv: Tuple[Query]):
-        self._queries = argv
+    def __init__(self, operator: Operator, argv):
         self._operator = operator
+        self._queries = argv  # type: Tuple[Query]
 
     @property
     def query(self):
@@ -108,6 +110,7 @@ class LogicOp(Query):
 
 
 class Compare(Query):
+    __slots__ = ['_column', '_operator', '_value']
 
     class Operator(IntEnum):
         """Enumeration for tasks.task_state"""
@@ -142,15 +145,21 @@ class Compare(Query):
         if self._operator == self.Operator.LIKE:
             return self._column.like(self._value)
         if self._operator == self.Operator.IN:
-            return self._column.in_(*self._value)
+            return self._column.in_(self._value)
 
         raise ValueError("Invalid operator: {}".format(int(self._operator)))
 
 
-class Queryable(object):
+class AttributeDesc:  # Forward declare
+    pass
+
+
+class Attribute(object):
+    __slots__ = ['_column', '_desc']
+
     def __init__(self, column: sqlalchemy.Column):
         self._column = column
-        self.desc = QueryableDesc(column)
+        self._desc = AttributeDesc(column)
 
     def in_(self, *argv)->Query:
         return Compare(self._column, Compare.Operator.IN, argv)
@@ -176,11 +185,16 @@ class Queryable(object):
     def __ge__(self, value)->Query:
         return Compare(self._column, Compare.Operator.GE, value)
 
-    def order_by(self, query):
-        return query.order_by(self._column)
+    @property
+    def column(self)->sqlalchemy.Column:
+        return self._column
+
+    @property
+    def desc(self)->AttributeDesc:
+        return self._desc
 
 
-class QueryableDesc(object):
+class AttributeDesc(Attribute):
     def __init__(self, column: sqlalchemy.Column):
         self._column = column.desc()
 
@@ -196,7 +210,8 @@ class Task(object):
         INTERRUPTED = 4
 
     # Class attributes
-    a = collections.namedtuple('Attributes', 'state')
+    attr = collections.namedtuple('TaskAttributes', ['state', 'process_name', 'start_time',
+                                  'end_time', 'exit_code'])
 
     __slots__ = ['task_id', 'process_name', 'state', 'cancel_requested', 'start_time',
                  'end_time', 'state', 'exit_code', 'reason']
@@ -216,7 +231,11 @@ class Task(object):
     @classmethod
     def init(cls, tasks_tbl: sqlalchemy.Table)->None:
         """Initializes class attributes"""
-        cls.a.state = Queryable(tasks_tbl.c.state)
+        cls.attr.state = Attribute(tasks_tbl.c.state)
+        cls.attr.process_name = Attribute(tasks_tbl.c.process_name)
+        cls.attr.start_time = Attribute(tasks_tbl.c.start_time)
+        cls.attr.end_time = Attribute(tasks_tbl.c.end_time)
+        cls.attr.exit_code = Attribute(tasks_tbl.c.end_time)
 
 
 class ScheduledProcess(object):
@@ -304,8 +323,8 @@ class Scheduler(object):
 
     # TODO: Document the fields
     _ScheduleRow = collections.namedtuple(
-        'ScheduleRow',
-        'id name type time day repeat repeat_seconds exclusive process_name')
+        'ScheduleRow', ['id', 'name', 'type', 'time', 'day', 'repeat', 'repeat_seconds',
+                        'exclusive', 'process_name'])
     """Represents a row in the schedules table"""
 
     class _TaskProcess(object):
@@ -362,9 +381,9 @@ class Scheduler(object):
         cls = Scheduler
         # Class attributes
         if not cls._logger:
+            # cls._logger = logger.setup(__name__)
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
-            cls._logger = logger.setup(__name__)
+            cls._logger = logger.setup(__name__, level=logging.DEBUG)
 
         if cls._schedules_tbl is None:
             metadata = sqlalchemy.MetaData()
@@ -885,9 +904,7 @@ class Scheduler(object):
         query = sqlalchemy.select([self._scheduled_processes_tbl.c.name,
                                   self._scheduled_processes_tbl.c.script])
 
-        query = query.select_from(self._scheduled_processes_tbl)
-
-        # y = self._scheduled_processes_tbl.c.name == 't'
+        query.select_from(self._scheduled_processes_tbl)
 
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
@@ -1265,7 +1282,7 @@ class Scheduler(object):
 
         query.select_from(self._tasks_tbl)
 
-        query.where(self._tasks_tbl.c.id == task_id)
+        query = query.where(self._tasks_tbl.c.id == task_id)
 
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
@@ -1284,7 +1301,8 @@ class Scheduler(object):
         raise TaskNotFoundError(task_id)
 
     async def get_tasks(self, limit: int = 100, offset: int = 0,
-                        where: Query = None, sort: List[Queryable] = None)->List[Task]:
+                        where: Query = None,
+                        sort: Union[Attribute, Iterable[Attribute]] = None)->List[Task]:
         """Retrieves tasks
 
         The result set is ordered by start_time descending
@@ -1298,7 +1316,10 @@ class Scheduler(object):
 
             where: A query
 
-            sort: A list of Task attributes to sort by
+            sort:
+                A list of Task attributes to sort by. Defaults to
+                Task.attr.start_time.desc
+
         """
         query = sqlalchemy.select([self._tasks_tbl.c.id,
                                    self._tasks_tbl.c.process_name,
@@ -1311,19 +1332,28 @@ class Scheduler(object):
         query.select_from(self._tasks_tbl)
 
         if where:
-            query.where(where.query)
+            query = query.where(where.query)
 
         if sort:
-            for order in sort:
-                order.order_by(query)
+            if isinstance(sort, collections.Iterable):
+                for order in sort:
+                    query = query.order_by(order.column)
+            else:
+                query = query.order_by(sort.column)
+        else:
+            query = query.order_by(self._tasks_tbl.c.start_time.desc())
 
         if offset:
-            query.offset(offset)
+            query = query.offset(offset)
 
         if limit:
-            query.limit(limit)
+            query = query.limit(limit)
 
         tasks = []
+
+        if self._logger.getEffectiveLevel() == logging.DEBUG:
+            sql = str(query)
+            self._logger.debug("Running task query: %s", sql)
 
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:

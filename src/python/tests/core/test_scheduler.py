@@ -350,11 +350,6 @@ class TestScheduler:
         await scheduler.save_schedule(interval_schedule)
         await asyncio.sleep(1)
 
-        tasks = await scheduler.get_tasks(
-            where=(Task.state == Task.State.RUNNING).and_(Task.state == Task.State.RUNNING),
-            order_by=Task.state)
-        assert len(tasks)
-
         tasks = await scheduler.get_running_tasks()
         assert len(tasks)
 
@@ -388,5 +383,20 @@ class TestScheduler:
         tasks2 = await scheduler.get_tasks(1)
         assert len(tasks2) == 1
         assert tasks[0].start_time == tasks2[0].start_time
+
+        tasks = await scheduler.get_tasks(
+            where=Task.attr.state.in_(Task.State.RUNNING),
+            sort=[Task.attr.state.desc], offset=1)
+        """
+        tasks = await scheduler.get_tasks(
+            where=(Task.attr.state == Task.State.RUNNING).or_(
+                Task.attr.state == Task.State.RUNNING,
+                Task.attr.state == Task.State.RUNNING).and_(
+                Task.attr.state.in_(int(Task.State.RUNNING)),
+                Task.attr.state.in_(int(Task.State.RUNNING)).or_(
+                    Task.attr.state.in_(int(Task.State.RUNNING)))),
+            sort=Task.attr.state.desc)
+        """
+        assert len(tasks)
 
         await self.stop_scheduler(scheduler)

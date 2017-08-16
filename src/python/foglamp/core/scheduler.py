@@ -63,35 +63,44 @@ class ScheduleNotFoundError(ValueError):
 
 
 # Forward declare
-class LogicOp:
+class LogicExpr:
     pass
 
 
 class Query(object):
     @staticmethod
-    def and_(*argv)->LogicOp:  # This should be Tuple[Query] but Python doesn't allow it
-        return LogicOp(LogicOp.Operator.AND, argv)
+    def and_(*argv)->LogicExpr:  # This should be Tuple[Query] but Python doesn't allow it
+        return LogicExpr(LogicExpr.Operator.AND, argv)
 
     @staticmethod
-    def or_(*argv)->LogicOp:  # This should be Tuple[Query] but Python doesn't allow it
-        return LogicOp(LogicOp.Operator.OR, argv)
+    def or_(*argv)->LogicExpr:  # This should be Tuple[Query] but Python doesn't allow it
+        return LogicExpr(LogicExpr.Operator.OR, argv)
+
+
+class QueryExpr(object):
+    def and_(self, *argv)->LogicExpr:
+        return LogicExpr(LogicExpr.Operator.AND, argv, self)
+
+    def or_(self, *argv)->LogicExpr:
+        return LogicExpr(LogicExpr.Operator.OR, argv, self)
 
     @property
     def query(self):
         raise TypeError("Abstract method called")
 
 
-class LogicOp(Query):
-    __slots__ = ['_queries', '_operator']
+class LogicExpr(QueryExpr):
+    __slots__ = ['_and_expr', '_queries', '_operator']
 
     class Operator(IntEnum):
         """Enumeration for tasks.task_state"""
         OR = 1
         AND = 2
 
-    def __init__(self, operator: Operator, argv):
+    def __init__(self, operator: Operator, argv, and_expr: QueryExpr = None):
+        self._and_expr = and_expr
         self._operator = operator
-        self._queries = argv  # type: Tuple[Query]
+        self._queries = argv  # type: Tuple[QueryExpr]
 
     @property
     def query(self):
@@ -101,15 +110,19 @@ class LogicOp(Query):
             queries.append(query_item.query)
 
         if self._operator == self.Operator.OR:
-            return sqlalchemy.or_(*queries)
+            partial = sqlalchemy.or_(*queries)
+        elif self._operator == self.Operator.AND:
+            partial = sqlalchemy.and_(*queries)
+        else:
+            raise ValueError("Invalid operator: {}".format(int(self._operator)))
 
-        if self._operator == self.Operator.AND:
-            return sqlalchemy.and_(*queries)
+        if self._and_expr is not None:
+            return sqlalchemy.and_(self._and_expr.query, partial)
 
-        raise ValueError("Invalid operator: {}".format(int(self._operator)))
+        return partial
 
 
-class Compare(Query):
+class CompareExpr(QueryExpr):
     __slots__ = ['_column', '_operator', '_value']
 
     class Operator(IntEnum):
@@ -161,29 +174,29 @@ class Attribute(object):
         self._column = column
         self._desc = AttributeDesc(column)
 
-    def in_(self, *argv)->Query:
-        return Compare(self._column, Compare.Operator.IN, argv)
+    def in_(self, *argv):
+        return CompareExpr(self._column, CompareExpr.Operator.IN, argv)
 
-    def like(self, value)->Query:
-        return Compare(self._column, Compare.Operator.LIKE, value)
+    def like(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.LIKE, value)
 
-    def __lt__(self, value)->Query:
-        return Compare(self._column, Compare.Operator.LT, value)
+    def __lt__(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.LT, value)
 
-    def __le__(self, value)->Query:
-        return Compare(self._column, Compare.Operator.LE, value)
+    def __le__(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.LE, value)
 
-    def __eq__(self, value)->Query:
-        return Compare(self._column, Compare.Operator.EQ, value)
+    def __eq__(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.EQ, value)
 
-    def __ne__(self, value)->Query:
-        return Compare(self._column, Compare.Operator.NE, value)
+    def __ne__(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.NE, value)
 
-    def __gt__(self, value)->Query:
-        return Compare(self._column, Compare.Operator.GT, value)
+    def __gt__(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.GT, value)
 
-    def __ge__(self, value)->Query:
-        return Compare(self._column, Compare.Operator.GE, value)
+    def __ge__(self, value):
+        return CompareExpr(self._column, CompareExpr.Operator.GE, value)
 
     @property
     def column(self)->sqlalchemy.Column:
@@ -1301,7 +1314,7 @@ class Scheduler(object):
         raise TaskNotFoundError(task_id)
 
     async def get_tasks(self, limit: int = 100, offset: int = 0,
-                        where: Query = None,
+                        where: QueryExpr = None,
                         sort: Union[Attribute, Iterable[Attribute]] = None)->List[Task]:
         """Retrieves tasks
 
@@ -1352,8 +1365,7 @@ class Scheduler(object):
         tasks = []
 
         if self._logger.getEffectiveLevel() == logging.DEBUG:
-            sql = str(query)
-            self._logger.debug("Running task query: %s", sql)
+            self._logger.debug("Running task query: %s", query)
 
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:

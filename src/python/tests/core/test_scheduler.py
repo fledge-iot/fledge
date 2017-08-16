@@ -379,15 +379,14 @@ class TestScheduler:
         assert tasks[0].state == Task.State.RUNNING
         assert tasks[-1].state == Task.State.COMPLETE
 
-        assert len(tasks)
-        tasks2 = await scheduler.get_tasks(1)
-        assert len(tasks2) == 1
-        assert tasks[0].start_time == tasks2[0].start_time
+        tasks = await scheduler.get_tasks(1)
+        assert len(tasks) == 1
 
         tasks = await scheduler.get_tasks(
-            where=Task.attr.state.in_(Task.State.RUNNING),
-            sort=[Task.attr.state.desc], offset=1)
-        """
+            where=Task.attr.state.in_(int(Task.State.RUNNING)),
+            sort=[Task.attr.state.desc], offset=50)
+        assert len(tasks) == 0
+
         tasks = await scheduler.get_tasks(
             where=(Task.attr.state == Task.State.RUNNING).or_(
                 Task.attr.state == Task.State.RUNNING,
@@ -396,7 +395,6 @@ class TestScheduler:
                 Task.attr.state.in_(int(Task.State.RUNNING)).or_(
                     Task.attr.state.in_(int(Task.State.RUNNING)))),
             sort=Task.attr.state.desc)
-        """
         assert len(tasks)
 
         await self.stop_scheduler(scheduler)

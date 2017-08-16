@@ -18,9 +18,19 @@ __DB_NAME = 'foglamp'
 
 
 async def read_scheduled_processes(scheduled_process_name=None):
+    """
+    Fetch list of valid processes that can be scheduled
+
+    Args:
+        scheduled_process_name:
+
+    Returns:
+        list of processes that can be scheduled
+    """
+
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
-        SELECT name, script from scheduled_processes
+        SELECT name, script FROM scheduled_processes
     """
     # FIXME: When schedule_id is not in uuid format, server error occurs
     _where_clause = " WHERE name = $1" if scheduled_process_name else ""
@@ -42,6 +52,16 @@ async def read_scheduled_processes(scheduled_process_name=None):
 
 
 async def read_schedule(schedule_id=None):
+    """
+    Fetch schedule(s) detail
+
+    Args:
+        schedule_id:
+
+    Returns:
+        Detail for a single schedule or a list of schedules
+    """
+
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT id::"varchar",
@@ -52,7 +72,7 @@ async def read_schedule(schedule_id=None):
                 schedule_time::"varchar",
                 schedule_day::"varchar",
                 exclusive
-        from schedules
+        FROM schedules
     """
 
     # FIXME: When schedule_id is not in uuid format, server error occurs
@@ -82,6 +102,18 @@ async def read_schedule(schedule_id=None):
 
 
 async def read_task(task_id=None, state=None, name=None):
+    """
+    Fetch task(s) detail
+
+    Args:
+        task_id:
+        state:
+        name:
+
+    Returns:
+        Detail of a single task or a list of detail of tasks filtered optionally on name and/or state
+    """
+
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT
@@ -93,7 +125,7 @@ async def read_task(task_id=None, state=None, name=None):
             reason,
             pid,
             exit_code
-        from tasks
+        FROM tasks
     """
 
     # FIXME: When task_id is not in uuid format, server error occurs
@@ -130,6 +162,17 @@ async def read_task(task_id=None, state=None, name=None):
 
 
 async def read_tasks_latest(state=None, name=None):
+    """
+    Fetch task(s) latest detail
+
+    Args:
+        state:
+        name:
+
+    Returns:
+        Detail list of latest detail of each task filtered optionally on name and/or state
+    """
+
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
         SELECT DISTINCT ON (process_name)
@@ -141,7 +184,7 @@ async def read_tasks_latest(state=None, name=None):
             reason,
             pid,
             exit_code
-        from tasks
+        FROM tasks
     """
 
     _where_clause = _get_where_clause(name, state)
@@ -171,6 +214,7 @@ async def read_tasks_latest(state=None, name=None):
     await conn.close()
 
     return results
+
 
 def _get_where_clause(name, state):
     # TODO: Use enum in place int state

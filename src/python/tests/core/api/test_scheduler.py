@@ -8,6 +8,7 @@ import time
 import json
 import requests
 import pytest
+import asyncio
 from foglamp.core.server import Scheduler
 
 
@@ -18,29 +19,25 @@ __version__ = "${VERSION}"
 
 
 class TestScheduler:
-    @classmethod
-    def setup_class(cls):
+    def setup_method(self, method):
+        asyncio.get_event_loop().run_until_complete(Scheduler().populate_test_data())
+
         from subprocess import call
         call(["foglamp", "start"])
-        time.sleep(2)
-
-
-    @classmethod
-    def teardown_class(cls):
-        from subprocess import call
-        call(["foglamp", "stop"])
-
-
-    def setup_method(self, method):
-        Scheduler().populate_test_data()
+        time.sleep(1)
 
 
     def teardown_method(self, method):
-        pass
+        from subprocess import call
+        call(["foglamp", "stop"])
+        time.sleep(1)
 
 
-    def test_get_scheduled_processes(self):
+    @pytest.mark.asyncio
+    async def test_get_scheduled_processes(self):
+        # r = asyncio.get_event_loop().run_until_complete(requests.get('http://localhost:8082/foglamp/schedule/process'))
         r = requests.get('http://localhost:8082/foglamp/schedule/process')
+
         retval = dict(r.json())
 
         assert 200 == r.status_code
@@ -50,13 +47,15 @@ class TestScheduler:
         assert 'sleep1' in retval['processes']
 
 
-    def test_get_scheduled_process(self):
+    @pytest.mark.asyncio
+    async def test_get_scheduled_process(self):
         r = requests.get('http://localhost:8082/foglamp/schedule/process/sleep1')
         assert 200 == r.status_code
         assert 'sleep1' == r.json()
 
 
-    def test_post_schedule(self):
+    @pytest.mark.asyncio
+    async def test_post_schedule(self):
         headers = {"Content-Type": 'application/json'}
         data = {"type": 3, "name": "test_post_sch", "process_name": "sleep30", "repeat": "45"}
 
@@ -74,7 +73,8 @@ class TestScheduler:
         assert retval['schedule']['name'] == 'test_post_sch'
 
 
-    def test_update_schedule(self):
+    @pytest.mark.asyncio
+    async def test_update_schedule(self):
         # First create a schedule to get the schedule_id
         headers = {"Content-Type": 'application/json'}
         data = {"type": 3, "name": "test_update_sch", "process_name": "sleep30", "repeat": "45"}
@@ -91,7 +91,6 @@ class TestScheduler:
 
         r = requests.put('http://localhost:8082/foglamp/schedule/'+schedule_id, data=json.dumps(data), headers=headers)
         retval = dict(r.json())
-        print(retval)
 
         assert 200 == r.status_code
         assert not retval['schedule']['id'] == None
@@ -109,7 +108,8 @@ class TestScheduler:
         assert retval['schedule']['repeat'] == '0:00:04'
         assert retval['schedule']['name'] == 'test_update_sch_upd'
 
-    def test_delete_schedule(self):
+    @pytest.mark.asyncio
+    async def test_delete_schedule(self):
         # First create a schedule to get the schedule_id
         headers = {"Content-Type": 'application/json'}
         data = {"type": 3, "name": "test_delete_sch", "process_name": "sleep30", "repeat": "45"}
@@ -120,17 +120,17 @@ class TestScheduler:
         assert 200 == r.status_code
         schedule_id = retval['schedule']['id']
 
-        # Secondly, delete the schedule
+        # Now check the schedules
         r = requests.delete('http://localhost:8082/foglamp/schedule/' + schedule_id)
         retval = dict(r.json())
-        print(retval)
 
         assert 200 == r.status_code
         assert retval['id'] == schedule_id
         assert retval['message'] == "Schedule deleted successfully."
 
 
-    def test_get_schedule(self):
+    @pytest.mark.asyncio
+    async def test_get_schedule(self):
         # First create a schedule to get the schedule_id
         headers = {"Content-Type": 'application/json'}
         data = {"type": 3, "name": "test_get_sch", "process_name": "sleep30", "repeat": "45"}
@@ -141,10 +141,9 @@ class TestScheduler:
         assert 200 == r.status_code
         schedule_id = retval['schedule']['id']
 
-        # Secondly, get the schedule
+        # Now check the schedule
         r = requests.get('http://localhost:8082/foglamp/schedule/' + schedule_id)
         retval = dict(r.json())
-        print(retval)
 
         assert 200 == r.status_code
         assert retval['id'] == schedule_id
@@ -157,14 +156,15 @@ class TestScheduler:
         assert retval['name'] == 'test_get_sch'
 
 
-
-    def test_get_schedules(self):
+    @pytest.mark.asyncio
+    async def test_get_schedules(self):
         # First create two schedules to get the schedule_id
         headers = {"Content-Type": 'application/json'}
         data = {"type": 3, "name": "test_get_schA", "process_name": "sleep30", "repeat": "45"}
 
         r = requests.post('http://localhost:8082/foglamp/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
+
         assert 200 == r.status_code
         schedule_id1 = retval['schedule']['id']
 
@@ -173,49 +173,55 @@ class TestScheduler:
 
         r = requests.post('http://localhost:8082/foglamp/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
+
         assert 200 == r.status_code
         schedule_id2 = retval['schedule']['id']
 
-        # Secondly, check the schedules
+        # Now check the schedules
         r = requests.get('http://localhost:8082/foglamp/schedule')
         retval = dict(r.json())
-        print(retval)
 
         assert 200 == r.status_code
-        assert len(retval['schedules']) == 2
+        assert 2 == len(retval['schedules'])
 
-        assert retval['schedules'][0]['id'] == schedule_id1
+        # Because of unpredictibility in the sequence of the items, this method of assert has been adopted
+        assert retval['schedules'][0]['id'] in [schedule_id1, schedule_id2]
         assert retval['schedules'][0]['exclusive'] == True
-        assert retval['schedules'][0]['type'] == "INTERVAL"
-        assert retval['schedules'][0]['time'] == "None"
-        assert retval['schedules'][0]['day'] == None
+        assert retval['schedules'][0]['type'] in ["INTERVAL", "TIMED"]
+        assert retval['schedules'][0]['time'] in ["None", '12:21:40']
+        assert retval['schedules'][0]['day'] in [None, 5]
         assert retval['schedules'][0]['process_name'] == 'sleep30'
-        assert retval['schedules'][0]['repeat'] == '0:00:45'
-        assert retval['schedules'][0]['name'] == 'test_get_schA'
+        assert retval['schedules'][0]['repeat'] in ['0:00:45', '0:00:00']
+        assert retval['schedules'][0]['name'] in ['test_get_schA', 'test_get_schB']
 
-        assert retval['schedules'][1]['id'] == schedule_id2
+        assert retval['schedules'][1]['id'] in [schedule_id1, schedule_id2]
         assert retval['schedules'][1]['exclusive'] == True
-        assert retval['schedules'][1]['type'] == "TIMED"
-        assert retval['schedules'][1]['time'] == "0:00:00"
-        assert retval['schedules'][1]['day'] == 5
+        assert retval['schedules'][1]['type'] in ["INTERVAL", "TIMED"]
+        assert retval['schedules'][1]['time'] in ["None", '12:21:40']
+        assert retval['schedules'][1]['day'] in [None, 5]
         assert retval['schedules'][1]['process_name'] == 'sleep30'
-        assert retval['schedules'][1]['repeat'] == None
-        assert retval['schedules'][1]['name'] == 'test_get_schB'
+        assert retval['schedules'][1]['repeat'] in ['0:00:45', '0:00:00']
+        assert retval['schedules'][1]['name'] in ['test_get_schA', 'test_get_schB']
 
 
-    def test_start_schedule(self):
+    @pytest.mark.asyncio
+    async def test_start_schedule(self):
         pass
 
-    def test_get_task(self):
+    @pytest.mark.asyncio
+    async def test_get_task(self):
         pass
 
-    def test_get_tasks(self):
+    @pytest.mark.asyncio
+    async def test_get_tasks(self):
         pass
 
-    def test_get_tasks_latest(self):
+    @pytest.mark.asyncio
+    async def test_get_tasks_latest(self):
         pass
 
-    def test_cancel_task(self):
+    @pytest.mark.asyncio
+    async def test_cancel_task(self):
         pass
 
 

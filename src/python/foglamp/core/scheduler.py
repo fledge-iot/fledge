@@ -84,6 +84,12 @@ class QueryExpr(object):
     def or_(self, *argv)->LogicExpr:
         return LogicExpr(LogicExpr.Operator.OR, argv, self)
 
+    def __and__(self, other):
+        return self.and_(other)
+
+    def __or__(self, other):
+        return self.or_(other)
+
     @property
     def query(self):
         raise TypeError("Abstract method called")
@@ -109,17 +115,16 @@ class LogicExpr(QueryExpr):
         for query_item in self._queries:
             queries.append(query_item.query)
 
-        if self._operator == self.Operator.OR:
-            partial = sqlalchemy.or_(*queries)
-        elif self._operator == self.Operator.AND:
-            partial = sqlalchemy.and_(*queries)
+        if self._operator == self.Operator.AND:
+            if self._and_expr is not None:
+                return sqlalchemy.and_(self._and_expr.query, *queries)
+            return sqlalchemy.and_(*queries)
+        elif self._operator == self.Operator.OR:
+            if self._and_expr is not None:
+                return sqlalchemy.and_(self._and_expr.query, sqlalchemy.or_(*queries))
+            return sqlalchemy.or_(*queries)
         else:
             raise ValueError("Invalid operator: {}".format(int(self._operator)))
-
-        if self._and_expr is not None:
-            return sqlalchemy.and_(self._and_expr.query, partial)
-
-        return partial
 
 
 class CompareExpr(QueryExpr):

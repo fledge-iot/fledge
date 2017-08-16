@@ -13,7 +13,7 @@ import uuid
 import pytest
 
 from foglamp.core.scheduler import (Scheduler, IntervalSchedule, ScheduleNotFoundError, Task,
-                                    Schedule, TimedSchedule, ManualSchedule, StartUpSchedule)
+                                    Schedule, TimedSchedule, ManualSchedule, StartUpSchedule, Query)
 
 
 __author__ = "Terris Linenbach"
@@ -388,13 +388,23 @@ class TestScheduler:
         assert len(tasks) == 0
 
         tasks = await scheduler.get_tasks(
-            where=(Task.attr.state == Task.State.RUNNING).or_(
-                Task.attr.state == Task.State.RUNNING,
-                Task.attr.state == Task.State.RUNNING).and_(
+            where=(Task.attr.state == int(Task.State.RUNNING)).or_(
+                Task.attr.state == int(Task.State.RUNNING),
+                Task.attr.state == int(Task.State.RUNNING)).and_(
                 Task.attr.state.in_(int(Task.State.RUNNING)),
                 Task.attr.state.in_(int(Task.State.RUNNING)).or_(
                     Task.attr.state.in_(int(Task.State.RUNNING)))),
             sort=Task.attr.state.desc)
+        assert len(tasks)
+
+        tasks = await scheduler.get_tasks(
+            where=Query.or_(Task.attr.state == int(Task.State.RUNNING),
+                            Task.attr.state == int(Task.State.RUNNING)))
+        assert len(tasks)
+
+        tasks = await scheduler.get_tasks(
+            where=(Task.attr.state == int(Task.State.RUNNING)) | (
+                    Task.attr.state.in_(int(Task.State.RUNNING))))
         assert len(tasks)
 
         await self.stop_scheduler(scheduler)

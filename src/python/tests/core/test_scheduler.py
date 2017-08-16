@@ -13,7 +13,7 @@ import uuid
 import pytest
 
 from foglamp.core.scheduler import (Scheduler, IntervalSchedule, ScheduleNotFoundError, Task,
-                                    Schedule, TimedSchedule, ManualSchedule, StartUpSchedule, Query)
+                                    Schedule, TimedSchedule, ManualSchedule, StartUpSchedule, Where)
 
 
 __author__ = "Terris Linenbach"
@@ -398,7 +398,7 @@ class TestScheduler:
         assert len(tasks)
 
         tasks = await scheduler.get_tasks(
-            where=Query.or_(Task.attr.state == int(Task.State.RUNNING),
+            where=Where.or_(Task.attr.state == int(Task.State.RUNNING),
                             Task.attr.state == int(Task.State.RUNNING)))
         assert len(tasks)
 

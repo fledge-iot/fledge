@@ -9,6 +9,7 @@
 import asyncio
 import signal
 
+#from foglamp.device import coap
 from foglamp.device import sensehat
 from foglamp.device.ingest import Ingest
 
@@ -42,6 +43,7 @@ def start():
             lambda: asyncio.ensure_future(_stop(loop)))
 
     Ingest.start()
+    #asyncio.ensure_future(coap.start())
     asyncio.ensure_future(sensehat.start())
 
     loop.run_forever()

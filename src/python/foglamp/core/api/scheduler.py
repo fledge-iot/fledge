@@ -10,7 +10,7 @@ from aiohttp import web
 
 from foglamp.core import server
 from foglamp.core.api import scheduler_db_services
-from foglamp.core.scheduler import Schedule, Scheduler, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
+from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
 
 __author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -21,10 +21,9 @@ __version__ = "${VERSION}"
 _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/schedule/process                                 |
-    | GET             | /foglamp/schedule/process/{scheduled_process_id}          |
+    | GET             | /foglamp/schedule/process/{scheduled_process_name}        |
 
-    | GET             | /foglamp/schedule                                         |
-    | POST            | /foglamp/schedule                                         |
+    | GET POST        | /foglamp/schedule                                         |
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
     | POST            | /foglamp/schedule/start/{schedule_id}                     |
 
@@ -557,7 +556,7 @@ async def get_tasks_latest(request):
                      'reason': task['reason'],
                      'pid': task['pid']
                  }
-            )
+        )
 
         return web.json_response({'tasks': new_tasks})
     except ValueError as ex:

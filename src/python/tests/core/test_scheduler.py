@@ -351,7 +351,8 @@ class TestScheduler:
         await asyncio.sleep(1)
 
         tasks = await scheduler.get_tasks(
-            where=(Task.a.state == Task.State.RUNNING).and_(Task.a.state == Task.State.RUNNING))
+            where=(Task.state == Task.State.RUNNING).and_(Task.state == Task.State.RUNNING),
+            order_by=Task.state)
         assert len(tasks)
 
         tasks = await scheduler.get_running_tasks()

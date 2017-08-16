@@ -62,6 +62,7 @@ class ScheduleNotFoundError(ValueError):
             "Schedule not found: {}".format(schedule_id), *args)
 
 
+# Forward declare
 class LogicOp:
     pass
 
@@ -74,9 +75,6 @@ class Query(object):
     @staticmethod
     def or_(*argv)->LogicOp:
         return LogicOp(LogicOp.Operator.OR, argv)
-
-    def add_query(self, query):
-        return query.filter(self.query)
 
     @property
     def query(self):
@@ -93,17 +91,18 @@ class LogicOp(Query):
         self._queries = argv
         self._operator = operator
 
-    def add_query(self, query):
+    @property
+    def query(self):
         queries = []
 
         for query_item in self._queries:
             queries.append(query_item.query)
 
         if self._operator == self.Operator.OR:
-            return query.filter.or_(*queries)
+            return sqlalchemy.or_(*queries)
 
         if self._operator == self.Operator.AND:
-            return query.filter(*queries)
+            return sqlalchemy.and_(*queries)
 
         raise ValueError("Invalid operator: {}".format(int(self._operator)))
 
@@ -177,7 +176,7 @@ class Queryable(object):
     def __ge__(self, value)->Query:
         return Compare(self._column, Compare.Operator.GE, value)
 
-    def add_query(self, query):
+    def order_by(self, query):
         return query.order_by(self._column)
 
 
@@ -1316,7 +1315,7 @@ class Scheduler(object):
 
         if sort:
             for order in sort:
-                order.add_query(query)
+                order.order_by(query)
 
         if offset:
             query.offset(offset)

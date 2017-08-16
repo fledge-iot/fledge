@@ -473,6 +473,9 @@ async def get_tasks(request):
     """
     Returns the list of tasks
 
+    :Example: curl -X GET  http://localhost:8082/foglamp/tasks
+    :Example: curl -X GET  http://localhost:8082/foglamp/tasks?name=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/tasks?state=xxx
     :Example: curl -X GET  http://localhost:8082/foglamp/tasks?name=xxx&state=xxx
     """
 
@@ -523,6 +526,7 @@ async def get_tasks_latest(request):
     Returns the list of the most recent task execution for each name from tasks table
 
     :Example: curl -X GET  http://localhost:8082/foglamp/tasks/latest
+    :Example: curl -X GET  http://localhost:8082/foglamp/tasks/latest?name=xxx
     """
 
     try:

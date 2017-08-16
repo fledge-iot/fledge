@@ -348,9 +348,14 @@ class TestScheduler:
         interval_schedule.name = 'get_task'
         interval_schedule.process_name = "sleep30"
         await scheduler.save_schedule(interval_schedule)
+        await asyncio.sleep(1)
 
-        await asyncio.sleep(5)
+        tasks = await scheduler.get_tasks(
+            where=(Task.a.state == Task.State.RUNNING).and_(Task.a.state == Task.State.RUNNING))
+        assert len(tasks)
+
         tasks = await scheduler.get_running_tasks()
+        assert len(tasks)
 
         task = await scheduler.get_task(tasks[0].task_id)
         assert task

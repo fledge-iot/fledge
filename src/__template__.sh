@@ -14,13 +14,12 @@ __license__="Apache 2.0"
 __version__="${VERSION}"
 
 ############################################################
-# Change the current directory to the directory where this
-# script is located
+# Sourcing?
 ############################################################
 if [[ "$0" != "$BASH_SOURCE" ]]
 then
   # See https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced/23009039#23009039
-  # This only works reliably with 'bash'. Other shells probably 
+  # This only works reliably with 'bash'. Other shells probably
   # can not 'source' this script.
   SOURCING=1
   SCRIPT=${BASH_SOURCE[@]}
@@ -33,6 +32,10 @@ else
   SCRIPT=$0
 fi
 
+############################################################
+# Change the current directory to the directory where this
+# script is located
+############################################################
 pushd `dirname "$SCRIPT"` > /dev/null
 
 SCRIPTNAME=$(basename "$SCRIPT")

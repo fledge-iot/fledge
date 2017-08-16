@@ -67,7 +67,7 @@ class LogicExpr:
     pass
 
 
-class Query(object):
+class Where(object):
     @staticmethod
     def and_(*argv)->LogicExpr:  # This should be Tuple[Query] but Python doesn't allow it
         return LogicExpr(LogicExpr.Operator.AND, argv)
@@ -77,7 +77,7 @@ class Query(object):
         return LogicExpr(LogicExpr.Operator.OR, argv)
 
 
-class QueryExpr(object):
+class WhereExpr(object):
     def and_(self, *argv)->LogicExpr:
         return LogicExpr(LogicExpr.Operator.AND, argv, self)
 
@@ -85,17 +85,17 @@ class QueryExpr(object):
         return LogicExpr(LogicExpr.Operator.OR, argv, self)
 
     def __and__(self, other):
-        return Query.and_(self, other)
+        return Where.and_(self, other)
 
     def __or__(self, other):
-        return Query.or_(self, other)
+        return Where.or_(self, other)
 
     @property
     def query(self):
         raise TypeError("Abstract method called")
 
 
-class LogicExpr(QueryExpr):
+class LogicExpr(WhereExpr):
     __slots__ = ['_and_expr', '_queries', '_operator']
 
     class Operator(IntEnum):
@@ -103,10 +103,10 @@ class LogicExpr(QueryExpr):
         OR = 1
         AND = 2
 
-    def __init__(self, operator: Operator, argv, and_expr: QueryExpr = None):
+    def __init__(self, operator: Operator, argv, and_expr: WhereExpr = None):
         self._and_expr = and_expr
         self._operator = operator
-        self._queries = argv  # type: Tuple[QueryExpr]
+        self._queries = argv  # type: Tuple[WhereExpr]
 
     @property
     def query(self):
@@ -127,7 +127,7 @@ class LogicExpr(QueryExpr):
             raise ValueError("Invalid operator: {}".format(int(self._operator)))
 
 
-class CompareExpr(QueryExpr):
+class CompareExpr(WhereExpr):
     __slots__ = ['_column', '_operator', '_value']
 
     class Operator(IntEnum):
@@ -1319,7 +1319,7 @@ class Scheduler(object):
         raise TaskNotFoundError(task_id)
 
     async def get_tasks(self, limit: int = 100, offset: int = 0,
-                        where: QueryExpr = None,
+                        where: WhereExpr = None,
                         sort: Union[Attribute, Iterable[Attribute]] = None)->List[Task]:
         """Retrieves tasks
 

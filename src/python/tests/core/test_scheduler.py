@@ -394,7 +394,7 @@ class TestScheduler:
                 Task.attr.state.in_(int(Task.State.RUNNING)),
                 Task.attr.state.in_(int(Task.State.RUNNING)).or_(
                     Task.attr.state.in_(int(Task.State.RUNNING)))),
-            sort=Task.attr.state.desc)
+            sort=(Task.attr.state.desc, Task.attr.start_time))
         assert len(tasks)
 
         tasks = await scheduler.get_tasks(

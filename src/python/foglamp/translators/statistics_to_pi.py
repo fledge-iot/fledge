@@ -5,15 +5,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Pushes FogLAMP statistics into PI
+""" Pushes FogLAMP statistics into PI through the PICROMF (PI Connector Relay OMF)
 
 Note :
-Temporary useful commands :
-    chmod 755  /home/foglamp/Development/FogLAMP/src/python/foglamp/translators/statistics_to_pi.py
-
-    UPDATE foglamp.statistics_history SET id=1 WHERE id IS NULL;
-
-
 
 .. todo::
    - # TODO: FOGL-251 - it should evolve using the DB layer
@@ -32,8 +26,7 @@ import asyncio
 import aiopg
 import aiopg.sa
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
-from foglamp import statistics, configuration_manager
+from foglamp import configuration_manager
 
 # Module information
 __author__ = "${FULL_NAME}"
@@ -56,23 +49,23 @@ _message_list = {
 
     # Warning / Error messages
     "e000001": _module_name + " - generic error.",
-    "e000002": _module_name + " - cannot retrieve the starting point for sending operation - error details |{0}|.",
-    "e000003": _module_name + " - cannot update the reached position - error details |{0}|.",
-    "e000004": _module_name + " - cannot complete the sending operation - error details |{0}|.",
-    "e000005": _module_name + " - cannot configure the logging mechanism. - error details |{0}|.",
-    "e000006": _module_name + " - cannot initialize the plugin. - error details |{0}|.",
-    "e000007": _module_name + " - an error occurred during the OMF request. - error details |{0}|.",
-    "e000008": _module_name + " - an error occurred during the OMF's objects creation. - error details |{0}|.",
+    "e000002": _module_name + " - cannot retrieve the starting point for sending operation.",
+    "e000003": _module_name + " - cannot update the reached position.",
+    "e000004": _module_name + " - cannot complete the sending operation.",
+    "e000005": _module_name + " - cannot configure the logging mechanism.",
+    "e000006": _module_name + " - cannot initialize the plugin.",
+    "e000007": _module_name + " - an error occurred during the OMF request - error details ",
+    "e000008": _module_name + " - an error occurred during the OMF's objects creation.",
     "e000009": _module_name + " - cannot retrieve information about the sensor.",
     "e000010": _module_name + " - unable to extend the in memory structure with the data.",
-    "e000011": _module_name + " - cannot create the OMF types - error details |{0}|.",
-    "e000012": _module_name + " - unknown asset_code - asset |{0}| - error details |{1}|.",
-    "e000013": _module_name + " - cannot prepare sensor information for PICROMF - error details |{0}|.",
-    "e000014": _module_name + " - cannot start the sending process - error details |{0}|.",
-    "e000015": _module_name + " - cannot update statistics - error details |{0}|.",
-    "e000016": _module_name + " - cannot update reached position/statistics during a previous error - details |{0}|.",
-    "e000017": _module_name + " - cannot complete loading data in memory - details |{0}|.",
-    "e000018": _module_name + " - cannot complete the initialization - details |{0}|."
+    "e000011": _module_name + " - cannot create the OMF types.",
+    "e000012": _module_name + " - unknown asset_code - asset - error details |{1}|.",
+    "e000013": _module_name + " - cannot prepare sensor information for PICROMF.",
+    "e000014": _module_name + " - cannot start the sending process.",
+    "e000015": _module_name + " - cannot update statistics.",
+    "e000016": _module_name + " - cannot update reached position/statistics during a previous error.",
+    "e000017": _module_name + " - cannot complete loading data in memory.",
+    "e000018": _module_name + " - cannot complete the initialization."
 
 }
 """Messages used for Information, Warning and Error notice"""
@@ -129,7 +122,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "statistics_011"
+        "default": "statistics_301"
 
     },
     "channelID": {
@@ -174,6 +167,16 @@ _num_sent = 0
 # internal statistic
 _num_unsent = 0
 """rows that generate errors in the preparation process, before sending them to OMF"""
+
+
+class PICROMFNotReadyError(RuntimeError):
+    """Impossible to reach the PICROMF."""
+    pass
+
+
+class HTTPError400(RuntimeError):
+    """Raised in relation to the HTTP status_code during the communication with the PICROMF."""
+    pass
 
 
 def initialize_plugin():
@@ -487,14 +490,14 @@ def initialize_plugin():
             ]
         }
 
-    except Exception as e:
-        message = _message_list["e000006"].format(e)
+    except Exception:
+        message = _message_list["e000006"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
+def _in_memory_load_new_data(data_values, target_stream_id, information_to_send):
     """Extends in memory data structure reading data from the Storage Layer
 
     Args:
@@ -535,14 +538,14 @@ def in_memory_load_new_data(data_values, target_stream_id, information_to_send):
 
         _logger.debug("in memory info |{0}| ".format(new_data_values))
 
-    except Exception as e:
-        message = _message_list["e000010"].format(e)
+    except Exception:
+        message = _message_list["e000010"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-def send_in_memory_data_to_picromf(message_type, omf_data):
+def _send_in_memory_data_to_picromf(message_type, omf_data):
     """Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
 
     it logs a WARNING only at the end of the retry mechanism
@@ -552,7 +555,7 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
         omf_data:     message to send
 
     Raises:
-        Exception: an error occurred during the OMF request
+        PICROMFNotReadyError
 
     """
 
@@ -580,7 +583,7 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
 
             # FIXME: temporary/testing code
             if response.status_code == 400:
-                raise RuntimeError(response.text)
+                raise HTTPError400(response.text)
 
             _logger.debug("Response |{0}| message: |{1}| |{2}| ".format(message_type,
                                                                         response.status_code,
@@ -588,8 +591,8 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
 
             break
 
-        except Exception as e:
-            message = _message_list["e000007"].format(e)
+        except Exception as ex:
+            message = _message_list["e000007"], str(ex)
             status = 1
 
             time.sleep(sleep_time)
@@ -597,11 +600,11 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
             sleep_time *= 2
 
     if status != 0:
-        _logger.warning(message)
-        raise Exception(message)
+        _logger.error(message)
+        raise PICROMFNotReadyError(message)
 
 
-def position_read():
+def _position_read():
     """Retrieves the starting point for the send operation
 
     Returns:
@@ -628,16 +631,16 @@ def position_read():
             position = row[0]
             _logger.debug("DB row position |{0}| : ". format(row[0]))
 
-    except Exception as e:
-        message = _message_list["e000002"].format(e)
+    except Exception:
+        message = _message_list["e000002"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
     return position
 
 
-def position_update(new_position):
+def _position_update(new_position):
     """Updates reached position in the communication with PICROMF
 
     Args:
@@ -659,14 +662,14 @@ def position_update(new_position):
 
         _pg_conn.commit()
 
-    except Exception as e:
-        message = _message_list["e000003"].format(e)
+    except Exception:
+        message = _message_list["e000003"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-def omf_types_creation():
+def _omf_types_creation():
     """Creates the types into OMF
 
     """
@@ -682,16 +685,16 @@ def omf_types_creation():
             omf_type[0]["id"] = tmp_type_sensor_id
             omf_type[1]["id"] = tmp_type_measurement_id
 
-            send_in_memory_data_to_picromf("Type", omf_type)
+            _send_in_memory_data_to_picromf("Type", omf_type)
 
-    except Exception as e:
-        message = _message_list["e000011"].format(e)
+    except Exception:
+        message = _message_list["e000011"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-def omf_objects_creation():
+def _omf_objects_creation():
     """Sends to PICROMF the request for the creation of all the objects
 
     Raises:
@@ -713,16 +716,16 @@ def omf_objects_creation():
             tmp_type_measurement_id = "type_measurement_" + _type_id + "_" + tmp_type
 
             _logger.debug("OMF_object_creation ")
-            omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id)
+            _omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id)
 
-    except Exception as e:
-        message = _message_list["e000008"].format(e)
+    except Exception:
+        message = _message_list["e000008"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id):
+def _omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id):
     """Sends to PICROMF the request for the creation of an object
 
     Raises:
@@ -772,18 +775,18 @@ def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, t
             }]
         }]
 
-        send_in_memory_data_to_picromf("Container", containers)
-        send_in_memory_data_to_picromf("Data", static_data)
-        send_in_memory_data_to_picromf("Data", link_data)
+        _send_in_memory_data_to_picromf("Container", containers)
+        _send_in_memory_data_to_picromf("Data", static_data)
+        _send_in_memory_data_to_picromf("Data", link_data)
 
-    except Exception as e:
-        message = _message_list["e000008"].format(e)
+    except Exception:
+        message = _message_list["e000008"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-async def send_data_to_picromf():
+async def _send_data_to_picromf():
     """Reads data from the Storage Layer sends them PICROMF
 
     Raises:
@@ -803,26 +806,26 @@ async def send_data_to_picromf():
         # Reads the position from which the data should be send
         _pg_conn = psycopg2.connect(_DB_URL)
         _pg_cur = _pg_conn.cursor()
-        position = position_read()
+        position = _position_read()
         _logger.debug("Last position, already sent |{0}| ".format(str(position)))
 
-        data_available, new_position = await in_memory_data_load(position, data_to_send)
+        data_available, new_position = await _in_memory_data_load(position, data_to_send)
 
         if data_available:
             _logger.debug("{0}".format("omf_translator_perf - OMF START "))
-            send_in_memory_data_to_picromf("Data", data_to_send)
+            _send_in_memory_data_to_picromf("Data", data_to_send)
             _logger.debug("{0}".format("omf_translator_perf - OMF END "))
 
-            position_update(new_position)
+            _position_update(new_position)
 
-    except Exception as e:
-        message = _message_list["e000004"].format(e)
+    except Exception:
+        message = _message_list["e000004"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
-async def in_memory_data_load(position, values):
+async def _in_memory_data_load(position, values):
     """Extracts data from the DB Layer loading in memory
 
     Raises:
@@ -863,8 +866,8 @@ async def in_memory_data_load(position, values):
                             # Evaluates if it is a known types
                             tmp_type = _sensor_name_type[sensor_id]
 
-                        except Exception as e:
-                            message = _message_list["e000012"].format(tmp_type, e)
+                        except Exception as ex:
+                            message = _message_list["e000012"].format(tmp_type, ex)
 
                             _logger.warning(message)
                         else:
@@ -873,7 +876,7 @@ async def in_memory_data_load(position, values):
                                                                              db_row.ts))
 
                             try:
-                                in_memory_load_new_data(values, measurement_id, db_row)
+                                _in_memory_load_new_data(values, measurement_id, db_row)
 
                                 # Used for the statistics update
                                 _num_sent += 1
@@ -883,10 +886,10 @@ async def in_memory_data_load(position, values):
 
                                 data_available = True
 
-                            except Exception as e:
+                            except Exception as ex:
                                 _num_unsent += 1
 
-                                message = _message_list["e000013"].format(e)
+                                message = _message_list["e000013"], str(ex)
                                 _logger.warning(message)
 
                     message = "### completed ##################################################"
@@ -894,16 +897,16 @@ async def in_memory_data_load(position, values):
 
                     _logger.debug("{0}".format("omf_translator_perf - DB read END "))
 
-    except Exception as e:
-        message = _message_list["e000017"].format(e)
+    except Exception:
+        message = _message_list["e000017"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
     return data_available,  new_position
 
 
-def send_init():
+def _send_init():
     """Setup the correct state to being able to send data to the PICROMF
 
     Raises :
@@ -921,34 +924,35 @@ def send_init():
 
         initialize_plugin()
 
-        omf_types_creation()
-        omf_objects_creation()
+        _omf_types_creation()
+        _omf_objects_creation()
 
         _logger.debug("{0}".format("statistics_to_pi_perf - INIT END "))
 
-    except Exception as e:
-        message = _message_list["e000018"].format(e)
+    except Exception:
+        message = _message_list["e000018"]
 
         _logger.exception(message)
-        raise Exception(message)
+        raise
 
 
 if __name__ == "__main__":
 
     try:
+
         _logger = logger.setup(__name__)
         _event_loop = asyncio.get_event_loop()
 
         _logger.debug("{0}".format("statistics_to_pi_perf - START "))
 
-        send_init()
+        _send_init()
 
-        _event_loop.run_until_complete(send_data_to_picromf())
+        _event_loop.run_until_complete(_send_data_to_picromf())
 
         _logger.info(_message_list["i000003"])
 
-    except Exception as ex:
-        tmp_message = _message_list["e000004"].format(ex)
+    except Exception as e:
+        tmp_message = _message_list["e000004"], str(e)
 
         _logger.exception(tmp_message)
 

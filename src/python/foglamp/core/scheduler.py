@@ -17,7 +17,7 @@ from enum import IntEnum
 from typing import List
 
 import aiopg.sa
-import sqlalchemy as sa
+import sqlalchemy
 from sqlalchemy.dialects import postgresql as pg_types
 
 from foglamp import logger
@@ -116,7 +116,7 @@ class Schedule(object):
         self.exclusive = True  # type: bool
         self.repeat = None  # type: datetime.timedelta
         self.process_name = None  # type: str
-        self.schedule_type = schedule_type  # type: Type
+        self.schedule_type = schedule_type  # type: Schedule.Type
 
 
 class IntervalSchedule(Schedule):
@@ -182,7 +182,7 @@ class Scheduler(object):
             self.process = None  # type: asyncio.subprocess.Process
             self.cancel_requested = None  # type: int
             """Epoch time when cancel was requested"""
-            self.schedule = None  # type: _ScheduleRow
+            self.schedule = None  # Schedule._ScheduleRow
             self.start_time = None  # type: int
             """Epoch time when the task was started"""
 
@@ -206,7 +206,7 @@ class Scheduler(object):
     # Constant class attributes
     _DEFAULT_MAX_RUNNING_TASKS = 50
     """Maximum number of running tasks allowed at any given time"""
-    _DEFAULT_MAX_TASK_AGE_DAYS = 30
+    _DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS = 30
     """Maximum age of rows in the task table that have finished, in days"""
     _DELETE_TASKS_LIMIT = 500
     """The maximum number of rows to delete in the tasks table in a single transaction"""
@@ -227,9 +227,9 @@ class Scheduler(object):
     """How frequently to purge the tasks table"""
 
     # Mostly constant class attributes
-    _scheduled_processes_tbl = None  # type: sa.Table
-    _schedules_tbl = None  # type: sa.Table
-    _tasks_tbl = None  # type: sa.Table
+    _scheduled_processes_tbl = None  # type: sqlalchemy.Table
+    _schedules_tbl = None  # type: sqlalchemy.Table
+    _tasks_tbl = None  # type: sqlalchemy.Table
     _logger = None
 
     def __init__(self):
@@ -244,37 +244,37 @@ class Scheduler(object):
             cls._logger = logger.setup(__name__)
 
         if cls._schedules_tbl is None:
-            metadata = sa.MetaData()
+            metadata = sqlalchemy.MetaData()
 
-            cls._schedules_tbl = sa.Table(
+            cls._schedules_tbl = sqlalchemy.Table(
                 'schedules',
                 metadata,
-                sa.Column('id', pg_types.UUID),
-                sa.Column('schedule_name', sa.types.VARCHAR(20)),
-                sa.Column('process_name', sa.types.VARCHAR(20)),
-                sa.Column('schedule_type', sa.types.SMALLINT),
-                sa.Column('schedule_time', sa.types.TIME),
-                sa.Column('schedule_day', sa.types.SMALLINT),
-                sa.Column('schedule_interval', sa.types.Interval),
-                sa.Column('exclusive', sa.types.BOOLEAN))
+                sqlalchemy.Column('id', pg_types.UUID),
+                sqlalchemy.Column('schedule_name', sqlalchemy.types.VARCHAR(20)),
+                sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20)),
+                sqlalchemy.Column('schedule_type', sqlalchemy.types.SMALLINT),
+                sqlalchemy.Column('schedule_time', sqlalchemy.types.TIME),
+                sqlalchemy.Column('schedule_day', sqlalchemy.types.SMALLINT),
+                sqlalchemy.Column('schedule_interval', sqlalchemy.types.Interval),
+                sqlalchemy.Column('exclusive', sqlalchemy.types.BOOLEAN))
 
-            cls._tasks_tbl = sa.Table(
+            cls._tasks_tbl = sqlalchemy.Table(
                 'tasks',
                 metadata,
-                sa.Column('id', pg_types.UUID),
-                sa.Column('process_name', sa.types.VARCHAR(20)),
-                sa.Column('state', sa.types.INT),
-                sa.Column('start_time', sa.types.TIMESTAMP),
-                sa.Column('end_time', sa.types.TIMESTAMP),
-                sa.Column('pid', sa.types.INT),
-                sa.Column('exit_code', sa.types.INT),
-                sa.Column('reason', sa.types.VARCHAR(255)))
+                sqlalchemy.Column('id', pg_types.UUID),
+                sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20)),
+                sqlalchemy.Column('state', sqlalchemy.types.INT),
+                sqlalchemy.Column('start_time', sqlalchemy.types.TIMESTAMP),
+                sqlalchemy.Column('end_time', sqlalchemy.types.TIMESTAMP),
+                sqlalchemy.Column('pid', sqlalchemy.types.INT),
+                sqlalchemy.Column('exit_code', sqlalchemy.types.INT),
+                sqlalchemy.Column('reason', sqlalchemy.types.VARCHAR(255)))
 
-            cls._scheduled_processes_tbl = sa.Table(
+            cls._scheduled_processes_tbl = sqlalchemy.Table(
                 'scheduled_processes',
                 metadata,
-                sa.Column('name', pg_types.VARCHAR(20)),
-                sa.Column('script', pg_types.JSONB))
+                sqlalchemy.Column('name', pg_types.VARCHAR(20)),
+                sqlalchemy.Column('script', pg_types.JSONB))
 
         # Instance attributes
         self._ready = False
@@ -297,16 +297,26 @@ class Scheduler(object):
         """bool: True when request to run check_processes"""
         self._main_loop_task = None  # type: asyncio.Task
         """Coroutine for _main_loop_task, to ensure it has finished"""
-        self._main_sleep_task = None # type: asyncio.Task
+        self._main_sleep_task = None  # type: asyncio.Task
         """Coroutine that sleeps in the main loop"""
         self.current_time = None  # type: int
         """Time to use when determining when to start tasks, for testing"""
         self._last_task_purge_time = None  # type: int
         """When the tasks table was last purged"""
-        self._max_task_row_age_seconds = None  # type: int
+        self._max_completed_task_age = None  # type: datetime.timedelta
         """Delete finished task rows when they become this old"""
         self._purge_tasks_task = None  # type: asyncio.Task
-        """Asynico task for :meth:`purge_tasks`, if scheduled to run"""
+        """asynico task for :meth:`purge_tasks`, if scheduled to run"""
+
+    @property
+    def max_completed_task_age(self)->datetime.timedelta:
+        return self._max_completed_task_age
+
+    @max_completed_task_age.setter
+    def max_completed_task_age(self, value: datetime.timedelta)->None:
+        if not isinstance(value, datetime.timedelta):
+            raise TypeError("value must be a datetime.timedelta")
+        self._max_completed_task_age = value
 
     @property
     def max_running_tasks(self)->int:
@@ -432,22 +442,28 @@ class Scheduler(object):
             schedule.name, schedule.process_name, task_id, process.pid,
             len(self._task_processes), args)
 
-        if schedule.type == Schedule.Type.STARTUP:
-            # Startup tasks are not tracked in the tasks table
-            asyncio.ensure_future(self._wait_for_task_completion(task_process))
-        else:
+        # Startup tasks are not tracked in the tasks table
+        if schedule.type != Schedule.Type.STARTUP:
             # The task row needs to exist before the completion handler runs
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    await conn.execute(self._tasks_tbl.insert().values(
-                        id=str(task_id),
-                        pid=(self._schedule_executions[schedule.id].
-                             task_processes[task_id].process.pid),
-                        process_name=schedule.process_name,
-                        state=int(Task.State.RUNNING),
-                        start_time=datetime.datetime.now()))
+            insert = self._tasks_tbl.insert()
+            insert = insert.values(id=str(task_id),
+                                   pid=(self._schedule_executions[schedule.id].
+                                        task_processes[task_id].process.pid),
+                                   process_name=schedule.process_name,
+                                   state=int(Task.State.RUNNING),
+                                   start_time=datetime.datetime.now())
 
-            asyncio.ensure_future(self._wait_for_task_completion(task_process))
+            self._logger.debug('Database command: %s', insert)
+
+            try:
+                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                    async with engine.acquire() as conn:
+                        await conn.execute(insert)
+            except Exception:
+                self._logger.exception('Insert failed: %s', insert)
+                raise
+
+        asyncio.ensure_future(self._wait_for_task_completion(task_process))
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess)->None:
         # TODO: If an exception is raised here, _task_processes will be
@@ -498,20 +514,26 @@ class Scheduler(object):
             else:
                 state = Task.State.COMPLETE
 
-            # Update the task's status
-            # TODO if no row updated output a WARN row
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    result = await conn.execute(
-                        self._tasks_tbl.update().where(
-                            self._tasks_tbl.c.id == str(task_process.task_id)).values(
-                            exit_code=exit_code,
-                            state=int(state),
-                            end_time=datetime.datetime.now()))
+            update = self._tasks_tbl.update()
+            update = update.where(self._tasks_tbl.c.id == str(task_process.task_id))
+            update = update.values(exit_code=exit_code,
+                                   state=int(state),
+                                   end_time=datetime.datetime.now())
 
-                    if result.rowcount == 0:
-                        self._logger.warning("Task %s not found. Unable to update its status",
-                                             task_process.task_id)
+            self._logger.debug('Database command: %s', update)
+
+            # Update the task's status
+            try:
+                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                    async with engine.acquire() as conn:
+                        result = await conn.execute(update)
+
+                        if result.rowcount == 0:
+                            self._logger.warning('Task %s not found. Unable to update its status.',
+                                                 task_process.task_id)
+            except Exception:
+                self._logger.exception('Update failed: %s', update)
+                raise
 
         # Due to maximum running tasks reached, it is necessary to
         # look for schedules that are ready to run even if there
@@ -561,7 +583,7 @@ class Scheduler(object):
 
         # Can not iterate over _schedule_executions - it can change mid-iteration
         for schedule_id in list(self._schedule_executions.keys()):
-            if self._paused or len(self._task_processes) >= self.max_running_tasks:
+            if self._paused or len(self._task_processes) >= self._max_running_tasks:
                 return None
 
             schedule_execution = self._schedule_executions[schedule_id]
@@ -764,62 +786,80 @@ class Scheduler(object):
                 datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
     async def _get_process_scripts(self):
-        query = sa.select([self._scheduled_processes_tbl.c.name,
-                           self._scheduled_processes_tbl.c.script])
+        query = sqlalchemy.select([self._scheduled_processes_tbl.c.name,
+                                  self._scheduled_processes_tbl.c.script])
         query.select_from(self._scheduled_processes_tbl)
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(query):
-                    self._process_scripts[row.name] = row.script
+        self._logger.debug('Database command: %s', query)
+
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    async for row in conn.execute(query):
+                        self._process_scripts[row.name] = row.script
+        except Exception:
+            self._logger.exception('Select failed: %s', query)
+            raise
 
     async def _mark_tasks_interrupted(self):
         """Any task with a NULL end_time is set to interrupted"""
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                await conn.execute(
-                    self._tasks_tbl.update().where(
-                        self._tasks_tbl.c.end_time is None).values(
-                            state=int(Task.State.INTERRUPTED),
-                            end_time=datetime.datetime.now()))
+        update = self._tasks_tbl.update()
+        update = update.where(self._tasks_tbl.c.end_time is None)
+        update = update.values(state=int(Task.State.INTERRUPTED),
+                               end_time=datetime.datetime.now())
+
+        self._logger.debug('Database command: %s', update)
+
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    await conn.execute(update)
+        except Exception:
+            self._logger.exception('Update failed: %s', update)
+            raise
 
     async def _get_schedules(self):
         # TODO: Get processes first, then add to Schedule
-        query = sa.select([self._schedules_tbl.c.id,
-                           self._schedules_tbl.c.schedule_name,
-                           self._schedules_tbl.c.schedule_type,
-                           self._schedules_tbl.c.schedule_time,
-                           self._schedules_tbl.c.schedule_day,
-                           self._schedules_tbl.c.schedule_interval,
-                           self._schedules_tbl.c.exclusive,
-                           self._schedules_tbl.c.process_name])
-
+        query = sqlalchemy.select([self._schedules_tbl.c.id,
+                                   self._schedules_tbl.c.schedule_name,
+                                   self._schedules_tbl.c.schedule_type,
+                                   self._schedules_tbl.c.schedule_time,
+                                   self._schedules_tbl.c.schedule_day,
+                                   self._schedules_tbl.c.schedule_interval,
+                                   self._schedules_tbl.c.exclusive,
+                                   self._schedules_tbl.c.process_name])
         query.select_from(self._schedules_tbl)
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(query):
-                    interval = row.schedule_interval
+        self._logger.debug('Database command: %s', query)
 
-                    repeat_seconds = None
-                    if interval is not None:
-                        repeat_seconds = interval.total_seconds()
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    async for row in conn.execute(query):
+                        interval = row.schedule_interval
 
-                    schedule_id = uuid.UUID(row.id)
+                        repeat_seconds = None
+                        if interval is not None:
+                            repeat_seconds = interval.total_seconds()
 
-                    schedule = self._ScheduleRow(
-                                        id=schedule_id,
-                                        name=row.schedule_name,
-                                        type=row.schedule_type,
-                                        day=row.schedule_day,
-                                        time=row.schedule_time,
-                                        repeat=interval,
-                                        repeat_seconds=repeat_seconds,
-                                        exclusive=row.exclusive,
-                                        process_name=row.process_name)
+                        schedule_id = uuid.UUID(row.id)
 
-                    self._schedules[schedule_id] = schedule
-                    self._schedule_first_task(schedule, self._start_time)
+                        schedule = self._ScheduleRow(
+                                            id=schedule_id,
+                                            name=row.schedule_name,
+                                            type=row.schedule_type,
+                                            day=row.schedule_day,
+                                            time=row.schedule_time,
+                                            repeat=interval,
+                                            repeat_seconds=repeat_seconds,
+                                            exclusive=row.exclusive,
+                                            process_name=row.process_name)
+
+                        self._schedules[schedule_id] = schedule
+                        self._schedule_first_task(schedule, self._start_time)
+        except Exception:
+            self._logger.exception('Select failed: %s', query)
+            raise
 
     async def _read_storage(self):
         """Reads schedule information from the storage server"""
@@ -948,34 +988,48 @@ class Scheduler(object):
                 is_new_schedule = True
 
         if not is_new_schedule:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    result = await conn.execute(
-                        self._schedules_tbl.update().where(
-                            self._schedules_tbl.c.id == str(schedule.schedule_id)).values(
-                            schedule_name=schedule.name,
-                            schedule_interval=schedule.repeat,
-                            schedule_day=day,
-                            schedule_time=schedule_time,
-                            exclusive=schedule.exclusive,
-                            process_name=schedule.process_name
-                        ))
+            update = self._schedules_tbl.update()
+            update = update.where(self._schedules_tbl.c.id == str(schedule.schedule_id))
+            update = update.values(schedule_name=schedule.name,
+                                   schedule_interval=schedule.repeat,
+                                   schedule_day=day,
+                                   schedule_time=schedule_time,
+                                   exclusive=schedule.exclusive,
+                                   process_name=schedule.process_name)
 
-                    if result.rowcount == 0:
-                        is_new_schedule = True
+            self._logger.debug('Database command: %s', update)
+
+            try:
+                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                    async with engine.acquire() as conn:
+                        result = await conn.execute(update)
+
+                        if result.rowcount == 0:
+                            is_new_schedule = True
+            except Exception:
+                self._logger.debug('Update failed: %s', update)
+                raise
 
         if is_new_schedule:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    await conn.execute(self._schedules_tbl.insert().values(
-                        id=str(schedule.schedule_id),
-                        schedule_type=int(schedule.schedule_type),
-                        schedule_name=schedule.name,
-                        schedule_interval=schedule.repeat,
-                        schedule_day=day,
-                        schedule_time=schedule_time,
-                        exclusive=schedule.exclusive,
-                        process_name=schedule.process_name))
+            insert = self._schedules_tbl.insert()
+            insert = insert.values(id=str(schedule.schedule_id),
+                                   schedule_type=int(schedule.schedule_type),
+                                   schedule_name=schedule.name,
+                                   schedule_interval=schedule.repeat,
+                                   schedule_day=day,
+                                   schedule_time=schedule_time,
+                                   exclusive=schedule.exclusive,
+                                   process_name=schedule.process_name)
+
+            self._logger.debug('Database command: %s', insert)
+
+            try:
+                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                    async with engine.acquire() as conn:
+                        await conn.execute(insert)
+            except Exception:
+                self._logger.exception('Insert failed: %s', insert)
+                raise
 
         repeat_seconds = None
         if schedule.repeat is not None:
@@ -1026,10 +1080,19 @@ class Scheduler(object):
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                await conn.execute(self._schedules_tbl.delete().where(
-                    self._schedules_tbl.c.id == str(schedule_id)))
+        delete = self._schedules_tbl.delete()
+        delete = delete.where(self._schedules_tbl.c.id == str(schedule_id))
+
+        self._logger.debug('Database command: %s', delete)
+
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    await conn.execute(self._schedules_tbl.delete().where(
+                        self._schedules_tbl.c.id == str(schedule_id)))
+        except Exception:
+            self._logger.exception('Delete failed: %s', delete)
+            raise
 
     @classmethod
     def _schedule_row_to_schedule(cls,
@@ -1136,31 +1199,35 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID)->Task:
         """Retrieves a task given its id"""
-        query = sa.select([self._tasks_tbl.c.id,
-                           self._tasks_tbl.c.process_name,
-                           self._tasks_tbl.c.state,
-                           self._tasks_tbl.c.start_time,
-                           self._tasks_tbl.c.end_time,
-                           self._tasks_tbl.c.exit_code,
-                           self._tasks_tbl.c.reason])
-
+        query = sqlalchemy.select([self._tasks_tbl.c.id,
+                                   self._tasks_tbl.c.process_name,
+                                   self._tasks_tbl.c.state,
+                                   self._tasks_tbl.c.start_time,
+                                   self._tasks_tbl.c.end_time,
+                                   self._tasks_tbl.c.exit_code,
+                                   self._tasks_tbl.c.reason])
         query.select_from(self._tasks_tbl)
+        query = query.where(self._tasks_tbl.c.id == task_id)
 
-        query.where(self._tasks_tbl.c.id == task_id)
+        self._logger.debug('Database command: %s', query)
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(query):
-                    task = Task()
-                    task.task_id = uuid.UUID(row.id)
-                    task.state = Task.State(row.state)
-                    task.start_time = row.start_time
-                    task.process_name = row.process_name
-                    task.end_time = row.end_time
-                    task.exit_code = row.exit_code
-                    task.reason = row.reason
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    async for row in conn.execute(query):
+                        task = Task()
+                        task.task_id = uuid.UUID(row.id)
+                        task.state = Task.State(row.state)
+                        task.start_time = row.start_time
+                        task.process_name = row.process_name
+                        task.end_time = row.end_time
+                        task.exit_code = row.exit_code
+                        task.reason = row.reason
 
-                    return task
+                        return task
+        except Exception:
+            self._logger.exception('Select failed: %s', query)
+            raise
 
         raise TaskNotFoundError(task_id)
 
@@ -1172,30 +1239,39 @@ class Scheduler(object):
         Args:
             limit: Return at most this number of rows
         """
-        query = sa.select([self._tasks_tbl.c.id,
-                           self._tasks_tbl.c.process_name,
-                           self._tasks_tbl.c.state,
-                           self._tasks_tbl.c.start_time,
-                           self._tasks_tbl.c.end_time,
-                           self._tasks_tbl.c.exit_code,
-                           self._tasks_tbl.c.reason]).select_from(self._tasks_tbl).order_by(
-                                self._tasks_tbl.c.start_time.desc()).limit(limit)
+        query = sqlalchemy.select([self._tasks_tbl.c.id,
+                                   self._tasks_tbl.c.process_name,
+                                   self._tasks_tbl.c.state,
+                                   self._tasks_tbl.c.start_time,
+                                   self._tasks_tbl.c.end_time,
+                                   self._tasks_tbl.c.exit_code,
+                                   self._tasks_tbl.c.reason])
+        query.select_from(self._tasks_tbl)
+        query = query.order_by(self._tasks_tbl.c.start_time.desc())
+        query = query.limit(limit)
+
+        self._logger.debug('Database command: %s', query)
 
         tasks = []
 
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                async for row in conn.execute(query):
-                    task = Task()
-                    task.task_id = uuid.UUID(row.id)
-                    task.state = Task.State(row.state)
-                    task.start_time = row.start_time
-                    task.process_name = row.process_name
-                    task.end_time = row.end_time
-                    task.exit_code = row.exit_code
-                    task.reason = row.reason
+        try:
+            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
+                async with engine.acquire() as conn:
+                    async for row in conn.execute(query):
+                        task = Task()
+                        task.task_id = uuid.UUID(row.id)
+                        task.state = Task.State(row.state)
+                        task.start_time = row.start_time
+                        task.process_name = row.process_name
+                        task.end_time = row.end_time
+                        task.exit_code = row.exit_code
+                        task.reason = row.reason
 
-                    tasks.append(task)
+                        tasks.append(task)
+        except Exception:
+            self._logger.exception('Select failed: %s', query)
+            raise
+
         return tasks
 
     async def cancel_task(self, task_id: uuid.UUID)->None:
@@ -1238,25 +1314,34 @@ class Scheduler(object):
         except ProcessLookupError:
             pass  # Process has terminated
 
-    async def _check_purge_tasks(self):
+    def _check_purge_tasks(self):
         """Schedules :meth:`_purge_tasks` to run if sufficient time has elapsed
         since it last ran
         """
 
         if self._purge_tasks_task is None and (self._last_task_purge_time is None or (
                 time.time() - self._last_task_purge_time) >= self._PURGE_TASKS_FREQUENCY_SECONDS):
-            self._purge_tasks_task = asyncio.ensure_future(self._purge_tasks())
+            self._purge_tasks_task = asyncio.ensure_future(self.purge_tasks())
 
-    async def _purge_tasks(self):
+    async def purge_tasks(self):
         """Deletes rows from the tasks table"""
+        if self._paused:
+            return
+
+        if not self._ready:
+            raise NotReadyError()
+
+        query = sqlalchemy.select([self._tasks_tbl.c.id])
+        query.select_from(self._tasks_tbl)
+        query = query.where((self._tasks_tbl.c.state != int(Task.State.RUNNING)) & (
+                                self._tasks_tbl.c.start_time < datetime.datetime.now() -
+                                self._max_completed_task_age))
+        query = query.limit(self._DELETE_TASKS_LIMIT)
+
         delete = self._tasks_tbl.delete()
-        delete.where(self._tasks_tbl.c.state != int(Task.State.RUNNING)
-                     and self._tasks_tbl.c.start_time < datetime.datetime.fromtimestamp(
-                        time.time()-self._max_task_row_age_seconds))
+        delete = delete.where(self._tasks_tbl.c.id == query.as_scalar())
 
-        delete.limit(self._DELETE_TASKS_LIMIT)
-
-        self._logger.debug("Delete query: %s", delete)
+        self._logger.debug('Database command: %s', delete)
 
         try:
             async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
@@ -1266,7 +1351,8 @@ class Scheduler(object):
                         if result.rowcount < self._DELETE_TASKS_LIMIT:
                             break
         except Exception:
-            self._logger.exception('Task purge failed: %s', delete)
+            self._logger.exception('Delete failed: %s', delete)
+            raise
         finally:
             self._purge_tasks_task = None
 
@@ -1278,13 +1364,13 @@ class Scheduler(object):
             "max_running_tasks": {
                 "description": "The maximum number of tasks that can be running at any given time",
                 "type": "integer",
-                "default": self._DEFAULT_MAX_RUNNING_TASKS,
+                "default": str(self._DEFAULT_MAX_RUNNING_TASKS)
             },
-            "max_task_row_age": {
+            "max_completed_task_age_days": {
                 "description": "The maximum age, in days (based on the start time), for a rows "
                                "in the tasks table that do not have a status of 'running'",
                 "type": "integer",
-                "default": self._MAX_TASK_AGE_DAYS
+                "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
             },
         }
 
@@ -1293,8 +1379,9 @@ class Scheduler(object):
 
         config = await configuration_manager.get_category_all_items('SCHEDULER')
 
-        self._max_running_tasks = int(config['max_running_tasks'])
-        self._max_task_row_age_seconds = int(config['max_task_row_age'])*self._DAY_SECONDS
+        self._max_running_tasks = int(config['max_running_tasks']['value'])
+        self._max_completed_task_age = datetime.timedelta(
+            seconds=int(config['max_completed_task_age_days']['value']) * self._DAY_SECONDS)
 
     async def start(self):
         """Starts the scheduler
@@ -1323,6 +1410,7 @@ class Scheduler(object):
         # wait self._start_startup_task(self._schedules['storage'])
         # Then wait for it to start.
 
+        await self._read_config()
         await self._mark_tasks_interrupted()
         await self._read_storage()
 

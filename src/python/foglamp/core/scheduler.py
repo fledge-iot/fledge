@@ -247,8 +247,7 @@ class Scheduler(object):
             metadata = sqlalchemy.MetaData()
 
             cls._schedules_tbl = sqlalchemy.Table(
-                'schedules',
-                metadata,
+                'schedules', metadata,
                 sqlalchemy.Column('id', pg_types.UUID),
                 sqlalchemy.Column('schedule_name', sqlalchemy.types.VARCHAR(20)),
                 sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20)),
@@ -259,8 +258,7 @@ class Scheduler(object):
                 sqlalchemy.Column('exclusive', sqlalchemy.types.BOOLEAN))
 
             cls._tasks_tbl = sqlalchemy.Table(
-                'tasks',
-                metadata,
+                'tasks', metadata,
                 sqlalchemy.Column('id', pg_types.UUID),
                 sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20)),
                 sqlalchemy.Column('state', sqlalchemy.types.INT),
@@ -271,8 +269,7 @@ class Scheduler(object):
                 sqlalchemy.Column('reason', sqlalchemy.types.VARCHAR(255)))
 
             cls._scheduled_processes_tbl = sqlalchemy.Table(
-                'scheduled_processes',
-                metadata,
+                'scheduled_processes', metadata,
                 sqlalchemy.Column('name', pg_types.VARCHAR(20)),
                 sqlalchemy.Column('script', pg_types.JSONB))
 
@@ -1207,7 +1204,7 @@ class Scheduler(object):
                                    self._tasks_tbl.c.exit_code,
                                    self._tasks_tbl.c.reason])
         query.select_from(self._tasks_tbl)
-        query = query.where(self._tasks_tbl.c.id == task_id)
+        query = query.where(self._tasks_tbl.c.id == str(task_id))
 
         self._logger.debug('Database command: %s', query)
 

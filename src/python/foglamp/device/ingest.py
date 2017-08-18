@@ -48,10 +48,10 @@ class Ingest(object):
 
     # Class attributes
     _readings = 0  # type: int
-    """number of readings accepted before statistics were flushed to the database"""
+    """Number of readings accepted before statistics were flushed to storage"""
 
     _discarded_readings = 0  # type: int
-    """number of readings rejected before statistics were flushed to the database"""
+    """Number of readings rejected before statistics were flushed to storage"""
 
     _write_statistics_loop_task = None  # type: asyncio.Future
     """Asyncio task for :meth:`_write_statistics_loop`"""
@@ -93,7 +93,7 @@ class Ingest(object):
     @classmethod
     async def _write_statistics_loop(cls):
         """Periodically commits collected readings statistics"""
-        _LOGGER.info("Ingest statistics writer started")
+        _LOGGER.info("Device statistics writer started")
 
         while not cls._stop:
             # stop() calls _sleep_task.cancel().
@@ -111,7 +111,6 @@ class Ingest(object):
             cls._sleep_task = None
 
             try:
-                # TODO Move READINGS and DISCARDED to globals
                 await statistics.update_statistics_value('READINGS', cls._readings)
                 cls._readings = 0
 
@@ -121,7 +120,7 @@ class Ingest(object):
             except Exception:
                 _LOGGER.exception("An error occurred while writing readings statistics")
 
-        _LOGGER.info("Ingest statistics writer stopped")
+        _LOGGER.info("Device statistics writer stopped")
 
     @classmethod
     async def add_readings(cls, asset: str, timestamp: datetime.datetime,
@@ -137,10 +136,16 @@ class Ingest(object):
             readings: A dictionary of sensor readings
 
         Raises:
-            Exception:
-                If this method raises an Exception, the discarded readings counter is
-                also incremented.
+            If this method raises an Exception, the discarded readings counter is
+            also incremented.
+
+            IOError:
+                Server error
+
+            ValueError:
+                An invalid value was provided
         """
+        success = False
 
         try:
             if asset is None:
@@ -159,7 +164,15 @@ class Ingest(object):
             # Comment out to test IntegrityError
             # key = '123e4567-e89b-12d3-a456-426655440000'
 
-            # SQLAlchemy / Postgres convert/verify datatypes ...
+            # SQLAlchemy / Postgres convert/verify data types ...
+
+            insert = _READINGS_TBL.insert()
+            insert = insert.values(asset_code=asset,
+                                   reading=readings,
+                                   read_key=key,
+                                   user_ts=timestamp)
+
+            _LOGGER.debug('Database command: %s', insert)
 
             try:
                 # How to test an insert error:
@@ -167,18 +180,26 @@ class Ingest(object):
                 async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
                     async with engine.acquire() as conn:
                         try:
-                            await conn.execute(_READINGS_TBL.insert().values(
-                                asset_code=asset, reading=readings, read_key=key,
-                                user_ts=timestamp))
-                            cls._readings += 1
-                        except psycopg2.IntegrityError:
+                            await conn.execute(insert)
+                            success = True
+                        except psycopg2.IntegrityError as e:
                             # This exception is also thrown for NULL violations
-                            _LOGGER.warning(
+                            # So the code above verifies not-NULL columns don't have
+                            # corresponding None values
+                            success = None  # Do not increment discarded_readings. Already stored.
+                            _LOGGER.info(
                                 "Duplicate key (%s) inserting sensor values. Asset: '%s'"
-                                " Readings:\n%s",
-                                key, asset, readings)
+                                " Readings:\n%s\n\n%s",
+                                key, asset, readings, e)
             except (psycopg2.DataError, psycopg2.ProgrammingError) as e:
                 raise ValueError(e)
-        except Exception:
-            cls._discarded_readings += 1
-            raise
+            except Exception as e:
+                _LOGGER.exception('Insert failed: %s', insert)
+                raise IOError(e)
+        finally:
+            if success is not None:
+                if success:
+                    cls._readings += 1
+                else:
+                    cls._discarded_readings += 1
+

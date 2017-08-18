@@ -53,11 +53,11 @@ class Ingest(object):
     _discarded_readings = 0  # type: int
     """Number of readings rejected before statistics were flushed to storage"""
 
-    _write_statistics_loop_task = None  # type: asyncio.Future
-    """Asyncio task for :meth:`_write_statistics_loop`"""
+    _write_statistics_loop_task = None  # type: asyncio.Task
+    """asyncio task for :meth:`_write_statistics_loop`"""
 
-    _sleep_task = None  # type: asyncio.Future
-    """Asyncio task for asyncio.sleep"""
+    _sleep_task = None  # type: asyncio.Task
+    """asyncio task for asyncio.sleep"""
 
     _stop = False  # type: bool
     """Set to true when the server needs to stop"""

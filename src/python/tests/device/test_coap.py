@@ -40,7 +40,6 @@ class TestIngestReadings(object):
         ({'timestamp': '2017-01-01T00:00:00Z', 'asset': 'test2',
          'readings': {'a': 5}}, CoAP_CODES.VALID),
         ({}, CoAP_CODES.BAD_REQUEST),
-        ({}, CoAP_CODES.BAD_REQUEST),
         ({'timestamp': '2017-01-01T00:00:00Z'}, CoAP_CODES.BAD_REQUEST),
     ]
     """An array of tuples consisting of (payload, expected status code)

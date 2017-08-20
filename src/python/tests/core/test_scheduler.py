@@ -421,3 +421,30 @@ class TestScheduler:
         assert tasks
 
         await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_purge_tasks(self):
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'purge_task'
+        interval_schedule.process_name = "sleep5"
+        # interval_schedule.repeat = datetime.timedelta(seconds=30)
+        await scheduler.save_schedule(interval_schedule)
+
+        await asyncio.sleep(1)
+        tasks = await scheduler.get_tasks(5)
+        assert tasks
+
+        scheduler.max_running_tasks = 0
+        await asyncio.sleep(7)
+
+        scheduler.max_completed_task_age = datetime.timedelta(seconds=1)
+        await scheduler.purge_tasks()
+
+        tasks = await scheduler.get_tasks(5)
+        assert not tasks
+        await self.stop_scheduler(scheduler)

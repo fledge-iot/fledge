@@ -69,33 +69,33 @@ class TestTask:
         call(["foglamp", "start"])
         time.sleep(2)
 
-
-    @ classmethod
+    @classmethod
     def teardown_class(cls):
         from subprocess import call
         call(["foglamp", "stop"])
 
-
     def setup_method(self, method):
         pass
-
 
     def teardown_method(self, method):
         delete_all_schedules()
 
+    def _create_schedule(self, data):
+        r = requests.post(BASE_URL + '/schedule', data=json.dumps(data), headers=headers)
+        retval = dict(r.json())
+        schedule_id = retval['schedule']['id']
+
+        return schedule_id
 
     # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
-
 
     @pytest.mark.run(order=1)
     @pytest.mark.asyncio
     async def test_cancel_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_task_4", "process_name": "sleep30", "repeat": "3600"}
-        r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
-        retval = dict(r.json())
-        schedule_id = retval['schedule']['id']
+        schedule_id = self._create_schedule(data)
 
         # Now start the schedules
         r = requests.post(BASE_URL+'/schedule/start/' + schedule_id)
@@ -131,15 +131,12 @@ class TestTask:
         assert retval['id'] == task_id
         assert retval['state'] == 'CANCELED'
 
-
     @pytest.mark.run(order=2)
     @pytest.mark.asyncio
     async def test_get_tasks_latest(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task3", "process_name": "sleep1", "repeat": 2}
-        r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
-        retval = dict(r.json())
-        schedule_id = retval['schedule']['id']
+        schedule_id = self._create_schedule(data)
 
         await asyncio.sleep(4)
 
@@ -168,15 +165,12 @@ class TestTask:
         assert 2 == len(retval['tasks'])
         assert retval['tasks'][0]['process_name'] == 'sleep1'
 
-
     @pytest.mark.run(order=3)
     @pytest.mark.asyncio
     async def test_get_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 4, "name": "test_get_task1", "process_name": "sleep10"}
-        r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
-        retval = dict(r.json())
-        schedule_id = retval['schedule']['id']
+        schedule_id = self._create_schedule(data)
 
         # Now start the schedule to create a Task
         r = requests.post(BASE_URL+'/schedule/start/' + schedule_id)
@@ -199,15 +193,12 @@ class TestTask:
         assert 200 == r.status_code
         assert retval['id'] == task_id
 
-
     @pytest.mark.run(order=4)
     @pytest.mark.asyncio
     async def test_get_tasks(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task2", "process_name": "sleep5", "repeat": 2}
-        r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
-        retval = dict(r.json())
-        schedule_id = retval['schedule']['id']
+        schedule_id = self._create_schedule(data)
 
         # Now start the schedule to create a Task
         r = requests.post(BASE_URL+'/schedule/start/' + schedule_id)

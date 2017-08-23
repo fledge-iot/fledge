@@ -24,9 +24,6 @@ BASE_URL = 'http://localhost:8082/foglamp'
 headers = {"Content-Type": 'application/json'}
 
 
-# MUST DO: In order to run below lines, you will need to set environment variable, at terminal, FOGLAMP_ENV to test
-# vide command: export FOGLAMP_ENV='TEST' before running this script via pytest.
-
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('truncate foglamp.schedules, foglamp.tasks')

@@ -169,12 +169,12 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
     global _tot_byte_transferred
     global _num_iterated
 
-    from pprint import pprint
+    # from pprint import pprint
     import time
     # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
     with open(_file) as f:
         readings_list = [json.loads(line) for line in f]
-    pprint(readings_list)
+    # pprint(readings_list)
 
     loop = asyncio.get_event_loop()
 
@@ -193,7 +193,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
         _iterations -= 1
         _num_iterated += 1
         if _iterations != 0:
-            print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
+            # print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
             time.sleep(_interval)
             # TODO: For next iteration, add interval to payload timestamp
 
@@ -207,14 +207,10 @@ async def send_to_coap(payload):
      port 5683 (official IANA assigned CoAP port),
      URI "/other/sensor-values".
 
-    # TODO: NO?  Request is sent 2 seconds after initialization.
     """
 
     context = await Context.create_client_context()
 
-    # await asyncio.sleep(2)
-
-    # request = Message(payload=dumps(payload), code=PUT)
     request = Message(payload=dumps(payload), code=POST)
     request.opt.uri_host = arg_host
     request.opt.uri_port = arg_port
@@ -223,9 +219,7 @@ async def send_to_coap(payload):
 
     # TODO: check, should we wait for acknowledgement response
     response = await context.request(request).response
-
-    # print('Result: %s\n%r' % (response.code, response.payload))
-    print('Result: %s\n' % response.code)
+    # print('Result: %s\n' % response.code)
 
 
 def get_statistics(_stats_type=None, _out_file=None):

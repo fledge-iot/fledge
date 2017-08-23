@@ -22,10 +22,10 @@ fogbench
         -p --payload     Type of payload and protocol (default: sensor/coap)
  [IN]   -t --template    Set the template to use
  [IN]   -v --version     Display the version and exit
- FIXME: [IN]       -H --host        The FogLAMP host (default: localhost)
+ [IN]   -H --host        The FogLAMP host (default: localhost)
         -I --iterations  The number of iterations of the test (default: 1)
  [IN]   -O --occurrences The number of occurrences of the template (default: 1)
-        -P --port        The FogLAMP port. Default depends on payload and protocol
+ [IN]   -P --port        The FogLAMP port. Default depends on payload and protocol
  [IN]   -S --statistic   The type of statistics to collect
 
  Example:
@@ -207,13 +207,14 @@ async def send_to_coap(payload):
      port 5683 (official IANA assigned CoAP port),
      URI "/other/sensor-values".
 
-    # TODO: NO?  Request is sent 2 seconds after initialization.
     """
 
     context = await Context.create_client_context()
 
     request = Message(payload=dumps(payload), code=POST)
-    request.opt.uri_host = 'localhost'
+    request.opt.uri_host = arg_host
+    request.opt.uri_port = arg_port
+    # request.opt.uri_path = ("other", "block")
     request.opt.uri_path = ("other", "sensor-values")
 
     # TODO: check, should we wait for acknowledgement response
@@ -267,8 +268,8 @@ def get_statistics(_stats_type=None, _out_file=None):
 
 def check_coap_server():
     # TODO: Temporary info
-    print(">>> $ python -m foglamp.device ; To see payload on console "
-          "& ensure CoAP server is listening on {}:{}".format("localhost", 5683))
+    print(">>> Make sure device service is running "
+          "& CoAP server is listening on specified host and port")
 
 parser = argparse.ArgumentParser(prog='fogbench')
 parser.description = '%(prog)s -- a Python script used to test FogLAMP (simulate payloads)'
@@ -283,6 +284,7 @@ parser.add_argument('-I', '--iterations', help='The number of iterations of the 
 parser.add_argument('-O', '--occurrences', help='The number of occurrences of the template (default: 1)')
 
 parser.add_argument('-H', '--host', help='CoAP server host address (default: localhost)', action=check_coap_server())
+parser.add_argument('-P', '--port', help='The FogLAMP port. (default: 5683)')
 parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
 
 parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
@@ -301,6 +303,9 @@ arg_occurrences = int(namespace.occurrences) if namespace.occurrences else 1
 arg_interval = int(namespace.interval) if namespace.interval else 0
 
 arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else 'total'
+
+arg_host = '{0}'.format(namespace.host) if namespace.host else 'localhost'
+arg_port = int(namespace.port) if namespace.port else 5683
 
 sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(os.getpid()))
 parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)

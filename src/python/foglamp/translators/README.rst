@@ -3,25 +3,8 @@ OMF Translator
 
 Starting the OMF Translator
 ---------------------------
-
-- the configuration table should be updated using for example (the row will be recreated) to being able the create a new producerToken  :
-    - DELETE FROM foglamp.configuration WHERE key='OMF_TRANS ';
-
-- set the staring point using :
-    - identify the correct id, using for example :
-        SELECT MAX(ID) FROM foglamp.readings;
-
-    - update last_object properly :
-        - UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1;
-
 - it could be executed as is without parameters :
     python -m foglamp.translators.omf_translator
-
-Initial configuration
----------------------
-- foglamp_init_data.sql will load :
-    INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());
-    INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF', 0,now());
 
 Note
 ----
@@ -32,7 +15,18 @@ Note
 - block_size identifies the number of rows to send for each execution
 
 - it uses foglamp.streams to track the information to send
-- Temporary/Useful SQL code used for dev:
+
+- Temporary/Useful SQL code for development testing:
+
+    - the configuration table should be updated using for example (the row will be recreated) to being able the create a new producerToken  :
+        - DELETE FROM foglamp.configuration WHERE key='OMF_TRANS ';
+
+    - set the staring point using :
+        - identify the correct id, using for example :
+            SELECT MAX(ID) FROM foglamp.readings;
+
+        - update last_object properly :
+            - UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1;
 
     SELECT MAX(ID) FROM foglamp.readings;
 
@@ -40,8 +34,9 @@ Note
 
     SELECT * FROM foglamp.streams;
 
-    SELECT * FROM foglamp.readings WHERE id > 98021 ORDER by id;
-    SELECT * FROM foglamp.readings WHERE id > 98021 ORDER by USER_ts;
+    SELECT * FROM foglamp.readings WHERE id > 0 ORDER by id;
+    SELECT * FROM foglamp.readings WHERE id > 0 ORDER by USER_ts;
 
-    SELECT * FROM foglamp.readings WHERE id >= 98021 and reading ? 'lux' ORDER by USER_ts;
+    SELECT * FROM foglamp.readings WHERE id > 0 and id <= 0+50 and asset_code like '%gyrosc%' ORDER by USER_ts;
 
+    SELECT * FROM foglamp.readings WHERE id > 0 and id <= 0+50 and asset_code  like '%mag%' ORDER by USER_ts;

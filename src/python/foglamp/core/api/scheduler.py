@@ -421,7 +421,7 @@ async def delete_schedule(request):
 
         await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
-        return web.json_response({'message': 'Schedule deleted successfully.', 'id': schedule_id})
+        return web.json_response({'message': 'Schedule deleted successfully', 'id': schedule_id})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -472,10 +472,10 @@ async def get_tasks(request):
     """
     Returns the list of tasks
 
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks?name=xxx
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks?state=xxx
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks?name=xxx&state=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?state=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx&state=xxx
     """
 
     try:
@@ -523,8 +523,8 @@ async def get_tasks_latest(request):
     """
     Returns the list of the most recent task execution for each name from tasks table
 
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks/latest
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks/latest?name=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task/latest
+    :Example: curl -X GET  http://localhost:8082/foglamp/task/latest?name=xxx
     """
 
     try:

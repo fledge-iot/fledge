@@ -159,10 +159,7 @@ class TestTask:
         retval = dict(r.json())
 
         assert 200 == r.status_code
-        # TODO: add a delete_tasks() method in core/scheduler.py
-        # Due to this lacking, one more record is carried forward from previous test
-        # assert 1 == len(retval['tasks'])
-        assert 2 == len(retval['tasks'])
+        assert 1 == len(retval['tasks'])
         assert retval['tasks'][0]['process_name'] == 'sleep1'
 
     @pytest.mark.run(order=3)

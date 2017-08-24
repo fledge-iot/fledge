@@ -5,12 +5,13 @@
 # FOGLAMP_END
 
 import time
+import datetime
 import json
-
 import asyncpg
 import requests
 import pytest
 import asyncio
+from foglamp.core.scheduler import Schedule, Task
 
 
 __author__ = "Amarendra K Sinha"
@@ -26,18 +27,28 @@ headers = {"Content-Type": 'application/json'}
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('truncate foglamp.schedules, foglamp.tasks')
-    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('sleep1', 'sleep5', 'sleep10', 'sleep30')''')
+    await conn.execute('truncate foglamp.tasks')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
+    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep1', '["sleep", "1"]')''')
+        values('testsleep1', '["sleep", "1"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep10', '["sleep", "10"]')''')
+        values('testsleep10', '["sleep", "10"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep30', '["sleep", "30"]')''')
+        values('testsleep30', '["sleep", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep5', '["sleep", "5"]')''')
+        values('testsleep5', '["sleep", "5"]')''')
     await conn.execute('commit')
     await asyncio.sleep(4)
+
+async def delete_master_data():
+    conn = await asyncpg.connect(database=__DB_NAME)
+    await conn.execute('truncate foglamp.tasks')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
+    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
+    await conn.execute('commit')
+    await asyncio.sleep(4)
+
 
 def delete_all_schedules():
     """
@@ -52,12 +63,13 @@ def delete_all_schedules():
 
     if schedule_list:
         for sch in schedule_list:
-            schedule_id = sch['id']
-            r = requests.delete(BASE_URL+'/schedule/' + schedule_id)
-            retval = dict(r.json())
-            assert 200 == r.status_code
-            assert retval['id'] == schedule_id
-            assert retval['message'] == "Schedule deleted successfully"
+            if sch['process_name'] in ['testsleep1', 'testsleep5', 'testsleep10', 'testsleep30']:
+                schedule_id = sch['id']
+                r = requests.delete(BASE_URL+'/schedule/' + schedule_id)
+                retval = dict(r.json())
+                assert 200 == r.status_code
+                assert retval['id'] == schedule_id
+                assert retval['message'] == "Schedule deleted successfully"
 
 
 class TestScheduler:
@@ -73,6 +85,7 @@ class TestScheduler:
         from subprocess import call
         call(["foglamp", "stop"])
         time.sleep(4)
+        asyncio.get_event_loop().run_until_complete(delete_master_data())
 
     def setup_method(self, method):
         pass
@@ -97,23 +110,23 @@ class TestScheduler:
         retval = dict(r.json())
 
         assert 200 == r.status_code
-        assert 'sleep30' in retval['processes']
-        assert 'sleep10' in retval['processes']
-        assert 'sleep5' in retval['processes']
-        assert 'sleep1' in retval['processes']
+        assert 'testsleep30' in retval['processes']
+        assert 'testsleep10' in retval['processes']
+        assert 'testsleep5' in retval['processes']
+        assert 'testsleep1' in retval['processes']
 
     @pytest.mark.run(order=2)
     @pytest.mark.asyncio
     async def test_get_scheduled_process(self):
-        r = requests.get(BASE_URL+'/schedule/process/sleep1')
+        r = requests.get(BASE_URL+'/schedule/process/testsleep1')
 
         assert 200 == r.status_code
-        assert 'sleep1' == r.json()
+        assert 'testsleep1' == r.json()
 
     @pytest.mark.run(order=3)
     @pytest.mark.asyncio
     async def test_post_schedule(self):
-        data = {"type": 3, "name": "test_post_sch", "process_name": "sleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_post_sch", "process_name": "testsleep30", "repeat": "3600"}
         r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
 
@@ -123,7 +136,7 @@ class TestScheduler:
         assert retval['schedule']['type'] == "INTERVAL"
         assert retval['schedule']['time'] == "None"
         assert retval['schedule']['day'] is None
-        assert retval['schedule']['process_name'] == 'sleep30'
+        assert retval['schedule']['process_name'] == 'testsleep30'
         assert retval['schedule']['repeat'] == '1:00:00'
         assert retval['schedule']['name'] == 'test_post_sch'
 
@@ -131,7 +144,7 @@ class TestScheduler:
     @pytest.mark.asyncio
     async def test_update_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_update_sch", "process_name": "sleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_update_sch", "process_name": "testsleep30", "repeat": "3600"}
         schedule_id = self._create_schedule(data)
 
         # Secondly, update the schedule
@@ -147,7 +160,7 @@ class TestScheduler:
         assert retval['schedule']['type'] == "INTERVAL"
         assert retval['schedule']['time'] == "None"
         assert retval['schedule']['day'] is None
-        assert retval['schedule']['process_name'] == 'sleep30'
+        assert retval['schedule']['process_name'] == 'testsleep30'
 
         # Below two values only changed
         assert retval['schedule']['repeat'] == '0:00:04'
@@ -157,7 +170,7 @@ class TestScheduler:
     @pytest.mark.asyncio
     async def test_delete_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_delete_sch", "process_name": "sleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_delete_sch", "process_name": "testsleep30", "repeat": "3600"}
         schedule_id = self._create_schedule(data)
 
         # Now check the schedules
@@ -172,7 +185,7 @@ class TestScheduler:
     @pytest.mark.asyncio
     async def test_get_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_sch", "process_name": "sleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_get_sch", "process_name": "testsleep30", "repeat": "3600"}
         schedule_id = self._create_schedule(data)
 
         # Now check the schedule
@@ -185,7 +198,7 @@ class TestScheduler:
         assert retval['type'] == "INTERVAL"
         assert retval['time'] == "None"
         assert retval['day'] is None
-        assert retval['process_name'] == 'sleep30'
+        assert retval['process_name'] == 'testsleep30'
         assert retval['repeat'] == '1:00:00'
         assert retval['name'] == 'test_get_sch'
 
@@ -193,13 +206,13 @@ class TestScheduler:
     @pytest.mark.asyncio
     async def test_get_schedules(self):
         # First create two schedules to get the schedule_id
-        data = {"type": 3, "name": "test_get_schA", "process_name": "sleep30", "repeat": "3600"}
-        schedule_id1 = self._create_schedule(data)
+        data1 = {"type": 3, "name": "test_get_schA", "process_name": "testsleep30", "repeat": "3600"}
+        schedule_id1 = self._create_schedule(data1)
 
         await asyncio.sleep(4)
 
-        data = {"type": 2, "name": "test_get_schB", "process_name": "sleep30", "day": 5, "time": 44500}
-        schedule_id2 = self._create_schedule(data)
+        data2 = {"type": 2, "name": "test_get_schB", "process_name": "testsleep30", "day": 5, "time": 44500}
+        schedule_id2 = self._create_schedule(data2)
 
         await asyncio.sleep(4)
 
@@ -207,32 +220,46 @@ class TestScheduler:
         r = requests.get(BASE_URL+'/schedule')
         retval = dict(r.json())
 
-        assert 200 == r.status_code
-        assert 2 == len(retval['schedules'])
-        # Because of unpredictibility in the sequence of the items, this method of assert has been adopted
-        assert retval['schedules'][0]['id'] in [schedule_id1, schedule_id2]
-        assert retval['schedules'][0]['exclusive'] is True
-        assert retval['schedules'][0]['type'] in ["INTERVAL", "TIMED"]
-        assert retval['schedules'][0]['time'] in ["None", '12:21:40']
-        assert retval['schedules'][0]['day'] in [None, 5]
-        assert retval['schedules'][0]['process_name'] == 'sleep30'
-        assert retval['schedules'][0]['repeat'] in ['1:00:00', '0:00:00']
-        assert retval['schedules'][0]['name'] in ['test_get_schA', 'test_get_schB']
+        list_id = list()
+        list_exclusive = list()
+        list_type = list()
+        list_time = list()
+        list_day = list()
+        list_process_name = list()
+        list_name = list()
+        list_repeat = list()
 
-        assert retval['schedules'][1]['id'] in [schedule_id1, schedule_id2]
-        assert retval['schedules'][1]['exclusive'] is True
-        assert retval['schedules'][1]['type'] in ["INTERVAL", "TIMED"]
-        assert retval['schedules'][1]['time'] in ["None", '12:21:40']
-        assert retval['schedules'][1]['day'] in [None, 5]
-        assert retval['schedules'][1]['process_name'] == 'sleep30'
-        assert retval['schedules'][1]['repeat'] in ['1:00:00', '0:00:00']
-        assert retval['schedules'][1]['name'] in ['test_get_schA', 'test_get_schB']
+        # Because of pre-existing schedules, we need to adopt this approach
+        for schedule in retval['schedules']:
+            list_id.append(schedule['id'])
+            list_exclusive.append(schedule['exclusive'])
+            list_type.append(schedule['type'])
+            list_time.append(schedule['time'])
+            list_day.append(schedule['day'])
+            list_process_name.append(schedule['process_name'])
+            list_repeat.append(schedule['repeat'])
+            list_name.append(schedule['name'])
+
+        assert 200 == r.status_code
+        # assert 2 == len(retval['schedules'])
+        assert schedule_id1 in list_id
+        assert Schedule.Type(int(data1['type'])).name in list_type
+        assert data1['process_name'] in list_process_name
+        assert str(datetime.timedelta(seconds=int(data1['repeat']))) in list_repeat
+        assert data1['name'] in list_name
+
+        assert schedule_id2 in list_id
+        assert Schedule.Type(int(data2['type'])).name in list_type
+        assert data2['process_name'] in list_process_name
+        assert str(datetime.timedelta(seconds=int(data2['time']))) in list_time
+        assert data2['day'] in list_day
+        assert data2['name'] in list_name
 
     @pytest.mark.run(order=8)
     @pytest.mark.asyncio
     async def test_start_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_start_sch", "process_name": "sleep30", "repeat": "600"}
+        data = {"type": 3, "name": "test_start_sch", "process_name": "testsleep30", "repeat": "600"}
         schedule_id = self._create_schedule(data)
 
         # Now start the schedules
@@ -250,7 +277,7 @@ class TestScheduler:
         retval = dict(r.json())
 
         assert 200 == r.status_code
-        assert 1 == len(retval['tasks'])
+        # assert 1 == len(retval['tasks'])
         assert retval['tasks'][0]['state'] == 'RUNNING'
-        assert retval['tasks'][0]['process_name'] == 'sleep30'
+        assert retval['tasks'][0]['process_name'] == 'testsleep30'
 

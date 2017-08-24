@@ -11,6 +11,7 @@ import asyncpg
 import requests
 import pytest
 import asyncio
+from foglamp.core.scheduler import Schedule, Task
 
 
 __author__ = "Amarendra K Sinha"
@@ -26,23 +27,25 @@ headers = {"Content-Type": 'application/json'}
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('truncate foglamp.schedules, foglamp.tasks')
-    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('sleep1', 'sleep5', 'sleep10', 'sleep30')''')
+    await conn.execute('truncate foglamp.tasks')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
+    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep1', '["sleep", "1"]')''')
+        values('testsleep1', '["sleep", "1"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep10', '["sleep", "10"]')''')
+        values('testsleep10', '["sleep", "10"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep30', '["sleep", "30"]')''')
+        values('testsleep30', '["sleep", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('sleep5', '["sleep", "5"]')''')
+        values('testsleep5', '["sleep", "5"]')''')
     await conn.execute('commit')
     await asyncio.sleep(4)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('truncate foglamp.schedules, foglamp.tasks')
-    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('sleep1', 'sleep5', 'sleep10', 'sleep30')''')
+    await conn.execute('truncate foglamp.tasks')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
+    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute('commit')
     await asyncio.sleep(4)
 
@@ -60,12 +63,13 @@ def delete_all_schedules():
 
     if schedule_list:
         for sch in schedule_list:
-            schedule_id = sch['id']
-            r = requests.delete(BASE_URL+'/schedule/' + schedule_id)
-            retval = dict(r.json())
-            assert 200 == r.status_code
-            assert retval['id'] == schedule_id
-            assert retval['message'] == "Schedule deleted successfully"
+            if sch['process_name'] in ['testsleep1', 'testsleep5', 'testsleep10', 'testsleep30']:
+                schedule_id = sch['id']
+                r = requests.delete(BASE_URL+'/schedule/' + schedule_id)
+                retval = dict(r.json())
+                assert 200 == r.status_code
+                assert retval['id'] == schedule_id
+                assert retval['message'] == "Schedule deleted successfully"
 
 def cancel_all_tasks():
     # Get all tasks
@@ -101,7 +105,7 @@ class TestTask:
     def teardown_class(cls):
         from subprocess import call
         call(["foglamp", "stop"])
-        # asyncio.get_event_loop().run_until_complete(delete_master_data())
+        asyncio.get_event_loop().run_until_complete(delete_master_data())
 
     def setup_method(self, method):
         pass
@@ -129,7 +133,7 @@ class TestTask:
     @pytest.mark.asyncio
     async def test_cancel_task(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_task_4", "process_name": "sleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_task_4", "process_name": "testsleep30", "repeat": "3600"}
         self._create_task(data)
 
         # Allow sufficient time for task record to be created
@@ -141,7 +145,7 @@ class TestTask:
         task_id = retval['tasks'][0]['id']
         assert 1 == len(retval['tasks'])
         assert retval['tasks'][0]['state'] == 'RUNNING'
-        assert retval['tasks'][0]['process_name'] == 'sleep30'
+        assert retval['tasks'][0]['process_name'] == 'testsleep30'
 
         # Now cancel the runnung task
         r = requests.put(BASE_URL+'/task/cancel/' + task_id)
@@ -164,7 +168,7 @@ class TestTask:
     @pytest.mark.asyncio
     async def test_get_tasks_latest(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_task3", "process_name": "sleep1", "repeat": 2}
+        data = {"type": 3, "name": "test_get_task3", "process_name": "testsleep1", "repeat": 2}
         self._create_task(data)
 
         # Allow multiple tasks to be created
@@ -184,13 +188,13 @@ class TestTask:
         # Due to this lacking, records from previous tests may or may not be carried forward
         # Uncomment below lines when the above error is fixed
         # assert 1 == len(retval['tasks'])
-        assert retval['tasks'][0]['process_name'] == 'sleep1'
+        assert retval['tasks'][0]['process_name'] == 'testsleep1'
 
     @pytest.mark.run(order=3)
     @pytest.mark.asyncio
     async def test_get_task(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_task1", "process_name": "sleep10", "repeat": 200}
+        data = {"type": 3, "name": "test_get_task1", "process_name": "testsleep10", "repeat": 200}
         self._create_task(data)
 
         # Allow sufficient time for task record to be created
@@ -212,7 +216,7 @@ class TestTask:
     @pytest.mark.asyncio
     async def test_get_tasks(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_task2", "process_name": "sleep5", "repeat": 2}
+        data = {"type": 3, "name": "test_get_task2", "process_name": "testsleep5", "repeat": 2}
         self._create_task(data)
 
         # Allow multiple task records to be created
@@ -227,6 +231,6 @@ class TestTask:
         # TODO: add a delete_tasks() method in core/scheduler.py
         # Due to this lacking, one more record is carried forward from previous tests
         # Uncomment below lines when the above error is fixed
-        # assert retvall['tasks'][0]['process_name'] == 'sleep5'
-        # assert retvall['tasks'][1]['process_name'] == 'sleep5'
+        # assert retvall['tasks'][0]['process_name'] == 'testsleep5'
+        # assert retvall['tasks'][1]['process_name'] == 'testsleep5'
 

@@ -3,16 +3,16 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
+import re
 import uuid
 import datetime
 from aiohttp import web
 
 from foglamp.core import server
 from foglamp.core.api import scheduler_db_services
-from foglamp.core.scheduler import Schedule, Scheduler, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
+from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task, WhereExpr, Where
 
-__author__ = "Amarendra K. Sinha, Ashish Jabble"
+__author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -21,14 +21,16 @@ __version__ = "${VERSION}"
 _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/schedule/process                                 |
+    | GET             | /foglamp/schedule/process/{scheduled_process_name}        |
 
-    | GET             | /foglamp/schedules                                        |
-    | POST            | /foglamp/schedule                                         |
+    | GET POST        | /foglamp/schedule                                         |
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
+    | POST            | /foglamp/schedule/start/{schedule_id}                     |
 
-    | GET             | /foglamp/tasks                                            |
-    | GET             | /foglamp/tasks/latest                                     |
-    | GET DELETE      | /foglamp/task/{task_id}                                   |
+
+    | GET             | /foglamp/task                                             |
+    | GET             | /foglamp/task/latest                                      |
+    | GET PUT         | /foglamp/task/{task_id}                                   |
     -------------------------------------------------------------------------------
 """
 
@@ -48,7 +50,7 @@ async def get_scheduled_processes(request):
 
         processes = []
         for proc in processes_list:
-            processes.append({'name': proc.name, 'script': proc.script})
+            processes.append(proc.name)
 
         return web.json_response({'processes': processes})
     except Exception as ex:
@@ -71,7 +73,7 @@ async def get_scheduled_process(request):
         if not scheduled_process:
             raise ValueError('No such Scheduled Process: {}.'.format(scheduled_process_name))
 
-        return web.json_response(scheduled_process)
+        return web.json_response(scheduled_process[0].get("name"))
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -228,7 +230,7 @@ async def get_schedules(request):
                 'id': str(sch.schedule_id),
                 'name': sch.name,
                 'process_name': sch.process_name,
-                'type': sch.schedule_type,
+                'type': Schedule.Type(int(sch.schedule_type)).name,
                 'repeat': str(sch.repeat),
                 'day': sch.day,
                 'time': str(sch.time),
@@ -261,7 +263,7 @@ async def get_schedule(request):
             'id': str(sch.schedule_id),
             'name': sch.name,
             'process_name': sch.process_name,
-            'type': sch.schedule_type,
+            'type': Schedule.Type(int(sch.schedule_type)).name ,
             'repeat': str(sch.repeat),
             'day': sch.day,
             'time': str(sch.time),
@@ -279,7 +281,7 @@ async def start_schedule(request):
     """
     Starts a given schedule
 
-    :Example: curl -X GET  http://localhost:8082/foglamp/schedule/start/fd439e5b-86ba-499a-86d3-34a6e5754b5a
+    :Example: curl -X POST  http://localhost:8082/foglamp/schedule/start/fd439e5b-86ba-499a-86d3-34a6e5754b5a
     """
 
     try:
@@ -306,7 +308,7 @@ async def post_schedule(request):
     """
     Create a new schedule in schedules table
 
-    :Example: curl -d '{"type": 3, "name": "sleep30", "process_name": "sleep30", "repeat": "45"}'  -X POST  http://localhost:8082/foglamp/schedule
+    :Example: curl -d '{"type": 3, "name": "sleep30test", "process_name": "sleep30", "repeat": "45"}'  -X POST  http://localhost:8082/foglamp/schedule
     """
 
     try:
@@ -322,7 +324,22 @@ async def post_schedule(request):
 
         updated_schedule_id = await _execute_add_update_schedule(data)
 
-        return web.json_response({'message': 'Schedule created successfully.', 'id': str(updated_schedule_id)})
+        sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
+        if not sch:
+            raise ValueError('No such Schedule')
+
+        schedule = {
+            'id': str(sch.schedule_id),
+            'name': sch.name,
+            'process_name': sch.process_name,
+            'type': Schedule.Type(int(sch.schedule_type)).name,
+            'repeat': str(sch.repeat),
+            'day': sch.day,
+            'time': str(sch.time),
+            'exclusive': sch.exclusive
+        }
+
+        return web.json_response({'schedule': schedule})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -353,7 +370,7 @@ async def update_schedule(request):
         curr_value['schedule_name'] = sch.name
         curr_value['schedule_type'] = sch.schedule_type
         curr_value['schedule_repeat'] = sch.repeat
-        curr_value['schedule_time'] = sch._time
+        curr_value['schedule_time'] = sch.time
         curr_value['schedule_day'] = sch.day
         curr_value['schedule_exclusive'] = sch.exclusive
 
@@ -363,7 +380,22 @@ async def update_schedule(request):
 
         updated_schedule_id = await _execute_add_update_schedule(data, curr_value)
 
-        return web.json_response({'message': 'Schedule updated successfully.', 'id': str(updated_schedule_id)})
+        sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
+        if not sch:
+            raise ValueError('No such Schedule')
+
+        schedule = {
+            'id': str(sch.schedule_id),
+            'name': sch.name,
+            'process_name': sch.process_name,
+            'type': Schedule.Type(int(sch.schedule_type)).name,
+            'repeat': str(sch.repeat),
+            'day': sch.day,
+            'time': str(sch.time),
+            'exclusive': sch.exclusive
+        }
+
+        return web.json_response({'schedule': schedule})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -389,7 +421,7 @@ async def delete_schedule(request):
 
         await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
-        return web.json_response({'message': 'Schedule deleted successfully.', 'id': schedule_id})
+        return web.json_response({'message': 'Schedule deleted successfully', 'id': schedule_id})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -421,9 +453,8 @@ async def get_task(request):
 
         task = {
             'id': str(tsk.task_id),
-            'name': tsk.name,
             'process_name': tsk.process_name,
-            'state': tsk.state,
+            'state': Task.State(int(tsk.state)).name,
             'start_time': str(tsk.start_time),
             'end_time': str(tsk.end_time),
             'exit_code': tsk.exit_code,
@@ -441,27 +472,62 @@ async def get_tasks(request):
     """
     Returns the list of tasks
 
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks?name=xxx&state=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?limit=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx&limit=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?state=xxx&limit=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx&state=xxx&limit=xxx
     """
 
     try:
-        task_id = None
-
+        limit = request.query.get('limit') if 'limit' in request.query else '100'
         state = request.query.get('state') if 'state' in request.query else None
+
+        if limit:
+            if not re.match("(^[0-9]*$)", limit):
+                raise ValueError('This limit {} not permitted.'.format(limit))
+            elif int(limit) > 100:
+                limit = 100
+            else:
+                limit = int(limit)
+
         if state:
-            if int(state) not in list(Task.State):
+            if state.upper() not in [t.name for t in list(Task.State)]:
                 raise ValueError('This state value {} not permitted.'.format(state))
             else:
-                state = int(state)
+                z = dict()
+                for i in list(Task.State):
+                    z.update({i.name: i.value})
+                state = z[state.upper()]
 
         name = request.query.get('name') if 'name' in request.query else None
 
-        tasks = await scheduler_db_services.read_task(task_id, state, name)
+        where_clause = None
+        if name and state:
+            where_clause = Where.and_((Task.attr.state == state), (Task.attr.process_name == name))
+        elif name:
+            where_clause = Task.attr.process_name.in_(name)
+        elif state:
+            where_clause = Task.attr.state.in_(state)
+
+        tasks = await server.Server.scheduler.get_tasks(where=where_clause, limit=limit)
 
         if not tasks:
             raise ValueError('No such Tasks')
 
-        return web.json_response({'tasks': tasks})
+        new_tasks = []
+        for task in tasks:
+            new_tasks.append(
+                {'id': str(task.task_id),
+                     'process_name': task.process_name,
+                     'state': Task.State(int(task.state)).name ,
+                     'start_time': str(task.start_time),
+                     'end_time': str(task.end_time),
+                     'exit_code': task.exit_code,
+                     'reason': task.reason
+                 }
+            )
+
+        return web.json_response({'tasks': new_tasks})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -472,25 +538,36 @@ async def get_tasks_latest(request):
     """
     Returns the list of the most recent task execution for each name from tasks table
 
-    :Example: curl -X GET  http://localhost:8082/foglamp/tasks/latest
+    :Example: curl -X GET  http://localhost:8082/foglamp/task/latest
+    :Example: curl -X GET  http://localhost:8082/foglamp/task/latest?name=xxx
     """
 
     try:
-        state = request.query.get('state') if 'state' in request.query else None
-        if state:
-            if int(state) not in list(Task.State):
-                raise ValueError('This state value {} not permitted.'.format(state))
-            else:
-                state = int(state)
-
         name = request.query.get('name') if 'name' in request.query else None
 
-        tasks = await scheduler_db_services.read_tasks_latest(state, name)
+        where_clause = None
+        if name:
+            where_clause = Task.attr.process_name.in_(name)
+
+        tasks = await server.Server.scheduler.get_tasks(where=where_clause, sort=(Task.attr.start_time.desc), limit=1)
 
         if not tasks:
-            raise ValueError('No such Task')
+            raise ValueError('No such Tasks')
 
-        return web.json_response({'tasks': tasks})
+        new_tasks = []
+        for task in tasks:
+            new_tasks.append(
+                {'id': str(task.task_id),
+                     'process_name': task.process_name,
+                     'state': Task.State(int(task.state)).name ,
+                     'start_time': str(task.start_time),
+                     'end_time': str(task.end_time),
+                     'exit_code': task.exit_code,
+                     'reason': task.reason
+                 }
+            )
+
+        return web.json_response({'tasks': new_tasks})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -515,7 +592,7 @@ async def cancel_task(request):
             raise ValueError('No such Task: {}'.format(task_id))
 
         # Cancel Task
-        await server.Server.scheduler.cancel_task(task_id)
+        await server.Server.scheduler.cancel_task(uuid.UUID(task_id))
 
         return web.json_response({'id': task_id, 'message': 'Task cancelled successfully'})
     except ValueError as ex:

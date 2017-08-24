@@ -5,24 +5,28 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Pushes information stored in FogLAMP into PICROMF (PI Connector Relay OMF)
-The information are sent in chunks,
-the table foglamp.streams and block_size are used for this handling
+""" Pushes FogLAMP statistics into PI through the PICROMF (PI Connector Relay OMF)
+
+Note :
 
 .. todo::
    - # TODO: FOGL-251 - it should evolve using the DB layer
    - only part of the code is using async
-
 """
 
 import json
 import time
 import requests
 
+from foglamp import logger
+
+# Import packages - DB operations
 import psycopg2
 import asyncio
-
-from foglamp import logger, statistics, configuration_manager
+import aiopg
+import aiopg.sa
+import sqlalchemy as sa
+from foglamp import configuration_manager
 
 # Module information
 __author__ = "${FULL_NAME}"
@@ -34,49 +38,56 @@ __version__ = "${VERSION}"
 _DB_URL = 'postgresql:///foglamp'
 """DB references"""
 
-_module_name = "OMF Translator"
+_module_name = "statistics_to_pi"
 
 _message_list = {
 
     # Information messages
-    "i000001": " ",
-    "i000002": _module_name + " - Started.",
+    "i000001": "operation successfully completed",
+    "i000002": _module_name + " - Started",
     "i000003": _module_name + " - Execution completed.",
 
     # Warning / Error messages
-    "e000001": _module_name + " - cannot complete the operation.",
+    "e000001": _module_name + " - generic error.",
     "e000002": _module_name + " - cannot retrieve the starting point for sending operation.",
     "e000003": _module_name + " - cannot update the reached position.",
     "e000004": _module_name + " - cannot complete the sending operation.",
-    "e000005": _module_name + " - cannot setup the logger - error details |{0}|",
-
+    "e000005": _module_name + " - cannot configure the logging mechanism.",
     "e000006": _module_name + " - cannot initialize the plugin.",
-    "e000007": _module_name + " - an error occurred during the OMF request - error details |{0}|",
+    "e000007": _module_name + " - an error occurred during the OMF request - error details ",
     "e000008": _module_name + " - an error occurred during the OMF's objects creation.",
     "e000009": _module_name + " - cannot retrieve information about the sensor.",
-    "e000010": _module_name + " - unable to extend the in memory structure with new data.",
+    "e000010": _module_name + " - unable to extend the in memory structure with the data.",
     "e000011": _module_name + " - cannot create the OMF types.",
-    "e000012": _module_name + " - unknown asset_code - asset |{0}| - error details |{1}|",
-    "e000013": _module_name + " - cannot prepare sensor information for PICROMF - error details |{0}|",
-    "e000014": _module_name + " - ",
-
+    "e000012": _module_name + " - unknown asset_code - asset - error details |{1}|.",
+    "e000013": _module_name + " - cannot prepare sensor information for PICROMF.",
+    "e000014": _module_name + " - cannot start the sending process.",
     "e000015": _module_name + " - cannot update statistics.",
-    "e000016": _module_name + " - ",
-    "e000017": _module_name + " - cannot complete loading data into the memory.",
-    "e000018": _module_name + " - cannot complete the initialization.",
-    "e000019": _module_name + " - cannot complete the preparation of the in memory structure.",
+    "e000016": _module_name + " - cannot update reached position/statistics during a previous error.",
+    "e000017": _module_name + " - cannot complete loading data in memory.",
+    "e000018": _module_name + " - cannot complete the initialization."
 
 }
 """Messages used for Information, Warning and Error notice"""
 
 _logger = ""
 
+_statistics_history_tbl = sa.Table(
+    'statistics_history',
+    sa.MetaData(),
+    sa.Column('key', sa.BigInteger, primary_key=True),
+    sa.Column('value', sa.types.INTEGER),
+    sa.Column('id', sa.types.INTEGER),
+    sa.Column('ts', sa.types.TIMESTAMP))
+
+
 _event_loop = ""
 
 # Managed by initialize_plugin
 _relay_url = ""
 _producer_token = ""
-_channel_id = 1
+_channel_id = 2
+
 """Channel Id for the OMF translator"""
 
 _omf_max_retry = 5
@@ -89,7 +100,7 @@ _block_size = 1000
 # OMF objects creation
 _types = ""
 
-# OMF object's static attributes
+# OMF object's attributes
 _sensor_location = "S.F."
 
 # OMF types definitions - default vales
@@ -97,8 +108,10 @@ _type_id = "0"
 
 _OMF_types_definition = []
 _sensor_data_keys = []
-_asset_code_type = {}
+_sensor_types = []
+_sensor_name_type = {}
 """Associates the asset code to the corresponding type"""
+
 
 _DEFAULT_OMF_CONFIG = {
     "URL": {
@@ -109,13 +122,13 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_404"
+        "default": "statistics_301"
 
     },
     "channelID": {
-        "description": "Channel ID for the OMF translator",
+        "description": "Channel ID for the FogLAMP statistics into PI",
         "type": "integer",
-        "default": "1"
+        "default": "2"
 
     },
     "OMFMaxRetry": {
@@ -138,8 +151,8 @@ _DEFAULT_OMF_CONFIG = {
     },
 
 }
-_CONFIG_CATEGORY_NAME = 'OMF_TRANS'
-_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
+_CONFIG_CATEGORY_NAME = 'STAT_PI'
+_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of FogLAMP statistics into PI'
 
 _config = ""
 """Configurations retrieved from the Configuration Manager"""
@@ -154,6 +167,16 @@ _num_sent = 0
 # internal statistic
 _num_unsent = 0
 """rows that generate errors in the preparation process, before sending them to OMF"""
+
+
+class PICROMFNotReadyError(RuntimeError):
+    """Impossible to reach the PICROMF."""
+    pass
+
+
+class HTTPError400(RuntimeError):
+    """Raised in relation to the HTTP status_code during the communication with the PICROMF."""
+    pass
 
 
 def initialize_plugin():
@@ -178,7 +201,8 @@ def initialize_plugin():
     global _type_id
 
     global _sensor_data_keys
-    global _asset_code_type
+    global _sensor_types
+    global _sensor_name_type
 
     global _OMF_types_definition
     global _channel_id
@@ -206,31 +230,47 @@ def initialize_plugin():
         _relay_url = _config['URL']['value']
 
         # OMF types definition - xxx
-        _type_id = "150"
+        _type_id = "200"
 
         # producerToken
         _producer_token = _config['producerToken']['value']
 
         # OMFTypes
-        _sensor_data_keys = ["x", "y", "z", "pressure", "lux", "humidity", "temperature",
-                             "object", "ambient", "left", "right", "magnet", "button"]
-        """Available proprieties in the reading field"""
+        _sensor_data_keys = [
+            "buffered",
+            "purged",
+            "unsnpurged",
+            "sent",
+            "readings",
+            "discarded",
+            "unsent"
+        ]
 
-        _asset_code_type = {
-            # asset_code                  OMF type
-            "TI sensorTag/accelerometer": "TI_sensorTag_accelerometer",
-            "TI sensorTag/gyroscope":     "TI_sensorTag_gyroscope",
-            "TI sensorTag/magnetometer":  "TI_sensorTag_magnetometer",
-            "TI sensorTag/humidity":      "TI_sensorTag_humidity",
-            "TI sensorTag/luxometer":     "TI_sensorTag_luxometer",
-            "TI sensorTag/pressure":      "TI_sensorTag_pressure",
-            "TI sensorTag/temperature":   "TI_sensorTag_temperature",
-            "TI sensorTag/keys":          "TI_sensorTag_keys",
-            "mouse":                      "mouse"
+        """Available proprieties"""
+
+        _sensor_types = [
+            "buffered",
+            "purged",
+            "unsnpurged",
+            "sent",
+            "readings",
+            "discarded",
+            "unsent"
+        ]
+
+        _sensor_name_type = {
+            # asset_code     OMF type
+            "buffered": "buffered",
+            "purged": "purged",
+            "unsnpurged": "unsnpurged",
+            "sent": "sent",
+            "readings": "readings",
+            "discarded": "discarded",
+            "unsent": "unsent"
         }
 
         _OMF_types_definition = {
-            "TI_sensorTag_accelerometer": [
+            "buffered": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -255,19 +295,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "x": {
-                            "type": "number"
-                        },
-                        "y": {
-                            "type": "number"
-                        },
-                        "z": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_gyroscope": [
+            "purged": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -292,19 +326,14 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "x": {
-                            "type": "number"
-                        },
-                        "y": {
-                            "type": "number"
-                        },
-                        "z": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_magnetometer": [
+
+            "unsnpurged": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -329,21 +358,15 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "x": {
-                            "type": "number"
-                        },
-                        "y": {
-                            "type": "number"
-                        },
-                        "z": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_humidity": [
+            "sent": [
                 {
-                    "id":  "xxx",
+                    "id": "xxx",
                     "type": "object",
                     "classification": "static",
                     "properties": {
@@ -357,7 +380,7 @@ def initialize_plugin():
                     }
                 },
                 {
-                    "id":  "xxx",
+                    "id": "xxx",
                     "type": "object",
                     "classification": "dynamic",
                     "properties": {
@@ -366,16 +389,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "humidity": {
-                            "type": "number"
-                        },
-                        "temperature": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_luxometer": [
+            "readings": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -400,78 +420,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "lux": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            ],
-            "TI_sensorTag_pressure": [
-                {
-                    "id":  "xxx",
-                    "type": "object",
-                    "classification": "static",
-                    "properties": {
-                        "Name": {
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "Location": {
-                            "type": "string"
-                        }
-                    }
-                },
-                {
-                    "id":  "xxx",
-                    "type": "object",
-                    "classification": "dynamic",
-                    "properties": {
-                        "Time": {
-                            "format": "date-time",
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "pressure": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            ],
-            "TI_sensorTag_temperature": [
-                {
-                    "id": "xxx",
-                    "type": "object",
-                    "classification": "static",
-                    "properties": {
-                        "Name": {
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "Location": {
-                            "type": "string"
-                        }
-                    }
-                },
-                {
-                    "id": "xxx",
-                    "type": "object",
-                    "classification": "dynamic",
-                    "properties": {
-                        "Time": {
-                            "format": "date-time",
-                            "type": "string",
-                            "isindex": True
-                        },
-                        "object": {
-                            "type": "number"
-                        },
-                        "ambient": {
+                        "value": {
                             "type": "number"
                         }
                     }
                 }
             ],
-            "TI_sensorTag_keys": [
+            "discarded": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -496,19 +451,13 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "left": {
-                            "type": "string"
-                        },
-                        "right": {
-                            "type": "string"
-                        },
-                        "magnet": {
-                            "type": "string"
+                        "value": {
+                            "type": "number"
                         }
                     }
                 }
             ],
-            "mouse": [
+            "unsent": [
                 {
                     "id": "xxx",
                     "type": "object",
@@ -533,8 +482,8 @@ def initialize_plugin():
                             "type": "string",
                             "isindex": True
                         },
-                        "button": {
-                            "type": "string"
+                        "value": {
+                            "type": "number"
                         }
                     }
                 }
@@ -548,7 +497,55 @@ def initialize_plugin():
         raise
 
 
-def send_in_memory_data_to_picromf(message_type, omf_data):
+def _in_memory_load_new_data(data_values, target_stream_id, information_to_send):
+    """Extends in memory data structure reading data from the Storage Layer
+
+    Args:
+        data_values:          data to send - updated/used by reference
+        target_stream_id:     OMF container ID
+        information_to_send:  information retrieved from the Storage Layer that should be prepared for the PICROMF
+
+    Raises:
+        Exception: unable to extend the in memory structure with the data
+
+    """
+
+    try:
+        row_id = information_to_send.id
+        asset_code = information_to_send.key.strip().lower()
+        timestamp = information_to_send.ts.isoformat()
+        sensor_data = information_to_send.value
+
+        _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
+                      .format(target_stream_id, asset_code, str(row_id)))
+
+        # Prepares the data for PICROMF
+        new_data_values = [
+            {
+                "containerid": target_stream_id,
+                "values": [
+                    {
+                        "Time": timestamp
+                    }
+                ]
+            }
+        ]
+
+        new_data_values[0]["values"][0]["value"] = sensor_data
+
+        # note : append produces an not properly constructed OMF message
+        data_values.extend(new_data_values)
+
+        _logger.debug("in memory info |{0}| ".format(new_data_values))
+
+    except Exception:
+        message = _message_list["e000010"]
+
+        _logger.exception(message)
+        raise
+
+
+def _send_in_memory_data_to_picromf(message_type, omf_data):
     """Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
 
     it logs a WARNING only at the end of the retry mechanism
@@ -558,7 +555,7 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
         omf_data:     message to send
 
     Raises:
-        Exception: an error occurred during the OMF request
+        PICROMFNotReadyError
 
     """
 
@@ -586,7 +583,7 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
 
             # FIXME: temporary/testing code
             if response.status_code == 400:
-                raise RuntimeError(response.text)
+                raise HTTPError400(response.text)
 
             _logger.debug("Response |{0}| message: |{1}| |{2}| ".format(message_type,
                                                                         response.status_code,
@@ -594,8 +591,8 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
 
             break
 
-        except Exception as e:
-            message = _message_list["e000007"].format(e)
+        except Exception as ex:
+            message = _message_list["e000007"], str(ex)
             status = 1
 
             time.sleep(sleep_time)
@@ -603,12 +600,12 @@ def send_in_memory_data_to_picromf(message_type, omf_data):
             sleep_time *= 2
 
     if status != 0:
-        _logger.warning(message)
-        raise Exception(message)
+        _logger.error(message)
+        raise PICROMFNotReadyError(message)
 
 
-def position_read():
-    """Retrieves the starting point for the sent operation
+def _position_read():
+    """Retrieves the starting point for the send operation
 
     Returns:
         position: starting point for the send operation
@@ -643,7 +640,7 @@ def position_read():
     return position
 
 
-def position_update(new_position):
+def _position_update(new_position):
     """Updates reached position in the communication with PICROMF
 
     Args:
@@ -672,15 +669,15 @@ def position_update(new_position):
         raise
 
 
-def omf_types_creation():
+def _omf_types_creation():
     """Creates the types into OMF
 
     """
 
-    try:
-        for asset_code in _asset_code_type:
-            sensor_type = _asset_code_type[asset_code]
+    global _sensor_types
 
+    try:
+        for sensor_type in _sensor_types:
             tmp_type_sensor_id = "type_sensor_id_" + _type_id + "_" + sensor_type
             tmp_type_measurement_id = "type_measurement_" + _type_id + "_" + sensor_type
 
@@ -688,7 +685,7 @@ def omf_types_creation():
             omf_type[0]["id"] = tmp_type_sensor_id
             omf_type[1]["id"] = tmp_type_measurement_id
 
-            send_in_memory_data_to_picromf("Type", omf_type)
+            _send_in_memory_data_to_picromf("Type", omf_type)
 
     except Exception:
         message = _message_list["e000011"]
@@ -697,8 +694,8 @@ def omf_types_creation():
         raise
 
 
-def omf_objects_creation():
-    """Creates all the OMF objects
+def _omf_objects_creation():
+    """Sends to PICROMF the request for the creation of all the objects
 
     Raises:
         Exception: an error occurred during the OMF's objects creation.
@@ -708,18 +705,18 @@ def omf_objects_creation():
     global _sensor_location
 
     try:
-        for sensor_info in _asset_code_type:
+        for sensor_info in _sensor_name_type:
 
             tmp_sensor_id = sensor_info
             tmp_measurement_id = "measurement_" + tmp_sensor_id
 
-            tmp_type = _asset_code_type[tmp_sensor_id]
+            tmp_type = _sensor_name_type[tmp_sensor_id]
 
             tmp_type_sensor_id = "type_sensor_id_" + _type_id + "_" + tmp_type
             tmp_type_measurement_id = "type_measurement_" + _type_id + "_" + tmp_type
 
             _logger.debug("OMF_object_creation ")
-            omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id)
+            _omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id)
 
     except Exception:
         message = _message_list["e000008"]
@@ -728,8 +725,8 @@ def omf_objects_creation():
         raise
 
 
-def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id):
-    """Creates an object into PICROMF
+def _omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, tmp_type_measurement_id):
+    """Sends to PICROMF the request for the creation of an object
 
     Raises:
         Exception: an error occurred during the OMF's objects creation.
@@ -778,9 +775,9 @@ def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, t
             }]
         }]
 
-        send_in_memory_data_to_picromf("Container", containers)
-        send_in_memory_data_to_picromf("Data", static_data)
-        send_in_memory_data_to_picromf("Data", link_data)
+        _send_in_memory_data_to_picromf("Container", containers)
+        _send_in_memory_data_to_picromf("Data", static_data)
+        _send_in_memory_data_to_picromf("Data", link_data)
 
     except Exception:
         message = _message_list["e000008"]
@@ -789,8 +786,8 @@ def omf_object_creation(tmp_sensor_id, tmp_measurement_id, tmp_type_sensor_id, t
         raise
 
 
-async def send_data_to_picromf():
-    """Reads data from the Storage Layer and sends them to the PICROMF
+async def _send_data_to_picromf():
+    """Reads data from the Storage Layer sends them PICROMF
 
     Raises:
         Exception: cannot complete the sending operation
@@ -806,27 +803,20 @@ async def send_data_to_picromf():
     data_to_send = []
 
     try:
+        # Reads the position from which the data should be send
         _pg_conn = psycopg2.connect(_DB_URL)
         _pg_cur = _pg_conn.cursor()
-
-        position = position_read()
+        position = _position_read()
         _logger.debug("Last position, already sent |{0}| ".format(str(position)))
 
-        _logger.debug("{0}".format("omf_translator_perf - load_data_into_memory START "))
-        raw_data = load_data_into_memory(position)
-        _logger.debug("{0}".format("omf_translator_perf - load_data_into_memory END "))
-
-        _logger.debug("{0}".format("omf_translator_perf - transform_in_memory_data START "))
-        data_available, new_position = transform_in_memory_data(data_to_send, raw_data)
-        _logger.debug("{0}".format("omf_translator_perf - load_data_into_memory END "))
+        data_available, new_position = await _in_memory_data_load(position, data_to_send)
 
         if data_available:
-            _logger.debug("{0}".format("omf_translator_perf - send_in_memory_data_to_picromf START "))
-            send_in_memory_data_to_picromf("Data", data_to_send)
-            _logger.debug("{0}".format("omf_translator_perf - send_in_memory_data_to_picromf END "))
+            _logger.debug("{0}".format("omf_translator_perf - OMF START "))
+            _send_in_memory_data_to_picromf("Data", data_to_send)
+            _logger.debug("{0}".format("omf_translator_perf - OMF END "))
 
-            position_update(new_position)
-            await update_statistics()
+            _position_update(new_position)
 
     except Exception:
         message = _message_list["e000004"]
@@ -835,41 +825,14 @@ async def send_data_to_picromf():
         raise
 
 
-def load_data_into_memory(position):
-    """Extracts data from the DB Layer loading into the memory
+async def _in_memory_data_load(position, values):
+    """Extracts data from the DB Layer loading in memory
 
     Raises:
         Exception: cannot complete loading data in memory
 
     Todo:
         it should evolve using the DB layer
-
-    """
-
-    global _pg_conn
-    global _pg_cur
-
-    try:
-        sql_cmd = "SELECT id, asset_code, user_ts, reading FROM foglamp.readings WHERE id> {0} ORDER BY id LIMIT {1}"\
-                  .format(position, _block_size)
-
-        _pg_cur.execute(sql_cmd)
-        rows = _pg_cur.fetchall()
-
-    except Exception:
-        message = _message_list["e000017"]
-
-        _logger.exception(message)
-        raise
-
-    return rows
-
-
-def transform_in_memory_data(data_to_send, raw_data):
-    """Transforms in memory data into a new structure that could be converted into JSON for PICROMF
-
-    Raises:
-        Exception: cannot complete the preparation of the in memory structure.
 
     """
 
@@ -880,43 +843,62 @@ def transform_in_memory_data(data_to_send, raw_data):
     data_available = False
 
     try:
-        for row in raw_data:
+        async with aiopg.sa.create_engine(_DB_URL) as engine:
+            async with engine.acquire() as conn:
 
-            row_id = row[0]
-            asset_code = row[1]
+                    _logger.debug("{0}".format("omf_translator_perf - DB read START "))
 
-            # Identification of the object/sensor
-            measurement_id = "measurement_" + asset_code
+                    # Reads rows from the Storage layer and sends them to the PICROMF
+                    async for db_row in conn.execute(_statistics_history_tbl.select()
+                                                     .where(_statistics_history_tbl.c.id > position)
+                                                     .order_by(_statistics_history_tbl.c.id).limit(_block_size)):
 
-            tmp_type = ""
-            try:
-                # Evaluates if it is a known asset code
-                tmp_type = _asset_code_type[asset_code]
+                        message = "### sensor information ##################################################"
+                        _logger.debug("{0}".format(message))
 
-            except Exception as e:
-                message = _message_list["e000012"].format(tmp_type, e)
+                        # Identification of the object/sensor
+                        sensor_id = db_row.key
+                        sensor_id = sensor_id.strip().lower()
+                        measurement_id = "measurement_" + sensor_id
 
-                _logger.warning(message)
-            else:
-                try:
-                    transform_in_memory_row(data_to_send, row, measurement_id)
+                        tmp_type = ""
+                        try:
+                            # Evaluates if it is a known types
+                            tmp_type = _sensor_name_type[sensor_id]
 
-                    # Used for the statistics update
-                    _num_sent += 1
+                        except Exception as ex:
+                            message = _message_list["e000012"].format(tmp_type, ex)
 
-                    # Latest position reached
-                    new_position = row_id
+                            _logger.warning(message)
+                        else:
+                            _logger.debug("db row |{0}| |{1}| |{2}| ".format(db_row.key,
+                                                                             db_row.value,
+                                                                             db_row.ts))
 
-                    data_available = True
+                            try:
+                                _in_memory_load_new_data(values, measurement_id, db_row)
 
-                except Exception as e:
-                    _num_unsent += 1
+                                # Used for the statistics update
+                                _num_sent += 1
 
-                    message = _message_list["e000013"].format(e)
-                    _logger.warning(message)
+                                # Latest position reached
+                                new_position = db_row.id
+
+                                data_available = True
+
+                            except Exception as ex:
+                                _num_unsent += 1
+
+                                message = _message_list["e000013"], str(ex)
+                                _logger.warning(message)
+
+                    message = "### completed ##################################################"
+                    _logger.debug("{0}".format(message))
+
+                    _logger.debug("{0}".format("omf_translator_perf - DB read END "))
 
     except Exception:
-        message = _message_list["e000019"]
+        message = _message_list["e000017"]
 
         _logger.exception(message)
         raise
@@ -924,68 +906,7 @@ def transform_in_memory_data(data_to_send, raw_data):
     return data_available,  new_position
 
 
-def transform_in_memory_row(data_to_send, row, target_stream_id):
-    """Extends the in memory structure using data retrieved from the Storage Layer
-
-    Args:
-        data_to_send:      data to send - updated/used by reference
-        row:               information retrieved from the Storage Layer that it is used to extend data_to_send
-        target_stream_id:  OMF container ID
-
-    Raises:
-        Exception: unable to extend the in memory structure with new data.
-
-    """
-
-    data_available = False
-
-    try:
-        row_id = row[0]
-        asset_code = row[1]
-        timestamp = row[2].isoformat()
-        sensor_data = row[3]
-
-        _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
-                      .format(target_stream_id, asset_code, str(row_id)))
-
-        # Prepares new data for the PICROMF
-        new_data = [
-            {
-                "containerid": target_stream_id,
-                "values": [
-                    {
-                        "Time": timestamp
-                    }
-                ]
-            }
-        ]
-
-        # Evaluates which data is available
-        for data_key in sensor_data:
-            try:
-                new_data[0]["values"][0][data_key] = sensor_data[data_key]
-
-                data_available = True
-            except KeyError:
-                pass
-
-        if data_available:
-            # note : append produces an not properly constructed OMF message
-            data_to_send.extend(new_data)
-
-            _logger.debug("in memory info |{0}| ".format(new_data))
-        else:
-            message = _message_list["e000009"]
-            _logger.warning(message)
-
-    except Exception:
-        message = _message_list["e000010"]
-
-        _logger.exception(message)
-        raise
-
-
-def send_init():
+def _send_init():
     """Setup the correct state to being able to send data to the PICROMF
 
     Raises :
@@ -993,6 +914,8 @@ def send_init():
     """
 
     try:
+        _logger.debug("{0}".format("statistics_to_pi_perf - INIT START "))
+
         prg_text = ", for Linux (x86_64)"
 
         start_message = "" + _module_name + "" + prg_text + " " + __copyright__ + " "
@@ -1001,8 +924,10 @@ def send_init():
 
         initialize_plugin()
 
-        omf_types_creation()
-        omf_objects_creation()
+        _omf_types_creation()
+        _omf_objects_creation()
+
+        _logger.debug("{0}".format("statistics_to_pi_perf - INIT END "))
 
     except Exception:
         message = _message_list["e000018"]
@@ -1011,49 +936,24 @@ def send_init():
         raise
 
 
-async def update_statistics():
-    """Updates FogLAMP statistics
-
-    Raises :
-        Exception - cannot update statistics
-    """
-
-    try:
-        await statistics.update_statistics_value('SENT', _num_sent)
-
-    except Exception:
-        message = _message_list["e000015"]
-
-        _logger.exception(message)
-        raise
-
-
 if __name__ == "__main__":
 
     try:
+
         _logger = logger.setup(__name__)
-
-    except Exception as ex:
-        tmp_message = _message_list["e000005"].format(str(ex))
-
-        print ("ERROR - ", tmp_message)
-
-    try:
-        _logger.debug("{0}".format("omf_translator_perf - START "))
-
         _event_loop = asyncio.get_event_loop()
 
-        _logger.debug("{0}".format("omf_translator_perf - send_init START "))
-        send_init()
-        _logger.debug("{0}".format("omf_translator_perf - send_init END "))
+        _logger.debug("{0}".format("statistics_to_pi_perf - START "))
 
-        _event_loop.run_until_complete(send_data_to_picromf())
+        _send_init()
+
+        _event_loop.run_until_complete(_send_data_to_picromf())
 
         _logger.info(_message_list["i000003"])
 
-    except Exception as ex:
-        tmp_message = _message_list["e000001"].format(str(ex))
+    except Exception as e:
+        tmp_message = _message_list["e000004"], str(e)
 
         _logger.exception(tmp_message)
 
-    _logger.debug("{0}".format("omf_translator_perf - END "))
+    _logger.debug("{0}".format("statistics_to_pi_perf - END "))

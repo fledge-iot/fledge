@@ -4,8 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import time
-
 from aiohttp import web
 
 from foglamp.core.api import statistics_db_services
@@ -15,7 +13,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__start_time = time.time()
 
 _help = """
     -------------------------------------------------------------------------------

@@ -23,7 +23,7 @@ async def read_statistics():
 
     conn = await asyncpg.connect(database=__DB_NAME)
     query = """
-        SELECT key, description, value FROM statistics ORDER BY key
+        SELECT RTRIM(key), description, value FROM statistics ORDER BY key
     """
 
     stmt = await conn.prepare(query)

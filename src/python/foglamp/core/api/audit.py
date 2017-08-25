@@ -4,8 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import time
-
 from aiohttp import web
 
 from foglamp.core.api import audit_trail_db_services
@@ -19,6 +17,7 @@ __version__ = "${VERSION}"
 _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/audit                                            |
+    | GET             | /foglamp/audit/logcodes                                   |
     -------------------------------------------------------------------------------
 """
 
@@ -60,3 +59,21 @@ async def get_audit_entries(request):
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+async def get_audit_log_codes(request):
+    """
+    Args:
+        request:
+
+    Returns:
+           an array of log codes with description
+
+    :Example:
+
+        curl -X GET http://localhost:8082/foglamp/audit/logcodes
+    """
+
+    log_codes = await audit_trail_db_services.read_log_codes()
+
+    return web.json_response({'log_codes': log_codes})

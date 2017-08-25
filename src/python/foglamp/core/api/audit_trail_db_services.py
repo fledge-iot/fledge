@@ -69,3 +69,25 @@ async def read_audit_entries(limit=None, offset=None, source=None, severity=None
     await conn.close()
 
     return results
+
+
+async def read_log_codes():
+    """
+
+    Returns:
+            list of audit log codes
+    """
+    conn = await asyncpg.connect(database=__DB_NAME)
+
+    # Select code & description from the log_codes table
+    rows = await conn.fetch(
+        'SELECT code, description FROM log_codes')
+    columns = ('code', 'description')
+    results = []
+    for row in rows:
+        results.append(dict(zip(columns, row)))
+
+    # Close the connection.
+    await conn.close()
+
+    return results

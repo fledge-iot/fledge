@@ -29,7 +29,6 @@ _help = """
     | POST            | /foglamp/schedule/start/{schedule_id}                     |
     | GET             | /foglamp/schedule/type                                    |
     
-    
     | GET             | /foglamp/task                                             |
     | GET             | /foglamp/task/latest                                      |
     | GET PUT         | /foglamp/task/{task_id}                                   |

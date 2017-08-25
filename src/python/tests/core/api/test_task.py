@@ -81,12 +81,10 @@ def cancel_all_tasks():
     if task_list:
         for task in task_list:
             task_id = task['id']
-            print(task)
 
             if task['state'] == 'RUNNING':
                 r = requests.put(BASE_URL + '/task/cancel/' + task_id)
                 retval = dict(r.json())
-                print(retval)
                 if not 'error' in list(retval.keys()):
                     assert 200 == r.status_code
                     assert retval['id'] == task_id
@@ -184,7 +182,7 @@ class TestTask:
         retval = dict(r.json())
 
         assert 200 == r.status_code
-        # TODO: add a delete_tasks() method in core/scheduler.py
+        # TODO: FOGL-410 to add a delete_all_tasks() method in core/scheduler.py
         # Due to this lacking, records from previous tests may or may not be carried forward
         # Uncomment below lines when the above error is fixed
         # assert 1 == len(retval['tasks'])

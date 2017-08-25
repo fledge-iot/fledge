@@ -155,7 +155,7 @@ class TestScheduler:
 
         # These values did not change
         assert retval['schedule']['exclusive'] is True
-        # TODO: There is a bug in core/scheduler.py. It does not update the schedule type BUT if you pass a new schedule
+        # TODO: FOGL-409 - There is a bug in core/scheduler.py. It does not update the schedule type BUT if you pass a new schedule
         # type in above, it will return the new schedule type even though it does not update the DB record.
         assert retval['schedule']['type'] == "INTERVAL"
         assert retval['schedule']['time'] == "None"

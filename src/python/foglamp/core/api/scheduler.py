@@ -446,7 +446,7 @@ async def get_schedule_type(request):
         data = {'index': _type.value, 'name': _type.name}
         results.append(data)
 
-    return web.json_response(results)
+    return web.json_response({'schedule_type': results})
 
 
 #################################
@@ -638,4 +638,4 @@ async def get_task_state(request):
         data = {'index': _state.value, 'name': _state.name}
         results.append(data)
 
-    return web.json_response(results)
+    return web.json_response({'task_state': results})

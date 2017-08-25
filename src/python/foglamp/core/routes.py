@@ -59,7 +59,8 @@ def setup(app):
 
     # Audit trail - As per doc
     app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
-    app.router.add_route('GET', '/foglamp/audit/logcodes', api_audit.get_audit_log_codes)
+    app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
+    app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
 
     # enable cors support
     enable_cors(app)

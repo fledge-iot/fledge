@@ -3,6 +3,7 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
+
 import re
 import uuid
 import datetime
@@ -10,7 +11,7 @@ from aiohttp import web
 
 from foglamp.core import server
 from foglamp.core.api import scheduler_db_services
-from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task, WhereExpr, Where
+from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task, Where
 
 __author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -22,15 +23,17 @@ _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/schedule/process                                 |
     | GET             | /foglamp/schedule/process/{scheduled_process_name}        |
-
+    
     | GET POST        | /foglamp/schedule                                         |
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
     | POST            | /foglamp/schedule/start/{schedule_id}                     |
-
-
+    | GET             | /foglamp/schedule/type                                    |
+    
     | GET             | /foglamp/task                                             |
     | GET             | /foglamp/task/latest                                      |
     | GET PUT         | /foglamp/task/{task_id}                                   |
+    | GET             | /foglamp/task/state                                       |
+    | PUT             | /foglamp/task/cancel/{task_id}                            |
     -------------------------------------------------------------------------------
 """
 
@@ -263,7 +266,7 @@ async def get_schedule(request):
             'id': str(sch.schedule_id),
             'name': sch.name,
             'process_name': sch.process_name,
-            'type': Schedule.Type(int(sch.schedule_type)).name ,
+            'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': str(sch.repeat),
             'day': sch.day,
             'time': str(sch.time),
@@ -427,6 +430,24 @@ async def delete_schedule(request):
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
+async def get_schedule_type(request):
+    """
+    Args:
+        request:
+
+    Returns:
+         an array of Schedule type enumeration key index values
+
+    :Example: curl -X GET  http://localhost:8082/foglamp/schedule/type
+    """
+
+    results = []
+    for _type in Schedule.Type:
+        data = {'index': _type.value, 'name': _type.name}
+        results.append(data)
+
+    return web.json_response({'schedule_type': results})
+
 
 #################################
 # Tasks
@@ -519,7 +540,7 @@ async def get_tasks(request):
             new_tasks.append(
                 {'id': str(task.task_id),
                      'process_name': task.process_name,
-                     'state': Task.State(int(task.state)).name ,
+                     'state': Task.State(int(task.state)).name,
                      'start_time': str(task.start_time),
                      'end_time': str(task.end_time),
                      'exit_code': task.exit_code,
@@ -559,7 +580,7 @@ async def get_tasks_latest(request):
             new_tasks.append(
                 {'id': str(task.task_id),
                      'process_name': task.process_name,
-                     'state': Task.State(int(task.state)).name ,
+                     'state': Task.State(int(task.state)).name,
                      'start_time': str(task.start_time),
                      'end_time': str(task.end_time),
                      'exit_code': task.exit_code,
@@ -599,3 +620,22 @@ async def cancel_task(request):
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+
+
+async def get_task_state(request):
+    """
+    Args:
+        request:
+
+    Returns:
+         an array of Task State enumeration key index values
+
+    :Example: curl -X GET  http://localhost:8082/foglamp/task/state
+    """
+
+    results = []
+    for _state in Task.State:
+        data = {'index': _state.value, 'name': _state.name}
+        results.append(data)
+
+    return web.json_response({'task_state': results})

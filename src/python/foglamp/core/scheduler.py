@@ -399,7 +399,7 @@ class Scheduler(object):
     _scheduled_processes_tbl = None  # type: sqlalchemy.Table
     _schedules_tbl = None  # type: sqlalchemy.Table
     _tasks_tbl = None  # type: sqlalchemy.Table
-    _logger = None
+    _logger = None  # logging.Logger
 
     def __init__(self):
         """Constructor"""
@@ -416,7 +416,8 @@ class Scheduler(object):
             metadata = sqlalchemy.MetaData()
 
             cls._schedules_tbl = sqlalchemy.Table(
-                'schedules', metadata,
+                'schedules',
+                metadata,
                 sqlalchemy.Column('id', pg_types.UUID),
                 sqlalchemy.Column('schedule_name', sqlalchemy.types.VARCHAR(20)),
                 sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20)),
@@ -427,7 +428,8 @@ class Scheduler(object):
                 sqlalchemy.Column('exclusive', sqlalchemy.types.BOOLEAN))
 
             cls._tasks_tbl = sqlalchemy.Table(
-                'tasks', metadata,
+                'tasks',
+                metadata,
                 sqlalchemy.Column('id', pg_types.UUID),
                 sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20)),
                 sqlalchemy.Column('state', sqlalchemy.types.INT),
@@ -440,7 +442,8 @@ class Scheduler(object):
             Task.init(cls._tasks_tbl)
 
             cls._scheduled_processes_tbl = sqlalchemy.Table(
-                'scheduled_processes', metadata,
+                'scheduled_processes',
+                metadata,
                 sqlalchemy.Column('name', pg_types.VARCHAR(20)),
                 sqlalchemy.Column('script', pg_types.JSONB))
 
@@ -956,6 +959,7 @@ class Scheduler(object):
     async def _get_process_scripts(self):
         query = sqlalchemy.select([self._scheduled_processes_tbl.c.name,
                                   self._scheduled_processes_tbl.c.script])
+
         query.select_from(self._scheduled_processes_tbl)
 
         self._logger.debug('Database command: %s', query)
@@ -996,6 +1000,7 @@ class Scheduler(object):
                                    self._schedules_tbl.c.schedule_interval,
                                    self._schedules_tbl.c.exclusive,
                                    self._schedules_tbl.c.process_name])
+
         query.select_from(self._schedules_tbl)
 
         self._logger.debug('Database command: %s', query)
@@ -1364,7 +1369,6 @@ class Scheduler(object):
             tasks.append(task)
 
         return tasks
-
     async def get_task(self, task_id: uuid.UUID)->Task:
         """Retrieves a task given its id"""
         query = sqlalchemy.select([self._tasks_tbl.c.id,
@@ -1403,22 +1407,16 @@ class Scheduler(object):
                         where: WhereExpr = None,
                         sort: Union[Attribute, Iterable[Attribute]] = None)->List[Task]:
         """Retrieves tasks
-
         The result set is ordered by start_time descending
-
         Args:
             offset:
                 Ignore this number of rows at the beginning of the result set.
                 Results are unpredictable unless order_by is used.
-
             limit: Return at most this number of rows
-
             where: A query
-
             sort:
                 A list of Task attributes to sort by. Defaults to
                 Task.attr.start_time.desc
-
         """
         query = sqlalchemy.select([self._tasks_tbl.c.id,
                                    self._tasks_tbl.c.process_name,

@@ -11,6 +11,7 @@ import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import text
+import copy
 
 from foglamp import logger
 
@@ -71,7 +72,8 @@ async def _validate_category_val(category_val, set_value_val_from_default_val=Tr
     require_entry_value = not set_value_val_from_default_val
     if type(category_val) is not dict:
         raise TypeError('category_val must be a dictionary')
-    for item_name, item_val in category_val.items():
+    category_val_prepared = copy.deepcopy(category_val)
+    for item_name, item_val in category_val_prepared.items():
         if type(item_name) is not str:
             raise TypeError('item_name must be a string')
         if type(item_val) is not dict:
@@ -105,7 +107,7 @@ async def _validate_category_val(category_val, set_value_val_from_default_val=Tr
                 raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
         if set_value_val_from_default_val:
             item_val['value'] = item_val['default']
-    return category_val
+    return category_val_prepared
 
 
 async def _create_new_category(category_name, category_val, category_description):
@@ -357,7 +359,7 @@ async def create_category(category_name, category_value, category_description=''
 def register_category(category_name, callback):
     pass
 
-# async def main_test():
+# async def main():
 #     # lifecycle of a component's configuration
 #     # start component
 #     # 1. create a configuration that does not exist - use all default values
@@ -389,7 +391,9 @@ def register_category(category_name, callback):
 #     }
 #
 #     print("test create_category")
+#     print(sample_json)
 #     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#     print(sample_json)
 #
 #     print("test get_all_category_names")
 #     names_list = await get_all_category_names()
@@ -448,4 +452,4 @@ def register_category(category_name, callback):
 # if __name__ == '__main__':
 #     import asyncio
 #     loop = asyncio.get_event_loop()
-#     loop.run_until_complete(main_test())
+#     loop.run_until_complete(main())

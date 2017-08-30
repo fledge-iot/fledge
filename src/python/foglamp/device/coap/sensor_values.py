@@ -64,11 +64,20 @@ class SensorValues(aiocoap.resource.Resource):
     async def _update_statistics(self):
         while True:
             await asyncio.sleep(5)
-            await statistics.update_statistics_value('READINGS', self._num_readings)
+            readings = self._num_readings
             self._num_readings = 0
-            await statistics.update_statistics_value('DISCARDED', self._num_discarded_readings)
+            try:
+                await statistics.update_statistics_value('READINGS', readings)
+            except Exception:
+                self._num_readings = readings
+                raise
+            readings = self._num_discarded_readings
             self._num_discarded_readings = 0
-
+            try:
+                await statistics.update_statistics_value('DISCARDED', readings)
+            except Exception:
+                self._num_discarded_readings += readings
+                raise
 
     async def render_post(self, request):
         """Sends asset readings to storage layer

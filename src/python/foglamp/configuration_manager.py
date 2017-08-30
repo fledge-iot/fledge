@@ -365,122 +365,122 @@ async def create_category(category_name, category_value, category_description=''
 def register_category(category_name, callback):
     pass
 
-async def main():
-    # lifecycle of a component's configuration
-    # start component
-    # 1. create a configuration that does not exist - use all default values
-    # 2. read the configuration back in (cache locally for reuse)
-    # update config while system is up
-    # 1. a user updates the "value" entry of an item to non-default value
-    #    (callback is not implemented to update/notify component once change to config is made)
-    # restart component
-    # 1. create/update a configuration that already exists (merge)
-    # 2. read the configuration back in (cache locally for reuse)
-
-
-    sample_json = {
-        "port": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-
-    print("test create_category")
-    print(sample_json)
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-    print(sample_json)
-
-    print("test get_all_category_names")
-    names_list = await get_all_category_names()
-    for row in names_list:
-        # tuple
-        print(row)
-
-    print("test get_category_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-    print("test get_category_item")
-    json = await get_category_item('CATEG', "url")
-    print(json)
-    print(type(json))
-
-    print("test get_category_item_value")
-    string_result = await get_category_item_value_entry('CATEG', "url")
-    print(string_result)
-    print(type(string_result))
-
-    print("test set_category_item_value_entry")
-    await set_category_item_value_entry('CATEG', "url", "blablabla")
-
-    print("test get_category_item_value")
-    string_result = await get_category_item_value_entry('CATEG', "url")
-    print(string_result)
-    print(type(string_result))
-
-    print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
-    sample_json = {
-        "port2": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url2": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-
-    print("test get_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-    print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
-    sample_json = {
-        "port3": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url3": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
-
-    print("test get_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-if __name__ == '__main__':
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+# async def main():
+#     # lifecycle of a component's configuration
+#     # start component
+#     # 1. create a configuration that does not exist - use all default values
+#     # 2. read the configuration back in (cache locally for reuse)
+#     # update config while system is up
+#     # 1. a user updates the "value" entry of an item to non-default value
+#     #    (callback is not implemented to update/notify component once change to config is made)
+#     # restart component
+#     # 1. create/update a configuration that already exists (merge)
+#     # 2. read the configuration back in (cache locally for reuse)
+#
+#
+#     sample_json = {
+#         "port": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#
+#     print("test create_category")
+#     print(sample_json)
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#     print(sample_json)
+#
+#     print("test get_all_category_names")
+#     names_list = await get_all_category_names()
+#     for row in names_list:
+#         # tuple
+#         print(row)
+#
+#     print("test get_category_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+#     print("test get_category_item")
+#     json = await get_category_item('CATEG', "url")
+#     print(json)
+#     print(type(json))
+#
+#     print("test get_category_item_value")
+#     string_result = await get_category_item_value_entry('CATEG', "url")
+#     print(string_result)
+#     print(type(string_result))
+#
+#     print("test set_category_item_value_entry")
+#     await set_category_item_value_entry('CATEG', "url", "blablabla")
+#
+#     print("test get_category_item_value")
+#     string_result = await get_category_item_value_entry('CATEG', "url")
+#     print(string_result)
+#     print(type(string_result))
+#
+#     print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
+#     sample_json = {
+#         "port2": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url2": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#
+#     print("test get_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+#     print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
+#     sample_json = {
+#         "port3": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url3": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
+#
+#     print("test get_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+# if __name__ == '__main__':
+#     import asyncio
+#     loop = asyncio.get_event_loop()
+#     loop.run_until_complete(main())

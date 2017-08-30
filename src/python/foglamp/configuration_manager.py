@@ -30,7 +30,7 @@ _configuration_tbl = sa.Table(
 )
 """Defines the table that data will be used for CRUD operations"""
 
-_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password']
+_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
 _connection_string = "dbname='foglamp'"
 # _logger = logging.getLogger(__name__)
 _logger = logger.setup(__name__)
@@ -49,7 +49,7 @@ category(s)
             description_name - string (fixed - 'description')
                 description_val - string (dynamic)
             type_name - string (fixed - 'type')
-                type_val - string (dynamic - ('boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate'))
+                type_val - string (dynamic - ('boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'JSON'))
             default_name - string (fixed - 'default')
                 default_val - string (dynamic)
             value_name - string (fixed - 'value')
@@ -57,14 +57,19 @@ category(s)
 """
 
 
-async def _merge_category_vals(category_val_new, category_val_storage):
+async def _merge_category_vals(category_val_new, category_val_storage, keep_original_items):
     # preserve all value_vals from category_val_storage
     # use items in category_val_new not in category_val_storage
-    # ignore items in category_val_storage not in category_val_new
+    # keep_toriginal_items = FALSE ignore items in category_val_storage not in category_val_new
+    # keep_original_items = TRUE keep items in category_val_storage not in category_val_new
     for item_name_new, item_val_new in category_val_new.items():
         item_val_storage = category_val_storage.get(item_name_new)
         if item_val_storage is not None:
             item_val_new['value'] = item_val_storage.get('value')
+            category_val_storage.pop(item_name_new)
+    if keep_original_items:
+        for item_name_storage, item_val_storage in category_val_storage.items():
+            category_val_new[item_name_storage] = item_val_storage
     return category_val_new
 
 
@@ -278,7 +283,7 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
         raise
 
 
-async def create_category(category_name, category_value, category_description=''):
+async def create_category(category_name, category_value, category_description='', keep_original_items=False):
     """Create a new category in the database.
 
     Keyword Arguments:
@@ -308,6 +313,7 @@ async def create_category(category_name, category_value, category_description=''
             }
 
     category_description -- description of the category (default='')
+    keep_original_items -- keep items in storage's category_val that are not in the new category_val (removes side effect #3) (default=False)
 
     Return Values:
     None
@@ -317,7 +323,7 @@ async def create_category(category_name, category_value, category_description=''
     If a category of this name already exists within the storage, the new category_val and the storage's category_val will be merged such that:
         1. preserve all "value" entries from the storage's category val
         2. use items in the new category_val that are not in the storage's category_val
-        3. ignore items in storage's category_val that are not in the new not in category_val
+        3. ignore items in storage's category_val that are not in the new category_val
 
     Exceptions Raised:
     ValueError
@@ -345,7 +351,7 @@ async def create_category(category_name, category_value, category_description=''
                     'category_value for category_name %s from storage is corrupted; using category_value without merge',
                     category_name)
             else:
-                category_val_prepared = await _merge_category_vals(category_val_prepared, category_val_storage)
+                category_val_prepared = await _merge_category_vals(category_val_prepared, category_val_storage, keep_original_items)
             return await _update_category(category_name, category_val_prepared, category_description)
 
     except:
@@ -443,6 +449,31 @@ def register_category(category_name, callback):
 #         }
 #     }
 #     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#
+#     print("test get_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+#     print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
+#     sample_json = {
+#         "port3": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url3": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
 #
 #     print("test get_all_items")
 #     json = await get_category_all_items('CATEG')

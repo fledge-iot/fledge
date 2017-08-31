@@ -448,6 +448,7 @@ class Scheduler(object):
                 sqlalchemy.Column('script', pg_types.JSONB))
 
         # Instance attributes
+        self._engine = None  # type: aiopg.sa.Engine
         self._ready = False
         """True when the scheduler is ready to accept API calls"""
         self._start_time = None  # type: int
@@ -523,13 +524,21 @@ class Scheduler(object):
         # This method is designed to be called multiple times
 
         if not self._paused:
-            # Stop the main loop
             # Wait for tasks purge task to finish
             self._paused = True
             if self._purge_tasks_task is not None:
-                await self._purge_tasks_task
+                try:
+                    await self._purge_tasks_task
+                except Exception:
+                    self._logger.exception()
+
             self._resume_check_schedules()
-            await self._main_loop_task
+
+            # Stop the main loop
+            try:
+                await self._main_loop_task
+            except Exception:
+                self._logger.exception()
             self._main_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration
@@ -557,6 +566,7 @@ class Scheduler(object):
             except ProcessLookupError:
                 pass  # Process has terminated
 
+        # Wait for all processes to stop
         for _ in range(self._STOP_WAIT_SECONDS):
             if not self._task_processes:
                 break
@@ -576,7 +586,20 @@ class Scheduler(object):
 
         self._logger.info("Stopped")
 
+        if self._engine is not None:
+            try:
+                self._engine.close()
+            except Exception:
+                self._logger.exception()
+            self._engine = None
+
         return True
+
+    async def _get_connection_pool(self) -> aiopg.sa.Engine:
+        """Returns a database connection pool object"""
+        if self._engine is None:
+            self._engine = await aiopg.sa.create_engine(_CONNECTION_STRING)
+        return self._engine
 
     async def _start_task(self, schedule: _ScheduleRow) -> None:
         """Starts a task process
@@ -627,22 +650,15 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', insert)
 
             try:
-                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                    async with engine.acquire() as conn:
-                        await conn.execute(insert)
+                async with (await self._get_connection_pool()).acquire() as conn:
+                    await conn.execute(insert)
             except Exception:
                 self._logger.exception('Insert failed: %s', insert)
-                raise
+                # The process has started. Regardless of this error it must be waited on.
 
         asyncio.ensure_future(self._wait_for_task_completion(task_process))
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess)->None:
-        # TODO: If an exception is raised here, _task_processes will be
-        # out of sync with reality and the scheduler will never know when
-        # the process terminates. However, if an exception like CanceledError
-        # occurs here, it's assumed that the process needs to stop ASAP and
-        # I/O activities such as writing to the database should be avoided. It is
-        # presumed that all coroutines will be canceled and the process will exit.
         exit_code = await task_process.process.wait()
 
         schedule = task_process.schedule
@@ -695,16 +711,15 @@ class Scheduler(object):
 
             # Update the task's status
             try:
-                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                    async with engine.acquire() as conn:
-                        result = await conn.execute(update)
+                async with (await self._get_connection_pool()).acquire() as conn:
+                    result = await conn.execute(update)
 
-                        if result.rowcount == 0:
-                            self._logger.warning('Task %s not found. Unable to update its status.',
-                                                 task_process.task_id)
+                    if result.rowcount == 0:
+                        self._logger.warning('Task %s not found. Unable to update its status.',
+                                             task_process.task_id)
             except Exception:
                 self._logger.exception('Update failed: %s', update)
-                raise
+                # Must keep going!
 
         # Due to maximum running tasks reached, it is necessary to
         # look for schedules that are ready to run even if there
@@ -713,7 +728,7 @@ class Scheduler(object):
         # an exclusive task finished and ( start_now or schedule.repeats )
         self._resume_check_schedules()
 
-        # This must occur after all awaiting! The size of _task_processes
+        # This must occur after all awaiting. The size of _task_processes
         # is used by stop() to determine whether the scheduler can stop.
         del self._task_processes[task_process.task_id]
 
@@ -965,10 +980,9 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', query)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    async for row in conn.execute(query):
-                        self._process_scripts[row.name] = row.script
+            async with (await self._get_connection_pool()).acquire() as conn:
+                async for row in conn.execute(query):
+                    self._process_scripts[row.name] = row.script
         except Exception:
             self._logger.exception('Select failed: %s', query)
             raise
@@ -983,9 +997,8 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', update)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    await conn.execute(update)
+            async with (await self._get_connection_pool()).acquire() as conn:
+                await conn.execute(update)
         except Exception:
             self._logger.exception('Update failed: %s', update)
             raise
@@ -1006,30 +1019,29 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', query)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    async for row in conn.execute(query):
-                        interval = row.schedule_interval
+            async with (await self._get_connection_pool()).acquire() as conn:
+                async for row in conn.execute(query):
+                    interval = row.schedule_interval
 
-                        repeat_seconds = None
-                        if interval is not None:
-                            repeat_seconds = interval.total_seconds()
+                    repeat_seconds = None
+                    if interval is not None:
+                        repeat_seconds = interval.total_seconds()
 
-                        schedule_id = uuid.UUID(row.id)
+                    schedule_id = uuid.UUID(row.id)
 
-                        schedule = self._ScheduleRow(
-                                            id=schedule_id,
-                                            name=row.schedule_name,
-                                            type=row.schedule_type,
-                                            day=row.schedule_day,
-                                            time=row.schedule_time,
-                                            repeat=interval,
-                                            repeat_seconds=repeat_seconds,
-                                            exclusive=row.exclusive,
-                                            process_name=row.process_name)
+                    schedule = self._ScheduleRow(
+                                        id=schedule_id,
+                                        name=row.schedule_name,
+                                        type=row.schedule_type,
+                                        day=row.schedule_day,
+                                        time=row.schedule_time,
+                                        repeat=interval,
+                                        repeat_seconds=repeat_seconds,
+                                        exclusive=row.exclusive,
+                                        process_name=row.process_name)
 
-                        self._schedules[schedule_id] = schedule
-                        self._schedule_first_task(schedule, self._start_time)
+                    self._schedules[schedule_id] = schedule
+                    self._schedule_first_task(schedule, self._start_time)
         except Exception:
             self._logger.exception('Select failed: %s', query)
             raise
@@ -1089,26 +1101,24 @@ class Scheduler(object):
                 # other coroutines
                 await asyncio.sleep(0)
 
-    @staticmethod
-    async def populate_test_data():
+    async def populate_test_data(self):
         """Delete all schedule-related tables and insert processes for testing"""
-        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-            async with engine.acquire() as conn:
-                await conn.execute('delete from foglamp.tasks')
-                await conn.execute('delete from foglamp.schedules')
-                await conn.execute('delete from foglamp.scheduled_processes')
-                await conn.execute(
-                    '''insert into foglamp.scheduled_processes(name, script)
-                    values('sleep1', '["sleep", "1"]')''')
-                await conn.execute(
-                    '''insert into foglamp.scheduled_processes(name, script)
-                    values('sleep10', '["sleep", "10"]')''')
-                await conn.execute(
-                    '''insert into foglamp.scheduled_processes(name, script)
-                    values('sleep30', '["sleep", "30"]')''')
-                await conn.execute(
-                    '''insert into foglamp.scheduled_processes(name, script)
-                    values('sleep5', '["sleep", "5"]')''')
+        async with (await self._get_connection_pool()).acquire() as conn:
+            await conn.execute('delete from foglamp.tasks')
+            await conn.execute('delete from foglamp.schedules')
+            await conn.execute('delete from foglamp.scheduled_processes')
+            await conn.execute(
+                '''insert into foglamp.scheduled_processes(name, script)
+                values('sleep1', '["sleep", "1"]')''')
+            await conn.execute(
+                '''insert into foglamp.scheduled_processes(name, script)
+                values('sleep10', '["sleep", "10"]')''')
+            await conn.execute(
+                '''insert into foglamp.scheduled_processes(name, script)
+                values('sleep30', '["sleep", "30"]')''')
+            await conn.execute(
+                '''insert into foglamp.scheduled_processes(name, script)
+                values('sleep5', '["sleep", "5"]')''')
 
     async def save_schedule(self, schedule: Schedule):
         """Creates or update a schedule
@@ -1173,12 +1183,11 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', update)
 
             try:
-                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                    async with engine.acquire() as conn:
-                        result = await conn.execute(update)
+                async with (await self._get_connection_pool()).acquire() as conn:
+                    result = await conn.execute(update)
 
-                        if result.rowcount == 0:
-                            is_new_schedule = True
+                    if result.rowcount == 0:
+                        is_new_schedule = True
             except Exception:
                 self._logger.debug('Update failed: %s', update)
                 raise
@@ -1197,9 +1206,8 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', insert)
 
             try:
-                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                    async with engine.acquire() as conn:
-                        await conn.execute(insert)
+                async with (await self._get_connection_pool()).acquire() as conn:
+                    await conn.execute(insert)
             except Exception:
                 self._logger.exception('Insert failed: %s', insert)
                 raise
@@ -1259,10 +1267,9 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', delete)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    await conn.execute(self._schedules_tbl.delete().where(
-                        self._schedules_tbl.c.id == str(schedule_id)))
+            async with (await self._get_connection_pool()).acquire() as conn:
+                await conn.execute(self._schedules_tbl.delete().where(
+                    self._schedules_tbl.c.id == str(schedule_id)))
         except Exception:
             self._logger.exception('Delete failed: %s', delete)
             raise
@@ -1384,19 +1391,18 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', query)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    async for row in conn.execute(query):
-                        task = Task()
-                        task.task_id = uuid.UUID(row.id)
-                        task.state = Task.State(row.state)
-                        task.start_time = row.start_time
-                        task.process_name = row.process_name
-                        task.end_time = row.end_time
-                        task.exit_code = row.exit_code
-                        task.reason = row.reason
+            async with (await self._get_connection_pool()).acquire() as conn:
+                async for row in conn.execute(query):
+                    task = Task()
+                    task.task_id = uuid.UUID(row.id)
+                    task.state = Task.State(row.state)
+                    task.start_time = row.start_time
+                    task.process_name = row.process_name
+                    task.end_time = row.end_time
+                    task.exit_code = row.exit_code
+                    task.reason = row.reason
 
-                        return task
+                    return task
         except Exception:
             self._logger.exception('Select failed: %s', query)
             raise
@@ -1451,19 +1457,18 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', query)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    async for row in conn.execute(query):
-                        task = Task()
-                        task.task_id = uuid.UUID(row.id)
-                        task.state = Task.State(row.state)
-                        task.start_time = row.start_time
-                        task.process_name = row.process_name
-                        task.end_time = row.end_time
-                        task.exit_code = row.exit_code
-                        task.reason = row.reason
+            async with (await self._get_connection_pool()).acquire() as conn:
+                async for row in conn.execute(query):
+                    task = Task()
+                    task.task_id = uuid.UUID(row.id)
+                    task.state = Task.State(row.state)
+                    task.start_time = row.start_time
+                    task.process_name = row.process_name
+                    task.end_time = row.end_time
+                    task.exit_code = row.exit_code
+                    task.reason = row.reason
 
-                        tasks.append(task)
+                    tasks.append(task)
         except Exception:
             self._logger.exception('Select failed: %s', query)
             raise
@@ -1540,12 +1545,11 @@ class Scheduler(object):
         self._logger.debug('Database command: %s', delete)
 
         try:
-            async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                async with engine.acquire() as conn:
-                    while not self._paused:
-                        result = await conn.execute(delete)
-                        if result.rowcount < self._DELETE_TASKS_LIMIT:
-                            break
+            async with (await self._get_connection_pool()).acquire() as conn:
+                while not self._paused:
+                    result = await conn.execute(delete)
+                    if result.rowcount < self._DELETE_TASKS_LIMIT:
+                        break
         except Exception:
             self._logger.exception('Delete failed: %s', delete)
             raise

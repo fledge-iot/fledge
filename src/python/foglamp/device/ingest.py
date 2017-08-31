@@ -8,12 +8,13 @@
 
 import asyncio
 import datetime
+import logging
 import uuid
+from typing import List, Union
 
-import aiopg.sa
-import psycopg2
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
+import asyncpg
+import dateutil.parser
+import json
 
 from foglamp import logger
 from foglamp import statistics
@@ -24,18 +25,9 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__)
-
-_READINGS_TBL = sa.Table(
-    'readings',
-    sa.MetaData(),
-    sa.Column('asset_code', sa.types.VARCHAR(50)),
-    sa.Column('read_key', sa.types.VARCHAR(50)),
-    sa.Column('user_ts', sa.types.TIMESTAMP),
-    sa.Column('reading', JSONB))
-"""Defines the table that data will be inserted into"""
-
-_CONNECTION_STRING = "dbname='foglamp'"
+_LOGGER = logger.setup(__name__)  # type: logging.Logger
+# _LOGGER = logger.setup(__name__, level=logging.DEBUG)  # type: logging.Logger
+# _LOGGER = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
 _STATISTICS_WRITE_FREQUENCY_SECONDS = 5
 
@@ -44,88 +36,376 @@ class Ingest(object):
     """Adds sensor readings to FogLAMP
 
     Also tracks readings-related statistics.
+
+    Readings are added to a configurable number of queues. These queues are processed
+    concurrently. Each queue is assigned to a database connection. Queued items are
+    batched into a single insert transaction. The size of these batches have a
+    configurable maximum and minimum.
     """
 
     # Class attributes
-    _readings = 0  # type: int
+    _readings_stats = 0  # type: int
     """Number of readings accepted before statistics were flushed to storage"""
 
-    _discarded_readings = 0  # type: int
+    _discarded_readings_stats = 0  # type: int
     """Number of readings rejected before statistics were flushed to storage"""
 
-    _write_statistics_loop_task = None  # type: asyncio.Task
-    """asyncio task for :meth:`_write_statistics_loop`"""
+    _write_statistics_task = None  # type: asyncio.Task
+    """asyncio task for :meth:`_write_statistics`"""
 
-    _sleep_task = None  # type: asyncio.Task
+    _write_statistics_sleep_task = None  # type: asyncio.Task
     """asyncio task for asyncio.sleep"""
 
-    _stop = False  # type: bool
+    _stop = False
     """Set to true when the server needs to stop"""
 
+    _started = False
+    """True when the server has been started"""
+
+    _readings_queues = None  # type: List[asyncio.Queue]
+    """insert objects are added to these queues"""
+
+    _current_readings_queue_index = 0
+    """Which queue to insert into next"""
+
+    _insert_readings_tasks = None  # type: List[asyncio.Task]
+    """asyncio tasks for :meth:`_insert_readings`"""
+
+    _queue_events = None  # type: List[asyncio.Event]
+
+    _insert_readings_wait_tasks = None  # type: List[asyncio.Task]
+    """asyncio tasks for asyncio.Queue.get called by :meth:`_insert_readings`"""
+
+    # Configuration
+    _num_readings_queues = 2
+    """Maximum number of insert queues. Each queue has its own database connection."""
+
+    _max_idle_db_connection_seconds = 180
+    """Close database connections when idle for this number of seconds"""
+
+    _min_readings_batch_size = 25
+    """Preferred minimum number of rows in a batch of inserts"""
+
+    _max_readings_batch_size = 50
+    """Maximum number of rows in a batch of inserts"""
+    
+    _max_readings_queue_size = 4*_max_readings_batch_size
+    """Maximum number of items in a queue"""
+
+    _readings_batch_yield_items = 0
+    """While creating a batch, yield to other tasks after this taking this many
+    items from the queue"""
+
+    _readings_batch_wait_seconds = 1
+    """Number of seconds to wait for a queue to reach the minimum batch size"""
+
+    _max_insert_readings_batch_attempts = 60
+    """Number of times to attempt to insert a batch in case of failure"""
+
+    _queue_readings_as_dict = True
+    """True: Store readings in queue as a dict. False: Store readings as a string."""
+
+    _populate_readings_queues_round_robin = False
+    """True: Fill all queues round robin. False: Fill one queue with _max_readings_batch_size before
+    filling the next queue"""
+
     @classmethod
-    def start(cls):
+    async def start(cls):
         """Starts the server"""
-        cls._write_statistics_loop_task = asyncio.ensure_future(cls._write_statistics_loop())
+        if cls._started:
+            return
+
+        # TODO: Read config
+
+        # Start asyncio tasks
+        cls._write_statistics_task = asyncio.ensure_future(cls._write_statistics())
+
+        cls._insert_readings_tasks = []
+        cls._insert_readings_wait_tasks = []
+        cls._queue_events = []
+        cls._readings_queues = []
+
+        for _ in range(cls._num_readings_queues):
+            cls._readings_queues.append(asyncio.Queue(maxsize=cls._max_readings_queue_size))
+            cls._insert_readings_wait_tasks.append(None)
+            cls._insert_readings_tasks.append(asyncio.ensure_future(cls._insert_readings(_)))
+            cls._queue_events.append(asyncio.Event())
+
+        cls._started = True
 
     @classmethod
     async def stop(cls):
         """Stops the server
 
-        Saves any pending statistics are saved
+        Flushes pending statistics and readings to the database
         """
-        if cls._stop or cls._write_statistics_loop_task is None:
+        if cls._stop or not cls._started:
             return
 
         cls._stop = True
 
-        if cls._sleep_task is not None:
-            cls._sleep_task.cancel()
-            cls._sleep_task = None
+        for task in cls._insert_readings_wait_tasks:
+            if task is not None:
+                task.cancel()
 
-        await cls._write_statistics_loop_task
-        cls._write_statistics_loop_task = None
+        for task in cls._insert_readings_tasks:
+            try:
+                await task
+            except Exception:
+                _LOGGER.exception('An exception occurred in Ingest._insert_readings')
+
+        cls._started = False
+
+        cls._insert_readings_wait_tasks = None
+        cls._insert_readings_tasks = None
+        cls._readings_queues = None
+        cls._queue_events = None
+
+        # Write statistics
+        if cls._write_statistics_sleep_task is not None:
+            cls._write_statistics_sleep_task.cancel()
+            cls._write_statistics_sleep_task = None
+
+        try:
+            await cls._write_statistics_task
+            cls._write_statistics_task = None
+        except Exception:
+            _LOGGER.exception('An exception occurred in Ingest._write_statistics')
+
+        cls._stop = False
 
     @classmethod
     def increment_discarded_readings(cls):
         """Increments the number of discarded sensor readings"""
-        cls._discarded_readings += 1
+        cls._discarded_readings_stats += 1
 
     @classmethod
-    async def _write_statistics_loop(cls):
+    async def _close_connection(cls, connection: asyncpg.connection.Connection):
+        if connection is not None:
+            try:
+                await connection.close()
+            except Exception:
+                _LOGGER.exception('Closing connection failed')
+
+    @classmethod
+    async def _insert_readings(cls, queue_index):
+        """Inserts rows into the readings table using _queue
+
+        Uses "copy" to load rows into a temp table and then
+        inserts the temp table into the readings table because
+        "copy" does not support "on conflict ignore"
+        """
+        _LOGGER.info('Insert readings loop started')
+
+        queue = cls._readings_queues[queue_index]  # type: asyncio.Queue
+        event = cls._queue_events[queue_index]  # type: asyncio.Event
+        connection = None  # type: asyncpg.connection.Connection
+
+        while True:
+            # Wait for enough items in the queue to fill a batch
+            # for some minimum amount of time
+            while not cls._stop:
+                if queue.qsize() >= cls._min_readings_batch_size:
+                    break
+
+                event.clear()
+                waiter = asyncio.ensure_future(event.wait())
+                cls._insert_readings_wait_tasks[queue_index] = waiter
+
+                # _LOGGER.debug('Waiting for entire batch: Queue index: %s Size: %s',
+                #               queue_index, queue.qsize())
+
+                try:
+                    await asyncio.wait_for(waiter, cls._readings_batch_wait_seconds)
+                    # _LOGGER.debug('Released: Queue index: %s Size: %s',
+                    #               queue_index, queue.qsize())
+                except asyncio.CancelledError:
+                    # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
+                    #               queue_index, queue.qsize())
+                    break
+                except asyncio.TimeoutError:
+                    # _LOGGER.debug('Timed out: Queue index: %s Size: %s',
+                    #               queue_index, queue.qsize())
+                    break
+                finally:
+                    cls._insert_readings_wait_tasks[queue_index] = None
+
+            try:
+                insert = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                if cls._stop:
+                    break
+
+                # Wait for one item in the queue
+                waiter = asyncio.ensure_future(queue.get())
+                cls._insert_readings_wait_tasks[queue_index] = waiter
+
+                # _LOGGER.debug('Waiting for first item: Queue index: %s Size: %s',
+                #               queue_index, queue.qsize())
+
+                try:
+                    if connection is None:
+                        insert = await waiter
+                    else:
+                        insert = await asyncio.wait_for(waiter, cls._max_idle_db_connection_seconds)
+                except asyncio.CancelledError:
+                    # Don't assume the queue is empty
+
+                    # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
+                    #               queue_index, queue.qsize())
+                    continue
+                except asyncio.TimeoutError:
+                    # _LOGGER.debug('Closing idle database connection: Queue index: %s Size: %s',
+                    #               queue_index, queue.qsize())
+                    await cls._close_connection(connection)
+                    connection = None
+                    continue
+                finally:
+                    cls._insert_readings_wait_tasks[queue_index] = None
+
+            if cls._queue_readings_as_dict:
+                insert = (insert[0], insert[1], insert[2], json.dumps(insert[3]))
+            inserts = [insert]
+
+            yield_num = 1
+
+            # Read a full batch of items from the queue
+            while True:
+                try:
+                    insert = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+
+                if cls._queue_readings_as_dict:
+                    insert = (insert[0], insert[1], insert[2], json.dumps(insert[3]))
+                inserts.append(insert)
+
+                if len(inserts) >= cls._max_readings_batch_size:
+                    break
+
+                if cls._readings_batch_yield_items:
+                    if yield_num >= cls._readings_batch_yield_items:
+                        yield_num = 0
+                        await asyncio.sleep(0)
+                    else:
+                        yield_num += 1
+
+            # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s',
+            #              queue_index, len(inserts))
+
+            for attempt in range(cls._max_insert_readings_batch_attempts):
+                try:
+                    if connection is None:
+                        connection = await asyncpg.connect(database='foglamp')
+                        # Create a temp table for 'copy' command
+                        await connection.execute('create temp table t_readings '
+                                                 'as select asset_code, user_ts, read_key, reading '
+                                                 'from foglamp.readings where 1=0')
+                    else:
+                        await connection.execute('truncate table t_readings')
+
+                    await connection.copy_records_to_table(table_name='t_readings',
+                                                           records=inserts)
+
+                    await connection.execute('insert into foglamp.readings '
+                                             '(asset_code,user_ts,read_key,reading) '
+                                             'select * from t_readings on conflict do nothing')
+
+                    cls._readings_stats += len(inserts)
+
+                    # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
+                    #               queue_index, len(inserts))
+
+                    break
+                except Exception:  # TODO: Catch exception from asyncpg
+                    next_attempt = attempt + 1
+                    _LOGGER.exception('Insert failed on attempt #%s', next_attempt)
+
+                    if cls._stop or next_attempt >= cls._max_insert_readings_batch_attempts:
+                        cls._discarded_readings_stats += len(inserts)
+                    else:
+                        if connection is None:
+                            # Connection failure
+                            await asyncio.sleep(1)
+                        else:
+                            await cls._close_connection(connection)
+                            connection = None
+
+        # Exiting this method
+        await cls._close_connection(connection)
+
+        _LOGGER.info('Insert readings loop stopped')
+
+    @classmethod
+    async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
-        _LOGGER.info("Device statistics writer started")
+        _LOGGER.info('Device statistics writer started')
 
         while not cls._stop:
-            # stop() calls _sleep_task.cancel().
-            # Tracking _sleep_task separately is cleaner than canceling
+            # stop() calls _write_statistics_sleep_task.cancel().
+            # Tracking _write_statistics_sleep_task separately is cleaner than canceling
             # this entire coroutine because allowing database activity to be
             # interrupted will result in strange behavior.
-            cls._sleep_task = asyncio.ensure_future(
-                                asyncio.sleep(_STATISTICS_WRITE_FREQUENCY_SECONDS))
+            cls._write_statistics_sleep_task = asyncio.ensure_future(
+                asyncio.sleep(_STATISTICS_WRITE_FREQUENCY_SECONDS))
 
             try:
-                await cls._sleep_task
+                await cls._write_statistics_sleep_task
             except asyncio.CancelledError:
                 pass
+            finally:
+                cls._write_statistics_sleep_task = None
 
-            cls._sleep_task = None
+            readings = cls._readings_stats
+            cls._readings_stats = 0
 
             try:
-                await statistics.update_statistics_value('READINGS', cls._readings)
-                cls._readings = 0
+                await statistics.update_statistics_value('READINGS', readings)
+            except Exception:  # TODO catch real exception
+                cls._readings_stats += readings
+                _LOGGER.exception('An error occurred while writing readings statistics')
 
-                await statistics.update_statistics_value('DISCARDED', cls._discarded_readings)
-                cls._discarded_readings = 0
+            readings = cls._discarded_readings_stats
+            cls._discarded_readings_stats = 0
+            try:
+                await statistics.update_statistics_value('DISCARDED', readings)
             # TODO catch real exception
-            except Exception:
-                _LOGGER.exception("An error occurred while writing readings statistics")
+            except Exception:  # TODO catch real exception
+                cls._discarded_readings_stats += readings
+                _LOGGER.exception('An error occurred while writing readings statistics')
 
-        _LOGGER.info("Device statistics writer stopped")
+        _LOGGER.info('Device statistics writer stopped')
 
     @classmethod
-    async def add_readings(cls, asset: str, timestamp: datetime.datetime,
-                           key: uuid.UUID = None, readings: dict = None)->None:
-        """Add asset readings to FogLAMP
+    def is_available(cls) -> bool:
+        """Indicates whether all queues are currently full
+
+        Returns:
+            False - All of the queues are empty
+            True - Otherwise
+        """
+        if cls._stop:
+            return False
+
+        queue_index = cls._current_readings_queue_index
+        if cls._readings_queues[queue_index].qsize() < cls._max_readings_queue_size:
+            return True
+
+        for _ in range(1, cls._num_readings_queues):
+            queue_index += 1
+            if queue_index >= cls._num_readings_queues:
+                queue_index = 0
+            if cls._readings_queues[queue_index].qsize() < cls._max_readings_queue_size:
+                cls._current_readings_queue_index = queue_index
+                return True
+
+        _LOGGER.warning('The ingest service is unavailable')
+        return False
+
+    @classmethod
+    async def add_readings(cls, asset: str, timestamp: Union[str, datetime.datetime],
+                           key: Union[str, uuid.UUID] = None, readings: dict = None)->None:
+        """Adds an asset readings record to FogLAMP
 
         Args:
             asset: Identifies the asset to which the readings belong
@@ -139,67 +419,79 @@ class Ingest(object):
             If this method raises an Exception, the discarded readings counter is
             also incremented.
 
-            IOError:
-                Server error
+            RuntimeError:
+                The server is stopping or has been stopped
 
-            ValueError:
+            ValueError, TypeError:
                 An invalid value was provided
         """
-        success = False
+        if cls._stop:
+            raise RuntimeError('The device server is stopping')
+        # Assume the code beyond this point doesn't 'await'
+        # to make sure that the queue is not appended to
+        # when cls._stop is True
+
+        if not cls._started:
+            raise RuntimeError('The device server was not started')
+            # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
         try:
             if asset is None:
-                raise ValueError("asset can not be None")
+                raise ValueError('asset can not be None')
+
+            if not isinstance(asset, str):
+                raise TypeError('asset must be a string')
 
             if timestamp is None:
-                raise ValueError("timestamp can not be None")
+                raise ValueError('timestamp can not be None')
+
+            if not isinstance(timestamp, datetime.datetime):
+                # validate
+                timestamp = dateutil.parser.parse(timestamp)
+
+            if key is not None and not isinstance(key, uuid.UUID):
+                # Validate
+                if not isinstance(key, str):
+                    raise TypeError('key must be a uuid.UUID or a string')
+                # If key is not a string, uuid.UUID throws an Exception that appears to
+                # be a TypeError but can not be caught as a TypeError
+                key = uuid.UUID(key)
 
             if readings is None:
                 readings = dict()
             elif not isinstance(readings, dict):
                 # Postgres allows values like 5 be converted to JSON
                 # Downstream processors can not handle this
-                raise ValueError("readings type must be dict")
+                raise TypeError('readings must be a dictionary')
+        except Exception:
+            cls.increment_discarded_readings()
+            raise
 
-            # Comment out to test IntegrityError
-            # key = '123e4567-e89b-12d3-a456-426655440000'
+        # Comment out to test IntegrityError
+        # key = '123e4567-e89b-12d3-a456-426655440000'
 
-            # SQLAlchemy / Postgres convert/verify data types ...
+        cls.is_available()  # Locate a queue that isn't maxed out
+        queue_index = cls._current_readings_queue_index
+        queue = cls._readings_queues[queue_index]
 
-            insert = _READINGS_TBL.insert()
-            insert = insert.values(asset_code=asset,
-                                   reading=readings,
-                                   read_key=key,
-                                   user_ts=timestamp)
+        if not cls._queue_readings_as_dict:
+            readings = json.dumps(readings)
 
-            _LOGGER.debug('Database command: %s', insert)
+        await queue.put((asset, timestamp, key, readings))
+        if queue.qsize() >= cls._min_readings_batch_size:
+            event = cls._queue_events[queue_index]
+            # _LOGGER.debug('Set event queue index: %s size: %s',
+            #               cls._current_readings_queue_index, queue.qsize())
+            if not event.is_set():  # TODO is this check necessary?
+                event.set()
 
-            try:
-                # How to test an insert error:
-                # key = 6
-                async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
-                    async with engine.acquire() as conn:
-                        try:
-                            await conn.execute(insert)
-                            success = True
-                        except psycopg2.IntegrityError as e:
-                            # This exception is also thrown for NULL violations
-                            # So the code above verifies not-NULL columns don't have
-                            # corresponding None values
-                            success = None  # Do not increment discarded_readings. Already stored.
-                            _LOGGER.info(
-                                "Duplicate key (%s) inserting sensor values. Asset: '%s'"
-                                " Readings:\n%s\n\n%s",
-                                key, asset, readings, e)
-            except (psycopg2.DataError, psycopg2.ProgrammingError) as e:
-                raise ValueError(e)
-            except Exception as e:
-                _LOGGER.exception('Insert failed: %s', insert)
-                raise IOError(e)
-        finally:
-            if success is not None:
-                if success:
-                    cls._readings += 1
-                else:
-                    cls._discarded_readings += 1
+        # _LOGGER.debug('Queue index: %s size: %s', cls._current_readings_queue_index,
+        #               queue.qsize())
 
+        # When the current queue is full, move on to the next queue
+        if cls._num_readings_queues > 1 and (cls._populate_readings_queues_round_robin
+                                             or queue.qsize() >= cls._max_readings_batch_size):
+            queue_index += 1
+            if queue_index >= cls._num_readings_queues:
+                queue_index = 0
+            cls._current_readings_queue_index = queue_index

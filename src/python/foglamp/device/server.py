@@ -29,6 +29,12 @@ async def _stop(loop):
     loop.stop()
 
 
+async def _start():
+    """Starts all device ingest servers"""
+    await Ingest.start()
+    await coap.start()
+
+
 def start():
     """Starts the device server"""
     loop = asyncio.get_event_loop()
@@ -41,8 +47,6 @@ def start():
             signal_name,
             lambda: asyncio.ensure_future(_stop(loop)))
 
-    Ingest.start()
-    asyncio.ensure_future(coap.start())
-
+    asyncio.ensure_future(_start())
     loop.run_forever()
 

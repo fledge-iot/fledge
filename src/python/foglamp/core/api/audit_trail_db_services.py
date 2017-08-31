@@ -17,7 +17,7 @@ __version__ = "${VERSION}"
 __DB_NAME = 'foglamp'
 
 
-class _Severity(IntEnum):
+class Severity(IntEnum):
     """Enumeration for log.severity"""
     FATAL = 1
     ERROR = 2
@@ -50,7 +50,7 @@ async def read_audit_entries(limit=None, offset=None, source=None, severity=None
     if source:
         _where_clause += "AND code='{0}' ".format(source)
     if severity:
-        _where_clause += "AND level={0} ".format(_Severity[severity].value)
+        _where_clause += "AND level={0} ".format(Severity[severity].value)
 
     # Select the code, ts, level, log from the log table
     query = """
@@ -61,9 +61,31 @@ async def read_audit_entries(limit=None, offset=None, source=None, severity=None
 
     results = []
     for row in rows:
-        data = {'source': row['source'], 'timestamp': row['timestamp'], 'severity': _Severity(row['severity']).name,
+        data = {'source': row['source'], 'timestamp': row['timestamp'], 'severity': Severity(row['severity']).name,
                 'details': json.loads(row['details'])}
         results.append(data)
+
+    # Close the connection.
+    await conn.close()
+
+    return results
+
+
+async def read_log_codes():
+    """
+
+    Returns:
+            list of audit log codes
+    """
+    conn = await asyncpg.connect(database=__DB_NAME)
+
+    # Select code & description from the log_codes table
+    rows = await conn.fetch(
+        'SELECT code, description FROM log_codes')
+    columns = ('code', 'description')
+    results = []
+    for row in rows:
+        results.append(dict(zip(columns, row)))
 
     # Close the connection.
     await conn.close()

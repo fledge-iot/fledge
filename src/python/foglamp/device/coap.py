@@ -7,9 +7,10 @@
 """CoAP handler for sensor readings"""
 
 import asyncio
+import json
 
 import aiocoap.resource
-from cbor2 import loads
+import cbor2
 
 from foglamp import configuration_manager
 from foglamp import logger
@@ -62,12 +63,12 @@ async def start():
     root.add_resource(('.well-known', 'core'),
                       aiocoap.resource.WKCResource(root.get_resources_as_linkheader))
 
-    root.add_resource(('other', uri), IngestReadings())
+    root.add_resource(('other', uri), CoAPIngest())
 
-    asyncio.Task(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
+    asyncio.ensure_future(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
 
 
-class IngestReadings(aiocoap.resource.Resource):
+class CoAPIngest(aiocoap.resource.Resource):
     """Handles incoming sensor readings from CoAP"""
 
     @staticmethod
@@ -76,8 +77,8 @@ class IngestReadings(aiocoap.resource.Resource):
 
         Args:
             request:
-                The payload is a cbor-encoded array that is supposed to decode to JSON
-                conforming to the following:
+                The payload is a cbor-encoded array that decodes to JSON
+                similar to the following:
 
                 .. code-block:: python
 
@@ -94,7 +95,6 @@ class IngestReadings(aiocoap.resource.Resource):
                         }
                     }
         """
-
         # TODO: aiocoap handlers must be defensive about exceptions. If an exception
         # is raised out of a handler, it is permanently disabled by aiocoap.
         # Therefore, Exception is caught instead of specific exceptions.
@@ -103,44 +103,45 @@ class IngestReadings(aiocoap.resource.Resource):
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        code = aiocoap.numbers.codes.Code.BAD_REQUEST
-        payload = None
+        code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
         increment_discarded_counter = True
+        message = ''
 
         try:
-            payload = loads(request.payload)
+            if not Ingest.is_available():
+                message = '{"busy": true}'
+            else:
+                payload = cbor2.loads(request.payload)
 
-            if not isinstance(payload, dict):
-                raise ValueError("Payload type must be dict:\n{}".format(payload))
+                if not isinstance(payload, dict):
+                    raise ValueError('Payload must be a dictionary')
 
-            asset = payload.get('asset')
-            timestamp = payload.get('timestamp')
+                asset = payload.get('asset')
+                timestamp = payload.get('timestamp')
 
-            key = payload.get('key')
+                key = payload.get('key')
 
-            # readings and sensor_readings are optional
-            try:
-                readings = payload['readings']
-            except KeyError:
-                readings = payload.get('sensor_values')  # sensor_values is deprecated
+                # readings and sensor_readings are optional
+                try:
+                    readings = payload['readings']
+                except KeyError:
+                    readings = payload.get('sensor_values')  # sensor_values is deprecated
 
-            increment_discarded_counter = False
+                increment_discarded_counter = False
 
-            try:
                 await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,
                                           readings=readings)
 
                 # Success
-                # TODO is payload required if it's empty?
-                return aiocoap.Message(payload=''.encode("utf-8"),
-                                       code=aiocoap.numbers.codes.Code.VALID)
-            except (ValueError, TypeError):
-                raise
-            except Exception:
-                code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
-                raise
-        except Exception as e:
-            if increment_discarded_counter:
-                Ingest.increment_discarded_readings()
-            _LOGGER.exception("Add readings failed for payload:\n%s", payload)
-            return aiocoap.Message(payload=str(e).encode("utf-8"), code=code)
+                code = aiocoap.numbers.codes.Code.VALID
+        except (ValueError, TypeError) as e:
+            code = aiocoap.numbers.codes.Code.BAD_REQUEST
+            message = json.dumps({message: str(e)})
+        except Exception:
+            _LOGGER.exception('Add readings failed')
+
+        if increment_discarded_counter:
+            Ingest.increment_discarded_readings()
+
+        return aiocoap.Message(payload=message.encode('utf-8'), code=code)
+

@@ -38,6 +38,7 @@ def setup(app):
     # Schedules - As per doc
     app.router.add_route('GET', '/foglamp/schedule', api_scheduler.get_schedules)
     app.router.add_route('POST', '/foglamp/schedule', api_scheduler.post_schedule)
+    app.router.add_route('GET', '/foglamp/schedule/type', api_scheduler.get_schedule_type)
     app.router.add_route('GET', '/foglamp/schedule/{schedule_id}', api_scheduler.get_schedule)
     app.router.add_route('POST', '/foglamp/schedule/start/{schedule_id}', api_scheduler.start_schedule)
     app.router.add_route('PUT', '/foglamp/schedule/{schedule_id}', api_scheduler.update_schedule)
@@ -45,6 +46,7 @@ def setup(app):
 
     # Tasks - As per doc
     app.router.add_route('GET', '/foglamp/task', api_scheduler.get_tasks)
+    app.router.add_route('GET', '/foglamp/task/state', api_scheduler.get_task_state)
     app.router.add_route('GET', '/foglamp/task/latest', api_scheduler.get_tasks_latest)
     app.router.add_route('GET', '/foglamp/task/{task_id}', api_scheduler.get_task)
     app.router.add_route('PUT', '/foglamp/task/cancel/{task_id}', api_scheduler.cancel_task)
@@ -57,6 +59,8 @@ def setup(app):
 
     # Audit trail - As per doc
     app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
+    app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
+    app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
 
     # enable cors support
     enable_cors(app)

@@ -77,22 +77,22 @@ class Ingest(object):
     """asyncio tasks for asyncio.Queue.get called by :meth:`_insert_readings`"""
 
     # Configuration
-    _num_readings_queues = 2
+    _num_readings_queues = 1
     """Maximum number of insert queues. Each queue has its own database connection."""
 
     _max_idle_db_connection_seconds = 180
     """Close database connections when idle for this number of seconds"""
 
-    _min_readings_batch_size = 25
+    _min_readings_batch_size = 50
     """Preferred minimum number of rows in a batch of inserts"""
 
-    _max_readings_batch_size = 50
+    _max_readings_batch_size = 150
     """Maximum number of rows in a batch of inserts"""
     
     _max_readings_queue_size = 4*_max_readings_batch_size
     """Maximum number of items in a queue"""
 
-    _readings_batch_yield_items = 0
+    _readings_batch_yield_items = 50
     """While creating a batch, yield to other tasks after this taking this many
     items from the queue"""
 
@@ -482,8 +482,8 @@ class Ingest(object):
             event = cls._queue_events[queue_index]
             # _LOGGER.debug('Set event queue index: %s size: %s',
             #               cls._current_readings_queue_index, queue.qsize())
-            if not event.is_set():  # TODO is this check necessary?
-                event.set()
+            # if not event.is_set():  # TODO is this check necessary?
+            event.set()
 
         # _LOGGER.debug('Queue index: %s size: %s', cls._current_readings_queue_index,
         #               queue.qsize())

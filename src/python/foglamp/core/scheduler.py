@@ -1143,7 +1143,7 @@ class Scheduler(object):
 
             # TODO Remove this check when the database has constraint
             if day is not None and (day < 1 or day > 7):
-                raise ValueError("day must be between 1 and 7")
+                raise ValueError('day must be between 1 and 7')
         else:
             day = None
             schedule_time = None
@@ -1164,6 +1164,7 @@ class Scheduler(object):
             update = self._schedules_tbl.update()
             update = update.where(self._schedules_tbl.c.id == str(schedule.schedule_id))
             update = update.values(schedule_name=schedule.name,
+                                   schedule_type=int(schedule.schedule_type),
                                    schedule_interval=schedule.repeat,
                                    schedule_day=day,
                                    schedule_time=schedule_time,

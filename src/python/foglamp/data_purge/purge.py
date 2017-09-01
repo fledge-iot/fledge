@@ -48,7 +48,7 @@ __version__ = "${VERSION}"
 
 # Create Connection
 __CONNECTION_STRING = "postgres:///foglamp"
-
+__ENGINE = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=5, max_overflow=0)
 _DEFAULT_PURGE_CONFIG = {
     "age": {
         "description": "Age of data to be retained, all data that is older than this value will be removed," +
@@ -107,9 +107,7 @@ def execute_command(stmt):
     Returns:
         Returns result set 
     """
-
-    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=5, max_overflow=0)
-    with engine.connect() as conn: 
+    with __ENGINE.connect() as conn: 
         return conn.execute(stmt)
 
 def insert_into_log(level=0, log=None):

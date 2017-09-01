@@ -32,7 +32,7 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
      total_failed_to_remove > 0 then it is safe to assume that that there was an error with INSERTS, and if 
      total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
-
+import aiopg.sa
 import asyncio
 import datetime
 import sqlalchemy
@@ -108,13 +108,10 @@ def execute_command(stmt):
     Returns:
         Returns result set 
     """
-    # Set connection to database
-    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
-    conn = engine.connect()
-    # Execute query
-    query_result = conn.execute(stmt)
-    return query_result
 
+    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
+    with engine.connect() as conn: 
+        return conn.execute(stmt)
 
 def insert_into_log(level=0, log=None):
     """"INSERT into log table values"""

@@ -27,7 +27,7 @@ headers = {"Content-Type": 'application/json'}
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('truncate foglamp.tasks')
+    await conn.execute('''DELETE from foglamp.tasks WHERE process_name LIKE ('testsleep%')''')
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
@@ -38,12 +38,11 @@ async def add_master_data():
         values('testsleep30', '["sleep", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('testsleep5', '["sleep", "5"]')''')
-    await conn.execute('commit')
     await asyncio.sleep(4)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('truncate foglamp.tasks')
+    await conn.execute('''DELETE from foglamp.tasks WHERE process_name LIKE ('testsleep%')''')
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
     await conn.execute('commit')

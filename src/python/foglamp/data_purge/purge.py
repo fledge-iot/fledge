@@ -109,7 +109,7 @@ def execute_command(stmt):
         Returns result set 
     """
 
-    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
+    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=5, max_overflow=0)
     with engine.connect() as conn: 
         return conn.execute(stmt)
 

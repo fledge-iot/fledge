@@ -146,8 +146,9 @@ def purge(config, table_name):
     start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
     unsent_rows_removed = 0
-    last_id = sqlalchemy.select([sqlalchemy.func.min(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
-    last_id = int(execute_command(last_id).fetchall()[0][0])
+    last_id_query = sqlalchemy.select([sqlalchemy.func.min(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
+    result = execute_command(last_id_query).fetchall()[0][0]
+    last_id = result if result else 0
 
     # Calculate current count and age_timestamp
     age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() -

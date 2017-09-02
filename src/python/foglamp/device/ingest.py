@@ -99,11 +99,16 @@ class Ingest(object):
     _readings_batch_wait_seconds = 1
     """Number of seconds to wait for a queue to reach the minimum batch size"""
 
-    _max_insert_readings_batch_attempts = 60
-    """Number of times to attempt to insert a batch in case of failure"""
+    _max_insert_readings_batch_attempts = 30
+    """Number of times to attempt to insert a batch (retry in case of failure). When a
+    database connection fails (probably because the database server is down), wait 1 
+    second between attempts. 
+    """
 
     _queue_readings_as_dict = True
-    """True: Store readings in queue as a dict. False: Store readings as a string."""
+    """True: readings are stored in the queue as a dict object. False: Readings are
+    atored in the queue as a string.
+    """
 
     _populate_readings_queues_round_robin = False
     """True: Fill all queues round robin. False: Fill one queue with _max_readings_batch_size before

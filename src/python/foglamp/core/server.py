@@ -55,13 +55,13 @@ class Server:
         for signal_name in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
                 signal_name,
-                lambda: asyncio.ensure_future(cls.stop(loop)))
+                lambda: asyncio.ensure_future(cls._stop(loop)))
 
         # https://aiohttp.readthedocs.io/en/stable/_modules/aiohttp/web.html#run_app
         web.run_app(cls._make_app(), host='0.0.0.0', port=8082)
 
     @classmethod
-    async def stop(cls, loop):
+    async def _stop(cls, loop):
         """Attempts to stop the server
 
         If the scheduler stops successfully, the event loop is
@@ -76,5 +76,5 @@ class Server:
 
         for task in asyncio.Task.all_tasks():
             task.cancel()
-        loop.stop()
 
+        loop.stop()

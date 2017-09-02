@@ -107,7 +107,7 @@ class Ingest(object):
 
     _queue_readings_as_dict = True
     """True: readings are stored in the queue as a dict object. False: Readings are
-    atored in the queue as a string.
+    stored in the queue as a string.
     """
 
     _populate_readings_queues_round_robin = False

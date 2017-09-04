@@ -210,9 +210,6 @@ class TestScheduler:
         assert retval['id'] == schedule_id
         assert retval['message'] == "Schedule started successfully"
 
-        # Allow sufficient time for task record to be created
-        await asyncio.sleep(4)
-
         # Verify with Task record as to one task has been created
         r = requests.get(BASE_URL+'/task')
         retval = dict(r.json())

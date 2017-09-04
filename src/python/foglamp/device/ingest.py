@@ -274,10 +274,10 @@ class Ingest(object):
             if end_index > cls._readings_batch_size:
                 end_index = cls._readings_batch_size
 
-            #inserts = [(item[0], item[1], item[2],
-            #            json.dumps(item[3])) for item in queue[:end_index]]
+            inserts = [(item[0], item[1], item[2],
+                        json.dumps(item[3])) for item in queue[:end_index]]
 
-            inserts = queue[:end_index]
+            # inserts = queue[:end_index]
 
             del queue[:end_index]
 
@@ -476,7 +476,9 @@ class Ingest(object):
         queue_index = cls._current_readings_queue_index
         queue = cls._readings_queues[queue_index]
 
-        queue.append((asset, timestamp, key, json.dumps(readings)))
+        # queue.append((asset, timestamp, key, json.dumps(readings)))
+        queue.append((asset, timestamp, key, readings))
+
         queue_size = len(queue)
 
         if queue_size == 1:

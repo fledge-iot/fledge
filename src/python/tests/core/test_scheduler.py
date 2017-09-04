@@ -22,6 +22,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+@pytest.allure.feature("TestScheduler")
 class TestScheduler:
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler)->None:

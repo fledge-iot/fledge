@@ -84,19 +84,19 @@ class Ingest(object):
     """asyncio tasks blocking :meth:`_insert_readings` that can be canceled"""
 
     # Configuration
-    _num_readings_queues = 1
+    _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
     _max_idle_db_connection_seconds = 180
     """Close database connections when idle for this number of seconds"""
 
-    _readings_batch_size = 100
+    _readings_batch_size = 300
     """Maximum number of rows in a batch of inserts"""
     
     _max_readings_queue_size = 4*_readings_batch_size
     """Maximum number of items in a queue"""
 
-    _readings_batch_timeout_seconds = 1
+    _readings_batch_timeout_seconds = 10
     """Number of seconds to wait for a queue to reach the minimum batch size"""
 
     _max_insert_readings_batch_attempts = 30
@@ -104,10 +104,6 @@ class Ingest(object):
     database connection fails (probably because the database server is down), wait 1 
     second between attempts. 
     """
-
-    _populate_readings_queues_round_robin = False
-    """True: Fill all queues round robin. False: Fill the current queue with 
-    _readings_batch_size items before moving on to the next queue"""
 
     @classmethod
     async def start(cls):
@@ -126,7 +122,7 @@ class Ingest(object):
         cls._readings_queue_not_empty = []
         cls._readings_queues = []
 
-        for _ in range(cls._num_readings_queues):
+        for _ in range(cls._max_readings_queues):
             cls._readings_queues.append([])
             cls._insert_readings_wait_tasks.append(None)
             cls._insert_readings_tasks.append(asyncio.ensure_future(cls._insert_readings(_)))
@@ -279,8 +275,6 @@ class Ingest(object):
 
             # inserts = queue[:end_index]
 
-            del queue[:end_index]
-
             # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', queue_index, end_index)
 
             for attempt in range(cls._max_insert_readings_batch_attempts):
@@ -325,6 +319,7 @@ class Ingest(object):
                             connection = None
 
             del inserts
+            del queue[:end_index]
 
             if not queues_not_full.is_set():
                 queues_not_full.set()
@@ -389,9 +384,9 @@ class Ingest(object):
         if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
             return True
 
-        for _ in range(1, cls._num_readings_queues):
+        for _ in range(1, cls._max_readings_queues):
             queue_index += 1
-            if queue_index >= cls._num_readings_queues:
+            if queue_index >= cls._max_readings_queues:
                 queue_index = 0
             if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
                 cls._current_readings_queue_index = queue_index
@@ -492,9 +487,10 @@ class Ingest(object):
         #               len(queue))
 
         # When the current queue is full, move on to the next queue
-        if cls._num_readings_queues > 1 and (cls._populate_readings_queues_round_robin
-                                             or len(queue) >= cls._readings_batch_size):
-            queue_index += 1
-            if queue_index >= cls._num_readings_queues:
-                queue_index = 0
-            cls._current_readings_queue_index = queue_index
+        if cls._max_readings_queues > 1 and len(queue) >= cls._readings_batch_size:
+            # Start at the beginning to reduce the number of database connections
+            for queue_index in range(cls._readings_batch_size):
+                if len(cls._readings_queues[queue_index]) < cls._readings_batch_size:
+                    cls._current_readings_queue_index = queue_index
+                    break
+

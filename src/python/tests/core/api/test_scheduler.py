@@ -190,42 +190,11 @@ class TestScheduler:
 
         # Now check the schedules
         r = requests.get(BASE_URL+'/schedule')
-        retval = dict(r.json())
-
-        list_id = list()
-        list_exclusive = list()
-        list_type = list()
-        list_time = list()
-        list_day = list()
-        list_process_name = list()
-        list_name = list()
-        list_repeat = list()
-
-        # Because of pre-existing schedules, we need to adopt this approach
-        for schedule in retval['schedules']:
-            list_id.append(schedule['id'])
-            list_exclusive.append(schedule['exclusive'])
-            list_type.append(schedule['type'])
-            list_time.append(schedule['time'])
-            list_day.append(schedule['day'])
-            list_process_name.append(schedule['process_name'])
-            list_repeat.append(schedule['repeat'])
-            list_name.append(schedule['name'])
-
         assert 200 == r.status_code
-        # assert 2 == len(retval['schedules'])
-        assert schedule_id1 in list_id
-        assert Schedule.Type(int(data1['type'])).name in list_type
-        assert data1['process_name'] in list_process_name
-        assert str(datetime.timedelta(seconds=int(data1['repeat']))) in list_repeat
-        assert data1['name'] in list_name
-
-        assert schedule_id2 in list_id
-        assert Schedule.Type(int(data2['type'])).name in list_type
-        assert data2['process_name'] in list_process_name
-        assert str(datetime.timedelta(seconds=int(data2['time']))) in list_time
-        assert data2['day'] in list_day
-        assert data2['name'] in list_name
+        retval = dict(r.json())
+        ids = [schedules['id'] for schedules in retval['schedules']]
+        assert schedule_id1 in ids
+        assert schedule_id2 in ids
 
     @pytest.mark.run(order=8)
     @pytest.mark.asyncio

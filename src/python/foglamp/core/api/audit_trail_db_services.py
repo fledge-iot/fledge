@@ -14,8 +14,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__DB_NAME = 'foglamp'
-
+__CONNECTION = {'user': 'foglamp', 'host': '/tmp/', 'database': 'foglamp'}
 
 class _Severity(IntEnum):
     """Enumeration for log.severity"""
@@ -38,7 +37,7 @@ async def read_audit_entries(limit=None, offset=None, source=None, severity=None
     Returns:
             list of audit trail entries sorted with most recent first
     """
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
 
     _limit_clause = " LIMIT {0}".format(limit) if limit else " "
     _offset_clause = " "

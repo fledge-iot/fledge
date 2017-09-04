@@ -51,16 +51,15 @@ __version__ = "${VERSION}"
 
 # Create Connection
 __CONNECTION_STRING = "postgresql://foglamp/foglamp?host=/tmp/"
-
+__CONNECTION = {'user': 'foglamp'}
 _DEFAULT_PURGE_CONFIG = {
     "age": {
-        "description": "Age of data to be retained, all data that is older than this value will be removed," +
-                       "unless retained. (in Hours)",
+        "description": "Hours of data to be retained",
         "type": "integer",
         "default": "72"
     },
     "retainUnsent": {
-        "description": "Retain data that has not been sent to any historian yet.",
+        "description": "Retain data that has not been sent to any PI server yet",
         "type": "boolean",
         "default": "False"
     }
@@ -118,7 +117,7 @@ def execute_command(stmt):
     Returns:
         Returns result set 
     """
-    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
+    engine = sqlalchemy.create_engine(__CONNECTION_STRING, connect_args=__CONNECTION, pool_size=20, max_overflow=0)
     conn = engine.connect()
     query_result = conn.execute(stmt)
     return query_result

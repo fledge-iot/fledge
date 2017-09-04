@@ -41,39 +41,6 @@ INSERT INTO foglamp.log_codes ( code, description )
 -- Configuration parameters
 DELETE FROM foglamp.configuration;
 
--- PURGE: The cleaning process is on by default
---   age          : Age of data to be retained, all data that is older than this value will be removed by the purge process. This value is expressed in hours.
---   enabled      : A boolean switch that can be used to disable the purging of data. This is used if the process should be stopped from running.
---   retainUnsent : Retain data that has not been sent to tany historian yet.
--- INSERT INTO foglamp.configuration ( key, description, value )
---      VALUES ( 'PURGE', 'Purge data process', '{ "age" : 72, "enabled" : true, "retainUnsent" : false }' );
-
--- LOGPR: Log Partitioning
---        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'LOGPART', 'Log Partitioning', '{ "unit" : "day" }' );
-
--- SENSR: Sensors and devices
---        status      : the process is on or off, it is on by default
---        time window : the time window when the process is active, always active by default (it means every second)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SENSORS',
-              'Sensors and Device Interface',
-              '{ "category" : "CoAP", "configuration" : { "port" : { "description" : "Port to listen on", "default" : "5432", "value" : "5432", "type" : "integer" }, "url" : { "description" : "URL to accept data on", "default" : "sensor/reading-values", "value" : "sensor/reading-values", "type" : "string" }, "certificate" : { "description" : "X509 certificate used to identify ingress interface", "value" : "47676565", "type" : "x509 certificate" } } }' );
-
--- STRMN: Streaming
---        status      : the process is on or off, it is on by default
---        time window : the time window when the process is active, always active by default (it means every second)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'STREAMING', 'Streaming', '{ "status" : "day", "window" : [ "always" ] }' );
-
--- SYPRG: System Purge
---        retention : data retention in seconds. Default is 3 days (259200 seconds)
---        last purge: ts of the last purge call
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SYPURGE', 'System Purge', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
-
-
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;

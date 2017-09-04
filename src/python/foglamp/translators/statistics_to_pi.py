@@ -115,36 +115,36 @@ _sensor_name_type = {}
 
 _DEFAULT_OMF_CONFIG = {
     "URL": {
-        "description": "The URL of the PI Connector to send data to",
+        "description": "PI Connector URL",
         "type": "string",
-        "default": "http://192.168.4.105:8118/ingress/messages"
+        "default": "http://192.168.4.106:8118/ingress/messages"
     },
     "producerToken": {
-        "description": "The producer token that represents this FogLAMP stream",
+        "description": "Producer token for this FogLAMP stream",
         "type": "string",
         "default": "statistics_301"
 
     },
     "channelID": {
-        "description": "Channel ID for the FogLAMP statistics into PI",
+        "description": "OMF Translator Channel ID",
         "type": "integer",
         "default": "2"
 
     },
     "OMFMaxRetry": {
-        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+        "description": "Max number of retries",
         "type": "integer",
         "default": "5"
 
     },
     "OMFRetrySleepTime": {
-        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+        "description": "Seconds between retries",
         "type": "integer",
         "default": "1"
 
     },
     "blockSize": {
-        "description": "The size of a block of readings to send in each transmission.",
+        "description": "Number of messages to send in each transmission",
         "type": "integer",
         "default": "1000"
 

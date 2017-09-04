@@ -491,9 +491,9 @@ def debug_code():
     global _pg_conn
 
     list_sql_cmd = (
-        "DELETE FROM foglamp.omf_created_objects;",
-        "UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1",
-        "UPDATE foglamp.statistics SET value=0;",
+        #"DELETE FROM foglamp.omf_created_objects;",
+        #"UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1",
+        #"UPDATE foglamp.statistics SET value=0;",
         "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TRANS';",
         "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TR_1';",
         "DELETE FROM foglamp.configuration WHERE \"key\"='SEND_PR_1';",

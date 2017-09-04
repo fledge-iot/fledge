@@ -15,6 +15,7 @@ IMPORTANT NOTE : This current version is an empty skeleton.
 
 """
 
+import copy
 import ast
 import resource
 import datetime
@@ -93,7 +94,7 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_705"
+        "default": "omf_translator_739"
 
     },
     "OMFMaxRetry": {
@@ -121,7 +122,7 @@ _DEFAULT_OMF_CONFIG = {
         "type": "string",
         "default": json.dumps(
             {
-                "Location": "Palo alto",
+                "Location": "Palo Alto",
                 "Company": "Dianomic"
 
             }
@@ -139,7 +140,89 @@ _DEFAULT_OMF_TYPES_CONFIG = {
     "type-id": {
         "description": "TBD",
         "type": "integer",
-        "default": "705"
+        "default": "739"
+    },
+
+    "mouse": {
+        "description": "TBD",
+        # FIXME:
+        # "type": "JSON",
+        "type": "string",
+        "default": json.dumps(
+            {
+                "typename": "mouse",
+                "static": {
+                    "Name": {
+                        "type": "string",
+                        "isindex": True
+                    },
+                    "Location": {
+                        "type": "string"
+                    },
+                    "Company": {
+                        "type": "string"
+                    },
+                },
+                "dynamic": {
+                    "Time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "isindex": True
+                    },
+                    "button": {
+                        "type": "string"
+                    }
+                }
+            }
+        )
+    },
+    "TI sensorTag/accelerometer": {
+        "description": "TBD",
+        # FIXME:
+        "type": "string",
+        "default": json.dumps(
+            {
+                "typename": "position",
+                "static": {
+                    "Name": {
+                        "type": "string",
+                        "isindex": True
+                    },
+                    "Location": {
+                        "type": "string"
+                    },
+                    "Company": {
+                        "type": "string"
+                    },
+                },
+                "dynamic": {
+                    "Time": {
+                        "type": "string",
+                        "format": "date-time",
+                        "isindex": True
+                    },
+                    "x": {
+                        "type": "number"
+                    },
+                    "y": {
+                        "type": "number"
+                    },
+                    "z": {
+                        "type": "number"
+                    }
+                }
+            }
+        )
+    },
+}
+
+ 
+# FIXME:
+_DEFAULT_OMF_TYPES_CONFIG2 = {
+    "type-id": {
+        "description": "TBD",
+        "type": "integer",
+        "default": "739"
     },
 
     "wall clock": {
@@ -327,7 +410,6 @@ _event_loop = ""
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
 _config_omf_types_from_manager = {}
-_config_from_manager = ""
 _config = {
     'URL': _DEFAULT_OMF_CONFIG['URL']['default'],
     'producerToken': _DEFAULT_OMF_CONFIG['producerToken']['default'],
@@ -336,9 +418,12 @@ _config = {
     'OMFHttpTimeout': int(_DEFAULT_OMF_CONFIG['OMFHttpTimeout']['default']),
     'StaticData':  ast.literal_eval(_DEFAULT_OMF_CONFIG['StaticData']['default'])
 }
+_config_from_manager = ""
 
 
-_OMF_MEASUREMENT_PREFIX = "measurement_"
+_OMF_PREFIX_MEASUREMENT = "measurement_"
+_OMF_SUFFIX_TYPENAME = "_typename"
+
 
 _OMF_TEMPLATE_TYPE = {
     "typename": [
@@ -487,15 +572,16 @@ def _configuration_retrieve(_stream_id):
         _config_omf_types_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
                                                                         (_CONFIG_CATEGORY_OMF_TYPES_NAME))
 
-        _config_omf_types = _config_omf_types_from_manager
+        _config_omf_types = copy.deepcopy(_config_omf_types_from_manager)
 
-        # Converts the value field from str to dict
+        # Converts the value field from str to a dict
         for item in _config_omf_types:
 
             if _config_omf_types[item]['type'] == 'string':
 
-                # The conversion from dict to str changes the case and it should be fixed before the conversion
+                # The conversion from a dict to str changes the case and it should be fixed before the conversion
                 value = _config_omf_types[item]['value'].replace("true", "True")
+
                 new_value = ast.literal_eval(value)
                 _config_omf_types[item]['value'] = new_value
 
@@ -604,6 +690,26 @@ def plugin_shutdown():
         raise PluginInitializeFailed
 
 
+def _retrieve_omf_types_already_created(configuration_key, type_id):
+    """
+     # FIXME:
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    global _pg_cur
+
+    sql_cmd = "SELECT asset_code FROM foglamp.omf_created_objects " \
+              "WHERE configuration_key='{0}' and type_id={1}".format(configuration_key, type_id)
+
+    _pg_cur.execute(sql_cmd)
+    rows = _pg_cur.fetchall()
+
+    return rows
+
+
 def _is_omf_object_already_created(configuration_key, asset_code, type_id):
     """
      # FIXME:
@@ -631,7 +737,7 @@ def _is_omf_object_already_created(configuration_key, asset_code, type_id):
     return object_already_created
 
 
-def _flag_omf_object_has_created(configuration_key, asset_code, type_id):
+def _flag_created_omf_type(configuration_key, asset_code, type_id):
     """
      # FIXME:
      Args:
@@ -653,7 +759,7 @@ def _flag_omf_object_has_created(configuration_key, asset_code, type_id):
     _pg_conn.commit()
 
 
-def _create_omf_object_automatic(asset_code):
+def _generate_omf_asset_id(asset_code):
     """
      # FIXME:
      Args:
@@ -662,10 +768,11 @@ def _create_omf_object_automatic(asset_code):
      Todo:
      """
 
-    return asset_code
+    asset_id = asset_code.replace(" ", "")
+    return asset_id
 
 
-def _create_omf_object_configuration_based(asset_code, asset_code_omf_type):
+def _generate_omf_measurement(asset_code):
     """
      # FIXME:
      Args:
@@ -674,13 +781,139 @@ def _create_omf_object_configuration_based(asset_code, asset_code_omf_type):
      Todo:
      """
 
-    typename, omf_type = _create_omf_type(asset_code_omf_type)
+    asset_id = asset_code.replace(" ", "")
+    return _OMF_PREFIX_MEASUREMENT + asset_id
+
+ 
+def _generate_omf_typename_automatic(asset_code):
+    """
+     # FIXME:
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    asset_id = asset_code.replace(" ", "")
+
+    return asset_id + _OMF_SUFFIX_TYPENAME
+
+
+def _evaluate_property_type(value):
+    """
+     # FIXME:
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    try:
+        float(value)
+
+        try:
+            # Evaluates if it is a int or a number
+            if int(float(value)) == value:
+
+                # Checks the case having .0 as 967.0
+                int_str = str(int(float(value)))
+                value_str = str(value)
+
+                if int_str == value_str:
+                    property_type = "integer"
+                else:
+                    property_type = "number"
+
+            else:
+                property_type = "number"
+
+        except ValueError:
+            property_type = "string"
+
+    except ValueError:
+        property_type = "string"
+
+    return property_type
+
+
+def _create_omf_objects_automatic(asset_info):
+    """
+     # FIXME:
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    typename, omf_type = _create_omf_type_automatic(asset_info)
+    _create_omf_object_links(asset_info["asset_code"], typename, omf_type)
+
+
+def _create_omf_type_automatic(asset_info):
+    """
+     # FIXME:
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    type_id = _config_omf_types["type-id"]["value"]
+
+    sensor_id = _generate_omf_asset_id(asset_info["asset_code"])
+    asset_data = asset_info["asset_data"]
+
+    typename = _generate_omf_typename_automatic(sensor_id)
+
+    new_tmp_dict = copy.deepcopy(_OMF_TEMPLATE_TYPE)
+    omf_type = {typename: new_tmp_dict["typename"]}
+
+    # Handles Static section
+    # Generates elements evaluating the StaticData retrieved form the Configuration Manager
+    omf_type[typename][0]["properties"]["Name"] = {
+            "type": "string",
+            "isindex": True
+        }
+
+    omf_type[typename][0]["id"] = type_id + "_" + typename + "_sensor"
+
+    for item in _config['StaticData']:
+        omf_type[typename][0]["properties"][item] = {"type": "string"}
+
+    # Handles Dynamic section
+    omf_type[typename][1]["properties"]["Time"] = {
+          "type": "string",
+          "format": "date-time",
+          "isindex": True
+        }
+    omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
+
+    for item in asset_data:
+        item_type = _evaluate_property_type(asset_data[item])
+        omf_type[typename][1]["properties"][item] = {"type": item_type}
+
+    if _log_debug_level == 3:
+        _logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
+
+    _send_in_memory_data_to_picromf("Type", omf_type[typename])
+
+    return typename, omf_type
+
+
+def _create_omf_objects_configuration_based(asset_code, asset_code_omf_type):
+    """
+     # FIXME:
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    typename, omf_type = _create_omf_type_configuration_based(asset_code_omf_type)
     _create_omf_object_links(asset_code, typename, omf_type)
 
-    return True
 
-
-def _create_omf_type(asset_code_omf_type):
+def _create_omf_type_configuration_based(asset_code_omf_type):
     """
      # FIXME:
      Args:
@@ -692,17 +925,23 @@ def _create_omf_type(asset_code_omf_type):
     type_id = _config_omf_types["type-id"]["value"]
     typename = asset_code_omf_type["typename"]
 
-    tmp_omf_type = {typename: _OMF_TEMPLATE_TYPE["typename"]}
+    new_tmp_dict = copy.deepcopy(_OMF_TEMPLATE_TYPE)
+    omf_type = {typename: new_tmp_dict["typename"]}
 
-    tmp_omf_type[typename][0]["properties"] = asset_code_omf_type["static"]
-    tmp_omf_type[typename][0]["id"] = type_id + "_" + typename + "_sensor"
+    # Handles Static section
+    omf_type[typename][0]["properties"] = asset_code_omf_type["static"]
+    omf_type[typename][0]["id"] = type_id + "_" + typename + "_sensor"
 
-    tmp_omf_type[typename][1]["properties"] = asset_code_omf_type["dynamic"]
-    tmp_omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
+    # Handles Dynamic section
+    omf_type[typename][1]["properties"] = asset_code_omf_type["dynamic"]
+    omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
 
-    _send_in_memory_data_to_picromf("Type", tmp_omf_type[typename])
+    if _log_debug_level == 3:
+        _logger.debug("_create_omf_type_configuration_based - omf_type |{0}| ".format(str(omf_type)))
 
-    return typename, tmp_omf_type
+    _send_in_memory_data_to_picromf("Type", omf_type[typename])
+
+    return typename, omf_type
 
 
 def _create_omf_object_links(asset_code, typename, omf_type):
@@ -714,24 +953,25 @@ def _create_omf_object_links(asset_code, typename, omf_type):
      Todo:
      """
 
-    sensor_id = asset_code
-    measurement_id = _OMF_MEASUREMENT_PREFIX + asset_code
+    sensor_id = _generate_omf_asset_id(asset_code)
+    measurement_id = _generate_omf_measurement(sensor_id)
 
     type_sensor_id = omf_type[typename][0]["id"]
     type_measurement_id = omf_type[typename][1]["id"]
 
-    # PICROMF objects definition
-    containers = _OMF_TEMPLATE_CONTAINER
+    # Handles containers
+    containers = copy.deepcopy(_OMF_TEMPLATE_CONTAINER)
     containers[0]["id"] = measurement_id
     containers[0]["typeid"] = type_measurement_id
 
-    static_data = _OMF_TEMPLATE_STATIC_DATA
+    # Handles static_data
+    static_data = copy.deepcopy(_OMF_TEMPLATE_STATIC_DATA)
     static_data[0]["typeid"] = type_sensor_id
+    static_data[0]["values"][0] = copy.deepcopy(_config['StaticData'])
     static_data[0]["values"][0]['Name'] = sensor_id
 
-    static_data = _fill_omf_static_data(static_data)
-
-    link_data = _OMF_TEMPLATE_LINK_DATA
+    # Handles link_data
+    link_data = copy.deepcopy(_OMF_TEMPLATE_LINK_DATA)
     link_data[0]["values"][0]['source']['typeid'] = type_sensor_id
     link_data[0]["values"][0]['target']['typeid'] = type_sensor_id
     link_data[0]["values"][0]['target']['index'] = sensor_id
@@ -740,26 +980,17 @@ def _create_omf_object_links(asset_code, typename, omf_type):
     link_data[0]["values"][1]['source']['index'] = sensor_id
     link_data[0]["values"][1]['target']['containerid'] = measurement_id
 
+    if _log_debug_level == 3:
+        _logger.debug("_create_omf_object_links - asset_code |{0}| - containers |{1}| ".format(asset_code,
+                                                                                               str(containers)))
+        _logger.debug("_create_omf_object_links - asset_code |{0}| - static_data |{1}| ".format(asset_code,
+                                                                                                str(static_data)))
+        _logger.debug("_create_omf_object_links - asset_code |{0}| - link_data |{1}| ".format(asset_code,
+                                                                                              str(link_data)))
+
     _send_in_memory_data_to_picromf("Container", containers)
     _send_in_memory_data_to_picromf("Data", static_data)
     _send_in_memory_data_to_picromf("Data", link_data)
-
-
-def _fill_omf_static_data(static_data):
-    """
-     # FIXME:
-     Args:
-     Returns:
-     Raises:
-     Todo:
-     """
-
-    tmp_static_section = _config['StaticData']
-    tmp_static_section['Name'] = static_data[0]["values"][0]["Name"]
-
-    static_data[0]["values"][0] = tmp_static_section
-
-    return static_data
 
 
 @_performance_log
@@ -778,9 +1009,9 @@ def _identify_unique_asset_codes(raw_data):
         asset_code = row[1]
         asset_data = row[3]
 
+        # Evaluates if the asset_code is already in the list
         if not any(item["asset_code"] == asset_code for item in asset_code_to_evaluate):
 
-        #    if asset_code not in asset_code_to_evaluate(["asset_code"]):
             asset_code_to_evaluate.append(
                 {
                     "asset_code": asset_code,
@@ -806,26 +1037,37 @@ def _create_omf_objects(raw_data, stream_id):
 
     asset_codes_to_evaluate = _identify_unique_asset_codes(raw_data)
 
-    for asset_code in asset_codes_to_evaluate:
+    asset_codes_already_created = _retrieve_omf_types_already_created(config_category_name, type_id)
 
-        if not _is_omf_object_already_created(config_category_name, asset_code, type_id):
+    for item in asset_codes_to_evaluate:
+
+        asset_code = item["asset_code"]
+
+        # Evaluates if it is a new OMF type
+        if not any(tmp_item[0] == asset_code for tmp_item in asset_codes_already_created):
 
             asset_code_omf_type = ""
 
             try:
-                asset_code_omf_type = _config_omf_types[asset_code]["value"]
+                asset_code_omf_type = copy.deepcopy(_config_omf_types[asset_code]["value"])
             except KeyError:
                 configuration_based = False
             else:
                 configuration_based = True
 
             if configuration_based:
-                _create_omf_object_configuration_based(asset_code, asset_code_omf_type)
+                _logger.debug("creates type - configuration based - asset |{0}| ".format(asset_code))
+
+                _create_omf_objects_configuration_based(asset_code, asset_code_omf_type)
             else:
                 # handling - Automatic OMF Type Mapping
-                _create_omf_object_automatic(asset_code)
+                _logger.debug("creates type - automatic handling - asset |{0}| ".format(asset_code))
 
-            _flag_omf_object_has_created(config_category_name, asset_code, type_id)
+                _create_omf_objects_automatic(item)
+
+            _flag_created_omf_type(config_category_name, asset_code, type_id)
+        else:
+            _logger.debug("asset already created - asset |{0}| ".format(asset_code))
 
 
 @_performance_log
@@ -952,8 +1194,8 @@ def _transform_in_memory_data(data_to_send, raw_data):
             asset_code = row[1]
 
             # Identification of the object/sensor
-            measurement_id = _OMF_MEASUREMENT_PREFIX + asset_code
-
+            measurement_id = _generate_omf_measurement(asset_code)
+            
             try:
                 _transform_in_memory_row(data_to_send, row, measurement_id)
 

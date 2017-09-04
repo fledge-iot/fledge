@@ -88,16 +88,16 @@ class Ingest(object):
     """epoch time of last insert"""
 
     # Configuration
-    _max_idle_db_connection_seconds = 180
+    _max_idle_db_connection_seconds = 5
     """Close database connections when idle for this number of seconds"""
 
     _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
-    _readings_batch_size = 50
+    _readings_batch_size = 500
     """Maximum number of rows in a batch of inserts"""
 
-    _readings_batch_timeout_seconds = 1
+    _readings_batch_timeout_seconds = 10
     """Number of seconds to wait for a queue to reach the minimum batch size"""
 
     _max_readings_queue_size = 4*_readings_batch_size
@@ -258,10 +258,10 @@ class Ingest(object):
                     #               queue_index, len(queue))
                     continue
                 except asyncio.TimeoutError:
-                    # _LOGGER.debug('Closing idle database connection: Queue index: %s Size: %s',
-                    #               queue_index, len(queue))
+                    # _LOGGER.debug('Closing idle database connection: Queue index: %s',
+                    #               queue_index)
                     await cls._close_connection(connection)
-                    del connection
+                    connection = None
                     continue
                 finally:
                     cls._insert_readings_wait_tasks[queue_index] = None
@@ -278,6 +278,7 @@ class Ingest(object):
 
             attempt = 0
 
+            # Perform database insert. Retry when fails.
             while True:
                 cls._last_insert_time = time.time()
 
@@ -326,7 +327,7 @@ class Ingest(object):
                             await asyncio.sleep(1)
                         else:
                             await cls._close_connection(connection)
-                            del connection
+                            connection = None
 
             del queue[:batch_size]
 

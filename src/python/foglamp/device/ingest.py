@@ -200,11 +200,10 @@ class Ingest(object):
         _LOGGER.info('Insert readings loop started')
 
         connection = None  # type: asyncpg.connection.Connection
-        queue = cls._readings_queues[queue_index]  # type: List
-        min_readings_reached = \
-            cls._readings_queue_batch_size_reached[queue_index]  # type: asyncio.Event
-        queue_not_empty = cls._readings_queue_not_empty[queue_index]  # type: asyncio.Event
-        queues_not_full = cls._readings_queues_not_full  # type: asyncio.Event
+        queue = cls._readings_queues[queue_index]
+        min_readings_reached = cls._readings_queue_batch_size_reached[queue_index]
+        queue_not_empty = cls._readings_queue_not_empty[queue_index]
+        queues_not_full = cls._readings_queues_not_full
 
         while True:
             # Wait for enough items in the queue to fill a batch

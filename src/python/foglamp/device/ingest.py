@@ -25,9 +25,9 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# _LOGGER = logger.setup(__name__)  # type: logging.Logger
+_LOGGER = logger.setup(__name__)  # type: logging.Logger
 # _LOGGER = logger.setup(__name__, level=logging.DEBUG)  # type: logging.Logger
-_LOGGER = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
+# _LOGGER = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
 _STATISTICS_WRITE_FREQUENCY_SECONDS = 5
 
@@ -90,7 +90,7 @@ class Ingest(object):
     _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
-    _readings_batch_size = 100
+    _readings_batch_size = 200
     """Maximum number of rows in a batch of inserts"""
 
     _readings_batch_timeout_seconds = 2
@@ -384,13 +384,11 @@ class Ingest(object):
         if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
             return True
 
-        for _ in range(1, cls._max_readings_queues):
-            queue_index += 1
-            if queue_index >= cls._max_readings_queues:
-                queue_index = 0
-            if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
-                cls._current_readings_queue_index = queue_index
-                return True
+        if cls._max_readings_queues > 1:
+            for queue_index in range(cls._max_readings_queues):
+                if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
+                    cls._current_readings_queue_index = queue_index
+                    return True
 
         _LOGGER.warning('The ingest service is unavailable')
         return False

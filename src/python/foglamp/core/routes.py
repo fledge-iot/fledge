@@ -11,6 +11,7 @@ from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
 from foglamp.core.api import audit as api_audit
 from foglamp.core.api import browser
+from foglamp.core import service_registry, storage
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -61,6 +62,23 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
     app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
     app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
+
+    # Micro Service support - Core
+    app.router.add_route('GET', '/foglamp/service/ping', service_registry.ping)
+
+    app.router.add_route('POST', '/foglamp/service', service_registry.register)
+    app.router.add_route('DELETE', '/foglamp/service/{service_id}', service_registry.unregister)
+    app.router.add_route('GET', '/foglamp/service', service_registry.get_service)
+    app.router.add_route('POST', '/foglamp/service/shutdown', service_registry.shutdown)
+
+    app.router.add_route('POST', '/foglamp/service/interest', service_registry.register_interest)
+    app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', service_registry.unregister_interest)
+
+    app.router.add_route('POST', '/foglamp/change', service_registry.notify_change)
+
+    # Micro Service support - Services
+    app.router.add_route('GET', '/foglamp/storage', storage.start)
+    app.router.add_route('GET', '/foglamp/storage', storage.stop)
 
     # enable cors support
     enable_cors(app)

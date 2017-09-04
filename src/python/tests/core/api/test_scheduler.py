@@ -28,48 +28,22 @@ headers = {"Content-Type": 'application/json'}
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.tasks WHERE process_name LIKE ('testsleep%')''')
-    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
-    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
-    await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('testsleep1', '["sleep", "1"]')''')
-    await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('testsleep10', '["sleep", "10"]')''')
+    await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('testsleep30', '["sleep", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('testsleep5', '["sleep", "5"]')''')
+        values('echo_test', '["echo", "Hello"]')''')
     await asyncio.sleep(4)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.tasks WHERE process_name LIKE ('testsleep%')''')
-    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
-    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name in ('testsleep1', 'testsleep5', 'testsleep10', 'testsleep30')''')
+    await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
     await conn.execute('commit')
     await asyncio.sleep(4)
-
-
-def delete_all_schedules():
-    """
-    Deletes all schedules.
-    """
-
-    # Get all the schedules
-    r = requests.get(BASE_URL+'/schedule')
-    retval = dict(r.json())
-
-    schedule_list = retval['schedules'] or None
-
-    if schedule_list:
-        for sch in schedule_list:
-            if sch['process_name'] in ['testsleep1', 'testsleep5', 'testsleep10', 'testsleep30']:
-                schedule_id = sch['id']
-                r = requests.delete(BASE_URL+'/schedule/' + schedule_id)
-                retval = dict(r.json())
-                assert 200 == r.status_code
-                assert retval['id'] == schedule_id
-                assert retval['message'] == "Schedule deleted successfully"
 
 
 class TestScheduler:
@@ -91,7 +65,7 @@ class TestScheduler:
         pass
 
     def teardown_method(self, method):
-        delete_all_schedules()
+        pass
 
     def _create_schedule(self, data):
         r = requests.post(BASE_URL + '/schedule', data=json.dumps(data), headers=headers)
@@ -111,17 +85,15 @@ class TestScheduler:
 
         assert 200 == r.status_code
         assert 'testsleep30' in retval['processes']
-        assert 'testsleep10' in retval['processes']
-        assert 'testsleep5' in retval['processes']
-        assert 'testsleep1' in retval['processes']
+        assert 'echo_test' in retval['processes']
 
     @pytest.mark.run(order=2)
     @pytest.mark.asyncio
     async def test_get_scheduled_process(self):
-        r = requests.get(BASE_URL+'/schedule/process/testsleep1')
+        r = requests.get(BASE_URL+'/schedule/process/testsleep30')
 
         assert 200 == r.status_code
-        assert 'testsleep1' == r.json()
+        assert 'testsleep30' == r.json()
 
     @pytest.mark.run(order=3)
     @pytest.mark.asyncio
@@ -280,4 +252,3 @@ class TestScheduler:
         # assert 1 == len(retval['tasks'])
         assert retval['tasks'][0]['state'] == 'RUNNING'
         assert retval['tasks'][0]['process_name'] == 'testsleep30'
-

@@ -5,14 +5,13 @@
 # FOGLAMP_END
 
 import time
-import datetime
 import json
 import asyncpg
 import requests
 import pytest
 import asyncio
 import uuid
-from foglamp.core.scheduler import Schedule, Task
+from foglamp.core.scheduler import Schedule
 
 
 __author__ = "Amarendra K Sinha"
@@ -119,23 +118,21 @@ class TestScheduler:
         schedule_id = self._create_schedule(data)
 
         # Secondly, update the schedule
-        data = {"name": "test_update_sch_upd", "repeat": "4"}
+        data = {"name": "test_update_sch_upd", "repeat": "4", "type": 4}
         r = requests.put(BASE_URL+'/schedule/' + schedule_id, data=json.dumps(data), headers=headers)
         retval = dict(r.json())
         assert uuid.UUID(retval['schedule']['id'], version=4)
 
         # These values did not change
         assert retval['schedule']['exclusive'] is True
-        # TODO: FOGL-409 - There is a bug in core/scheduler.py. It does not update the schedule type BUT if you pass a new schedule
-        # type in above, it will return the new schedule type even though it does not update the DB record.
-        assert retval['schedule']['type'] == "INTERVAL"
         assert retval['schedule']['time'] == "None"
         assert retval['schedule']['day'] is None
         assert retval['schedule']['process_name'] == 'testsleep30'
 
-        # Below two values only changed
+        # Below values are changed
         assert retval['schedule']['repeat'] == '0:00:04'
         assert retval['schedule']['name'] == 'test_update_sch_upd'
+        assert retval['schedule']['type'] == Schedule.Type(int(data['type'])).name
 
     @pytest.mark.run(order=5)
     @pytest.mark.asyncio
@@ -209,11 +206,18 @@ class TestScheduler:
         assert retval['id'] == schedule_id
         assert retval['message'] == "Schedule started successfully"
 
+        # Allow sufficient time for task record to be created
+        await asyncio.sleep(4)
+
         # Verify with Task record as to one task has been created
         r = requests.get(BASE_URL+'/task')
         retval = dict(r.json())
 
         assert 200 == r.status_code
         # assert 1 == len(retval['tasks'])
-        assert retval['tasks'][0]['state'] == 'RUNNING'
-        assert retval['tasks'][0]['process_name'] == 'testsleep30'
+
+        l_task_state = []
+        for tasks in retval['tasks']:
+            if tasks['process_name'] == 'testsleep30':
+                l_task_state.append(tasks['state'])
+        assert l_task_state.count('RUNNING') == 1

@@ -97,7 +97,7 @@ class Ingest(object):
     _readings_batch_size = 50
     """Maximum number of rows in a batch of inserts"""
 
-    _readings_batch_timeout_seconds = 3
+    _readings_batch_timeout_seconds = 1
     """Number of seconds to wait for a queue to reach the minimum batch size"""
 
     _max_readings_queue_size = 4*_readings_batch_size

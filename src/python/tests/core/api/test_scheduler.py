@@ -11,6 +11,7 @@ import asyncpg
 import requests
 import pytest
 import asyncio
+import uuid
 from foglamp.core.scheduler import Schedule, Task
 
 
@@ -130,7 +131,7 @@ class TestScheduler:
         retval = dict(r.json())
 
         assert 200 == r.status_code
-        assert not retval['schedule']['id'] is None
+        assert uuid.UUID(retval['schedule']['id'], version=4)
         assert retval['schedule']['exclusive'] is True
         assert retval['schedule']['type'] == "INTERVAL"
         assert retval['schedule']['time'] == "None"
@@ -150,7 +151,7 @@ class TestScheduler:
         data = {"name": "test_update_sch_upd", "repeat": "4"}
         r = requests.put(BASE_URL+'/schedule/' + schedule_id, data=json.dumps(data), headers=headers)
         retval = dict(r.json())
-        assert not retval['schedule']['id'] is None
+        assert uuid.UUID(retval['schedule']['id'], version=4)
 
         # These values did not change
         assert retval['schedule']['exclusive'] is True

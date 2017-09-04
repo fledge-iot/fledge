@@ -100,15 +100,22 @@ class TestScheduler:
         r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
 
+        # Assert the POST request response
         assert 200 == r.status_code
         assert uuid.UUID(retval['schedule']['id'], version=4)
         assert retval['schedule']['exclusive'] is True
-        assert retval['schedule']['type'] == "INTERVAL"
+        assert retval['schedule']['type'] == Schedule.Type(int(data['type'])).name
         assert retval['schedule']['time'] == "None"
         assert retval['schedule']['day'] is None
-        assert retval['schedule']['process_name'] == 'testsleep30'
+        assert retval['schedule']['process_name'] == data['process_name']
         assert retval['schedule']['repeat'] == '1:00:00'
-        assert retval['schedule']['name'] == 'test_post_sch'
+        assert retval['schedule']['name'] == data['name']
+
+        # Assert schedule is really created in DB
+        r = requests.get(BASE_URL + '/schedule/' + retval['schedule']['id'])
+        assert 200 == r.status_code
+        retvall = dict(r.json())
+        assert retvall['name'] == data['name']
 
     @pytest.mark.run(order=4)
     @pytest.mark.asyncio
@@ -118,8 +125,8 @@ class TestScheduler:
         schedule_id = self._create_schedule(data)
 
         # Secondly, update the schedule
-        data = {"name": "test_update_sch_upd", "repeat": "4", "type": 4}
-        r = requests.put(BASE_URL+'/schedule/' + schedule_id, data=json.dumps(data), headers=headers)
+        up_data = {"name": "test_update_sch_upd", "repeat": "4", "type": 4}
+        r = requests.put(BASE_URL+'/schedule/' + schedule_id, data=json.dumps(up_data), headers=headers)
         retval = dict(r.json())
         assert uuid.UUID(retval['schedule']['id'], version=4)
 
@@ -127,12 +134,12 @@ class TestScheduler:
         assert retval['schedule']['exclusive'] is True
         assert retval['schedule']['time'] == "None"
         assert retval['schedule']['day'] is None
-        assert retval['schedule']['process_name'] == 'testsleep30'
+        assert retval['schedule']['process_name'] == data['process_name']
 
         # Below values are changed
         assert retval['schedule']['repeat'] == '0:00:04'
-        assert retval['schedule']['name'] == 'test_update_sch_upd'
-        assert retval['schedule']['type'] == Schedule.Type(int(data['type'])).name
+        assert retval['schedule']['name'] == up_data['name']
+        assert retval['schedule']['type'] == Schedule.Type(int(up_data['type'])).name
 
     @pytest.mark.run(order=5)
     @pytest.mark.asyncio
@@ -145,9 +152,17 @@ class TestScheduler:
         r = requests.delete(BASE_URL+'/schedule/' + schedule_id)
         retval = dict(r.json())
 
+        # Assert the DELETE request response
         assert 200 == r.status_code
         assert retval['id'] == schedule_id
         assert retval['message'] == "Schedule deleted successfully"
+
+        # Assert schedule is really deleted from DB
+        r = requests.get(BASE_URL + '/schedule/' + schedule_id)
+        assert 200 == r.status_code
+        retvall = dict(r.json())
+        assert 'Schedule not found' in retvall['error']
+
 
     @pytest.mark.run(order=6)
     @pytest.mark.asyncio
@@ -163,12 +178,12 @@ class TestScheduler:
         assert 200 == r.status_code
         assert retval['id'] == schedule_id
         assert retval['exclusive'] is True
-        assert retval['type'] == "INTERVAL"
+        assert retval['type'] == Schedule.Type(int(data['type'])).name
         assert retval['time'] == "None"
         assert retval['day'] is None
-        assert retval['process_name'] == 'testsleep30'
+        assert retval['process_name'] == data['process_name']
         assert retval['repeat'] == '1:00:00'
-        assert retval['name'] == 'test_get_sch'
+        assert retval['name'] == data['name']
 
     @pytest.mark.run(order=7)
     @pytest.mark.asyncio
@@ -218,6 +233,6 @@ class TestScheduler:
 
         l_task_state = []
         for tasks in retval['tasks']:
-            if tasks['process_name'] == 'testsleep30':
+            if tasks['process_name'] == data['process_name']:
                 l_task_state.append(tasks['state'])
         assert l_task_state.count('RUNNING') == 1

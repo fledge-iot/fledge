@@ -272,20 +272,17 @@ class Ingest(object):
                     time.time() - cls._last_insert_time) < cls._readings_batch_timeout_seconds:
                 continue
                 
-            batch_size = len(queue)
-            if batch_size > cls._readings_batch_size:
-                batch_size = cls._readings_batch_size
-
             # inserts = queue[:batch_size]
-            inserts = [(item[0], item[1], item[2],
-                       json.dumps(item[3])) for item in queue[:batch_size]]
+            # inserts = [(item[0], item[1], item[2],
+            #           json.dumps(item[3])) for item in queue[:batch_size]]
 
             attempt = 0
 
             while True:
                 cls._last_insert_time = time.time()
 
-                # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', queue_index, batch_size)
+                # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', queue_index,
+                #               len(queue))
 
                 try:
                     if connection is None:
@@ -297,14 +294,14 @@ class Ingest(object):
                     else:
                         await connection.execute('truncate table t_readings')
 
-                    await connection.copy_records_to_table(table_name='t_readings',
-                                                           records=inserts)
+                    result = await connection.copy_records_to_table(table_name='t_readings',
+                                                                    records=queue)
 
                     await connection.execute('insert into foglamp.readings '
                                              '(asset_code,user_ts,read_key,reading) '
                                              'select * from t_readings on conflict do nothing')
 
-                    # batch_size = int(result[5:])
+                    batch_size = int(result[5:])
                     cls._readings_stats += batch_size
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
@@ -331,7 +328,6 @@ class Ingest(object):
                             await cls._close_connection(connection)
                             del connection
 
-            del inserts
             del queue[:batch_size]
 
             if not queues_not_full.is_set():
@@ -481,8 +477,8 @@ class Ingest(object):
         queue_index = cls._current_readings_queue_index
         queue = cls._readings_queues[queue_index]
 
+        readings = json.dumps(readings)
         queue.append((asset, timestamp, key, readings))
-        # queue.append((asset, timestamp, key, json.dumps(readings)))
 
         queue_size = len(queue)
 
@@ -500,7 +496,7 @@ class Ingest(object):
         # When the current queue is full, move on to the next queue
         if cls._max_readings_queues > 1 and queue_size >= cls._readings_batch_size:
             # Start at the beginning to reduce the number of database connections
-            for queue_index in range(cls._readings_batch_size):
+            for queue_index in range(cls._max_readings_queues):
                 if len(cls._readings_queues[queue_index]) < cls._readings_batch_size:
                     cls._current_readings_queue_index = queue_index
                     break

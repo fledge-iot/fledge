@@ -90,10 +90,10 @@ class Ingest(object):
     _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
-    _readings_batch_size = 200
+    _readings_batch_size = 50
     """Maximum number of rows in a batch of inserts"""
 
-    _readings_batch_timeout_seconds = 2
+    _readings_batch_timeout_seconds = 1
     """Number of seconds to wait for a queue to reach the minimum batch size"""
 
     _max_readings_queue_size = 4*_readings_batch_size
@@ -266,16 +266,15 @@ class Ingest(object):
                 finally:
                     cls._insert_readings_wait_tasks[queue_index] = None
 
-            end_index = len(queue)
-            if end_index > cls._readings_batch_size:
-                end_index = cls._readings_batch_size
+            batch_size = len(queue)
+            if batch_size > cls._readings_batch_size:
+                batch_size = cls._readings_batch_size
 
-            inserts = [(item[0], item[1], item[2],
-                        json.dumps(item[3])) for item in queue[:end_index]]
+            inserts = queue[:batch_size]
+            # inserts = [(item[0], item[1], item[2],
+            #            json.dumps(item[3])) for item in queue[:batch_size]]
 
-            # inserts = queue[:end_index]
-
-            # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', queue_index, end_index)
+            # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', queue_index, batch_size)
 
             for attempt in range(cls._max_insert_readings_batch_attempts):
                 try:
@@ -295,10 +294,10 @@ class Ingest(object):
                                              '(asset_code,user_ts,read_key,reading) '
                                              'select * from t_readings on conflict do nothing')
 
-                    cls._readings_stats += end_index
+                    cls._readings_stats += batch_size
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
-                    #               queue_index, end_index)
+                    #               queue_index, batch_size)
 
                     break
                 except Exception:  # TODO: Catch exception from asyncpg
@@ -308,7 +307,7 @@ class Ingest(object):
                     _LOGGER.exception('Insert failed on attempt #%s', next_attempt)
 
                     if cls._stop or next_attempt >= cls._max_insert_readings_batch_attempts:
-                        cls._discarded_readings_stats += end_index
+                        cls._discarded_readings_stats += batch_size
                         # The loop above will exit; break not needed
                     else:
                         if connection is None:
@@ -319,7 +318,7 @@ class Ingest(object):
                             connection = None
 
             del inserts
-            del queue[:end_index]
+            del queue[:batch_size]
 
             if not queues_not_full.is_set():
                 queues_not_full.set()
@@ -469,8 +468,8 @@ class Ingest(object):
         queue_index = cls._current_readings_queue_index
         queue = cls._readings_queues[queue_index]
 
-        # queue.append((asset, timestamp, key, json.dumps(readings)))
-        queue.append((asset, timestamp, key, readings))
+        # queue.append((asset, timestamp, key, readings))
+        queue.append((asset, timestamp, key, json.dumps(readings)))
 
         queue_size = len(queue)
 
@@ -492,4 +491,3 @@ class Ingest(object):
                 if len(cls._readings_queues[queue_index]) < cls._readings_batch_size:
                     cls._current_readings_queue_index = queue_index
                     break
-

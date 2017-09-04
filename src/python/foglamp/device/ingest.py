@@ -84,20 +84,20 @@ class Ingest(object):
     """asyncio tasks blocking :meth:`_insert_readings` that can be canceled"""
 
     # Configuration
-    _max_readings_queues = 5
-    """Maximum number of insert queues. Each queue has its own database connection."""
-
     _max_idle_db_connection_seconds = 180
     """Close database connections when idle for this number of seconds"""
 
-    _readings_batch_size = 300
+    _max_readings_queues = 5
+    """Maximum number of insert queues. Each queue has its own database connection."""
+
+    _readings_batch_size = 100
     """Maximum number of rows in a batch of inserts"""
-    
+
+    _readings_batch_timeout_seconds = 2
+    """Number of seconds to wait for a queue to reach the minimum batch size"""
+
     _max_readings_queue_size = 4*_readings_batch_size
     """Maximum number of items in a queue"""
-
-    _readings_batch_timeout_seconds = 10
-    """Number of seconds to wait for a queue to reach the minimum batch size"""
 
     _max_insert_readings_batch_attempts = 30
     """Number of times to attempt to insert a batch (retry in case of failure). When a
@@ -476,18 +476,19 @@ class Ingest(object):
 
         queue_size = len(queue)
 
+        # _LOGGER.debug('Add readings queue index: %s size: %s', cls._current_readings_queue_index,
+        #               queue_size)
+
         if queue_size == 1:
             cls._readings_queue_not_empty[queue_index].set()
-        elif queue_size == cls._readings_batch_size:
+
+        if queue_size == cls._readings_batch_size:
             cls._readings_queue_batch_size_reached[queue_index].set()
             # _LOGGER.debug('Set event queue index: %s size: %s',
             #               cls._current_readings_queue_index, len(queue))
 
-        # _LOGGER.debug('Queue index: %s size: %s', cls._current_readings_queue_index,
-        #               len(queue))
-
         # When the current queue is full, move on to the next queue
-        if cls._max_readings_queues > 1 and len(queue) >= cls._readings_batch_size:
+        if cls._max_readings_queues > 1 and queue_size >= cls._readings_batch_size:
             # Start at the beginning to reduce the number of database connections
             for queue_index in range(cls._readings_batch_size):
                 if len(cls._readings_queues[queue_index]) < cls._readings_batch_size:

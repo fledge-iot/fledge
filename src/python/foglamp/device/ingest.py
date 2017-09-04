@@ -94,10 +94,10 @@ class Ingest(object):
     _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
-    _readings_batch_size = 500
+    _readings_batch_size = 50
     """Maximum number of rows in a batch of inserts"""
 
-    _readings_batch_timeout_seconds = 10
+    _readings_batch_timeout_seconds = 1
     """Number of seconds to wait for a queue to reach the minimum batch size"""
 
     _max_readings_queue_size = 4*_readings_batch_size
@@ -319,6 +319,8 @@ class Ingest(object):
                         # Stopping. Discard the entire queue upon failure.
                         batch_size = len(queue)
                         cls._discarded_readings_stats += batch_size
+                        # _LOGGER.debug('Insert failed: Queue index: %s Batch size: %s',
+                        #               queue_index, batch_size)
                         break
                     else:
                         if connection is None:

@@ -86,7 +86,7 @@ class Ingest(object):
     """epoch time of last insert"""
 
     _readings_list_size = 0  # type: int
-    """Maximum number of readings items to buffer in memory"""
+    """Maximum number of readings items in each buffer"""
 
     # Configuration
     _readings_buffer_size = 500
@@ -95,14 +95,14 @@ class Ingest(object):
     _max_concurrent_readings_inserts = 5
     """Maximum number of concurrent processes that send batches of readings to the database"""
 
-    _readings_insert_batch_size = 50
+    _readings_insert_batch_size = 100
     """Maximum number of rows in a batch of inserts"""
-
-    _max_readings_insert_idle_seconds = 60
-    """Close database connections when idle for this number of seconds"""
 
     _readings_insert_batch_timeout_seconds = 1
     """Number of seconds to wait for a readings list to reach the minimum batch size"""
+
+    _max_readings_insert_idle_seconds = 60
+    """Close database connections when idle for this number of seconds"""
 
     @classmethod
     async def start(cls):
@@ -313,12 +313,16 @@ class Ingest(object):
                                                        'select * from t_readings '
                                                        'on conflict do nothing')
 
+                    # result1 looks like COPY 10
                     batch_size = int(result1[5:])
 
-                    space_index = result2[7:].index(' ')+8
-                    insert_rows = int(result2[space_index:])
+                    # result2 looks like INSERT 0 10
+                    insert_index = result2.index(' ', 7)+1
+                    insert_rows = int(result2[insert_index:])
 
                     cls._readings_stats += insert_rows
+
+                    # insert_rows < batch_size when key conflict occurs
                     cls._discarded_readings_stats += batch_size - insert_rows
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',

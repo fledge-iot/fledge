@@ -51,7 +51,7 @@ async def update_statistics_value(statistics_key, value_increment):
         return await _update_statistics_value(statistics_key, value_increment)
     except:
         _logger.exception(
-            'Unable to update statistics value based on statistics_key %s and value_increment', statistics_key, value_increment)
+            'Unable to update statistics value based on statistics_key %s and value_increment %s', statistics_key, value_increment)
         raise
 
 # async def main():

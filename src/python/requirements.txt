@@ -2,6 +2,7 @@
 aiocoap==0.3
 cbor2==4.0.0
 LinkHeader==0.4.3
+python-dateutil==2.6.1 - Needed if Python parses iso8601 strings
 
 # deployment
 # packaging enables pip install -e

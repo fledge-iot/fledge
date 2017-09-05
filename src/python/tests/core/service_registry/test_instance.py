@@ -15,15 +15,16 @@ __version__ = "${VERSION}"
 
 class TestInstance:
     def setup_method(self, method):
-        pass
+        Service.Instances._registry = []
 
     def teardown_method(self, method):
-        Service.Instances._registry = []
+        pass
 
     @pytest.mark.asyncio
     async def test_register(self):
         r = Service.Instances.register("StorageService1", "Storage", "127.0.0.1", "9999")
 
+        # TODO: add check returned id for valid UUID ver 4
         assert "StorageService1" == r._name
         assert "Storage" == r._type
         assert "127.0.0.1" == r._address
@@ -40,13 +41,8 @@ class TestInstance:
     async def test_unregister(self):
         r = Service.Instances.register("StorageService2", "Storage", "127.0.0.1", "8888")
 
-        assert "StorageService2" == r._name
-        assert "Storage" == r._type
-        assert "127.0.0.1" == r._address
-        assert "8888" == r._port
+        # TODO: add check returned id for valid UUID ver 4
         service_id = r._id
-
-        print(service_id, type(service_id))
 
         t = Service.Instances.unregister(service_id)
         assert service_id == t

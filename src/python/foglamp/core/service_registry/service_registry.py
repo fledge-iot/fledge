@@ -4,12 +4,10 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Core server module"""
+"""Service Registry Rest API support"""
 
 import time
-
 from aiohttp import web
-
 from foglamp.core.service_registry.instance import Service
 
 __author__ = "Amarendra Kumar Sinha"
@@ -22,7 +20,6 @@ __start_time = time.time()
 
 async def ping(request):
     since_started = time.time() - __start_time
-
     return web.json_response({'uptime': since_started})
 
 async def register(request):
@@ -40,13 +37,14 @@ async def register(request):
         service_address = data.get('address', None)
         service_port = data.get('port', None)
 
-        if not (service_name or service_type or service_address or service_port):
+        # TODO: Ask Mark if we need to add protocol info also?
+        if not (service_name or service_type or service_address or service_port or not isinstance(service_type, int)):
             raise ValueError('One or more values for type/name/address/port missing')
 
         registered_service = Service.Instances.register(service_name, service_type, service_address, service_port)
 
         if not registered_service:
-            raise ValueError("Service {} could not registered".format(service_name))
+            raise ValueError("Service {} could not be registered".format(service_name))
 
         _response = {
             'id': str(registered_service._id),
@@ -74,7 +72,7 @@ async def unregister(request):
         service_id = request.match_info.get('service_id', None)
 
         if not service_id:
-            raise ValueError('No service_id')
+            raise ValueError('Service_id is required')
 
         match = Service.Instances.get(service_id)
         if not match or not len(match):
@@ -82,7 +80,7 @@ async def unregister(request):
 
         s_id = Service.Instances.unregister(service_id)
 
-        _resp = {'id': str(service_id), 'message': "Service unresistered"}
+        _resp = {'id': str(service_id), 'message': "Service now unresistered"}
 
         return web.json_response(_resp)
     except ValueError as ex:
@@ -115,7 +113,7 @@ async def get_service(request):
                 "address": service._address,
                 "port": service._port
             })
-        return web.json_response(services)
+        return web.json_response({"services": services})
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 

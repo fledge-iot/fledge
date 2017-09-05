@@ -4,13 +4,10 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Core server module"""
+"""Services Instances Registry module"""
 
-import signal
-import asyncio
 import time
 import uuid
-from aiohttp import web
 from enum import IntEnum
 from foglamp import logger
 
@@ -55,7 +52,7 @@ class Service:
         pass
 
     class InvalidServiceType(BaseException):
-        # tell allowed service types?
+        # TODO: tell allowed service types?
         pass
 
     class Instances:
@@ -64,23 +61,21 @@ class Service:
 
         @classmethod
         def register(cls, name, s_type, address, port):
-            service_id = uuid.uuid4()
+            # TODO: Do we need to add check for an existing service with the same characteristics?
+            # For example, can we have two Storage services with different names but at same address:port?
+            #              can we have two Storage services with different names but at different address:port?
 
+            service_id = uuid.uuid4()
             registered_service = Service(str(service_id), name, s_type, address, port)
             cls._registry.append(registered_service)
-
-            cls._logger.info("Service id {} [{}, {}, {}, {}] registered at {}".format(str(service_id), name, s_type, address, port, time.time()))
-
+            cls._logger.info("Service {} registered at {}".format(str(registered_service), time.time()))
             return registered_service
 
         @classmethod
         def unregister(cls, service_id):
             services = cls.get(idx=service_id)
-
             cls._registry.remove(services[0])
-
-            cls._logger.info("Service id {} unregistered at {}".format(str(service_id), time.time()))
-
+            cls._logger.info("Service {} unregistered at {}".format(str(services[0]), time.time()))
             return service_id
 
         @classmethod

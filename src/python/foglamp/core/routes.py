@@ -71,11 +71,11 @@ def setup(app):
     app.router.add_route('DELETE', '/foglamp/service/{service_id}', service_registry.unregister)
     app.router.add_route('GET', '/foglamp/service', service_registry.get_service)
     app.router.add_route('GET', '/foglamp/service/{service_id}', service_registry.get_service)
-    app.router.add_route('POST', '/foglamp/service/shutdown', service_registry.shutdown)
 
+    # TODO: shutdown, register_interest, unregister_interest and notify_changes - pending
+    app.router.add_route('POST', '/foglamp/service/shutdown', service_registry.shutdown)
     app.router.add_route('POST', '/foglamp/service/interest', service_registry.register_interest)
     app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', service_registry.unregister_interest)
-
     app.router.add_route('POST', '/foglamp/change', service_registry.notify_change)
 
     # enable cors support

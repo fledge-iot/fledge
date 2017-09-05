@@ -90,12 +90,12 @@ class Ingest(object):
 
     # Configuration
     _readings_buffer_size = 500
-    """Maximum number of readings to list in memory"""
+    """Maximum number of readings to buffer in memory"""
 
-    _max_concurrent_readings_inserts = 10
+    _max_concurrent_readings_inserts = 5
     """Maximum number of concurrent processes that send batches of readings to the database"""
 
-    _readings_insert_batch_size = 10
+    _readings_insert_batch_size = 50
     """Maximum number of rows in a batch of inserts"""
 
     _max_readings_insert_idle_seconds = 60
@@ -142,6 +142,7 @@ class Ingest(object):
 
         cls._readings_lists_not_full = asyncio.Event()
 
+        cls._stop = False
         cls._started = True
 
     @classmethod
@@ -165,8 +166,6 @@ class Ingest(object):
             except Exception:
                 _LOGGER.exception('An exception occurred in Ingest._insert_readings')
 
-        cls._started = False
-
         cls._insert_readings_wait_tasks = None
         cls._insert_readings_tasks = None
         cls._readings_lists = None
@@ -184,6 +183,8 @@ class Ingest(object):
             cls._write_statistics_task = None
         except Exception:
             _LOGGER.exception('An exception occurred in Ingest._write_statistics')
+
+        cls._started = False
 
     @classmethod
     def increment_discarded_readings(cls):
@@ -304,15 +305,21 @@ class Ingest(object):
                     else:
                         await connection.execute('truncate table t_readings')
 
-                    result = await connection.copy_records_to_table(table_name='t_readings',
-                                                                    records=readings_list)
+                    result1 = await connection.copy_records_to_table(table_name='t_readings',
+                                                                     records=readings_list)
 
-                    await connection.execute('insert into foglamp.readings '
-                                             '(asset_code,user_ts,read_key,reading) '
-                                             'select * from t_readings on conflict do nothing')
+                    result2 = await connection.execute('insert into foglamp.readings '
+                                                       '(asset_code,user_ts,read_key,reading) '
+                                                       'select * from t_readings '
+                                                       'on conflict do nothing')
 
-                    batch_size = int(result[5:])
-                    cls._readings_stats += batch_size
+                    batch_size = int(result1[5:])
+
+                    space_index = result2[7:].index(' ')+8
+                    insert_rows = int(result2[space_index:])
+
+                    cls._readings_stats += insert_rows
+                    cls._discarded_readings_stats += batch_size - insert_rows
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
                     #               list_index, batch_size)

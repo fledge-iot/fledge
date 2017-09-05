@@ -81,7 +81,6 @@ _DATA_SOURCE_READINGS = "readings"
 _DATA_SOURCE_STATISTICS = "statistics"
 _DATA_SOURCE_AUDIT = "audit"
 
-# FIXME: set proper values
 _CONFIG_DEFAULT = {
     "enable": {
         "description": "A switch that can be used to enable or disable execution of the sending process.",
@@ -91,7 +90,7 @@ _CONFIG_DEFAULT = {
     "duration": {
         "description": "How long the sending process should run before stopping.",
         "type": "integer",
-        "default": "1"
+        "default": "60"
     },
     "source": {
         "description": "Defines the source of the data to be sent on the stream, "
@@ -264,6 +263,29 @@ def _plugin_load():
         raise
 
 
+def debug_code():
+    """ debug_code """
+    global _pg_cur
+    global _pg_conn
+
+    list_sql_cmd = (
+        # "DELETE FROM foglamp.omf_created_objects;",
+        "UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1",
+        "UPDATE foglamp.statistics SET value=0;",
+        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TRANS';",
+        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TR_1';",
+        "DELETE FROM foglamp.configuration WHERE \"key\"='SEND_PR_1';",
+        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TYPES';",
+
+
+    )
+
+    for cmd in list_sql_cmd:
+
+        _pg_cur.execute(cmd)
+        _pg_conn.commit()
+
+
 def _sending_process_init():
     """ Setup the correct state for the Sending Process
 
@@ -300,37 +322,37 @@ def _sending_process_init():
 
             _logger.error(_message)
             raise
-        else:
-            if is_stream_id_valid(_stream_id):
 
-                _retrieve_configuration(_stream_id)
+        if is_stream_id_valid(_stream_id):
 
-                if _config['enable']:
+            _retrieve_configuration(_stream_id)
 
-                    _plugin_load()
+            if _config['enable']:
 
-                    _plugin._log_debug_level = _log_debug_level
-                    _plugin._log_performance = _log_performance
+                _plugin_load()
 
-                    _plugin_info = _plugin.retrieve_plugin_info(_stream_id)
+                _plugin._log_debug_level = _log_debug_level
+                _plugin._log_performance = _log_performance
 
-                    _logger.debug("_sending_process_init - {0} - {1} ".format(_plugin_info['name'],
-                                                                              _plugin_info['version']))
+                _plugin_info = _plugin.plugin_retrieve_info(_stream_id)
 
-                    if _is_translator_valid():
-                        try:
-                            _plugin.plugin_init()
+                _logger.debug("_sending_process_init - {0} - {1} ".format(_plugin_info['name'],
+                                                                          _plugin_info['version']))
 
-                        except Exception:
-                            _message = _MESSAGES_LIST["e000018"].format(_plugin_info['name'])
+                if _is_translator_valid():
+                    try:
+                        _plugin.plugin_init()
 
-                            _logger.error(_message)
-                            raise PluginInitialiseFailed
+                    except Exception as e:
+                        _message = _MESSAGES_LIST["e000018"].format(_plugin_info['name'])
 
-                else:
-                    _message = _MESSAGES_LIST["i000003"]
+                        _logger.error(_message)
+                        raise PluginInitialiseFailed(e)
 
-                    _logger.info(_message)
+            else:
+                _message = _MESSAGES_LIST["i000003"]
+
+                _logger.info(_message)
 
     except Exception:
         _message = _MESSAGES_LIST["e000004"]
@@ -482,30 +504,6 @@ def _load_data_into_memory(last_object_id):
         raise
 
     return data_to_send
-
-
-# FIXME:
-def debug_code():
-    """ debug_code """
-    global _pg_cur
-    global _pg_conn
-
-    list_sql_cmd = (
-        #"DELETE FROM foglamp.omf_created_objects;",
-        #"UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1",
-        #"UPDATE foglamp.statistics SET value=0;",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TRANS';",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TR_1';",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='SEND_PR_1';",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TYPES';",
-
-
-    )
-
-    for cmd in list_sql_cmd:
-
-        _pg_cur.execute(cmd)
-        _pg_conn.commit()
 
 
 def last_object_id_read():

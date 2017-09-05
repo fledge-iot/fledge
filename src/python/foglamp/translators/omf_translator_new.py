@@ -9,9 +9,7 @@
 It is loaded by the send process (see The FogLAMP Sending Process) and runs in the context of the send process,
 to send the reading data to a PI Server (or Connector) using the OSIsoft OMF format.
 
-IMPORTANT NOTE : This current version is an empty skeleton.
-
-.. _send_data::
+PICROMF = PI Connector Relay OMF
 
 """
 
@@ -37,10 +35,6 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "OMF Translator"
 
-# Defines what and the level of details for logging
-_log_debug_level = 0
-_log_performance = False
-
 # DB references
 _DB_CONNECTION_STRING = 'postgresql:///foglamp'
 _pg_conn = ()
@@ -50,33 +44,19 @@ _MESSAGES_LIST = {
 
     # Information messages
     "i000001": " ",
-    "i000002": "Started.",
-    "i000003": "Execution completed.",
 
     # Warning / Error messages
-    "e000001": "cannot complete the operation.",
-    "e000002": "cannot retrieve the starting point for sending operation.",
+    "e000001": "cannot initialize the plugin - error details |{0}|",
+    "e000002": "cannot complete the preparation of the in memory structure.",
     "e000003": "cannot update the reached position.",
-    "e000004": "cannot complete the sending operation.",
+    "e000004": "cannot complete the sending operation - error details |{0}|",
     "e000005": "cannot setup the logger - error details |{0}|",
-
-    "e000006": "cannot initialize the plugin.",
+    "e000006": "cannot prepare sensor information for PICROMF - error details |{0}|",
     "e000007": "an error occurred during the OMF request - error details |{0}|",
-    "e000008": "an error occurred during the OMF's objects creation.",
+    "e000008": "cannot complete the retrieval of the plugin information - error details |{0}|",
     "e000009": "cannot retrieve information about the sensor.",
     "e000010": "unable to extend the in memory structure with new data.",
-    "e000011": "cannot create the OMF types.",
-    "e000012": "unknown asset_code - asset |{0}| - error details |{1}|",
-    "e000013": "cannot prepare sensor information for PICROMF - error details |{0}|",
-    "e000014": "",
-
-    "e000015": "cannot update statistics.",
-    "e000016": "",
-    "e000017": "cannot complete loading data into the memory.",
-    "e000018": "cannot complete the initialization.",
-    "e000019": "cannot complete the preparation of the in memory structure.",
-    "e000020": "cannot complete the retrieval of the plugin information.",
-    "e000021": "cannot complete the termination of the OMF translator.",
+    "e000011": "cannot complete the termination of the OMF translator - error details |{0}|",
 
 }
 """Messages used for Information, Warning and Error notice"""
@@ -94,13 +74,13 @@ _DEFAULT_OMF_CONFIG = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_739"
+        "default": "omf_translator_001"
 
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for the communication with the OMF PI Connector Relay",
         "type": "integer",
-        "default": "2"
+        "default": "5"
 
     },
     "OMFRetrySleepTime": {
@@ -131,299 +111,21 @@ _DEFAULT_OMF_CONFIG = {
 
 }
 
-
 # Configuration related to the OMF Types
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OMF_TYPES'
 _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OMF types'
 
 _DEFAULT_OMF_TYPES_CONFIG = {
     "type-id": {
-        "description": "TBD",
+        "description": "Identify the sensor and measurement type",
         "type": "integer",
-        "default": "739"
+        "default": "001"
     },
 
-    "mouse": {
-        "description": "TBD",
-        # FIXME:
-        # "type": "JSON",
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "mouse",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "button": {
-                        "type": "string"
-                    }
-                }
-            }
-        )
-    },
-    "TI sensorTag/accelerometer": {
-        "description": "TBD",
-        # FIXME:
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "position",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "x": {
-                        "type": "number"
-                    },
-                    "y": {
-                        "type": "number"
-                    },
-                    "z": {
-                        "type": "number"
-                    }
-                }
-            }
-        )
-    },
 }
-
- 
-# FIXME:
-_DEFAULT_OMF_TYPES_CONFIG2 = {
-    "type-id": {
-        "description": "TBD",
-        "type": "integer",
-        "default": "739"
-    },
-
-    "wall clock": {
-        "description": "wall clock",
-        # FIXME:
-        # "type": "JSON",
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "wall_clock",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "tick": {
-                        "type": "string"
-                    }
-                }
-            }
-        )
-    },
-
-    "mouse": {
-        "description": "TBD",
-        # FIXME:
-        # "type": "JSON",
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "mouse",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "button": {
-                        "type": "string"
-                    }
-                }
-            }
-        )
-    },
-    "TI sensorTag/accelerometer": {
-        "description": "TBD",
-        # FIXME:
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "position",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "x": {
-                        "type": "number"
-                    },
-                    "y": {
-                        "type": "number"
-                    },
-                    "z": {
-                        "type": "number"
-                    }
-                }
-            }
-        )
-    },
-    "TI sensorTag/gyroscope": {
-        "description": "TBD",
-        # FIXME:
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "position",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "x": {
-                        "type": "number"
-                    },
-                    "y": {
-                        "type": "number"
-                    },
-                    "z": {
-                        "type": "number"
-                    }
-                }
-            }
-        )
-    },
-    "TI sensorTag/luxometer": {
-        "description": "TBD",
-        # FIXME:
-        "type": "string",
-        "default": json.dumps(
-            {
-                "typename": "luminosity",
-                "static": {
-                    "Name": {
-                        "type": "string",
-                        "isindex": True
-                    },
-                    "Location": {
-                        "type": "string"
-                    },
-                    "Company": {
-                        "type": "string"
-                    },
-                },
-                "dynamic": {
-                    "Time": {
-                        "type": "string",
-                        "format": "date-time",
-                        "isindex": True
-                    },
-                    "lux": {
-                        "type": "number"
-                    }
-                }
-            }
-        )
-    },
-}
-
-
-_logger = ""
-
-_event_loop = ""
-
-# Configurations retrieved from the Configuration Manager
-_config_omf_types = {}
-_config_omf_types_from_manager = {}
-_config = {
-    'URL': _DEFAULT_OMF_CONFIG['URL']['default'],
-    'producerToken': _DEFAULT_OMF_CONFIG['producerToken']['default'],
-    'OMFMaxRetry': int(_DEFAULT_OMF_CONFIG['OMFMaxRetry']['default']),
-    'OMFRetrySleepTime': _DEFAULT_OMF_CONFIG['OMFRetrySleepTime']['default'],
-    'OMFHttpTimeout': int(_DEFAULT_OMF_CONFIG['OMFHttpTimeout']['default']),
-    'StaticData':  ast.literal_eval(_DEFAULT_OMF_CONFIG['StaticData']['default'])
-}
-_config_from_manager = ""
-
 
 _OMF_PREFIX_MEASUREMENT = "measurement_"
 _OMF_SUFFIX_TYPENAME = "_typename"
-
 
 _OMF_TEMPLATE_TYPE = {
     "typename": [
@@ -485,6 +187,23 @@ _OMF_TEMPLATE_LINK_DATA = [
     }
 ]
 
+# Used to force the recreation of PIServer's objects on the first error occurred
+_recreate_omf_objects = True
+
+# Defines what and the level of details for logging
+_log_debug_level = 0
+_log_performance = False
+
+_logger = ""
+
+_event_loop = ""
+
+# Configurations retrieved from the Configuration Manager
+_config_omf_types = {}
+_config_omf_types_from_manager = {}
+_config = {}
+_config_from_manager = {}
+
 
 class URLFetchError(RuntimeError):
     """ URLFetchError """
@@ -525,7 +244,7 @@ def _performance_log(func):
     return wrapper
 
 
-def _configuration_retrieve(_stream_id):
+def _configuration_retrieve(stream_id):
     """ Retrieves the configuration from the Configuration Manager
 
     Returns:
@@ -542,7 +261,7 @@ def _configuration_retrieve(_stream_id):
 
     # Configuration related to the OMF Translator
     try:
-        config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(_stream_id)
+        config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
         _event_loop.run_until_complete(configuration_manager.create_category(config_category_name, _DEFAULT_OMF_CONFIG,
                                                                              _CONFIG_CATEGORY_DESCRIPTION))
@@ -592,11 +311,13 @@ def _configuration_retrieve(_stream_id):
         raise
 
 
-def retrieve_plugin_info(_stream_id):
+def plugin_retrieve_info(stream_id):
     """ Allows the device service to retrieve information from the plugin
 
+    Args:
+        stream_id
     Returns:
-        plugin_info
+        plugin_info: information that described the plugin
     Raises:
     Todo:
     """
@@ -624,7 +345,7 @@ def retrieve_plugin_info(_stream_id):
     try:
         _event_loop = asyncio.get_event_loop()
 
-        _configuration_retrieve(_stream_id)
+        _configuration_retrieve(stream_id)
 
         plugin_info = {
             'name': "OMF Translator",
@@ -634,8 +355,8 @@ def retrieve_plugin_info(_stream_id):
             'config': _config
         }
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000020"]
+    except Exception as ex:
+        _message = _MESSAGES_LIST["e000008"].format(ex)
 
         _logger.error(_message)
         raise
@@ -654,6 +375,7 @@ def plugin_init():
 
     global _pg_conn
     global _pg_cur
+    global _recreate_omf_objects
 
     try:
         _logger.debug("plugin_init - URL {0}".format(_config['URL']))
@@ -661,15 +383,70 @@ def plugin_init():
         _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
         _pg_cur = _pg_conn.cursor()
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000006"]
+        _recreate_omf_objects = True
+
+    except Exception as ex:
+        _message = _MESSAGES_LIST["e000001"].format(ex)
 
         _logger.error(_message)
-        raise PluginInitializeFailed
+        raise PluginInitializeFailed(ex)
+
+
+@_performance_log
+def plugin_send(raw_data, stream_id):
+    """ Translates and sends to the destination system the data provided by the Sending Process
+
+    Args:
+        raw_data  : Data to send as retrieved from the storage layer
+        stream_id
+
+    Returns:
+        data_to_send : True, data successfully sent to the destination system
+        new_position : Last row_id already sent
+        num_sent     : Number of rows sent, used for the update of the statistics
+    Raises:
+    Todo:
+    """
+
+    global _recreate_omf_objects
+
+    data_to_send = []
+    data_sent = False
+
+    config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
+    type_id = _config_omf_types['type-id']['value']
+
+    try:
+        data_available, new_position, num_sent = _transform_in_memory_data(data_to_send, raw_data)
+
+        if data_available:
+            _create_omf_objects(raw_data, config_category_name, type_id)
+
+            try:
+                _send_in_memory_data_to_picromf("Data", data_to_send)
+
+            except Exception as ex:
+                # Forces the recreation of PIServer's objects on the first error occurred
+                if _recreate_omf_objects:
+
+                    _deleted_omf_types_already_created(config_category_name, type_id)
+                    _recreate_omf_objects = False
+
+                raise ex
+            else:
+                data_sent = True
+
+    except Exception as ex:
+        _message = _MESSAGES_LIST["e000004"].format(ex)
+
+        _logger.exception(_message)
+        raise
+
+    return data_sent, new_position, num_sent
 
 
 def plugin_shutdown():
-    """ Terminates the OMF plugin
+    """ Terminates the plugin
 
     Returns:
     Raises:
@@ -683,18 +460,40 @@ def plugin_shutdown():
 
         _pg_conn.close()
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000021"]
+    except Exception as ex:
+        _message = _MESSAGES_LIST["e000011"].format(ex)
 
         _logger.error(_message)
-        raise PluginInitializeFailed
+        raise
+
+
+def _deleted_omf_types_already_created(configuration_key, type_id):
+    """
+
+     Args:
+     Returns:
+     Raises:
+     Todo:
+     """
+
+    global _pg_cur
+    global _pg_conn
+
+    sql_cmd = "DELETE FROM foglamp.omf_created_objects "\
+              "WHERE configuration_key='{0}' AND type_id={1}".format(configuration_key, type_id)
+
+    _pg_cur.execute(sql_cmd)
+    _pg_conn.commit()
 
 
 def _retrieve_omf_types_already_created(configuration_key, type_id):
-    """
-     # FIXME:
+    """ Retrieves the list of OMF types already defined/sent to the PICROMF
+
      Args:
+         configuration_key - part of the key to identify the type
+         type_id           - part of the key to identify the type
      Returns:
+        List of Asset code already defined into the PI Server
      Raises:
      Todo:
      """
@@ -710,37 +509,12 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
     return rows
 
 
-def _is_omf_object_already_created(configuration_key, asset_code, type_id):
-    """
-     # FIXME:
+def _flag_created_omf_type(configuration_key, type_id, asset_code):
+    """ Stores into the Storage layer the successfully creation of the type into PICROMF.
      Args:
-     Returns:
-     Raises:
-     Todo:
-     """
-
-    global _pg_cur
-
-    object_already_created = False
-
-    sql_cmd = "SELECT asset_code FROM foglamp.omf_created_objects " \
-              "WHERE configuration_key='{0}' and asset_code='{1}' and type_id={2}".format(configuration_key,
-                                                                                          asset_code,
-                                                                                          type_id)
-
-    _pg_cur.execute(sql_cmd)
-    rows = _pg_cur.fetchall()
-
-    if len(rows) >= 1:
-        object_already_created = True
-
-    return object_already_created
-
-
-def _flag_created_omf_type(configuration_key, asset_code, type_id):
-    """
-     # FIXME:
-     Args:
+         configuration_key - part of the key to identify the type
+         type_id           - part of the key to identify the type
+         asset_code        - asset code defined into PICROMF
      Returns:
      Raises:
      Todo:
@@ -760,10 +534,12 @@ def _flag_created_omf_type(configuration_key, asset_code, type_id):
 
 
 def _generate_omf_asset_id(asset_code):
-    """
-     # FIXME:
+    """ Generates an asset id usable by AF/PI Server from an asset code stored into the Storage layer
+
      Args:
+         asset_code : Asset code stored into the Storage layer
      Returns:
+        Asset id usable by AF/PI Server
      Raises:
      Todo:
      """
@@ -773,10 +549,12 @@ def _generate_omf_asset_id(asset_code):
 
 
 def _generate_omf_measurement(asset_code):
-    """
-     # FIXME:
+    """ Generates the measurement id associated to an asset code
+
      Args:
+         asset_code :  Asset code retrieved from the Storage layer
      Returns:
+        Measurement id associated to the specific asset code
      Raises:
      Todo:
      """
@@ -786,10 +564,13 @@ def _generate_omf_measurement(asset_code):
 
  
 def _generate_omf_typename_automatic(asset_code):
-    """
-     # FIXME:
+    """ Generates the typename associated to an asset code for the automated generation of the OMF types
+
      Args:
+         asset_code :  Asset code retrieved from the Storage layer
      Returns:
+        typename associated to the specific asset code
+
      Raises:
      Todo:
      """
@@ -800,10 +581,12 @@ def _generate_omf_typename_automatic(asset_code):
 
 
 def _evaluate_property_type(value):
-    """
-     # FIXME:
+    """ Evaluates the type of the property in relation to its value
+
      Args:
+        value : value of the property
      Returns:
+         Evaluated type {integer,number,string}
      Raises:
      Todo:
      """
@@ -837,10 +620,13 @@ def _evaluate_property_type(value):
 
 
 def _create_omf_objects_automatic(asset_info):
-    """
-     # FIXME:
+    """ Handles the Automatic OMF Type Mapping
+
      Args:
+         asset_info : Asset's information as retrieved from the Storage layer,
+                      having also a sample value for the asset
      Returns:
+         response_status_code: http response code related to the PICROMF request
      Raises:
      Todo:
      """
@@ -850,10 +636,15 @@ def _create_omf_objects_automatic(asset_info):
 
 
 def _create_omf_type_automatic(asset_info):
-    """
-     # FIXME:
+    """ Automatic OMF Type Mapping - Handles the OMF type creation
+
      Args:
+         asset_info : Asset's information as retrieved from the Storage layer,
+                      having also a sample value for the asset
+
      Returns:
+         typename : typename associate to the asset
+         omf_type : describe the OMF type as a python dict
      Raises:
      Todo:
      """
@@ -901,9 +692,11 @@ def _create_omf_type_automatic(asset_info):
 
 
 def _create_omf_objects_configuration_based(asset_code, asset_code_omf_type):
-    """
-     # FIXME:
+    """ Handles the Configuration Based OMF Type Mapping
+
      Args:
+        asset_code
+        asset_code_omf_type : describe the OMF type as a python dict
      Returns:
      Raises:
      Todo:
@@ -914,10 +707,14 @@ def _create_omf_objects_configuration_based(asset_code, asset_code_omf_type):
 
 
 def _create_omf_type_configuration_based(asset_code_omf_type):
-    """
-     # FIXME:
+    """ Configuration Based OMF Type Mapping - Handles the OMF type creation
+
      Args:
+        asset_code_omf_type : describe the OMF type as a python dict
+
      Returns:
+         typename : typename associate to the asset
+         omf_type : describe the OMF type as a python dict
      Raises:
      Todo:
      """
@@ -945,9 +742,13 @@ def _create_omf_type_configuration_based(asset_code_omf_type):
 
 
 def _create_omf_object_links(asset_code, typename, omf_type):
-    """
-     # FIXME:
+    """ Handles the creation of the links between the OMF objects :
+        sensor, its measurement, sensor type and measurement type
+
      Args:
+        asset_code
+        typename : name/id of the type
+        omf_type : describe the OMF type as a python dict
      Returns:
      Raises:
      Todo:
@@ -992,13 +793,18 @@ def _create_omf_object_links(asset_code, typename, omf_type):
     _send_in_memory_data_to_picromf("Data", static_data)
     _send_in_memory_data_to_picromf("Data", link_data)
 
+    return
+
 
 @_performance_log
 def _identify_unique_asset_codes(raw_data):
-    """
-    # FIXME:
+    """ Identify unique asset codes in the data block
+
     Args:
+        raw_data : data block retrieved from the Storage layer that should be handled/sent
     Returns:
+        asset_code_to_evaluate : list of unique codes
+
     Raises:
     Todo:
     """
@@ -1023,17 +829,19 @@ def _identify_unique_asset_codes(raw_data):
 
 
 @_performance_log
-def _create_omf_objects(raw_data, stream_id):
-    """
-    # FIXME:
+def _create_omf_objects(raw_data, config_category_name, type_id):
+    """ Handles the creation of the OMF types related to the asset codes using one of the 2 possible ways :
+            Automatic OMF Type Mapping
+            Configuration Based OMF Type Mapping
+
     Args:
+        raw_data : data block to manage as retrieved from the Storage layer
+        config_category_name: used to identify the created OMF objects
+        type_id: used to identify the created OMF objects
     Returns:
     Raises:
     Todo:
     """
-
-    config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
-    type_id = _config_omf_types['type-id']['value']
 
     asset_codes_to_evaluate = _identify_unique_asset_codes(raw_data)
 
@@ -1065,56 +873,27 @@ def _create_omf_objects(raw_data, stream_id):
 
                 _create_omf_objects_automatic(item)
 
-            _flag_created_omf_type(config_category_name, asset_code, type_id)
+            _flag_created_omf_type(config_category_name, type_id, asset_code)
+
         else:
             _logger.debug("asset already created - asset |{0}| ".format(asset_code))
 
 
 @_performance_log
-def plugin_send(raw_data, stream_id):
-    """ Translates and sends to the destination system the data provided by the Sending Process
-
-    Returns:
-        data_to_send
-
-    Raises:
-    Todo:
-    """
-
-    data_to_send = []
-    data_sent = False
-
-    try:
-        data_available, new_position, num_sent = _transform_in_memory_data(data_to_send, raw_data)
-
-        if data_available:
-            _create_omf_objects(raw_data, stream_id)
-
-            _send_in_memory_data_to_picromf("Data", data_to_send)
-            data_sent = True
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000004"]
-
-        _logger.error(_message)
-        raise
-
-    return data_sent, new_position, num_sent
-
-
-@_performance_log
 def _send_in_memory_data_to_picromf(message_type, omf_data):
-    """Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
-
-    it logs a WARNING only at the end of the retry mechanism
+    """ Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
+        it logs a WARNING only at the end of the retry mechanism in case of a communication error
 
     Args:
-        message_type: possible values - Type | Container | Data
-        omf_data:     _message to send
+        message_type: possible values {Type, Container, Data}
+        omf_data:     OMF message to send
 
+    Returns:
     Raises:
         Exception: an error occurred during the OMF request
+        URLFetchError: in case of http response code different from 2xx
 
+    Todo:
     """
 
     sleep_time = _config['OMFRetrySleepTime']
@@ -1171,10 +950,12 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
 
 @_performance_log
 def _transform_in_memory_data(data_to_send, raw_data):
-    """Transforms in memory data into a new structure that could be converted into JSON for PICROMF
+    """ Transforms the in memory data into a new structure that could be converted into JSON for the PICROMF
 
+    Args:
+    Returns:
     Raises:
-        Exception: cannot complete the preparation of the in memory structure.
+    Todo:
 
     """
 
@@ -1210,11 +991,11 @@ def _transform_in_memory_data(data_to_send, raw_data):
             except Exception as e:
                 num_unsent += 1
 
-                _message = _MESSAGES_LIST["e000013"].format(e)
+                _message = _MESSAGES_LIST["e000006"].format(e)
                 _logger.warning(_message)
 
     except Exception:
-        _message = _MESSAGES_LIST["e000019"]
+        _message = _MESSAGES_LIST["e000002"]
 
         _logger.error(_message)
         raise
@@ -1223,15 +1004,16 @@ def _transform_in_memory_data(data_to_send, raw_data):
 
 
 def _transform_in_memory_row(data_to_send, row, target_stream_id):
-    """Extends the in memory structure using data retrieved from the Storage Layer
+    """ Extends the in memory structure using data retrieved from the Storage Layer
 
     Args:
-        data_to_send:      data to send - updated/used by reference
+        data_to_send:      data block to send - updated/used by reference
         row:               information retrieved from the Storage Layer that it is used to extend data_to_send
         target_stream_id:  OMF container ID
 
+    Returns:
     Raises:
-        Exception: unable to extend the in memory structure with new data.
+    Todo:
 
     """
 
@@ -1269,7 +1051,7 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
                 pass
 
         if data_available:
-            # note : append produces an not properly constructed OMF message
+            # note : append produces a not properly constructed OMF message
             data_to_send.extend(new_data)
 
             if _log_debug_level == 3:
@@ -1287,21 +1069,6 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 
 if __name__ == "__main__":
-    try:
-        # note : _module_name is used as __name__ refers to the Sending Process
-        _logger = logger.setup(_MODULE_NAME)
+    _logger = logger.setup(_MODULE_NAME)
 
-    except Exception as ex:
-        message = _MESSAGES_LIST["e000005"].format(str(ex))
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S:")
-
-        print ("{0} - ERROR - {1}".format(current_time, message))
-
-    try:
-        _event_loop = asyncio.get_event_loop()
-
-    except Exception as ex:
-        message = _MESSAGES_LIST["e000006"].format(str(ex))
-
-        _logger.error(message)
-        raise
+    _event_loop = asyncio.get_event_loop()

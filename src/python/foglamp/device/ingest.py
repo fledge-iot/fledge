@@ -38,10 +38,8 @@ class Ingest(object):
 
     Also tracks readings-related statistics.
 
-    Readings are added to a configurable number of queues. These queues are processed
-    concurrently. Each queue is assigned to a database connection. Queued items are
-    batched into a single insert transaction. The size of these batches have a
-    configurable maximum and minimum.
+    Readings are added to a configurable list. Configurable batches
+    of inserts are sent to the database via multiple database connections concurrently.
     """
 
     # Class attributes
@@ -63,23 +61,23 @@ class Ingest(object):
     _started = False
     """True when the server has been started"""
 
-    _readings_queues = None  # type: List
-    """insert objects are added to these queues"""
+    _readings_lists = None  # type: List
+    """A list of readings lists. Each list contains the inputs to :meth:`add_readings`."""
 
-    _current_readings_queue_index = 0
-    """Which queue to insert into next"""
+    _current_readings_list_index = 0
+    """Which readings list to insert into next"""
 
     _insert_readings_tasks = None  # type: List[asyncio.Task]
     """asyncio tasks for :meth:`_insert_readings`"""
 
-    _readings_queue_batch_size_reached = None  # type: List[asyncio.Event]
-    """Fired when a queue has reached _readings_batch_size"""
+    _readings_list_batch_size_reached = None  # type: List[asyncio.Event]
+    """Fired when a readings list has reached _readings_insert_batch_size entries"""
 
-    _readings_queue_not_empty = None  # type: List[asyncio.Event]
-    """Fired when a queue transitions from empty to not_empty"""
+    _readings_list_not_empty = None  # type: List[asyncio.Event]
+    """Fired when a readings list transitions from empty to not empty"""
 
-    _readings_queues_not_full = None  # type: asyncio.Event
-    """Fired when items are removed from any readings queue"""
+    _readings_lists_not_full = None  # type: asyncio.Event
+    """Fired when items are removed from any readings list"""
 
     _insert_readings_wait_tasks = None  # type: List[asyncio.Task]
     """asyncio tasks blocking :meth:`_insert_readings` that can be canceled"""
@@ -87,21 +85,24 @@ class Ingest(object):
     _last_insert_time = 0  # type: int
     """epoch time of last insert"""
 
+    _readings_list_size = 0  # type: int
+    """Maximum number of readings items to buffer in memory"""
+
     # Configuration
-    _max_idle_db_connection_seconds = 180
-    """Close database connections when idle for this number of seconds"""
+    _readings_buffer_size = 500
+    """Maximum number of readings to list in memory"""
 
-    _max_readings_queues = 5
-    """Maximum number of insert queues. Each queue has its own database connection."""
+    _max_concurrent_readings_inserts = 10
+    """Maximum number of concurrent processes that send batches of readings to the database"""
 
-    _readings_batch_size = 50
+    _readings_insert_batch_size = 10
     """Maximum number of rows in a batch of inserts"""
 
-    _readings_batch_timeout_seconds = 1
-    """Number of seconds to wait for a queue to reach the minimum batch size"""
+    _max_readings_insert_idle_seconds = 60
+    """Close database connections when idle for this number of seconds"""
 
-    _max_readings_queue_size = 4*_readings_batch_size
-    """Maximum number of items in a queue"""
+    _readings_insert_batch_timeout_seconds = 1
+    """Number of seconds to wait for a readings list to reach the minimum batch size"""
 
     @classmethod
     async def start(cls):
@@ -111,6 +112,16 @@ class Ingest(object):
 
         # TODO: Read config
 
+        cls._readings_list_size = int(cls._readings_buffer_size / (
+            cls._max_concurrent_readings_inserts))
+
+        if cls._readings_list_size <= cls._readings_insert_batch_size:
+            cls._readings_list_size = cls._readings_insert_batch_size * 4
+
+            _LOGGER.warning('Readings buffer size as configured (%s) is too small; increasing'
+                            'to %s', cls._readings_buffer_size,
+                            cls._readings_list_size * cls._max_concurrent_readings_inserts)
+
         # Start asyncio tasks
         cls._write_statistics_task = asyncio.ensure_future(cls._write_statistics())
 
@@ -118,18 +129,18 @@ class Ingest(object):
 
         cls._insert_readings_tasks = []
         cls._insert_readings_wait_tasks = []
-        cls._readings_queue_batch_size_reached = []
-        cls._readings_queue_not_empty = []
-        cls._readings_queues = []
+        cls._readings_list_batch_size_reached = []
+        cls._readings_list_not_empty = []
+        cls._readings_lists = []
 
-        for _ in range(cls._max_readings_queues):
-            cls._readings_queues.append([])
+        for _ in range(cls._max_concurrent_readings_inserts):
+            cls._readings_lists.append([])
             cls._insert_readings_wait_tasks.append(None)
             cls._insert_readings_tasks.append(asyncio.ensure_future(cls._insert_readings(_)))
-            cls._readings_queue_batch_size_reached.append(asyncio.Event())
-            cls._readings_queue_not_empty.append(asyncio.Event())
+            cls._readings_list_batch_size_reached.append(asyncio.Event())
+            cls._readings_list_not_empty.append(asyncio.Event())
 
-        cls._readings_queues_not_full = asyncio.Event()
+        cls._readings_lists_not_full = asyncio.Event()
 
         cls._started = True
 
@@ -158,10 +169,10 @@ class Ingest(object):
 
         cls._insert_readings_wait_tasks = None
         cls._insert_readings_tasks = None
-        cls._readings_queues = None
-        cls._readings_queue_batch_size_reached = None
-        cls._readings_queue_not_empty = None
-        cls._readings_queues_not_full = None
+        cls._readings_lists = None
+        cls._readings_list_batch_size_reached = None
+        cls._readings_list_not_empty = None
+        cls._readings_lists_not_full = None
 
         # Write statistics
         if cls._write_statistics_sleep_task is not None:
@@ -188,8 +199,8 @@ class Ingest(object):
                 _LOGGER.exception('Closing connection failed')
 
     @classmethod
-    async def _insert_readings(cls, queue_index):
-        """Inserts rows into the readings table using _queue
+    async def _insert_readings(cls, list_index):
+        """Inserts rows into the readings table
 
         Uses "copy" to load rows into a temp table and then
         inserts the temp table into the readings table because
@@ -198,80 +209,81 @@ class Ingest(object):
         _LOGGER.info('Insert readings loop started')
 
         connection = None  # type: asyncpg.connection.Connection
-        queue = cls._readings_queues[queue_index]
-        min_readings_reached = cls._readings_queue_batch_size_reached[queue_index]
-        queue_not_empty = cls._readings_queue_not_empty[queue_index]
-        queues_not_full = cls._readings_queues_not_full
+        readings_list = cls._readings_lists[list_index]
+        min_readings_reached = cls._readings_list_batch_size_reached[list_index]
+        list_not_empty = cls._readings_list_not_empty[list_index]
+        lists_not_full = cls._readings_lists_not_full
 
         while True:
-            # Wait for enough items in the queue to fill a batch
+            # Wait for enough items in the list to fill a batch
             # for some minimum amount of time
             while not cls._stop:
-                if len(queue) >= cls._readings_batch_size:
+                if len(readings_list) >= cls._readings_insert_batch_size:
                     break
 
                 min_readings_reached.clear()
                 waiter = asyncio.ensure_future(min_readings_reached.wait())
-                cls._insert_readings_wait_tasks[queue_index] = waiter
+                cls._insert_readings_wait_tasks[list_index] = waiter
 
                 # _LOGGER.debug('Waiting for entire batch: Queue index: %s Size: %s',
-                #               queue_index, len(queue))
+                #               list_index, len(list))
 
                 try:
-                    await asyncio.wait_for(waiter, cls._readings_batch_timeout_seconds)
+                    await asyncio.wait_for(waiter, cls._readings_insert_batch_timeout_seconds)
                     # _LOGGER.debug('Released: Queue index: %s Size: %s',
-                    #               queue_index, len(queue))
+                    #               list_index, len(list))
                 except asyncio.CancelledError:
                     # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
-                    #               queue_index, len(queue))
+                    #               list_index, len(list))
                     break
                 except asyncio.TimeoutError:
                     # _LOGGER.debug('Timed out: Queue index: %s Size: %s',
-                    #               queue_index, len(queue))
+                    #               list_index, len(list))
                     break
                 finally:
-                    cls._insert_readings_wait_tasks[queue_index] = None
+                    cls._insert_readings_wait_tasks[list_index] = None
 
-            if not len(queue):
+            if not len(readings_list):
                 if cls._stop:
                     break  # Terminate this method
 
-                # Wait for one item in the queue
-                queue_not_empty.clear()
-                waiter = asyncio.ensure_future(queue_not_empty.wait())
-                cls._insert_readings_wait_tasks[queue_index] = waiter
+                # Wait for one item in the list
+                list_not_empty.clear()
+                waiter = asyncio.ensure_future(list_not_empty.wait())
+                cls._insert_readings_wait_tasks[list_index] = waiter
 
-                # _LOGGER.debug('Waiting for first item: Queue index: %s', queue_index)
+                # _LOGGER.debug('Waiting for first item: Queue index: %s', list_index)
 
                 try:
                     if connection is None:
                         await waiter
                     else:
-                        await asyncio.wait_for(waiter, cls._max_idle_db_connection_seconds)
+                        await asyncio.wait_for(waiter, cls._max_readings_insert_idle_seconds)
                 except asyncio.CancelledError:
-                    # Don't assume the queue is empty
+                    # Don't assume the list is empty
 
                     # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
-                    #               queue_index, len(queue))
+                    #               list_index, len(list))
                     continue
                 except asyncio.TimeoutError:
                     # _LOGGER.debug('Closing idle database connection: Queue index: %s',
-                    #               queue_index)
+                    #               list_index)
                     await cls._close_connection(connection)
                     connection = None
                     continue
                 finally:
-                    cls._insert_readings_wait_tasks[queue_index] = None
+                    cls._insert_readings_wait_tasks[list_index] = None
 
-            # If batch size still not reached but another queue has inserted
+            # If batch size still not reached but another list has inserted
             # recently, wait some more
-            if (not cls._stop) and (len(queue) < cls._readings_batch_size) and (
-                    time.time() - cls._last_insert_time) < cls._readings_batch_timeout_seconds:
+            if (not cls._stop) and (len(readings_list) < cls._readings_insert_batch_size) and ((
+                    time.time() - cls._last_insert_time) <
+                    cls._readings_insert_batch_timeout_seconds):
                 continue
                 
-            # inserts = queue[:batch_size]
+            # inserts = list[:batch_size]
             # inserts = [(item[0], item[1], item[2],
-            #           json.dumps(item[3])) for item in queue[:batch_size]]
+            #           json.dumps(item[3])) for item in list[:batch_size]]
 
             attempt = 0
 
@@ -279,8 +291,8 @@ class Ingest(object):
             while True:
                 cls._last_insert_time = time.time()
 
-                # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', queue_index,
-                #               len(queue))
+                # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
+                #               len(list))
 
                 try:
                     if connection is None:
@@ -293,7 +305,7 @@ class Ingest(object):
                         await connection.execute('truncate table t_readings')
 
                     result = await connection.copy_records_to_table(table_name='t_readings',
-                                                                    records=queue)
+                                                                    records=readings_list)
 
                     await connection.execute('insert into foglamp.readings '
                                              '(asset_code,user_ts,read_key,reading) '
@@ -303,22 +315,22 @@ class Ingest(object):
                     cls._readings_stats += batch_size
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
-                    #               queue_index, batch_size)
+                    #               list_index, batch_size)
 
                     break
                 except Exception:  # TODO: Catch exception from asyncpg
                     attempt += 1
 
                     # TODO logging each time is overkill
-                    _LOGGER.exception('Insert failed on attempt #%s, queue index: %s',
-                                      attempt, queue_index)
+                    _LOGGER.exception('Insert failed on attempt #%s, list index: %s',
+                                      attempt, list_index)
 
                     if cls._stop and attempt > 2:
-                        # Stopping. Discard the entire queue upon failure.
-                        batch_size = len(queue)
+                        # Stopping. Discard the entire list upon failure.
+                        batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
                         # _LOGGER.debug('Insert failed: Queue index: %s Batch size: %s',
-                        #               queue_index, batch_size)
+                        #               list_index, batch_size)
                         break
                     else:
                         if connection is None:
@@ -328,10 +340,10 @@ class Ingest(object):
                             await cls._close_connection(connection)
                             connection = None
 
-            del queue[:batch_size]
+            del readings_list[:batch_size]
 
-            if not queues_not_full.is_set():
-                queues_not_full.set()
+            if not lists_not_full.is_set():
+                lists_not_full.set()
 
         # End of the method
         await cls._close_connection(connection)
@@ -380,23 +392,23 @@ class Ingest(object):
 
     @classmethod
     def is_available(cls) -> bool:
-        """Indicates whether all queues are currently full
+        """Indicates whether all lists are currently full
 
         Returns:
-            False - All of the queues are full
+            False - All of the lists are full
             True - Otherwise
         """
         if cls._stop:
             return False
 
-        queue_index = cls._current_readings_queue_index
-        if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
+        list_index = cls._current_readings_list_index
+        if len(cls._readings_lists[list_index]) < cls._readings_list_size:
             return True
 
-        if cls._max_readings_queues > 1:
-            for queue_index in range(cls._max_readings_queues):
-                if len(cls._readings_queues[queue_index]) < cls._max_readings_queue_size:
-                    cls._current_readings_queue_index = queue_index
+        if cls._max_concurrent_readings_inserts > 1:
+            for list_index in range(cls._max_concurrent_readings_inserts):
+                if len(cls._readings_lists[list_index]) < cls._readings_list_size:
+                    cls._current_readings_list_index = list_index
                     return True
 
         _LOGGER.warning('The ingest service is unavailable')
@@ -467,36 +479,37 @@ class Ingest(object):
         # Comment out to test IntegrityError
         # key = '123e4567-e89b-12d3-a456-426655440000'
 
-        # Wait for an empty slot in the queue
+        # Wait for an empty slot in the list
         while not cls.is_available():
-            cls._readings_queues_not_full.clear()
-            await cls._readings_queues_not_full.wait()
+            cls._readings_lists_not_full.clear()
+            await cls._readings_lists_not_full.wait()
             if cls._stop:
                 raise RuntimeError('The device server is stopping')
 
-        queue_index = cls._current_readings_queue_index
-        queue = cls._readings_queues[queue_index]
+        list_index = cls._current_readings_list_index
+        readings_list = cls._readings_lists[list_index]
 
         readings = json.dumps(readings)
-        queue.append((asset, timestamp, key, readings))
+        readings_list.append((asset, timestamp, key, readings))
 
-        queue_size = len(queue)
+        list_size = len(readings_list)
 
-        # _LOGGER.debug('Add readings queue index: %s size: %s', cls._current_readings_queue_index,
-        #               queue_size)
+        # _LOGGER.debug('Add readings list index: %s size: %s', cls._current_readings_list_index,
+        #               list_size)
 
-        if queue_size == 1:
-            cls._readings_queue_not_empty[queue_index].set()
+        if list_size == 1:
+            cls._readings_list_not_empty[list_index].set()
 
-        if queue_size == cls._readings_batch_size:
-            cls._readings_queue_batch_size_reached[queue_index].set()
-            # _LOGGER.debug('Set event queue index: %s size: %s',
-            #               cls._current_readings_queue_index, len(queue))
+        if list_size == cls._readings_insert_batch_size:
+            cls._readings_list_batch_size_reached[list_index].set()
+            # _LOGGER.debug('Set event list index: %s size: %s',
+            #               cls._current_readings_list_index, len(list))
 
-        # When the current queue is full, move on to the next queue
-        if cls._max_readings_queues > 1 and queue_size >= cls._readings_batch_size:
+        # When the current list is full, move on to the next list
+        if cls._max_concurrent_readings_inserts > 1 and (
+                    list_size >= cls._readings_insert_batch_size):
             # Start at the beginning to reduce the number of database connections
-            for queue_index in range(cls._max_readings_queues):
-                if len(cls._readings_queues[queue_index]) < cls._readings_batch_size:
-                    cls._current_readings_queue_index = queue_index
+            for list_index in range(cls._max_concurrent_readings_inserts):
+                if len(cls._readings_lists[list_index]) < cls._readings_insert_batch_size:
+                    cls._current_readings_list_index = list_index
                     break

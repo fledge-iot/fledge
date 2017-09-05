@@ -88,13 +88,13 @@ class Ingest(object):
     """epoch time of last insert"""
 
     # Configuration
-    _max_idle_db_connection_seconds = 5
+    _max_idle_db_connection_seconds = 180
     """Close database connections when idle for this number of seconds"""
 
     _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
-    _readings_batch_size = 50
+    _readings_batch_size = 100
     """Maximum number of rows in a batch of inserts"""
 
     _readings_batch_timeout_seconds = 1

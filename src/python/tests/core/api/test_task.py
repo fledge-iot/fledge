@@ -34,16 +34,16 @@ async def add_master_data():
         values('testsleep30', '["sleep", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
-    await asyncio.sleep(4)
     await conn.close()
+    await asyncio.sleep(4)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
-    await asyncio.sleep(4)
     await conn.close()
+    await asyncio.sleep(4)
 
 
 class TestTask:

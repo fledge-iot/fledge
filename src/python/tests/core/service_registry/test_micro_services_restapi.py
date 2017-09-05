@@ -26,10 +26,9 @@ class TestMicroServicesRestapi:
         l = requests.get(BASE_URL + '/service')
         retval = dict(l.json())
         t = retval["services"]
-        if len(t):
-            for s in t:
-                r = requests.delete(BASE_URL + '/service/' + s["id"])
-                assert 200 == r.status_code
+        for s in t:
+            r = requests.delete(BASE_URL + '/service/' + s["id"])
+            assert 200 == r.status_code
 
     def teardown_method(self, method):
         pass

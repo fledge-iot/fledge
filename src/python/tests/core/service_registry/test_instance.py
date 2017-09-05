@@ -18,7 +18,7 @@ class TestInstance:
         Service.Instances._registry = []
 
     def teardown_method(self, method):
-        pass
+        Service.Instances._registry = []
 
     @pytest.mark.asyncio
     async def test_register(self):

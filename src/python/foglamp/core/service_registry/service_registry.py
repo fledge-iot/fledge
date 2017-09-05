@@ -38,7 +38,7 @@ async def register(request):
         service_port = data.get('port', None)
 
         # TODO: Ask Mark if we need to add protocol info also?
-        if not (service_name or service_type or service_address or service_port or not isinstance(service_type, int)):
+        if not (service_name or service_type or service_address or service_port or not isinstance(service_port, int)):
             raise ValueError('One or more values for type/name/address/port missing')
 
         registered_service = Service.Instances.register(service_name, service_type, service_address, service_port)
@@ -80,7 +80,7 @@ async def unregister(request):
 
         s_id = Service.Instances.unregister(service_id)
 
-        _resp = {'id': str(service_id), 'message': "Service now unresistered"}
+        _resp = {'id': str(service_id), 'message': "Service now unregistered"}
 
         return web.json_response(_resp)
     except ValueError as ex:

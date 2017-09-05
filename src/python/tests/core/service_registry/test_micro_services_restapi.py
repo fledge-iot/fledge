@@ -64,7 +64,7 @@ class TestMicroServicesRestapi:
 
         assert 200 == r.status_code
         assert service_id == retval["id"]
-        assert "Service now unresistered" == retval["message"]
+        assert "Service now unregistered" == retval["message"]
 
     @pytest.mark.asyncio
     async def test_get(self):

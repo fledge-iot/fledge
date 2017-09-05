@@ -5,13 +5,14 @@
 # FOGLAMP_END
 
 from aiohttp import web
+
+from foglamp.core.api import audit as api_audit
+from foglamp.core.api import browser
 from foglamp.core.api import common as api_common
 from foglamp.core.api import configuration as api_configuration
 from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
-from foglamp.core.api import audit as api_audit
-from foglamp.core.api import browser
-from foglamp.core import service_registry, storage
+from foglamp.core.service_registry import service_registry
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -76,10 +77,6 @@ def setup(app):
     app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', service_registry.unregister_interest)
 
     app.router.add_route('POST', '/foglamp/change', service_registry.notify_change)
-
-    # Micro Service support - Services
-    app.router.add_route('GET', '/foglamp/storage', storage.start)
-    app.router.add_route('GET', '/foglamp/storage', storage.stop)
 
     # enable cors support
     enable_cors(app)

@@ -6,12 +6,11 @@
 
 """Core server module"""
 
-import signal
-import asyncio
 import time
-import uuid
+
 from aiohttp import web
-from foglamp.core.instance import Service
+
+from foglamp.core.service_registry.instance import Service
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -20,7 +19,6 @@ __version__ = "${VERSION}"
 
 __start_time = time.time()
 
-__registry = list()
 
 async def ping(request):
     since_started = time.time() - __start_time
@@ -45,13 +43,17 @@ async def register(request):
         if not (service_name or service_type or service_address or service_port):
             raise ValueError('One or more values for type/name/address/port missing')
 
-        service_id = Service.Instances.register(service_name, service_type, service_address, service_port)
+        registered_service = Service.Instances.register(service_name, service_type, service_address, service_port)
 
-        if not service_id:
+        if not registered_service:
             raise ValueError("Service {} could not registered".format(service_name))
 
         _response = {
-            'id': str(service_id),
+            'id': str(registered_service._id),
+            'name': registered_service._name,
+            'type': registered_service._type,
+            'address': registered_service._address,
+            'port': registered_service._port,
             'message': "Service registered successfully"
         }
 

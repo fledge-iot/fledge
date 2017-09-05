@@ -13,7 +13,7 @@ import uuid
 from aiohttp import web
 from enum import IntEnum
 
-__author__ = "Praveen Garg"
+__author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -64,8 +64,10 @@ class Service:
         def register(cls, name, s_type, address, port):
             service_id = uuid.uuid4()
 
-            cls._registry.append(Service(str(service_id), name, s_type, address, port))
-            return service_id
+            registered_service = Service(str(service_id), name, s_type, address, port)
+            cls._registry.append(registered_service)
+
+            return registered_service
 
         @classmethod
         def unregister(cls, service_id):
@@ -93,13 +95,5 @@ class Service:
                 raise Service.DoesNotExist
             return services
 
-if __name__ == '__main__':
-    Service.Instances.register("StorageService", "Storage", "127.0.0.1", "9999")
-    Service.Instances.register("DeviceService", "Device", "127.0.0.1", "9999")
-    s = Service.Instances.get()
-    [print(x) for x in s]
-    a_service = s[0]  # s[0] or s[len(s)-1]
-    Service.Instances.unregister(a_service._id)
-    s = Service.Instances.get()
-    [print(x) for x in s]
+
 

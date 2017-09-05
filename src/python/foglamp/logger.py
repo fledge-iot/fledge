@@ -27,7 +27,7 @@ CONSOLE = 1
 
 def setup(logger_name: str = None,
           destination: int = SYSLOG,
-          level: int = logging.DEBUG,
+          level: int = logging.WARNING,
           propagate: bool = False) -> logging.Logger:
     r"""Configures a `logging.Logger`_ object
 

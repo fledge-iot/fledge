@@ -26,7 +26,8 @@ async def register(request):
     """
     Register a service
 
-    :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "port": "8090"}'  -X POST  http://localhost:8082/foglamp/service
+    :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "port": 8090,
+            "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
     """
 
     try:
@@ -36,26 +37,33 @@ async def register(request):
         service_type = data.get('type', None)
         service_address = data.get('address', None)
         service_port = data.get('port', None)
+        service_protocol = data.get('protocol', 'http')
 
-        # TODO: Ask Mark if we need to add protocol info also?
-        if not (service_name or service_type or service_address or service_port or not isinstance(service_port, int)):
-            raise ValueError('One or more values for type/name/address/port missing')
+        if not (service_name or service_type or service_address or service_port):
+            return web.json_response({'error': 'One or more values for type/name/address/port missing'})
+        if not isinstance(service_port, int):
+            return web.json_response({'error': 'Service port can be a positive integer only'})
 
-        registered_service = Service.Instances.register(service_name, service_type, service_address, service_port)
+        try:
+            registered_service_id = Service.Instances.register(service_name, service_type, service_address, service_port, service_protocol)
+        # TODO map the raised exception message
+        except Service.AlreadyExistsWithTheSameAddressAndPort:
+            return web.json_response({'error': 'Service with the same address and port already exists'})
+        # TODO check need?
+        #  Here it will never take place, until raised from Service
+        except Service.AlreadyExistsWithTheSameName:
+            return web.json_response({'error': 'Service with the same name already exists'})
 
-        if not registered_service:
-            raise ValueError("Service {} could not be registered".format(service_name))
+        if not registered_service_id:
+            return web.json_response({'error': 'Service {} could not be registered'.format(service_name)})
 
         _response = {
-            'id': str(registered_service._id),
-            'name': registered_service._name,
-            'type': registered_service._type,
-            'address': registered_service._address,
-            'port': registered_service._port,
+            'id': registered_service_id,
             'message': "Service registered successfully"
         }
 
         return web.json_response(_response)
+
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -72,15 +80,16 @@ async def unregister(request):
         service_id = request.match_info.get('service_id', None)
 
         if not service_id:
-            raise ValueError('Service_id is required')
+            return web.json_response({'error': 'Service id is required'})
 
-        match = Service.Instances.get(service_id)
-        if not match or not len(match):
-            raise ValueError('This service_id {} does not exist'.format(service_id))
+        try:
+            Service.Instances.get(idx=service_id)
+        except Service.DoesNotExist:
+            return web.json_response({'error': 'Service with {} does not exist'.format(service_id)})
 
-        s_id = Service.Instances.unregister(service_id)
+        Service.Instances.unregister(service_id)
 
-        _resp = {'id': str(service_id), 'message': "Service now unregistered"}
+        _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 
         return web.json_response(_resp)
     except ValueError as ex:
@@ -94,15 +103,20 @@ async def get_service(request):
     Returns a list of all services or of the selected service
 
     :Example: curl -X GET  http://localhost:8082/foglamp/service
-    :Example: curl -X GET  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
+    :Example: curl -X GET  http://localhost:8082/foglamp/service?name=X&type=Storage
     """
 
     try:
-        service_id = request.match_info.get('service_id', None)
-        if not service_id:
+
+        service_name = request.query['name'] if 'name' in request.query else None
+        service_type = request.query['type'] if 'type' in request.query else None
+        if not service_name and not service_type:
             services_list = Service.Instances.all()
         else:
-            services_list = Service.Instances.get(service_id)
+            try:
+                services_list = Service.Instances.get(name=service_name, s_type=service_type)
+            except Service.DoesNotExist:
+                return web.json_response({"services": []})
 
         services = []
         for service in services_list:
@@ -111,7 +125,8 @@ async def get_service(request):
                 "name": service._name,
                 "type": service._type,
                 "address": service._address,
-                "port": service._port
+                "port": service._port,
+                "protocol": service._protocol
             })
         return web.json_response({"services": services})
     except Exception as ex:
@@ -128,4 +143,3 @@ async def unregister_interest(request):
 
 async def notify_change(request):
     pass
-

@@ -6,7 +6,6 @@
 
 """Services Instances Registry module"""
 
-import time
 import uuid
 from enum import IntEnum
 from foglamp import logger
@@ -24,17 +23,22 @@ class Service:
         Storage = 1
         Device = 2
 
-    __slots__ = ['_id', '_name', '_type', '_address', '_port']
+    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port']
 
-    def __init__(self, s_id, s_name, s_type, s_address, s_port):
+    def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port):
         self._id = s_id
         self._name = s_name
         self._type = self.valid_type(s_type)  # check with Service.Type, if not a valid type raise error
+        self._protocol = s_protocol
         self._address = s_address
-        self._port = s_port
+        self._port = int(s_port)
+        # TODO: MUST
+        # well, reserve the core api PORT
+        # or keep core service registered as default
 
     def __repr__(self):
-        template = 'service instance id={s._id}: <{s._name}, type={s._type}>'
+        template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \
+                   'address={s._address}, port={s._port}>'
         return template.format(s=self)
 
     def __str__(self):
@@ -51,31 +55,44 @@ class Service:
     class AlreadyExistsWithTheSameName(BaseException):
         pass
 
+    class AlreadyExistsWithTheSameAddressAndPort(BaseException):
+        pass
+
     class InvalidServiceType(BaseException):
         # TODO: tell allowed service types?
         pass
 
+    class ReservedPortError(ValueError):
+        pass
+
     class Instances:
         _registry = list()
-        _logger = logger.setup(__name__)
+        # INFO - level 20
+        _logger = logger.setup(__name__, level=20)
 
         @classmethod
-        def register(cls, name, s_type, address, port):
-            # TODO: Do we need to add check for an existing service with the same characteristics?
-            # For example, can we have two Storage services with different names but at same address:port?
-            #              can we have two Storage services with different names but at different address:port?
+        def register(cls, name, s_type, address, port, protocol='http'):
 
-            service_id = uuid.uuid4()
-            registered_service = Service(str(service_id), name, s_type, address, port)
+            # TODO: name should be unique?
+
+            if cls.check_address_and_port(address, port):
+                raise Service.AlreadyExistsWithTheSameAddressAndPort
+            if not isinstance(port, int):
+                raise TypeError('Service port can be a positive integer only')
+            if int(port) == 8082:
+                raise Service.ReservedPortError
+
+            service_id = str(uuid.uuid4())
+            registered_service = Service(str(service_id), name, s_type, protocol, address, port)
             cls._registry.append(registered_service)
-            cls._logger.info("Service {} registered at {}".format(str(registered_service), time.time()))
-            return registered_service
+            cls._logger.info("Registered {}".format(str(registered_service)))
+            return service_id
 
         @classmethod
         def unregister(cls, service_id):
             services = cls.get(idx=service_id)
             cls._registry.remove(services[0])
-            cls._logger.info("Service {} unregistered at {}".format(str(services[0]), time.time()))
+            cls._logger.info("Unregistered {}".format(str(services[0])))
             return service_id
 
         @classmethod
@@ -84,6 +101,7 @@ class Service:
 
         @classmethod
         def filter(cls, **kwargs):
+            # OR based filter
             services = cls._registry
             for k, v in kwargs.items():
                 if v:
@@ -97,5 +115,10 @@ class Service:
                 raise Service.DoesNotExist
             return services
 
-
-
+        @classmethod
+        def check_address_and_port(cls, address, port):
+            # AND based check
+            services = [s for s in cls._registry if getattr(s, "_address") == address and getattr(s, "_port")==port]
+            if len(services) == 0:
+                return False
+            return True

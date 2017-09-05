@@ -70,7 +70,6 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/service', service_registry.register)
     app.router.add_route('DELETE', '/foglamp/service/{service_id}', service_registry.unregister)
     app.router.add_route('GET', '/foglamp/service', service_registry.get_service)
-    app.router.add_route('GET', '/foglamp/service/{service_id}', service_registry.get_service)
 
     # TODO: shutdown, register_interest, unregister_interest and notify_changes - pending
     app.router.add_route('POST', '/foglamp/service/shutdown', service_registry.shutdown)

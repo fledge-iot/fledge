@@ -11,6 +11,7 @@ import asyncio
 import time
 import uuid
 from aiohttp import web
+from foglamp.core.instance import Service
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -30,7 +31,7 @@ async def register(request):
     """
     Register a service
 
-    :Example: curl -d '{"type": "StorageService", "name": "Storage Services", "address": "127.0.0.1", "port": "8090"}'  -X POST  http://localhost:8082/foglamp/service
+    :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "port": "8090"}'  -X POST  http://localhost:8082/foglamp/service
     """
 
     try:
@@ -44,16 +45,17 @@ async def register(request):
         if not (service_name or service_type or service_address or service_port):
             raise ValueError('One or more values for type/name/address/port missing')
 
-        service_id = uuid.uuid4()
+        service_id = Service.Instances.register(service_name, service_type, service_address, service_port)
 
-        _resp = {
+        if not service_id:
+            raise ValueError("Service {} could not registered".format(service_name))
+
+        _response = {
             'id': str(service_id),
             'message': "Service registered successfully"
         }
 
-        __registry.append({'service_id': str(service_id), 'status': 'Running', 'payload': data})
-
-        return web.json_response(_resp)
+        return web.json_response(_response)
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
@@ -72,11 +74,11 @@ async def unregister(request):
         if not service_id:
             raise ValueError('No service_id')
 
-        match = next((l for l in __registry if l['service_id'] == service_id), None)
-        if not match:
+        match = Service.Instances.get(service_id)
+        if not match or not len(match):
             raise ValueError('This service_id {} does not exist'.format(service_id))
 
-        __registry.remove(match)
+        s_id = Service.Instances.unregister(service_id)
 
         _resp = {'id': str(service_id), 'message': "Service unresistered"}
 
@@ -89,10 +91,29 @@ async def unregister(request):
 
 async def get_service(request):
     """
-    Returns a list of all services
+    Returns a list of all services or of the selected service
+
+    :Example: curl -X GET  http://localhost:8082/foglamp/service
+    :Example: curl -X GET  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
     """
+
     try:
-        return web.json_response(__registry)
+        service_id = request.match_info.get('service_id', None)
+        if not service_id:
+            services_list = Service.Instances.all()
+        else:
+            services_list = Service.Instances.get(service_id)
+
+        services = []
+        for service in services_list:
+            services.append({
+                "id": service._id,
+                "name": service._name,
+                "type": service._type,
+                "address": service._address,
+                "port": service._port
+            })
+        return web.json_response(services)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 

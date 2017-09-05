@@ -42,7 +42,7 @@ async def start(request):
 
     try:
         # TODO: Will this data come from Configuration Manager?
-        data = {"type": "StorageService", "name": "Storage Services", "address": "127.0.0.1", "port": "8090"}
+        data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "port": "8090"}
 
         r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
         retval = dict(r.json())

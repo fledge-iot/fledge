@@ -12,6 +12,7 @@ import time
 import uuid
 from aiohttp import web
 from enum import IntEnum
+from foglamp import logger
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -59,6 +60,7 @@ class Service:
 
     class Instances:
         _registry = list()
+        _logger = logger.setup(__name__)
 
         @classmethod
         def register(cls, name, s_type, address, port):
@@ -67,6 +69,8 @@ class Service:
             registered_service = Service(str(service_id), name, s_type, address, port)
             cls._registry.append(registered_service)
 
+            cls._logger.info("Service id {} [{}, {}, {}, {}] registered at {}".format(str(service_id), name, s_type, address, port, time.time()))
+
             return registered_service
 
         @classmethod
@@ -74,6 +78,9 @@ class Service:
             services = cls.get(idx=service_id)
 
             cls._registry.remove(services[0])
+
+            cls._logger.info("Service id {} unregistered at {}".format(str(service_id), time.time()))
+
             return service_id
 
         @classmethod

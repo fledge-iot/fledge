@@ -58,7 +58,7 @@ class Ingest(object):
     """asyncio task for asyncio.sleep"""
 
     _stop = False
-    """Set to true when the server needs to stop"""
+    """True when the server needs to stop"""
 
     _started = False
     """True when the server has been started"""
@@ -94,7 +94,7 @@ class Ingest(object):
     _max_readings_queues = 5
     """Maximum number of insert queues. Each queue has its own database connection."""
 
-    _readings_batch_size = 100
+    _readings_batch_size = 50
     """Maximum number of rows in a batch of inserts"""
 
     _readings_batch_timeout_seconds = 1
@@ -173,8 +173,6 @@ class Ingest(object):
             cls._write_statistics_task = None
         except Exception:
             _LOGGER.exception('An exception occurred in Ingest._write_statistics')
-
-        cls._stop = False
 
     @classmethod
     def increment_discarded_readings(cls):

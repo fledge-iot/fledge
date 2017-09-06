@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import text
 from importlib import import_module
 import copy
+import json
 
 from foglamp import logger
 
@@ -31,7 +32,7 @@ _configuration_tbl = sa.Table(
 )
 """Defines the table that data will be used for CRUD operations"""
 
-_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password']
+_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
 _connection_string = "dbname='foglamp'"
 # _logger = logging.getLogger(__name__)
 _logger = logger.setup(__name__)
@@ -52,7 +53,7 @@ category(s)
             description_name - string (fixed - 'description')
                 description_val - string (dynamic)
             type_name - string (fixed - 'type')
-                type_val - string (dynamic - ('boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate'))
+                type_val - string (dynamic - ('boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'JSON'))
             default_name - string (fixed - 'default')
                 default_val - string (dynamic)
             value_name - string (fixed - 'value')
@@ -66,23 +67,30 @@ def _run_callbacks(category_name):
             cb = import_module(callback)
             cb.run()
 
-async def _merge_category_vals(category_val_new, category_val_storage):
+async def _merge_category_vals(category_val_new, category_val_storage, keep_original_items):
     # preserve all value_vals from category_val_storage
     # use items in category_val_new not in category_val_storage
-    # ignore items in category_val_storage not in category_val_new
-    for item_name_new, item_val_new in category_val_new.items():
-        item_val_storage = category_val_storage.get(item_name_new)
+    # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
+    # keep_original_items = TRUE keep items in category_val_storage not in category_val_new
+    category_val_storage_copy = copy.deepcopy(category_val_storage)
+    category_val_new_copy = copy.deepcopy(category_val_new)
+    for item_name_new, item_val_new in category_val_new_copy.items():
+        item_val_storage = category_val_storage_copy.get(item_name_new)
         if item_val_storage is not None:
             item_val_new['value'] = item_val_storage.get('value')
-    return category_val_new
+            category_val_storage_copy.pop(item_name_new)
+    if keep_original_items:
+        for item_name_storage, item_val_storage in category_val_storage_copy.items():
+            category_val_new_copy[item_name_storage] = item_val_storage
+    return category_val_new_copy
 
 
 async def _validate_category_val(category_val, set_value_val_from_default_val=True):
     require_entry_value = not set_value_val_from_default_val
     if type(category_val) is not dict:
         raise TypeError('category_val must be a dictionary')
-    category_val_prepared = copy.deepcopy(category_val)
-    for item_name, item_val in category_val_prepared.items():
+    category_val_copy = copy.deepcopy(category_val)
+    for item_name, item_val in category_val_copy.items():
         if type(item_name) is not str:
             raise TypeError('item_name must be a string')
         if type(item_val) is not dict:
@@ -116,7 +124,7 @@ async def _validate_category_val(category_val, set_value_val_from_default_val=Tr
                 raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
         if set_value_val_from_default_val:
             item_val['value'] = item_val['default']
-    return category_val_prepared
+    return category_val_copy
 
 
 async def _create_new_category(category_name, category_val, category_description):
@@ -275,10 +283,19 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
     item_name -- name of item within the category whose "value" entry needs to be changed (required)
     new_value_entry -- new value entry to replace old value entry
 
+    Side Effects:
+    An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
+    Registered callbacks will be invoked only if an update is issued.
+
     Return Values:
     None
     """
     try:
+        # get storage_value_entry and compare against new_value_value, update if different
+        storage_value_entry = await _read_value_val(category_name, item_name)
+        if storage_value_entry == new_value_entry:
+            # raise ValueError('new_value_entry must be different than value_entry in storage')
+            return
         await _update_value_val(category_name, item_name, new_value_entry)
     except:
         _logger.exception(
@@ -293,7 +310,7 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
         raise
 
 
-async def create_category(category_name, category_value, category_description=''):
+async def create_category(category_name, category_value, category_description='', keep_original_items=False):
     """Create a new category in the database.
 
     Keyword Arguments:
@@ -323,6 +340,7 @@ async def create_category(category_name, category_value, category_description=''
             }
 
     category_description -- description of the category (default='')
+    keep_original_items -- keep items in storage's category_val that are not in the new category_val (removes side effect #3) (default=False)
 
     Return Values:
     None
@@ -332,7 +350,9 @@ async def create_category(category_name, category_value, category_description=''
     If a category of this name already exists within the storage, the new category_val and the storage's category_val will be merged such that:
         1. preserve all "value" entries from the storage's category val
         2. use items in the new category_val that are not in the storage's category_val
-        3. ignore items in storage's category_val that are not in the new not in category_val
+        3. ignore items in storage's category_val that are not in the new category_val
+    An update to storage will not be issued if a merged category_value is the same as the category_value from storage.
+    Registered callbacks specific to the category_name will be invoked only if a new category is created or if a category is updated.
 
     Exceptions Raised:
     ValueError
@@ -345,29 +365,33 @@ async def create_category(category_name, category_value, category_description=''
     """
     category_val_prepared = ''
     try:
-        # validate new category_val
+        # validate new category_val, set "value" from default
         category_val_prepared = await _validate_category_val(category_value, True)
         # check if category_name is already in storage
         category_val_storage = await _read_category_val(category_name)
         if category_val_storage is None:
             await _create_new_category(category_name, category_val_prepared, category_description)
         else:
-            # validate category_val from storage
+            # validate category_val from storage, do not set "value" from default, reuse from storage value
             try:
                 category_val_storage = await _validate_category_val(category_val_storage, False)
+            # if validating category from storage fails, nothing to salvage from storage, use new completely
             except:
                 _logger.exception(
                     'category_value for category_name %s from storage is corrupted; using category_value without merge',
                     category_name)
+            # if validating category from storage succeeds, merge new and storage
             else:
-                category_val_prepared = await _merge_category_vals(category_val_prepared, category_val_storage)
+                category_val_prepared = await _merge_category_vals(category_val_prepared, category_val_storage, keep_original_items)
+                if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage, sort_keys=True):
+                    # raise ValueError('category_value must be different than category_value in storage')
+                    return
             await _update_category(category_name, category_val_prepared, category_description)
     except:
         _logger.exception(
             'Unable to create new category based on category_name %s and category_description %s and category_json_schema %s',
             category_name, category_description, category_val_prepared)
         raise
-
     try:
         _run_callbacks(category_name)
     except:
@@ -378,187 +402,181 @@ async def create_category(category_name, category_value, category_description=''
 
 
 def register_interest(category_name, callback):
-    # TODO: check for duplicate tuplet, callback validation, category_name validation
     if _registered_interests.get(category_name) is None:
         _registered_interests[category_name] = {callback}
     else:
         _registered_interests[category_name].add(callback)
 
-async def main():
-    # lifecycle of a component's configuration
-    # start component
-    # 1. create a configuration that does not exist - use all default values
-    # 2. read the configuration back in (cache locally for reuse)
-    # update config while system is up
-    # 1. a user updates the "value" entry of an item to non-default value
-    #    (callback is not implemented to update/notify component once change to config is made)
-    # restart component
-    # 1. create/update a configuration that already exists (merge)
-    # 2. read the configuration back in (cache locally for reuse)
-
-
-    sample_json = {
-        "port": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-
-    print("test create_category")
-    print(sample_json)
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-    print(sample_json)
-
-    print("test get_all_category_names")
-    names_list = await get_all_category_names()
-    for row in names_list:
-        # tuple
-        print(row)
-
-    print("test get_category_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-    print("test get_category_item")
-    json = await get_category_item('CATEG', "url")
-    print(json)
-    print(type(json))
-
-    print("test get_category_item_value")
-    string_result = await get_category_item_value_entry('CATEG', "url")
-    print(string_result)
-    print(type(string_result))
-
-    print("test set_category_item_value_entry")
-    await set_category_item_value_entry('CATEG', "url", "blablabla")
-
-    print("test get_category_item_value")
-    string_result = await get_category_item_value_entry('CATEG', "url")
-    print(string_result)
-    print(type(string_result))
-
-    print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
-    sample_json = {
-        "port2": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url2": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-
-    print("test get_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-    print("test register category")
-    print(_registered_interests)
-    register_interest('CATEG', 'foglamp.callback')
-    print(_registered_interests)
-    register_interest('CATEG', 'foglamp.callback2')
-    print(_registered_interests)
-
-    sample_json = {
-        "port": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-
-    print("test create_category")
-    print(sample_json)
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-    print(sample_json)
-
-    print("test get_all_category_names")
-    names_list = await get_all_category_names()
-    for row in names_list:
-        # tuple
-        print(row)
-
-    print("test get_category_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-    print("test get_category_item")
-    json = await get_category_item('CATEG', "url")
-    print(json)
-    print(type(json))
-
-    print("test get_category_item_value")
-    string_result = await get_category_item_value_entry('CATEG', "url")
-    print(string_result)
-    print(type(string_result))
-
-    print("test set_category_item_value_entry")
-    await set_category_item_value_entry('CATEG', "url", "blablabla")
-
-    print("test get_category_item_value")
-    string_result = await get_category_item_value_entry('CATEG', "url")
-    print(string_result)
-    print(type(string_result))
-
-    print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
-    sample_json = {
-        "port2": {
-            "description": "Port to listen on",
-            "default": "5683",
-            "type": "integer"
-        },
-        "url2": {
-            "description": "URL to accept data on",
-            "default": "sensor/reading-values",
-            "type": "string"
-        },
-        "certificate": {
-            "description": "X509 certificate used to identify ingress interface",
-            "default": "47676565",
-            "type": "X509 certificate"
-        }
-    }
-    await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-
-    print("test get_all_items")
-    json = await get_category_all_items('CATEG')
-    print(json)
-    print(type(json))
-
-if __name__ == '__main__':
-    import asyncio
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+# async def main():
+#     # lifecycle of a component's configuration
+#     # start component
+#     # 1. create a configuration that does not exist - use all default values
+#     # 2. read the configuration back in (cache locally for reuse)
+#     # update config while system is up
+#     # 1. a user updates the "value" entry of an item to non-default value
+#     #    (callback is not implemented to update/notify component once change to config is made)
+#     # restart component
+#     # 1. create/update a configuration that already exists (merge)
+#     # 2. read the configuration back in (cache locally for reuse)
+#
+#     """
+#     # content of foglamp.callback.py
+#     # example only - delete before merge to develop
+#
+#     def run():
+#         print('callback1')
+#     """
+#
+#     """
+#     # content of foglamp.callback2.py
+#     # example only - delete before merge to develop
+#
+#     def run():
+#         print('callback2')
+#     """
+#
+#     sample_json = {
+#         "port": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#
+#     print("test create_category")
+#     # print(sample_json)
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#     #print(sample_json)
+#
+#     print("test register category")
+#     print(_registered_interests)
+#     register_interest('CATEG', 'foglamp.callback')
+#     print(_registered_interests)
+#     register_interest('CATEG', 'foglamp.callback2')
+#     print(_registered_interests)
+#
+#     print("test get_all_category_names")
+#     names_list = await get_all_category_names()
+#     for row in names_list:
+#         # tuple
+#         print(row)
+#
+#     print("test get_category_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+#     print("test get_category_item")
+#     json = await get_category_item('CATEG', "url")
+#     print(json)
+#     print(type(json))
+#
+#     print("test get_category_item_value")
+#     string_result = await get_category_item_value_entry('CATEG', "url")
+#     print(string_result)
+#     print(type(string_result))
+#
+#
+#     print("test create_category - same values - should be ignored")
+#     # print(sample_json)
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#     # print(sample_json)
+#
+#     sample_json = {
+#         "url": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "port": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#
+#     print("test create_category - same values different order- should be ignored")
+#     # print(sample_json)
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#     # print(sample_json)
+#
+#     print("test set_category_item_value_entry")
+#     await set_category_item_value_entry('CATEG', "url", "blablabla")
+#
+#     print("test set_category_item_value_entry - same value, update should be ignored")
+#     await set_category_item_value_entry('CATEG', "url", "blablabla")
+#
+#     print("test get_category_item_value")
+#     string_result = await get_category_item_value_entry('CATEG', "url")
+#     print(string_result)
+#     print(type(string_result))
+#
+#     print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
+#     sample_json = {
+#         "port2": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url2": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
+#
+#     print("test get_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+#     print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
+#     sample_json = {
+#         "port3": {
+#             "description": "Port to listen on",
+#             "default": "5683",
+#             "type": "integer"
+#         },
+#         "url3": {
+#             "description": "URL to accept data on",
+#             "default": "sensor/reading-values",
+#             "type": "string"
+#         },
+#         "certificate": {
+#             "description": "X509 certificate used to identify ingress interface",
+#             "default": "47676565",
+#             "type": "X509 certificate"
+#         }
+#     }
+#     await create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
+#
+#     print("test get_all_items")
+#     json = await get_category_all_items('CATEG')
+#     print(json)
+#     print(type(json))
+#
+# if __name__ == '__main__':
+#     import asyncio
+#     loop = asyncio.get_event_loop()
+#     loop.run_until_complete(main())

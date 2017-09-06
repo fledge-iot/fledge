@@ -79,7 +79,14 @@ class TestConfigMgr:
         assert 'TEST_V' in all_items
 
     async def test_get_category(self):
-        pass
+        conn = http.client.HTTPConnection(BASE_URL, port=PORT)
+        conn.request("GET", '/foglamp/category/TEST_V')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert {'item1': {'key1': 'value1'}} == retval
 
     async def test_get_category_item(self):
         pass

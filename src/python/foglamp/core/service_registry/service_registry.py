@@ -17,6 +17,14 @@ __version__ = "${VERSION}"
 
 __start_time = time.time()
 
+_help = """
+    -----------------------------------------------------------------------------------
+    | GET             | /foglamp/service/ping                                          |
+    | GET             | /foglamp/service?name=&type= (name | type optional query param)|
+    | GET, POST       | /foglamp/service                                               |
+    | DELETE          | /foglamp/service/{service_id}                                  |
+    -----------------------------------------------------------------------------------
+"""
 
 async def ping(request):
     since_started = time.time() - __start_time
@@ -45,14 +53,14 @@ async def register(request):
             return web.json_response({'error': 'Service port can be a positive integer only'})
 
         try:
-            registered_service_id = Service.Instances.register(service_name, service_type, service_address, service_port, service_protocol)
+            registered_service_id = Service.Instances.register(service_name,service_type,
+                                                               service_address, service_port, service_protocol)
         # TODO map the raised exception message
-        except Service.AlreadyExistsWithTheSameAddressAndPort:
-            return web.json_response({'error': 'Service with the same address and port already exists'})
-        # TODO check need?
-        #  Here it will never take place, until raised from Service
         except Service.AlreadyExistsWithTheSameName:
             return web.json_response({'error': 'Service with the same name already exists'})
+
+        except Service.AlreadyExistsWithTheSameAddressAndPort:
+            return web.json_response({'error': 'Service with the same address and port already exists'})
 
         if not registered_service_id:
             return web.json_response({'error': 'Service {} could not be registered'.format(service_name)})
@@ -110,13 +118,20 @@ async def get_service(request):
 
         service_name = request.query['name'] if 'name' in request.query else None
         service_type = request.query['type'] if 'type' in request.query else None
-        if not service_name and not service_type:
-            services_list = Service.Instances.all()
-        else:
-            try:
-                services_list = Service.Instances.get(name=service_name, s_type=service_type)
-            except Service.DoesNotExist:
-                return web.json_response({"services": []})
+
+        try:
+            if not service_name and not service_type:
+                services_list = Service.Instances.all()
+            elif service_name and not service_type:
+                services_list = Service.Instances.get(name=service_name)
+            elif not service_name and service_type:
+                services_list = Service.Instances.get(s_type=service_type)
+            else:
+                services_list = Service.Instances.filter_by_name_and_type(
+                        name=service_name, s_type=service_type
+                    )
+        except Service.DoesNotExist:
+            return web.json_response({"services": []})
 
         services = []
         for service in services_list:

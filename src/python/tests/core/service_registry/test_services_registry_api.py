@@ -23,9 +23,12 @@ BASE_URL = 'http://localhost:8082/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 
+@pytest.allure.feature("service-registry", "api")
 class TestServicesRegistryApi:
 
     def setup_method(self, method):
+        """clean up registry storage"""
+
         l = requests.get(BASE_URL + '/service')
         res = dict(l.json())
         t = res["services"]
@@ -33,6 +36,8 @@ class TestServicesRegistryApi:
             requests.delete(BASE_URL + '/service/' + s["id"])
 
     def teardown_method(self, method):
+        """clean up registry storage"""
+
         l = requests.get(BASE_URL + '/service')
         res = dict(l.json())
         t = res["services"]
@@ -49,8 +54,8 @@ class TestServicesRegistryApi:
         assert str(uuid.UUID(res["id"], version=4)) == res["id"]
         assert "Service registered successfully" == res["message"]
 
-    async def test_register_dup(self):
-        data = {"type": "Storage", "name": "Duplicate Storage Services ", "address": "127.0.0.1", "port": 9001}
+    async def test_register_dup_name(self):
+        data = {"type": "Storage", "name": "name-dup", "address": "127.0.0.1", "port": 9001}
 
         r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
         res = dict(r.json())
@@ -58,7 +63,22 @@ class TestServicesRegistryApi:
         assert 200 == r.status_code
         assert str(uuid.UUID(res["id"], version=4)) == res["id"]
 
-        # post again!
+        r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
+        res = dict(r.json())
+
+        assert 200 == r.status_code
+        assert "Service with the same name already exists" == res["error"]
+
+    async def test_register_dup_address_port(self):
+        data = {"type": "Storage", "name": "name-1", "address": "127.0.0.1", "port": 9001}
+
+        r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
+        res = dict(r.json())
+
+        assert 200 == r.status_code
+        assert str(uuid.UUID(res["id"], version=4)) == res["id"]
+
+        data = {"type": "Storage", "name": "name-2", "address": "127.0.0.1", "port": 9001}
         r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
         res = dict(r.json())
 
@@ -174,3 +194,29 @@ class TestServicesRegistryApi:
         assert data["type"] == svc[0]["type"]
         assert data["address"] == svc[0]["address"]
         assert data["port"] == svc[0]["port"]
+
+    async def test_get_by_name_and_type(self):
+        data0 = {"type": "Device", "name": "D Services", "address": "127.0.0.1", "port": 8091}
+        r = requests.post(BASE_URL + '/service', data=json.dumps(data0), headers=headers)
+        assert 200 == r.status_code
+
+        data1 = {"type": "Storage", "name": "S Services", "address": "127.0.0.1", "port": 8092}
+        r = requests.post(BASE_URL + '/service', data=json.dumps(data1), headers=headers)
+        assert 200 == r.status_code
+
+        l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data1["name"]))
+        assert 200 == l.status_code
+
+        res = dict(l.json())
+        svc = res["services"]
+        assert 0 == len(svc)
+
+        l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data0["name"]))
+        assert 200 == l.status_code
+
+        res = dict(l.json())
+        svc = res["services"]
+        assert 1 == len(svc)
+
+        assert data0["name"] == svc[0]["name"]
+        assert data0["type"] == svc[0]["type"]

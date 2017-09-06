@@ -16,7 +16,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-class Service:
+class Service(object):
 
     class Type(IntEnum):  # IntEnum ?
         """Enumeration for Service Types"""
@@ -62,6 +62,10 @@ class Service:
         # TODO: tell allowed service types?
         pass
 
+    class NonNumericPortError(TypeError):
+        # TypeError('Service port can be a positive integer only')
+        pass
+
     class ReservedPortError(ValueError):
         pass
 
@@ -72,24 +76,43 @@ class Service:
 
         @classmethod
         def register(cls, name, s_type, address, port, protocol='http'):
+            """ registers the service instance
+           
+            :param name: name of the service
+            :param s_type: a valid service type; e.g. Storage, Device
+            :param address: any IP or host address
+            :param port: a valid postive integer
+            :param protocol: defaults to http
+            :return: registered services' uuid
+            """
 
-            # TODO: name should be unique?
+            try:
+                cls.get(name=name)
+            except Service.DoesNotExist:
+                pass
+            else:
+                raise Service.AlreadyExistsWithTheSameName
 
             if cls.check_address_and_port(address, port):
                 raise Service.AlreadyExistsWithTheSameAddressAndPort
             if not isinstance(port, int):
-                raise TypeError('Service port can be a positive integer only')
+                raise Service.NonNumericPortError
             if int(port) == 8082:
                 raise Service.ReservedPortError
 
             service_id = str(uuid.uuid4())
-            registered_service = Service(str(service_id), name, s_type, protocol, address, port)
+            registered_service = Service(service_id, name, s_type, protocol, address, port)
             cls._registry.append(registered_service)
             cls._logger.info("Registered {}".format(str(registered_service)))
             return service_id
 
         @classmethod
         def unregister(cls, service_id):
+            """ deregisters the service instance
+
+            :param service_id: a uuid of registered service
+            :return: service_id on successful deregistration
+            """
             services = cls.get(idx=service_id)
             cls._registry.remove(services[0])
             cls._logger.info("Unregistered {}".format(str(services[0])))
@@ -118,7 +141,17 @@ class Service:
         @classmethod
         def check_address_and_port(cls, address, port):
             # AND based check
-            services = [s for s in cls._registry if getattr(s, "_address") == address and getattr(s, "_port")==port]
+            # ugly hack! <Make filter to support AND | OR>
+            services = [s for s in cls._registry if getattr(s, "_address") == address and getattr(s, "_port") == port]
             if len(services) == 0:
                 return False
             return True
+
+        @classmethod
+        def filter_by_name_and_type(cls, name, s_type):
+            # AND based check
+            # ugly hack! <Make filter to support AND | OR>
+            services = [s for s in cls._registry if getattr(s, "_name") == name and getattr(s, "_type") == s_type]
+            if len(services) == 0:
+                raise Service.DoesNotExist
+            return services

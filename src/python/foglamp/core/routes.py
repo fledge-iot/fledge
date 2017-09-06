@@ -5,12 +5,14 @@
 # FOGLAMP_END
 
 from aiohttp import web
+
+from foglamp.core.api import audit as api_audit
+from foglamp.core.api import browser
 from foglamp.core.api import common as api_common
 from foglamp.core.api import configuration as api_configuration
 from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
-from foglamp.core.api import audit as api_audit
-from foglamp.core.api import browser
+from foglamp.core.service_registry import service_registry
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -61,6 +63,19 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
     app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
     app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
+
+    # Micro Service support - Core
+    app.router.add_route('GET', '/foglamp/service/ping', service_registry.ping)
+
+    app.router.add_route('POST', '/foglamp/service', service_registry.register)
+    app.router.add_route('DELETE', '/foglamp/service/{service_id}', service_registry.unregister)
+    app.router.add_route('GET', '/foglamp/service', service_registry.get_service)
+
+    # TODO: shutdown, register_interest, unregister_interest and notify_changes - pending
+    app.router.add_route('POST', '/foglamp/service/shutdown', service_registry.shutdown)
+    app.router.add_route('POST', '/foglamp/service/interest', service_registry.register_interest)
+    app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', service_registry.unregister_interest)
+    app.router.add_route('POST', '/foglamp/change', service_registry.notify_change)
 
     # enable cors support
     enable_cors(app)

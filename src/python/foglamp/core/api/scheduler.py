@@ -493,10 +493,10 @@ async def get_tasks(request):
     """
     Returns the list of tasks
 
-    :Example: curl -X GET  http://localhost:8082/foglamp/task?limit=xxx
-    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx&limit=xxx
-    :Example: curl -X GET  http://localhost:8082/foglamp/task?state=xxx&limit=xxx
-    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx&state=xxx&limit=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?state=xxx
+    :Example: curl -X GET  http://localhost:8082/foglamp/task?name=xxx&state=xxx
     """
 
     try:

@@ -466,10 +466,10 @@ class Scheduler(object):
         """Dictionary of tasks.id to _TaskProcess"""
         self._check_processes_pending = False
         """bool: True when request to run check_processes"""
-        self._main_loop_task = None  # type: asyncio.Task
-        """Coroutine for _main_loop_task, to ensure it has finished"""
-        self._main_sleep_task = None  # type: asyncio.Task
-        """Coroutine that sleeps in the main loop"""
+        self._scheduler_loop_task = None  # type: asyncio.Task
+        """Task for :meth:`_scheduler_loop`, to ensure it has finished"""
+        self._scheduler_loop_sleep_task = None  # type: asyncio.Task
+        """Task for asyncio.sleep used by :meth:`_scheduler_loop`"""
         self.current_time = None  # type: int
         """Time to use when determining when to start tasks, for testing"""
         self._last_task_purge_time = None  # type: int
@@ -529,8 +529,8 @@ class Scheduler(object):
             if self._purge_tasks_task is not None:
                 await self._purge_tasks_task
             self._resume_check_schedules()
-            await self._main_loop_task
-            self._main_loop_task = None
+            await self._scheduler_loop_task
+            self._scheduler_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration
         for task_id in list(self._task_processes.keys()):
@@ -1040,21 +1040,21 @@ class Scheduler(object):
         await self._get_schedules()
 
     def _resume_check_schedules(self):
-        """Wakes up :meth:`_main_loop` so that
+        """Wakes up :meth:`_scheduler_loop` so that
         :meth:`_check_schedules` will be called the next time 'await'
         is invoked.
 
         """
-        if self._main_sleep_task:
+        if self._scheduler_loop_sleep_task:
             try:
-                self._main_sleep_task.cancel()
-                self._main_sleep_task = None
+                self._scheduler_loop_sleep_task.cancel()
+                self._scheduler_loop_sleep_task = None
             except RuntimeError:
                 self._check_processes_pending = True
         else:
             self._check_processes_pending = True
 
-    async def _main_loop(self):
+    async def _scheduler_loop(self):
         """Main loop for the scheduler"""
         # TODO: log exception here or add an exception handler in asyncio
 
@@ -1077,11 +1077,11 @@ class Scheduler(object):
 
             if sleep_seconds > 0:
                 self._logger.info("Sleeping for %s seconds", sleep_seconds)
-                self._main_sleep_task = asyncio.ensure_future(asyncio.sleep(sleep_seconds))
+                self._scheduler_loop_sleep_task = asyncio.ensure_future(asyncio.sleep(sleep_seconds))
 
                 try:
-                    await self._main_sleep_task
-                    self._main_sleep_task = None
+                    await self._scheduler_loop_sleep_task
+                    self._scheduler_loop_sleep_task = None
                 except asyncio.CancelledError:
                     self._logger.debug("Main loop awakened")
             else:
@@ -1143,7 +1143,7 @@ class Scheduler(object):
 
             # TODO Remove this check when the database has constraint
             if day is not None and (day < 1 or day > 7):
-                raise ValueError("day must be between 1 and 7")
+                raise ValueError('day must be between 1 and 7')
         else:
             day = None
             schedule_time = None
@@ -1164,6 +1164,7 @@ class Scheduler(object):
             update = self._schedules_tbl.update()
             update = update.where(self._schedules_tbl.c.id == str(schedule.schedule_id))
             update = update.values(schedule_name=schedule.name,
+                                   schedule_type=int(schedule.schedule_type),
                                    schedule_interval=schedule.repeat,
                                    schedule_day=day,
                                    schedule_time=schedule_time,
@@ -1612,4 +1613,4 @@ class Scheduler(object):
 
         self._ready = True
 
-        self._main_loop_task = asyncio.ensure_future(self._main_loop())
+        self._scheduler_loop_task = asyncio.ensure_future(self._scheduler_loop())

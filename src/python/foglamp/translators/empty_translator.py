@@ -12,7 +12,7 @@ __version__ = "${VERSION}"
 _MODULE_NAME = "Empty translator"
 
 
-def retrieve_plugin_info(_stream_id):
+def plugin_retrieve_info(stream_id):
     """ Empty translator
 
     Returns:
@@ -26,7 +26,7 @@ def retrieve_plugin_info(_stream_id):
         'version': "1.0.0",
         'type': "translator",
         'interface': "1.0",
-        'config': ""
+        'config': stream_id
     }
 
     return plugin_info

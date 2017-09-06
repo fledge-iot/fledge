@@ -908,3 +908,23 @@ CREATE TABLE foglamp.tasks (
 
 ALTER TABLE foglamp.tasks OWNER to foglamp;
 
+
+-- Tracks types already created into PI Server
+CREATE TABLE foglamp.omf_created_objects (
+    configuration_key   character(10)			NOT NULL,                             -- FK to foglamp.configuration
+    type_id             integer           	    NOT NULL,                             -- Identifies the specific PI Server type
+    asset_code			character varying(50)   NOT NULL,
+
+    CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code)
+        USING INDEX TABLESPACE foglamp,
+    CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
+        REFERENCES foglamp.configuration (key) MATCH SIMPLE
+            ON UPDATE NO ACTION
+            ON DELETE NO ACTION )
+    WITH ( OIDS = FALSE )
+    TABLESPACE foglamp;
+
+COMMENT ON TABLE foglamp.streams IS
+'Tracks types already created into PI Server.';
+
+ALTER TABLE foglamp.omf_created_objects OWNER to foglamp;

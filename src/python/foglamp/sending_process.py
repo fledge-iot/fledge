@@ -46,6 +46,7 @@ _MESSAGES_LIST = {
     "i000001": "Started.",
     "i000002": "Execution completed.",
     "i000003": _MODULE_NAME + " disabled.",
+    "i000004": "no data will be sent, the stream id is disabled - stream id |{0}|",
 
     # Warning / Error messages
     "e000000": "general error",
@@ -113,9 +114,7 @@ _CONFIG_DEFAULT = {
         "description": "The name of the translator to use to translate the readings "
                        "into the output format and send them",
         "type": "string",
-        "default": "omf_translator_new"
-        # FIXME:
-        # "default": "omf_translator"
+        "default": "omf_translator"
     },
 
 }
@@ -263,29 +262,6 @@ def _plugin_load():
         raise
 
 
-def debug_code():
-    """ debug_code """
-    global _pg_cur
-    global _pg_conn
-
-    list_sql_cmd = (
-        # "DELETE FROM foglamp.omf_created_objects;",
-        "UPDATE foglamp.streams SET last_object=0, ts=now() WHERE id=1",
-        "UPDATE foglamp.statistics SET value=0;",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TRANS';",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TR_1';",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='SEND_PR_1';",
-        "DELETE FROM foglamp.configuration WHERE \"key\"='OMF_TYPES';",
-
-
-    )
-
-    for cmd in list_sql_cmd:
-
-        _pg_cur.execute(cmd)
-        _pg_conn.commit()
-
-
 def _sending_process_init():
     """ Setup the correct state for the Sending Process
 
@@ -303,6 +279,8 @@ def _sending_process_init():
     global _pg_conn
     global _pg_cur
 
+    exec_sending_process = False
+
     try:
         prg_text = ", for Linux (x86_64)"
 
@@ -314,9 +292,6 @@ def _sending_process_init():
             _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
             _pg_cur = _pg_conn.cursor()
 
-            # FIXME:
-            debug_code()
-
         except Exception as e:
             _message = _MESSAGES_LIST["e000012"].format(str(e))
 
@@ -326,6 +301,8 @@ def _sending_process_init():
         if is_stream_id_valid(_stream_id):
 
             _retrieve_configuration(_stream_id)
+
+            exec_sending_process = _config['enable']
 
             if _config['enable']:
 
@@ -360,8 +337,7 @@ def _sending_process_init():
         _logger.error(_message)
         raise
 
-    return _config['enable']
-
+    return exec_sending_process
 
 def _sending_process_shutdown():
     """ Terminates the sending process and the related plugin
@@ -560,7 +536,7 @@ def is_stream_id_valid(stream_id):
     global _pg_cur
 
     try:
-        sql_cmd = "SELECT id FROM foglamp.streams WHERE id={0}".format(stream_id)
+        sql_cmd = "SELECT id, active FROM foglamp.streams WHERE id={0}".format(stream_id)
 
         _pg_cur.execute(sql_cmd)
         rows = _pg_cur.fetchall()
@@ -574,7 +550,13 @@ def is_stream_id_valid(stream_id):
             _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
             raise ValueError(_message)
         else:
-            stream_id_valid = True
+            if rows[0][1]:
+                stream_id_valid = True
+            else:
+                _message = _MESSAGES_LIST["i000004"].format(stream_id)
+                _logger.info(_message)
+
+                stream_id_valid = False
 
     except Exception as e:
         _message = _MESSAGES_LIST["e000013"].format(str(e))
@@ -826,7 +808,7 @@ if __name__ == "__main__":
 
                 _sending_process_shutdown()
 
-                _logger.info(_MESSAGES_LIST["i000002"])
+            _logger.info(_MESSAGES_LIST["i000002"])
 
             sys.exit(0)
 

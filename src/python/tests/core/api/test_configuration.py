@@ -67,7 +67,16 @@ class TestConfigMgr:
     # TODO: Add tests for negative cases. Currently only positive test cases have been added.
 
     async def test_get_categories(self):
-        pass
+        conn = http.client.HTTPConnection(BASE_URL, port=PORT)
+        conn.request("GET", '/foglamp/categories')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        all_items = [elements["key"].strip() for elements in retval["categories"]]
+        assert 'TEST_B' in all_items
+        assert 'TEST_V' in all_items
 
     async def test_get_category(self):
         pass

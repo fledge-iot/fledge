@@ -23,8 +23,7 @@ BASE_URL = 'localhost:8082'
 headers = {"Content-Type": 'application/json'}
 
 test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
-              'value': '{"item1": {"description": "desc", "type": "string", "default": "def"}}'}
-
+              'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def'}}}
 pytestmark = pytest.mark.asyncio
 
 
@@ -38,7 +37,7 @@ async def add_master_data():
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
+    # await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
     await conn.close()
 
 

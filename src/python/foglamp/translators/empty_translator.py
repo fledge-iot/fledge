@@ -17,8 +17,6 @@ def plugin_retrieve_info(stream_id):
 
     Returns:
         plugin_info
-    Raises:
-    Todo:
     """
 
     plugin_info = {
@@ -34,6 +32,17 @@ def plugin_retrieve_info(stream_id):
 
 def plugin_init():
     """ Empty translator """
+
+
+# noinspection PyUnusedLocal
+def plugin_send(raw_data, stream_id):
+    """ Empty translator """
+
+    data_sent = ()
+    new_position = 0
+    num_sent = 0
+
+    return data_sent, new_position, num_sent
 
 
 def plugin_shutdown():

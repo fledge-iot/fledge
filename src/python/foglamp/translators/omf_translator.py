@@ -40,6 +40,7 @@ _DB_CONNECTION_STRING = 'postgresql:///foglamp'
 _pg_conn = ()
 _pg_cur = ()
 
+# Messages used for Information, Warning and Error notice
 _MESSAGES_LIST = {
 
     # Information messages
@@ -59,13 +60,12 @@ _MESSAGES_LIST = {
     "e000011": "cannot complete the termination of the OMF translator - error details |{0}|",
 
 }
-"""Messages used for Information, Warning and Error notice"""
 
 # Configuration related to the OMF Translator
 _CONFIG_CATEGORY_NAME = 'OMF_TR'
 _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
 
-_DEFAULT_OMF_CONFIG = {
+_CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of the PI Connector to send data to",
         "type": "string",
@@ -113,9 +113,9 @@ _DEFAULT_OMF_CONFIG = {
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OMF_TYPES'
 _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OMF types'
 
-_DEFAULT_OMF_TYPES_CONFIG = {
+_CONFIG_DEFAULT_OMF_TYPES = {
     "type-id": {
-        "description": "Identify the sensor and measurement type",
+        "description": "Identify sensor and measurement types",
         "type": "integer",
         "default": "001"
     },
@@ -185,9 +185,6 @@ _OMF_TEMPLATE_LINK_DATA = [
     }
 ]
 
-# Used to force the recreation of PIServer's objects on the first error occurred
-_recreate_omf_objects = True
-
 # Defines what and the level of details for logging
 _log_debug_level = 0
 _log_performance = False
@@ -201,6 +198,9 @@ _config_omf_types = {}
 _config_omf_types_from_manager = {}
 _config = {}
 _config_from_manager = {}
+
+# Forces the recreation of PIServer objects when the first error occurs
+_recreate_omf_objects = True
 
 
 class URLFetchError(RuntimeError):
@@ -261,7 +261,7 @@ def _configuration_retrieve(stream_id):
     try:
         config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-        _event_loop.run_until_complete(configuration_manager.create_category(config_category_name, _DEFAULT_OMF_CONFIG,
+        _event_loop.run_until_complete(configuration_manager.create_category(config_category_name, _CONFIG_DEFAULT_OMF,
                                                                              _CONFIG_CATEGORY_DESCRIPTION))
         _config_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
                                                               (config_category_name))
@@ -284,7 +284,7 @@ def _configuration_retrieve(stream_id):
     # Configuration related to the OMF Types
     try:
         _event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_OMF_TYPES_NAME,
-                                                                             _DEFAULT_OMF_TYPES_CONFIG,
+                                                                             _CONFIG_DEFAULT_OMF_TYPES,
                                                                              _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION))
         _config_omf_types_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
                                                                         (_CONFIG_CATEGORY_OMF_TYPES_NAME))
@@ -294,7 +294,7 @@ def _configuration_retrieve(stream_id):
         # Converts the value field from str to a dict
         for item in _config_omf_types:
 
-            if _config_omf_types[item]['type'] == 'string':
+            if _config_omf_types[item]['type'] == 'JSON':
 
                 # The conversion from a dict to str changes the case and it should be fixed before the conversion
                 value = _config_omf_types[item]['value'].replace("true", "True")
@@ -468,6 +468,7 @@ def plugin_shutdown():
         raise
 
 
+# noinspection SqlResolve
 def _deleted_omf_types_already_created(config_category_name, type_id):
     """ Deletes OMF types/objects tracked as already created, it is used to force the recreation of the types
 
@@ -490,6 +491,7 @@ def _deleted_omf_types_already_created(config_category_name, type_id):
     _pg_conn.commit()
 
 
+# noinspection SqlResolve
 def _retrieve_omf_types_already_created(configuration_key, type_id):
     """ Retrieves the list of OMF types already defined/sent to the PICROMF
 
@@ -513,6 +515,7 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
     return rows
 
 
+# noinspection SqlResolve
 def _flag_created_omf_type(configuration_key, type_id, asset_code):
     """ Stores into the Storage layer the successfully creation of the type into PICROMF.
      Args:

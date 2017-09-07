@@ -37,7 +37,7 @@ async def add_master_data():
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    # await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
+    await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
     await conn.close()
 
 
@@ -130,4 +130,30 @@ class TestConfigMgr:
         pass
 
     async def test_unset_config_item(self):
-        pass
+        # TODO: Delete all prints after verification of todo comments
+        conn = http.client.HTTPConnection(BASE_URL)
+        test_data_item = [key for key in test_data['value']][0]
+
+        # TODO: Confirm endpoint is DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}/value
+        # OR DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}
+
+        # print("Delete Request:", '/foglamp/category/{}/{}/value'.format(test_data['key'], test_data_item))
+        # conn.request("DELETE", '/foglamp/category/{}/{}/value'.format(test_data['key'], test_data_item))
+
+        print("Delete Request:", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
+        conn.request("DELETE", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
+
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        test_data['value'][test_data_item]['value'] = ''
+        assert test_data['value'][test_data_item] == retval
+
+        # Fetch category item value again and verify it is set to blank
+        conn.request("GET", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        assert test_data['value'][test_data_item] == retval

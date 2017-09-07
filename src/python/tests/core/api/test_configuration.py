@@ -111,14 +111,11 @@ class TestConfigMgr:
         test_data_item_value.update(body)
         assert test_data_item_value == retval
 
-    async def test_unset_category_item(self):
+    async def test_edit_category_item_value(self):
         pass
 
-    async def test_put_config_new_item(self):
+    async def test_merge_category(self):
         pass
 
-    async def test_put_config_merge_item(self):
-        pass
-
-    async def test_unset_config_merge_item(self):
+    async def test_unset_config_item(self):
         pass

@@ -22,6 +22,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+@pytest.allure.feature("TestScheduler")
 class TestScheduler:
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler)->None:
@@ -109,6 +110,35 @@ class TestScheduler:
         await self.stop_scheduler(scheduler)
 
     @pytest.mark.asyncio
+    async def test_modify_schedule_type(self):
+        """Test modifying the type of a schedule
+        """
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()
+        await scheduler.start()
+
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'sleep10'
+        interval_schedule.process_name = 'sleep10'
+
+        await scheduler.save_schedule(interval_schedule)
+
+        manual_schedule = ManualSchedule()
+        manual_schedule.schedule_id = interval_schedule.schedule_id
+        manual_schedule.name = 'manual'
+        manual_schedule.process_name = 'sleep10'
+
+        await scheduler.save_schedule(manual_schedule)
+
+        # Assert: only 1 task is running
+        schedule = await scheduler.get_schedule(manual_schedule.schedule_id)
+
+        assert isinstance(schedule, ManualSchedule)
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
     async def test_update(self):
         """Test update of a running task
         :assert:
@@ -138,10 +168,10 @@ class TestScheduler:
 
         await scheduler.save_schedule(interval_schedule)  # Save update on scheduler
         await asyncio.sleep(6)
-        
+
         # Assert: only 1 task is running
         tasks = await scheduler.get_running_tasks()  # list of current running tasks
-        assert len(tasks) == 1 
+        assert len(tasks) == 1
 
         interval_schedule.exclusive = False
         await scheduler.save_schedule(interval_schedule)

@@ -32,7 +32,6 @@ Description: Based on FOGL-200 (https://docs.google.com/document/d/1GdMTerNq_-XQ
      total_failed_to_remove > 0 then it is safe to assume that that there was an error with INSERTS, and if 
      total_failed_to_remove > total_rows_removed then PURGE completely failed. 
 """
-
 import asyncio
 import datetime
 import sqlalchemy
@@ -49,7 +48,7 @@ __version__ = "${VERSION}"
 
 # Create Connection
 __CONNECTION_STRING = "postgres:///foglamp"
-
+__ENGINE = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=5, max_overflow=0)
 _DEFAULT_PURGE_CONFIG = {
     "age": {
         "description": "Age of data to be retained, all data that is older than this value will be removed," +
@@ -108,13 +107,8 @@ def execute_command(stmt):
     Returns:
         Returns result set 
     """
-    # Set connection to database
-    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
-    conn = engine.connect()
-    # Execute query
-    query_result = conn.execute(stmt)
-    return query_result
-
+    with __ENGINE.connect() as conn: 
+        return conn.execute(stmt)
 
 def insert_into_log(level=0, log=None):
     """"INSERT into log table values"""
@@ -152,8 +146,9 @@ def purge(config, table_name):
     start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
     unsent_rows_removed = 0
-    last_id = sqlalchemy.select([sqlalchemy.func.min(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
-    last_id = int(execute_command(last_id).fetchall()[0][0])
+    last_id_query = sqlalchemy.select([sqlalchemy.func.min(_STREAMS_TABLE.c.last_object)]).select_from(_STREAMS_TABLE)
+    result = execute_command(last_id_query).fetchall()[0][0]
+    last_id = result if result else 0
 
     # Calculate current count and age_timestamp
     age_and_count_query = sqlalchemy.select([sqlalchemy.func.current_timestamp() -

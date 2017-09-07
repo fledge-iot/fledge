@@ -96,8 +96,20 @@ class TestConfigMgr:
         retval = json.loads(r)
         assert test_data_item_value == retval
 
-    async def test_edit_category_item(self):
-        pass
+    async def test_set_category_item_value(self):
+        conn = http.client.HTTPConnection(BASE_URL)
+        test_data_item = [key for key in test_data['value']][0]
+        test_data_item_value = test_data['value'][test_data_item]
+        body = {"value": 'some_value'}
+        json_data = json.dumps(body)
+        conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item,), json_data)
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        test_data_item_value.update(body)
+        assert test_data_item_value == retval
 
     async def test_unset_category_item(self):
         pass

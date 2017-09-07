@@ -102,7 +102,7 @@ class TestConfigMgr:
         test_data_item_value = test_data['value'][test_data_item]
         body = {"value": 'some_value'}
         json_data = json.dumps(body)
-        conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item,), json_data)
+        conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -117,7 +117,7 @@ class TestConfigMgr:
         test_data_item_value = test_data['value'][test_data_item]
         body = {"value": 'updated_value'}
         json_data = json.dumps(body)
-        conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item,), json_data)
+        conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -125,9 +125,6 @@ class TestConfigMgr:
         retval = json.loads(r)
         test_data_item_value.update(body)
         assert test_data_item_value == retval
-
-    async def test_merge_category(self):
-        pass
 
     async def test_unset_config_item(self):
         # TODO: Delete all prints after verification of todo comments
@@ -157,3 +154,25 @@ class TestConfigMgr:
         r = r.read().decode()
         conn.close()
         assert test_data['value'][test_data_item] == retval
+
+    async def test_merge_category(self):
+        # TODO: Delete all prints after verification of todo comments
+        conn = http.client.HTTPConnection(BASE_URL)
+        body = {'value': {'item2': {'description': 'desc2', 'type': 'string', 'default': 'def2'}}}
+        test_data_item = [key for key in body['value']][0]
+        print("ITEM::", test_data_item)
+        test_data_item_value = body['value'][test_data_item]
+        json_data = json.dumps(test_data_item_value)
+        print("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
+
+        # TODO: Returns 500 error, Bug? Endpoint not defined for adding (merging) a new config item to existing config?
+        conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        print(retval)
+        test_data['value'].update(body['value'])
+        print("test_data_new", test_data)
+        assert test_data == retval

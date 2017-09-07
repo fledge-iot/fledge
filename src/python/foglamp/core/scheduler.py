@@ -449,6 +449,7 @@ class Scheduler(object):
 
         # Instance attributes
         self._engine = None  # type: aiopg.sa.Engine
+        """Database connection pool"""
         self._ready = False
         """True when the scheduler is ready to accept API calls"""
         self._start_time = None  # type: int

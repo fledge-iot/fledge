@@ -85,7 +85,16 @@ class TestConfigMgr:
         assert test_data['value'] == retval
 
     async def test_get_category_item(self):
-        pass
+        conn = http.client.HTTPConnection(BASE_URL)
+        test_data_item = [key for key in test_data['value']][0]
+        test_data_item_value = test_data['value'][test_data_item]
+        conn.request("GET", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert test_data_item_value == retval
 
     async def test_edit_category_item(self):
         pass

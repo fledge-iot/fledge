@@ -15,7 +15,7 @@ psycopg2==2.7.1
 asyncpg==0.12.0
 
 # rest
-aiohttp==2.1.0
+aiohttp==2.2.5
 aiohttp_cors==0.5.3
 cchardet==2.1.0
 httpie==0.9.9

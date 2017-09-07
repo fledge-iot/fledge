@@ -65,7 +65,7 @@ def _run_callbacks(category_name):
     if callbacks is not None:
         for callback in callbacks:
             cb = import_module(callback)
-            cb.run()
+            cb.run(category_name)
 
 async def _merge_category_vals(category_val_new, category_val_storage, keep_original_items):
     # preserve all value_vals from category_val_storage
@@ -294,7 +294,6 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
         # get storage_value_entry and compare against new_value_value, update if different
         storage_value_entry = await _read_value_val(category_name, item_name)
         if storage_value_entry == new_value_entry:
-            # raise ValueError('new_value_entry must be different than value_entry in storage')
             return
         await _update_value_val(category_name, item_name, new_value_entry)
     except:
@@ -384,7 +383,6 @@ async def create_category(category_name, category_value, category_description=''
             else:
                 category_val_prepared = await _merge_category_vals(category_val_prepared, category_val_storage, keep_original_items)
                 if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage, sort_keys=True):
-                    # raise ValueError('category_value must be different than category_value in storage')
                     return
             await _update_category(category_name, category_val_prepared, category_description)
     except:
@@ -402,11 +400,37 @@ async def create_category(category_name, category_value, category_description=''
 
 
 def register_interest(category_name, callback):
+    """Registers an interest in any changes to the category_value associated with category_name
+
+    Keyword Arguments:
+    category_name -- name of the category_name of interest (required)
+    callback -- module with implementation of run(category_name) to be called when change is made to category_value
+
+    Return Values:
+    None
+
+    Side Effects:
+    Registers an interest in any changes to the category_value of a given category_name.
+    This interest is maintained in memory only, and not persisted in storage.
+
+    Restrictions and Usage:
+    A particular category_name may have multiple registered interests, aka multiple callbacks associated with a single category_name.
+    One or more category_names may use the same callback when a change is made to the corresponding category_value.
+    User must implement the callback code.
+    For example, if a callback is 'foglamp.callback', then user must implement foglamp/callback.py module with method run(category_name).
+    A callback is only called if the corresponding category_value is created or updated.
+    A callback is not called if the corresponding category_description is updated.
+    A change in configuration is not rolled back if callbacks fail.
+    """
+    if(category_name is None):
+        raise ValueError('Failed to register interest. category_name cannot be None')
+    if (callback is None):
+        raise ValueError('Failed to register interest. callback cannot be None')
     if _registered_interests.get(category_name) is None:
         _registered_interests[category_name] = {callback}
     else:
         _registered_interests[category_name].add(callback)
-
+#
 # async def main():
 #     # lifecycle of a component's configuration
 #     # start component
@@ -423,16 +447,16 @@ def register_interest(category_name, callback):
 #     # content of foglamp.callback.py
 #     # example only - delete before merge to develop
 #
-#     def run():
-#         print('callback1')
+#     def run(category_name):
+#         print('callback1 for category_name {}'.format(category_name))
 #     """
 #
 #     """
 #     # content of foglamp.callback2.py
 #     # example only - delete before merge to develop
 #
-#     def run():
-#         print('callback2')
+#     def run(category_name):
+#         print('callback2 for category_name {}'.format(category_name))
 #     """
 #
 #     sample_json = {
@@ -464,6 +488,14 @@ def register_interest(category_name, callback):
 #     print(_registered_interests)
 #     register_interest('CATEG', 'foglamp.callback2')
 #     print(_registered_interests)
+#
+#     print("register interest in None- throw ValueError")
+#     try:
+#         register_interest(None, 'foglamp.callback2')
+#     except ValueError as err:
+#         print(err)
+#     print(_registered_interests)
+#
 #
 #     print("test get_all_category_names")
 #     names_list = await get_all_category_names()

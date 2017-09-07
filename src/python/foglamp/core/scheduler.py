@@ -9,7 +9,7 @@
 import asyncio
 import collections
 import datetime
-# import logging  # For development only
+import logging
 import math
 import time
 import uuid
@@ -399,7 +399,7 @@ class Scheduler(object):
     _scheduled_processes_tbl = None  # type: sqlalchemy.Table
     _schedules_tbl = None  # type: sqlalchemy.Table
     _tasks_tbl = None  # type: sqlalchemy.Table
-    _logger = None  # logging.Logger
+    _logger = None  # type: logging.Logger
 
     def __init__(self):
         """Constructor"""
@@ -408,9 +408,9 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
+            # cls._logger = logger.setup(__name__)
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
-            cls._logger = logger.setup(__name__)
+            cls._logger = logger.setup(__name__, level=logging.DEBUG)
 
         if cls._schedules_tbl is None:
             metadata = sqlalchemy.MetaData()
@@ -687,6 +687,7 @@ class Scheduler(object):
 
             update = self._tasks_tbl.update()
             update = update.where(self._tasks_tbl.c.id == str(task_process.task_id))
+            # TODO Populate reason?
             update = update.values(exit_code=exit_code,
                                    state=int(state),
                                    end_time=datetime.datetime.now())
@@ -867,6 +868,9 @@ class Scheduler(object):
                 when to schedule tasks
 
         """
+        if schedule.type == Schedule.Type.MANUAL:
+            return
+                
         try:
             schedule_execution = self._schedule_executions[schedule.id]
         except KeyError:
@@ -898,14 +902,13 @@ class Scheduler(object):
         elif schedule.type == Schedule.Type.STARTUP:
             schedule_execution.next_start_time = current_time
 
-        self._logger.info(
-            "Scheduled task for schedule '%s' to start at %s", schedule.name,
-            datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
+        if self._logger.isEnabledFor(logging.INFO):
+            self._logger.info(
+                "Scheduled task for schedule '%s' to start at %s", schedule.name,
+                datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
 
     def _schedule_next_task(self, schedule)->None:
         """Computes the next time to start a task for a schedule.
-
-        This method is called only for schedules that have repeat != None.
 
         For nonexclusive schedules, this method is called after starting
         a task automatically (it is not called when a task is started
@@ -913,7 +916,6 @@ class Scheduler(object):
 
         For exclusive schedules, this method is called after the task
         has completed.
-
         """
         schedule_execution = self._schedule_executions[schedule.id]
         advance_seconds = schedule.repeat_seconds
@@ -926,7 +928,8 @@ class Scheduler(object):
 
         now = time.time()
 
-        if schedule.exclusive and now < schedule_execution.next_start_time:
+        if (schedule.exclusive and schedule_execution.next_start_time is not None and
+                now < schedule_execution.next_start_time):
             # The task was started manually
             # Or the schedule was modified after the task started (AVOID_ALTER_NEXT_START)
             return
@@ -974,7 +977,7 @@ class Scheduler(object):
             raise
 
     async def _mark_tasks_interrupted(self):
-        """Any task with a NULL end_time is set to interrupted"""
+        """The state for any task with a NULL end_time is set to interrupted"""
         update = self._tasks_tbl.update()
         update = update.where(self._tasks_tbl.c.end_time is None)
         update = update.values(state=int(Task.State.INTERRUPTED),
@@ -1077,7 +1080,8 @@ class Scheduler(object):
 
             if sleep_seconds > 0:
                 self._logger.info("Sleeping for %s seconds", sleep_seconds)
-                self._scheduler_loop_sleep_task = asyncio.ensure_future(asyncio.sleep(sleep_seconds))
+                self._scheduler_loop_sleep_task = (
+                    asyncio.ensure_future(asyncio.sleep(sleep_seconds)))
 
                 try:
                     await self._scheduler_loop_sleep_task

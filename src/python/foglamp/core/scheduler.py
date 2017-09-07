@@ -531,16 +531,16 @@ class Scheduler(object):
                 try:
                     await self._purge_tasks_task
                 except Exception:
-                    self._logger.exception()
+                    self._logger.exception('An exception was raised by Scheduler._purge_tasks')
 
             self._resume_check_schedules()
 
             # Stop the main loop
             try:
-                await self._main_loop_task
+                await self._scheduler_loop_task
             except Exception:
-                self._logger.exception()
-            self._main_loop_task = None
+                self._logger.exception('An exception was raised by Scheduler._scheduler_loop')
+            self._scheduler_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration
         for task_id in list(self._task_processes.keys()):
@@ -591,7 +591,7 @@ class Scheduler(object):
             try:
                 self._engine.close()
             except Exception:
-                self._logger.exception()
+                self._logger.exception('Unable to close the database connection pool')
             self._engine = None
 
         return True
@@ -944,7 +944,7 @@ class Scheduler(object):
 
         now = time.time()
 
-        if (schedule.exclusive and schedule_execution.next_start_time is not None and
+        if (schedule.exclusive and schedule_execution.next_start_time and
                 now < schedule_execution.next_start_time):
             # The task was started manually
             # Or the schedule was modified after the task started (AVOID_ALTER_NEXT_START)
@@ -968,7 +968,8 @@ class Scheduler(object):
                 else:
                     schedule_execution.next_start_time = time.mktime(next_dt.timetuple())
             else:
-                # Interval schedule
+                if schedule.type == Schedule.Type.MANUAL:
+                    schedule_execution.next_start_time = time.time()
                 schedule_execution.next_start_time += advance_seconds
 
             self._logger.info(

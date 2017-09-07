@@ -19,29 +19,27 @@ __version__ = "${VERSION}"
 
 # Module attributes
 __DB_NAME = "foglamp"
-BASE_URL = 'localhost'
-PORT = 8082
+BASE_URL = 'localhost:8082'
 headers = {"Content-Type": 'application/json'}
+
+test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
+              'value': '{"item1": {"description": "desc", "type": "string", "default": "def"}}'}
 
 pytestmark = pytest.mark.asyncio
 
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.configuration WHERE key IN ('TEST_V', 'TEST_B')''')
-    await conn.execute('''insert into foglamp.configuration(key, description, value)
-        values('TEST_V', 'REST API Test Config Manager for pre values', '{"item1": {"key1": "value1"}}')''')
-    await conn.execute('''insert into foglamp.configuration(key, description)
-        values('TEST_B', 'REST API Test Config Manager for blank values')''')
+    await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
+    await conn.execute("""INSERT INTO foglamp.configuration(key, description, value) VALUES($1, $2, $3);""",
+                       test_data['key'], test_data['description'], json.dumps(test_data['value']))
     await conn.close()
-    await asyncio.sleep(4)
 
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.configuration WHERE key IN ('TEST_V', 'TEST_B')''')
+    await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
     await conn.close()
-    await asyncio.sleep(4)
 
 
 class TestConfigMgr:
@@ -67,26 +65,25 @@ class TestConfigMgr:
     # TODO: Add tests for negative cases. Currently only positive test cases have been added.
 
     async def test_get_categories(self):
-        conn = http.client.HTTPConnection(BASE_URL, port=PORT)
+        conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/categories')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
-        all_items = [elements["key"].strip() for elements in retval["categories"]]
-        assert 'TEST_B' in all_items
-        assert 'TEST_V' in all_items
+        all_items = [elements['key'].strip() for elements in retval['categories']]
+        assert test_data['key'] in all_items
 
     async def test_get_category(self):
-        conn = http.client.HTTPConnection(BASE_URL, port=PORT)
-        conn.request("GET", '/foglamp/category/TEST_V')
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/category/{}'.format(test_data['key']))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
-        assert {'item1': {'key1': 'value1'}} == retval
+        assert test_data['value'] == retval
 
     async def test_get_category_item(self):
         pass

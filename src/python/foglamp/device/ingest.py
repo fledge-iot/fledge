@@ -164,7 +164,7 @@ class Ingest(object):
             try:
                 await task
             except Exception:
-                _LOGGER.exception('An exception occurred in Ingest._insert_readings')
+                _LOGGER.exception()
 
         cls._insert_readings_wait_tasks = None
         cls._insert_readings_tasks = None
@@ -182,7 +182,7 @@ class Ingest(object):
             await cls._write_statistics_task
             cls._write_statistics_task = None
         except Exception:
-            _LOGGER.exception('An exception occurred in Ingest._write_statistics')
+            _LOGGER.exception()
 
         cls._started = False
 

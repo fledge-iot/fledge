@@ -117,8 +117,11 @@ class TestTask:
 
     @pytest.mark.run(order=2)
     async def test_get_tasks_latest(self):
-        # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_task2", "process_name": "testsleep30", "repeat": 2}
+        # First create two schedules to get the schedule_id
+        data = {"type": 3, "name": "test_get_task2a", "process_name": "testsleep30", "repeat": 2}
+        self._schedule_task(data)
+
+        data = {"type": 3, "name": "test_get_task2b", "process_name": "echo_test", "repeat": 1}
         self._schedule_task(data)
 
         # Allow multiple tasks to be created
@@ -129,13 +132,16 @@ class TestTask:
         retval = dict(r.json())
         assert len(retval['tasks']) > 1
 
-        # Verify only one Task record is returned
+        # Verify only two Tasks record is returned
         r = requests.get(BASE_URL+'/task/latest')
         retval = dict(r.json())
 
+        print(retval['tasks'])
+
         assert 200 == r.status_code
-        assert 1 == len(retval['tasks'])
-        assert retval['tasks'][0]['process_name'] == 'testsleep30'
+        assert 2 == len(retval['tasks'])
+        assert retval['tasks'][1]['process_name'] == 'testsleep30'
+        assert retval['tasks'][0]['process_name'] == 'echo_test'
 
     @pytest.mark.run(order=3)
     async def test_get_tasks(self):

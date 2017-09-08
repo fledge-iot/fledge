@@ -136,8 +136,6 @@ class TestTask:
         r = requests.get(BASE_URL+'/task/latest')
         retval = dict(r.json())
 
-        print(retval['tasks'])
-
         assert 200 == r.status_code
         assert 2 == len(retval['tasks'])
         assert retval['tasks'][1]['process_name'] == 'testsleep30'

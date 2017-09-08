@@ -161,7 +161,7 @@ async def read_task(task_id=None, state=None, name=None):
     return results
 
 
-async def read_tasks_latest(state=None, name=None):
+async def read_tasks_latest(name=None, state=None):
     """
     Fetch task(s) latest detail
 

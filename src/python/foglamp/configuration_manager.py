@@ -64,8 +64,18 @@ def _run_callbacks(category_name):
     callbacks = _registered_interests.get(category_name)
     if callbacks is not None:
         for callback in callbacks:
-            cb = import_module(callback)
-            cb.run(category_name)
+            try:
+                cb = import_module(callback)
+            except ImportError:
+                _logger.exception(
+                    'Unable to import callback module %s for category_name %s', callback, category_name)
+                raise
+            try:
+                cb.run(category_name)
+            except AttributeError:
+                _logger.exception(
+                    'Unable to run %s.run(category_name) for category_name %s', callback, category_name)
+                raise
 
 async def _merge_category_vals(category_val_new, category_val_storage, keep_original_items):
     # preserve all value_vals from category_val_storage
@@ -103,7 +113,7 @@ async def _validate_category_val(category_val, set_value_val_from_default_val=Tr
                 raise TypeError('entry_name must be a string for item_name {}'.format(item_name))
             if type(entry_val) is not str:
                 raise TypeError(
-                    'entry_val must be a string for item_name {} and entry_name'.format(item_name, entry_name))
+                    'entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
             num_entries = expected_item_entries.get(entry_name)
             if set_value_val_from_default_val and entry_name == 'value':
                 raise ValueError(
@@ -287,6 +297,10 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
     An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
     Registered callbacks will be invoked only if an update is issued.
 
+    Exceptions Raised:
+    ImportError if callback module does not exist for relevant callbacks
+    AttributeError if callback module does not implement run(category_name) for relevant callbacks
+
     Return Values:
     None
     """
@@ -356,6 +370,8 @@ async def create_category(category_name, category_value, category_description=''
     Exceptions Raised:
     ValueError
     TypeError
+    ImportError if callback module does not exist for relevant callbacks
+    AttributeError if callback module does not implement run(category_name) for relevant callbacks
 
     Restrictions and Usage:
     A FogLAMP component calls this method to create one or more new configuration categories to store initial configuration.
@@ -430,7 +446,7 @@ def register_interest(category_name, callback):
         _registered_interests[category_name] = {callback}
     else:
         _registered_interests[category_name].add(callback)
-#
+
 # async def main():
 #     # lifecycle of a component's configuration
 #     # start component

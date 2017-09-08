@@ -127,18 +127,11 @@ class TestConfigMgr:
         assert test_data_item_value == retval
 
     async def test_unset_config_item(self):
-        # TODO: Delete all prints after verification of todo comments
         conn = http.client.HTTPConnection(BASE_URL)
         test_data_item = [key for key in test_data['value']][0]
 
-        # TODO: Confirm endpoint is DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}/value
-        # OR DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}
-
-        # print("Delete Request:", '/foglamp/category/{}/{}/value'.format(test_data['key'], test_data_item))
-        # conn.request("DELETE", '/foglamp/category/{}/{}/value'.format(test_data['key'], test_data_item))
-
-        print("Delete Request:", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
-        conn.request("DELETE", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
+        # TODO: FOGL-482 endpoint is DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}/value
+        conn.request("DELETE", '/foglamp/category/{}/{}/value'.format(test_data['key'], test_data_item))
 
         r = conn.getresponse()
         assert 200 == r.status
@@ -151,7 +144,6 @@ class TestConfigMgr:
         conn.request("GET", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item))
         r = conn.getresponse()
         assert 200 == r.status
-        r = r.read().decode()
         conn.close()
         assert test_data['value'][test_data_item] == retval
 
@@ -165,7 +157,7 @@ class TestConfigMgr:
         json_data = json.dumps(test_data_item_value)
         print("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
 
-        # TODO: Returns 500 error, Bug? Endpoint not defined for adding (merging) a new config item to existing config?
+        # TODO: FOGL-481: Returns 500 error, Bug? Endpoint not defined for adding (merging) a new config item to existing config?
         conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
         r = conn.getresponse()
         assert 200 == r.status

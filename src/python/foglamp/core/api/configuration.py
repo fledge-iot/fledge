@@ -110,8 +110,8 @@ async def set_configuration_item(request):
         value = data['value']
         await configuration_manager.set_category_item_value_entry(category_name, config_item, value)
         result = await configuration_manager.get_category_item(category_name, config_item)
-    except ValueError:
-        return web.json_response({'error': 'value error'})
+    except KeyError:
+        return web.json_response({'error': 'Missing required value for {}'.format(config_item)})
     except Exception as ex:
         return web.json_response({'error': ex})
 

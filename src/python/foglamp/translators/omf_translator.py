@@ -28,7 +28,7 @@ import psycopg2
 from foglamp import logger, configuration_manager
 
 # Module information
-__author__ = "${FULL_NAME}"
+__author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -51,7 +51,7 @@ _MESSAGES_LIST = {
     "e000002": "cannot complete the preparation of the in memory structure.",
     "e000003": "cannot update the reached position.",
     "e000004": "cannot complete the sending operation - error details |{0}|",
-    "e000005": "cannot setup the logger - error details |{0}|",
+    "e000005": "cannot start the logger - error details |{0}|",
     "e000006": "cannot prepare sensor information for PICROMF - error details |{0}|",
     "e000007": "an error occurred during the OMF request - error details |{0}|",
     "e000008": "cannot complete the retrieval of the plugin information - error details |{0}|",
@@ -74,7 +74,7 @@ _CONFIG_DEFAULT_OMF = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_001"
+        "default": "omf_translator_9020"
 
     },
     "OMFMaxRetry": {
@@ -117,9 +117,8 @@ _CONFIG_DEFAULT_OMF_TYPES = {
     "type-id": {
         "description": "Identify sensor and measurement types",
         "type": "integer",
-        "default": "001"
+        "default": "9021"
     },
-
 }
 
 _OMF_PREFIX_MEASUREMENT = "measurement_"
@@ -468,7 +467,6 @@ def plugin_shutdown():
         raise
 
 
-# noinspection SqlResolve
 def _deleted_omf_types_already_created(config_category_name, type_id):
     """ Deletes OMF types/objects tracked as already created, it is used to force the recreation of the types
 
@@ -491,7 +489,6 @@ def _deleted_omf_types_already_created(config_category_name, type_id):
     _pg_conn.commit()
 
 
-# noinspection SqlResolve
 def _retrieve_omf_types_already_created(configuration_key, type_id):
     """ Retrieves the list of OMF types already defined/sent to the PICROMF
 
@@ -515,7 +512,6 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
     return rows
 
 
-# noinspection SqlResolve
 def _flag_created_omf_type(configuration_key, type_id, asset_code):
     """ Stores into the Storage layer the successfully creation of the type into PICROMF.
      Args:
@@ -918,6 +914,9 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
 
     omf_data_json = json.dumps(omf_data)
 
+    if _log_debug_level == 3:
+        _logger.debug("OMF message : |{0}| |{1}| " .format(message_type, omf_data_json))
+
     while num_retry < _config['OMFMaxRetry']:
         _error = False
 
@@ -939,7 +938,7 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
                 _message = _MESSAGES_LIST["e000007"].format(tmp_text)
                 _error = URLFetchError(_message)
 
-            _logger.debug("Message type |{0}| response: |{1}| |{2}| ".format(message_type,
+            _logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
                                                                              response.status_code,
                                                                              response.text))
 
@@ -1033,7 +1032,7 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
         sensor_data = row[3]
 
         if _log_debug_level == 3:
-            _logger.debug("Stream ID : |{0}| Sensor ID : |{1}| Row ID : |{2}|  "
+            _logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
                           .format(target_stream_id, asset_code, str(row_id)))
 
         # Prepares new data for the PICROMF
@@ -1077,5 +1076,4 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 if __name__ == "__main__":
     _logger = logger.setup(_MODULE_NAME)
-
     _event_loop = asyncio.get_event_loop()

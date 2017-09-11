@@ -27,20 +27,14 @@ import datetime
 
 from foglamp import logger, statistics, configuration_manager
 
-# Module information
-__author__ = "${FULL_NAME}"
+__author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+""" Module information """
 
 _MODULE_NAME = "Sending Process"
 
-# DB references
-_DB_CONNECTION_STRING = 'postgresql:///foglamp'
-_pg_conn = ()
-_pg_cur = ()
-
-# Messages used for Information, Warning and Error notice
 _MESSAGES_LIST = {
 
     # Information messages
@@ -51,7 +45,7 @@ _MESSAGES_LIST = {
 
     # Warning / Error messages
     "e000000": "general error",
-    "e000001": "cannot setup the logger - error details |{0}|",
+    "e000001": "cannot start the logger - error details |{0}|",
     "e000002": "cannot complete the operation - error details |{0}|",
     "e000003": "cannot complete the retrieval of the configuration",
     "e000004": "cannot complete the initialization",
@@ -65,7 +59,7 @@ _MESSAGES_LIST = {
     "e000012": "cannot connect to the DB Layer - error details |{0}|",
     "e000013": "cannot validate the stream id - error details |{0}|",
     "e000014": "multiple streams having same id are defined - stream id |{0}|",
-    "e000015": "the selected plugin is not a valid translator - plug in |{0} / {1}|",
+    "e000015": "the selected plugin is not a valid translator - plug in type/name |{0} / {1}|",
     "e000016": "invalid stream id, it is not defined - stream id |{0}|",
     "e000017": "cannot handle command line parameters - error details |{0}|",
     "e000018": "cannot initialize the plugin |{0}|",
@@ -74,88 +68,17 @@ _MESSAGES_LIST = {
     "e000021": "cannot complete the sending operation - error details |{0}|",
     "e000022": "",
 }
-
-# Filesystem path where the translators reside
-_TRANSLATOR_PATH = "foglamp.translators."
-
-# Define the type of the plugin managed by the Sending Process
-_PLUGIN_TYPE = "translator"
-
-# Types of sources for the data blocks
-_DATA_SOURCE_READINGS = "readings"
-_DATA_SOURCE_STATISTICS = "statistics"
-_DATA_SOURCE_AUDIT = "audit"
-
-# Configuration retrieved from the Configuration Manager
-_CONFIG_CATEGORY_NAME = 'SEND_PR'
-_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of the Sending Process'
-
-_CONFIG_DEFAULT = {
-    "enable": {
-        "description": "A switch that can be used to enable or disable execution of the sending process.",
-        "type": "boolean",
-        "default": "True"
-    },
-    "duration": {
-        "description": "How long the sending process should run before stopping.",
-        "type": "integer",
-        "default": "60"
-    },
-    "source": {
-        "description": "Defines the source of the data to be sent on the stream, "
-                       "this may be one of either readings, statistics or audit.",
-        "type": "string",
-        "default": _DATA_SOURCE_READINGS
-    },
-    "blockSize": {
-        "description": "The size of a block of readings to send in each transmission.",
-        "type": "integer",
-        "default": "5000"
-    },
-    "sleepInterval": {
-        "description": "A period of time, expressed in seconds, "
-                       "to wait between attempts to send readings when there are no readings to be sent.",
-        "type": "integer",
-        "default": "1"
-    },
-    "translator": {
-        "description": "The name of the translator to use to translate the readings "
-                       "into the output format and send them",
-        "type": "string",
-        "default": "omf_translator"
-    },
-
-}
-
-# Defines what and the level of details for logging
-_log_debug_level = 0
-_log_performance = False
+""" Messages used for Information, Warning and Error notice """
 
 _logger = ""
 
 _event_loop = ""
 
-# Configurations retrieved from the Configuration Manager
-_config = {
-    'enable': _CONFIG_DEFAULT['enable']['default'],
-    'duration': int(_CONFIG_DEFAULT['duration']['default']),
-    'source': _CONFIG_DEFAULT['source']['default'],
-    'blockSize': int(_CONFIG_DEFAULT['blockSize']['default']),
-    'sleepInterval': int(_CONFIG_DEFAULT['sleepInterval']['default']),
-    'translator': _CONFIG_DEFAULT['translator']['default'],
-}
-_config_from_manager = ""
+_log_debug_level = 0
+""" Defines what and the level of details for logging """
 
-# Plugin handling - loading an empty plugin
-_module_template = _TRANSLATOR_PATH + "empty_translator"
-_plugin = importlib.import_module(_module_template)
-_plugin_info = {
-    'name': "",
-    'version': "",
-    'type': "",
-    'interface': "",
-    'config': ""
-}
+_log_performance = False
+""" Enable/Disable performance logging, enabled using a command line parameter"""
 
 
 class PluginInitialiseFailed(RuntimeError):
@@ -187,7 +110,7 @@ def _performance_log(func):
 
         if _log_performance:
             usage = resource.getrusage(resource.RUSAGE_SELF)
-            process_memory = usage.ru_maxrss/1000
+            process_memory = usage.ru_maxrss / 1000
 
             delta = datetime.datetime.now() - start
             delta_milliseconds = int(delta.total_seconds() * 1000)
@@ -202,583 +125,641 @@ def _performance_log(func):
     return wrapper
 
 
-def _retrieve_configuration(stream_id):
-    """ Retrieves the configuration from the Configuration Manager
+class SendingProcess:
+    """ SendingProcess """
 
-    Args:
-        stream_id: managed stream id
+    # DB references
+    _DB_CONNECTION_STRING = 'postgresql:///foglamp'
+    _pg_conn = ()
+    _pg_cur = ()
 
-    Returns:
-    Raises:
-    Todo:
-    """
+    # Filesystem path where the translators reside
+    _TRANSLATOR_PATH = "foglamp.translators."
 
-    global _config_from_manager
-    global _config
+    # Define the type of the plugin managed by the Sending Process
+    _PLUGIN_TYPE = "translator"
 
-    try:
-        _logger.debug("function _retrieve_configuration")
+    # Types of sources for the data blocks
+    _DATA_SOURCE_READINGS = "readings"
+    _DATA_SOURCE_STATISTICS = "statistics"
+    _DATA_SOURCE_AUDIT = "audit"
 
-        config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
+    # Configuration retrieved from the Configuration Manager
+    _CONFIG_CATEGORY_NAME = 'SEND_PR'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of the Sending Process'
 
-        _event_loop.run_until_complete(configuration_manager.create_category(config_category_name, _CONFIG_DEFAULT,
-                                                                             _CONFIG_CATEGORY_DESCRIPTION))
-        _config_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
-                                                              (config_category_name))
+    _CONFIG_DEFAULT = {
+        "enable": {
+            "description": "A switch that can be used to enable or disable execution of the sending process.",
+            "type": "boolean",
+            "default": "True"
+        },
+        "duration": {
+            "description": "How long the sending process should run before stopping.",
+            "type": "integer",
+            "default": "3"
+        },
+        "source": {
+            "description": "Defines the source of the data to be sent on the stream, "
+                           "this may be one of either readings, statistics or audit.",
+            "type": "string",
+            "default": _DATA_SOURCE_READINGS
+        },
+        "blockSize": {
+            "description": "The size of a block of readings to send in each transmission.",
+            "type": "integer",
+            "default": "5000"
+        },
+        "sleepInterval": {
+            "description": "A period of time, expressed in seconds, "
+                           "to wait between attempts to send readings when there are no readings to be sent.",
+            "type": "integer",
+            "default": "1"
+        },
+        "translator": {
+            "description": "The name of the translator to use to translate the readings "
+                           "into the output format and send them",
+            "type": "string",
+            "default": "omf_translator"
+        },
 
-        # Retrieves the configurations and apply the related conversions
-        _config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
-        _config['duration'] = int(_config_from_manager['duration']['value'])
-        _config['source'] = _config_from_manager['source']['value']
+    }
 
-        _config['blockSize'] = int(_config_from_manager['blockSize']['value'])
-        _config['sleepInterval'] = int(_config_from_manager['sleepInterval']['value'])
-        _config['translator'] = _config_from_manager['translator']['value']
+    def __init__(self):
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000003"]
+        # Configurations retrieved from the Configuration Manager
+        self._config = {
+            'enable': self._CONFIG_DEFAULT['enable']['default'],
+            'duration': int(self._CONFIG_DEFAULT['duration']['default']),
+            'source': self._CONFIG_DEFAULT['source']['default'],
+            'blockSize': int(self._CONFIG_DEFAULT['blockSize']['default']),
+            'sleepInterval': int(self._CONFIG_DEFAULT['sleepInterval']['default']),
+            'translator': self._CONFIG_DEFAULT['translator']['default'],
+        }
+        self._config_from_manager = ""
 
-        _logger.error(_message)
-        raise
+        # Plugin handling - loading an empty plugin
+        self._module_template = self._TRANSLATOR_PATH + "empty_translator"
+        self._plugin = importlib.import_module(self._module_template)
+        self._plugin_info = {
+            'name': "",
+            'version': "",
+            'type': "",
+            'interface': "",
+            'config': ""
+        }
 
+    def _retrieve_configuration(self, stream_id):
+        """ Retrieves the configuration from the Configuration Manager
 
-def _plugin_load():
-    """ Loads the plugin
+        Args:
+            stream_id: managed stream id
 
-    Args:
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    global _plugin
-
-    module_to_import = _TRANSLATOR_PATH + _config['translator']
-
-    try:
-        _plugin = importlib.import_module(module_to_import)
-
-    except ImportError:
-        _message = _MESSAGES_LIST["e000005"].format(module_to_import)
-
-        _logger.error(_message)
-        raise
-
-
-def _sending_process_init(stream_id):
-    """ Setup the correct state for the Sending Process
-
-    Args:
-        stream_id: managed stream id
-    Returns:
-        False = the sending process is disabled
-    Raises:
-        PluginInitialiseFailed
-    Todo:
-    """
-
-    global _plugin
-    global _plugin_info
-
-    global _pg_conn
-    global _pg_cur
-
-    exec_sending_process = False
-
-    try:
-        prg_text = ", for Linux (x86_64)"
-
-        start_message = "" + _MODULE_NAME + "" + prg_text + " " + __copyright__ + " "
-        _logger.info("{0}".format(start_message))
-        _logger.info(_MESSAGES_LIST["i000001"])
+        Returns:
+        Raises:
+        .. todo::
+        """
 
         try:
-            _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
-            _pg_cur = _pg_conn.cursor()
+            _logger.debug("function _retrieve_configuration")
 
-        except Exception as e:
-            _message = _MESSAGES_LIST["e000012"].format(str(e))
+            config_category_name = self._CONFIG_CATEGORY_NAME + "_" + str(stream_id)
+
+            _event_loop.run_until_complete(configuration_manager.create_category(config_category_name,
+                                                                                 self._CONFIG_DEFAULT,
+                                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
+            _config_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
+                                                                  (config_category_name))
+
+            # Retrieves the configurations and apply the related conversions
+            self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
+            self._config['duration'] = int(_config_from_manager['duration']['value'])
+            self._config['source'] = _config_from_manager['source']['value']
+
+            self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
+            self._config['sleepInterval'] = int(_config_from_manager['sleepInterval']['value'])
+            self._config['translator'] = _config_from_manager['translator']['value']
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000003"]
 
             _logger.error(_message)
             raise
 
-        if is_stream_id_valid(stream_id):
+    def _plugin_load(self):
+        """ Loads the plugin
 
-            _retrieve_configuration(stream_id)
+        Args:
+        Returns:
+        Raises:
+        Todo:
+        """
 
-            exec_sending_process = _config['enable']
+        module_to_import = self._TRANSLATOR_PATH + self._config['translator']
 
-            if _config['enable']:
+        try:
+            self._plugin = importlib.import_module(module_to_import)
 
-                _plugin_load()
-
-                _plugin._log_debug_level = _log_debug_level
-                _plugin._log_performance = _log_performance
-
-                _plugin_info = _plugin.plugin_retrieve_info(stream_id)
-
-                _logger.debug("_sending_process_init - {0} - {1} ".format(_plugin_info['name'],
-                                                                          _plugin_info['version']))
-
-                if _is_translator_valid():
-                    try:
-                        _plugin.plugin_init()
-
-                    except Exception as e:
-                        _message = _MESSAGES_LIST["e000018"].format(_plugin_info['name'])
-
-                        _logger.error(_message)
-                        raise PluginInitialiseFailed(e)
-
-            else:
-                _message = _MESSAGES_LIST["i000003"]
-
-                _logger.info(_message)
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000004"]
-
-        _logger.error(_message)
-        raise
-
-    return exec_sending_process
-
-
-def _sending_process_shutdown():
-    """ Terminates the sending process and the related plugin
-
-    Args:
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    global _plugin
-    global _pg_conn
-
-    try:
-        _plugin.plugin_shutdown()
-
-        _pg_conn.close()
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000007"]
-
-        _logger.error(_message)
-        raise
-
-
-@_performance_log
-def _load_data_into_memory_readings(last_object_id):
-    """ Extracts from the DB Layer data related to the readings loading into the memory
-
-    Args:
-    Returns:
-        raw_data: data extracted from the DB Layer
-    Raises:
-    Todo:
-    """
-
-    global _pg_cur
-
-    try:
-        _logger.debug("_load_data_into_memory_readings")
-
-        sql_cmd = "SELECT id, asset_code, user_ts, reading " \
-                  "FROM foglamp.readings " \
-                  "WHERE id> {0} " \
-                  "ORDER BY id LIMIT {1}" \
-            .format(last_object_id, _config['blockSize'])
-
-        _pg_cur.execute(sql_cmd)
-        raw_data = _pg_cur.fetchall()
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000009"]
-
-        _logger.error(_message)
-        raise
-
-    return raw_data
-
-
-def _load_data_into_memory_statistics(last_object_id):
-    """ Extracts from the DB Layer data related to the statistics loading into the memory
-    #
-
-    Args:
-    Returns:
-    Raises:
-    Todo: TO BE IMPLEMENTED
-    """
-
-    try:
-        _logger.debug("_load_data_into_memory_statistics {0}".format(last_object_id))
-
-        raw_data = ""
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000000"]
-
-        _logger.error(_message)
-        raise
-
-    return raw_data
-
-
-def _load_data_into_memory_audit(last_object_id):
-    """ Extracts from the DB Layer data related to the statistics audit into the memory
-    #
-
-    Args:
-    Returns:
-    Raises:
-    Todo: TO BE IMPLEMENTED
-    """
-
-    try:
-        _logger.debug("_load_data_into_memory_audit {0} ".format(last_object_id))
-
-        raw_data = ""
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000000"]
-
-        _logger.error(_message)
-        raise
-
-    return raw_data
-
-
-def _load_data_into_memory(last_object_id):
-    """ Identifies the data source requested and call the appropriate handler
-
-    Args:
-    Returns:
-    Raises:
-        UnknownDataSource
-    Todo:
-    """
-
-    try:
-        _logger.debug("_load_data_into_memory")
-
-        if _config['source'] == _DATA_SOURCE_READINGS:
-            data_to_send = _load_data_into_memory_readings(last_object_id)
-
-        elif _config['source'] == _DATA_SOURCE_STATISTICS:
-            data_to_send = _load_data_into_memory_statistics(last_object_id)
-
-        elif _config['source'] == _DATA_SOURCE_AUDIT:
-            data_to_send = _load_data_into_memory_audit(last_object_id)
-
-        else:
-            _message = _MESSAGES_LIST["e000008"]
+        except ImportError:
+            _message = _MESSAGES_LIST["e000005"].format(module_to_import)
 
             _logger.error(_message)
-            raise UnknownDataSource
+            raise
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000009"]
+    def start(self, stream_id):
+        """ Setup the correct state for the Sending Process
 
-        _logger.error(_message)
-        raise
+        Args:
+            stream_id: managed stream id
+        Returns:
+            False = the sending process is disabled
+        Raises:
+            PluginInitialiseFailed
+        Todo:
+        """
 
-    return data_to_send
+        exec_sending_process = False
 
+        try:
+            prg_text = ", for Linux (x86_64)"
 
-def last_object_id_read(stream_id):
-    """ Retrieves the starting point for the send operation
-
-    Args:
-        stream_id: managed stream id
-
-    Returns:
-        last_object_id: starting point for the send operation
-
-    Raises:
-    Todo:
-        it should evolve using the DB layer
-    """
-
-    global _pg_cur
-
-    try:
-        sql_cmd = "SELECT last_object FROM foglamp.streams WHERE id={0}".format(stream_id)
-
-        _pg_cur.execute(sql_cmd)
-        rows = _pg_cur.fetchall()
-
-        if len(rows) == 0:
-            _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
-            raise ValueError(_message)
-
-        elif len(rows) > 1:
-
-            _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
-            raise ValueError(_message)
-
-        else:
-            last_object_id = rows[0][0]
-            _logger.debug("DB row last_object_id |{0}| : ".format(last_object_id))
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000019"]
-
-        _logger.error(_message)
-        raise
-
-    return last_object_id
-
-
-def is_stream_id_valid(stream_id):
-    """ Checks if the provided stream id  is valid
-
-    Args:
-        stream_id: managed stream id
-    Returns:
-        True/False
-    Raises:
-    Todo:
-        it should evolve using the DB layer
-    """
-
-    global _pg_cur
-
-    try:
-        sql_cmd = "SELECT id, active FROM foglamp.streams WHERE id={0}".format(stream_id)
-
-        _pg_cur.execute(sql_cmd)
-        rows = _pg_cur.fetchall()
-
-        if len(rows) == 0:
-            _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
-            raise ValueError(_message)
-
-        elif len(rows) > 1:
-
-            _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
-            raise ValueError(_message)
-        else:
-            if rows[0][1]:
-                stream_id_valid = True
-            else:
-                _message = _MESSAGES_LIST["i000004"].format(stream_id)
-                _logger.info(_message)
-
-                stream_id_valid = False
-
-    except Exception as e:
-        _message = _MESSAGES_LIST["e000013"].format(str(e))
-
-        _logger.error(_message)
-        raise e
-
-    return stream_id_valid
-
-
-def last_object_id_update(new_last_object_id, stream_id):
-    """ Updates reached position
-
-    Args:
-        new_last_object_id: Last row id already sent
-        stream_id:          Managed stream id
-
-    Todo:
-        it should evolve using the DB layer
-
-    """
-    global _pg_cur
-    global _pg_conn
-
-    try:
-        _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
-
-        sql_cmd = "UPDATE foglamp.streams SET last_object={0}, ts=now()  WHERE id={1}" \
-            .format(new_last_object_id, stream_id)
-
-        _pg_cur.execute(sql_cmd)
-
-        _pg_conn.commit()
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000020"]
-
-        _logger.error(_message)
-        raise
-
-
-@_performance_log
-def _send_data_block(stream_id):
-    """ Sends a block of data to the destination using the configured plugin
-
-    Args:
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    data_sent = False
-    try:
-        _logger.debug("_send_data_block")
-
-        last_object_id = last_object_id_read(stream_id)
-
-        data_to_send = _load_data_into_memory(last_object_id)
-
-        if data_to_send:
-
-            data_sent, new_last_object_id, num_sent = _plugin.plugin_send(data_to_send, stream_id)
-
-            if data_sent:
-                last_object_id_update(new_last_object_id, stream_id)
-
-                update_statistics(num_sent)
-
-    except Exception:
-        _message = _MESSAGES_LIST["e000006"]
-
-        _logger.error(_message)
-        raise
-
-    return data_sent
-
-
-def _send_data(stream_id):
-    """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time
-
-    Args:
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    try:
-        _logger.debug("_send_data")
-
-        start_time = time.time()
-        elapsed_seconds = 0
-
-        while elapsed_seconds < _config['duration']:
+            start_message = "" + _MODULE_NAME + "" + prg_text + " " + __copyright__ + " "
+            _logger.info("{0}".format(start_message))
+            _logger.info(_MESSAGES_LIST["i000001"])
 
             try:
-                data_sent = _send_data_block(stream_id)
+                self._pg_conn = psycopg2.connect(self._DB_CONNECTION_STRING)
+                self._pg_cur = self._pg_conn.cursor()
 
             except Exception as e:
-                data_sent = False
+                _message = _MESSAGES_LIST["e000012"].format(str(e))
 
-                _message = _MESSAGES_LIST["e000021"].format(e)
                 _logger.error(_message)
+                raise
 
-            if not data_sent:
-                _logger.debug("_send_data - SLEEPING ")
-                time.sleep(_config['sleepInterval'])
+            if self._is_stream_id_valid(stream_id):
 
-            elapsed_seconds = time.time() - start_time
-            _logger.debug("_send_data - elapsed_seconds {0} ".format(elapsed_seconds))
+                self._retrieve_configuration(stream_id)
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000021"].format("")
+                exec_sending_process = self._config['enable']
 
-        _logger.error(_message)
-        raise
+                if self._config['enable']:
 
+                    self._plugin_load()
 
-def _is_translator_valid():
-    """ Checks if the translator has adequate characteristics to be used for sending of the data
+                    self._plugin._log_debug_level = _log_debug_level
+                    self._plugin._log_performance = _log_performance
 
-    Args:
-    Returns:
-        translator_ok: True if the translator is a proper one
-    Raises:
-    Todo:
-    """
+                    self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
-    translator_ok = False
+                    _logger.debug("_sending_process_init - {0} - {1} ".format(self._plugin_info['name'],
+                                                                              self._plugin_info['version']))
 
-    try:
-        if _plugin_info['type'] == _PLUGIN_TYPE and \
-           _plugin_info['name'] != "Empty translator":
+                    if self._is_translator_valid():
+                        try:
+                            self._plugin.plugin_init()
 
-            translator_ok = True
+                        except Exception as e:
+                            _message = _MESSAGES_LIST["e000018"].format(self._plugin_info['name'])
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000000"]
+                            _logger.error(_message)
+                            raise PluginInitialiseFailed(e)
+                    else:
+                        exec_sending_process = False
 
-        _logger.error(_message)
-        raise
+                        _message = _MESSAGES_LIST["e000015"].format(self._plugin_info['type'],
+                                                                    self._plugin_info['name'])
+                        _logger.warning(_message)
 
-    return translator_ok
+                else:
+                    _message = _MESSAGES_LIST["i000003"]
 
+                    _logger.info(_message)
 
-def update_statistics(num_sent):
-    """ Updates FogLAMP statistics
+        except Exception:
+            _message = _MESSAGES_LIST["e000004"]
 
-    Raises :
-    """
+            _logger.error(_message)
+            raise
 
-    try:
-        _event_loop.run_until_complete(statistics.update_statistics_value('SENT', num_sent))
+        return exec_sending_process
 
-    except Exception:
-        _message = _MESSAGES_LIST["e000010"]
+    def stop(self):
+        """ Terminates the sending process and the related plugin
 
-        _logger.error(_message)
-        raise
+        Args:
+        Returns:
+        Raises:
+        Todo:
+        """
 
+        try:
+            self._plugin.plugin_shutdown()
 
-def handling_input_parameters():
-    """ Handles command line parameters
+            self._pg_conn.close()
 
-    Raises :
-        InvalidCommandLineParameters
-    """
+        except Exception:
+            _message = _MESSAGES_LIST["e000007"]
 
-    global _log_performance
-    global _log_debug_level
+            _logger.error(_message)
+            raise
 
-    parser = argparse.ArgumentParser(prog=_MODULE_NAME)
-    parser.description = '%(prog)s -- extract the data from the storage subsystem ' \
-                         'and stream it to the translator for sending to the external system.'
-    parser.epilog = ' '
+    @_performance_log
+    def _load_data_into_memory_readings(self, last_object_id):
+        """ Extracts from the DB Layer data related to the readings loading into the memory
 
-    parser.add_argument('-s', '--stream_id',
-                        required=True,
-                        default=0,
-                        help='Define the stream id, it should be a number.')
+        Args:
+        Returns:
+            raw_data: data extracted from the DB Layer
+        Raises:
+        Todo:
+        """
 
-    parser.add_argument('-p', '--performance_log',
-                        default=False,
-                        choices=['y', 'yes', 'n', 'no'],
-                        help='Enable the logging of the performance.')
+        try:
+            _logger.debug("_load_data_into_memory_readings")
 
-    parser.add_argument('-d', '--debug_level',
-                        default='0',
-                        choices=['0', '1', '2', '3'],
-                        help='Enable/define the level of logging for debugging '
-                             '- level 0 only warnings/errors'
-                             '- level 1 info'
-                             '- level 2 debug'
-                             '- level 3 detailed debug - impacts performance')
+            sql_cmd = "SELECT id, asset_code, user_ts, reading " \
+                      "FROM foglamp.readings " \
+                      "WHERE id> {0} " \
+                      "ORDER BY id LIMIT {1}" \
+                .format(last_object_id, self._config['blockSize'])
 
-    namespace = parser.parse_args(sys.argv[1:])
+            self._pg_cur.execute(sql_cmd)
+            raw_data = self._pg_cur.fetchall()
 
-    _log_performance = True if namespace.performance_log in ['y', 'yes'] else False
-    _log_debug_level = int(namespace.debug_level)
+        except Exception:
+            _message = _MESSAGES_LIST["e000009"]
 
-    try:
-        stream_id = int(namespace.stream_id) if namespace.stream_id else 1
+            _logger.error(_message)
+            raise
 
-    except Exception as e:
-        _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))
+        return raw_data
 
-        _logger.error(_message)
-        raise e
+    # noinspection PyMethodMayBeStatic
+    def _load_data_into_memory_statistics(self, last_object_id):
+        """ Extracts from the DB Layer data related to the statistics loading into the memory
+        #
 
-    return stream_id
+        Args:
+        Returns:
+        Raises:
+        Todo: TO BE IMPLEMENTED
+        """
+
+        try:
+            _logger.debug("_load_data_into_memory_statistics {0}".format(last_object_id))
+
+            raw_data = ""
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000000"]
+
+            _logger.error(_message)
+            raise
+
+        return raw_data
+
+    # noinspection PyMethodMayBeStatic
+    def _load_data_into_memory_audit(self, last_object_id):
+        """ Extracts from the DB Layer data related to the statistics audit into the memory
+        #
+
+        Args:
+        Returns:
+        Raises:
+        Todo: TO BE IMPLEMENTED
+        """
+
+        try:
+            _logger.debug("_load_data_into_memory_audit {0} ".format(last_object_id))
+
+            raw_data = ""
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000000"]
+
+            _logger.error(_message)
+            raise
+
+        return raw_data
+
+    def _load_data_into_memory(self, last_object_id):
+        """ Identifies the data source requested and call the appropriate handler
+
+        Args:
+        Returns:
+        Raises:
+            UnknownDataSource
+        Todo:
+        """
+
+        try:
+            _logger.debug("_load_data_into_memory")
+
+            if self._config['source'] == self._DATA_SOURCE_READINGS:
+                data_to_send = self._load_data_into_memory_readings(last_object_id)
+
+            elif self._config['source'] == self._DATA_SOURCE_STATISTICS:
+                data_to_send = self._load_data_into_memory_statistics(last_object_id)
+
+            elif self._config['source'] == self._DATA_SOURCE_AUDIT:
+                data_to_send = self._load_data_into_memory_audit(last_object_id)
+
+            else:
+                _message = _MESSAGES_LIST["e000008"]
+
+                _logger.error(_message)
+                raise UnknownDataSource
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000009"]
+
+            _logger.error(_message)
+            raise
+
+        return data_to_send
+
+    def _last_object_id_read(self, stream_id):
+        """ Retrieves the starting point for the send operation
+
+        Args:
+            stream_id: managed stream id
+
+        Returns:
+            last_object_id: starting point for the send operation
+
+        Raises:
+        Todo:
+            it should evolve using the DB layer
+        """
+
+        try:
+            sql_cmd = "SELECT last_object FROM foglamp.streams WHERE id={0}".format(stream_id)
+
+            self._pg_cur.execute(sql_cmd)
+            rows = self._pg_cur.fetchall()
+
+            if len(rows) == 0:
+                _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
+                raise ValueError(_message)
+
+            elif len(rows) > 1:
+
+                _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
+                raise ValueError(_message)
+
+            else:
+                last_object_id = rows[0][0]
+                _logger.debug("db row last_object_id |{0}| : ".format(last_object_id))
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000019"]
+
+            _logger.error(_message)
+            raise
+
+        return last_object_id
+
+    def _is_stream_id_valid(self, stream_id):
+        """ Checks if the provided stream id  is valid
+
+        Args:
+            stream_id: managed stream id
+        Returns:
+            True/False
+        Raises:
+        Todo:
+            it should evolve using the DB layer
+        """
+
+        try:
+            sql_cmd = "SELECT id, active FROM foglamp.streams WHERE id={0}".format(stream_id)
+
+            self._pg_cur.execute(sql_cmd)
+            rows = self._pg_cur.fetchall()
+
+            if len(rows) == 0:
+                _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
+                raise ValueError(_message)
+
+            elif len(rows) > 1:
+
+                _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
+                raise ValueError(_message)
+            else:
+                if rows[0][1]:
+                    stream_id_valid = True
+                else:
+                    _message = _MESSAGES_LIST["i000004"].format(stream_id)
+                    _logger.info(_message)
+
+                    stream_id_valid = False
+
+        except Exception as e:
+            _message = _MESSAGES_LIST["e000013"].format(str(e))
+
+            _logger.error(_message)
+            raise e
+
+        return stream_id_valid
+
+    def _last_object_id_update(self, new_last_object_id, stream_id):
+        """ Updates reached position
+
+        Args:
+            new_last_object_id: Last row id already sent
+            stream_id:          Managed stream id
+
+        Todo:
+            it should evolve using the DB layer
+
+        """
+
+        try:
+            _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
+
+            sql_cmd = "UPDATE foglamp.streams SET last_object={0}, ts=now()  WHERE id={1}" \
+                .format(new_last_object_id, stream_id)
+
+            self._pg_cur.execute(sql_cmd)
+
+            self._pg_conn.commit()
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000020"]
+
+            _logger.error(_message)
+            raise
+
+    @_performance_log
+    def _send_data_block(self, stream_id):
+        """ Sends a block of data to the destination using the configured plugin
+
+        Args:
+        Returns:
+        Raises:
+        Todo:
+        """
+
+        data_sent = False
+        try:
+            _logger.debug("_send_data_block")
+
+            last_object_id = self._last_object_id_read(stream_id)
+
+            data_to_send = self._load_data_into_memory(last_object_id)
+
+            if data_to_send:
+
+                data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(data_to_send, stream_id)
+
+                if data_sent:
+                    self._last_object_id_update(new_last_object_id, stream_id)
+
+                    self._update_statistics(num_sent)
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000006"]
+
+            _logger.error(_message)
+            raise
+
+        return data_sent
+
+    def send_data(self, stream_id):
+        """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time
+
+        Args:
+        Returns:
+        Raises:
+        Todo:
+        """
+
+        try:
+            _logger.debug("_send_data")
+
+            start_time = time.time()
+            elapsed_seconds = 0
+
+            while elapsed_seconds < self._config['duration']:
+
+                try:
+                    data_sent = self._send_data_block(stream_id)
+
+                except Exception as e:
+                    data_sent = False
+
+                    _message = _MESSAGES_LIST["e000021"].format(e)
+                    _logger.error(_message)
+
+                if not data_sent:
+                    _logger.debug("_send_data - SLEEPING ")
+                    time.sleep(self._config['sleepInterval'])
+
+                elapsed_seconds = time.time() - start_time
+                _logger.debug("_send_data - elapsed_seconds {0} ".format(elapsed_seconds))
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000021"].format("")
+
+            _logger.error(_message)
+            raise
+
+    def _is_translator_valid(self):
+        """ Checks if the translator has adequate characteristics to be used for sending of the data
+
+        Args:
+        Returns:
+            translator_ok: True if the translator is a proper one
+        Raises:
+        Todo:
+        """
+
+        translator_ok = False
+
+        try:
+            if self._plugin_info['type'] == self._PLUGIN_TYPE and \
+               self._plugin_info['name'] != "Empty translator":
+
+                translator_ok = True
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000000"]
+
+            _logger.error(_message)
+            raise
+
+        return translator_ok
+
+    @staticmethod
+    def _update_statistics(num_sent):
+        """ Updates FogLAMP statistics
+
+        Raises :
+        """
+
+        try:
+            _event_loop.run_until_complete(statistics.update_statistics_value('SENT', num_sent))
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000010"]
+
+            _logger.error(_message)
+            raise
+
+    @staticmethod
+    def handling_input_parameters():
+        """ Handles command line parameters
+
+        Raises :
+            InvalidCommandLineParameters
+        """
+
+        parser = argparse.ArgumentParser(prog=_MODULE_NAME)
+        parser.description = '%(prog)s -- extract the data from the storage subsystem ' \
+                             'and stream it to the translator for sending to the external system.'
+        parser.epilog = ' '
+
+        parser.add_argument('-s', '--stream_id',
+                            required=True,
+                            default=0,
+                            help='Define the stream id, it should be a number.')
+
+        parser.add_argument('-p', '--performance_log',
+                            default=False,
+                            choices=['y', 'yes', 'n', 'no'],
+                            help='Enable the logging of the performance.')
+
+        parser.add_argument('-d', '--debug_level',
+                            default='0',
+                            choices=['0', '1', '2', '3'],
+                            help='Enable/define the level of logging for debugging '
+                                 '- level 0 only warnings/errors'
+                                 '- level 1 info'
+                                 '- level 2 debug'
+                                 '- level 3 detailed debug - impacts performance')
+
+        namespace = parser.parse_args(sys.argv[1:])
+
+        log_performance = True if namespace.performance_log in ['y', 'yes'] else False
+        log_debug_level = int(namespace.debug_level)
+
+        try:
+            stream_id = int(namespace.stream_id) if namespace.stream_id else 1
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))
+
+            _logger.error(_message)
+            raise InvalidCommandLineParameters(_message)
+
+        return stream_id, log_performance, log_debug_level
 
 if __name__ == "__main__":
 
+    sending_process = SendingProcess()
+
+    # Logger start
     try:
         _logger = logger.setup(__name__)
 
@@ -789,8 +770,9 @@ if __name__ == "__main__":
         print("{0} - ERROR - {1}".format(current_time, message))
         sys.exit(1)
 
+    # Command line parameter handling
     try:
-        input_stream_id = handling_input_parameters()
+        input_stream_id, _log_performance, _log_debug_level = sending_process.handling_input_parameters()
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000017"].format(str(ex))
@@ -799,6 +781,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     else:
+        # Main code
         try:
             # Set the debug level
             if _log_debug_level == 1:
@@ -809,15 +792,10 @@ if __name__ == "__main__":
 
             _event_loop = asyncio.get_event_loop()
 
-            if _sending_process_init(input_stream_id):
+            if sending_process.start(input_stream_id):
+                sending_process.send_data(input_stream_id)
 
-                if _is_translator_valid():
-                    _send_data(input_stream_id)
-                else:
-                    message = _MESSAGES_LIST["e000015"].format(_plugin_info['name'], _plugin_info['type'])
-                    _logger.warning(message)
-
-                _sending_process_shutdown()
+            sending_process.stop()
 
             _logger.info(_MESSAGES_LIST["i000002"])
 

@@ -3,7 +3,7 @@ FogLAMP
 
 This is the FogLAMP project.
 
-FogLAMP is an open source platform for the **Internet of Things**, it acts as an edge gateway between sensor devices and cloud storage systems, the FOG and other implmentsations of FogLAMP in an hierarchical environment. FogLAMP provides a means of buffering data coming from sensors and forwarding that data onto high level storage systems. It assumes the underlying network layer is not always connected or may not be reliable in industrial envionments. Data from sensors may be stored within FogLMAP for a number of days before being purged from the FogLAMP. During this time it may be sent to one or more historians and also accessed via a REST API for use by *local* analytical applications.
+FogLAMP is an open source platform for the **Internet of Things**, it acts as an edge gateway between sensor devices and cloud storage systems, the FOG and other implmentsations of FogLAMP in an hierarchical environment. FogLAMP provides a means of buffering data coming from sensors and forwarding that data onto high level storage systems. It assumes the underlying network layer is not always connected or may not be reliable in industrial envionments. Data from sensors may be stored within FogLAMP for a number of days before being purged from the FogLAMP. During this time it may be sent to one or more historians and also accessed via a REST API for use by *local* analytical applications.
 
 Architecture
 ------------

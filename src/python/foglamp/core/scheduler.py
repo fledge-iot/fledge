@@ -408,9 +408,9 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            # cls._logger = logger.setup(__name__)
+            cls._logger = logger.setup(__name__)
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
-            cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
 
         if cls._schedules_tbl is None:
             metadata = sqlalchemy.MetaData()

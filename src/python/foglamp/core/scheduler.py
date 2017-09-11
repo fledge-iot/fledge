@@ -592,7 +592,8 @@ class Scheduler(object):
                 self._engine.close()
             except Exception:
                 self._logger.exception('Unable to close the database connection pool')
-            self._engine = None
+            finally:
+                self._engine = None
 
         return True
 

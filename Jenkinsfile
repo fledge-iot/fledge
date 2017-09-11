@@ -63,6 +63,13 @@ node {
     // test report on the basis of suite and see report from Allure report plugin &
     // see test code coverage report from Coverage report Plugin only when suite choice_test_all and choice_test_python
     stage ("Test Report"){
+        // Preparing Database setup
+        sh "PGPASSWORD=postgres psql -U postgres -h localhost -f ${workspace_dir}/src/sql/foglamp_ddl.sql postgres"
+        sh "PGPASSWORD=foglamp psql -U foglamp -h localhost -f ${workspace_dir}/src/sql/foglamp_init_data.sql foglamp"
+        sh "PGPASSWORD=foglamp psql -c 'GRANT ALL ON DATABASE foglamp to jenkins;' -U foglamp -h localhost"
+        sh "PGPASSWORD=foglamp psql -c 'GRANT ALL ON SCHEMA foglamp to jenkins;' -U foglamp -h localhost"
+        sh "PGPASSWORD=foglamp psql -c 'ALTER ROLE jenkins IN DATABASE foglamp SET search_path = foglamp;' -U foglamp -h localhost"
+        sh "PGPASSWORD=foglamp psql -c 'GRANT ALL ON ALL TABLES IN SCHEMA foglamp TO jenkins;' -U foglamp -h localhost"
         try{
             dir ('src/python/'){
                 if (suite == "${choice_test_all}"){

@@ -40,7 +40,8 @@ async def delete_master_data():
     await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
     await conn.close()
 
-
+@pytest.allure.feature("api")
+@pytest.allure.story("configuration")
 class TestConfigMgr:
     @classmethod
     def setup_class(cls):
@@ -130,9 +131,7 @@ class TestConfigMgr:
         conn = http.client.HTTPConnection(BASE_URL)
         test_data_item = [key for key in test_data['value']][0]
 
-        # TODO: FOGL-482 endpoint is DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}/value
         conn.request("DELETE", '/foglamp/category/{}/{}/value'.format(test_data['key'], test_data_item))
-
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -147,6 +146,7 @@ class TestConfigMgr:
         conn.close()
         assert test_data['value'][test_data_item] == retval
 
+    @pytest.mark.skip(reason="FOGL-481")
     async def test_merge_category(self):
         # TODO: Delete all prints after verification of todo comments
         conn = http.client.HTTPConnection(BASE_URL)

@@ -7,59 +7,67 @@ node {
     // adding job parameters within jenkinsfile
     properties([
      parameters([
-       stringParam(
+      stringParam(
          defaultValue: 'git@github.com:foglamp/FogLAMP.git',
          description: 'Repository which you want to use in this (upstream) job',
          name: 'repo_url'
-       ),
-       stringParam(
+      ),
+      stringParam(
          defaultValue: 'develop',
          description: 'The git branch you would like to build with',
          name: 'branch'
-       ),
-       choice(
+      ),
+      choice(
          choices: "${choice_test_all}\n${choice_test_doc}\n${choice_test_python}",
          description: "run tests as per your choice",
          name: 'suite'
-       )
-       ])
+      )
+      ])
      ])
 
-    // Clean workspace before build starts
-    stage ("Clean Workspace"){
-        deleteDir()
-    }
+    try{
+        notifyBuild('STARTED')
 
-    // Clone git repo
-    stage ("Clone Git Repo"){
-        checkout([$class: 'GitSCM', branches: [[name: "${branch}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CheckoutOption', timeout: 20], [$class: 'CloneOption', depth: 0, noTags: false, reference: '', shallow: true, timeout: 20]], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'jenkins', refspec: "+refs/heads/${branch}:refs/remotes/origin/${branch}", url: '${repo_url}']]])
-    }
+        // Clean workspace before build starts
+        stage ("Clean Workspace"){
+            deleteDir()
+        }
 
-    // echo git branch, commit hash id, workspace dir for debugging
-    def gitBranch = branch.trim()
-    def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
-    def workspace_dir = sh(returnStdout: true, script: 'pwd').trim()
+        // Clone git repo
+        stage ("Clone Git Repo"){
+            checkout([$class: 'GitSCM', branches: [[name: "${branch}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CheckoutOption', timeout: 20], [$class: 'CloneOption', depth: 0, noTags: false, reference: '', shallow: true, timeout: 20]], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'jenkins', refspec: "+refs/heads/${branch}:refs/remotes/origin/${branch}", url: '${repo_url}']]])
+        }
 
-    // xterm ANSI colormap has GREEN foreground color
-    // error ANSI colormap has RED foreground color
-    ansiColor('xterm'){
-        echo "git branch is ${gitBranch}"
-        echo "git commit is $gitCommit"
-        echo "Workspace is ${workspace_dir}"
-    }
+        // echo git branch, commit hash id, workspace dir for debugging
+        def gitBranch = branch.trim()
+        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+        def workspace_dir = sh(returnStdout: true, script: 'pwd').trim()
 
-    // lint checking and see report from Pylint warnings plugin
-    stage ("Lint"){
-        dir ('src/python/'){
-            sh '''#!/bin/bash -l
-                 ./build.sh -l
-              '''
-            ansiColor('xterm'){
-                warnings([canComputeNew:false, canResolveRelativePaths:false, defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', parserConfigurations:[[parserName: 'PyLint', pattern: 'pylint_*.log']], unHealthy: ''])
+        // xterm ANSI colormap has GREEN foreground color
+        // error ANSI colormap has RED foreground color
+        ansiColor('xterm'){
+            echo "git branch is ${gitBranch}"
+            echo "git commit is $gitCommit"
+            echo "Workspace is ${workspace_dir}"
+        }
+
+        // lint checking and see report from Pylint warnings plugin
+        stage ("Lint"){
+            dir ('src/python/'){
+                sh '''#!/bin/bash -l
+                     ./build.sh -l
+                  '''
+                ansiColor('xterm'){
+                    warnings([canComputeNew:false, canResolveRelativePaths:false, defaultEncoding: '', excludePattern: '', healthy: '', includePattern: '', messagesPattern: '', parserConfigurations:[[parserName: 'PyLint', pattern: 'pylint_*.log']], unHealthy: ''])
+                }
             }
         }
+    }catch (e){
+        // If there was an exception thrown, the build failed
+        currentBuild.result = "FAILED"
+        notifyBuild(currentBuild.result)
+        throw e
     }
-
     // test report on the basis of suite and see report from Allure report plugin &
     // see test code coverage report from Coverage report Plugin only when suite choice_test_all and choice_test_python
     stage ("Test Report"){
@@ -107,6 +115,35 @@ node {
                 }
             allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/']]])
             }
+
+            // Success of failure, always send notifications
+            notifyBuild(currentBuild.result)
         }
     }
+}
+
+def notifyBuild(String buildStatus = 'STARTED'){
+  // build status of null means successful
+  buildStatus =  buildStatus ?: 'SUCCESSFUL'
+
+  // Default values
+  def colorName = 'RED'
+  def colorCode = '#FF0000'
+  def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+  def summary = "${subject} (${env.BUILD_URL})"
+
+  // Override default values based on build status
+  if (buildStatus == 'STARTED'){
+    color = 'YELLOW'
+    colorCode = '#FFFF00'
+  } else if (buildStatus == 'SUCCESSFUL'){
+    color = 'GREEN'
+    colorCode = '#00FF00'
+  } else{
+    color = 'RED'
+    colorCode = '#FF0000'
+  }
+
+  // Send notifications
+  slackSend (color: colorCode, message: summary)
 }

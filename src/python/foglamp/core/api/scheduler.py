@@ -234,9 +234,9 @@ async def get_schedules(request):
                 'name': sch.name,
                 'process_name': sch.process_name,
                 'type': Schedule.Type(int(sch.schedule_type)).name,
-                'repeat': str(sch.repeat),
+                'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+                'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0 ,
                 'day': sch.day,
-                'time': str(sch.time),
                 'exclusive': sch.exclusive
             })
 
@@ -267,9 +267,9 @@ async def get_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
-            'repeat': str(sch.repeat),
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
-            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
@@ -336,9 +336,9 @@ async def post_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
-            'repeat': str(sch.repeat),
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
-            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
@@ -392,9 +392,9 @@ async def update_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
-            'repeat': str(sch.repeat),
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
-            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 

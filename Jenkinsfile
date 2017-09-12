@@ -62,63 +62,69 @@ node {
                 }
             }
         }
+
+        // test report on the basis of suite and see report from Allure report plugin &
+        // see test code coverage report from Coverage report Plugin only when suite choice_test_all and choice_test_python
+        stage ("Test Report"){
+            try{
+                // Preparing Database setup
+                def jenkins_db_user = 'jenkins'
+                def foglamp_db_user = 'foglamp'
+                def postgres_db_user = 'postgres'
+
+                sh "PGPASSWORD=${postgres_db_user} psql -U ${postgres_db_user} -h localhost -f ${workspace_dir}/src/sql/foglamp_ddl.sql ${postgres_db_user}"
+                sh "PGPASSWORD=${foglamp_db_user} psql -U ${foglamp_db_user} -h localhost -f ${workspace_dir}/src/sql/foglamp_init_data.sql ${foglamp_db_user}"
+                sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON DATABASE ${foglamp_db_user} to ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
+                sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON SCHEMA ${foglamp_db_user} to ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
+                sh "PGPASSWORD=${foglamp_db_user} psql -c 'ALTER ROLE ${jenkins_db_user} IN DATABASE ${foglamp_db_user} SET search_path = ${foglamp_db_user};' -U ${foglamp_db_user} -h localhost"
+                sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON ALL TABLES IN SCHEMA ${foglamp_db_user} TO ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
+
+                dir ('src/python/'){
+                    if (suite == "${choice_test_all}"){
+                        echo "${choice_test_all}"
+                        sh '''#!/bin/bash -l
+                            ./build.sh -p
+                            ./build.sh --doc-build-test
+                            '''
+                        currentBuild.result = "SUCCESSFUL"
+                    }else if (suite == "${choice_test_doc}"){
+                        echo "${choice_test_doc}"
+                        sh '''#!/bin/bash -l
+                              ./build.sh --doc-build-test
+                            '''
+                        currentBuild.result = "SUCCESSFUL"
+                    }else if (suite == "${choice_test_python}"){
+                        echo "${choice_test_python}"
+                        sh '''#!/bin/bash -l
+                            ./build.sh -p
+                            '''
+                        currentBuild.result = "SUCCESSFUL"
+                    }
+                }
+            }
+            finally{
+                ansiColor('xterm'){
+                    if (suite != "${choice_test_doc}"){
+                        stage ("Test Coverage Report"){
+                            dir ('src/python/'){
+                                step([$class: 'CoberturaPublisher', autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', failNoReports: false, failUnhealthy: false, failUnstable: false, maxNumberOfBuilds: 0, onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false])
+                            }
+                        }
+                    }
+                allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/']]])
+                }
+
+                // Success of failure, always send notifications
+                if(currentBuild.result == 'SUCCESSFUL'){
+                    notifyBuild(currentBuild.result)
+                }
+            }
+        }
     }catch (e){
         // If there was an exception thrown, the build failed
         currentBuild.result = "FAILED"
         notifyBuild(currentBuild.result)
         throw e
-    }
-    // test report on the basis of suite and see report from Allure report plugin &
-    // see test code coverage report from Coverage report Plugin only when suite choice_test_all and choice_test_python
-    stage ("Test Report"){
-        try{
-            // Preparing Database setup
-            def jenkins_db_user = 'jenkins'
-            def foglamp_db_user = 'foglamp'
-            def postgres_db_user = 'postgres'
-
-            sh "PGPASSWORD=${postgres_db_user} psql -U ${postgres_db_user} -h localhost -f ${workspace_dir}/src/sql/foglamp_ddl.sql ${postgres_db_user}"
-            sh "PGPASSWORD=${foglamp_db_user} psql -U ${foglamp_db_user} -h localhost -f ${workspace_dir}/src/sql/foglamp_init_data.sql ${foglamp_db_user}"
-            sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON DATABASE ${foglamp_db_user} to ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
-            sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON SCHEMA ${foglamp_db_user} to ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
-            sh "PGPASSWORD=${foglamp_db_user} psql -c 'ALTER ROLE ${jenkins_db_user} IN DATABASE ${foglamp_db_user} SET search_path = ${foglamp_db_user};' -U ${foglamp_db_user} -h localhost"
-            sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON ALL TABLES IN SCHEMA ${foglamp_db_user} TO ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
-
-            dir ('src/python/'){
-                if (suite == "${choice_test_all}"){
-                    echo "${choice_test_all}"
-                    sh '''#!/bin/bash -l
-                        ./build.sh -p
-                        ./build.sh --doc-build-test
-                        '''
-                }else if (suite == "${choice_test_doc}"){
-                    echo "${choice_test_doc}"
-                    sh '''#!/bin/bash -l
-                          ./build.sh --doc-build-test
-                        '''
-                }else if (suite == "${choice_test_python}"){
-                    echo "${choice_test_python}"
-                    sh '''#!/bin/bash -l
-                        ./build.sh -p
-                        '''
-                }
-            }
-        }
-        finally{
-            ansiColor('xterm'){
-                if (suite != "${choice_test_doc}"){
-                    stage ("Test Coverage Report"){
-                        dir ('src/python/'){
-                            step([$class: 'CoberturaPublisher', autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', failNoReports: false, failUnhealthy: false, failUnstable: false, maxNumberOfBuilds: 0, onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false])
-                        }
-                    }
-                }
-            allure([includeProperties: false, jdk: '', properties: [], reportBuildPolicy: 'ALWAYS', results: [[path: 'allure/']]])
-            }
-
-            // Success of failure, always send notifications
-            notifyBuild(currentBuild.result)
-        }
     }
 }
 

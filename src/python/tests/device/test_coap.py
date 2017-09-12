@@ -21,7 +21,7 @@ __version__ = "${VERSION}"
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("coap")
+@pytest.allure.story("device")
 class TestIngestReadings(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """

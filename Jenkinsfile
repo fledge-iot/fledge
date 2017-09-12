@@ -63,14 +63,19 @@ node {
     // test report on the basis of suite and see report from Allure report plugin &
     // see test code coverage report from Coverage report Plugin only when suite choice_test_all and choice_test_python
     stage ("Test Report"){
-        // Preparing Database setup
-        sh "PGPASSWORD=postgres psql -U postgres -h localhost -f ${workspace_dir}/src/sql/foglamp_ddl.sql postgres"
-        sh "PGPASSWORD=foglamp psql -U foglamp -h localhost -f ${workspace_dir}/src/sql/foglamp_init_data.sql foglamp"
-        sh "PGPASSWORD=foglamp psql -c 'GRANT ALL ON DATABASE foglamp to jenkins;' -U foglamp -h localhost"
-        sh "PGPASSWORD=foglamp psql -c 'GRANT ALL ON SCHEMA foglamp to jenkins;' -U foglamp -h localhost"
-        sh "PGPASSWORD=foglamp psql -c 'ALTER ROLE jenkins IN DATABASE foglamp SET search_path = foglamp;' -U foglamp -h localhost"
-        sh "PGPASSWORD=foglamp psql -c 'GRANT ALL ON ALL TABLES IN SCHEMA foglamp TO jenkins;' -U foglamp -h localhost"
         try{
+            // Preparing Database setup
+            def jenkins_db_user = 'jenkins'
+            def foglamp_db_user = 'foglamp'
+            def postgres_db_user = 'postgres'
+
+            sh "PGPASSWORD=${postgres_db_user} psql -U ${postgres_db_user} -h localhost -f ${workspace_dir}/src/sql/foglamp_ddl.sql ${postgres_db_user}"
+            sh "PGPASSWORD=${foglamp_db_user} psql -U ${foglamp_db_user} -h localhost -f ${workspace_dir}/src/sql/foglamp_init_data.sql ${foglamp_db_user}"
+            sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON DATABASE ${foglamp_db_user} to ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
+            sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON SCHEMA ${foglamp_db_user} to ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
+            sh "PGPASSWORD=${foglamp_db_user} psql -c 'ALTER ROLE ${jenkins_db_user} IN DATABASE ${foglamp_db_user} SET search_path = ${foglamp_db_user};' -U ${foglamp_db_user} -h localhost"
+            sh "PGPASSWORD=${foglamp_db_user} psql -c 'GRANT ALL ON ALL TABLES IN SCHEMA ${foglamp_db_user} TO ${jenkins_db_user};' -U ${foglamp_db_user} -h localhost"
+
             dir ('src/python/'){
                 if (suite == "${choice_test_all}"){
                     echo "${choice_test_all}"

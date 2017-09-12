@@ -58,7 +58,8 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
                                        sqlalchemy.Column('exit_code', sqlalchemy.types.INT),
                                        sqlalchemy.Column('reason', sqlalchemy.types.VARCHAR(255)))
 
-
+@pytest.allure.feature("unit")
+@pytest.allure.story("scheduler get_tasks")
 class TestScheduler:
     @staticmethod
     async def drop_from_tasks():

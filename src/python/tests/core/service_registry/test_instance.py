@@ -18,7 +18,7 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("instance")
+@pytest.allure.story("service-registry instance")
 class TestInstance:
 
     def setup_method(self):

@@ -41,7 +41,7 @@ async def delete_master_data():
     await conn.close()
 
 @pytest.allure.feature("api")
-@pytest.allure.story("configuration")
+@pytest.allure.story("configuration-manager")
 class TestConfigMgr:
     @classmethod
     def setup_class(cls):

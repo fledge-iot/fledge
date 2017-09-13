@@ -8,13 +8,21 @@
 """
 
 import asyncpg
+import os
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__DB_NAME = 'foglamp'
+__CONNECTION = {'user': 'foglamp', 'database': 'foglamp'}
+
+try:
+  snap_user_common = os.environ['SNAP_USER_COMMON']
+  unix_socket_dir = "{}/tmp/".format(snap_user_common)
+  __CONNECTION['host'] = unix_socket_dir
+except KeyError:
+  pass
 
 
 async def read_scheduled_processes(scheduled_process_name=None):
@@ -28,7 +36,7 @@ async def read_scheduled_processes(scheduled_process_name=None):
         list of processes that can be scheduled
     """
 
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
     query = """
         SELECT name, script FROM scheduled_processes
     """
@@ -62,7 +70,7 @@ async def read_schedule(schedule_id=None):
         Detail for a single schedule or a list of schedules
     """
 
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
     query = """
         SELECT id::"varchar",
                 process_name,
@@ -114,7 +122,7 @@ async def read_task(task_id=None, state=None, name=None):
         Detail of a single task or a list of detail of tasks filtered optionally on name and/or state
     """
 
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
     query = """
         SELECT
             id::"varchar",
@@ -173,7 +181,7 @@ async def read_tasks_latest(name=None, state=None):
         Detail list of latest detail of each task filtered optionally on name and/or state
     """
 
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
     query = """
         SELECT DISTINCT ON (process_name)
             id::"varchar",

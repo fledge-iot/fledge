@@ -8,6 +8,7 @@
 """
 
 import asyncpg
+import os
 from collections import OrderedDict
 
 __author__ = "Amarendra Kumar Sinha"
@@ -15,13 +16,19 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__DB_NAME = 'foglamp'
+__CONNECTION = {'user': 'foglamp', 'database': 'foglamp'}
 
+try:
+  snap_user_common = os.environ['SNAP_USER_COMMON']
+  unix_socket_dir = "{}/tmp/".format(snap_user_common)
+  __CONNECTION['host'] = unix_socket_dir
+except KeyError:
+  pass
 
 async def read_statistics():
     """Fetch statistics snap shot from statistics table"""
 
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
     query = """
         SELECT RTRIM(key), description, value FROM statistics ORDER BY key
     """
@@ -47,7 +54,7 @@ async def read_statistics():
 async def read_statistics_history(limit=None):
     """Fetch list of statistics, count limited by 'limit' optional, from statistics_history table"""
 
-    conn = await asyncpg.connect(database=__DB_NAME)
+    conn = await asyncpg.connect(**__CONNECTION)
     _limit_clause = " LIMIT $1" if limit else " "
 
     query = """

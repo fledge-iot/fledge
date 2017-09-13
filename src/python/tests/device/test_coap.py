@@ -20,7 +20,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("TestIngestReadings")
+@pytest.allure.feature("unit")
+@pytest.allure.story("device")
 class TestIngestReadings(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """

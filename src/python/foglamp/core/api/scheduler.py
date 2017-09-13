@@ -566,11 +566,7 @@ async def get_tasks_latest(request):
     try:
         name = request.query.get('name') if 'name' in request.query else None
 
-        where_clause = None
-        if name:
-            where_clause = Task.attr.process_name.in_(name)
-
-        tasks = await server.Server.scheduler.get_tasks(where=where_clause, sort=(Task.attr.start_time.desc), limit=1)
+        tasks = await scheduler_db_services.read_tasks_latest(name)
 
         if not tasks:
             raise ValueError('No such Tasks')
@@ -578,13 +574,14 @@ async def get_tasks_latest(request):
         new_tasks = []
         for task in tasks:
             new_tasks.append(
-                {'id': str(task.task_id),
-                     'process_name': task.process_name,
-                     'state': Task.State(int(task.state)).name,
-                     'start_time': str(task.start_time),
-                     'end_time': str(task.end_time),
-                     'exit_code': task.exit_code,
-                     'reason': task.reason
+                {'id': str(task['id']),
+                 'process_name': task['process_name'],
+                 'state': [t.name for t in list(Task.State)][int(task['state']) - 1],
+                 'start_time': str(task['start_time']),
+                 'end_time': str(task['end_time']),
+                 'exit_code': task['exit_code'],
+                 'reason': task['reason'],
+                 'pid': task['pid']
                  }
             )
 

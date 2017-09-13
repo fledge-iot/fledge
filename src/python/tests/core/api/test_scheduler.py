@@ -47,6 +47,8 @@ async def delete_master_data():
     await asyncio.sleep(4)
 
 
+@pytest.allure.feature("api")
+@pytest.allure.story("scheduler")
 class TestScheduler:
     @classmethod
     def setup_class(cls):

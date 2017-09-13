@@ -22,7 +22,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("TestScheduler")
+@pytest.allure.feature("unit")
+@pytest.allure.story("scheduler")
 class TestScheduler:
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler)->None:
@@ -51,6 +52,38 @@ class TestScheduler:
 
         await scheduler.save_schedule(interval_schedule)  # Save schedule updates
         await asyncio.sleep(10)
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_interval_none_repeat(self):
+        """Tests an interval schedule where repeat is None
+        :assert:
+            A task starts immediately and doesn't repeat
+        """
+        scheduler = Scheduler()
+
+        await scheduler.populate_test_data()  # Populate data in foglamp.scheduled_processes
+        await scheduler.start()
+
+        # assert that the schedule type is interval
+        interval_schedule = IntervalSchedule()
+        assert interval_schedule.schedule_type == Schedule.Type.INTERVAL
+
+        interval_schedule.name = 'sleep10'
+        interval_schedule.process_name = "sleep10"
+
+        await scheduler.save_schedule(interval_schedule)
+
+        await asyncio.sleep(1)
+        # Assert only 1 task is running
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 1
+
+        await asyncio.sleep(12)
+        # Assert only 1 task is running
+        tasks = await scheduler.get_running_tasks()
+        assert len(tasks) == 0
 
         await self.stop_scheduler(scheduler)
 

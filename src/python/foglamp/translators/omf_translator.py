@@ -18,6 +18,7 @@ the table foglamp.streams and block_size are used for this handling
 import json
 import time
 import requests
+import os
 
 import psycopg2
 import asyncio
@@ -31,7 +32,15 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # FIXME: it will be removed using the DB layer
-_DB_URL = 'postgresql:///foglamp'
+_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
+try:
+    snap_user_common = os.environ['SNAP_USER_COMMON']
+    unix_socket_dir = "{}/tmp/".format(snap_user_common)
+    _CONNECTION_STRING = _CONNECTION_STRING + " host='" + unix_socket_dir + "'"
+except KeyError:
+    pass
+
+
 """DB references"""
 
 _module_name = "OMF Translator"
@@ -806,7 +815,7 @@ async def send_data_to_picromf():
     data_to_send = []
 
     try:
-        _pg_conn = psycopg2.connect(_DB_URL)
+        _pg_conn = psycopg2.connect(_CONNECTION_STRING)
         _pg_cur = _pg_conn.cursor()
 
         position = position_read()

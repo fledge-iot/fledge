@@ -20,6 +20,7 @@ import sqlalchemy as sa
 import asyncio
 from sqlalchemy.dialects.postgresql import JSONB
 from foglamp import statistics
+import os
 
 """CoAP handler for coap://other/sensor_readings URI
 """
@@ -45,7 +46,13 @@ class SensorValues(aiocoap.resource.Resource):
             _num_discarded_readings (int) : number of readings discarded through render_post method since initialization or since the last time _update_statistics() was called
     """
 
-    _CONNECTION_STRING = "dbname='foglamp'"
+    _CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
+    try:
+        snap_user_common = os.environ['SNAP_USER_COMMON']
+        unix_socket_dir = "{}/tmp/".format(snap_user_common)
+        _CONNECTION_STRING = _CONNECTION_STRING + " host='" + unix_socket_dir + "'"
+    except KeyError:
+        pass
 
     # 'postgresql://foglamp:foglamp@localhost:5432/foglamp'
 

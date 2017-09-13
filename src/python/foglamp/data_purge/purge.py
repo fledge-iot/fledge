@@ -37,6 +37,7 @@ import datetime
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 import time
+import os
 from foglamp import configuration_manager
 from foglamp import statistics
 
@@ -47,7 +48,16 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # Create Connection
-__CONNECTION_STRING = "postgres:///foglamp"
+__CONNECTION_STRING = "postgres://foglamp@/foglamp"
+try:
+  snap_user_common = os.environ['SNAP_USER_COMMON']
+  unix_socket_dir = "{}/tmp/".format(snap_user_common)
+  __CONNECTION_STRING = __CONNECTION_STRING + "?host=" + unix_socket_dir
+except KeyError:
+  pass
+
+
+
 __ENGINE = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=5, max_overflow=0)
 _DEFAULT_PURGE_CONFIG = {
     "age": {

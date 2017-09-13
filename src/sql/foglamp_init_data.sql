@@ -117,8 +117,9 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 insert into foglamp.scheduled_processes (name, script) values ('device', '["python3", "-m", "foglamp.device"]');
 insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
 insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.update_statistics_history"]');
-insert into foglamp.scheduled_processes (name, script) values ('statistics to pi', '["python3", "-m", "foglamp.translators.statistics_to_pi"]');
 insert into foglamp.scheduled_processes (name, script) values ('sending process', '["python3", "-m", "foglamp.sending_process", "-s", "1", "-d", "1"]');
+-- FogLAMP statistics into PI
+insert into foglamp.scheduled_processes (name, script) values ('statistics to pi','["python3", "-m", "foglamp.sending_process", "-s", "2", "-d", "1"]');
 
 -- Start the device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -138,22 +139,21 @@ schedule_time, schedule_interval, exclusive)
 values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
 NULL, '00:00:15', true);
 
--- Run FogLAMP statistics into PI  every 30 seconds
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
-NULL, '00:00:30', true);
-
-
 -- Run the sending process every 15 seconds
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
 NULL, '00:00:15', true);
 
+-- Run FogLAMP statistics into PI every 15 seconds
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
+NULL, '00:00:15', true);
+
 -- OMF translator configuration
 INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());
 INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF translator', 0,now());  
 
--- Temporary FogLAMP statistics into PI configuration
+-- FogLAMP statistics into PI configuration
 INSERT INTO foglamp.streams (id,destination_id,description, last_object,ts ) VALUES (2,1,'FogLAMP statistics into PI', 0,now());

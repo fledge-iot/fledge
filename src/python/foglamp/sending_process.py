@@ -33,7 +33,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 """ Module information """
 
-_MODULE_NAME = "Sending Process"
+_MODULE_NAME = "sending_process"
 
 _MESSAGES_LIST = {
 
@@ -53,7 +53,7 @@ _MESSAGES_LIST = {
     "e000006": "cannot complete the sending operation of a block of data.",
     "e000007": "cannot complete the termination of the sending process.",
     "e000008": "unknown data source, it could be only: readings, statistics or audit.",
-    "e000009": "cannot complete loading data into the memory.",
+    "e000009": "cannot load data into memory.",
     "e000010": "cannot update statistics.",
     "e000011": "invalid input parameters, the stream id is required and it should be a number - parameters |{0}|",
     "e000012": "cannot connect to the DB Layer - error details |{0}|",
@@ -66,7 +66,7 @@ _MESSAGES_LIST = {
     "e000019": "cannot retrieve the starting point for sending operation.",
     "e000020": "cannot update the reached position.",
     "e000021": "cannot complete the sending operation - error details |{0}|",
-    "e000022": "",
+    "e000022": "unable to convert in memory data structure related to the statistics data - error details |{0}|",
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -209,6 +209,7 @@ class SendingProcess:
             'config': ""
         }
 
+    # noinspection PyProtectedMember
     def _retrieve_configuration(self, stream_id):
         """ Retrieves the configuration from the Configuration Manager
 
@@ -220,9 +221,9 @@ class SendingProcess:
         .. todo::
         """
 
-        try:
-            _logger.debug("function _retrieve_configuration")
+        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
 
+        try:
             config_category_name = self._CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
             _event_loop.run_until_complete(configuration_manager.create_category(config_category_name,
@@ -266,6 +267,7 @@ class SendingProcess:
             _logger.error(_message)
             raise
 
+    # noinspection PyProtectedMember
     def start(self, stream_id):
         """ Setup the correct state for the Sending Process
 
@@ -279,6 +281,8 @@ class SendingProcess:
         """
 
         exec_sending_process = False
+
+        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
 
         try:
             prg_text = ", for Linux (x86_64)"
@@ -312,8 +316,9 @@ class SendingProcess:
 
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
-                    _logger.debug("_sending_process_init - {0} - {1} ".format(self._plugin_info['name'],
-                                                                              self._plugin_info['version']))
+                    _logger.debug("{0} - {1} - {2} ".format(sys._getframe().f_code.co_name,
+                                                            self._plugin_info['name'],
+                                                            self._plugin_info['version']))
 
                     if self._is_translator_valid():
                         try:
@@ -364,98 +369,26 @@ class SendingProcess:
             _logger.error(_message)
             raise
 
-    @_performance_log
-    def _load_data_into_memory_readings(self, last_object_id):
-        """ Extracts from the DB Layer data related to the readings loading into the memory
-
-        Args:
-        Returns:
-            raw_data: data extracted from the DB Layer
-        Raises:
-        Todo:
-        """
-
-        try:
-            _logger.debug("_load_data_into_memory_readings")
-
-            sql_cmd = "SELECT id, asset_code, user_ts, reading " \
-                      "FROM foglamp.readings " \
-                      "WHERE id> {0} " \
-                      "ORDER BY id LIMIT {1}" \
-                .format(last_object_id, self._config['blockSize'])
-
-            self._pg_cur.execute(sql_cmd)
-            raw_data = self._pg_cur.fetchall()
-
-        except Exception:
-            _message = _MESSAGES_LIST["e000009"]
-
-            _logger.error(_message)
-            raise
-
-        return raw_data
-
-    # noinspection PyMethodMayBeStatic
-    def _load_data_into_memory_statistics(self, last_object_id):
-        """ Extracts from the DB Layer data related to the statistics loading into the memory
-        #
-
-        Args:
-        Returns:
-        Raises:
-        Todo: TO BE IMPLEMENTED
-        """
-
-        try:
-            _logger.debug("_load_data_into_memory_statistics {0}".format(last_object_id))
-
-            raw_data = ""
-
-        except Exception:
-            _message = _MESSAGES_LIST["e000000"]
-
-            _logger.error(_message)
-            raise
-
-        return raw_data
-
-    # noinspection PyMethodMayBeStatic
-    def _load_data_into_memory_audit(self, last_object_id):
-        """ Extracts from the DB Layer data related to the statistics audit into the memory
-        #
-
-        Args:
-        Returns:
-        Raises:
-        Todo: TO BE IMPLEMENTED
-        """
-
-        try:
-            _logger.debug("_load_data_into_memory_audit {0} ".format(last_object_id))
-
-            raw_data = ""
-
-        except Exception:
-            _message = _MESSAGES_LIST["e000000"]
-
-            _logger.error(_message)
-            raise
-
-        return raw_data
-
     def _load_data_into_memory(self, last_object_id):
         """ Identifies the data source requested and call the appropriate handler
 
         Args:
         Returns:
+            data_to_send: a list of elements having each the structure :
+                row id     - integer
+                asset code - string
+                timestamp  - timestamp
+                value      - dictionary, like for example {"lux": 53570.172}
+
         Raises:
             UnknownDataSource
         Todo:
         """
 
-        try:
-            _logger.debug("_load_data_into_memory")
+        # noinspection PyProtectedMember
+        _logger.debug("{0} ".format(sys._getframe().f_code.co_name))
 
+        try:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
                 data_to_send = self._load_data_into_memory_readings(last_object_id)
 
@@ -478,6 +411,143 @@ class SendingProcess:
             raise
 
         return data_to_send
+
+    @_performance_log
+    def _load_data_into_memory_readings(self, last_object_id):
+        """ Extracts from the DB Layer data related to the readings loading into a memory structure
+
+        Args:
+            last_object_id: last value already handled
+        Returns:
+            raw_data: data extracted from the DB Layer
+        Raises:
+        Todo:
+        """
+
+        # noinspection PyProtectedMember
+        _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
+
+        try:
+            sql_cmd = "SELECT id, asset_code, user_ts, reading " \
+                      "FROM foglamp.readings " \
+                      "WHERE id> {0} " \
+                      "ORDER BY id LIMIT {1}" \
+                .format(last_object_id,
+                        self._config['blockSize'])
+
+            self._pg_cur.execute(sql_cmd)
+            raw_data = self._pg_cur.fetchall()
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000009"]
+
+            _logger.error(_message)
+            raise
+
+        return raw_data
+
+    @_performance_log
+    def _load_data_into_memory_statistics(self, last_object_id):
+        """ Extracts statistics data from the DB Layer, converts it into the proper format
+            loading into a memory structure
+
+        Args:
+            last_object_id: last row_id already handled
+
+        Returns:
+            converted_data: data extracted from the DB Layer and converted in the proper format
+        Raises:
+        Todo:
+        """
+
+        # noinspection PyProtectedMember
+        _logger.debug("{0} - position |{1}| ".format(sys._getframe().f_code.co_name, last_object_id))
+
+        try:
+            sql_cmd = "SELECT id, key, ts, value " \
+                      "FROM foglamp.statistics_history " \
+                      "WHERE id> {0} " \
+                      "ORDER BY id LIMIT {1}" \
+                .format(last_object_id,
+                        self._config['blockSize'])
+
+            self._pg_cur.execute(sql_cmd)
+            raw_data = self._pg_cur.fetchall()
+
+            converted_data = self._transform_in_memory_data_statistics(raw_data)
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000009"]
+
+            _logger.error(_message)
+            raise
+
+        return converted_data
+
+    @staticmethod
+    def _transform_in_memory_data_statistics(raw_data):
+        """ Transforms statistics data retrieved form the DB layer to the proper format
+
+        Args:
+            raw_data: list to convert having the structure
+                row id     : int
+                asset code : string
+                timestamp  : timestamp
+                value      : int
+
+        Returns:
+            converted_data: converted data
+        Raises:
+        Todo:
+        """
+
+        converted_data = []
+
+        try:
+            for item in raw_data:
+
+                # Removes spaces
+                asset_code = item[1].replace(" ", "")
+
+                new_data = [item[0],             # Row id
+                            asset_code,          # Asset code
+                            item[2],             # Timestamp
+                            {"value": item[3]}]  # Converts raw data to a Dictionary
+
+                converted_data.append(new_data)
+
+        except Exception as e:
+            _message = _MESSAGES_LIST["e000022"].format(str(e))
+
+            _logger.error(_message)
+            raise e
+
+        return converted_data
+
+    # noinspection PyMethodMayBeStatic
+    def _load_data_into_memory_audit(self, last_object_id):
+        """ Extracts from the DB Layer data related to the statistics audit into the memory
+        #
+
+        Args:
+        Returns:
+        Raises:
+        Todo: TO BE IMPLEMENTED
+        """
+
+        # noinspection PyProtectedMember
+        _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
+
+        try:
+            raw_data = ""
+
+        except Exception:
+            _message = _MESSAGES_LIST["e000000"]
+
+            _logger.error(_message)
+            raise
+
+        return raw_data
 
     def _last_object_id_read(self, stream_id):
         """ Retrieves the starting point for the send operation
@@ -510,7 +580,7 @@ class SendingProcess:
 
             else:
                 last_object_id = rows[0][0]
-                _logger.debug("db row last_object_id |{0}| : ".format(last_object_id))
+                _logger.debug("db row last_object_id |{0}| ".format(last_object_id))
 
         except Exception:
             _message = _MESSAGES_LIST["e000019"]
@@ -602,9 +672,11 @@ class SendingProcess:
         """
 
         data_sent = False
-        try:
-            _logger.debug("_send_data_block")
 
+        # noinspection PyProtectedMember
+        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+
+        try:
             last_object_id = self._last_object_id_read(stream_id)
 
             data_to_send = self._load_data_into_memory(last_object_id)
@@ -626,6 +698,7 @@ class SendingProcess:
 
         return data_sent
 
+    # noinspection PyProtectedMember
     def send_data(self, stream_id):
         """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time
 
@@ -635,9 +708,9 @@ class SendingProcess:
         Todo:
         """
 
-        try:
-            _logger.debug("_send_data")
+        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
 
+        try:
             start_time = time.time()
             elapsed_seconds = 0
 
@@ -653,11 +726,11 @@ class SendingProcess:
                     _logger.error(_message)
 
                 if not data_sent:
-                    _logger.debug("_send_data - SLEEPING ")
+                    _logger.debug("{0} - sleeping".format(sys._getframe().f_code.co_name))
                     time.sleep(self._config['sleepInterval'])
 
                 elapsed_seconds = time.time() - start_time
-                _logger.debug("_send_data - elapsed_seconds {0} ".format(elapsed_seconds))
+                _logger.debug("{0} - elapsed_seconds {1}".format(sys._getframe().f_code.co_name, elapsed_seconds))
 
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
@@ -763,6 +836,8 @@ if __name__ == "__main__":
     try:
         _logger = logger.setup(__name__)
 
+        _logger.debug("TEST 1 ")
+
     except Exception as ex:
         message = _MESSAGES_LIST["e000001"].format(str(ex))
         current_time = time.strftime("%Y-%m-%d %H:%M:%S:")
@@ -781,7 +856,15 @@ if __name__ == "__main__":
         sys.exit(1)
 
     else:
+        #
         # Main code
+        #
+
+        # Reconfigures the logger using the Stream ID to differentiates logging from different processes
+        _logger.removeHandler(_logger.handle)
+        logger_name = _MODULE_NAME + "_" + str(input_stream_id)
+        _logger = logger.setup(logger_name)
+
         try:
             # Set the debug level
             if _log_debug_level == 1:

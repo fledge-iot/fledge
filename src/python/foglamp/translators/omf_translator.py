@@ -33,7 +33,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_MODULE_NAME = "OMF Translator"
+_MODULE_NAME = "omf_translator"
 
 # DB references
 _DB_CONNECTION_STRING = 'postgresql:///foglamp'
@@ -56,7 +56,7 @@ _MESSAGES_LIST = {
     "e000007": "an error occurred during the OMF request - error details |{0}|",
     "e000008": "cannot complete the retrieval of the plugin information - error details |{0}|",
     "e000009": "cannot retrieve information about the sensor.",
-    "e000010": "unable to extend the in memory structure with new data.",
+    "e000010": "unable to extend the memory structure with new data.",
     "e000011": "cannot complete the termination of the OMF translator - error details |{0}|",
 
 }
@@ -74,7 +74,7 @@ _CONFIG_DEFAULT_OMF = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_9020"
+        "default": "omf_translator_0001"
 
     },
     "OMFMaxRetry": {
@@ -117,7 +117,7 @@ _CONFIG_DEFAULT_OMF_TYPES = {
     "type-id": {
         "description": "Identify sensor and measurement types",
         "type": "integer",
-        "default": "9021"
+        "default": "0001"
     },
 }
 
@@ -241,7 +241,8 @@ def _performance_log(func):
     return wrapper
 
 
-def _configuration_retrieve(stream_id):
+# noinspection PyProtectedMember
+def _retrieve_configuration(stream_id):
     """ Retrieves the configuration from the Configuration Manager
 
     Returns:
@@ -254,7 +255,7 @@ def _configuration_retrieve(stream_id):
     global _config_omf_types
     global _config_omf_types_from_manager
 
-    _logger.debug("{0} - _configuration_retrieve".format(_MODULE_NAME))
+    _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
 
     # Configuration related to the OMF Translator
     try:
@@ -308,6 +309,7 @@ def _configuration_retrieve(stream_id):
         raise
 
 
+# noinspection PyProtectedMember
 def plugin_retrieve_info(stream_id):
     """ Allows the device service to retrieve information from the plugin
 
@@ -324,25 +326,31 @@ def plugin_retrieve_info(stream_id):
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
+        logger_name = _MODULE_NAME + "_" + str(stream_id)
+
         if _log_debug_level == 0:
-            _logger = logger.setup(_MODULE_NAME)
+            _logger = logger.setup(logger_name)
 
         elif _log_debug_level == 1:
-            _logger = logger.setup(_MODULE_NAME, level=logging.INFO)
+            _logger = logger.setup(logger_name, level=logging.INFO)
 
         elif _log_debug_level >= 2:
-            _logger = logger.setup(_MODULE_NAME, level=logging.DEBUG)
+            _logger = logger.setup(logger_name, level=logging.DEBUG)
 
-    except Exception as e:
-        _message = _MESSAGES_LIST["e000005"].format(str(e))
+    except Exception as ex:
+        _message = _MESSAGES_LIST["e000005"].format(str(ex))
         _current_time = time.strftime("%Y-%m-%d %H:%M:%S:")
 
         print ("{0} - ERROR - {1}".format(_current_time, _message))
 
+        raise ex
+
+    _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+
     try:
         _event_loop = asyncio.get_event_loop()
 
-        _configuration_retrieve(stream_id)
+        _retrieve_configuration(stream_id)
 
         plugin_info = {
             'name': "OMF Translator",
@@ -361,6 +369,7 @@ def plugin_retrieve_info(stream_id):
     return plugin_info
 
 
+# noinspection PyProtectedMember
 def plugin_init():
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
 
@@ -374,8 +383,9 @@ def plugin_init():
     global _pg_cur
     global _recreate_omf_objects
 
+    _logger.debug("{0} - URL {1}".format(sys._getframe().f_code.co_name, _config['URL']))
+
     try:
-        _logger.debug("plugin_init - URL {0}".format(_config['URL']))
 
         _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
         _pg_cur = _pg_conn.cursor()

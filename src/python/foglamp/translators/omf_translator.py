@@ -24,6 +24,7 @@ import json
 import requests
 import logging
 import psycopg2
+import os
 
 from foglamp import logger, configuration_manager
 
@@ -36,9 +37,19 @@ __version__ = "${VERSION}"
 _MODULE_NAME = "omf_translator"
 
 # DB references
-_DB_CONNECTION_STRING = 'postgresql:///foglamp'
+# FIXME: it will be removed using the DB layer
+_DB_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
+try:
+    snap_user_common = os.environ['SNAP_USER_COMMON']
+    unix_socket_dir = "{}/tmp/".format(snap_user_common)
+    _DB_CONNECTION_STRING = _DB_CONNECTION_STRING + " host='" + unix_socket_dir + "'"
+except KeyError:
+    pass
+
+
 _pg_conn = ()
 _pg_cur = ()
+
 
 # Messages used for Information, Warning and Error notice
 _MESSAGES_LIST = {

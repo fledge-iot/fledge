@@ -24,6 +24,7 @@ import psycopg2
 import importlib
 import logging
 import datetime
+import os
 
 from foglamp import logger, statistics, configuration_manager
 
@@ -129,7 +130,9 @@ class SendingProcess:
     """ SendingProcess """
 
     # DB references
-    _DB_CONNECTION_STRING = 'postgresql:///foglamp'
+    # FIXME: it will be removed using the DB layer
+    _DB_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
+
     _pg_conn = ()
     _pg_cur = ()
 
@@ -186,6 +189,13 @@ class SendingProcess:
     }
 
     def __init__(self):
+
+        try:
+            snap_user_common = os.environ['SNAP_USER_COMMON']
+            unix_socket_dir = "{}/tmp/".format(snap_user_common)
+            self._DB_CONNECTION_STRING = self._DB_CONNECTION_STRING + " host='" + unix_socket_dir + "'"
+        except KeyError:
+            pass
 
         # Configurations retrieved from the Configuration Manager
         self._config = {

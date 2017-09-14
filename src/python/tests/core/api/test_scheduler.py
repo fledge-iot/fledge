@@ -36,7 +36,7 @@ async def add_master_data():
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
     await conn.close()
-    await asyncio.sleep(14)
+    await asyncio.sleep(4)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -44,7 +44,7 @@ async def delete_master_data():
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
     await conn.close()
-    await asyncio.sleep(14)
+    await asyncio.sleep(4)
 
 
 class TestScheduler:
@@ -53,13 +53,13 @@ class TestScheduler:
         asyncio.get_event_loop().run_until_complete(add_master_data())
         from subprocess import call
         call(["foglamp", "start"])
-        time.sleep(14)
+        time.sleep(4)
 
     @classmethod
     def teardown_class(cls):
         from subprocess import call
         call(["foglamp", "stop"])
-        time.sleep(14)
+        time.sleep(4)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 
     def setup_method(self, method):
@@ -124,7 +124,7 @@ class TestScheduler:
         schedule_id = self._create_schedule(data)
 
         # Secondly, update the schedule
-        up_data = {"name": "test_update_sch_upd", "repeat": "4", "type": 4}
+        up_data = {"name": "test_update_sch_upd", "repeat": 91234, "type": 4}
         r = requests.put(BASE_URL+'/schedule/' + schedule_id, data=json.dumps(up_data), headers=headers)
         retval = dict(r.json())
         assert uuid.UUID(retval['schedule']['id'], version=4)
@@ -136,7 +136,7 @@ class TestScheduler:
         assert retval['schedule']['process_name'] == data['process_name']
 
         # Below values are changed
-        assert retval['schedule']['repeat'] == 4
+        assert retval['schedule']['repeat'] == 91234
         assert retval['schedule']['name'] == up_data['name']
         assert retval['schedule']['type'] == Schedule.Type(int(up_data['type'])).name
 
@@ -216,7 +216,7 @@ class TestScheduler:
         assert retval['message'] == "Schedule started successfully"
 
         # Allow sufficient time for task record to be created
-        await asyncio.sleep(14)
+        await asyncio.sleep(4)
 
         # Verify with Task record as to one task has been created and running
         r = requests.get(BASE_URL+'/task')

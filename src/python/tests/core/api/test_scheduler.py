@@ -98,7 +98,7 @@ class TestScheduler:
 
     @pytest.mark.run(order=3)
     async def test_post_schedule(self):
-        data = {"type": 3, "name": "test_post_sch", "process_name": "testsleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_post_sch", "process_name": "testsleep30", "repeat": 3600}
         r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
 
@@ -107,10 +107,10 @@ class TestScheduler:
         assert uuid.UUID(retval['schedule']['id'], version=4)
         assert retval['schedule']['exclusive'] is True
         assert retval['schedule']['type'] == Schedule.Type(int(data['type'])).name
-        assert retval['schedule']['time'] == "None"
+        assert retval['schedule']['time'] == 0
         assert retval['schedule']['day'] is None
         assert retval['schedule']['process_name'] == data['process_name']
-        assert retval['schedule']['repeat'] == '1:00:00'
+        assert retval['schedule']['repeat'] == 3600
         assert retval['schedule']['name'] == data['name']
 
         # Assert schedule is really created in DB
@@ -122,30 +122,30 @@ class TestScheduler:
     @pytest.mark.run(order=4)
     async def test_update_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_update_sch", "process_name": "testsleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_update_sch", "process_name": "testsleep30", "repeat": 3600}
         schedule_id = self._create_schedule(data)
 
         # Secondly, update the schedule
-        up_data = {"name": "test_update_sch_upd", "repeat": "4", "type": 4}
+        up_data = {"name": "test_update_sch_upd", "repeat": 91234, "type": 4}
         r = requests.put(BASE_URL+'/schedule/' + schedule_id, data=json.dumps(up_data), headers=headers)
         retval = dict(r.json())
         assert uuid.UUID(retval['schedule']['id'], version=4)
 
         # These values did not change
         assert retval['schedule']['exclusive'] is True
-        assert retval['schedule']['time'] == "None"
+        assert retval['schedule']['time'] == 0
         assert retval['schedule']['day'] is None
         assert retval['schedule']['process_name'] == data['process_name']
 
         # Below values are changed
-        assert retval['schedule']['repeat'] == '0:00:04'
+        assert retval['schedule']['repeat'] == 91234
         assert retval['schedule']['name'] == up_data['name']
         assert retval['schedule']['type'] == Schedule.Type(int(up_data['type'])).name
 
     @pytest.mark.run(order=5)
     async def test_delete_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_delete_sch", "process_name": "testsleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_delete_sch", "process_name": "testsleep30", "repeat": 3600}
         schedule_id = self._create_schedule(data)
 
         # Now check the schedules
@@ -166,7 +166,7 @@ class TestScheduler:
     @pytest.mark.run(order=6)
     async def test_get_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_sch", "process_name": "testsleep30", "repeat": "3600"}
+        data = {"type": 3, "name": "test_get_sch", "process_name": "testsleep30", "repeat": 3600}
         schedule_id = self._create_schedule(data)
 
         # Now check the schedule
@@ -177,16 +177,16 @@ class TestScheduler:
         assert retval['id'] == schedule_id
         assert retval['exclusive'] is True
         assert retval['type'] == Schedule.Type(int(data['type'])).name
-        assert retval['time'] == "None"
+        assert retval['time'] == 0
         assert retval['day'] is None
         assert retval['process_name'] == data['process_name']
-        assert retval['repeat'] == '1:00:00'
+        assert retval['repeat'] == 3600
         assert retval['name'] == data['name']
 
     @pytest.mark.run(order=7)
     async def test_get_schedules(self):
         # First create two schedules to get the schedule_id
-        data1 = {"type": 3, "name": "test_get_schA", "process_name": "testsleep30", "repeat": "3600"}
+        data1 = {"type": 3, "name": "test_get_schA", "process_name": "testsleep30", "repeat": 3600}
         schedule_id1 = self._create_schedule(data1)
 
         await asyncio.sleep(4)
@@ -229,4 +229,4 @@ class TestScheduler:
         for tasks in retval['tasks']:
             if tasks['process_name'] == data['process_name']:
                 l_task_state.append(tasks['state'])
-        assert l_task_state.count('RUNNING') == 1
+        assert 1 == l_task_state.count('RUNNING')

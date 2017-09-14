@@ -257,12 +257,12 @@ def get_statistics(_stats_type=None, _out_file=None):
             # print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
-        stat += (u"\nMin message rate::{}".format(min(_msg_rate)))
-        stat += (u"\nMax message rate::{}".format(max(_msg_rate)))
-        stat += (u"\nAvg message rate::{}".format(sum(_msg_rate)/_num_iterated))
-        stat += (u"\nMin Byte rate::{}".format(min(_byte_rate)))
-        stat += (u"\nMax Byte rate::{}".format(max(_byte_rate)))
-        stat += (u"\nAvg Byte rate::{}".format(sum(_byte_rate)/_num_iterated))
+        stat += (u"\nMin messages/second::{}".format(min(_msg_rate)))
+        stat += (u"\nMax messages/second::{}".format(max(_msg_rate)))
+        stat += (u"\nAvg messages/second::{}".format(sum(_msg_rate)/_num_iterated))
+        stat += (u"\nMin Bytes/second::{}".format(min(_byte_rate)))
+        stat += (u"\nMax Bytes/second::{}".format(max(_byte_rate)))
+        stat += (u"\nAvg Bytes/second::{}".format(sum(_byte_rate)/_num_iterated))
     if _out_file:
         with open(_out_file, 'w') as f:
             f.write(stat)

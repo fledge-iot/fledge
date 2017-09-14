@@ -17,7 +17,8 @@ __version__ = "${VERSION}"
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.allure.feature("service-registry")
+@pytest.allure.feature("unit")
+@pytest.allure.story("service-registry instance")
 class TestInstance:
 
     def setup_method(self):

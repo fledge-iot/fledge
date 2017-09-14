@@ -17,6 +17,7 @@ Note :
 import json
 import time
 import requests
+import os
 
 from foglamp import logger
 
@@ -35,7 +36,14 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # FIXME: it will be removed using the DB layer
-_DB_URL = 'postgresql:///foglamp'
+_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
+try:
+    snap_user_common = os.environ['SNAP_USER_COMMON']
+    unix_socket_dir = "{}/tmp/".format(snap_user_common)
+    _CONNECTION_STRING = _CONNECTION_STRING + " host='" + unix_socket_dir + "'"
+except KeyError:
+    pass
+
 """DB references"""
 
 _module_name = "statistics_to_pi"
@@ -804,7 +812,7 @@ async def _send_data_to_picromf():
 
     try:
         # Reads the position from which the data should be send
-        _pg_conn = psycopg2.connect(_DB_URL)
+        _pg_conn = psycopg2.connect(_CONNECTION_STRING)
         _pg_cur = _pg_conn.cursor()
         position = _position_read()
         _logger.debug("Last position, already sent |{0}| ".format(str(position)))
@@ -843,7 +851,7 @@ async def _in_memory_data_load(position, values):
     data_available = False
 
     try:
-        async with aiopg.sa.create_engine(_DB_URL) as engine:
+        async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
 
                     _logger.debug("{0}".format("omf_translator_perf - DB read START "))

@@ -11,6 +11,7 @@ used to execute SELECT statements against statistics, and INSERT against the sta
 """
 import sqlalchemy
 import sqlalchemy.dialects
+import os
 from datetime import datetime
 
 __author__ = "Ori Shadmon"
@@ -20,7 +21,13 @@ __version__ = "${VERSION}"
 
 
 # Set variables for connecting to database
-_CONNECTION_STRING = "postgres:///foglamp"
+__CONNECTION_STRING = "postgres://foglamp@/foglamp"
+try:
+  snap_user_common = os.environ['SNAP_USER_COMMON']
+  unix_socket_dir = "{}/tmp/".format(snap_user_common)
+  __CONNECTION_STRING = __CONNECTION_STRING + "?host=" + unix_socket_dir
+except KeyError:
+  pass
 
 # Deceleration of tables in SQLAlchemy format
 _STATS_TABLE = sqlalchemy.Table('statistics', sqlalchemy.MetaData(),
@@ -58,7 +65,7 @@ def __query_execution(stmt=""):
         Result of the query 
     """
     
-    engine = sqlalchemy.create_engine(_CONNECTION_STRING,  pool_size=20, max_overflow=0)
+    engine = sqlalchemy.create_engine(__CONNECTION_STRING, pool_size=20, max_overflow=0)
     conn = engine.connect()
     result = conn.execute(stmt)
 

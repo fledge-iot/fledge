@@ -698,7 +698,7 @@ class SendingProcess:
                 if data_sent:
                     self._last_object_id_update(new_last_object_id, stream_id)
 
-                    self._update_statistics(num_sent)
+                    self._update_statistics(num_sent, stream_id)
 
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
@@ -775,14 +775,15 @@ class SendingProcess:
         return translator_ok
 
     @staticmethod
-    def _update_statistics(num_sent):
+    def _update_statistics(num_sent, stream_id):
         """ Updates FogLAMP statistics
 
         Raises :
         """
 
         try:
-            _event_loop.run_until_complete(statistics.update_statistics_value('SENT', num_sent))
+            stat = 'SENT_' + str(stream_id)
+            _event_loop.run_until_complete(statistics.update_statistics_value(stat, num_sent))
 
         except Exception:
             _message = _MESSAGES_LIST["e000010"]

@@ -104,7 +104,8 @@ INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
      VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0 ),
             ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
-            ( 'SENT',       'The number of readings sent to the historian', 0, 0 ),
+            ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
+            ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
             ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
@@ -145,11 +146,11 @@ schedule_time, schedule_interval, exclusive)
 values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
 NULL, '00:00:15', true);
 
--- Run FogLAMP statistics into PI every 15 seconds
+-- Run FogLAMP statistics into PI every 25 seconds
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
-NULL, '00:00:15', true);
+NULL, '00:00:25', true);
 
 -- OMF translator configuration
 INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());

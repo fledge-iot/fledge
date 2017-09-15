@@ -21,7 +21,6 @@ import json
 from foglamp import logger
 from foglamp import statistics
 
-
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -89,7 +88,7 @@ class Ingest(object):
     """Maximum number of readings items in each buffer"""
 
     # Configuration
-    _readings_buffer_size = 500
+    _readings_buffer_size = 2000
     """Maximum number of readings to buffer in memory"""
 
     _max_concurrent_readings_inserts = 5
@@ -118,7 +117,7 @@ class Ingest(object):
         if cls._readings_list_size <= cls._readings_insert_batch_size:
             cls._readings_list_size = cls._readings_insert_batch_size * 4
 
-            _LOGGER.warning('Readings buffer size as configured (%s) is too small; increasing'
+            _LOGGER.warning('Readings buffer size as configured (%s) is too small; increasing '
                             'to %s', cls._readings_buffer_size,
                             cls._readings_list_size * cls._max_concurrent_readings_inserts)
 

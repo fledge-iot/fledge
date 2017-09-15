@@ -35,18 +35,21 @@ async def add_master_data(rows=0):
     uid_list = []
     x_list = []
     y_list = []
+    ts_list = []
     for i in range(rows):
         uid = uuid.uuid4()
         uid_list.append(uid)
         x = random.randint(1, 100)
         y = random.uniform(1.0, 100.0)
+        ts = (datetime.now(tz=timezone.utc) - timedelta(hours=10))
         x_list.append(x)
         y_list.append(y)
-        await conn.execute("""INSERT INTO foglamp.readings(asset_code,read_key,reading,user_ts) VALUES($1, $2, $3, $4);""",
+        ts_list.append(((ts + timedelta(milliseconds=.000500)).astimezone()).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+        await conn.execute("""INSERT INTO foglamp.readings(asset_code,read_key,reading,user_ts,ts) VALUES($1, $2, $3, $4, $5);""",
                            test_data_asset_code, uid,
-                           json.dumps({'x': x, 'y': y}), datetime.now(tz=timezone.utc) - timedelta(minutes = 10))
+                           json.dumps({'x': x, 'y': y}), ts, datetime.now(tz=timezone.utc))
     await conn.close()
-    return uid_list, x_list, y_list
+    return uid_list, x_list, y_list, ts_list
 
 
 async def delete_master_data():
@@ -60,14 +63,15 @@ class TestBrowseAssets:
     test_data_uid_list = []
     test_data_x_val_list = []
     test_data_y_val_list = []
+    test_data_ts_list = []
     @classmethod
     def setup_class(cls):
-        cls.test_data_uid_list, cls.test_data_x_val_list, cls.test_data_y_val_list = \
-            asyncio.get_event_loop().run_until_complete(add_master_data(10))
+        cls.test_data_uid_list, cls.test_data_x_val_list, cls.test_data_y_val_list, cls.test_data_ts_list = \
+            asyncio.get_event_loop().run_until_complete(add_master_data(21))
 
     @classmethod
     def teardown_class(cls):
-        asyncio.get_event_loop().run_until_complete(delete_master_data())
+        # asyncio.get_event_loop().run_until_complete(delete_master_data())
         pass
 
     def setup_method(self, method):
@@ -79,6 +83,9 @@ class TestBrowseAssets:
     # TODO: Add tests for negative cases. Currently only positive test cases have been added.
 
     async def test_get_all_assets(self):
+        """
+        Verify that Asset contains the test data and readings count is equal to the number of readings inserted
+        """
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/asset')
         r = conn.getresponse()
@@ -86,9 +93,8 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
-        print(retval)
-        print("id list ", self.test_data_uid_list)
-        assert test_data_asset_code == retval[0]['asset_code']
+        # print(retval)
+        # print("id list ", self.test_data_uid_list)
         all_items = [elements['asset_code'] for elements in retval]
         assert test_data_asset_code in all_items
         for elements in retval:
@@ -96,12 +102,45 @@ class TestBrowseAssets:
                 assert len(self.test_data_uid_list) == elements['count']
 
     async def test_get_asset_readings(self):
+        """
+        Verify that if more than 20 readings, only 20 are returned as the default limit for asset_code
+        """
         # Assert that if more than 20 readings, only 20 are returned as the default limit
         # http://localhost:8082/foglamp/asset/TESTAPI
-        pass
+
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}'.format(test_data_asset_code))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 20 == len(retval)
 
     async def test_get_asset_readings_q_limit(self):
-        pass
+        """
+        Verify that if more than 20 readings, limited readings are returned for asset_code when querying with limit
+        """
+        # Assert that if more than 20 readings, only 20 are returned as the default limit
+        # http://localhost:8082/foglamp/asset/TESTAPI?limit=1
+
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}?limit={}'.format(test_data_asset_code, 1))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        # print(retval)
+        assert 1 == len(retval)
+        # print("x=", retval[0]['reading']['x'])
+        # print("y=", retval[0]['reading']['y'])
+        # print("ts=", retval[0]['timestamp'])
+        # print("All TS=", self.test_data_ts_list)
+        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
+
 
     async def test_get_asset_readings_q_min(self):
         pass

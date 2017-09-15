@@ -23,4 +23,4 @@ FogLAMP makes extensive use of plugin components in order to increase the flexib
 
 The other paradigm that is used extensively within FogLAMP is the idea of scheduling processes to perform specific operarions. The FogLAMP core contains a scheduler which can execute processes based on time based or event based schedules. This is used to start processes when an event occurs, such as FogLAMP starting, or based on a time trigger.
 
-Scheduled processes are used to send data from FogLAMP to the historian, to purge data from the FogLAMP data buffer, to gather statisics for historical analysis and perform backups of the FogLAMP environment.
+Scheduled processes are used to send data from FogLAMP to the historian, to purge data from the FogLAMP data buffer, to gather statistics for historical analysis and perform backups of the FogLAMP environment.

@@ -162,7 +162,8 @@ def get_count()->int:
 
 """Test Cases"""
 
-
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_config_change():
     """"Test that changes to the config work properly
     :assert:
@@ -181,6 +182,8 @@ def test_config_change():
     clean_tables()
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_default_config():
     """"Test that when the configuration is set to default and data is of now, no rows are being deleted
      :assert:
@@ -213,6 +216,8 @@ def test_default_config():
     clean_tables() 
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_enable_retainunsent_default_age():
     """"Test that as long as age is greater than the oldest rows inserted no rows are removed    
     :assert:
@@ -246,6 +251,8 @@ def test_enable_retainunsent_default_age():
     clean_tables() 
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_default_config_old_data(): 
     """"Test all data older than or equal to 72hrs gets dropped
     :assert: 
@@ -279,6 +286,8 @@ def test_default_config_old_data():
     clean_tables()
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_enable_retainunsent_default_age_old_data():
     """"Test that only data that's older than 72hrs and has been sent to OSI's PI gets removed
     :assert:
@@ -313,6 +322,8 @@ def test_enable_retainunsent_default_age_old_data():
     clean_tables()
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_delete_stored_data():
     """"Test that only data that's been sent to Pi  has been deleted
     :assert: 
@@ -348,6 +359,8 @@ def test_delete_stored_data():
     clean_tables()
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("data_purge")
 def test_delete_all_stored_data():
     """"Test that all data has been deleted
     :assert:

@@ -290,8 +290,27 @@ class TestBrowseAssets:
         assert retval[1][sensor_code_1] == self.test_data_x_val_list[-2]
         assert retval[1]['timestamp'] == self.test_data_ts_list[-2]
 
+    @pytest.mark.xfail(reason="FOGL-545")
     async def test_get_asset_sensor_readings_q_hrs(self):
-        pass
+        """
+        Verify that if more than 20 readings, only last n hr readings for a sensor value are returned when
+        hours is passed as query parameter
+        http://localhost:8082/foglamp/asset/TESTAPI/x?hours=2
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}?hours={}'.format(test_data_asset_code, sensor_code_1, 2))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 3 == len(retval)
+        assert retval[0][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
+        assert retval[1][sensor_code_1] == self.test_data_x_val_list[-2]
+        assert retval[1]['timestamp'] == self.test_data_ts_list[-2]
+        assert retval[2][sensor_code_1] == self.test_data_x_val_list[-3]
+        assert retval[2]['timestamp'] == self.test_data_ts_list[-3]
 
     async def test_get_asset_sensor_readings_q_time(self):
         pass

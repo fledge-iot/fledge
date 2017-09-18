@@ -41,7 +41,15 @@ async def add_master_data(rows=0):
         uid_list.append(uid)
         x = random.randint(1, 100)
         y = random.uniform(1.0, 100.0)
-        ts = (datetime.now(tz=timezone.utc) - timedelta(hours=10))
+        # Insert some time based data
+        if i == 18:
+            ts = (datetime.now(tz=timezone.utc) - timedelta(hours=1))
+        elif i == 19:
+            ts = (datetime.now(tz=timezone.utc) - timedelta(minutes=10))
+        elif i == 20:
+            ts = (datetime.now(tz=timezone.utc) - timedelta(seconds=10))
+        else:
+            ts = (datetime.now(tz=timezone.utc) - timedelta(hours=10))
         x_list.append(x)
         y_list.append(y)
         ts_list.append(((ts + timedelta(milliseconds=.000500)).astimezone()).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
@@ -51,11 +59,11 @@ async def add_master_data(rows=0):
     await conn.close()
     return uid_list, x_list, y_list, ts_list
 
-
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.readings WHERE asset_code IN ($1)''', test_data_asset_code)
     await conn.close()
+
 
 @pytest.allure.feature("api")
 @pytest.allure.story("browser-assets")
@@ -64,6 +72,7 @@ class TestBrowseAssets:
     test_data_x_val_list = []
     test_data_y_val_list = []
     test_data_ts_list = []
+
     @classmethod
     def setup_class(cls):
         cls.test_data_uid_list, cls.test_data_x_val_list, cls.test_data_y_val_list, cls.test_data_ts_list = \
@@ -93,8 +102,6 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
-        # print(retval)
-        # print("id list ", self.test_data_uid_list)
         all_items = [elements['asset_code'] for elements in retval]
         assert test_data_asset_code in all_items
         for elements in retval:
@@ -120,10 +127,8 @@ class TestBrowseAssets:
     async def test_get_asset_readings_q_limit(self):
         """
         Verify that if more than 20 readings, limited readings are returned for asset_code when querying with limit
-        """
-        # Assert that if more than 20 readings, only 20 are returned as the default limit
         # http://localhost:8082/foglamp/asset/TESTAPI?limit=1
-
+        """
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/asset/{}?limit={}'.format(test_data_asset_code, 1))
         r = conn.getresponse()
@@ -131,19 +136,31 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
-        # print(retval)
         assert 1 == len(retval)
-        # print("x=", retval[0]['reading']['x'])
-        # print("y=", retval[0]['reading']['y'])
-        # print("ts=", retval[0]['timestamp'])
-        # print("All TS=", self.test_data_ts_list)
         assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
         assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
-
     async def test_get_asset_readings_q_min(self):
-        pass
+        """
+        Verify that if more than 20 readings, only last n min readings are returned when min is passed as query parameter
+        """
+        # Assert that if more than 20 readings, only 20 are returned as the default limit
+        # http://localhost:8082/foglamp/asset/TESTAPI?minutes=1
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}?minutes={}'.format(test_data_asset_code, 15))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 2 == len(retval)
+        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
+        assert retval[1]['reading']['x'] == self.test_data_x_val_list[-2]
+        assert retval[1]['reading']['y'] == self.test_data_y_val_list[-2]
+        assert retval[1]['timestamp'] == self.test_data_ts_list[-2]
 
     async def test_get_asset_readings_q_hrs(self):
         pass

@@ -141,9 +141,27 @@ class TestBrowseAssets:
         assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
+    async def test_get_asset_readings_q_sec(self):
+        """
+        Verify that if more than 20 readings, only last n sec readings are returned when seconds is passed as query parameter
+        """
+        # Assert that if more than 20 readings, only 20 are returned as the default limit
+        # http://localhost:8082/foglamp/asset/TESTAPI?minutes=1
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}?seconds={}'.format(test_data_asset_code, 15))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 1 == len(retval)
+        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
+
     async def test_get_asset_readings_q_min(self):
         """
-        Verify that if more than 20 readings, only last n min readings are returned when min is passed as query parameter
+        Verify that if more than 20 readings, only last n min readings are returned when minutes is passed as query parameter
         """
         # Assert that if more than 20 readings, only 20 are returned as the default limit
         # http://localhost:8082/foglamp/asset/TESTAPI?minutes=1

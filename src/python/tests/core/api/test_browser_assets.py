@@ -206,7 +206,7 @@ class TestBrowseAssets:
     async def test_get_asset_readings_q_time_complex(self):
         """
         Verify that if a combination of hrs, min, sec is used, shorted period will apply
-        http://localhost:8082/foglamp/asset/TESTAPI??hours=20&minutes=20&seconds=20&limit=20
+        http://localhost:8082/foglamp/asset/TESTAPI?hours=20&minutes=20&seconds=20&limit=20
         """
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/asset/{}?hours={}&minutes={}&seconds={}&limit={}'.format(test_data_asset_code,
@@ -312,8 +312,23 @@ class TestBrowseAssets:
         assert retval[2][sensor_code_1] == self.test_data_x_val_list[-3]
         assert retval[2]['timestamp'] == self.test_data_ts_list[-3]
 
-    async def test_get_asset_sensor_readings_q_time(self):
-        pass
+    @pytest.mark.xfail(reason="FOGL-545")
+    async def test_get_asset_sensor_readings_q_time_complex(self):
+        """
+        Verify that if a combination of hrs, min, sec is used, shorted period will apply for sensor reading
+        http://localhost:8082/foglamp/asset/TESTAPI/x?hours=20&minutes=20&seconds=120&limit=20
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}?hours={}&minutes={}&seconds={}&limit={}'
+                     .format(test_data_asset_code, sensor_code_1, 20, 20, 120, 20))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 1 == len(retval)
+        assert retval[0][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
     async def test_get_asset_sensor_readings_stats(self):
         # Assert that if more than 20 readings, only 20 are returned as the default limit

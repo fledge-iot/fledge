@@ -25,6 +25,8 @@ BASE_URL = 'localhost:8082'
 headers = {"Content-Type": 'application/json'}
 
 test_data_asset_code = 'TESTAPI'
+sensor_code_1 = 'x'
+sensor_code_2 = 'y'
 
 pytestmark = pytest.mark.asyncio
 
@@ -55,7 +57,7 @@ async def add_master_data(rows=0):
         ts_list.append(((ts + timedelta(milliseconds=.000500)).astimezone()).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
         await conn.execute("""INSERT INTO foglamp.readings(asset_code,read_key,reading,user_ts,ts) VALUES($1, $2, $3, $4, $5);""",
                            test_data_asset_code, uid,
-                           json.dumps({'x': x, 'y': y}), ts, datetime.now(tz=timezone.utc))
+                           json.dumps({sensor_code_1: x, sensor_code_2: y}), ts, datetime.now(tz=timezone.utc))
     await conn.close()
     return uid_list, x_list, y_list, ts_list
 
@@ -137,8 +139,8 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         assert 1 == len(retval)
-        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
-        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
     async def test_get_asset_readings_q_sec(self):
@@ -154,8 +156,8 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         assert 1 == len(retval)
-        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
-        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
     async def test_get_asset_readings_q_min(self):
@@ -171,11 +173,11 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         assert 2 == len(retval)
-        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
-        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
-        assert retval[1]['reading']['x'] == self.test_data_x_val_list[-2]
-        assert retval[1]['reading']['y'] == self.test_data_y_val_list[-2]
+        assert retval[1]['reading'][sensor_code_1] == self.test_data_x_val_list[-2]
+        assert retval[1]['reading'][sensor_code_2] == self.test_data_y_val_list[-2]
         assert retval[1]['timestamp'] == self.test_data_ts_list[-2]
 
     async def test_get_asset_readings_q_hrs(self):
@@ -191,20 +193,19 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         assert 3 == len(retval)
-        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
-        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
-        assert retval[1]['reading']['x'] == self.test_data_x_val_list[-2]
-        assert retval[1]['reading']['y'] == self.test_data_y_val_list[-2]
+        assert retval[1]['reading'][sensor_code_1] == self.test_data_x_val_list[-2]
+        assert retval[1]['reading'][sensor_code_2] == self.test_data_y_val_list[-2]
         assert retval[1]['timestamp'] == self.test_data_ts_list[-2]
-        assert retval[2]['reading']['x'] == self.test_data_x_val_list[-3]
-        assert retval[2]['reading']['y'] == self.test_data_y_val_list[-3]
+        assert retval[2]['reading'][sensor_code_1] == self.test_data_x_val_list[-3]
+        assert retval[2]['reading'][sensor_code_2] == self.test_data_y_val_list[-3]
         assert retval[2]['timestamp'] == self.test_data_ts_list[-3]
 
     async def test_get_asset_readings_q_time_complex(self):
         """
-        Verify that if more than 20 readings, only last n hrs readings are returned when hours is passed as query parameter
-        Also, that if a combination of hrs, min, sec is used, shorted period will apply
+        Verify that if a combination of hrs, min, sec is used, shorted period will apply
         http://localhost:8082/foglamp/asset/TESTAPI??hours=20&minutes=20&seconds=20&limit=20
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -216,15 +217,23 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         assert 1 == len(retval)
-        assert retval[0]['reading']['x'] == self.test_data_x_val_list[-1]
-        assert retval[0]['reading']['y'] == self.test_data_y_val_list[-1]
+        assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
+        assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
-
     async def test_get_asset_sensor_readings(self):
-        # Assert that if more than 20 readings, only 20 are returned as the default limit
-        # http://localhost:8082/foglamp/asset/TESTAPI/x
-        pass
+        """
+        Verify that if more than 20 readings for an assets sensor value, only 20 are returned as the default limit
+        http://localhost:8082/foglamp/asset/TESTAPI/x
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}'.format(test_data_asset_code, sensor_code_1))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 20 == len(retval)
 
     async def test_get_asset_sensor_readings_q_limit(self):
         pass

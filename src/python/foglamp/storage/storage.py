@@ -16,28 +16,37 @@ from abc import ABC, abstractmethod
 
 from foglamp import logger
 from foglamp.core.service_registry.service_registry import Service
+from foglamp.storage.exceptions import *
 
 _LOGGER = logger.setup(__name__)
 
 
 class AbstractStorage(ABC):
+
     """ abstract class for storage client
     """
 
     def __init__(self, service):
-        self._service = service
+        self.service = service
         super(AbstractStorage, self).__init__()
 
     @property
     def service(self):
-        return self._service
+        return self.__service
 
     @service.setter
     def service(self, svc):
         if not isinstance(svc, Service):
             w_msg = 'Storage should be a valid FogLAMP micro-service instance'
             _LOGGER.warning(w_msg)
-            raise TypeError(w_msg)
+            raise InvalidServiceInstance
+
+        if not getattr(svc, "_type") == "Storage":
+            w_msg = 'Storage should be a valid *Storage* micro-service instance'
+            _LOGGER.warning(w_msg)
+            raise InvalidServiceInstance
+        # ignore inspection
+        self.__service = svc
 
     @abstractmethod
     def connect(self):
@@ -60,7 +69,7 @@ class Storage(AbstractStorage):
 
     def connect(self):
         # TODO: (Praveen) connect to storage service
-        print("Connecting to service: %s", self._service.__repr__)
+        print("Connecting to service: %s", self.service.__repr__)
         return self
 
     def disconnect(self):

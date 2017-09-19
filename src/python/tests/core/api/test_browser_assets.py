@@ -531,3 +531,26 @@ class TestBrowseAssets:
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]
         assert retval[-1]["min"] == self.test_data_x_val_list[-1]
         assert retval[-1]["time"] == grouped_ts_min[-1]
+
+    @pytest.mark.xfail(reason="FOGL-546")
+    async def test_get_asset_sensor_readings_time_avg_q_group_hrs(self):
+        """
+        Verify that series data is grouped by hours
+        http://localhost:8082/foglamp/asset/TESTAPI/x/series?group=hours
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/series?group=hours'.format(test_data_asset_code, sensor_code_1))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        # Find unique set of times grouped by hours from test data
+        grouped_ts_hrs = self.group_date_time(unit="hour")
+
+        # Verify the values of a group, We know last 2 records of test data were created within the same hour
+        assert len(grouped_ts_hrs) == len(retval)
+        assert retval[-1]["average"] == sum(self.test_data_x_val_list[-2:]) / len(self.test_data_x_val_list[-2:])
+        assert retval[-1]["max"] == max(self.test_data_x_val_list[-2:])
+        assert retval[-1]["min"] == min(self.test_data_x_val_list[-2:])
+        assert retval[-1]["time"] == grouped_ts_hrs[-1]

@@ -60,7 +60,7 @@ class Storage(AbstractStorage):
 
     def connect(self):
         # TODO: (Praveen) connect to storage service
-        print(("Connecting to service: %s", self._service.__repr__))
+        print("Connecting to service: %s", self._service.__repr__)
         return self
 
     def disconnect(self):
@@ -101,7 +101,7 @@ class Readings(object):
     def query(query):
         pass
 
-    # TODO: these value shall be picked by purge and passed to it?
+    # TODO: these value shall be picked from purge config and passed to it?
     @staticmethod
     def purge(age, sent_id, purge_unsent=False):
         pass

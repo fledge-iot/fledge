@@ -25,10 +25,8 @@ async def error_middleware(app, handler):
             if response.status == 404:
                 return json_error(response.message)
             return response
-        except web.HTTPNotFound as ex:
-            return json_error(ex.reason)
-        except web.HTTPInternalServerError as ex:
-            return json_error(ex.reason + '[' + ex.text + ']')
+        except (web.HTTPNotFound, web.HTTPInternalServerError) as ex:
+            return json_error({"code": ex.status, "message": ex.text, "tb": ex.reason})
         except web.HTTPException as ex:
             if ex.status == 404:
                 return json_error(ex.reason)

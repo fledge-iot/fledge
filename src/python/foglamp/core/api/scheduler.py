@@ -11,6 +11,7 @@ from aiohttp import web
 
 from foglamp.core import server
 from foglamp.core.api import scheduler_db_services
+from foglamp.core.api.common import handle_scheduler_api_exception
 from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task, Where
 
 __author__ = "Amarendra K. Sinha"
@@ -462,15 +463,16 @@ async def get_task(request):
     """
 
     try:
+        if_trace = request.query.get('trace') if 'trace' in request.query and request.query.get('trace') else None
         task_id = request.match_info.get('task_id', None)
 
         if not task_id:
-            raise ValueError('No such Task')
+            raise ValueError('No task_id given')
 
         tsk = await server.Server.scheduler.get_task(uuid.UUID(task_id))
 
-        if not tsk:
-            raise ValueError('No such Task: {}'.format(task_id))
+        # if not tsk:
+        #     raise ValueError('No such Task: {}'.format(task_id))
 
         task = {
             'id': str(tsk.task_id),
@@ -483,10 +485,10 @@ async def get_task(request):
         }
 
         return web.json_response(task)
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    # except ValueError as ex:
+    #     raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+        handle_scheduler_api_exception(ex, if_trace)
 
 
 async def get_tasks(request):

@@ -205,7 +205,7 @@ class TestBrowseAssets:
 
     async def test_get_asset_readings_q_time_complex(self):
         """
-        Verify that if a combination of hrs, min, sec is used, shorted period will apply
+        Verify that if a combination of hrs, min, sec is used, shortest period will apply
         http://localhost:8082/foglamp/asset/TESTAPI?hours=20&minutes=20&seconds=20&limit=20
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -315,7 +315,7 @@ class TestBrowseAssets:
     @pytest.mark.xfail(reason="FOGL-545")
     async def test_get_asset_sensor_readings_q_time_complex(self):
         """
-        Verify that if a combination of hrs, min, sec is used, shorted period will apply for sensor reading
+        Verify that if a combination of hrs, min, sec is used, shortest period will apply for sensor reading
         http://localhost:8082/foglamp/asset/TESTAPI/x?hours=20&minutes=20&seconds=120&limit=20
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -423,8 +423,24 @@ class TestBrowseAssets:
         assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-3:]) / len(self.test_data_x_val_list[-3:])
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-3:])
 
+    @pytest.mark.xfail(reason="FOGL-546")
     async def test_get_asset_sensor_readings_stats_q_time_complex(self):
-        pass
+        """
+        Verify that if a combination of hrs, min, sec is used, shortest period will apply for sensor reading
+        http://localhost:8082/foglamp/asset/TESTAPI/x/summary?hours=20&minutes=20&seconds=180&limit=20
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/summary?hours={}&minutes={}&seconds={}&limit={}'
+                     .format(test_data_asset_code, sensor_code_1, 20, 20, 180, 20))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        assert 1 == len(retval)
+        assert retval[sensor_code_1]['min'] == self.test_data_x_val_list[-1]
+        assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
+        assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
 
     async def test_get_asset_sensor_readings_time_avg(self):
         # Assert that if more than 20 readings, only 20 are returned as the default limit

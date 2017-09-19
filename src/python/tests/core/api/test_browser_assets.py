@@ -128,10 +128,8 @@ class TestBrowseAssets:
     async def test_get_asset_readings(self):
         """
         Verify that if more than 20 readings, only 20 are returned as the default limit for asset_code
+        http://localhost:8082/foglamp/asset/TESTAPI
         """
-        # Assert that if more than 20 readings, only 20 are returned as the default limit
-        # http://localhost:8082/foglamp/asset/TESTAPI
-
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/asset/{}'.format(test_data_asset_code))
         r = conn.getresponse()
@@ -510,3 +508,26 @@ class TestBrowseAssets:
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]
         assert retval[-1]["min"] == self.test_data_x_val_list[-1]
         assert retval[-1]["time"] == grouped_ts_sec[-1]
+
+    @pytest.mark.xfail(reason="FOGL-546")
+    async def test_get_asset_sensor_readings_time_avg_q_group_min(self):
+        """
+        Verify that series data is grouped by minutes
+        http://localhost:8082/foglamp/asset/TESTAPI/x/series?group=minutes
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/series?group=minutes'.format(test_data_asset_code, sensor_code_1))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        # Find unique set of times grouped by minutes from test data
+        grouped_ts_min = self.group_date_time(unit="minute")
+
+        # Verify the length of groups and value of last element
+        assert len(grouped_ts_min) == len(retval)
+        assert retval[-1]["average"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["max"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["min"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["time"] == grouped_ts_min[-1]

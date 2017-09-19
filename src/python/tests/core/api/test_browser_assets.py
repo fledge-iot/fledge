@@ -91,6 +91,21 @@ class TestBrowseAssets:
     def teardown_method(self, method):
         pass
 
+    def group_date_time(self, unit=None):
+        # Expected date_time = '2017-09-19 05:00:54.000'
+        grouped_ts = []
+        date_time_length = 23
+        if unit == "second":
+            date_time_length = 19
+        elif unit == "minute":
+            date_time_length = 16
+        elif unit == "hour":
+            date_time_length = 13
+        for elements in self.test_data_ts_list:
+            if elements[:date_time_length] not in grouped_ts:
+                grouped_ts.append(elements[:date_time_length])
+        return grouped_ts
+
     # TODO: Add tests for negative cases. Currently only positive test cases have been added.
 
     async def test_get_all_assets(self):
@@ -464,10 +479,31 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         # Find unique set of times grouped by seconds from test data
-        grouped_ts_sec = []
-        for elements in self.test_data_ts_list:
-            if elements[:19] not in grouped_ts_sec:
-                grouped_ts_sec.append(elements[:19])
+        grouped_ts_sec = self.group_date_time(unit="second")
+
+        # Verify the length of groups and value of last element
+        assert len(grouped_ts_sec) == len(retval)
+        assert retval[-1]["average"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["max"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["min"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["time"] == grouped_ts_sec[-1]
+
+    @pytest.mark.xfail(reason="FOGL-546")
+    async def test_get_asset_sensor_readings_time_avg_q_group_sec(self):
+        """
+        Verify that series data is grouped by seconds
+        http://localhost:8082/foglamp/asset/TESTAPI/x/series?group=seconds
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/series?group=seconds'.format(test_data_asset_code, sensor_code_1))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        # Find unique set of times grouped by seconds from test data
+        grouped_ts_sec = self.group_date_time(unit="second")
+
         # Verify the length of groups and value of last element
         assert len(grouped_ts_sec) == len(retval)
         assert retval[-1]["average"] == self.test_data_x_val_list[-1]

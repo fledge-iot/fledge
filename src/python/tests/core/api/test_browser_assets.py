@@ -94,13 +94,14 @@ class TestBrowseAssets:
     def group_date_time(self, unit=None):
         # Expected date_time = '2017-09-19 05:00:54.000'
         grouped_ts = []
-        date_time_length = 23
         if unit == "second":
             date_time_length = 19
         elif unit == "minute":
             date_time_length = 16
         elif unit == "hour":
             date_time_length = 13
+        else:
+            date_time_length = 19
         for elements in self.test_data_ts_list:
             if elements[:date_time_length] not in grouped_ts:
                 grouped_ts.append(elements[:date_time_length])
@@ -578,3 +579,32 @@ class TestBrowseAssets:
         assert retval[-1]["max"] == max(self.test_data_x_val_list[:19])
         assert retval[-1]["min"] == min(self.test_data_x_val_list[:19])
         assert retval[-1]["time"] == grouped_ts_hrs[0]
+
+    @pytest.mark.xfail(reason="FOGL-546")
+    async def test_get_asset_sensor_readings_time_avg_q_time(self):
+        """
+        Verify that series data is grouped by seconds (default) and time range (last n minutes) is working
+        http://localhost:8082/foglamp/asset/TESTAPI/x/series?minutes=20
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/series?minutes={}'.format(test_data_asset_code, sensor_code_1, 20))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+
+        # Find unique set of times grouped by seconds (default grouping) from test data
+        grouped_ts = self.group_date_time()
+
+        # Verify the values of a group (default by sec), has 2 records only when querying for last 20 min
+        assert 2 == len(retval)
+        assert retval[-1]["average"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["max"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["min"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["time"] == grouped_ts[-1]
+
+        assert retval[-2]["average"] == self.test_data_x_val_list[-2]
+        assert retval[-2]["max"] == self.test_data_x_val_list[-2]
+        assert retval[-2]["min"] == self.test_data_x_val_list[-2]
+        assert retval[-2]["time"] == grouped_ts[-2]

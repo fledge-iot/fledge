@@ -608,3 +608,28 @@ class TestBrowseAssets:
         assert retval[-2]["max"] == self.test_data_x_val_list[-2]
         assert retval[-2]["min"] == self.test_data_x_val_list[-2]
         assert retval[-2]["time"] == grouped_ts[-2]
+
+    @pytest.mark.xfail(reason="FOGL-546")
+    async def test_get_asset_sensor_readings_time_avg_q_group_time_limit(self):
+        """
+        Verify that if a combination of hrs, min, sec is used, shortest period will apply with specified grouping
+        http://localhost:8082/foglamp/asset/TESTAPI/x/series?hours=20&minutes=20&seconds=180&limit=20&group=hours
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/series?hours={}&minutes={}&seconds={}&limit={}&group=hours'
+                     .format(test_data_asset_code, sensor_code_1, 20, 20, 280, 20))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+
+        # Find unique set of times grouped by hours from test data
+        grouped_ts = self.group_date_time(unit="hour")
+
+        # Verify the values of a group, has 1 record only (shortest time) and hourly grouping
+        assert 1 == len(retval)
+        assert retval[-1]["average"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["max"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["min"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["time"] == grouped_ts[-1]

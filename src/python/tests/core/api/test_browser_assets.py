@@ -82,7 +82,7 @@ class TestBrowseAssets:
 
     @classmethod
     def teardown_class(cls):
-        # asyncio.get_event_loop().run_until_complete(delete_master_data())
+        asyncio.get_event_loop().run_until_complete(delete_master_data())
         pass
 
     def setup_method(self, method):

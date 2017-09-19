@@ -127,7 +127,6 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
   api->readingPurge(response, request);
 }
 
-
 /**
  * Construct the singleton Storage API 
  */
@@ -456,7 +455,6 @@ string        flags;
     internalError(response, ex);
   }
 }
-
 
 /**
  * Handle a bad URL endpoint call

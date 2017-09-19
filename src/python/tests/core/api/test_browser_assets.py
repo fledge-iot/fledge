@@ -145,7 +145,8 @@ class TestBrowseAssets:
 
     async def test_get_asset_readings_q_sec(self):
         """
-        Verify that if more than 20 readings, only last n sec readings are returned when seconds is passed as query parameter
+        Verify that if more than 20 readings, only last n sec readings are returned
+        when seconds is passed as query parameter
         http://localhost:8082/foglamp/asset/TESTAPI?seconds=15
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -162,7 +163,8 @@ class TestBrowseAssets:
 
     async def test_get_asset_readings_q_min(self):
         """
-        Verify that if more than 20 readings, only last n min readings are returned when minutes is passed as query parameter
+        Verify that if more than 20 readings, only last n min readings are returned
+        when minutes is passed as query parameter
         http://localhost:8082/foglamp/asset/TESTAPI?minutes=15
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -182,7 +184,8 @@ class TestBrowseAssets:
 
     async def test_get_asset_readings_q_hrs(self):
         """
-        Verify that if more than 20 readings, only last n hrs readings are returned when hours is passed as query parameter
+        Verify that if more than 20 readings, only last n hrs readings are returned
+        when hours is passed as query parameter
         http://localhost:8082/foglamp/asset/TESTAPI?hours=2
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -333,7 +336,8 @@ class TestBrowseAssets:
     @pytest.mark.xfail(reason="FOGL-546, FOGL-547")
     async def test_get_asset_sensor_readings_stats(self):
         """
-        Verify that if more than 20 readings for an assets sensor value, summary of only 20 readings are returned as the default limit
+        Verify that if more than 20 readings for an assets sensor value,
+        summary of only 20 readings are returned as the default limit
         http://localhost:8082/foglamp/asset/TESTAPI/x/summary
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -345,13 +349,15 @@ class TestBrowseAssets:
         retval = json.loads(r)
         assert 1 == len(retval)
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[1:-1])
-        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[1:-1])/len(self.test_data_x_val_list[1:-1])
+        assert retval[sensor_code_1]['average'] == \
+               sum(self.test_data_x_val_list[1:-1])/len(self.test_data_x_val_list[1:-1])
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[1:-1])
 
     @pytest.mark.xfail(reason="FOGL-546, FOGL-548")
     async def test_get_asset_sensor_readings_stats_q_limit(self):
         """
-        Verify that if more than 20 readings, limited readings summary for a sensor value are returned when querying with limit
+        Verify that if more than 20 readings, limited readings summary for a sensor value are returned
+        when querying with limit
         http://localhost:8082/foglamp/asset/TESTAPI/x/summary?limit=1
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -401,7 +407,8 @@ class TestBrowseAssets:
         retval = json.loads(r)
         assert 1 == len(retval)
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-2:])
-        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-2:]) / len(self.test_data_x_val_list[-2:])
+        assert retval[sensor_code_1]['average'] == \
+               sum(self.test_data_x_val_list[-2:]) / len(self.test_data_x_val_list[-2:])
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-2:])
 
     @pytest.mark.xfail(reason="FOGL-546")
@@ -420,7 +427,8 @@ class TestBrowseAssets:
         retval = json.loads(r)
         assert 1 == len(retval)
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-3:])
-        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-3:]) / len(self.test_data_x_val_list[-3:])
+        assert retval[sensor_code_1]['average'] == \
+               sum(self.test_data_x_val_list[-3:]) / len(self.test_data_x_val_list[-3:])
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-3:])
 
     @pytest.mark.xfail(reason="FOGL-546")
@@ -442,22 +450,27 @@ class TestBrowseAssets:
         assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
 
+    @pytest.mark.xfail(reason="FOGL-546")
     async def test_get_asset_sensor_readings_time_avg(self):
-        # Assert that if more than 20 readings, only 20 are returned as the default limit
-        # http://localhost:8082/foglamp/asset/TESTAPI/x/series?group=hours
-        pass
-
-    async def test_get_asset_sensor_readings_time_avg_q_group(self):
-        pass
-
-    async def test_get_asset_sensor_readings_time_avg_q_limit(self):
-        pass
-
-    async def test_get_asset_sensor_readings_time_avg_q_min(self):
-        pass
-
-    async def test_get_asset_sensor_readings_time_avg_q_hrs(self):
-        pass
-
-    async def test_get_asset_sensor_readings_time_avg_q_time(self):
-        pass
+        """
+        Verify that series data is grouped by default on seconds
+        http://localhost:8082/foglamp/asset/TESTAPI/x/series
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/asset/{}/{}/series'.format(test_data_asset_code, sensor_code_1))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        retval = json.loads(r)
+        # Find unique set of times grouped by seconds from test data
+        grouped_ts_sec = []
+        for elements in self.test_data_ts_list:
+            if elements[:19] not in grouped_ts_sec:
+                grouped_ts_sec.append(elements[:19])
+        # Verify the length of groups and value of last element
+        assert len(grouped_ts_sec) == len(retval)
+        assert retval[-1]["average"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["max"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["min"] == self.test_data_x_val_list[-1]
+        assert retval[-1]["time"] == grouped_ts_sec[-1]

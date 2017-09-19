@@ -3,6 +3,8 @@
 
 #include <plugin_api.h>
 
+class PluginManager;
+
 /**
  * A generic representation of a plugin
  */
@@ -12,12 +14,14 @@ class Plugin {
     Plugin(PLUGIN_HANDLE handle);
     ~Plugin();
 
-    string info();
+    const PLUGIN_INFORMATION *getInfo();
 
   protected:
     PLUGIN_HANDLE handle;
+    PluginManager *manager;
 
   private:
-}
+    PLUGIN_INFORMATION *info;
+};
 
 #endif

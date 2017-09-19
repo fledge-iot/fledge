@@ -1,8 +1,9 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (Storage)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
+set(DLLIB -ldl)
 
-include_directories(. include ../../thirdparty/Simple-Web-Server)
+include_directories(. include ../../thirdparty/Simple-Web-Server ../generic/include)
 
 find_package(Threads REQUIRED)
 
@@ -21,9 +22,10 @@ if(APPLE)
     set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
 endif()
 
-add_executable(storage storage.cpp storage_api.cpp)
+add_executable(storage storage.cpp storage_api.cpp ../generic/plugin_manager.cpp storage_plugin.cpp ../generic/plugin.cpp)
 target_link_libraries(storage ${Boost_LIBRARIES})
 target_link_libraries(storage ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(storage ${DLLIB})
 
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?

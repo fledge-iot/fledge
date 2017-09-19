@@ -12,7 +12,7 @@ typedef struct {
 typedef struct {
         char         *message;
         char         *entryPoint;
-        boolean      retryable;
+        bool         retryable;
 } PLUGIN_ERROR;
  
 typedef void * PLUGIN_HANDLE;

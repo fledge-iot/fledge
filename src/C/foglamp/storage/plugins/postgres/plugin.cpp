@@ -1,7 +1,11 @@
+#include <connection_manager.h>
+#include <connection.h>
 #include <plugin_api.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "libpq-fe.h"
+#include <iostream>
+#include <string>
 
 extern "C" {
 
@@ -20,34 +24,31 @@ PLUGIN_INFORMATION *plugin_info()
 
 PLUGIN_HANDLE plugin_init()
 {
-const char *conninfo;
-PGconn     *conn;
-
-    conninfo = "dbname = postgres";
-
-    /* Make a connection to the database */
-    conn = PQconnectdb(conninfo);
-
-    /* Check to see that the backend connection was successfully made */
-    if (PQstatus(conn) != CONNECTION_OK)
-    {
-        fprintf(stderr, "Connection to database failed: %s",
-                PQerrorMessage(conn));
-        return NULL;
-    }
-    return conn;
+ConnectionManager *manager = ConnectionManager::getInstance();
+  
+  manager->growPool(5);
+  return manager;
 }
 
 bool plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
 {
-PGconn     *conn = (PGconn *)handle;
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
 
+  std::cout << "Postgres plugin insert into " << table << " with payload " <<data;
+  manager->release(connection);
   return false;
 }
 
-char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
+const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
 {
-  return NULL;
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+  std::cout << "Postgres plugin retrieve from " << table << " with payload " << query << std::endl;
+        std::string results = connection->retrieve(std::string(table), std::string(query));
+  manager->release(connection);
+  return results.c_str();
 }
 
 bool plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)

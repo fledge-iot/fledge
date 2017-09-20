@@ -157,7 +157,7 @@ void StorageApi::initResources()
 {
 	m_server->resource[COMMON_ACCESS]["POST"] = commonInsertWrapper;
 	m_server->resource[COMMON_ACCESS]["GET"] = commonSimpleQueryWrapper;
-	m_server->resource[COMMON_QUERY]["GET"] = commonQueryWrapper;
+	m_server->resource[COMMON_QUERY]["PUT"] = commonQueryWrapper;
 	m_server->resource[COMMON_ACCESS]["PUT"] = commonUpdateWrapper;
 	m_server->resource[COMMON_ACCESS]["DELETE"] = commonDeleteWrapper;
 	m_server->default_resource["POST"] = defaultWrapper;
@@ -184,6 +184,14 @@ void StorageApi::start() {
  */
 void StorageApi::wait() {
 	m_thread.join();
+}
+
+/**
+ * Connect with the storage plugin
+ */
+void StorageApi::setPlugin(StoragePlugin *plugin)
+{
+  this->plugin = plugin;
 }
 
 /**
@@ -224,15 +232,19 @@ void StorageApi::commonInsert(shared_ptr<HttpServer::Response> response, shared_
 {
 string  tableName;
 string	payload;
+string  responsePayload;
 
   try {
 	  tableName = request->path_match[TABLE_NAME_COMPONENT];
 	  payload = request->content.string();
 
-	  stringstream responsePayload;
-	  responsePayload << "CommonInsert to table: " << tableName << " payload " << payload << "\n";
+    bool rval = plugin->commonInsert(tableName, payload);
+    if (rval)
+      responsePayload = "{ \"reponse\" : \"inserted\" }";
+    else
+      responsePayload = "{ \"response\" : \"failed\" }";
 
-	  respond(response, responsePayload.str());
+	  respond(response, responsePayload);
   } catch (exception ex) {
     internalError(response, ex);
   }
@@ -252,6 +264,8 @@ string	payload;
   try {
 	  tableName = request->path_match[TABLE_NAME_COMPONENT];
 	  payload = request->content.string();
+
+    plugin->commonUpdate(tableName, payload);
 
 	  respond(response, payload);
   } catch (exception ex) {
@@ -295,7 +309,9 @@ string	payload;
     tableName = request->path_match[TABLE_NAME_COMPONENT];
     payload = request->content.string();
 
-    respond(response, payload);
+    string res = plugin->commonRetrieve(tableName, payload);
+
+    respond(response, res);
   } catch (exception ex) {
     internalError(response, ex);
   }
@@ -315,6 +331,8 @@ string	payload;
   try {
 	  tableName = request->path_match[TABLE_NAME_COMPONENT];
 	  payload = request->content.string();
+
+    plugin->commonDelete(tableName, payload);
 
 	  respond(response, payload);
   } catch (exception ex) {

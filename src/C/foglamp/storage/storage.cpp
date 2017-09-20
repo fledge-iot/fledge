@@ -54,6 +54,7 @@ bool StorageService::loadPlugin()
   if ((handle = manager->loadPlugin(string(plugin), PLUGIN_TYPE_STORAGE)) != NULL)
   {
     storagePlugin = new StoragePlugin(handle);
+    api->setPlugin(storagePlugin);
     logger->info("Loaded storage plugin %s.", plugin);
     return true;
   }

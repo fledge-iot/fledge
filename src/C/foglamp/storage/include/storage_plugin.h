@@ -23,24 +23,24 @@ public:
 	~StoragePlugin();
 
 	bool commonInsert(const std::string& table, const std::string& payload);
-	std::string commonRetrieve(const std::string& table, const std::string& payload);
-	std::string commonUpdate(const std::string& table, const std::string& payload);
+	char * commonRetrieve(const std::string& table, const std::string& payload);
+	char * commonUpdate(const std::string& table, const std::string& payload);
 	bool commonDelete(const std::string& table, const std::string& payload);
 	bool readingsAppend(const std::string& payload);
-	std::string readingsFetch(unsigned long id, unsigned int blksize);
-	std::string readingsRetrieve(const std::string& payload);
+	char * readingsFetch(unsigned long id, unsigned int blksize);
+	char * readingsRetrieve(const std::string& payload);
 	unsigned int readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
 	void PluginRelease(const std::string& payload);
 
 private:
   PLUGIN_HANDLE instance;
   bool    (*commonInsertPtr)(PLUGIN_HANDLE, const char *, const char *);
-  std::string (*commonRetrievePtr)(PLUGIN_HANDLE, const char *, const char *);
-  std::string (*commonUpdatePtr)(PLUGIN_HANDLE, const char *, const char *);
+  char * (*commonRetrievePtr)(PLUGIN_HANDLE, const char *, const char *);
+  char * (*commonUpdatePtr)(PLUGIN_HANDLE, const char *, const char *);
   bool (*commonDeletePtr)(PLUGIN_HANDLE, const char *, const char *);
   bool  (*readingsAppendPtr)(PLUGIN_HANDLE, const char *);
-	std::string (*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
-	std::string (*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
+	char * (*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
+	char * (*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
 	unsigned int (*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
 	void (*releasePtr)(PLUGIN_HANDLE, const char *payload);
 };

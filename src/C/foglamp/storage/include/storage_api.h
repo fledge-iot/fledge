@@ -2,6 +2,7 @@
 #define _STORAGE_API_H
 
 #include <server_http.hpp>
+#include <storage_plugin.h>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -28,6 +29,7 @@ public:
 	StorageApi(const short port, const int threads);
         static StorageApi *getInstance();
   void initResources();
+  void setPlugin(StoragePlugin *);
 	void start();
 	void wait();
 	void commonInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
@@ -47,6 +49,7 @@ private:
 	short                   m_port;
 	int		        m_threads;
         thread                  m_thread;
+  StoragePlugin     *plugin;
 	void respond(shared_ptr<HttpServer::Response> response, const string& payload);
   void respond(shared_ptr<HttpServer::Response> response, SimpleWeb::StatusCode code, const string& payload);
   void internalError(shared_ptr<HttpServer::Response> response, const exception& ex);

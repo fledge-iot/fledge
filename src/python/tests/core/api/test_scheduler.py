@@ -161,7 +161,7 @@ class TestScheduler:
         r = requests.get(BASE_URL + '/schedule/' + schedule_id)
         assert 200 == r.status_code
         retvall = dict(r.json())
-        assert 'Schedule not found' in retvall['error']
+        assert 'Schedule not found' in retvall['error']['message']
 
     @pytest.mark.run(order=6)
     async def test_get_schedule(self):

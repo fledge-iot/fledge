@@ -11,8 +11,9 @@ from aiohttp import web
 
 from foglamp.core import server
 from foglamp.core.api import scheduler_db_services
-from foglamp.core.api.common import handle_scheduler_api_exception
+from foglamp.core.scheduler import NotReadyError, DuplicateRequestError, TaskNotRunningError, TaskNotFoundError, ScheduleNotFoundError
 from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task, Where
+
 
 __author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -49,16 +50,13 @@ async def get_scheduled_processes(request):
     Returns a list of all the defined scheduled_processes from scheduled_processes table
     """
 
-    try:
-        processes_list = await server.Server.scheduler.get_scheduled_processes()
+    processes_list = await server.Server.scheduler.get_scheduled_processes()
 
-        processes = []
-        for proc in processes_list:
-            processes.append(proc.name)
+    processes = []
+    for proc in processes_list:
+        processes.append(proc.name)
 
-        return web.json_response({'processes': processes})
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+    return web.json_response({'processes': processes})
 
 
 async def get_scheduled_process(request):
@@ -66,22 +64,17 @@ async def get_scheduled_process(request):
     Returns a list of all the defined scheduled_processes from scheduled_processes table
     """
 
-    try:
-        scheduled_process_name = request.match_info.get('scheduled_process_name', None)
+    scheduled_process_name = request.match_info.get('scheduled_process_name', None)
 
-        if not scheduled_process_name:
-            raise ValueError('No such Scheduled Process')
+    if not scheduled_process_name:
+        raise web.HTTPBadRequest(reason='No such Scheduled Process')
 
-        scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_name)
+    scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_name)
 
-        if not scheduled_process:
-            raise ValueError('No such Scheduled Process: {}.'.format(scheduled_process_name))
+    if not scheduled_process:
+        web.HTTPNotFound(reason='No such Scheduled Process: {}.'.format(scheduled_process_name))
 
-        return web.json_response(scheduled_process[0].get("name"))
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+    return web.json_response(scheduled_process[0].get("name"))
 
 
 #################################
@@ -225,25 +218,22 @@ async def get_schedules(request):
     Returns a list of all the defined schedules from schedules table
     """
 
-    try:
-        schedule_list = await server.Server.scheduler.get_schedules()
+    schedule_list = await server.Server.scheduler.get_schedules()
 
-        schedules = []
-        for sch in schedule_list:
-            schedules.append({
-                'id': str(sch.schedule_id),
-                'name': sch.name,
-                'process_name': sch.process_name,
-                'type': Schedule.Type(int(sch.schedule_type)).name,
-                'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
-                'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0 ,
-                'day': sch.day,
-                'exclusive': sch.exclusive
-            })
+    schedules = []
+    for sch in schedule_list:
+        schedules.append({
+            'id': str(sch.schedule_id),
+            'name': sch.name,
+            'process_name': sch.process_name,
+            'type': Schedule.Type(int(sch.schedule_type)).name,
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0 ,
+            'day': sch.day,
+            'exclusive': sch.exclusive
+        })
 
-        return web.json_response({'schedules': schedules})
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+    return web.json_response({'schedules': schedules})
 
 
 async def get_schedule(request):
@@ -257,11 +247,9 @@ async def get_schedule(request):
         schedule_id = request.match_info.get('schedule_id', None)
 
         if not schedule_id:
-            raise ValueError('No such Schedule')
+            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
-        if not sch:
-            raise ValueError('No such Schedule')
 
         schedule = {
             'id': str(sch.schedule_id),
@@ -275,10 +263,8 @@ async def get_schedule(request):
         }
 
         return web.json_response(schedule)
-    except ValueError as ex:
+    except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def start_schedule(request):
@@ -292,20 +278,16 @@ async def start_schedule(request):
         schedule_id = request.match_info.get('schedule_id', None)
 
         if not schedule_id:
-            raise ValueError('No such Schedule')
+            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
-        if not sch:
-            raise ValueError('No such Schedule: {}.'.format(schedule_id))
 
         # Start schedule
         await server.Server.scheduler.queue_task(uuid.UUID(schedule_id))
 
         return web.json_response({'id': schedule_id, 'message': 'Schedule started successfully'})
-    except ValueError as ex:
+    except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def post_schedule(request):
@@ -320,7 +302,7 @@ async def post_schedule(request):
 
         schedule_id = data.get('schedule_id', None)
         if schedule_id:
-            raise ValueError('Schedule ID not needed for new Schedule.')
+            raise web.HTTPBadRequest(reason='Schedule ID not needed for new Schedule.')
 
         go_no_go = await _check_schedule_post_parameters(data)
         if len(go_no_go) != 0:
@@ -329,8 +311,6 @@ async def post_schedule(request):
         updated_schedule_id = await _execute_add_update_schedule(data)
 
         sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
-        if not sch:
-            raise ValueError('No such Schedule')
 
         schedule = {
             'id': str(sch.schedule_id),
@@ -344,10 +324,8 @@ async def post_schedule(request):
         }
 
         return web.json_response({'schedule': schedule})
-    except ValueError as ex:
+    except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def update_schedule(request):
@@ -362,7 +340,7 @@ async def update_schedule(request):
         schedule_id = request.match_info.get('schedule_id', None)
 
         if not schedule_id:
-            raise ValueError('No such Schedule.')
+            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
         if not sch:
@@ -385,8 +363,6 @@ async def update_schedule(request):
         updated_schedule_id = await _execute_add_update_schedule(data, curr_value)
 
         sch = await server.Server.scheduler.get_schedule(updated_schedule_id)
-        if not sch:
-            raise ValueError('No such Schedule')
 
         schedule = {
             'id': str(sch.schedule_id),
@@ -400,10 +376,8 @@ async def update_schedule(request):
         }
 
         return web.json_response({'schedule': schedule})
-    except ValueError as ex:
+    except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def delete_schedule(request):
@@ -417,19 +391,15 @@ async def delete_schedule(request):
         schedule_id = request.match_info.get('schedule_id', None)
 
         if not schedule_id:
-            raise ValueError('No such Schedule.')
+            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         is_schedule = await scheduler_db_services.read_schedule(schedule_id)
-        if not is_schedule:
-            raise ValueError('No such Schedule: {}.'.format(schedule_id))
 
         await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
         return web.json_response({'message': 'Schedule deleted successfully', 'id': schedule_id})
-    except ValueError as ex:
+    except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 async def get_schedule_type(request):
     """
@@ -463,16 +433,12 @@ async def get_task(request):
     """
 
     try:
-        if_trace = request.query.get('trace') if 'trace' in request.query and request.query.get('trace') else None
         task_id = request.match_info.get('task_id', None)
 
         if not task_id:
-            raise ValueError('No task_id given')
+            raise web.HTTPBadRequest(reason='Task ID is required.')
 
         tsk = await server.Server.scheduler.get_task(uuid.UUID(task_id))
-
-        # if not tsk:
-        #     raise ValueError('No such Task: {}'.format(task_id))
 
         task = {
             'id': str(tsk.task_id),
@@ -485,10 +451,8 @@ async def get_task(request):
         }
 
         return web.json_response(task)
-    # except ValueError as ex:
-    #     raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        handle_scheduler_api_exception(ex, if_trace)
+    except (ValueError, TaskNotFoundError) as ex:
+        raise web.HTTPNotFound(reason=str(ex))
 
 
 async def get_tasks(request):
@@ -507,7 +471,7 @@ async def get_tasks(request):
 
         if limit:
             if not re.match("(^[0-9]*$)", limit):
-                raise ValueError('This limit {} not permitted.'.format(limit))
+                raise web.HTTPBadRequest(reason='This limit {} not permitted.'.format(limit))
             elif int(limit) > 100:
                 limit = 100
             else:
@@ -515,7 +479,7 @@ async def get_tasks(request):
 
         if state:
             if state.upper() not in [t.name for t in list(Task.State)]:
-                raise ValueError('This state value {} not permitted.'.format(state))
+                raise web.HTTPBadRequest(reason='This state value {} not permitted.'.format(state))
             else:
                 z = dict()
                 for i in list(Task.State):
@@ -534,9 +498,6 @@ async def get_tasks(request):
 
         tasks = await server.Server.scheduler.get_tasks(where=where_clause, limit=limit)
 
-        if not tasks:
-            raise ValueError('No such Tasks')
-
         new_tasks = []
         for task in tasks:
             new_tasks.append(
@@ -551,10 +512,8 @@ async def get_tasks(request):
             )
 
         return web.json_response({'tasks': new_tasks})
-    except ValueError as ex:
+    except (ValueError, TaskNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def get_tasks_latest(request):
@@ -569,9 +528,6 @@ async def get_tasks_latest(request):
         name = request.query.get('name') if 'name' in request.query else None
 
         tasks = await scheduler_db_services.read_tasks_latest(name)
-
-        if not tasks:
-            raise ValueError('No such Tasks')
 
         new_tasks = []
         for task in tasks:
@@ -588,10 +544,8 @@ async def get_tasks_latest(request):
             )
 
         return web.json_response({'tasks': new_tasks})
-    except ValueError as ex:
+    except (ValueError, TaskNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def cancel_task(request):
@@ -599,26 +553,20 @@ async def cancel_task(request):
 
     :Example: curl -X GET  http://localhost:8082/foglamp/task/cancel/{task_id}
     """
-
     try:
         task_id = request.match_info.get('task_id', None)
 
         if not task_id:
-            raise ValueError('No Task given')
+            raise web.HTTPBadRequest(reason='Task ID is required.')
 
         task = await server.Server.scheduler.get_task(uuid.UUID(task_id))
-
-        if not task:
-            raise ValueError('No such Task: {}'.format(task_id))
 
         # Cancel Task
         await server.Server.scheduler.cancel_task(uuid.UUID(task_id))
 
         return web.json_response({'id': task_id, 'message': 'Task cancelled successfully'})
-    except ValueError as ex:
+    except (ValueError, TaskNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def get_task_state(request):

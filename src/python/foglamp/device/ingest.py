@@ -342,7 +342,8 @@ class Ingest(object):
                     if connection is None:
                         await waiter
                     else:
-                        await asyncio.wait_for(waiter,
+                        await asyncio.wait_for(
+                                waiter,
                                 cls._max_readings_insert_batch_connection_idle_seconds)
                 except asyncio.CancelledError:
                     # Don't assume the list is empty
@@ -436,19 +437,20 @@ class Ingest(object):
                         break
                     else:
                         if connection is None:
-                            # Connection failure
-                            waiter = asyncio.ensure_future(asyncio.sleep(
+                            if not cls._stop:
+                                # Connection failure
+                                waiter = asyncio.ensure_future(asyncio.sleep(
                                     randint(1,
                                             cls._max_readings_insert_batch_reconnect_wait_seconds)))
 
-                            cls._insert_readings_wait_tasks[list_index] = waiter
+                                cls._insert_readings_wait_tasks[list_index] = waiter
 
-                            try:
-                                await waiter
-                            except asyncio.TimeoutError:
-                                pass
-                            finally:
-                                cls._insert_readings_wait_tasks[list_index] = None
+                                try:
+                                    await waiter
+                                except asyncio.TimeoutError:
+                                    pass
+                                finally:
+                                    cls._insert_readings_wait_tasks[list_index] = None
                         else:
                             await cls._close_connection(connection)
                             connection = None

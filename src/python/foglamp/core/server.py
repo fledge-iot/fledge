@@ -71,9 +71,6 @@ class Server:
 
         If the scheduler stops successfully, the event loop is
         stopped.
-
-        Raises TimeoutError:
-            A task is still running. Wait and try again.
         """
         if cls.scheduler:
             try:
@@ -81,6 +78,7 @@ class Server:
                 cls.scheduler = None
             except TimeoutError:
                 _LOGGER.exception('Unable to stop the scheduler')
+                return
 
         # Cancel asyncio tasks
         for task in asyncio.Task.all_tasks():

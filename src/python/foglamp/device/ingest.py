@@ -438,9 +438,18 @@ class Ingest(object):
                     else:
                         if connection is None:
                             # Connection failure
-                            await asyncio.sleep(
+                            waiter = asyncio.ensure_future(asyncio.sleep(
                                     randint(1,
-                                            cls._max_readings_insert_batch_reconnect_wait_seconds))
+                                            cls._max_readings_insert_batch_reconnect_wait_seconds)))
+
+                            cls._insert_readings_wait_tasks[list_index] = waiter
+
+                            try:
+                                await waiter
+                            except asyncio.TimeoutError:
+                                pass
+                            finally:
+                                cls._insert_readings_wait_tasks[list_index] = None
                         else:
                             await cls._close_connection(connection)
                             connection = None

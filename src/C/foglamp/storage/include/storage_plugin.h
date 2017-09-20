@@ -42,7 +42,7 @@ private:
 	std::string (*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
 	std::string (*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
 	unsigned int (*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
-	void (*releasePtr)(const char *payload);
+	void (*releasePtr)(PLUGIN_HANDLE, const char *payload);
 };
 
 #endif

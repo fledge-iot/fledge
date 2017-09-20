@@ -371,11 +371,10 @@ class Ingest(object):
             #           json.dumps(item[3])) for item in list[:batch_size]]
 
             attempt = 0
+            cls._last_insert_time = time.time()
 
             # Perform insert. Retry when fails.
             while True:
-                cls._last_insert_time = time.time()
-
                 # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
                 #               len(list))
 
@@ -428,7 +427,7 @@ class Ingest(object):
                     _LOGGER.exception('Insert failed on attempt #%s, list index: %s',
                                       attempt, list_index)
 
-                    if cls._stop and attempt > 2:
+                    if cls._stop and attempt >= 5:
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size

@@ -112,8 +112,6 @@ async def set_configuration_item(request):
         result = await configuration_manager.get_category_item(category_name, config_item)
     except KeyError:
         return web.json_response({'error': 'Missing required value for {}'.format(config_item)})
-    except Exception as ex:
-        return web.json_response({'error': ex})
 
     return web.json_response(result)
 
@@ -134,10 +132,8 @@ async def delete_configuration_item_value(request):
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
-    try:
-        await configuration_manager.set_category_item_value_entry(category_name, config_item, '')
-        result = await configuration_manager.get_category_item(category_name, config_item)
-    except Exception as ex:
-        return web.json_response({'error': ex})
+
+    await configuration_manager.set_category_item_value_entry(category_name, config_item, '')
+    result = await configuration_manager.get_category_item(category_name, config_item)
 
     return web.json_response(result)

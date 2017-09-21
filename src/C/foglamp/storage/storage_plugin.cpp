@@ -62,3 +62,11 @@ bool StoragePlugin::commonDelete(const string& table, const string& payload)
 {
 	return this->commonDeletePtr(instance, table.c_str(), payload.c_str());
 }
+
+/**
+ * Release a result from a retrieve
+ */
+void StoragePlugin::release(const char *results)
+{
+	this->releasePtr(instance, results);
+}

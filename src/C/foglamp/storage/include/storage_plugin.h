@@ -22,27 +22,27 @@ public:
 	StoragePlugin(PLUGIN_HANDLE handle);
 	~StoragePlugin();
 
-	bool commonInsert(const std::string& table, const std::string& payload);
-	char * commonRetrieve(const std::string& table, const std::string& payload);
-	char * commonUpdate(const std::string& table, const std::string& payload);
-	bool commonDelete(const std::string& table, const std::string& payload);
-	bool readingsAppend(const std::string& payload);
-	char * readingsFetch(unsigned long id, unsigned int blksize);
-	char * readingsRetrieve(const std::string& payload);
-	unsigned int readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
-	void PluginRelease(const std::string& payload);
+	bool		commonInsert(const std::string& table, const std::string& payload);
+	char		*commonRetrieve(const std::string& table, const std::string& payload);
+	char		*commonUpdate(const std::string& table, const std::string& payload);
+	bool		commonDelete(const std::string& table, const std::string& payload);
+	bool		readingsAppend(const std::string& payload);
+	char		*readingsFetch(unsigned long id, unsigned int blksize);
+	char		*readingsRetrieve(const std::string& payload);
+	unsigned int	readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
+	void		release(const char *response);
 
 private:
-  PLUGIN_HANDLE instance;
-  bool    (*commonInsertPtr)(PLUGIN_HANDLE, const char *, const char *);
-  char * (*commonRetrievePtr)(PLUGIN_HANDLE, const char *, const char *);
-  char * (*commonUpdatePtr)(PLUGIN_HANDLE, const char *, const char *);
-  bool (*commonDeletePtr)(PLUGIN_HANDLE, const char *, const char *);
-  bool  (*readingsAppendPtr)(PLUGIN_HANDLE, const char *);
-	char * (*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
-	char * (*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
-	unsigned int (*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
-	void (*releasePtr)(PLUGIN_HANDLE, const char *payload);
+	PLUGIN_HANDLE	instance;
+	bool		(*commonInsertPtr)(PLUGIN_HANDLE, const char *, const char *);
+	char		*(*commonRetrievePtr)(PLUGIN_HANDLE, const char *, const char *);
+	char		*(*commonUpdatePtr)(PLUGIN_HANDLE, const char *, const char *);
+	bool		(*commonDeletePtr)(PLUGIN_HANDLE, const char *, const char *);
+	bool		(*readingsAppendPtr)(PLUGIN_HANDLE, const char *);
+	char		*(*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
+	char		*(*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
+	unsigned int	(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
+	void		(*releasePtr)(PLUGIN_HANDLE, const char *payload);
 };
 
 #endif

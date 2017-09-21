@@ -2,11 +2,11 @@
 #define _PLUGIN_API
  
 typedef struct {
-        char         *name;
-        char         *version;
-        unsigned int options;
-        char         *type;
-        char         *interface;
+        const char	*name;
+        const char	*version;
+        unsigned int	options;
+        const char	*type;
+        const char	*interface;
 } PLUGIN_INFORMATION;
  
 typedef struct {

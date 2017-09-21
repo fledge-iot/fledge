@@ -3,6 +3,7 @@
 #include <plugin_api.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 #include "libpq-fe.h"
 #include <iostream>
 #include <string>
@@ -45,10 +46,11 @@ const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *quer
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+std::string results;
 
-	std::string results = connection->retrieve(std::string(table), std::string(query));
+	connection->retrieve(std::string(table), std::string(query), results);
 	manager->release(connection);
-	return results.c_str();
+	return strdup(results.c_str());
 }
 
 bool plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
@@ -95,6 +97,7 @@ unsigned int plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsig
 
 void plugin_release(PLUGIN_HANDLE handle, char *results)
 {
+	free(results);
 }
 
 PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE)

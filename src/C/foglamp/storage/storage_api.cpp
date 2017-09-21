@@ -308,7 +308,6 @@ string payload = "{ \"where\" : { ";
 		payload = payload + "} }";
 
 		string res = plugin->commonRetrieve(tableName, payload);
-printf("Back with result: %s\n", res.c_str());
 
 		respond(response, res);
 	} catch (exception ex) {
@@ -317,7 +316,7 @@ printf("Back with result: %s\n", res.c_str());
 }
 
 /**
- * Perform query on a table using thw JSON encoded query in the payload
+ * Perform query on a table using the JSON encoded query in the payload
  *
  * @param response	The response stream to send the response on
  * @param request	The HTTP request

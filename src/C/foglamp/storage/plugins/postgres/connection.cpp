@@ -42,7 +42,7 @@ Connection::~Connection()
  *
  * TODO Improve error handling
  */
-string Connection::retrieve(const string& table, const string& condition)
+bool Connection::retrieve(const string& table, const string& condition, string& resultSet)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -73,13 +73,15 @@ SQLBuffer	sql;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
-printf("%s\n", query);
 	PGresult *res = PQexec(dbConnection, query);
+	delete query;
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
-		return mapResultSet(res);
+		mapResultSet(res, resultSet);
+		return true;
 	}
-	return string(PQerrorMessage(dbConnection));
+ 	resultSet = PQerrorMessage(dbConnection);
+	return false;
 }
 
 /**
@@ -121,12 +123,14 @@ int		col;
 		col++;
 	}
 	sql.append(") values (");
-	sql.append(values.coalesce());
+	const char *vals = values.coalesce();
+	sql.append(vals);
+	delete vals;
 	sql.append(");");
 
 	const char *query = sql.coalesce();
-printf("query %s\n", query);
 	PGresult *res = PQexec(dbConnection, query);
+	delete query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;
@@ -195,6 +199,7 @@ int		col = 0;
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
+	delete query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;
@@ -239,6 +244,7 @@ SQLBuffer	sql;
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
+	delete query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;
@@ -246,7 +252,7 @@ SQLBuffer	sql;
 	return false;
 }
 
-string Connection::mapResultSet(PGresult *res)
+void Connection::mapResultSet(PGresult *res, string& resultSet)
 {
 int nFields, i, j;
 Document doc;
@@ -312,8 +318,7 @@ Document doc;
 	StringBuffer buffer;
 	Writer<StringBuffer> writer(buffer);
 	doc.Accept(writer);
-printf("Result set: %s\n", buffer.GetString());
-	return string(buffer.GetString());
+	resultSet = buffer.GetString();
 }
 
 /**

@@ -10,13 +10,14 @@ class Connection {
 	public:
 		Connection();
 		~Connection();
-		std::string     retrieve(const std::string& table, const std::string& condition);
+		bool		retrieve(const std::string& table, const std::string& condition,
+					std::string& resultSet);
 		bool		insert(const std::string& table, const std::string& data);
 		bool		update(const std::string& table, const std::string& data);
 		bool		deleteRows(const std::string& table, const std::string& condition);
 	private:
 		PGconn		*dbConnection;
-		std::string	mapResultSet(PGresult *res);
+		void		mapResultSet(PGresult *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
 		char		*trim(char *str);
 };

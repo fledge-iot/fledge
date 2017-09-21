@@ -20,8 +20,6 @@ SQLBuffer::SQLBuffer()
  */
 SQLBuffer::~SQLBuffer()
 {
-SQLBuffer::Buffer *buffer;
-
 	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
 	{
 		delete *it;
@@ -71,7 +69,7 @@ char	tmpbuf[80];
 unsigned int len;
 SQLBuffer::Buffer *buffer = buffers.front();
 
-	len = snprintf(tmpbuf, 80, "%d", value);
+	len = (unsigned int)snprintf(tmpbuf, 80, "%d", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
@@ -90,7 +88,7 @@ char	tmpbuf[80];
 unsigned int len;
 SQLBuffer::Buffer *buffer = buffers.front();
 
-	len = snprintf(tmpbuf, 80, "%ld", value);
+	len = (unsigned int)snprintf(tmpbuf, 80, "%ld", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
@@ -109,7 +107,7 @@ char	tmpbuf[80];
 unsigned int len;
 SQLBuffer::Buffer *buffer = buffers.front();
 
-	len = snprintf(tmpbuf, 80, "%u", value);
+	len = (unsigned int)snprintf(tmpbuf, 80, "%u", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
@@ -128,7 +126,7 @@ char	tmpbuf[80];
 unsigned int len;
 SQLBuffer::Buffer *buffer = buffers.front();
 
-	len = snprintf(tmpbuf, 80, "%lu", value);
+	len = (unsigned int)snprintf(tmpbuf, 80, "%lu", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
@@ -147,7 +145,7 @@ char	tmpbuf[80];
 unsigned int len;
 SQLBuffer::Buffer *buffer = buffers.front();
 
-	len = snprintf(tmpbuf, 80, "%f", value);
+	len = (unsigned int)snprintf(tmpbuf, 80, "%f", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();

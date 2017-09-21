@@ -77,26 +77,48 @@ Connection        *connection = manager->allocate();
 
 bool plugin_reading_append(PLUGIN_HANDLE handle, char *reading)
 {
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	manager->release(connection);
 	return false;
 }
 
 char *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int blksize)
 {
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	manager->release(connection);
 	return NULL;
 }
 
 char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)
 {
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+std::string results;
+
+	connection->retrieve(std::string("readings"), std::string(condition), results);
+	manager->release(connection);
+	return strdup(results.c_str());
+	manager->release(connection);
 	return NULL;
 }
 
 unsigned int plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent)
 {
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	manager->release(connection);
 	return 0;
 }
 
+
 void plugin_release(PLUGIN_HANDLE handle, char *results)
 {
+	(void)handle;
 	free(results);
 }
 
@@ -107,7 +129,7 @@ PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE)
 
 bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
-ConnectionManager *manager = ConnectionManager::getInstance();
+ConnectionManager *manager = (ConnectionManager *)handle;
   
 	manager->shutdown();
 	return true;

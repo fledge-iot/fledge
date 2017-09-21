@@ -358,6 +358,7 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		sql.append(" OR ");
 		jsonWhereClause(whereClause["or"], sql);
 	}
+	return true;
 }
 
 /**

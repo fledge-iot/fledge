@@ -32,6 +32,7 @@ target_link_libraries(storage ${Boost_LIBRARIES})
 target_link_libraries(storage ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(storage ${DLLIB})
 
+add_subdirectory(plugins/postgres)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(storage ws2_32 wsock32)

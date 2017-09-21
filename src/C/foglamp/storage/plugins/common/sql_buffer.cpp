@@ -1,0 +1,233 @@
+#include <sql_buffer.h>
+#include <string.h>
+
+using namespace std;
+/**
+ * Buffer class designed to hold SQL statement that can
+ * as required but have minimal copy semantics.
+ */
+
+/**
+ * SQLBuffer constructor
+ */
+SQLBuffer::SQLBuffer()
+{
+        buffers.push_front(new SQLBuffer::Buffer());
+}
+
+/**
+ * SQLBuffer destructor
+ */
+SQLBuffer::~SQLBuffer()
+{
+SQLBuffer::Buffer *buffer;
+
+	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
+	{
+		delete *it;
+	}
+}
+
+/**
+ * Append a character to a buffer
+ */
+void SQLBuffer::append(const char data)
+{
+SQLBuffer::Buffer *buffer = buffers.front();
+
+        if (buffer->offset == buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	buffer->data[buffer->offset] = data;
+	buffer->data[buffer->offset + 1] = 0;
+	buffer->offset++;
+}
+
+/**
+ * Append a character string to a buffer
+ */
+void SQLBuffer::append(const char *data)
+{
+unsigned int len = strlen(data);
+SQLBuffer::Buffer *buffer = buffers.front();
+
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], data, len);
+	buffer->offset += len;
+}
+
+/**
+ * Append an integer to a buffer
+ */
+void SQLBuffer::append(const int value)
+{
+char	tmpbuf[80];
+unsigned int len;
+SQLBuffer::Buffer *buffer = buffers.front();
+
+	len = snprintf(tmpbuf, 80, "%d", value);
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
+	buffer->offset += len;
+}
+
+/**
+ * Append a long to a buffer
+ */
+void SQLBuffer::append(const long value)
+{
+char	tmpbuf[80];
+unsigned int len;
+SQLBuffer::Buffer *buffer = buffers.front();
+
+	len = snprintf(tmpbuf, 80, "%ld", value);
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
+	buffer->offset += len;
+}
+
+/**
+ * Append an unsigned integer to a buffer
+ */
+void SQLBuffer::append(const unsigned int value)
+{
+char	tmpbuf[80];
+unsigned int len;
+SQLBuffer::Buffer *buffer = buffers.front();
+
+	len = snprintf(tmpbuf, 80, "%u", value);
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
+	buffer->offset += len;
+}
+
+/**
+ * Append an unsigned long to a buffer
+ */
+void SQLBuffer::append(const unsigned long value)
+{
+char	tmpbuf[80];
+unsigned int len;
+SQLBuffer::Buffer *buffer = buffers.front();
+
+	len = snprintf(tmpbuf, 80, "%lu", value);
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
+	buffer->offset += len;
+}
+
+/**
+ * Append a double to a buffer
+ */
+void SQLBuffer::append(const double value)
+{
+char	tmpbuf[80];
+unsigned int len;
+SQLBuffer::Buffer *buffer = buffers.front();
+
+	len = snprintf(tmpbuf, 80, "%f", value);
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
+	buffer->offset += len;
+}
+
+/**
+ * Append a string to a buffer
+ */
+void SQLBuffer::append(const string& str)
+{
+const char	*cstr = str.c_str();
+unsigned int len = strlen(cstr);
+SQLBuffer::Buffer *buffer = buffers.front();
+
+        if (buffer->offset + len >= buffer->length)
+        {
+		buffer = new SQLBuffer::Buffer();
+		buffers.push_front(buffer);
+	}
+	memcpy(&buffer->data[buffer->offset], cstr, len);
+	buffer->offset += len;
+}
+
+/**
+ * Create a coalesced buffer from the buffer chain
+ */
+const char *SQLBuffer::coalesce()
+{
+unsigned int length = 0, offset = 0;
+char	     *buffer = 0;
+
+	if (buffers.size() == 1)
+	{
+		return buffers.front()->detach();
+	}
+	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
+	{
+		length += (*it)->offset;
+	}
+	buffer = new char[length+1];
+	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
+	{
+		memcpy(&buffer[offset], (*it)->data, (*it)->offset);
+		offset += (*it)->length;
+	}
+	buffer[offset] = 0;
+
+	return buffer;
+}
+
+/**
+ * Construct a buffer
+ */
+SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
+{
+	data = new(char[BUFFER_CHUNK+1]);
+}
+
+/**
+ * Buffer destructor
+ */
+SQLBuffer::Buffer::~Buffer()
+{
+	if (attached)
+	{
+		delete data;
+		data = 0;
+	}
+}
+
+char *SQLBuffer::Buffer::detach()
+{
+char *rval = data;
+
+	attached = false;
+	length = 0;
+	data = 0;
+	return rval;
+}

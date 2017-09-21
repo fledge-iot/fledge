@@ -10,20 +10,21 @@ class Connection;
  * Singleton class to manage Postgres connection pool
  */
 class ConnectionManager {
-  public:
-    static ConnectionManager  *getInstance();
-    void                      growPool(unsigned int);
-    unsigned int              shrinkPool(unsigned int);
-    Connection                *allocate();
-    void                      release(Connection *);
+	public:
+		static ConnectionManager  *getInstance();
+		void                      growPool(unsigned int);
+		unsigned int              shrinkPool(unsigned int);
+		Connection                *allocate();
+		void                      release(Connection *);
+		void			  shutdown();
 
-  private:
-    ConnectionManager();
-    static ConnectionManager     *instance;
-    std::list<Connection *>      idle;
-    std::list<Connection *>      inUse;
-    std::mutex                   idleLock;
-    std::mutex                   inUseLock;
+	private:
+		ConnectionManager();
+		static ConnectionManager     *instance;
+		std::list<Connection *>      idle;
+		std::list<Connection *>      inUse;
+		std::mutex                   idleLock;
+		std::mutex                   inUseLock;
 };
 
 #endif

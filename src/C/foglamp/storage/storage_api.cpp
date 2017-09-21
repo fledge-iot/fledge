@@ -35,8 +35,8 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
  */
 void commonInsertWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->commonInsert(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->commonInsert(response, request);
 }
 
 /**
@@ -44,8 +44,8 @@ void commonInsertWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
  */
 void commonUpdateWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->commonUpdate(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->commonUpdate(response, request);
 }
 
 /**
@@ -53,8 +53,8 @@ void commonUpdateWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
  */
 void commonDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->commonDelete(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->commonDelete(response, request);
 }
 
 /**
@@ -62,8 +62,8 @@ void commonDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
  */
 void commonSimpleQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->commonSimpleQuery(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->commonSimpleQuery(response, request);
 }
 
 /**
@@ -71,8 +71,8 @@ void commonSimpleQueryWrapper(shared_ptr<HttpServer::Response> response, shared_
  */
 void commonQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->commonQuery(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->commonQuery(response, request);
 }
 
 /**
@@ -81,8 +81,8 @@ void commonQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<Ht
  */
 void defaultWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->defaultResource(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->defaultResource(response, request);
 }
 
 /**
@@ -96,8 +96,8 @@ void on_error(__attribute__((unused)) shared_ptr<HttpServer::Request> request, _
  */
 void readingAppendWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->readingAppend(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->readingAppend(response, request);
 }
 
 /**
@@ -105,8 +105,8 @@ void readingAppendWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<
  */
 void readingFetchWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->readingFetch(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->readingFetch(response, request);
 }
 
 /**
@@ -114,8 +114,8 @@ void readingFetchWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
  */
 void readingQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->readingQuery(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->readingQuery(response, request);
 }
 
 /**
@@ -123,8 +123,8 @@ void readingQueryWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
  */
 void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
-  StorageApi *api = StorageApi::getInstance();
-  api->readingPurge(response, request);
+	StorageApi *api = StorageApi::getInstance();
+	api->readingPurge(response, request);
 }
 
 /**
@@ -144,9 +144,11 @@ StorageApi::StorageApi(const short port, const int threads) {
  */
 StorageApi *StorageApi::getInstance()
 {
-  if (m_instance == NULL)
-    m_instance = new StorageApi(8080, 1);
-  return m_instance;
+	if (m_instance == NULL)
+	{
+		m_instance = new StorageApi(8080, 1);
+	}
+	return m_instance;
 }
 
 /**
@@ -191,7 +193,7 @@ void StorageApi::wait() {
  */
 void StorageApi::setPlugin(StoragePlugin *plugin)
 {
-  this->plugin = plugin;
+	this->plugin = plugin;
 }
 
 /**
@@ -234,20 +236,20 @@ string  tableName;
 string	payload;
 string  responsePayload;
 
-  try {
-	  tableName = request->path_match[TABLE_NAME_COMPONENT];
-	  payload = request->content.string();
+	try {
+		tableName = request->path_match[TABLE_NAME_COMPONENT];
+		payload = request->content.string();
 
-    bool rval = plugin->commonInsert(tableName, payload);
-    if (rval)
-      responsePayload = "{ \"reponse\" : \"inserted\" }";
-    else
-      responsePayload = "{ \"response\" : \"failed\" }";
+		bool rval = plugin->commonInsert(tableName, payload);
+		if (rval)
+			responsePayload = "{ \"reponse\" : \"inserted\" }";
+		else
+			responsePayload = "{ \"response\" : \"failed\" }";
 
-	  respond(response, responsePayload);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, responsePayload);
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -260,21 +262,27 @@ void StorageApi::commonUpdate(shared_ptr<HttpServer::Response> response, shared_
 {
 string  tableName;
 string	payload;
+string	responsePayload;
 
-  try {
-	  tableName = request->path_match[TABLE_NAME_COMPONENT];
-	  payload = request->content.string();
+	try {
+		tableName = request->path_match[TABLE_NAME_COMPONENT];
+		payload = request->content.string();
 
-    plugin->commonUpdate(tableName, payload);
+		bool rval = plugin->commonUpdate(tableName, payload);
+		if (rval)
+			responsePayload = "{ \"reponse\" : \"updated\" }";
+		else
+			responsePayload = "{ \"response\" : \"failed\" }";
 
-	  respond(response, payload);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, responsePayload);
+	} catch (exception ex) {
+		internalError(response, ex);
+		}
 }
 
 /**
  * Perform a simple query on the table using the query parameters as conditions
+ * TODO make this work for multiple column queries
  *
  * @param response	The response stream to send the response on
  * @param request	The HTTP request
@@ -282,16 +290,30 @@ string	payload;
 void StorageApi::commonSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 string  tableName;
-string	payload;
+SimpleWeb::CaseInsensitiveMultimap	query;
+string payload = "{ \"where\" : { ";
 
-  try {
-  	tableName = request->path_match[TABLE_NAME_COMPONENT];
-  	payload = request->content.string();
+	try {
+		tableName = request->path_match[TABLE_NAME_COMPONENT];
+		query = request->parse_query_string();
 
-	  respond(response, payload);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		for(auto &param : query)
+		{
+			payload = payload + "\"column\" :  \"";
+			payload = payload + param.first;
+			payload = payload + "\", \"condition\" : \"=\", \"value\" : \"";
+			payload = payload + param.second;
+			payload = payload + "\"";
+		}
+		payload = payload + "} }";
+
+		string res = plugin->commonRetrieve(tableName, payload);
+printf("Back with result: %s\n", res.c_str());
+
+		respond(response, res);
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -305,16 +327,16 @@ void StorageApi::commonQuery(shared_ptr<HttpServer::Response> response, shared_p
 string  tableName;
 string	payload;
 
-  try {
-    tableName = request->path_match[TABLE_NAME_COMPONENT];
-    payload = request->content.string();
+	try {
+		tableName = request->path_match[TABLE_NAME_COMPONENT];
+		payload = request->content.string();
 
-    string res = plugin->commonRetrieve(tableName, payload);
+		string res = plugin->commonRetrieve(tableName, payload);
 
-    respond(response, res);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, res);
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -327,17 +349,22 @@ void StorageApi::commonDelete(shared_ptr<HttpServer::Response> response, shared_
 {
 string  tableName;
 string	payload;
+string  responsePayload;
 
-  try {
-	  tableName = request->path_match[TABLE_NAME_COMPONENT];
-	  payload = request->content.string();
+	try {
+		tableName = request->path_match[TABLE_NAME_COMPONENT];
+		payload = request->content.string();
 
-    plugin->commonDelete(tableName, payload);
+		bool rval = plugin->commonDelete(tableName, payload);
+		if (rval)
+			responsePayload = "{ \"reponse\" : \"deleted\" }";
+		else
+			responsePayload = "{ \"response\" : \"failed\" }";
 
-	  respond(response, payload);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, responsePayload);
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -350,13 +377,13 @@ void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared
 {
 string payload;
 
-  try {
-	  payload = request->content.string();
+	try {
+		payload = request->content.string();
 
-	  respond(response, payload);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, payload);
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -371,36 +398,36 @@ SimpleWeb::CaseInsensitiveMultimap query;
 unsigned long id = 0;
 unsigned long count = 0;
 
-  try {
-    query = request->parse_query_string();
+	try {
+		query = request->parse_query_string();
 
-    auto search = query.find("id");
-    if (search == query.end())
-    {
-	    string payload = "{ \"error\" : \"Missing query parameter id\" }";
-    	respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-      return;
-    }
-    else
-    {
-      id = (unsigned)atol(search->second.c_str());
-    }
-    search = query.find("count");
-    if (search == query.end())
-    {
-	    string payload = "{ \"error\" : \"Missing query parameter count\" }";
-    	respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-      return;
-    }
-    else
-    {
-      count = (unsigned)atol(search->second.c_str());
-    }
+		auto search = query.find("id");
+		if (search == query.end())
+		{
+			string payload = "{ \"error\" : \"Missing query parameter id\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			return;
+		}
+		else
+		{
+			id = (unsigned)atol(search->second.c_str());
+		}
+		search = query.find("count");
+		if (search == query.end())
+		{
+			string payload = "{ \"error\" : \"Missing query parameter count\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			return;
+		}
+		else
+		{
+			count = (unsigned)atol(search->second.c_str());
+		}
 
-	  respond(response, "{ \"Fetching...\" : \"data\" }");
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, "{ \"Fetching...\" : \"data\" }");
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -413,13 +440,13 @@ void StorageApi::readingQuery(shared_ptr<HttpServer::Response> response, shared_
 {
 string	payload;
 
-  try {
-    payload = request->content.string();
+	try {
+		payload = request->content.string();
 
-    respond(response, payload);
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, payload);
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 
@@ -436,42 +463,42 @@ unsigned long age = 0;
 unsigned long lastSent = 0;
 string        flags;
 
-  try {
-    query = request->parse_query_string();
+	try {
+		query = request->parse_query_string();
 
-    auto search = query.find("age");
-    if (search == query.end())
-    {
-	    string payload = "{ \"error\" : \"Missing query parameter age\" }";
-    	respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-      return;
-    }
-    else
-    {
-      age = (unsigned)atol(search->second.c_str());
-    }
-    search = query.find("sent");
-    if (search == query.end())
-    {
-	    string payload = "{ \"error\" : \"Missing query parameter sent\" }";
-    	respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-      return;
-    }
-    else
-    {
-      lastSent = (unsigned)atol(search->second.c_str());
-    }
+		auto search = query.find("age");
+		if (search == query.end())
+		{
+			string payload = "{ \"error\" : \"Missing query parameter age\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			return;
+		}
+		else
+		{
+			age = (unsigned)atol(search->second.c_str());
+		}
+		search = query.find("sent");
+		if (search == query.end())
+		{
+			string payload = "{ \"error\" : \"Missing query parameter sent\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			return;
+		}
+		else
+		{
+			lastSent = (unsigned)atol(search->second.c_str());
+		}
 
-    search = query.find("flags");
-    if (search != query.end())
-    {
-      flags = search->second;
-    }
+		search = query.find("flags");
+		if (search != query.end())
+		{
+			flags = search->second;
+		}
 
-	  respond(response, "Purging...");
-  } catch (exception ex) {
-    internalError(response, ex);
-  }
+		respond(response, "Purging...");
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
 }
 
 /**
@@ -490,7 +517,11 @@ string	payload;
  */
 void StorageApi::internalError(shared_ptr<HttpServer::Response> response, const exception& ex)
 {
-const string payload = ex.what();
+string payload = "{ \"Exception\" : \"";
 
-  respond(response, SimpleWeb::StatusCode::server_error_internal_server_error, payload);
+	payload = payload + string(ex.what());
+	payload = payload + "\"";
+
+	printf("Internal Error: %s\n", ex.what());
+	respond(response, SimpleWeb::StatusCode::server_error_internal_server_error, payload);
 }

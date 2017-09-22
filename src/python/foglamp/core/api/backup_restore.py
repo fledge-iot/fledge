@@ -69,7 +69,13 @@ async def create_backup(request):
 
     :Example: curl -X POST http://localhost:8082/foglamp/backup
     """
-    pass
+    try:
+        # TODO : Fix after actual implementation
+        Backup.create_backup.return_value = "running"
+        status = Backup.create_backup()
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+    return web.json_response({"status": status})
 
 async def get_backup_details(request):
     """

@@ -78,6 +78,7 @@ def setup(app):
 
     # Backup & Restore - As per doc
     app.router.add_route('GET', '/foglamp/backup', backup_restore.get_backups)
+    app.router.add_route('POST', '/foglamp/backup', backup_restore.create_backup)
 
     # enable cors support
     enable_cors(app)

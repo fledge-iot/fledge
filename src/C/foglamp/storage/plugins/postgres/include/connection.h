@@ -15,6 +15,7 @@ class Connection {
 		bool		insert(const std::string& table, const std::string& data);
 		bool		update(const std::string& table, const std::string& data);
 		bool		deleteRows(const std::string& table, const std::string& condition);
+		bool		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
 	private:
 		void		raiseError(const char *operation, const char *reason,...);

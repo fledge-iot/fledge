@@ -391,11 +391,23 @@ string  responsePayload;
 void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 string payload;
+string  responsePayload;
 
 	try {
 		payload = request->content.string();
+		bool rval = plugin->readingsAppend(payload);
+		if (rval)
+		{
+			responsePayload = "{ \"reponse\" : \"appended\" }";
+			respond(response, responsePayload);
+		}
+		else
+		{
+			mapError(responsePayload, plugin->lastError());
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
 
-		respond(response, payload);
+		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -461,7 +473,9 @@ string	payload;
 	try {
 		payload = request->content.string();
 
-		respond(response, payload);
+		string res = plugin->readingsRetrieve(payload);
+
+		respond(response, res);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}

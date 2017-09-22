@@ -302,6 +302,96 @@ SQLBuffer	sql;
 	return false;
 }
 
+bool Connection::appendReadings(const char *readings)
+{
+Document 	doc;
+SQLBuffer	sql;
+int		row = 0;
+
+	if (doc.Parse(readings).HasParseError())
+	{
+ 		raiseError("appendReadings", PQerrorMessage(dbConnection));
+		return false;
+	}
+
+	sql.append("INSERT INTO readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+
+	Value &rdings = doc["readings"];
+	if (!rdings.IsArray())
+	{
+		raiseError("appendReadings", "Payload is missing the readings array");
+		return false;
+	}
+	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
+	{
+		int col = 0;
+		if (!itr->IsObject())
+		{
+			raiseError("appendReadings",
+					"Each reading in the readings array must be an object");
+			return false;
+		}
+		if (row)
+			sql.append(", (");
+		else
+			sql.append('(');
+		row++;
+		for (Value::ConstMemberIterator objItr = itr->MemberBegin();
+				objItr != itr->MemberEnd(); ++objItr)
+		{
+			if (col != 0)
+			{
+				sql.append( ", ");
+			}
+			col++;
+ 
+			if (objItr->value.IsString())
+			{
+				const char *str = objItr->value.GetString();
+				// Check if the string is a function
+				string s (str);
+				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+				if (regex_match (s,e))
+				{
+					sql.append(str);
+				}
+				else
+				{
+					sql.append('\'');
+					sql.append(str);
+					sql.append('\'');
+				}
+			}
+			else if (objItr->value.IsDouble())
+				sql.append(objItr->value.GetDouble());
+			else if (objItr->value.IsNumber())
+				sql.append(objItr->value.GetInt());
+			else if (objItr->value.IsObject())
+			{
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				objItr->value.Accept(writer);
+				sql.append('\'');
+				sql.append(buffer.GetString());
+				sql.append('\'');
+			}
+		}
+
+		sql.append(')');
+	}
+	sql.append(';');
+
+	const char *query = sql.coalesce();
+	PGresult *res = PQexec(dbConnection, query);
+	delete query;
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		return true;
+	}
+ 	raiseError("delete", PQerrorMessage(dbConnection));
+	return false;
+}
+
 /**
  * Fetch a block of readings from the reading table
  */

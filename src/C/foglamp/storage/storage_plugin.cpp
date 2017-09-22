@@ -66,11 +66,27 @@ bool StoragePlugin::commonDelete(const string& table, const string& payload)
 }
 
 /**
- * Call the readings fewtch method in the plugin
+ * Call the readings append method in the plugin
+ */
+bool StoragePlugin::readingsAppend(const string& payload)
+{
+	return this->readingsAppendPtr(instance, payload.c_str());
+}
+
+/**
+ * Call the readings fetch method in the plugin
  */
 char * StoragePlugin::readingsFetch(unsigned long id, unsigned int blksize)
 {
 	return this->readingsFetchPtr(instance, id, blksize);
+}
+
+/**
+ * Call the readings retrieve method in the plugin
+ */
+char * StoragePlugin::readingsRetrieve(const string& payload)
+{
+	return this->readingsRetrievePtr(instance, payload.c_str());
 }
 
 /**

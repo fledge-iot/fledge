@@ -71,13 +71,14 @@ Connection        *connection = manager->allocate();
 	return result;
 }
 
-bool plugin_reading_append(PLUGIN_HANDLE handle, char *reading)
+bool plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	bool result = connection->appendReadings(readings);
 	manager->release(connection);
-	return false;
+	return result;;
 }
 
 char *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int blksize)

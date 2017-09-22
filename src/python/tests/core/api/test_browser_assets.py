@@ -32,6 +32,12 @@ pytestmark = pytest.mark.asyncio
 
 
 async def add_master_data(rows=0):
+    """
+    For test data: 1 record is created with user_ts = (current time - 10 seconds)
+                   1 record is created with user_ts = (current time - 10 minutes)
+                   1 record is created with user_ts = (current time - 1 hour)
+                   other records are created with user_ts = (current time - 10 hour)
+    """
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.readings WHERE asset_code IN ($1)''', test_data_asset_code)
     uid_list = []
@@ -83,7 +89,6 @@ class TestBrowseAssets:
     @classmethod
     def teardown_class(cls):
         asyncio.get_event_loop().run_until_complete(delete_master_data())
-        pass
 
     def setup_method(self, method):
         pass
@@ -92,7 +97,11 @@ class TestBrowseAssets:
         pass
 
     def group_date_time(self, unit=None):
-        # Expected date_time = '2017-09-19 05:00:54.000'
+        """
+        Groups date_time values in groups of similar unit needed for grouping query
+        Example: for date_time '2017-09-19 05:00:54.000' and unit = minute
+        will return distinct list of 2017-09-19 05:00
+        """
         grouped_ts = []
         if unit == "second":
             date_time_length = 19
@@ -124,7 +133,7 @@ class TestBrowseAssets:
         assert test_data_asset_code in all_items
         for elements in retval:
             if elements['asset_code'] == test_data_asset_code:
-                assert len(self.test_data_uid_list) == elements['count']
+                assert 21 == elements['count']
 
     async def test_get_asset_readings(self):
         """
@@ -152,6 +161,8 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
+        # Verify that limit 1 returns the last inserted reading only
         assert 1 == len(retval)
         assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
         assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
@@ -170,6 +181,8 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
+        # Since we have only 1 record for last 15 seconds in test data
         assert 1 == len(retval)
         assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
         assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
@@ -188,6 +201,8 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
+        # Since we have only 2 record for last 15 minutes in test data
         assert 2 == len(retval)
         assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
         assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
@@ -209,6 +224,8 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
+        # Since we have only 3 record for last 2 hours in test data
         assert 3 == len(retval)
         assert retval[0]['reading'][sensor_code_1] == self.test_data_x_val_list[-1]
         assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
@@ -361,11 +378,12 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         assert 1 == len(retval)
-        assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[1:-1])
-        assert retval[sensor_code_1]['average'] == \
-               sum(self.test_data_x_val_list[1:-1])/len(self.test_data_x_val_list[1:-1])
-        assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[1:-1])
+        # Verify with last 20 records [1:] of test data since we are querying for default limit of 20
+        assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[1:])
+        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[1:])/len(self.test_data_x_val_list[1:])
+        assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[1:])
 
     @pytest.mark.xfail(reason="FOGL-546, FOGL-548")
     async def test_get_asset_sensor_readings_stats_q_limit(self):
@@ -381,7 +399,9 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         assert 1 == len(retval)
+        # Verify with last record of test data since we are querying for limit=1
         assert retval[sensor_code_1]['min'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
@@ -400,7 +420,9 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         assert 1 == len(retval)
+        # We have 1 record in test data for last 180 sec
         assert retval[sensor_code_1]['min'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
@@ -419,10 +441,11 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         assert 1 == len(retval)
+        # We have 2 records in test data for last 20 min
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-2:])
-        assert retval[sensor_code_1]['average'] == \
-               sum(self.test_data_x_val_list[-2:]) / len(self.test_data_x_val_list[-2:])
+        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-2:])/len(self.test_data_x_val_list[-2:])
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-2:])
 
     @pytest.mark.xfail(reason="FOGL-546")
@@ -440,15 +463,16 @@ class TestBrowseAssets:
         conn.close()
         retval = json.loads(r)
         assert 1 == len(retval)
+        # We have 3 records in test data for last 2 hours
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-3:])
-        assert retval[sensor_code_1]['average'] == \
-               sum(self.test_data_x_val_list[-3:]) / len(self.test_data_x_val_list[-3:])
+        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-3:])/len(self.test_data_x_val_list[-3:])
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-3:])
 
     @pytest.mark.xfail(reason="FOGL-546")
     async def test_get_asset_sensor_readings_stats_q_time_complex(self):
         """
         Verify that if a combination of hrs, min, sec is used, shortest period will apply for sensor reading
+        combined with limit of 20 (AND condition)
         http://localhost:8082/foglamp/asset/TESTAPI/x/summary?hours=20&minutes=20&seconds=180&limit=20
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -480,7 +504,7 @@ class TestBrowseAssets:
         # Find unique set of times grouped by seconds from test data
         grouped_ts_sec = self.group_date_time(unit="second")
 
-        # Verify the length of groups and value of last element
+        # Verify the length of groups and value of last element. Test data has only 1 record for last second's group
         assert len(grouped_ts_sec) == len(retval)
         assert retval[-1]["average"] == self.test_data_x_val_list[-1]
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]
@@ -503,7 +527,7 @@ class TestBrowseAssets:
         # Find unique set of times grouped by seconds from test data
         grouped_ts_sec = self.group_date_time(unit="second")
 
-        # Verify the length of groups and value of last element
+        # Grouped by 'YYY-MM-DD hh:mm:ss' returns 4 data points, verify the last data point with last value of test data
         assert len(grouped_ts_sec) == len(retval)
         assert retval[-1]["average"] == self.test_data_x_val_list[-1]
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]
@@ -526,7 +550,7 @@ class TestBrowseAssets:
         # Find unique set of times grouped by minutes from test data
         grouped_ts_min = self.group_date_time(unit="minute")
 
-        # Verify the length of groups and value of last element
+        # Grouped by 'YYY-MM-DD hh:mm' returns 4 data points, verify the last data point with last value of test data
         assert len(grouped_ts_min) == len(retval)
         assert retval[-1]["average"] == self.test_data_x_val_list[-1]
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]
@@ -598,6 +622,7 @@ class TestBrowseAssets:
         grouped_ts = self.group_date_time()
 
         # Verify the values of a group (default by sec), has 2 records only when querying for last 20 min
+        # For last n min, grouped by 'YYY-MM-DD hh:mm:ss' verify with last and second last test data
         assert 2 == len(retval)
         assert retval[-1]["average"] == self.test_data_x_val_list[-1]
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]
@@ -628,6 +653,7 @@ class TestBrowseAssets:
         grouped_ts = self.group_date_time(unit="hour")
 
         # Verify the values of a group, has 1 record only (shortest time) and hourly grouping
+        # For example in last 180 sec, grouped by 'YYY-MM-DD hh' is equal to last record of test data
         assert 1 == len(retval)
         assert retval[-1]["average"] == self.test_data_x_val_list[-1]
         assert retval[-1]["max"] == self.test_data_x_val_list[-1]

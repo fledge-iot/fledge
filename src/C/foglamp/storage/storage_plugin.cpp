@@ -29,6 +29,8 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 				manager->resolveSymbol(handle, "plugin_reading_purge");
 	releasePtr = (void (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_release");
+	lastErrorPtr = (PLUGIN_ERROR * (*)(PLUGIN_HANDLE))
+				manager->resolveSymbol(handle, "plugin_last_error");
 }
 
 /**
@@ -69,4 +71,12 @@ bool StoragePlugin::commonDelete(const string& table, const string& payload)
 void StoragePlugin::release(const char *results)
 {
 	this->releasePtr(instance, results);
+}
+
+/**
+ * Get the last error from the plugin
+ */
+PLUGIN_ERROR *StoragePlugin::lastError()
+{
+	this->lastErrorPtr(instance);
 }

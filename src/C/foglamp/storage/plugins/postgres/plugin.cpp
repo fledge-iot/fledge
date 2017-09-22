@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "libpq-fe.h"
-#include <iostream>
 #include <string>
 
 extern "C" {
@@ -36,7 +35,6 @@ bool plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	std::cout << "Postgres plugin common insert into " << table << " with payload " <<data;
 	bool result = connection->insert(std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
@@ -58,7 +56,6 @@ bool plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	std::cout << "Postgres plugin common update into " << table << " with payload " <<data;
 	bool result = connection->update(std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
@@ -69,7 +66,6 @@ bool plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	std::cout << "Postgres plugin common delete from " << table << " with payload " <<condition;
 	bool result = connection->deleteRows(std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
@@ -122,9 +118,11 @@ void plugin_release(PLUGIN_HANDLE handle, char *results)
 	free(results);
 }
 
-PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE)
+PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE handle)
 {
-	return NULL;
+ConnectionManager *manager = (ConnectionManager *)handle;
+  
+	return manager->getError();
 }
 
 bool plugin_shutdown(PLUGIN_HANDLE handle)

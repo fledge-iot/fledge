@@ -242,10 +242,15 @@ string  responsePayload;
 
 		bool rval = plugin->commonInsert(tableName, payload);
 		if (rval)
-			responsePayload = "{ \"reponse\" : \"inserted\" }";
+		{
+			responsePayload = "{ \"reponse\" : \"updated\" }";
+			respond(response, responsePayload);
+		}
 		else
-			responsePayload = "{ \"response\" : \"failed\" }";
-
+		{
+			mapError(responsePayload, plugin->lastError());
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
 		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
@@ -270,11 +275,16 @@ string	responsePayload;
 
 		bool rval = plugin->commonUpdate(tableName, payload);
 		if (rval)
+		{
 			responsePayload = "{ \"reponse\" : \"updated\" }";
+			respond(response, responsePayload);
+		}
 		else
-			responsePayload = "{ \"response\" : \"failed\" }";
+		{
+			mapError(responsePayload, plugin->lastError());
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
 
-		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 		}
@@ -356,9 +366,15 @@ string  responsePayload;
 
 		bool rval = plugin->commonDelete(tableName, payload);
 		if (rval)
+		{
 			responsePayload = "{ \"reponse\" : \"deleted\" }";
+			respond(response, responsePayload);
+		}
 		else
-			responsePayload = "{ \"response\" : \"failed\" }";
+		{
+			mapError(responsePayload, plugin->lastError());
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
 
 		respond(response, responsePayload);
 	} catch (exception ex) {
@@ -523,4 +539,26 @@ string payload = "{ \"Exception\" : \"";
 
 	printf("Internal Error: %s\n", ex.what());
 	respond(response, SimpleWeb::StatusCode::server_error_internal_server_error, payload);
+}
+
+void StorageApi::mapError(string& payload, PLUGIN_ERROR *lastError)
+{
+char *ptr, *ptr1, *buf = new char[strlen(lastError->message) * 2 + 1];
+
+	ptr = buf;
+	ptr1 = lastError->message;
+	while (*ptr1)
+	{
+		if (*ptr1 == '"')
+			*ptr++ = '\\';
+		*ptr++ = *ptr1++;
+	}
+	*ptr = 0;
+	payload = "{ \"entryPoint\" : \"";
+	payload = payload + lastError->entryPoint;
+	payload = payload + "\", \"message\" : \"";
+	payload = payload + buf;
+	payload = payload + "\", \"retryable\" : ";
+	payload = payload + (lastError->retryable ? "true" : "false");
+	payload = payload + "}";
 }

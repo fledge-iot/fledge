@@ -28,20 +28,20 @@ class StorageApi {
 public:
 	StorageApi(const short port, const int threads);
         static StorageApi *getInstance();
-  void initResources();
-  void setPlugin(StoragePlugin *);
-	void start();
-	void wait();
-	void commonInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void commonSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void commonQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void commonUpdate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void commonDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void defaultResource(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void readingAppend(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void readingFetch(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void readingQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
-	void readingPurge(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	initResources();
+	void	setPlugin(StoragePlugin *);
+	void	start();
+	void	wait();
+	void	commonInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	commonSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	commonQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	commonUpdate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	commonDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	defaultResource(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	readingAppend(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	readingFetch(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	readingQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	readingPurge(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 
 private:
         static StorageApi       *m_instance;
@@ -49,10 +49,11 @@ private:
 	short                   m_port;
 	int		        m_threads;
         thread                  m_thread;
-  StoragePlugin     *plugin;
-	void respond(shared_ptr<HttpServer::Response> response, const string& payload);
-  void respond(shared_ptr<HttpServer::Response> response, SimpleWeb::StatusCode code, const string& payload);
-  void internalError(shared_ptr<HttpServer::Response> response, const exception& ex);
+	StoragePlugin		*plugin;
+	void			respond(shared_ptr<HttpServer::Response>, const string&);
+	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);
+	void			internalError(shared_ptr<HttpServer::Response>, const exception&);
+	void			mapError(string&, PLUGIN_ERROR *);
 };
 
 #endif

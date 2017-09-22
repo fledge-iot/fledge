@@ -1,6 +1,7 @@
 #ifndef _CONNECTION_MANAGER_H
 #define _CONNECTION_MANAGER_H
 
+#include <plugin_api.h>
 #include <list>
 #include <mutex>
 
@@ -17,6 +18,11 @@ class ConnectionManager {
 		Connection                *allocate();
 		void                      release(Connection *);
 		void			  shutdown();
+		void			  setError(const char *, const char *, bool);
+		PLUGIN_ERROR		  *getError()
+					  {
+						return &lastError;
+					  }
 
 	private:
 		ConnectionManager();
@@ -25,6 +31,8 @@ class ConnectionManager {
 		std::list<Connection *>      inUse;
 		std::mutex                   idleLock;
 		std::mutex                   inUseLock;
+		std::mutex                   errorLock;
+		PLUGIN_ERROR		     lastError;
 };
 
 #endif

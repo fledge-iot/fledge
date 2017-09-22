@@ -31,6 +31,7 @@ public:
 	char		*readingsRetrieve(const std::string& payload);
 	unsigned int	readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
 	void		release(const char *response);
+	PLUGIN_ERROR	*lastError();
 
 private:
 	PLUGIN_HANDLE	instance;
@@ -43,6 +44,7 @@ private:
 	char		*(*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
 	unsigned int	(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
 	void		(*releasePtr)(PLUGIN_HANDLE, const char *payload);
+	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 };
 
 #endif

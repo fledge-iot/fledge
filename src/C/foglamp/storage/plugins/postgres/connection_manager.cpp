@@ -9,6 +9,8 @@ ConnectionManager *ConnectionManager::instance = 0;
  */
 ConnectionManager::ConnectionManager()
 {
+	lastError.message = NULL;
+	lastError.entryPoint = NULL;
 }
 
 /**
@@ -124,3 +126,15 @@ void ConnectionManager::release(Connection *conn)
 	idleLock.unlock();
 }
 
+void ConnectionManager::setError(const char *source, const char *description, bool retryable)
+{
+	errorLock.lock();
+	if (lastError.entryPoint)
+		free(lastError.entryPoint);
+	if (lastError.message)
+		free(lastError.message);
+	lastError.retryable = retryable;
+	lastError.entryPoint = strdup(source);
+	lastError.message = strdup(description);
+	errorLock.unlock();
+}

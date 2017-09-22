@@ -16,6 +16,7 @@ class Connection {
 		bool		update(const std::string& table, const std::string& data);
 		bool		deleteRows(const std::string& table, const std::string& condition);
 	private:
+		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);

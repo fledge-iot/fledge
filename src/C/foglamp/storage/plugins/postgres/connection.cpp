@@ -1,4 +1,5 @@
 #include <connection.h>
+#include <connection_manager.h>
 #include <sql_buffer.h>
 #include <iostream>
 #include <libpq-fe.h>
@@ -7,6 +8,7 @@
 #include "rapidjson/stringbuffer.h"
 #include <string>
 #include <regex>
+#include <stdarg.h>
 
 
 using namespace std;
@@ -55,7 +57,8 @@ SQLBuffer	sql;
 		sql.append(" WHERE ");
 		if (document.Parse(condition.c_str()).HasParseError())
 		{
-			printf("Failed to parse JSON: %s\n", condition.c_str());
+			raiseError("retrieve", "Failed to parse JSON payload");
+			return false;
 		}
 		else
 		{
@@ -67,7 +70,7 @@ SQLBuffer	sql;
 			}
 			else
 			{
-				printf("JSON does not contain where clause: %s\n", condition.c_str());
+				raiseError("retrieve", "JSON does not contain where clause");
 			}
 		}
 	}
@@ -81,7 +84,7 @@ SQLBuffer	sql;
 		mapResultSet(res, resultSet);
 		return true;
 	}
- 	resultSet = PQerrorMessage(dbConnection);
+ 	raiseError("retrieve", PQerrorMessage(dbConnection));
 	return false;
 }
 
@@ -97,7 +100,7 @@ int		col = 0;
  
 	if (document.Parse(data.c_str()).HasParseError())
 	{
-		printf("Failed to parse JSON\n");
+		raiseError("insert", "Failed to parse JSON payload\n");
 		return false;
 	}
  	sql.append("INSERT INTO ");
@@ -157,7 +160,7 @@ int		col = 0;
 	{
 		return true;
 	}
- 	printf("%s\n", PQerrorMessage(dbConnection));
+ 	raiseError("insert", PQerrorMessage(dbConnection));
 	return false;
 }
 
@@ -174,7 +177,7 @@ int		col = 0;
  
 	if (document.Parse(payload.c_str()).HasParseError())
 	{
-		printf("Failed to parse JSON: %s\n", payload.c_str());
+		raiseError("update", "Failed to parse JSON payload");
 		return false;
 	}
 	else
@@ -182,6 +185,12 @@ int		col = 0;
 		sql.append("UPDATE ");
 		sql.append(table);
 		sql.append(" SET ");
+
+		if (!document.HasMember("values"))
+		{
+			raiseError("update", "Missing values object in payload");
+			return false;
+		}
 
 		Value& values = document["values"];
 		for (Value::ConstMemberIterator itr = values.MemberBegin();
@@ -196,9 +205,20 @@ int		col = 0;
  
 			if (itr->value.IsString())
 			{
-				sql.append('"');
-				sql.append(itr->value.GetString());
-				sql.append('"');
+				const char *str = itr->value.GetString();
+				// Check if the string is a function
+				string s (str);
+				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+				if (regex_match (s,e))
+				{
+					sql.append(str);
+				}
+				else
+				{
+					sql.append('\'');
+					sql.append(str);
+					sql.append('\'');
+				}
 			}
 			else if (itr->value.IsDouble())
 				sql.append(itr->value.GetDouble());
@@ -230,7 +250,7 @@ int		col = 0;
 	{
 		return true;
 	}
- 	printf("%s\n", PQerrorMessage(dbConnection));
+ 	raiseError("update", PQerrorMessage(dbConnection));
 	return false;
 }
 
@@ -251,7 +271,8 @@ SQLBuffer	sql;
 		sql.append(" WHERE ");
 		if (document.Parse(condition.c_str()).HasParseError())
 		{
-			printf("Failed to parse JSON: %s\n", condition.c_str());
+			raiseError("delete", "Failed to parse JSON payload");
+			return false;
 		}
 		else
 		{
@@ -263,7 +284,8 @@ SQLBuffer	sql;
 			}
 			else
 			{
-				printf("JSON does not contain where clause: %s\n", condition.c_str());
+				raiseError("delete", "JSON does not contain where clause");
+				return false;
 			}
 		}
 	}
@@ -276,6 +298,7 @@ SQLBuffer	sql;
 	{
 		return true;
 	}
+ 	raiseError("delete", PQerrorMessage(dbConnection));
 	return false;
 }
 
@@ -306,7 +329,10 @@ Document doc;
 			{
 				Document d;
 				if (d.Parse(PQgetvalue(res, i, j)).HasParseError())
-					printf("Failed to parse: %s\n", PQgetvalue(res, i, j));
+				{
+					raiseError("resultSet", "Failed to parse: %s\n", PQgetvalue(res, i, j));
+					continue;
+				}
 				Value value(d, allocator);
 				Value name(PQfname(res, j), allocator);
 				row.AddMember(name, value, allocator);
@@ -407,3 +433,17 @@ char *ptr;
 	return str;
 }
 
+/**
+ * Raise an error to return from the plugin
+ */
+void Connection::raiseError(const char *operation, const char *reason, ...)
+{
+ConnectionManager *manager = ConnectionManager::getInstance();
+char	tmpbuf[512];
+
+	va_list ap;
+	va_start(ap, reason);
+	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
+	va_end(ap);
+	manager->setError(operation, tmpbuf, false);
+}

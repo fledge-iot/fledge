@@ -34,7 +34,34 @@ async def get_backups(request):
     :Example: curl -X GET  http://localhost:8082/foglamp/backup
     :Example: curl -X GET  http://localhost:8082/foglamp/backup?limit=2&skip=1&status=complete
     """
-    pass
+    try:
+        limit = request.query['limit'] if 'limit' in request.query else None
+        skip = request.query['skip'] if 'skip' in request.query else None
+        status = request.query['status'] if 'status' in request.query else None
+
+        if status and status not in ['complete', 'running', 'failed']:
+            return web.json_response({'error': 'Incorrect status'})
+
+        if limit and not isinstance(limit, int):
+            return web.json_response({'error': 'Limit can be a positive integer only'})
+
+        if skip and not isinstance(skip, int):
+            return web.json_response({'error': 'Skip can be a positive integer only'})
+
+        try:
+            # TODO : Fix after actual implementation
+            Backup.get_backup_list.return_value = [{'id': 28, 'date': '2017-08-30 04:05:10.382', 'status': 'running'},
+                                                   {'id': 27, 'date': '2017-08-29 04:05:13.392', 'status': 'failed'},
+                                                   {'id': 26, 'date': '2017-08-28 04:05:08.201', 'status': 'complete'}]
+
+            # backup_json = [{"id": b[0], "date": b[1], "status": b[2]}
+            #                for b in Backup.get_backup_list()]
+            backup_json = Backup.get_backup_list()
+        except Backup.DoesNotExist:
+            return web.json_response({"backups": []})
+        return web.json_response({"backups": backup_json})
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 async def create_backup(request):
     """

@@ -13,6 +13,7 @@ from foglamp.core.api import configuration as api_configuration
 from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
 from foglamp.core.service_registry import service_registry
+from foglamp.core.api import backup_restore
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -74,6 +75,9 @@ def setup(app):
     app.router.add_route('POST', '/foglamp/service/interest', service_registry.register_interest)
     app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', service_registry.unregister_interest)
     app.router.add_route('POST', '/foglamp/change', service_registry.notify_change)
+
+    # Backup & Restore - As per doc
+    app.router.add_route('GET', '/foglamp/backup', backup_restore.get_backups)
 
     # enable cors support
     enable_cors(app)

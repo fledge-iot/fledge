@@ -118,6 +118,9 @@ class TestBrowseAssets:
 
     # TODO: Add tests for negative cases. Currently only positive test cases have been added.
 
+    """
+    Tests for get asset readings
+    """
     async def test_get_all_assets(self):
         """
         Verify that Asset contains the test data and readings count is equal to the number of readings inserted
@@ -255,6 +258,9 @@ class TestBrowseAssets:
         assert retval[0]['reading'][sensor_code_2] == self.test_data_y_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
+    """
+    Tests for get asset readings for single sensor
+    """
     async def test_get_asset_sensor_readings(self):
         """
         Verify that if more than 20 readings for an assets sensor value, only 20 are returned as the default limit
@@ -364,6 +370,9 @@ class TestBrowseAssets:
         assert retval[0][sensor_code_1] == self.test_data_x_val_list[-1]
         assert retval[0]['timestamp'] == self.test_data_ts_list[-1]
 
+    """
+    Tests for min/max/averages of a set of sensor readings
+    """
     @pytest.mark.xfail(reason="FOGL-546, FOGL-547")
     async def test_get_asset_sensor_readings_stats(self):
         """
@@ -488,6 +497,9 @@ class TestBrowseAssets:
         assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
 
+    """
+    Tests for time averaged sensor values
+    """
     @pytest.mark.xfail(reason="FOGL-546")
     async def test_get_asset_sensor_readings_time_avg(self):
         """

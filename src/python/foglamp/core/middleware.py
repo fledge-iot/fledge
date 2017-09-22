@@ -24,24 +24,23 @@ async def error_middleware(app, handler):
         try:
             response = await handler(request)
             if response.status == 404:
-                return handle_api_exception({"code": response.status, "message": response.message}, if_trace)
+                return handle_api_exception({"code": response.status, "message": response.message}, ex.__class__.__name__, if_trace)
             return response
         except (web.HTTPNotFound, web.HTTPBadRequest) as ex:
-            return handle_api_exception({"code": ex.status_code, "message": ex.reason}, if_trace)
+            return handle_api_exception({"code": ex.status_code, "message": ex.reason}, ex.__class__.__name__, if_trace)
         except web.HTTPException as ex:
             raise
         # Below Exception must come last as it is the super class of all exceptions
         except Exception as ex:
-            return handle_api_exception(ex, if_trace)
+            return handle_api_exception(ex, ex.__class__.__name__, if_trace)
 
     return middleware_handler
 
 
-def handle_api_exception(ex, if_trace=0):
+def handle_api_exception(ex, _class=None, if_trace=0):
     if not isinstance(ex, Exception):
         err_msg = ex
     else:
-        _class = ex.__class__.__name__
         _msg = str(ex)
 
         scode = 500

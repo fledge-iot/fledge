@@ -302,6 +302,27 @@ SQLBuffer	sql;
 	return false;
 }
 
+/**
+ * Fetch a block of readings from the reading table
+ */
+bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet)
+{
+char	sqlbuffer[100];
+
+	snprintf(sqlbuffer, sizeof(sqlbuffer),
+		"SELECT * FROM readings WHERE id >= %ld LIMIT %d;", id, blksize);
+	
+	PGresult *res = PQexec(dbConnection, sqlbuffer);
+	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+	{
+		mapResultSet(res, resultSet);
+		return true;
+	}
+ 	raiseError("retrieve", PQerrorMessage(dbConnection));
+	return false;
+}
+
+
 void Connection::mapResultSet(PGresult *res, string& resultSet)
 {
 int nFields, i, j;

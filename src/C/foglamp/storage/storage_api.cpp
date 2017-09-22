@@ -410,8 +410,9 @@ string payload;
 void StorageApi::readingFetch(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 SimpleWeb::CaseInsensitiveMultimap query;
-unsigned long id = 0;
-unsigned long count = 0;
+unsigned long			   id = 0;
+unsigned long			   count = 0;
+string				   responsePayload;
 
 	try {
 		query = request->parse_query_string();
@@ -439,7 +440,9 @@ unsigned long count = 0;
 			count = (unsigned)atol(search->second.c_str());
 		}
 
-		respond(response, "{ \"Fetching...\" : \"data\" }");
+		responsePayload = plugin->readingsFetch(id, count);
+
+		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}

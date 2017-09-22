@@ -84,9 +84,11 @@ char *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int 
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+std::string	  resultSet;
 
+	connection->fetchReadings(id, blksize, resultSet);
 	manager->release(connection);
-	return NULL;
+	return strdup(resultSet.c_str());
 }
 
 char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)

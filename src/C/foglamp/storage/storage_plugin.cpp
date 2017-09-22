@@ -66,6 +66,14 @@ bool StoragePlugin::commonDelete(const string& table, const string& payload)
 }
 
 /**
+ * Call the readings fewtch method in the plugin
+ */
+char * StoragePlugin::readingsFetch(unsigned long id, unsigned int blksize)
+{
+	return this->readingsFetchPtr(instance, id, blksize);
+}
+
+/**
  * Release a result from a retrieve
  */
 void StoragePlugin::release(const char *results)
@@ -78,5 +86,5 @@ void StoragePlugin::release(const char *results)
  */
 PLUGIN_ERROR *StoragePlugin::lastError()
 {
-	this->lastErrorPtr(instance);
+	return this->lastErrorPtr(instance);
 }

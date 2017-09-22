@@ -6,6 +6,7 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include <string>
+#include <regex>
 
 
 using namespace std;
@@ -92,10 +93,11 @@ bool Connection::insert(const std::string& table, const std::string& data)
 SQLBuffer	sql;
 Document	document;
 SQLBuffer	values;
-int		col;
+int		col = 0;
  
 	if (document.Parse(data.c_str()).HasParseError())
 	{
+		printf("Failed to parse JSON\n");
 		return false;
 	}
  	sql.append("INSERT INTO ");
@@ -112,14 +114,34 @@ int		col;
 			values.append(", ");
 		if (itr->value.IsString())
 		{
-			values.append('\'');
-			values.append(itr->value.GetString());
-			values.append('\'');
+			const char *str = itr->value.GetString();
+			// Check if the string is a function
+			string s (str);
+  			regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+  			if (regex_match (s,e))
+			{
+				values.append(str);
+			}
+			else
+			{
+				values.append('\'');
+				values.append(str);
+				values.append('\'');
+			}
 		}
 		else if (itr->value.IsDouble())
 			values.append(itr->value.GetDouble());
 		else if (itr->value.IsNumber())
 			values.append(itr->value.GetInt());
+		else if (itr->value.IsObject())
+		{
+			StringBuffer buffer;
+			Writer<StringBuffer> writer(buffer);
+			itr->value.Accept(writer);
+			values.append('\'');
+			values.append(buffer.GetString());
+			values.append('\'');
+		}
 		col++;
 	}
 	sql.append(") values (");
@@ -135,6 +157,7 @@ int		col;
 	{
 		return true;
 	}
+ 	printf("%s\n", PQerrorMessage(dbConnection));
 	return false;
 }
 
@@ -142,7 +165,6 @@ int		col;
  * Perform an update against a common table
  *
  * TODO Improve error handling
- * TODO Handle JSON
  */
 bool Connection::update(const string& table, const string& payload)
 {
@@ -182,17 +204,21 @@ int		col = 0;
 				sql.append(itr->value.GetDouble());
 			else if (itr->value.IsNumber())
 				sql.append(itr->value.GetInt());
+			else if (itr->value.IsObject())
+			{
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				itr->value.Accept(writer);
+				sql.append('\'');
+				sql.append(buffer.GetString());
+				sql.append('\'');
+			}
 		}
 
 		if (document.HasMember("condition"))
 		{
 			sql.append(" WHERE ");
-			assert(document.IsObject());
-	 
-			if (document.HasMember("where"))
-			{
-				jsonWhereClause(document["where"], sql);
-			}
+			jsonWhereClause(document["condition"], sql);
 		}
 	}
 	sql.append(';');
@@ -204,6 +230,7 @@ int		col = 0;
 	{
 		return true;
 	}
+ 	printf("%s\n", PQerrorMessage(dbConnection));
 	return false;
 }
 

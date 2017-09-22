@@ -137,12 +137,12 @@ async def _check_schedule_post_parameters(data, curr_value=None):
 
     # Raise error if day and time are missing for schedule_type = TIMED
     if _schedule.get('schedule_type') == Schedule.Type.TIMED:
-        if not _schedule.get('schedule_day') or not _schedule.get('schedule_time'):
+        if not _schedule.get('schedule_day'):
             _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-        elif not isinstance(_schedule.get('schedule_day'), int):
-            _errors.append('Day must be an integer.')
-        elif not isinstance(_schedule.get('schedule_time'), int):
-            _errors.append('Time must be an integer.')
+        elif not isinstance(_schedule.get('schedule_day'), int) or (_schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7):
+            _errors.append('Day must be an integer and in range 1-7.')
+        elif not isinstance(_schedule.get('schedule_time'), int) or (_schedule.get('schedule_time') < 0 or _schedule.get('schedule_time') > 86399):
+            _errors.append('Time must be an integer and in range 0-86399.')
 
     # Raise error if repeat is missing or is non integers
     if _schedule.get('schedule_type') == Schedule.Type.INTERVAL:
@@ -234,9 +234,9 @@ async def get_schedules(request):
                 'name': sch.name,
                 'process_name': sch.process_name,
                 'type': Schedule.Type(int(sch.schedule_type)).name,
-                'repeat': str(sch.repeat),
+                'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+                'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0 ,
                 'day': sch.day,
-                'time': str(sch.time),
                 'exclusive': sch.exclusive
             })
 
@@ -267,9 +267,9 @@ async def get_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
-            'repeat': str(sch.repeat),
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
-            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
@@ -336,9 +336,9 @@ async def post_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
-            'repeat': str(sch.repeat),
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
-            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
@@ -372,8 +372,8 @@ async def update_schedule(request):
         curr_value['schedule_process_name'] = sch.process_name
         curr_value['schedule_name'] = sch.name
         curr_value['schedule_type'] = sch.schedule_type
-        curr_value['schedule_repeat'] = sch.repeat
-        curr_value['schedule_time'] = sch.time
+        curr_value['schedule_repeat'] = sch.repeat.total_seconds() if sch.repeat else 0
+        curr_value['schedule_time'] = (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0
         curr_value['schedule_day'] = sch.day
         curr_value['schedule_exclusive'] = sch.exclusive
 
@@ -392,9 +392,9 @@ async def update_schedule(request):
             'name': sch.name,
             'process_name': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
-            'repeat': str(sch.repeat),
+            'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
-            'time': str(sch.time),
             'exclusive': sch.exclusive
         }
 
@@ -566,11 +566,7 @@ async def get_tasks_latest(request):
     try:
         name = request.query.get('name') if 'name' in request.query else None
 
-        where_clause = None
-        if name:
-            where_clause = Task.attr.process_name.in_(name)
-
-        tasks = await server.Server.scheduler.get_tasks(where=where_clause, sort=(Task.attr.start_time.desc), limit=1)
+        tasks = await scheduler_db_services.read_tasks_latest(name)
 
         if not tasks:
             raise ValueError('No such Tasks')
@@ -578,13 +574,14 @@ async def get_tasks_latest(request):
         new_tasks = []
         for task in tasks:
             new_tasks.append(
-                {'id': str(task.task_id),
-                     'process_name': task.process_name,
-                     'state': Task.State(int(task.state)).name,
-                     'start_time': str(task.start_time),
-                     'end_time': str(task.end_time),
-                     'exit_code': task.exit_code,
-                     'reason': task.reason
+                {'id': str(task['id']),
+                 'process_name': task['process_name'],
+                 'state': [t.name for t in list(Task.State)][int(task['state']) - 1],
+                 'start_time': str(task['start_time']),
+                 'end_time': str(task['end_time']),
+                 'exit_code': task['exit_code'],
+                 'reason': task['reason'],
+                 'pid': task['pid']
                  }
             )
 

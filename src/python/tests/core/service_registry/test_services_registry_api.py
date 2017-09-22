@@ -23,7 +23,8 @@ BASE_URL = 'http://localhost:8082/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 
-@pytest.allure.feature("service-registry", "api")
+@pytest.allure.feature("api")
+@pytest.allure.story("service-registry")
 class TestServicesRegistryApi:
 
     def setup_method(self, method):

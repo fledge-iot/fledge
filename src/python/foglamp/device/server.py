@@ -9,7 +9,8 @@
 import asyncio
 import signal
 
-from foglamp.device import coap
+from foglamp import configuration_manager
+from foglamp import logger
 from foglamp.device.ingest import Ingest
 
 
@@ -18,35 +19,104 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-async def _stop(loop):
-    """Stops the device server"""
-    await Ingest.stop()
-
-    for task in asyncio.Task.all_tasks():
-        task.cancel()
-
-    loop.stop()
+_LOGGER = logger.setup(__name__)
 
 
-async def _start():
-    """Starts all device ingest servers"""
-    await Ingest.start()
-    await coap.start()
+class Server:
+    _plugin_name = None  # type:str
+    """"The name of the plugin"""
+    
+    _plugin = None
+    """The plugin's module'"""
 
+    _plugin_data = None
+    """The value that is returned by the plugin_init"""
 
-def start():
-    """Starts the device server"""
-    loop = asyncio.get_event_loop()
+    @classmethod
+    async def _stop(cls, loop):
+        if cls._plugin is not None:
+            try:
+                cls._plugin.plugin_shutdown(cls._plugin_data)
+            except Exception:
+                _LOGGER.exception('An exception was raised '
+                                  'shutting down plugin {}'.format(cls._plugin_name))
+            finally:
+                cls._plugin = None
+                cls._plugin_data = None
 
-    # Register signal handlers
-    # Registering SIGTERM causes an error at shutdown. See
-    # https://github.com/python/asyncio/issues/396
-    for signal_name in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(
-            signal_name,
-            lambda: asyncio.ensure_future(_stop(loop)))
+        await Ingest.stop()
 
-    asyncio.ensure_future(_start())
-    loop.run_forever()
+        # Stop all pending asyncio tasks
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
+
+        loop.stop()
+
+    @classmethod
+    async def _start(cls, plugin: str, loop)->None:
+        error = None
+        cls.plugin_name = plugin
+
+        try:
+            # TODO: Category name column is allows only 10 characters.
+            # This needs to be increased
+            category = plugin
+
+            config = {}
+
+            await configuration_manager.create_category(category, config,
+                                                        '{} Device'.format(plugin), True)
+
+            try:
+                plugin_module = config['plugin']
+            except KeyError:
+                # TODO: Delete me
+                plugin_module = 'foglamp.device.coap_device'
+
+            try:
+                cls._plugin = __import__(plugin_module, fromlist=[''])
+            except Exception:
+                error = 'Unable to load module {} for device plugin {}'.format(plugin_module,
+                                                                               plugin)
+                raise
+
+            default_config = cls._plugin.plugin_info()['config']
+
+            await configuration_manager.create_category(category, default_config,
+                                                        '{} Device'.format(plugin))
+
+            config = await configuration_manager.get_category_all_items(category)
+
+            # TODO: Register for config changes
+
+            cls._plugin_data = cls._plugin.plugin_init(config)
+            cls._plugin.plugin_run(cls._plugin_data)
+
+            await Ingest.start()
+        except Exception:
+            if error is None:
+                error = 'Failed to initialize plugin {}'.format(plugin)
+            _LOGGER.exception(error)
+            print(error)
+            asyncio.ensure_future(cls._stop(loop))
+
+    @classmethod
+    def start(cls, plugin):
+        """Starts the device server
+
+        Args:
+            plugin: Specifies which device plugin to start
+        """
+        loop = asyncio.get_event_loop()
+
+        # Register signal handlers
+        # Registering SIGTERM causes an error at shutdown. See
+        # https://github.com/python/asyncio/issues/396
+        for signal_name in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                signal_name,
+                lambda: asyncio.ensure_future(cls._stop(loop)))
+
+        asyncio.ensure_future(cls._start(plugin, loop))
+        loop.run_forever()
 

@@ -10,6 +10,7 @@ import signal
 import asyncio
 from aiohttp import web
 
+from foglamp import logger
 from foglamp.core import routes
 from foglamp.core import middleware
 from foglamp.core.scheduler import Scheduler
@@ -18,6 +19,8 @@ __author__ = "Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+_LOGGER = logger.setup(__name__)  # logging.Logger
 
 
 class Server:
@@ -71,9 +74,13 @@ class Server:
             A task is still running. Wait and try again.
         """
         if cls.scheduler:
-            await cls.scheduler.stop()
-            cls.scheduler = None
+            try:
+                await cls.scheduler.stop()
+                cls.scheduler = None
+            except TimeoutError:
+                _LOGGER.exception('Unable to stop the scheduler')
 
+        # Cancel asyncio tasks
         for task in asyncio.Task.all_tasks():
             task.cancel()
 

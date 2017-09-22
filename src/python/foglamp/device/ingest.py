@@ -12,6 +12,7 @@ import logging
 import time
 import uuid
 from typing import List, Union
+import os
 
 import asyncpg
 import dateutil.parser
@@ -19,7 +20,6 @@ import json
 
 from foglamp import logger
 from foglamp import statistics
-
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -31,7 +31,6 @@ _LOGGER = logger.setup(__name__)  # type: logging.Logger
 # _LOGGER = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
 _STATISTICS_WRITE_FREQUENCY_SECONDS = 5
-
 
 class Ingest(object):
     """Adds sensor readings to FogLAMP
@@ -89,7 +88,7 @@ class Ingest(object):
     """Maximum number of readings items in each buffer"""
 
     # Configuration
-    _readings_buffer_size = 500
+    _readings_buffer_size = 2000
     """Maximum number of readings to buffer in memory"""
 
     _max_concurrent_readings_inserts = 5
@@ -118,7 +117,7 @@ class Ingest(object):
         if cls._readings_list_size <= cls._readings_insert_batch_size:
             cls._readings_list_size = cls._readings_insert_batch_size * 4
 
-            _LOGGER.warning('Readings buffer size as configured (%s) is too small; increasing'
+            _LOGGER.warning('Readings buffer size as configured (%s) is too small; increasing '
                             'to %s', cls._readings_buffer_size,
                             cls._readings_list_size * cls._max_concurrent_readings_inserts)
 
@@ -297,7 +296,15 @@ class Ingest(object):
 
                 try:
                     if connection is None:
-                        connection = await asyncpg.connect(database='foglamp')
+                        __CONNECTION = {'user': 'foglamp', 'database': 'foglamp'}
+
+                        try:
+                            snap_user_common = os.environ['SNAP_USER_COMMON']
+                            unix_socket_dir = "{}/tmp/".format(snap_user_common)
+                            __CONNECTION['host'] = unix_socket_dir
+                        except KeyError:
+                            pass
+                        connection = await asyncpg.connect(**__CONNECTION)
                         # Create a temp table for 'copy' command
                         await connection.execute('create temp table t_readings '
                                                  'as select asset_code, user_ts, read_key, reading '

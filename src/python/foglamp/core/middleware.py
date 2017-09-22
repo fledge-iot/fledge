@@ -24,10 +24,10 @@ async def error_middleware(app, handler):
         try:
             response = await handler(request)
             if response.status == 404:
-                return json_error({"code": response.status, "message": response.message})
+                return handle_api_exception({"code": response.status, "message": response.message}, if_trace)
             return response
         except (web.HTTPNotFound, web.HTTPBadRequest) as ex:
-            return json_error({"code": ex.status_code, "message": ex.reason})
+            return handle_api_exception({"code": ex.status_code, "message": ex.reason}, if_trace)
         except web.HTTPException as ex:
             raise
         # Below Exception must come last as it is the super class of all exceptions
@@ -39,13 +39,14 @@ async def error_middleware(app, handler):
 
 def handle_api_exception(ex, if_trace=0):
     if not isinstance(ex, Exception):
-        return json_error({"code": 500, "message": 'Exception passed to handler does not belong to Exception class; ' + ex.text})
+        err_msg = ex
+    else:
+        _class = ex.__class__.__name__
+        _msg = str(ex)
 
-    _class = ex.__class__.__name__
-    _msg = str(ex)
+        scode = 500
+        err_msg = {"code": scode, "message": '['+_class+']'+_msg}
 
-    scode = 500
-    err_msg = {"code": scode, "message": '['+_class+']'+_msg}
     if if_trace:
         err_msg.update({"exception": _class, "traceback": traceback.format_exc()})
 

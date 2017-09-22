@@ -67,7 +67,7 @@ async def get_scheduled_process(request):
     scheduled_process_name = request.match_info.get('scheduled_process_name', None)
 
     if not scheduled_process_name:
-        raise web.HTTPBadRequest(reason='No such Scheduled Process')
+        raise web.HTTPBadRequest(reason='No Scheduled Process Name given')
 
     scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_name)
 
@@ -83,28 +83,43 @@ async def get_scheduled_process(request):
 
 
 def _extract_args(data, curr_value):
-    _schedule = dict()
+    try:
+        if 'type' in data and not isinstance(data['type'], int):
+            raise ValueError('Error in type: {}'.format(data['type']))
 
-    _schedule['schedule_id'] = curr_value['schedule_id'] if curr_value else None
+        if 'day' in data and not isinstance(data['day'], int):
+            raise ValueError('Error in day: {}'.format(data['day']))
 
-    s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
-    _schedule['schedule_type'] = int(s_type)
+        if 'time' in data and not isinstance(data['time'], int):
+            raise ValueError('Error in time: {}'.format(data['time']))
 
-    s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value['schedule_day'] else 0
-    _schedule['schedule_day'] = int(s_day)
+        if 'repeat' in data and not isinstance(data['repeat'], int):
+            raise ValueError('Error in repeat: {}'.format(data['repeat']))
 
-    s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value['schedule_time'] else 0
-    _schedule['schedule_time'] = int(s_time)
+        _schedule = dict()
 
-    s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat']else 0
-    _schedule['schedule_repeat'] = int(s_repeat)
+        _schedule['schedule_id'] = curr_value['schedule_id'] if curr_value else None
 
-    _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
+        s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
+        _schedule['schedule_type'] = int(s_type)
 
-    _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
+        s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value['schedule_day'] else 0
+        _schedule['schedule_day'] = int(s_day)
 
-    _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value['schedule_exclusive'] if curr_value else 'True'
-    _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
+        s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value['schedule_time'] else 0
+        _schedule['schedule_time'] = int(s_time)
+
+        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat']else 0
+        _schedule['schedule_repeat'] = int(s_repeat)
+
+        _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
+
+        _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
+
+        _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value['schedule_exclusive'] if curr_value else 'True'
+        _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
     return _schedule
 
@@ -341,6 +356,11 @@ async def update_schedule(request):
 
         if not schedule_id:
             raise web.HTTPBadRequest(reason='Schedule ID is required.')
+
+        try:
+            assert True == isinstance(uuid.UUID(schedule_id), uuid.UUID)
+        except ValueError as ex:
+            raise web.HTTPBadRequest(reason='Schedule ID is not a proper UUID string.')
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
         if not sch:

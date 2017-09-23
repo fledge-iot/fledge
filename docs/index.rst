@@ -8,3 +8,5 @@ Welcome to FogLAMP's documentation!
 
 .. toctree::
     introduction
+    foglamp_at_a_glance
+

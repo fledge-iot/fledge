@@ -9,6 +9,7 @@
 #include <string>
 #include <regex>
 #include <stdarg.h>
+#include <stdlib.h>
 
 
 using namespace std;
@@ -19,10 +20,16 @@ using namespace rapidjson;
  */
 Connection::Connection()
 {
-	const char *conninfo = "dbname = foglamp";
+	const char *defaultConninfo = "dbname = foglamp";
+	char *connInfo = NULL;
+	
+	if ((connInfo = getenv("DB_CONNECTION")) == NULL)
+	{
+		connInfo = (char *)defaultConninfo;
+	}
  
 	/* Make a connection to the database */
-	dbConnection = PQconnectdb(conninfo);
+	dbConnection = PQconnectdb(connInfo);
 
 	/* Check to see that the backend connection was successfully made */
 	if (PQstatus(dbConnection) != CONNECTION_OK)

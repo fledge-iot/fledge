@@ -49,16 +49,16 @@ class Service(object):
             raise Service.InvalidServiceType
         return s_type
 
-    class DoesNotExist(BaseException):
+    class DoesNotExist(Exception):
         pass
 
-    class AlreadyExistsWithTheSameName(BaseException):
+    class AlreadyExistsWithTheSameName(Exception):
         pass
 
-    class AlreadyExistsWithTheSameAddressAndPort(BaseException):
+    class AlreadyExistsWithTheSameAddressAndPort(Exception):
         pass
 
-    class InvalidServiceType(BaseException):
+    class InvalidServiceType(Exception):
         # TODO: tell allowed service types?
         pass
 

@@ -84,16 +84,16 @@ async def get_scheduled_process(request):
 
 def _extract_args(data, curr_value):
     try:
-        if 'type' in data and not isinstance(data['type'], int):
+        if 'type' in data and (not isinstance(data['type'], int) and not data['type'].isdigit()):
             raise ValueError('Error in type: {}'.format(data['type']))
 
-        if 'day' in data and not isinstance(data['day'], int):
+        if 'day' in data and (not isinstance(data['day'], int) and not data['day'].isdigit()):
             raise ValueError('Error in day: {}'.format(data['day']))
 
-        if 'time' in data and not isinstance(data['time'], int):
+        if 'time' in data and (not isinstance(data['time'], int) and not data['time'].isdigit()):
             raise ValueError('Error in time: {}'.format(data['time']))
 
-        if 'repeat' in data and not isinstance(data['repeat'], int):
+        if 'repeat' in data and (not isinstance(data['repeat'], int) and not data['repeat'].isdigit()):
             raise ValueError('Error in repeat: {}'.format(data['repeat']))
 
         _schedule = dict()

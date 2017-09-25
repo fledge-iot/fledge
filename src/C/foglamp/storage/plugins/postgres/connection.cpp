@@ -82,6 +82,7 @@ SQLBuffer	sql;
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
 		mapResultSet(res, resultSet);
+		PQclear(res);
 		return true;
 	}
  	raiseError("retrieve", PQerrorMessage(dbConnection));
@@ -158,6 +159,7 @@ int		col = 0;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
+		PQclear(res);
 		return true;
 	}
  	raiseError("insert", PQerrorMessage(dbConnection));
@@ -248,6 +250,7 @@ int		col = 0;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
+		PQclear(res);
 		return true;
 	}
  	raiseError("update", PQerrorMessage(dbConnection));
@@ -296,6 +299,7 @@ SQLBuffer	sql;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
+		PQclear(res);
 		return true;
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
@@ -386,6 +390,7 @@ int		row = 0;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
+		PQclear(res);
 		return true;
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
@@ -406,6 +411,7 @@ char	sqlbuffer[100];
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
 		mapResultSet(res, resultSet);
+		PQclear(res);
 		return true;
 	}
  	raiseError("retrieve", PQerrorMessage(dbConnection));

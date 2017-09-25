@@ -9,10 +9,11 @@
 import asyncio
 import datetime
 import logging
+import os
 import time
 import uuid
+from random import randint
 from typing import List, Union
-import os
 
 import asyncpg
 import dateutil.parser
@@ -20,6 +21,8 @@ import json
 
 from foglamp import logger
 from foglamp import statistics
+from foglamp import configuration_manager
+
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -30,7 +33,6 @@ _LOGGER = logger.setup(__name__)  # type: logging.Logger
 # _LOGGER = logger.setup(__name__, level=logging.DEBUG)  # type: logging.Logger
 # _LOGGER = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
-_STATISTICS_WRITE_FREQUENCY_SECONDS = 5
 
 class Ingest(object):
     """Adds sensor readings to FogLAMP
@@ -38,15 +40,15 @@ class Ingest(object):
     Also tracks readings-related statistics.
 
     Readings are added to a configurable list. Configurable batches
-    of inserts are sent to the database via multiple database connections concurrently.
+    of inserts are sent to storage via multiple connections concurrently.
     """
 
     # Class attributes
     _readings_stats = 0  # type: int
-    """Number of readings accepted before statistics were flushed to storage"""
+    """Number of readings accepted before statistics were written to storage"""
 
     _discarded_readings_stats = 0  # type: int
-    """Number of readings rejected before statistics were flushed to storage"""
+    """Number of readings rejected before statistics were written to storage"""
 
     _write_statistics_task = None  # type: asyncio.Task
     """asyncio task for :meth:`_write_statistics`"""
@@ -87,21 +89,100 @@ class Ingest(object):
     _readings_list_size = 0  # type: int
     """Maximum number of readings items in each buffer"""
 
-    # Configuration
-    _readings_buffer_size = 2000
+    # Configuration (begin)
+    _write_statistics_frequency_seconds = 5
+    """The number of seconds to wait before writing readings-related statistics to storage"""
+
+    _readings_buffer_size = 500
     """Maximum number of readings to buffer in memory"""
 
     _max_concurrent_readings_inserts = 5
-    """Maximum number of concurrent processes that send batches of readings to the database"""
+    """Maximum number of concurrent processes that send batches of readings to storage"""
 
     _readings_insert_batch_size = 100
-    """Maximum number of rows in a batch of inserts"""
+    """Maximum number of readings in a batch of inserts"""
 
     _readings_insert_batch_timeout_seconds = 1
     """Number of seconds to wait for a readings list to reach the minimum batch size"""
 
-    _max_readings_insert_idle_seconds = 60
-    """Close database connections when idle for this number of seconds"""
+    _max_readings_insert_batch_connection_idle_seconds = 60
+    """Close connections used to insert readings when idle for this number of seconds"""
+
+    _max_readings_insert_batch_reconnect_wait_seconds = 10
+    """The maximum number of seconds to wait before reconnecting to storage when inserting readings"""
+    # Configuration (end)
+
+    @classmethod
+    async def _read_config(cls):
+        """Creates default values for the DEVICE configuration category and then reads all
+        values for this category
+        """
+        category = 'DEVICE'
+
+        default_config = {
+             "write_statistics_frequency_seconds": {
+                "description": "The number of seconds to wait before writing readings-related "
+                               "statistics to storage",
+                "type": "integer",
+                "default": str(cls._write_statistics_frequency_seconds)
+            },
+            "readings_buffer_size": {
+                "description": "The maximum number of readings to buffer in memory",
+                "type": "integer",
+                "default": str(cls._readings_buffer_size)
+            },
+            "max_concurrent_readings_inserts": {
+                "description": "The maximum number of concurrent processes that send batches of "
+                               "readings to storage",
+                "type": "integer",
+                "default": str(cls._max_concurrent_readings_inserts)
+            },
+            "readings_insert_batch_size": {
+                "description": "The maximum number of readings in a batch of inserts",
+                "type": "integer",
+                "default": str(cls._readings_insert_batch_size)
+            },
+            "readings_insert_batch_timeout_seconds": {
+                "description": "The number of seconds to wait for a readings list to reach the "
+                               "minimum batch size",
+                "type": "integer",
+                "default": str(cls._readings_insert_batch_timeout_seconds)
+            },
+            "max_readings_insert_batch_connection_idle_seconds": {
+                "description": "Close storage connections used to insert readings when idle for "
+                            "this number of seconds",
+                "type": "integer",
+                "default": str(cls._max_readings_insert_batch_connection_idle_seconds)
+            },
+            "max_readings_insert_batch_reconnect_wait_seconds": {
+                "description": "The maximum number of seconds to wait before reconnecting to "
+                                "storage when inserting readings",
+                "type": "integer",
+                "default": str(cls._max_readings_insert_batch_reconnect_wait_seconds)
+            },
+        }
+
+        # Create configuration category and any new keys within it
+        await configuration_manager.create_category(category, default_config,
+                                                    'Device server configuration')
+
+        # Read configuration
+        config = await configuration_manager.get_category_all_items(category)
+
+        cls._write_statistics_frequency_seconds = int(config['write_statistics_frequency_seconds']
+                                                            ['value'])
+        cls._readings_buffer_size = int(config['readings_buffer_size']['value'])
+        cls._max_concurrent_readings_inserts = int(config['max_concurrent_readings_inserts']
+                                                         ['value'])
+        cls._readings_insert_batch_size = int(config['readings_insert_batch_size']['value'])
+        cls._readings_insert_batch_timeout_seconds = int(config
+                                                         ['readings_insert_batch_timeout_seconds']
+                                                         ['value'])
+        cls._max_readings_insert_batch_connection_idle_seconds = int(
+                config['max_readings_insert_batch_connection_idle_seconds']
+                      ['value'])
+        cls._max_readings_insert_batch_reconnect_wait_seconds = int(
+            config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
 
     @classmethod
     async def start(cls):
@@ -109,13 +190,16 @@ class Ingest(object):
         if cls._started:
             return
 
-        # TODO: Read config
+        await cls._read_config()
 
         cls._readings_list_size = int(cls._readings_buffer_size / (
             cls._max_concurrent_readings_inserts))
 
-        if cls._readings_list_size <= cls._readings_insert_batch_size:
-            cls._readings_list_size = cls._readings_insert_batch_size * 4
+        # Is the buffer size as configured big enough to support all of
+        # the buffers filled to the batch size? If not, increase
+        # the buffer size.
+        if cls._readings_list_size < cls._readings_insert_batch_size:
+            cls._readings_list_size = cls._readings_insert_batch_size
 
             _LOGGER.warning('Readings buffer size as configured (%s) is too small; increasing '
                             'to %s', cls._readings_buffer_size,
@@ -148,7 +232,7 @@ class Ingest(object):
     async def stop(cls):
         """Stops the server
 
-        Flushes pending statistics and readings to the database
+        Writes pending statistics and readings to storage
         """
         if cls._stop or not cls._started:
             return
@@ -258,7 +342,9 @@ class Ingest(object):
                     if connection is None:
                         await waiter
                     else:
-                        await asyncio.wait_for(waiter, cls._max_readings_insert_idle_seconds)
+                        await asyncio.wait_for(
+                                waiter,
+                                cls._max_readings_insert_batch_connection_idle_seconds)
                 except asyncio.CancelledError:
                     # Don't assume the list is empty
 
@@ -266,7 +352,7 @@ class Ingest(object):
                     #               list_index, len(list))
                     continue
                 except asyncio.TimeoutError:
-                    # _LOGGER.debug('Closing idle database connection: Queue index: %s',
+                    # _LOGGER.debug('Closing idle connection: Queue index: %s',
                     #               list_index)
                     await cls._close_connection(connection)
                     connection = None
@@ -286,11 +372,10 @@ class Ingest(object):
             #           json.dumps(item[3])) for item in list[:batch_size]]
 
             attempt = 0
+            cls._last_insert_time = time.time()
 
-            # Perform database insert. Retry when fails.
+            # Perform insert. Retry when fails.
             while True:
-                cls._last_insert_time = time.time()
-
                 # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
                 #               len(list))
 
@@ -343,7 +428,7 @@ class Ingest(object):
                     _LOGGER.exception('Insert failed on attempt #%s, list index: %s',
                                       attempt, list_index)
 
-                    if cls._stop and attempt > 2:
+                    if cls._stop and attempt >= 5:
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
@@ -352,8 +437,20 @@ class Ingest(object):
                         break
                     else:
                         if connection is None:
-                            # Connection failure
-                            await asyncio.sleep(1)
+                            if not cls._stop:
+                                # Connection failure
+                                waiter = asyncio.ensure_future(asyncio.sleep(
+                                    randint(1,
+                                            cls._max_readings_insert_batch_reconnect_wait_seconds)))
+
+                                cls._insert_readings_wait_tasks[list_index] = waiter
+
+                                try:
+                                    await waiter
+                                except asyncio.TimeoutError:
+                                    pass
+                                finally:
+                                    cls._insert_readings_wait_tasks[list_index] = None
                         else:
                             await cls._close_connection(connection)
                             connection = None
@@ -376,10 +473,10 @@ class Ingest(object):
         while not cls._stop:
             # stop() calls _write_statistics_sleep_task.cancel().
             # Tracking _write_statistics_sleep_task separately is cleaner than canceling
-            # this entire coroutine because allowing database activity to be
+            # this entire coroutine because allowing storage activity to be
             # interrupted will result in strange behavior.
             cls._write_statistics_sleep_task = asyncio.ensure_future(
-                asyncio.sleep(_STATISTICS_WRITE_FREQUENCY_SECONDS))
+                asyncio.sleep(cls._write_statistics_frequency_seconds))
 
             try:
                 await cls._write_statistics_sleep_task
@@ -404,7 +501,7 @@ class Ingest(object):
             # TODO catch real exception
             except Exception:  # TODO catch real exception
                 cls._discarded_readings_stats += readings
-                _LOGGER.exception('An error occurred while writing readings statistics')
+                _LOGGER.exception('An error occurred while writing discarded statistics')
 
         _LOGGER.info('Device statistics writer stopped')
 
@@ -442,7 +539,7 @@ class Ingest(object):
             timestamp: When the readings were taken
             key:
                 Unique key for these readings. If this method is called multiple with the same
-                key, the readings are only written to the database once
+                key, the readings are only written to storage once
             readings: A dictionary of sensor readings
 
         Raises:
@@ -526,7 +623,7 @@ class Ingest(object):
         # When the current list is full, move on to the next list
         if cls._max_concurrent_readings_inserts > 1 and (
                     list_size >= cls._readings_insert_batch_size):
-            # Start at the beginning to reduce the number of database connections
+            # Start at the beginning to reduce the number of connections
             for list_index in range(cls._max_concurrent_readings_inserts):
                 if len(cls._readings_lists[list_index]) < cls._readings_insert_batch_size:
                     cls._current_readings_list_index = list_index

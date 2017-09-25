@@ -317,9 +317,11 @@ string payload = "{ \"where\" : { ";
 		}
 		payload = payload + "} }";
 
-		string res = plugin->commonRetrieve(tableName, payload);
+		char *pluginResult = plugin->commonRetrieve(tableName, payload);
+		string res = pluginResult;
 
 		respond(response, res);
+		free(pluginResult);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -340,7 +342,11 @@ string	payload;
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
 
-		string res = plugin->commonRetrieve(tableName, payload);
+		char *pluginResult = plugin->commonRetrieve(tableName, payload);
+		string res = pluginResult;
+
+		respond(response, res);
+		free(pluginResult);
 
 		respond(response, res);
 	} catch (exception ex) {
@@ -473,9 +479,11 @@ string	payload;
 	try {
 		payload = request->content.string();
 
-		string res = plugin->readingsRetrieve(payload);
+		char *resultSet = plugin->readingsRetrieve(payload);
+		string res = resultSet;
 
 		respond(response, res);
+		free(resultSet);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -583,4 +591,5 @@ char *ptr, *ptr1, *buf = new char[strlen(lastError->message) * 2 + 1];
 	payload = payload + "\", \"retryable\" : ";
 	payload = payload + (lastError->retryable ? "true" : "false");
 	payload = payload + "}";
+	delete[] buf;
 }

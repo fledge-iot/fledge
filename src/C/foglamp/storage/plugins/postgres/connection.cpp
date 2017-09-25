@@ -93,6 +93,7 @@ SQLBuffer	sql;
 		return true;
 	}
  	raiseError("retrieve", PQerrorMessage(dbConnection));
+	PQclear(res);
 	return false;
 }
 
@@ -170,6 +171,7 @@ int		col = 0;
 		return true;
 	}
  	raiseError("insert", PQerrorMessage(dbConnection));
+	PQclear(res);
 	return false;
 }
 
@@ -261,6 +263,7 @@ int		col = 0;
 		return true;
 	}
  	raiseError("update", PQerrorMessage(dbConnection));
+	PQclear(res);
 	return false;
 }
 
@@ -310,6 +313,7 @@ SQLBuffer	sql;
 		return true;
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
+	PQclear(res);
 	return false;
 }
 
@@ -401,6 +405,7 @@ int		row = 0;
 		return true;
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
+	PQclear(res);
 	return false;
 }
 
@@ -422,6 +427,7 @@ char	sqlbuffer[100];
 		return true;
 	}
  	raiseError("retrieve", PQerrorMessage(dbConnection));
+	PQclear(res);
 	return false;
 }
 

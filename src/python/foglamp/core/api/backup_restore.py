@@ -42,11 +42,17 @@ async def get_backups(request):
         if status and status not in ['complete', 'running', 'failed']:
             return web.json_response({'error': 'Incorrect status'})
 
-        if limit and not isinstance(limit, int):
-            return web.json_response({'error': 'Limit can be a positive integer only'})
+        if limit:
+            try:
+                limit = int(limit)
+            except ValueError:
+                return web.json_response({'error': 'Limit can be a positive integer only'})
 
-        if skip and not isinstance(skip, int):
-            return web.json_response({'error': 'Skip can be a positive integer only'})
+        if skip:
+            try:
+                skip = int(skip)
+            except ValueError:
+                return web.json_response({'error': 'Skip can be a positive integer only'})
 
         try:
             # TODO : Fix after actual implementation
@@ -56,7 +62,7 @@ async def get_backups(request):
 
             # backup_json = [{"id": b[0], "date": b[1], "status": b[2]}
             #                for b in Backup.get_backup_list(limit=limit, skip=skip, status=status)]
-            backup_json = Backup.get_backup_list()
+            backup_json = Backup.get_backup_list(limit=limit, skip=skip, status=status)
         except Backup.DoesNotExist:
             return web.json_response({"backups": []})
         return web.json_response({"backups": backup_json})
@@ -95,7 +101,7 @@ async def get_backup_details(request):
         except Backup.DoesNotExist:
             return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
 
-        _resp = Backup.get_backup_details()
+        _resp = Backup.get_backup_details(id=backup_id)
         # _resp = Backup.get_backup_details(backup_id)
         _resp["id"] = backup_id
         return web.json_response(_resp)

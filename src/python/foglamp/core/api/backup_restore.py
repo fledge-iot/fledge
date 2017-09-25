@@ -102,7 +102,6 @@ async def get_backup_details(request):
             return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
 
         _resp = Backup.get_backup_details(id=backup_id)
-        # _resp = Backup.get_backup_details(backup_id)
         _resp["id"] = backup_id
         return web.json_response(_resp)
 
@@ -117,7 +116,24 @@ async def delete_backup(request):
 
     :Example: curl -X DELETE  http://localhost:8082/foglamp/backup/1
     """
-    pass
+    try:
+        try:
+            backup_id = int(request.match_info.get('backup_id', None))
+        except ValueError:
+            return web.json_response({'error': 'Backup id can be a positive integer only'})
+
+        try:
+            Backup.delete_backup.return_value = "Backup deleted successfully"
+        except Backup.DoesNotExist:
+            return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
+
+        _resp = Backup.delete_backup(id=backup_id)
+        return web.json_response({'message': _resp})
+
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 async def restore_backup(request):
     """

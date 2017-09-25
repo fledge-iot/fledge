@@ -87,7 +87,7 @@ async def get_category_item(request):
 
     category_item = await configuration_manager.get_category_item(category_name, config_item)
 
-    if category_name is None or config_item is None:
+    if category_item is None:
         raise web.HTTPNotFound(reason="No Category Item Found")
 
     return web.json_response(category_item)

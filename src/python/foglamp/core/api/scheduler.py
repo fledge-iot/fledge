@@ -72,7 +72,7 @@ async def get_scheduled_process(request):
     scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_name)
 
     if not scheduled_process:
-        web.HTTPNotFound(reason='No such Scheduled Process: {}.'.format(scheduled_process_name))
+        raise web.HTTPNotFound(reason='No such Scheduled Process: {}.'.format(scheduled_process_name))
 
     return web.json_response(scheduled_process[0].get("name"))
 

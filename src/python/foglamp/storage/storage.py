@@ -13,6 +13,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 from abc import ABC, abstractmethod
+import http.client
+import json
 
 from foglamp import logger
 from foglamp.core.service_registry.service_registry import Service
@@ -67,6 +69,15 @@ class AbstractStorage(ABC):
 
 class Storage(AbstractStorage):
 
+    def __init__(self):
+        # TODO: (Praveen) do via http
+        try:
+            storage_services = Service.Instances.get(name="store")
+            self.service = storage_services[0]
+            self.base_url = '{}:{}'.format(self.service._address, self.service._port)
+        except Service.DoesNotExist:
+            raise InvalidServiceInstance
+
     def connect(self):
         # TODO: (Praveen) connect to storage service
         print("Connecting to service: %s", self.service.__repr__)
@@ -75,7 +86,6 @@ class Storage(AbstractStorage):
     def disconnect(self):
         # TODO: (Praveen) disconnect storage service
         print("Disconnecting service")
-        pass
 
     # TODO: check, is it assumed on bootstrapping init data will also be in
     # the same way as \i ddl?
@@ -90,27 +100,58 @@ class Storage(AbstractStorage):
     def delete_from_tbl(self, tbl_name):
         pass
 
-    def query_tbl(self, tbl_name):
-        pass
+    def query_tbl(self, tbl_name, query=None):
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+
+        get_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name, q=query)
+        if query:
+            get_url += '?{}'.format(query)
+
+        # remove this print
+        print(get_url)
+        conn.request('GET', url=get_url)
+        r = conn.getresponse()
+        # remove this assert
+        assert 200 == r.status
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
+    def query_tbl_with_payload(self, tbl_name, query_payload):
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+        q_tbl_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
+        # remove this print
+        print(q_tbl_url)
+        conn.request('PUT', url=q_tbl_url, body=query_payload)
+        r = conn.getresponse()
+        # remove this print
+        print(r.status)
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
 
 
 class Readings(object):
+    """ Readings table operations"""
 
-    @staticmethod
-    def append(conn, readings):
+    _TABLE = 'readings'
+
+    @classmethod
+    def append(cls, conn, readings):
         print("append", readings)
-        conn.insert_into_tbl("foglamp.readings", readings)
+        conn.insert_into_tbl(cls._TABLE, readings)
+
+    @classmethod
+    def fetch(cls, reading_id, size):
         pass
 
-    @staticmethod
-    def fetch(reading_id, size):
-        pass
-
-    @staticmethod
-    def query(query):
+    @classmethod
+    def query(cls, query):
         pass
 
     # TODO: these value shall be picked from purge config and passed to it?
-    @staticmethod
-    def purge(age, sent_id, purge_unsent=False):
+    @classmethod
+    def purge(cls, age, sent_id, purge_unsent=False):
         pass

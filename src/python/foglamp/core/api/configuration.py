@@ -25,6 +25,7 @@ _help = """
 #  Configuration Manager
 #################################
 
+
 async def get_categories(request):
     """
     Args:
@@ -125,6 +126,7 @@ async def set_configuration_item(request):
         raise web.HTTPBadRequest(reason='Missing required value for {}'.format(config_item))
 
     return web.json_response(result)
+
 
 async def delete_configuration_item_value(request):
     """

@@ -23,7 +23,7 @@ BASE_URL = 'localhost:8082'
 headers = {"Content-Type": 'application/json'}
 
 test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
-              'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def'}}}
+             'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def'}}}
 pytestmark = pytest.mark.asyncio
 
 
@@ -39,6 +39,7 @@ async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.configuration WHERE key IN ($1)''', test_data['key'])
     await conn.close()
+
 
 @pytest.allure.feature("api")
 @pytest.allure.story("configuration-manager")
@@ -168,3 +169,18 @@ class TestConfigMgr:
         test_data['value'].update(body['value'])
         print("test_data_new", test_data)
         assert test_data == retval
+
+    async def test_check_error_code_message(self):
+        conn = http.client.HTTPConnection(BASE_URL)
+        body = {"key1": "invalid_key", "value1": 'invalid_value'}
+        json_data = json.dumps(body)
+        conn.request("PUT", '/foglamp/category/{}/{}'.format('key', 'value'), json_data)
+        r = conn.getresponse()
+
+        assert 200 == r.status
+        s = r.read().decode()
+        retval = json.loads(s)
+
+        assert 400 == retval['error']['code']
+        assert 'Missing required value for value' == retval['error']['message']
+        conn.close()

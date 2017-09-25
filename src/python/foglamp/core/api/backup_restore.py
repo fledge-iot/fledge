@@ -40,20 +40,17 @@ async def get_backups(request):
         status = request.query['status'] if 'status' in request.query else None
 
         if status and status not in ['complete', 'running', 'failed']:
-            return web.json_response({'error': 'Incorrect status'})
-
+            raise web.HTTPBadRequest(reason='Incorrect status')
         if limit:
             try:
                 limit = int(limit)
             except ValueError:
-                return web.json_response({'error': 'Limit can be a positive integer only'})
-
+                raise web.HTTPBadRequest(reason='Limit can be a positive integer only')
         if skip:
             try:
                 skip = int(skip)
             except ValueError:
-                return web.json_response({'error': 'Skip can be a positive integer only'})
-
+                raise web.HTTPBadRequest(reason='Skip can be a positive integer only')
         try:
             # TODO : Fix after actual implementation
             Backup.get_backup_list.return_value = [{'id': 28, 'date': '2017-08-30 04:05:10.382', 'status': 'running'},
@@ -64,7 +61,7 @@ async def get_backups(request):
             #                for b in Backup.get_backup_list(limit=limit, skip=skip, status=status)]
             backup_json = Backup.get_backup_list(limit=limit, skip=skip, status=status)
         except Backup.DoesNotExist:
-            return web.json_response({"backups": []})
+            raise web.HTTPNotFound(reason='No backups found for queried parameters')
         return web.json_response({"backups": backup_json})
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
@@ -90,17 +87,20 @@ async def get_backup_details(request):
     :Example: curl -X GET  http://localhost:8082/foglamp/backup/1
     """
     try:
+        backup_id = request.match_info.get('backup_id', None)
+        if not backup_id:
+            raise web.HTTPBadRequest(reason='Backup id is required')
         try:
-            backup_id = int(request.match_info.get('backup_id', None))
+            backup_id = int(backup_id)
         except ValueError:
-            return web.json_response({'error': 'Backup id can be a positive integer only'})
+            raise web.HTTPBadRequest(reason='Backup id can be a positive integer only')
 
         try:
             # TODO : Fix after actual implementation
             Backup.get_backup_details.return_value = \
                 {"date": '2017-08-30 04:05:10.382', "status": "running"}
         except Backup.DoesNotExist:
-            return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
+            raise web.HTTPBadRequest(reason='Backup with {} does not exist'.format(backup_id))
 
         _resp = Backup.get_backup_details(id=backup_id)
         _resp["id"] = backup_id
@@ -118,16 +118,19 @@ async def delete_backup(request):
     :Example: curl -X DELETE  http://localhost:8082/foglamp/backup/1
     """
     try:
+        backup_id = request.match_info.get('backup_id', None)
+        if not backup_id:
+            raise web.HTTPBadRequest(reason='Backup id is required')
         try:
-            backup_id = int(request.match_info.get('backup_id', None))
+            backup_id = int(backup_id)
         except ValueError:
-            return web.json_response({'error': 'Backup id can be a positive integer only'})
+            raise web.HTTPBadRequest(reason='Backup id can be a positive integer only')
 
         try:
             # TODO : Fix after actual implementation
             Backup.delete_backup.return_value = "Backup deleted successfully"
         except Backup.DoesNotExist:
-            return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
+            raise web.HTTPBadRequest(reason='Backup with {} does not exist'.format(backup_id))
 
         _resp = Backup.delete_backup(id=backup_id)
         return web.json_response({'message': _resp})
@@ -144,16 +147,19 @@ async def restore_backup(request):
     :Example: curl -X PUT  http://localhost:8082/foglamp/backup/1/restore
     """
     try:
+        backup_id = request.match_info.get('backup_id', None)
+        if not backup_id:
+            raise web.HTTPBadRequest(reason='Backup id is required')
         try:
-            backup_id = int(request.match_info.get('backup_id', None))
+            backup_id = int(backup_id)
         except ValueError:
-            return web.json_response({'error': 'Backup id can be a positive integer only'})
+            raise web.HTTPBadRequest(reason='Backup id can be a positive integer only')
 
         try:
             # TODO : Fix after actual implementation
             Backup.restore_backup.return_value = 1
         except Backup.DoesNotExist:
-            return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
+            raise web.HTTPBadRequest(reason='Backup with {} does not exist'.format(backup_id))
 
         _resp = Backup.restore_backup(id=backup_id)
         if _resp == 1:

@@ -205,7 +205,6 @@ class TestServicesRegistryApi:
         r = requests.post(BASE_URL + '/service', data=json.dumps(data1), headers=headers)
         assert 200 == r.status_code
 
-        print(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data1["name"]))
         l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data1["name"]))
         assert 200 == l.status_code
 

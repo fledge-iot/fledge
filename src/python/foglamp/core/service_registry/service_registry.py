@@ -122,8 +122,8 @@ async def get_service(request):
             services_list = Service.Instances.filter_by_name_and_type(
                     name=service_name, s_type=service_type
                 )
-    except Service.DoesNotExist:
-        raise web.HTTPBadRequest(reason="Nil/Incorrect service name and/or type provided")
+    except Service.DoesNotExist as ex:
+        raise web.HTTPBadRequest(reason="Nil/Incorrect service name and/or type provided. " + str(ex))
 
     services = []
     for service in services_list:

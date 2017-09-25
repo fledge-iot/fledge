@@ -38,13 +38,16 @@ class Server:
             try:
                 cls._plugin.plugin_shutdown(cls._plugin_data)
             except Exception:
-                _LOGGER.exception('An exception was raised '
-                                  'shutting down plugin {}'.format(cls._plugin_name))
+                _LOGGER.exception("Unable to shut down plugin '{}'".format(cls._plugin_name))
             finally:
                 cls._plugin = None
                 cls._plugin_data = None
 
-        await Ingest.stop()
+        try:
+            await Ingest.stop()
+        except Exception:
+            _LOGGER.exception('Unable to stop the Ingest server')
+            return
 
         # Stop all pending asyncio tasks
         for task in asyncio.Task.all_tasks():

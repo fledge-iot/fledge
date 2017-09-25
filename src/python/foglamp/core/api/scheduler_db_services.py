@@ -40,7 +40,6 @@ async def read_scheduled_processes(scheduled_process_name=None):
     query = """
         SELECT name, script FROM scheduled_processes
     """
-    # FIXME: When schedule_id is not in uuid format, server error occurs
     _where_clause = " WHERE name = $1" if scheduled_process_name else ""
     query += _where_clause
 

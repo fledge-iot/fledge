@@ -5,7 +5,6 @@
 # FOGLAMP_END
 
 import time
-
 from aiohttp import web
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
@@ -14,6 +13,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 __start_time = time.time()
+
 
 _help = """
     -------------------------------------------------------------------------------

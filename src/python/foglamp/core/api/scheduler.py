@@ -267,7 +267,7 @@ async def get_schedule(request):
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
-            raise web.HTTPNotFound(reason="Schedule ID is not proper: {}".format(schedule_id))
+            raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
 
@@ -303,7 +303,7 @@ async def start_schedule(request):
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
-            raise web.HTTPNotFound(reason="Schedule ID is not proper: {}".format(schedule_id))
+            raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
 
@@ -370,7 +370,7 @@ async def update_schedule(request):
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
-            raise web.HTTPNotFound(reason="Schedule ID is not proper: {}".format(schedule_id))
+            raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
         if not sch:
@@ -426,7 +426,7 @@ async def delete_schedule(request):
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
-            raise web.HTTPNotFound(reason="Schedule ID is not proper: {}".format(schedule_id))
+            raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
         is_schedule = await scheduler_db_services.read_schedule(schedule_id)
 
@@ -476,7 +476,7 @@ async def get_task(request):
         try:
             assert uuid.UUID(task_id)
         except ValueError as ex:
-            raise web.HTTPNotFound(reason="Task ID is not proper: {}".format(task_id))
+            raise web.HTTPNotFound(reason="Invalid Task ID {}".format(task_id))
 
         tsk = await server.Server.scheduler.get_task(uuid.UUID(task_id))
 
@@ -602,7 +602,7 @@ async def cancel_task(request):
         try:
             assert uuid.UUID(task_id)
         except ValueError as ex:
-            raise web.HTTPNotFound(reason="Task ID is not proper: {}".format(task_id))
+            raise web.HTTPNotFound(reason="Invalid Task ID {}".format(task_id))
 
         task = await server.Server.scheduler.get_task(uuid.UUID(task_id))
 

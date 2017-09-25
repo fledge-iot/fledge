@@ -525,9 +525,14 @@ string        flags;
 		if (search != query.end())
 		{
 			flags = search->second;
+			// TODO Turn flags into a bitmap
 		}
+		unsigned int purged = plugin->readingsPurge(age, 0, lastSent);
 
-		respond(response, "Purging...");
+		string responsePayload = "{ \"purged\" : ";
+		responsePayload += purged;
+		responsePayload += " }";
+		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}

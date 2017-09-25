@@ -193,7 +193,7 @@ char	     *buffer = 0;
 	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
 	{
 		memcpy(&buffer[offset], (*it)->data, (*it)->offset);
-		offset += (*it)->length;
+		offset += (*it)->offset;
 	}
 	buffer[offset] = 0;
 
@@ -205,7 +205,8 @@ char	     *buffer = 0;
  */
 SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 {
-	data = new(char[BUFFER_CHUNK+1]);
+	data = new char[BUFFER_CHUNK+1];
+	data[0] = 0;
 }
 
 /**

@@ -78,7 +78,7 @@ SQLBuffer	sql;
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
-	delete query;
+	delete[] query;
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
 		mapResultSet(res, resultSet);
@@ -150,12 +150,12 @@ int		col = 0;
 	sql.append(") values (");
 	const char *vals = values.coalesce();
 	sql.append(vals);
-	delete vals;
+	delete[] vals;
 	sql.append(");");
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
-	delete query;
+	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;
@@ -245,7 +245,7 @@ int		col = 0;
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
-	delete query;
+	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;
@@ -293,7 +293,7 @@ SQLBuffer	sql;
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
-	delete query;
+	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;
@@ -383,7 +383,7 @@ int		row = 0;
 
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
-	delete query;
+	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		return true;

@@ -84,9 +84,17 @@ char * StoragePlugin::readingsFetch(unsigned long id, unsigned int blksize)
 /**
  * Call the readings retrieve method in the plugin
  */
-char * StoragePlugin::readingsRetrieve(const string& payload)
+char *StoragePlugin::readingsRetrieve(const string& payload)
 {
 	return this->readingsRetrievePtr(instance, payload.c_str());
+}
+
+/**
+ * Call the readings purge method in the plugin
+ */
+unsigned int StoragePlugin::readingsPurge(unsigned long age, unsigned int flags, unsigned long sent)
+{
+	return this->readingsPurgePtr(instance, age, flags, sent);
 }
 
 /**

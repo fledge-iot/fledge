@@ -5,6 +5,11 @@
 #include <rapidjson/writer.h>
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
+
+static const char *defaultConfiguration = " { \"plugin\" : { "
+" \"value\" : \"postgres\" }, \"threads\" : { \"value\" : \"1\" },"
+"  \"port\" : { \"value\" : \"8080\" } }";
 
 using namespace std;
 using namespace rapidjson;
@@ -14,8 +19,8 @@ using namespace rapidjson;
  */
 StorageConfiguration::StorageConfiguration()
 {
-	readCache();
 	logger = Logger::getLogger();
+	readCache();
 }
 
 /**
@@ -61,6 +66,17 @@ void StorageConfiguration::updateCategory(const string& json)
  */
 void StorageConfiguration::readCache()
 {
+	if (access(CONFIGURATION_CACHE_FILE, F_OK ) != 0)
+	{
+		logger->info("Using default configuration: %s.", defaultConfiguration);
+		document.Parse(defaultConfiguration);
+		if (document.HasParseError())
+		{
+			logger->error("Default configuration failed to parse.");
+		}
+		writeCache();
+		return;
+	}
 	try {
 		ifstream ifs(CONFIGURATION_CACHE_FILE);
 		IStreamWrapper isw(ifs);

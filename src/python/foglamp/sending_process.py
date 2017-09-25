@@ -847,8 +847,6 @@ if __name__ == "__main__":
     try:
         _logger = logger.setup(__name__)
 
-        _logger.debug("TEST 1 ")
-
     except Exception as ex:
         message = _MESSAGES_LIST["e000001"].format(str(ex))
         current_time = time.strftime("%Y-%m-%d %H:%M:%S:")

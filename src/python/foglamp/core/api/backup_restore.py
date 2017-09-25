@@ -96,6 +96,7 @@ async def get_backup_details(request):
             return web.json_response({'error': 'Backup id can be a positive integer only'})
 
         try:
+            # TODO : Fix after actual implementation
             Backup.get_backup_details.return_value = \
                 {"date": '2017-08-30 04:05:10.382', "status": "running"}
         except Backup.DoesNotExist:
@@ -123,6 +124,7 @@ async def delete_backup(request):
             return web.json_response({'error': 'Backup id can be a positive integer only'})
 
         try:
+            # TODO : Fix after actual implementation
             Backup.delete_backup.return_value = "Backup deleted successfully"
         except Backup.DoesNotExist:
             return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
@@ -141,4 +143,24 @@ async def restore_backup(request):
 
     :Example: curl -X PUT  http://localhost:8082/foglamp/backup/1/restore
     """
-    pass
+    try:
+        try:
+            backup_id = int(request.match_info.get('backup_id', None))
+        except ValueError:
+            return web.json_response({'error': 'Backup id can be a positive integer only'})
+
+        try:
+            # TODO : Fix after actual implementation
+            Backup.restore_backup.return_value = 1
+        except Backup.DoesNotExist:
+            return web.json_response({'error': 'Backup with {} does not exist'.format(backup_id)})
+
+        _resp = Backup.restore_backup(id=backup_id)
+        if _resp == 1:
+            return web.json_response({'message': 'Restore backup with id {} started successfully'.format(backup_id)})
+        else:
+            return web.json_response({'message': 'Restore backup with id {} failed'.format(backup_id)})
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))

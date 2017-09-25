@@ -58,6 +58,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], data, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**
@@ -77,6 +78,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**
@@ -96,6 +98,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**
@@ -115,6 +118,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**
@@ -134,6 +138,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**
@@ -153,6 +158,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**
@@ -171,6 +177,7 @@ SQLBuffer::Buffer *buffer = buffers.front();
 	}
 	memcpy(&buffer->data[buffer->offset], cstr, len);
 	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
 }
 
 /**

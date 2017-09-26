@@ -16,7 +16,7 @@ void pingWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServe
         api->ping(response, request);
 }
 
-ManagementApi::ManagementApi(const short port)
+ManagementApi::ManagementApi(const unsigned short port)
 {
 	m_server = new HttpServer();
 	m_logger = Logger::getLogger();
@@ -44,6 +44,7 @@ void ManagementApi::ping(shared_ptr<HttpServer::Response> response, shared_ptr<H
 {
 string responsePayload;
 
+	(void)request;	// Unsused argument
 	responsePayload = "{ \"uptime\" : 0 }";
 	respond(response, responsePayload);
 }

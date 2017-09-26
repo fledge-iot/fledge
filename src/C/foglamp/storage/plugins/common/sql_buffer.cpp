@@ -31,12 +31,12 @@ SQLBuffer::~SQLBuffer()
  */
 void SQLBuffer::append(const char data)
 {
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
         if (buffer->offset == buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	buffer->data[buffer->offset] = data;
 	buffer->data[buffer->offset + 1] = 0;
@@ -49,12 +49,12 @@ SQLBuffer::Buffer *buffer = buffers.front();
 void SQLBuffer::append(const char *data)
 {
 unsigned int len = strlen(data);
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], data, len);
 	buffer->offset += len;
@@ -68,13 +68,13 @@ void SQLBuffer::append(const int value)
 {
 char	tmpbuf[80];
 unsigned int len;
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
 	len = (unsigned int)snprintf(tmpbuf, 80, "%d", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
@@ -88,13 +88,13 @@ void SQLBuffer::append(const long value)
 {
 char	tmpbuf[80];
 unsigned int len;
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
 	len = (unsigned int)snprintf(tmpbuf, 80, "%ld", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
@@ -108,13 +108,13 @@ void SQLBuffer::append(const unsigned int value)
 {
 char	tmpbuf[80];
 unsigned int len;
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
 	len = (unsigned int)snprintf(tmpbuf, 80, "%u", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
@@ -128,13 +128,13 @@ void SQLBuffer::append(const unsigned long value)
 {
 char	tmpbuf[80];
 unsigned int len;
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
 	len = (unsigned int)snprintf(tmpbuf, 80, "%lu", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
@@ -148,13 +148,13 @@ void SQLBuffer::append(const double value)
 {
 char	tmpbuf[80];
 unsigned int len;
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
 	len = (unsigned int)snprintf(tmpbuf, 80, "%f", value);
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], tmpbuf, len);
 	buffer->offset += len;
@@ -168,12 +168,12 @@ void SQLBuffer::append(const string& str)
 {
 const char	*cstr = str.c_str();
 unsigned int len = strlen(cstr);
-SQLBuffer::Buffer *buffer = buffers.front();
+SQLBuffer::Buffer *buffer = buffers.back();
 
         if (buffer->offset + len >= buffer->length)
         {
 		buffer = new SQLBuffer::Buffer();
-		buffers.push_front(buffer);
+		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], cstr, len);
 	buffer->offset += len;
@@ -190,7 +190,7 @@ char	     *buffer = 0;
 
 	if (buffers.size() == 1)
 	{
-		return buffers.front()->detach();
+		return buffers.back()->detach();
 	}
 	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
 	{
@@ -203,7 +203,6 @@ char	     *buffer = 0;
 		offset += (*it)->offset;
 	}
 	buffer[offset] = 0;
-
 	return buffer;
 }
 

@@ -6,6 +6,8 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "rapidjson/error/error.h"
+#include "rapidjson/error/en.h"
 #include <string>
 #include <regex>
 #include <stdarg.h>
@@ -323,9 +325,10 @@ Document 	doc;
 SQLBuffer	sql;
 int		row = 0;
 
-	if (doc.Parse(readings).HasParseError())
+	ParseResult ok = doc.Parse(readings);
+	if (!ok)
 	{
- 		raiseError("appendReadings", PQerrorMessage(dbConnection));
+ 		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
 		return false;
 	}
 
@@ -404,7 +407,7 @@ int		row = 0;
 		PQclear(res);
 		return true;
 	}
- 	raiseError("delete", PQerrorMessage(dbConnection));
+ 	raiseError("appendReadings", PQerrorMessage(dbConnection));
 	PQclear(res);
 	return false;
 }

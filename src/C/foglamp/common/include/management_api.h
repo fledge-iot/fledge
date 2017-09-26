@@ -15,7 +15,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
  */
 class ManagementApi {
 	public:
-		ManagementApi(const short port);
+		ManagementApi(const unsigned short port);
 		~ManagementApi();
 		static ManagementApi *getInstance();
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);

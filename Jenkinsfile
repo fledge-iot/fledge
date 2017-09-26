@@ -4,7 +4,7 @@ node {
     def choice_test_doc = 'doc-build-tests'
     def choice_test_python = 'python-unit-tests' // pointing to src/python/tests
 
-    // adding job parameters within jenkinsfile
+    // adding job parameters and build triggers twice a day (5AM and 2PM UTC time) within jenkinsfile
     properties([
      parameters([
       stringParam(

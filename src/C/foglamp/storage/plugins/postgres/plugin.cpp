@@ -110,8 +110,9 @@ unsigned int plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsig
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	unsigned int rval = connection->purgeReadings(age, flags, sent);
 	manager->release(connection);
-	return 0;
+	return rval;
 }
 
 

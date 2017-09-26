@@ -1,6 +1,7 @@
 #include "client_http.hpp"
 #include "server_http.hpp"
 #include "storage_api.h"
+#include "storage_stats.h"
 
 
 // Added for the default_resource example
@@ -244,6 +245,7 @@ string  tableName;
 string	payload;
 string  responsePayload;
 
+	stats.commonInsert++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
@@ -277,6 +279,7 @@ string  tableName;
 string	payload;
 string	responsePayload;
 
+	stats.commonUpdate++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
@@ -309,21 +312,26 @@ void StorageApi::commonSimpleQuery(shared_ptr<HttpServer::Response> response, sh
 {
 string  tableName;
 SimpleWeb::CaseInsensitiveMultimap	query;
-string payload = "{ \"where\" : { ";
+string payload;
 
+	stats.commonSimpleQuery++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		query = request->parse_query_string();
 
-		for(auto &param : query)
+		if (query.size() > 0)
 		{
-			payload = payload + "\"column\" :  \"";
-			payload = payload + param.first;
-			payload = payload + "\", \"condition\" : \"=\", \"value\" : \"";
-			payload = payload + param.second;
-			payload = payload + "\"";
+			payload = "{ \"where\" : { ";
+			for(auto &param : query)
+			{
+				payload = payload + "\"column\" :  \"";
+				payload = payload + param.first;
+				payload = payload + "\", \"condition\" : \"=\", \"value\" : \"";
+				payload = payload + param.second;
+				payload = payload + "\"";
+			}
+			payload = payload + "} }";
 		}
-		payload = payload + "} }";
 
 		char *pluginResult = plugin->commonRetrieve(tableName, payload);
 		string res = pluginResult;
@@ -346,6 +354,7 @@ void StorageApi::commonQuery(shared_ptr<HttpServer::Response> response, shared_p
 string  tableName;
 string	payload;
 
+	stats.commonQuery++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
@@ -374,6 +383,7 @@ string  tableName;
 string	payload;
 string  responsePayload;
 
+	stats.commonDelete++;
 	try {
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
@@ -407,6 +417,7 @@ void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared
 string payload;
 string  responsePayload;
 
+	stats.readingAppend++;
 	try {
 		payload = request->content.string();
 		bool rval = plugin->readingsAppend(payload);
@@ -440,6 +451,7 @@ unsigned long			   id = 0;
 unsigned long			   count = 0;
 string				   responsePayload;
 
+	stats.readingFetch++;
 	try {
 		query = request->parse_query_string();
 
@@ -484,6 +496,7 @@ void StorageApi::readingQuery(shared_ptr<HttpServer::Response> response, shared_
 {
 string	payload;
 
+	stats.readingQuery++;
 	try {
 		payload = request->content.string();
 
@@ -511,6 +524,7 @@ unsigned long age = 0;
 unsigned long lastSent = 0;
 string        flags;
 
+	stats.readingPurge++;
 	try {
 		query = request->parse_query_string();
 

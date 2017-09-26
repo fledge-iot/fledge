@@ -431,6 +431,31 @@ char	sqlbuffer[100];
 	return false;
 }
 
+/**
+ * Purge readings from the reading table
+ */
+unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, unsigned long sent)
+{
+SQLBuffer sql;
+
+	sql.append("DELETE FROM readings WHERE user_ts < now() - ");
+	sql.append(age);
+	if (flags)	// Don't delete unsent rows
+	{
+		sql.append(" AND id < sent");
+	}
+	const char *query = sql.coalesce();
+	PGresult *res = PQexec(dbConnection, query);
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		unsigned int deletedRows = atoi(PQcmdTuples(res));
+		PQclear(res);
+		return deletedRows;
+	}
+	PQclear(res);
+	return 0;
+}
+
 
 void Connection::mapResultSet(PGresult *res, string& resultSet)
 {

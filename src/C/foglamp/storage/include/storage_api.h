@@ -3,6 +3,7 @@
 
 #include <server_http.hpp>
 #include <storage_plugin.h>
+#include <storage_stats.h>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -51,6 +52,7 @@ private:
 	int		        m_threads;
         thread                  *m_thread;
 	StoragePlugin		*plugin;
+	StorageStats		stats;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);
 	void			internalError(shared_ptr<HttpServer::Response>, const exception&);

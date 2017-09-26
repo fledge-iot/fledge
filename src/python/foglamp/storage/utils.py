@@ -14,3 +14,17 @@ __version__ = "${VERSION}"
 
 
 # TODO: add utils method here to keep stuff DRY
+
+import json
+
+
+class Utils(object):
+
+    @staticmethod
+    def is_json(payload):
+        print(payload)
+        try:
+            json_object = json.loads(payload)
+        except ValueError:
+            return False
+        return True

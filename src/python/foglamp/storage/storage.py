@@ -19,6 +19,7 @@ import json
 from foglamp import logger
 from foglamp.core.service_registry.service_registry import Service
 from foglamp.storage.exceptions import *
+from foglamp.storage.utils import Utils
 
 _LOGGER = logger.setup(__name__)
 
@@ -70,6 +71,8 @@ class AbstractStorage(ABC):
 class Storage(AbstractStorage):
 
     def __init__(self):
+        # discover the Storage type the service: how do we know the instance name?
+        # with type there can be multiple instances (as allowed)
         # TODO: (Praveen) do via http
         try:
             storage_services = Service.Instances.get(name="store")
@@ -91,8 +94,38 @@ class Storage(AbstractStorage):
     # the same way as \i ddl?
     # or each service will do it individually as needed the same way as config?
     def insert_into_tbl(self, tbl_name, data):
-        print(tbl_name, data)
-        pass
+        """
+        :Example:
+            curl -X POST http://192.168.56.101:8080/storage/table/statistics_history -d @payload2.json
+        
+            @payload2.json content:
+            
+            {
+                "key" : "SENT_test",
+                "history_ts" : "now()",
+                "value" : 1
+            }
+        """
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+
+        post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+        if not data:
+            raise ValueError("Data to insert is missing")
+
+        print(data)
+
+        if not Utils.is_json(data):
+            raise TypeError("Provided data to insert must be a valid JSON")
+
+        conn.request('POST', url=post_url, body=data)
+        r = conn.getresponse()
+
+        # remove this assert
+        print(r.status)
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
 
     def update_tbl(self, tbl_name, data):
         pass

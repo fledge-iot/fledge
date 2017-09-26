@@ -96,7 +96,7 @@ execute_command() {
         # Change directory only to run only build.sh commands
         cd src/python
 
-        # clean virtual environment and pylint-report log file
+        # clean virtual environment and pylint_report log file
         rm -rf venv
         rm -rf pylint_report*.log
         source build.sh -c
@@ -139,14 +139,14 @@ execute_command() {
     make develop
 
     # pytest result handle on the basis of errors/failures and exit code accordingly
-    RESULT=$(pytest tests/test.py --alluredir=../../allure/unit_test_report | grep -i 'ERRORS\|FAILURE')
+    RESULT=$(pytest tests/ --alluredir=../../allure/unit_test_report | grep -i 'ERRORS\|FAILURE')
     OUTPUT=$(echo -n ${RESULT} | wc -m)
 
     if [ $OUTPUT -gt 0 ]
         then
-          exit 1 #FAIL
+          exit 1 # FAIL
     else
-        exit 0 #"PASS
+        exit 0 # PASS
     fi
   fi
 }

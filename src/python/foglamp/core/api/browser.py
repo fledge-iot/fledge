@@ -68,6 +68,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
 
+
 async def asset_counts(request):
     """
     Browse all the assets for which we have recorded readings and
@@ -92,6 +93,7 @@ async def asset_counts(request):
 
     return web.json_response(results)
 
+
 async def asset(request):
     """
     Browse a particular asset for which we have recorded readings and
@@ -100,14 +102,14 @@ async def asset(request):
     the query parameter ?limit=xx&skip=xx
 
     Return the result of the Postgres query 
-    SELECT to_char(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
+    SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
     """
 
     conn = await asyncpg.connect(**__CONNECTION)
     asset_code = request.match_info.get('asset_code', '')
 
     query = """
-            SELECT to_char(user_ts, '{0}') as "timestamp", (reading)::json
+            SELECT TO_CHAR(user_ts, '{0}') as "timestamp", (reading)::json
             FROM readings WHERE asset_code = '{1}'
             """.format(__TIMESTAMP_FMT, asset_code)
 
@@ -135,6 +137,7 @@ async def asset(request):
 
     return web.json_response(results)
 
+
 async def asset_reading(request):
     """
     Browse a particular sensor value of a particular asset for which we have recorded readings and
@@ -157,7 +160,7 @@ async def asset_reading(request):
     Only one of hour, minutes or seconds should be supplied
 
     Return the result of the Postgres query 
-    SELECT to_char(user_ts, '__TIMESTAMP_FMT') as "Time", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
+    SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
     """
 
     conn = await asyncpg.connect(**__CONNECTION)
@@ -165,7 +168,7 @@ async def asset_reading(request):
     reading = request.match_info.get('reading', '')
 
     query = """
-            SELECT to_char(user_ts, '{0}') as "Time", reading->>'{2}' 
+            SELECT TO_CHAR(user_ts, '{0}') as "timestamp", reading->>'{2}' as "reading" 
             FROM readings WHERE asset_code = '{1}'
             """.format(__TIMESTAMP_FMT, asset_code, reading)
 
@@ -184,15 +187,16 @@ async def asset_reading(request):
 
     # Select the assets from the readings table
     rows = await conn.fetch(query)
-    columns = ('timestamp', reading)
     results = []
     for row in rows:
-        results.append(dict(zip(columns, row)))
+        jrow = {'timestamp': row['timestamp'], reading: json.loads(row['reading'])}
+        results.append(jrow)
 
     # Close the connection.
     await conn.close()
 
     return web.json_response(results)
+
 
 async def asset_summary(request):
     """
@@ -215,7 +219,7 @@ async def asset_summary(request):
     Only one of hour, minutes or seconds should be supplied
 
     Return the result of the Postgres query 
-    SELECT min(reading->>'reading'), max(reading->>'reading'), avg((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code'
+    SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code'
     """
 
     conn = await asyncpg.connect(**__CONNECTION)
@@ -223,20 +227,20 @@ async def asset_summary(request):
     reading = request.match_info.get('reading', '')
 
     query = """
-            SELECT min(reading->>'{1}'), max(reading->>'{1}'), avg((reading->>'{1}')::float)
+            SELECT MIN(reading->>'{1}'), MAX(reading->>'{1}'), AVG((reading->>'{1}')::float)
             FROM readings WHERE asset_code = '{0}'
             """.format(asset_code, reading)
 
     query += _where_clause(request)
     # Select the assets from the readings table
     row = await conn.fetchrow(query)
-    columns = ('min', 'max', 'average')
-    results = dict(zip(columns, row))
+    results = {'min': json.loads(row['min']), 'max': json.loads(row['max']), 'average': row['avg']}
 
     # Close the connection.
     await conn.close()
 
     return web.json_response({reading: results})
+
 
 async def asset_averages(request):
     """
@@ -261,7 +265,7 @@ async def asset_averages(request):
     query parameter group. This may be set to seconds, minutes or hours
 
     Return the result of the Postgres query 
-    SELECT user_ts avg((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
+    SELECT user_ts AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
     """
 
     conn = await asyncpg.connect(**__CONNECTION)
@@ -278,14 +282,14 @@ async def asset_averages(request):
             ts_restraint = 'YYYY-MM-DD HH24'
 
     query = """
-            SELECT to_char(user_ts, '{2}'), min(reading->>'{1}'), max(reading->>'{1}'), avg((reading->>'{1}')::float)
+            SELECT TO_CHAR(user_ts, '{2}') as "timestamp", MIN(reading->>'{1}'), MAX(reading->>'{1}'), AVG((reading->>'{1}')::float)
             FROM readings WHERE asset_code = '{0}'
             """.format(asset_code, reading, ts_restraint)
 
     query += _where_clause(request)
 
     # Add the group by
-    query += """ GROUP BY to_char(user_ts, '{0}') ORDER BY 1""".format(ts_restraint)
+    query += """ GROUP BY TO_CHAR(user_ts, '{0}') ORDER BY 1""".format(ts_restraint)
 
     # Add the order by and limit clause
     limit = __DEFAULT_LIMIT
@@ -295,10 +299,11 @@ async def asset_averages(request):
 
     # Select the assets from the readings table
     rows = await conn.fetch(query)
-    columns = ('time', 'min', 'max', 'average')
     results = []
     for row in rows:
-        results.append(dict(zip(columns, row)))
+        jrow = {'time': row['timestamp'], 'min': json.loads(row['min']),
+                'max': json.loads(row['max']), 'average': row['avg']}
+        results.append(jrow)
 
     # Close the connection.
     await conn.close()

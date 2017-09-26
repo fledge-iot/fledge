@@ -38,13 +38,9 @@ async def get_statistics(request):
     :Example:
             curl -X GET http://localhost:8082/foglamp/statistics
     """
+    statistics = await statistics_db_services.read_statistics()
 
-    try:
-        statistics = await statistics_db_services.read_statistics()
-
-        return web.json_response(statistics)
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
+    return web.json_response(statistics)
 
 
 async def get_statistics_history(request):
@@ -71,5 +67,3 @@ async def get_statistics_history(request):
         return web.json_response({"interval": 5, 'statistics': statistics})
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))

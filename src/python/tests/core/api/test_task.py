@@ -141,7 +141,7 @@ class TestTask:
         schedule_id2 = self._schedule_task(data)
 
         # Allow multiple tasks to be created
-        await asyncio.sleep(14)
+        await asyncio.sleep(4)
 
         # Verify with Task record as to more than one task have been created
         r = requests.get(BASE_URL+'/task')

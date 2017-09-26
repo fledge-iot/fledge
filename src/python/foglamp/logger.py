@@ -75,7 +75,7 @@ def setup(logger_name: str = None,
 
     # TODO: Consider using %r with message when using syslog .. \n looks better than #
     formatter = logging.Formatter(
-        fmt='[FOGLAMP] %(asctime)s - %(levelname)s :: %(module)s: %(message)s',
+        fmt='[FOGLAMP] %(asctime)s - %(levelname)s :: %(module)s: %(name)s: %(message)s',
         datefmt='%m-%d-%Y %H:%M:%S')
 
     handler.setFormatter(formatter)

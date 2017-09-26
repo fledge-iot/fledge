@@ -24,7 +24,7 @@ class Logger {
     void fatal(const std::string& msg, ...);
 
   private:
-    std::string format(const std::string& msg, va_list ap);
+    std::string *format(const std::string& msg, va_list ap);
     static Logger   *instance;
 };
 

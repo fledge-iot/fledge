@@ -174,18 +174,26 @@ void StorageApi::initResources()
 	m_server->on_error = on_error;
 }
 
+void startService()
+{
+	StorageApi::getInstance()->startServer();
+}
+
 /**
  * Start the HTTP server
  */
 void StorageApi::start() {
-	m_server->start();
+	m_thread = new thread(startService);
 }
 
+void StorageApi::startServer() {
+	m_server->start();
+}
 /**
  * Wait for the HTTP server to shutdown
  */
 void StorageApi::wait() {
-	m_thread.join();
+	m_thread->join();
 }
 
 /**

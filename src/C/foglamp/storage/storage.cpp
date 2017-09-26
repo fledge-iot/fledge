@@ -1,5 +1,6 @@
 #include <storage_service.h>
 #include <configuration.h>
+#include <management_api.h>
 #include <plugin_manager.h>
 #include <plugin_api.h>
 #include <plugin.h>
@@ -30,6 +31,8 @@ void StorageService::start()
 	api->initResources();
 	logger->info("Starting service...");
 	api->start();
+
+	ManagementApi management(1081);	// Start managemenrt API on port 8081
 
 	api->wait();
 }

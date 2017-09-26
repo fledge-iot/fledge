@@ -31,6 +31,7 @@ public:
 	void	initResources();
 	void	setPlugin(StoragePlugin *);
 	void	start();
+	void	startServer();
 	void	wait();
 	void	commonInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	commonSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
@@ -48,7 +49,7 @@ private:
         HttpServer              *m_server;
 	short                   m_port;
 	int		        m_threads;
-        thread                  m_thread;
+        thread                  *m_thread;
 	StoragePlugin		*plugin;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);

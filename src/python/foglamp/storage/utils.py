@@ -22,7 +22,6 @@ class Utils(object):
 
     @staticmethod
     def is_json(payload):
-        print(payload)
         try:
             json_object = json.loads(payload)
         except ValueError:

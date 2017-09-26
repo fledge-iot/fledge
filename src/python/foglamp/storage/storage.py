@@ -127,6 +127,7 @@ class Storage(AbstractStorage):
 
         # remove this print
         print(r.status)
+        # log if status is 4xx or 5xx
         res = r.read().decode()
         conn.close()
         return json.loads(res)
@@ -170,18 +171,57 @@ class Storage(AbstractStorage):
         r = conn.getresponse()
         # remove this print
         print(r.status)
+        # log if status is 4xx or 5xx
         res = r.read().decode()
         conn.close()
         return json.loads(res)
 
-    def delete_from_tbl(self, tbl_name):
-        pass
+    def delete_from_tbl(self, tbl_name, condition):
+        """ Delete for specified condition from given table
+
+        :param tbl_name:
+        :param condition: JSON payload
+        :return:
+
+        :Example:
+            curl -X DELETE http://0.0.0.0:8080/storage/table/statistics_history -d @payload_del.json
+            @payload_del.json content:
+            "condition" : {
+                    "column" : "key",
+                    "condition" : "=",
+                    "value" : "SENT_test"
+            }
+
+        """
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+        del_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+        # remove this print
+        print(del_url)
+
+        # TODO: CHECK - not sure, are we allowing DELETE FROM <TABLE>
+        if not condition:
+            raise ValueError("Required condition payload is missing")
+
+        print(condition)
+        if not Utils.is_json(condition):
+            raise TypeError("condition payload must be a valid JSON")
+
+        conn.request('DELETE', url=del_url, body=condition)
+        r = conn.getresponse()
+        # remove this print
+        print(r.status)
+        # log if status is 4xx or 5xx
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
 
     def query_tbl(self, tbl_name, query=None):
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
 
         get_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name, q=query)
+        # TODO: check, what if None, do `SELECT * FROM <tbl_name>`?
         if query:
             get_url += '?{}'.format(query)
 
@@ -190,7 +230,8 @@ class Storage(AbstractStorage):
         conn.request('GET', url=get_url)
         r = conn.getresponse()
         # remove this assert
-        assert 200 == r.status
+        print(r.status)
+        # log if status is 4xx or 5xx
         res = r.read().decode()
         conn.close()
         return json.loads(res)
@@ -205,6 +246,7 @@ class Storage(AbstractStorage):
         r = conn.getresponse()
         # remove this print
         print(r.status)
+        # log if status is 4xx or 5xx
         res = r.read().decode()
         conn.close()
         return json.loads(res)

@@ -51,6 +51,26 @@ def update_data():
     con.disconnect()
 
 
+def delete_tbl_data():
+
+    # payload as per doc,
+    # see: Plugin Common Delete
+    del_cond = dict()
+    del_cond['column'] = 'id'
+    del_cond['condition'] = '='
+    del_cond['value'] = '13057'
+
+    # how to join these AND/ OR conditions?
+    and_del_cond = dict()
+    and_del_cond['column'] = 'key'
+    and_del_cond['condition'] = '='
+    and_del_cond['value'] = 'SENT_test'
+    # same as where?
+
+    Storage().connect().delete_from_tbl("statistics_history", json.dumps(del_cond))
+    Storage().disconnect()
+
+
 def query_table():
     with Storage() as conn:
         # res = conn.query_tbl('configuration') fails
@@ -84,9 +104,9 @@ def query_table_with_payload():
     where['value'] = 'SENSORS'
 
     and_where = OrderedDict()
-    where['column'] = 'key'
-    where['condition'] = '='
-    where['value'] = 'CoAP'
+    and_where['column'] = 'ts'
+    and_where['condition'] = '>'
+    and_where['value'] = ''  # ts value
 
     # this fails
     # where["and"] = and_where
@@ -117,12 +137,15 @@ try:
 
     query_table()
 
-    query_table_with_payload()
-
     insert_data()
     # what happens on conflict?
 
     update_data()
+
+    delete_tbl_data()
+    # returns 400
+
+    query_table_with_payload()
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

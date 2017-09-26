@@ -21,7 +21,7 @@ How do I…
 … build and start the storage server?
 --------------------------------------------------------------
 
-To build it check out branch FOGL-197
+To build it check out branch, **FOGL-197**
 
     `cd FogLAMP`
 
@@ -33,14 +33,15 @@ To build it check out branch FOGL-197
 
     `make`
 
-Copy the executable and plugin somewhere you want to run it
+**Copy the executable and plugin somewhere you want to run it**
 
-`cp ./src/C/foglamp/storage/plugins/postgres/libpostgres.so ./src/C/foglamp/storage/storage <run directory>`
+   `cp ./src/C/foglamp/storage/plugins/postgres/libpostgres.so ./src/C/foglamp/storage/storage <run directory>`
 
-Run with
+**Run with**
 
-`cd <run directory>`
-`./storage`
+   `cd <run directory>`
+
+   `./storage`
 
 
 
@@ -49,11 +50,11 @@ Run with
 … what are the basic requirements to build storage static files?
 ------------------------------------------------------------------
 
-`sudo apt-get install cmake`
+    `sudo apt-get install cmake`
 
-`sudo apt-get install g++`
+    `sudo apt-get install g++`
 
-`sudo apt-get install make`
+    `sudo apt-get install make`
 
 
 .. _demo test scripts:
@@ -70,26 +71,47 @@ There are some curl scripts that demonstrate the usage in FogLAMP/test/storage.
 
 Code allows the environment variable DB_CONNECTION to override the default connection string, so you can set this to
 
-For example: `export DB_CONNECTION="dbname=foglamp host=/tmp"`
+:example:
+
+`export DB_CONNECTION="dbname=foglamp host=/tmp"`
 
 If you are installing Postgres via the snap package
 
 
+Open Questions FOGL-197
+========================
 
-How to run SELECT *?
+… SELECT and other things?
+-----------------------------
 
+How to run  `SELECT * FROM <TABLE_X>`
 
-Storage server fails (get halted) if no column supplied in where condition, it should be handled
+Storage server fails (get halted) if malformed json supplied in where condition, it should be handled
 error?
 
+What about SELECT with limit, offset, order_by?
 
-Who wil be responsible to create JSON Payload for storage sever?
+… Which layer will be responsible to create JSON Payload for storage sever?
+---------------------------------------------------------------------------
 
 a) storage client?
+
 b) storage client consumer code?
 
 
-if #a will the JSON (deep) check will be handled by client or server itself?
+if **a**, will the JSON (deep) check will be handled by client or server itself?
 
 
+… DELETE support is not available yet?
+--------------------------------------
 
+Here `delete_tbl_data` in `__main__.py` fails with 400 for me!
+
+
+… Readings append INSERT vs COPY?
+---------------------------------
+
+Only READINGS table (plugin/ service) will be mapped for append/ fetch/ query/ purge?
+
+COPY was the best solution for insertion as batch, how we are going to handle it?
+As of now, *will* map `Readings::append` to `Storage::insert_into_table`.

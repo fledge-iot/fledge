@@ -32,6 +32,25 @@ def insert_data():
     con.disconnect()
 
 
+def update_data():
+    condition = dict()
+
+    condition['column'] = 'key'
+    condition['condition'] = '='
+    condition['value'] = 'SENT_test'
+
+    values = dict()
+    values['value'] = 444
+
+    data = dict()
+    data['condition'] = condition
+    data['values'] = values
+
+    con = Storage().connect()
+    con.update_tbl("statistics_history", json.dumps(data))
+    con.disconnect()
+
+
 def query_table():
     with Storage() as conn:
         # res = conn.query_tbl('configuration') fails
@@ -101,6 +120,9 @@ try:
     query_table_with_payload()
 
     insert_data()
+    # what happens on conflict?
+
+    update_data()
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

@@ -94,10 +94,14 @@ class Storage(AbstractStorage):
     # the same way as \i ddl?
     # or each service will do it individually as needed the same way as config?
     def insert_into_tbl(self, tbl_name, data):
-        """
+        """ insert json payload into given table
+
+        :param tbl_name:
+        :param data: JSON payload
+        :return:
+
         :Example:
-            curl -X POST http://192.168.56.101:8080/storage/table/statistics_history -d @payload2.json
-        
+            curl -X POST http://0.0.0.0:8080/storage/table/statistics_history -d @payload2.json
             @payload2.json content:
             
             {
@@ -121,14 +125,54 @@ class Storage(AbstractStorage):
         conn.request('POST', url=post_url, body=data)
         r = conn.getresponse()
 
-        # remove this assert
+        # remove this print
         print(r.status)
         res = r.read().decode()
         conn.close()
         return json.loads(res)
 
     def update_tbl(self, tbl_name, data):
-        pass
+        """ update json payload for specified condition into given table
+
+        :param tbl_name:
+        :param data: JSON payload
+        :return:
+
+        :Example:
+            curl -X PUT http://0.0.0.0:8080/storage/table/statistics_history -d @payload3.json
+            @payload3.json content:
+            {
+                "condition" : {
+                    "column" : "key",
+                    "condition" : "=",
+                    "value" : "SENT_test"
+                },
+                "values" : {
+                    "value" : 44444
+                }
+            }
+        """
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+        put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+        # remove this print
+        print(put_url)
+
+        if not data:
+            raise ValueError("Data to update is missing")
+
+        print(data)
+
+        if not Utils.is_json(data):
+            raise TypeError("Provided data to update must be a valid JSON")
+
+        conn.request('PUT', url=put_url, body=data)
+        r = conn.getresponse()
+        # remove this print
+        print(r.status)
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
 
     def delete_from_tbl(self, tbl_name):
         pass

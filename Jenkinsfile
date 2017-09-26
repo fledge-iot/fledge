@@ -23,7 +23,7 @@ node {
          name: 'suite'
       )
       ]),
-      pipelineTriggers([cron('H(0-0) 6,21 * * *')])
+      pipelineTriggers([cron('H(0-0) 5,14 * * *')])
      ])
 
     try{

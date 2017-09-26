@@ -58,21 +58,35 @@ bool Connection::retrieve(const string& table, const string& condition, string& 
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
- 
-	sql.append("SELECT * from ");
-	sql.append(table);
-	if (! condition.empty())
+
+	if (condition.empty())
 	{
-		sql.append(" WHERE ");
+		sql.append("SELECT * FROM ");
+		sql.append(table);
+	}
+	else
+	{
 		if (document.Parse(condition.c_str()).HasParseError())
 		{
 			raiseError("retrieve", "Failed to parse JSON payload");
 			return false;
 		}
+		if (document.HasMember("aggregate"))
+		{
+			sql.append("SELECT ");
+			jsonAggregates(document, document["aggregate"], sql);
+			sql.append(" FROM ");
+		}
 		else
 		{
+			sql.append("SELECT * FROM ");
+		}
+		sql.append(table);
+		if (document.HasMember("where"))
+		{
+			sql.append(" WHERE ");
 			assert(document.IsObject());
-	 
+		 
 			if (document.HasMember("where"))
 			{
 				jsonWhereClause(document["where"], sql);
@@ -82,6 +96,7 @@ SQLBuffer	sql;
 				raiseError("retrieve", "JSON does not contain where clause");
 			}
 		}
+		jsonModifiers(document, sql);
 	}
 	sql.append(';');
 
@@ -533,6 +548,56 @@ Document doc;
 }
 
 /**
+ * Process the aggregate options and return the columns to be selected
+ */
+bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql)
+{
+	sql.append(aggregates["operation"].GetString());
+	sql.append('(');
+	sql.append(aggregates["column"].GetString());
+	sql.append(')');
+	if (payload.HasMember("group"))
+	{
+		sql.append(", ");
+		sql.append(payload["group"].GetString());
+	}
+}
+
+/**
+ * Process the modifers for limit, skip, sort and group
+ */
+bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
+{
+	if (payload.HasMember("sort"))
+	{
+		sql.append(" ORDER BY ");
+		const Value& sortBy = payload["sort"];
+		sql.append(sortBy["column"].GetString());
+		sql.append(' ');
+		sql.append(sortBy["direction"].GetString());
+	}
+
+	if (payload.HasMember("group"))
+	{
+		sql.append(" GROUP BY ");
+		sql.append(payload["group"].GetString());
+	}
+
+	if (payload.HasMember("limit"))
+	{
+		sql.append(" LIMIT ");
+		sql.append(payload["limit"].GetInt());
+	}
+
+	if (payload.HasMember("skip"))
+	{
+		sql.append(" SKIP ");
+		sql.append(payload["skip"].GetInt());
+	}
+	return true;
+}
+
+/**
  * Convert a JSON where clause into a PostresSQL where clause
  *
  * TODO Improve error handling
@@ -569,6 +634,7 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		sql.append(" OR ");
 		jsonWhereClause(whereClause["or"], sql);
 	}
+
 	return true;
 }
 

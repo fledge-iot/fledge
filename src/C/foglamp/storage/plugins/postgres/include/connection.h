@@ -23,6 +23,8 @@ class Connection {
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
+		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&);
 		char		*trim(char *str);
 };
 #endif

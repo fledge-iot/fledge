@@ -59,7 +59,7 @@ async def register(request):
         except Service.AlreadyExistsWithTheSameName:
             raise web.HTTPBadRequest(reason='A Service with the same name already exists')
         except Service.AlreadyExistsWithTheSameAddressAndPort:
-            raise web.HTTPBadRequest(reason='A Service is already registered on the same port: {}'.format(service_port))
+            raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and port: {}'.format(service_address, service_port))
 
         if not registered_service_id:
             raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
@@ -123,7 +123,7 @@ async def get_service(request):
                     name=service_name, s_type=service_type
                 )
     except Service.DoesNotExist as ex:
-        raise web.HTTPBadRequest(reason="Nil/Incorrect service name and/or type provided. " + str(ex))
+        raise web.HTTPBadRequest(reason="Invalid service name and/or type provided" + str(ex))
 
     services = []
     for service in services_list:

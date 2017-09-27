@@ -68,7 +68,7 @@ class TestServicesRegistryApi:
         res = dict(r.json())
 
         assert 200 == r.status_code
-        assert "Service with the same name already exists" == res["error"]["message"]
+        assert "A Service with the same name already exists" == res["error"]["message"]
 
     async def test_register_dup_address_port(self):
         data = {"type": "Storage", "name": "name-1", "address": "127.0.0.1", "port": 9001}
@@ -84,7 +84,8 @@ class TestServicesRegistryApi:
         res = dict(r.json())
 
         assert 200 == r.status_code
-        assert "Service with the same address and port already exists" == res["error"]["message"]
+        assert "A Service is already registered on the same address: {} and port: {}"\
+                   .format(data['address'], data['port']) == res["error"]["message"]
 
     async def test_register_invalid_port(self):
         data = {"type": "Storage", "name": "Storage Services 2", "address": "127.0.0.1", "port": "80a1"}
@@ -209,7 +210,7 @@ class TestServicesRegistryApi:
         assert 200 == l.status_code
 
         res = dict(l.json())
-        assert "Nil/Incorrect service name and/or type provided" == res['error']["message"]
+        assert "Invalid service name and/or type provided" == res['error']["message"]
 
         l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data0["name"]))
         assert 200 == l.status_code

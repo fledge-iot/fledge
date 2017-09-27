@@ -103,7 +103,6 @@ def parse_template_and_prepare_json(_template_file,
 
     with open(_template_file) as data_file:
         data = json.load(data_file)
-        # print(data)
 
     supported_format_types = ["number", "enum"]
     for _ in range(_occurrences):
@@ -174,7 +173,6 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
     # _file = os.path.join(os.path.dirname(__file__), "out/{}".format(outfile))
     with open(_file) as f:
         readings_list = [json.loads(line) for line in f]
-    # pprint(readings_list)
 
     loop = asyncio.get_event_loop()
 
@@ -229,40 +227,32 @@ async def send_to_coap(payload):
 
 def get_statistics(_stats_type=None, _out_file=None):
     stat = ''
-    stat += (u"{} statistics: \n".format(_stats_type))
     global _start_time
     global _end_time
     global _tot_msgs_transferred
     global _tot_byte_transferred
     global _num_iterated
-    if _stats_type == 'total' or _stats_type == 'st':
-        stat += (u"\nStart Time::{}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
-    if _stats_type == 'total' or _stats_type == 'et':
-        stat += (u"\nEnd Time::{}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
-    if _stats_type == 'total' or _stats_type == 'mt':
-        stat += (u"\nTotal Messages Transferred::{}".format(sum(_tot_msgs_transferred)))
-    if _stats_type == 'total' or _stats_type == 'bt':
-        stat += (u"\nTotal Bytes Transferred::{}\n".format(sum(_tot_byte_transferred)))
-    if _stats_type == 'total' or _stats_type == 'itr':
-        stat += (u"\nTotal Iterations::{}".format(_num_iterated))
-    if _stats_type == 'total' or _stats_type == 'mt-itr':
-        stat += (u"\nTotal Messages per Iteration::{}".format(sum(_tot_msgs_transferred)/_num_iterated))
-    if _stats_type == 'total' or _stats_type == 'bt-itr':
-        stat += (u"\nTotal Bytes per Iteration::{}\n".format(sum(_tot_byte_transferred)/_num_iterated))
-    if _stats_type == 'total' or _stats_type == 'rates':
+    if _stats_type == 'total':
+        stat += (u"Total Statistics:\n")
+        stat += (u"\nStart Time: {}".format(datetime.strftime(_start_time[0], "%Y-%m-%d %H:%M:%S.%f")))
+        stat += (u"\nEnd Time:   {}\n".format(datetime.strftime(_end_time[-1], "%Y-%m-%d %H:%M:%S.%f")))
+        stat += (u"\nTotal Messages Transferred: {}".format(sum(_tot_msgs_transferred)))
+        stat += (u"\nTotal Bytes Transferred:    {}\n".format(sum(_tot_byte_transferred)))
+        stat += (u"\nTotal Iterations: {}".format(_num_iterated))
+        stat += (u"\nTotal Messages per Iteration: {}".format(sum(_tot_msgs_transferred)/_num_iterated))
+        stat += (u"\nTotal Bytes per Iteration:    {}\n".format(sum(_tot_byte_transferred)/_num_iterated))
         _msg_rate = []
         _byte_rate = []
         for itr in range(_num_iterated):
             time_taken = _end_time[itr] - _start_time[itr]
-            # print("\tIteration:{}, Messages Transferred:{}, Bytes Transferred:{}, Time taken:{}".format(itr+1, _tot_msgs_transferred[itr], _tot_byte_transferred[itr], (time_taken.seconds+time_taken.microseconds/1E6)))
             _msg_rate.append(_tot_msgs_transferred[itr]/(time_taken.seconds+time_taken.microseconds/1E6))
             _byte_rate.append(_tot_byte_transferred[itr] / (time_taken.seconds+time_taken.microseconds/1E6))
-        stat += (u"\nMin messages/second::{}".format(min(_msg_rate)))
-        stat += (u"\nMax messages/second::{}".format(max(_msg_rate)))
-        stat += (u"\nAvg messages/second::{}".format(sum(_msg_rate)/_num_iterated))
-        stat += (u"\nMin Bytes/second::{}".format(min(_byte_rate)))
-        stat += (u"\nMax Bytes/second::{}".format(max(_byte_rate)))
-        stat += (u"\nAvg Bytes/second::{}".format(sum(_byte_rate)/_num_iterated))
+        stat += (u"\nMin messages/second: {}".format(min(_msg_rate)))
+        stat += (u"\nMax messages/second: {}".format(max(_msg_rate)))
+        stat += (u"\nAvg messages/second: {}\n".format(sum(_msg_rate)/_num_iterated))
+        stat += (u"\nMin Bytes/second: {}".format(min(_byte_rate)))
+        stat += (u"\nMax Bytes/second: {}".format(max(_byte_rate)))
+        stat += (u"\nAvg Bytes/second: {}".format(sum(_byte_rate)/_num_iterated))
     if _out_file:
         with open(_out_file, 'w') as f:
             f.write(stat)
@@ -292,8 +282,7 @@ parser.add_argument('-H', '--host', help='CoAP server host address (default: loc
 parser.add_argument('-P', '--port', help='The FogLAMP port. (default: 5683)')
 parser.add_argument('-i', '--interval', default=0, help='The interval in seconds for each iteration (default: 0)')
 
-parser.add_argument('-S', '--statistics', default='total', choices=['total', 'st', 'et', 'mt', 'bt',
-                                                                    'itr', 'mt-itr', 'bt-itr', 'rates'], help='The type of statistics to collect (default: total)')
+parser.add_argument('-S', '--statistics', default='total', choices=['total'], help='The type of statistics to collect (default: total)')
 
 namespace = parser.parse_args(sys.argv[1:])
 infile = '{0}'.format(namespace.template if namespace.template else '')

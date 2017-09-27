@@ -34,9 +34,9 @@ async def add_master_data():
     global test_data_ids
     conn = await asyncpg.connect(database=__DB_NAME)
     for item in test_data:
-        await conn.execute("""INSERT INTO foglamp.backup(filename,ts,type,status)
+        await conn.execute("""INSERT INTO foglamp.backup(file_name,ts,type,status)
                                    VALUES($1, $2, $3, $4);""", item['filename'], item['ts'], item['type'], item['status'])
-        res = await conn.fetchval('''SELECT id from foglamp.backup WHERE filename IN ($1)''', item['filename'])
+        res = await conn.fetchval('''SELECT id from foglamp.backup WHERE file_name IN ($1)''', item['filename'])
         test_data_ids.append({item['filename']: res})
     await conn.close()
 
@@ -46,7 +46,7 @@ async def delete_master_data():
     Delete test data records from backup table
     """
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.backup WHERE file_name IN ($1)''', [elements['filename'] for elements in test_data])
+    await conn.execute('''DELETE from foglamp.backup WHERE file_name IN ($1)''', [el['filename'] for el in test_data])
     await conn.close()
 
 async def setup_module(module):

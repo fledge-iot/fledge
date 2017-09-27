@@ -71,7 +71,10 @@ async def get_backup_details(request):
     if not backup_id:
         raise web.HTTPBadRequest(reason='Backup id is required')
     else:
-        backup_id = int(backup_id)
+        try:
+            backup_id = int(backup_id)
+        except ValueError:
+            raise web.HTTPBadRequest(reason='Invalid backup id')
     try:
         # TODO : Fix after actual implementation
         Backup.get_backup_details.return_value = \
@@ -93,7 +96,10 @@ async def delete_backup(request):
     if not backup_id:
         raise web.HTTPBadRequest(reason='Backup id is required')
     else:
-        backup_id = int(backup_id)
+        try:
+            backup_id = int(backup_id)
+        except ValueError:
+            raise web.HTTPBadRequest(reason='Invalid backup id')
         try:
             # TODO : Fix after actual implementation
             Backup.delete_backup.return_value = "Backup deleted successfully"
@@ -113,7 +119,10 @@ async def restore_backup(request):
     if not backup_id:
         raise web.HTTPBadRequest(reason='Backup id is required')
     else:
-        backup_id = int(backup_id)
+        try:
+            backup_id = int(backup_id)
+        except ValueError:
+            raise web.HTTPBadRequest(reason='Invalid backup id')
         try:
             # TODO : Fix after actual implementation
             Backup.restore_backup.return_value = 1

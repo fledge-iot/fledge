@@ -34,23 +34,10 @@ async def get_backups(request):
     :Example: curl -X GET  http://localhost:8082/foglamp/backup
     :Example: curl -X GET  http://localhost:8082/foglamp/backup?limit=2&skip=1&status=complete
     """
-    limit = request.query['limit'] if 'limit' in request.query else None
-    skip = request.query['skip'] if 'skip' in request.query else None
-    status = request.query['status'] if 'status' in request.query else None
-
-    if status and status not in ['complete', 'running', 'failed']:
-        raise web.HTTPBadRequest(reason='Incorrect status')
-    if limit:
-        try:
-            limit = int(limit)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Limit can be a positive integer only')
-    if skip:
-        try:
-            skip = int(skip)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Skip can be a positive integer only')
     try:
+        limit = int(request.query['limit']) if 'limit' in request.query else None
+        skip = int(request.query['skip']) if 'skip' in request.query else None
+        status = request.query['status'] if 'status' in request.query else None
         # TODO : Fix after actual implementation
         Backup.get_backup_list.return_value = [{'id': 28, 'date': '2017-08-30 04:05:10.382', 'status': 'running'},
                                                {'id': 27, 'date': '2017-08-29 04:05:13.392', 'status': 'failed'},
@@ -80,27 +67,21 @@ async def get_backup_details(request):
 
     :Example: curl -X GET  http://localhost:8082/foglamp/backup/1
     """
+    backup_id = request.match_info.get('backup_id', None)
+    if not backup_id:
+        raise web.HTTPBadRequest(reason='Backup id is required')
+    else:
+        backup_id = int(backup_id)
     try:
-        backup_id = request.match_info.get('backup_id', None)
-        if not backup_id:
-            raise web.HTTPBadRequest(reason='Backup id is required')
-        try:
-            backup_id = int(backup_id)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Backup id can be a positive integer only')
+        # TODO : Fix after actual implementation
+        Backup.get_backup_details.return_value = \
+            {"date": '2017-08-30 04:05:10.382', "status": "running"}
+    except Backup.DoesNotExist:
+        raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
 
-        try:
-            # TODO : Fix after actual implementation
-            Backup.get_backup_details.return_value = \
-                {"date": '2017-08-30 04:05:10.382', "status": "running"}
-        except Backup.DoesNotExist:
-            raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
-
-        _resp = Backup.get_backup_details(id=backup_id)
-        _resp["id"] = backup_id
-        return web.json_response(_resp)
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    _resp = Backup.get_backup_details(id=backup_id)
+    _resp["id"] = backup_id
+    return web.json_response(_resp)
 
 async def delete_backup(request):
     """
@@ -108,15 +89,11 @@ async def delete_backup(request):
 
     :Example: curl -X DELETE  http://localhost:8082/foglamp/backup/1
     """
-    try:
-        backup_id = request.match_info.get('backup_id', None)
-        if not backup_id:
-            raise web.HTTPBadRequest(reason='Backup id is required')
-        try:
-            backup_id = int(backup_id)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Backup id can be a positive integer only')
-
+    backup_id = request.match_info.get('backup_id', None)
+    if not backup_id:
+        raise web.HTTPBadRequest(reason='Backup id is required')
+    else:
+        backup_id = int(backup_id)
         try:
             # TODO : Fix after actual implementation
             Backup.delete_backup.return_value = "Backup deleted successfully"
@@ -125,8 +102,6 @@ async def delete_backup(request):
 
         _resp = Backup.delete_backup(id=backup_id)
         return web.json_response({'message': _resp})
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
 
 async def restore_backup(request):
     """
@@ -134,25 +109,18 @@ async def restore_backup(request):
 
     :Example: curl -X PUT  http://localhost:8082/foglamp/backup/1/restore
     """
-    try:
-        backup_id = request.match_info.get('backup_id', None)
-        if not backup_id:
-            raise web.HTTPBadRequest(reason='Backup id is required')
-        try:
-            backup_id = int(backup_id)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Backup id can be a positive integer only')
-
+    backup_id = request.match_info.get('backup_id', None)
+    if not backup_id:
+        raise web.HTTPBadRequest(reason='Backup id is required')
+    else:
+        backup_id = int(backup_id)
         try:
             # TODO : Fix after actual implementation
             Backup.restore_backup.return_value = 1
         except Backup.DoesNotExist:
             raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
-
-        _resp = Backup.restore_backup(id=backup_id)
-        if _resp == 1:
+        try:
+            Backup.restore_backup(id=backup_id)
             return web.json_response({'message': 'Restore backup with id {} started successfully'.format(backup_id)})
-        else:
-            return web.json_response({'message': 'Restore backup with id {} failed'.format(backup_id)})
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+        except Backup.RestoreFailed as ex:
+            return web.json_response({'error': 'Restore backup with id {} failed, reason {}'.format(backup_id, ex)})

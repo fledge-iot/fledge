@@ -58,25 +58,39 @@ def delete_tbl_data():
     del_cond = dict()
     del_cond['column'] = 'id'
     del_cond['condition'] = '='
-    del_cond['value'] = '13057'
+    del_cond['value'] = '13081'
 
-    # how to join these AND/ OR conditions?
-    and_del_cond = dict()
-    and_del_cond['column'] = 'key'
-    and_del_cond['condition'] = '='
-    and_del_cond['value'] = 'SENT_test'
-    # same as where?
+    # join these AND/ OR conditions
+    del_cond_2 = dict()
+    del_cond_2['column'] = 'key'
+    del_cond_2['condition'] = '='
+    del_cond_2['value'] = 'SENT_test'
 
-    Storage().connect().delete_from_tbl("statistics_history", json.dumps(del_cond))
+    # same as where
+    cond = dict()
+    cond['where'] = del_cond
+
+    ''' DELETE FROM statistics_history WHERE key = 'SENT_test' AND id='13084' '''
+    cond['and'] = del_cond_2
+
+    ''' DELETE FROM statistics_history WHERE key = 'SENT_test' OR id='13084' '''
+    cond['or'] = del_cond_2
+
+    res = Storage().connect().delete_from_tbl("statistics_history", json.dumps(cond))
+    print(res)
     Storage().disconnect()
+
+    ''' DELETE FROM statistics_history '''
+    # res = Storage().connect().delete_from_tbl("statistics_history")
+    # print(res)
+    # Storage().disconnect()
 
 
 def query_table():
-    with Storage() as conn:
-        # res = conn.query_tbl('configuration') fails
-        # should it not be SELECT *
-        # or pass "1=1" :]
 
+    with Storage() as conn:
+        # commented code
+        '''
         query = dict()
         query['key'] = 'COAP_CONF'
 
@@ -88,49 +102,56 @@ def query_table():
                 query_params += "&"
             query_params += '{}={}'.format(k, v)
         print("CHECK:", query_params)
+        '''
 
+        ''' SELECT * FROM configuration WHERE key='COAP_CONF' '''
+        # TODO: check &limit=1 (and offset, order_by) will work here?
         q = 'key=COAP_CONF'
         res = conn.query_tbl('configuration', q)
         print(res)
 
+        ''' SELECT * FROM statistics '''
+        res = conn.query_tbl('statistics')
+        print(res)
+
 
 def query_table_with_payload():
-    x_where_cond = "WHERE key != 'SENSORS'"
-    # how are we going to handle AND / OR
+
+    # WHERE key = 'SENT_test'"
 
     where = OrderedDict()
     where['column'] = 'key'
-    where['condition'] = '!='
-    where['value'] = 'SENSORS'
+    where['condition'] = '='
+    where['value'] = 'SENT_test'
 
-    and_where = OrderedDict()
-    and_where['column'] = 'ts'
-    and_where['condition'] = '>'
-    and_where['value'] = ''  # ts value
-
-    # this fails
-    # where["and"] = and_where
+    # verify AND / OR?
+    where_2 = OrderedDict()
+    where_2['column'] = 'value'
+    where_2['condition'] = '='
+    where_2['value'] = '444'
 
     aggregate = OrderedDict()
-    aggregate['operation'] = 'avg'
-    aggregate['column'] = 'temprature'
+    aggregate['operation'] = 'min'
+    aggregate['column'] = 'value'
 
     query_payload = OrderedDict()
-    query_payload['where'] = where
+    query_payload['where'] = where_2
+    # query_payload['and'] = where_2
+    # query_payload['or'] = where_2
     # query_payload['aggregate'] = aggregate
+
+    # query_payload['limit'] = 2
+    # query_payload['skip'] = 1
+
+    # check ?
+    order_by = ""
 
     payload = json.dumps(query_payload)
     print(payload)
 
     with Storage() as conn:
-        res = conn.query_tbl_with_payload('configuration', payload)
+        res = conn.query_tbl_with_payload('statistics_history', payload)
     print(res)
-
-    # check ?
-
-    order_by = ""
-    limit = ""
-    offset = ""
 
 
 try:
@@ -143,7 +164,6 @@ try:
     update_data()
 
     delete_tbl_data()
-    # returns 400
 
     query_table_with_payload()
 

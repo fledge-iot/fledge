@@ -35,7 +35,7 @@ To build it check out branch, **FOGL-197**
 
 **Copy the executable and plugin somewhere you want to run it**
 
-   `cp ./src/C/foglamp/storage/plugins/postgres/libpostgres.so ./src/C/foglamp/storage/storage <run directory>`
+   `cp ./src/C/foglamp/storage/plugins/postgres/libpostgres.so ./src/C/foglamp/storage/plugins/postgres/libpostgres.so.1 ./src/C/foglamp/storage/storage <run directory>`
 
 **Run with**
 
@@ -77,14 +77,19 @@ Code allows the environment variable DB_CONNECTION to override the default conne
 
 If you are installing Postgres via the snap package
 
+… How to run  `SELECT * FROM <table_name>`?
+-------------------------------------------
+
+Server: GET `{SERVICE_HOST:PORT}/storage/table/{table_name}`
+
+Client: `Storage().connect().query_tbl(table_name)`
+
 
 Open Questions FOGL-197
 ========================
 
-… SELECT and other things?
------------------------------
-
-How to run  `SELECT * FROM <TABLE_X>`
+… SELECT related other things?
+------------------------------
 
 Storage server fails (get halted) if malformed json supplied in where condition, it should be handled
 error?
@@ -102,16 +107,8 @@ b) storage client consumer code?
 if **a**, will the JSON (deep) check will be handled by client or server itself?
 
 
-… DELETE support is not available yet?
---------------------------------------
-
-Here `delete_tbl_data` in `__main__.py` fails with 400 for me!
-
-
 … Readings append INSERT vs COPY?
 ---------------------------------
 
-Only READINGS table (plugin/ service) will be mapped for append/ fetch/ query/ purge?
-
-COPY was the best solution for insertion as batch, how we are going to handle it?
-As of now, *will* map `Readings::append` to `Storage::insert_into_table`.
+Only READINGS table (plugin/ service) will be mapped for append/ fetch/ query/ purge.
+COPY was the best solution for insertion as batch, Use `Readings::append`

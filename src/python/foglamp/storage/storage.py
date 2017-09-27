@@ -60,7 +60,6 @@ class AbstractStorage(ABC):
         pass
 
     # Allow with context
-
     def __enter__(self):
         return self.connect()
 
@@ -90,9 +89,6 @@ class Storage(AbstractStorage):
         # TODO: (Praveen) disconnect storage service
         print("Disconnecting service")
 
-    # TODO: check, is it assumed on bootstrapping init data will also be in
-    # the same way as \i ddl?
-    # or each service will do it individually as needed the same way as config?
     def insert_into_tbl(self, tbl_name, data):
         """ insert json payload into given table
 
@@ -117,17 +113,18 @@ class Storage(AbstractStorage):
         if not data:
             raise ValueError("Data to insert is missing")
 
-        print(data)
-
         if not Utils.is_json(data):
             raise TypeError("Provided data to insert must be a valid JSON")
 
         conn.request('POST', url=post_url, body=data)
         r = conn.getresponse()
 
-        # remove this print
-        print(r.status)
-        # log if status is 4xx or 5xx
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
         res = r.read().decode()
         conn.close()
         return json.loads(res)
@@ -156,27 +153,27 @@ class Storage(AbstractStorage):
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
         put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
-        # remove this print
-        print(put_url)
 
         if not data:
             raise ValueError("Data to update is missing")
-
-        print(data)
 
         if not Utils.is_json(data):
             raise TypeError("Provided data to update must be a valid JSON")
 
         conn.request('PUT', url=put_url, body=data)
         r = conn.getresponse()
-        # remove this print
-        print(r.status)
-        # log if status is 4xx or 5xx
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
         res = r.read().decode()
         conn.close()
         return json.loads(res)
 
-    def delete_from_tbl(self, tbl_name, condition):
+    def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
 
         :param tbl_name:
@@ -191,62 +188,88 @@ class Storage(AbstractStorage):
                     "condition" : "=",
                     "value" : "SENT_test"
             }
-
         """
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
         del_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
-        # remove this print
-        print(del_url)
 
-        # TODO: CHECK - not sure, are we allowing DELETE FROM <TABLE>
-        if not condition:
-            raise ValueError("Required condition payload is missing")
-
-        print(condition)
-        if not Utils.is_json(condition):
+        if condition and (not Utils.is_json(condition)):
             raise TypeError("condition payload must be a valid JSON")
 
         conn.request('DELETE', url=del_url, body=condition)
         r = conn.getresponse()
-        # remove this print
-        print(r.status)
-        # log if status is 4xx or 5xx
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
         res = r.read().decode()
         conn.close()
         return json.loads(res)
 
     def query_tbl(self, tbl_name, query=None):
+        """ Simple SELECT query for the specified table with optional query params
+
+        :param tbl_name:
+        :param query: query params in format k1=v1&k2=v2
+        :return:
+
+        :Example:
+            curl -X GET http://0.0.0.0:8080/storage/table/statistics_history
+            curl -X GET http://0.0.0.0:8080/storage/table/statistics_history?key=PURGE
+        """
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
 
-        get_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name, q=query)
-        # TODO: check, what if None, do `SELECT * FROM <tbl_name>`?
-        if query:
+        get_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+
+        if query:  # else SELECT * FROM <tbl_name>
             get_url += '?{}'.format(query)
 
-        # remove this print
-        print(get_url)
         conn.request('GET', url=get_url)
         r = conn.getresponse()
-        # remove this assert
-        print(r.status)
-        # log if status is 4xx or 5xx
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
         res = r.read().decode()
         conn.close()
         return json.loads(res)
 
     def query_tbl_with_payload(self, tbl_name, query_payload):
+        """ Complex SELECT query for the specified table with a payload
+
+        :param tbl_name:
+        :param query_payload: payload in valid JSON format
+        :return:
+
+        :Example:
+            curl -X PUT http://0.0.0.0:8080/storage/table/statistics_history/query -d @payload.json
+            @payload.json content:
+            "where" : {
+                    "column" : "key",
+                    "condition" : "=",
+                    "value" : "SENT_test"
+            }
+        """
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
-        q_tbl_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
-        # remove this print
-        print(q_tbl_url)
-        conn.request('PUT', url=q_tbl_url, body=query_payload)
+        put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
+
+        conn.request('PUT', url=put_url, body=query_payload)
         r = conn.getresponse()
-        # remove this print
-        print(r.status)
-        # log if status is 4xx or 5xx
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
         res = r.read().decode()
         conn.close()
         return json.loads(res)
@@ -259,8 +282,7 @@ class Readings(object):
 
     @classmethod
     def append(cls, conn, readings):
-        print("append", readings)
-        conn.insert_into_tbl(cls._TABLE, readings)
+        pass
 
     @classmethod
     def fetch(cls, reading_id, size):

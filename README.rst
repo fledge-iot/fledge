@@ -18,9 +18,9 @@ FogLAMP is built using a microservices architecture for major component areas, t
 FogLAMP makes extensive use of plugin components in order to increase the flexibility of the implementation
 - device plugins are used to allow for the easy expansion of FogLAMP to deal with new devices and device connection buses
 - translator plugins are used to allow for connection to different historians
-- datastore plugins are used to alow FogLAMP to use different storage mechanisms for persisting meta data and the sensor data
+- datastore plugins are used to allow FogLAMP to use different storage mechanisms for persisting meta data and the sensor data
 - authentication provider plugins are used to allow the authentication mechanism to be matched with enterprise requirements or provided internally by FogLAMP.
 
-The other paradigm that is used extensively within FogLAMP is the idea of scheduling processes to perform specific operarions. The FogLAMP core contains a scheduler which can execute processes based on time based or event based schedules. This is used to start processes when an event occurs, such as FogLAMP starting, or based on a time trigger.
+The other paradigm that is used extensively within FogLAMP is the idea of scheduling processes to perform specific operations. The FogLAMP core contains a scheduler which can execute processes based on time based or event based schedules. This is used to start processes when an event occurs, such as FogLAMP starting, or based on a time trigger.
 
 Scheduled processes are used to send data from FogLAMP to the historian, to purge data from the FogLAMP data buffer, to gather statistics for historical analysis and perform backups of the FogLAMP environment.

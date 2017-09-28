@@ -37,6 +37,7 @@ echo $n_unchecked Tests Unchecked >>tests.result
 done
 ./testCleanup.sh > /dev/null
 cat tests.result
+rm -f tests.result
 if [ -f "failed" ]; then
 	exit 1
 fi

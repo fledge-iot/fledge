@@ -2,6 +2,14 @@
 
 using namespace std;
 
+/**
+ * Constructor for the class that wraps the storage plugin
+ *
+ * Create a set of function points that resolve to the loaded plugin and
+ * enclose in the class.
+ *
+ * TODO Add support for multiple plugins
+ */
 StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 {
 	// Call the init method of the plugin

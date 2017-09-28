@@ -4,6 +4,9 @@
 
 using namespace std;
 
+/**
+ * Construct the statistics class for the storage service.
+ */
 StorageStats::StorageStats() : commonInsert(0), commonSimpleQuery(0),
 				commonQuery(0), commonUpdate(0), commonDelete(0),
 				readingAppend(0), readingFetch(0),
@@ -11,6 +14,9 @@ StorageStats::StorageStats() : commonInsert(0), commonSimpleQuery(0),
 {
 }
 
+/**
+ * Serialise the statistics as JSON
+ */
 void StorageStats::asJSON(string& json)
 {
 ostringstream convert;   // stream used for the conversion

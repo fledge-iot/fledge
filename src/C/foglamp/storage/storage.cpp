@@ -6,6 +6,9 @@
 #include <plugin.h>
 #include <logger.h>
 
+/**
+ * Storage service main entry point
+ */
 int main(int argc, char *argv[])
 {
 	StorageService *service = new StorageService();
@@ -13,6 +16,9 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+/**
+ * Constructor for the storage service
+ */
 StorageService::StorageService()
 {
 	config = new StorageConfiguration();
@@ -21,6 +27,9 @@ StorageService::StorageService()
 	api = new StorageApi(8080, 1);
 }
 
+/**
+ * Start the storage service
+ */
 void StorageService::start()
 {
 	if (!loadPlugin())
@@ -37,11 +46,19 @@ void StorageService::start()
 	api->wait();
 }
 
+/**
+ * Stop the storage service/
+ */
 void StorageService::stop()
 {
 	logger->info("Stopping service...\n");
 }
 
+/**
+ * Load the configured storage plugin
+ *
+ * TODO Should search for the plugin in specified locations
+ */
 bool StorageService::loadPlugin()
 {
 	PluginManager *manager = PluginManager::getInstance();

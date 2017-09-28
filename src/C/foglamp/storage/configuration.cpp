@@ -39,6 +39,9 @@ const char *StorageConfiguration::getValue(const string& key)
 	return item["value"].GetString();
 }
 
+/**
+ * Set the value of a configuration item
+ */
 bool StorageConfiguration::setValue(const string& key, const string& value)
 {
 	try {

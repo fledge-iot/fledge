@@ -270,6 +270,7 @@ int		col = 0;
 				sql.append(buffer.GetString());
 				sql.append('\'');
 			}
+			col++;
 		}
 
 		if (document.HasMember("condition"))
@@ -369,7 +370,6 @@ int		row = 0;
 	}
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
-		int col = 0;
 		if (!itr->IsObject())
 		{
 			raiseError("appendReadings",
@@ -381,45 +381,29 @@ int		row = 0;
 		else
 			sql.append('(');
 		row++;
-		for (Value::ConstMemberIterator objItr = itr->MemberBegin();
-				objItr != itr->MemberEnd(); ++objItr)
+		sql.append('\'');
+		sql.append((*itr)["asset_code"].GetString());
+		sql.append("', \'");
+		sql.append((*itr)["read_key"].GetString());
+		sql.append("', \'");
+		StringBuffer buffer;
+		Writer<StringBuffer> writer(buffer);
+		(*itr)["reading"].Accept(writer);
+		sql.append(buffer.GetString());
+		sql.append("\', ");
+		const char *str = (*itr)["user_ts"].GetString();
+		// Check if the string is a function
+		string s (str);
+		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+		if (regex_match (s,e))
 		{
-			if (col != 0)
-			{
-				sql.append( ", ");
-			}
-			col++;
- 
-			if (objItr->value.IsString())
-			{
-				const char *str = objItr->value.GetString();
-				// Check if the string is a function
-				string s (str);
-				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-				if (regex_match (s,e))
-				{
-					sql.append(str);
-				}
-				else
-				{
-					sql.append('\'');
-					sql.append(str);
-					sql.append('\'');
-				}
-			}
-			else if (objItr->value.IsDouble())
-				sql.append(objItr->value.GetDouble());
-			else if (objItr->value.IsNumber())
-				sql.append(objItr->value.GetInt());
-			else if (objItr->value.IsObject())
-			{
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				objItr->value.Accept(writer);
-				sql.append('\'');
-				sql.append(buffer.GetString());
-				sql.append('\'');
-			}
+			sql.append(str);
+		}
+		else
+		{
+			sql.append('\'');
+			sql.append(str);
+			sql.append('\'');
 		}
 
 		sql.append(')');

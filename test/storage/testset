@@ -24,3 +24,12 @@ Common Read bad 3,PUT,http://localhost:8080/storage/table/test/query,where_bad_3
 Common Read bad 4,PUT,http://localhost:8080/storage/table/test/query,where_bad_4.json
 Common Read bad sort 1,PUT,http://localhost:8080/storage/table/test/query,bad_sort_1.json
 Common Read bad sort 2,PUT,http://localhost:8080/storage/table/test/query,bad_sort_2.json
+Common Update,PUT,http://localhost:8080/storage/table/test,update.json
+Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
+Common Update,PUT,http://localhost:8080/storage/table/test,updateKey.json
+Common Read back,GET,http://localhost:8080/storage/table/test?key=UPDA,
+Common Update no vlaues,PUT,http://localhost:8080/storage/table/test,bad_update.json
+Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
+Bad URL,GET,http://localhost:8080/foglamp/nothing,
+Bad table,GET,http://localhost:8080/storage/table/doesntexist,
+Bad column,GET,http://localhost:8080/storage/table/test?doesntexist=9,

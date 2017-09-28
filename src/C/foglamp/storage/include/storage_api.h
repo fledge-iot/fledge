@@ -1,5 +1,14 @@
 #ifndef _STORAGE_API_H
 #define _STORAGE_API_H
+/*
+ * FogLAMP storage service.
+ *
+ * Copyright (c) 2017 OSisoft, LLC
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 
 #include <server_http.hpp>
 #include <storage_plugin.h>

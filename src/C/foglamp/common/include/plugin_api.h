@@ -1,5 +1,14 @@
 #ifndef _PLUGIN_API
 #define _PLUGIN_API
+/*
+ * FogLAMP storage service.
+ *
+ * Copyright (c) 2017 OSisoft, LLC
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
  
 typedef struct {
         const char	*name;

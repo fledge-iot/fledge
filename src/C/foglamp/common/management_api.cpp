@@ -1,3 +1,12 @@
+/*
+ * FogLAMP storage service.
+ *
+ * Copyright (c) 2017 OSisoft, LLC
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 #include <management_api.h>
 #include <logger.h>
 #include <time.h>

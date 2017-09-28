@@ -50,6 +50,8 @@ To build it check out branch, **FOGL-197**
 … what are the basic requirements to build storage static files?
 ------------------------------------------------------------------
 
+    `sudo apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev`
+
     `sudo apt-get install cmake`
 
     `sudo apt-get install g++`
@@ -77,38 +79,11 @@ Code allows the environment variable DB_CONNECTION to override the default conne
 
 If you are installing Postgres via the snap package
 
-… How to run  `SELECT * FROM <table_name>`?
--------------------------------------------
+… How to run  queries?
+----------------------
 
-Server: GET `{SERVICE_HOST:PORT}/storage/table/{table_name}`
+See `Storage Layer Architecture Document`_ and `Storage Client Usage Document`_
 
-Client: `Storage().connect().query_tbl(table_name)`
+.. _Storage Layer Architecture Document: https://docs.google.com/document/d/1qGIswveF9p2MmAOw_W1oXpo_aFUJd3bXBkW563E16g0/edit
 
-
-Open Questions FOGL-197
-========================
-
-… SELECT related other things?
-------------------------------
-
-Storage server fails (get halted) if malformed json supplied in where condition, it should be handled
-error?
-
-What about SELECT with limit, offset, order_by?
-
-… Which layer will be responsible to create JSON Payload for storage sever?
----------------------------------------------------------------------------
-
-a) storage client?
-
-b) storage client consumer code?
-
-
-if **a**, will the JSON (deep) check will be handled by client or server itself?
-
-
-… Readings append INSERT vs COPY?
----------------------------------
-
-Only READINGS table (plugin/ service) will be mapped for append/ fetch/ query/ purge.
-COPY was the best solution for insertion as batch, Use `Readings::append`
+.. _Storage Client Usage Document: https://docs.google.com/document/d/1vzZf5Fu3prQ-dsy1zB0iOOFAa9jbAc5KrfzJV9K2bAI/edit#

@@ -127,7 +127,7 @@ def query_table_with_payload():
     # verify AND / OR?
     where_2 = OrderedDict()
     where_2['column'] = 'value'
-    where_2['condition'] = '='
+    where_2['condition'] = '>'
     where_2['value'] = '444'
 
     aggregate = OrderedDict()
@@ -136,7 +136,7 @@ def query_table_with_payload():
 
     query_payload = OrderedDict()
     query_payload['where'] = where_2
-    # query_payload['and'] = where_2
+    query_payload['and'] = where_2
     # query_payload['or'] = where_2
     # query_payload['aggregate'] = aggregate
 
@@ -154,18 +154,89 @@ def query_table_with_payload():
     print(res)
 
 
+def append_readings():
+    import uuid
+    import random
+    readings = []
+
+    def map_reading(asset_code, reading, read_key=None, user_ts=None):
+        read = dict()
+        read['asset_code'] = asset_code
+        print(read_key)
+        read['read_key'] = read_key
+        read['reading'] = dict()
+        read['reading']['rate'] = reading
+        read['user_ts'] = "2017-09-21 15:00:09.025655"
+        # ingest 2017-01-02T01:02:03.23232Z-05:00
+        # asset, key, reading, timestamp
+        # storage 2017-09-21 15:00:09.025655
+        # asset_code, read_key, reading, user_ts
+        return read
+    x = str(uuid.uuid4())
+    # to use duplicate read_key uuid (ON CONFLICT DO NOTHING)
+    for _ in range(1, 2):
+        readings.append(map_reading('MyAsset', random.uniform(1.0, 100.1), read_key=str(uuid.uuid4())))
+
+    payload = dict()
+    payload['readings'] = readings
+
+    print(json.dumps(payload))
+
+    r = Readings().connect()
+    res = r.append(json.dumps(payload))
+    print(res)
+    Readings().disconnect()
+
+
+def query_readings():
+
+    cond1 = OrderedDict()
+    cond1['column'] = 'asset_code'
+    cond1['condition'] = '='
+    cond1['value'] = 'MyAsset'
+
+    query_payload = OrderedDict()
+    query_payload['where'] = cond1
+
+    query_payload['limit'] = 2
+
+    query_payload['skip'] = 1
+
+    print("query_readings payload: ", json.dumps(query_payload))
+
+    r = Readings().connect()
+    res = r.query(json.dumps(query_payload))
+    print(res)
+
+    # expected response
+    '''{'count': 2, 'rows': [
+            {'read_key': 'cdbec41e-9c41-4144-8257-e2ab2242dc76', 'user_ts': '2017-09-21 15:00:09.025655+05:30', 'id': 22, 'reading': {'rate': 92.58901867128075}, 'asset_code': 'MyAsset', 'ts': '2017-09-28 20:18:43.809661+05:30'},
+            {'read_key': '6ad3cc76-e859-4c78-8031-91fccbb1a5a9', 'user_ts': '2017-09-21 15:00:09.025655+05:30', 'id': 23, 'reading': {'rate': 24.350853712845392}, 'asset_code': 'MyAsset', 'ts': '2017-09-28 20:19:16.739619+05:30'}
+            ]
+    }'''
+
+    Readings().disconnect()
+
+
 try:
 
     query_table()
 
     insert_data()
-    # what happens on conflict?
 
     update_data()
 
     delete_tbl_data()
 
     query_table_with_payload()
+
+    append_readings()
+    # what happens on conflict?
+
+    # TODO: fetch readings
+    # fetch_readings()
+
+    query_readings()
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

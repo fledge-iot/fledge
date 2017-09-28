@@ -46,9 +46,13 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	connection->retrieve(std::string(table), std::string(query), results);
+	bool rval = connection->retrieve(std::string(table), std::string(query), results);
 	manager->release(connection);
-	return strdup(results.c_str());
+	if (rval)
+	{
+		return strdup(results.c_str());
+	}
+	return NULL;
 }
 
 bool plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)

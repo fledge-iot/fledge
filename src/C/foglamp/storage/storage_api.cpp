@@ -253,7 +253,7 @@ string  responsePayload;
 		bool rval = plugin->commonInsert(tableName, payload);
 		if (rval)
 		{
-			responsePayload = "{ \"reponse\" : \"updated\" }";
+			responsePayload = "{ \"response\" : \"inserted\" }";
 			respond(response, responsePayload);
 		}
 		else
@@ -287,7 +287,7 @@ string	responsePayload;
 		bool rval = plugin->commonUpdate(tableName, payload);
 		if (rval)
 		{
-			responsePayload = "{ \"reponse\" : \"updated\" }";
+			responsePayload = "{ \"response\" : \"updated\" }";
 			respond(response, responsePayload);
 		}
 		else
@@ -334,10 +334,19 @@ string payload;
 		}
 
 		char *pluginResult = plugin->commonRetrieve(tableName, payload);
-		string res = pluginResult;
+		if (pluginResult)
+		{
+			string res = pluginResult;
 
-		respond(response, res);
-		free(pluginResult);
+			respond(response, res);
+			free(pluginResult);
+		}
+		else
+		{
+			string responsePayload;
+			mapError(responsePayload, plugin->lastError());
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -360,12 +369,20 @@ string	payload;
 		payload = request->content.string();
 
 		char *pluginResult = plugin->commonRetrieve(tableName, payload);
-		string res = pluginResult;
+		if (pluginResult)
+		{
+			string res = pluginResult;
 
-		respond(response, res);
-		free(pluginResult);
+			respond(response, res);
+			free(pluginResult);
+		}
+		else
+		{
+			string responsePayload;
+			mapError(responsePayload, plugin->lastError());
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+		}
 
-		respond(response, res);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -391,7 +408,7 @@ string  responsePayload;
 		bool rval = plugin->commonDelete(tableName, payload);
 		if (rval)
 		{
-			responsePayload = "{ \"reponse\" : \"deleted\" }";
+			responsePayload = "{ \"response\" : \"deleted\" }";
 			respond(response, responsePayload);
 		}
 		else
@@ -423,7 +440,7 @@ string  responsePayload;
 		bool rval = plugin->readingsAppend(payload);
 		if (rval)
 		{
-			responsePayload = "{ \"reponse\" : \"appended\" }";
+			responsePayload = "{ \"response\" : \"appended\" }";
 			respond(response, responsePayload);
 		}
 		else

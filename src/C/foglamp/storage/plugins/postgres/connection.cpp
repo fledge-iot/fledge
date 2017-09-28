@@ -74,7 +74,10 @@ SQLBuffer	sql;
 		if (document.HasMember("aggregate"))
 		{
 			sql.append("SELECT ");
-			jsonAggregates(document, document["aggregate"], sql);
+			if (!jsonAggregates(document, document["aggregate"], sql))
+			{
+				return false;
+			}
 			sql.append(" FROM ");
 		}
 		else
@@ -85,18 +88,24 @@ SQLBuffer	sql;
 		if (document.HasMember("where"))
 		{
 			sql.append(" WHERE ");
-			assert(document.IsObject());
 		 
 			if (document.HasMember("where"))
 			{
-				jsonWhereClause(document["where"], sql);
+				if (!jsonWhereClause(document["where"], sql))
+				{
+					return false;
+				}
 			}
 			else
 			{
 				raiseError("retrieve", "JSON does not contain where clause");
+				return false;
 			}
 		}
-		jsonModifiers(document, sql);
+		if (!jsonModifiers(document, sql))
+		{
+			return false;
+		}
 	}
 	sql.append(';');
 
@@ -310,7 +319,10 @@ SQLBuffer	sql;
 	 
 			if (document.HasMember("where"))
 			{
-				jsonWhereClause(document["where"], sql);
+				if (!jsonWhereClause(document["where"], sql))
+				{
+					return false;
+				}
 			}
 			else
 			{
@@ -552,6 +564,16 @@ Document doc;
  */
 bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql)
 {
+	if (! aggregates.HasMember("operation"))
+	{
+		raiseError("Select aggregation", "Missing property \"operation\"");
+		return false;
+	}
+	if (! aggregates.HasMember("column"))
+	{
+		raiseError("Select aggregation", "Missing property \"column\"");
+		return false;
+	}
 	sql.append(aggregates["operation"].GetString());
 	sql.append('(');
 	sql.append(aggregates["column"].GetString());
@@ -561,6 +583,7 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		sql.append(", ");
 		sql.append(payload["group"].GetString());
 	}
+	return true;
 }
 
 /**
@@ -572,6 +595,16 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 	{
 		sql.append(" ORDER BY ");
 		const Value& sortBy = payload["sort"];
+		if (! sortBy.HasMember("column"))
+		{
+			raiseError("Select sort", "Missing property \"column\"");
+			return false;
+		}
+		if (! sortBy.HasMember("direction"))
+		{
+			raiseError("Select sort", "Missing property \"direction\"");
+			return false;
+		}
 		sql.append(sortBy["column"].GetString());
 		sql.append(' ');
 		sql.append(sortBy["direction"].GetString());
@@ -583,16 +616,16 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		sql.append(payload["group"].GetString());
 	}
 
+	if (payload.HasMember("skip"))
+	{
+		sql.append(" OFFSET ");
+		sql.append(payload["skip"].GetInt());
+	}
+
 	if (payload.HasMember("limit"))
 	{
 		sql.append(" LIMIT ");
 		sql.append(payload["limit"].GetInt());
-	}
-
-	if (payload.HasMember("skip"))
-	{
-		sql.append(" SKIP ");
-		sql.append(payload["skip"].GetInt());
 	}
 	return true;
 }
@@ -605,10 +638,26 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  */
 bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 {
-	assert(whereClause.IsObject());
-	assert(whereClause.HasMember("column"));
-	assert(whereClause.HasMember("condition"));
-	assert(whereClause.HasMember("value"));
+	if (!whereClause.IsObject())
+	{
+		raiseError("where clause", "The \"where\" property must be a JSON object");
+		return false;
+	}
+	if (!whereClause.HasMember("column"))
+	{
+		raiseError("where clause", "The \"where\" object is missing a \"column\" property");
+		return false;
+	}
+	if (!whereClause.HasMember("condition"))
+	{
+		raiseError("where clause", "The \"where\" object is missing a \"condition\" property");
+		return false;
+	}
+	if (!whereClause.HasMember("value"))
+	{
+		raiseError("where clause", "The \"where\" object is missing a \"value\" property");
+		return false;
+	}
 
 	sql.append(whereClause["column"].GetString());
 	sql.append(' ');

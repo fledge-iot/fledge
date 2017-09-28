@@ -46,7 +46,12 @@ SCRIPT_AND_VERSION="$SCRIPTNAME $__version__"
 USAGE="$SCRIPT_AND_VERSION
 
 DESCRIPTION
-  Tools for Jenkins.
+  This script triggers when any of pull request is open and on subsequent commits in github and generate report results.
+  And detailed result display as in below Jobs:
+  i) foglamp_lint_check_tester -> only responsible for lint check
+  ii) foglamp_unit_and_integration_tester => only responsible to run ALL Python tests
+
+  More documentation available on g-drive. See https://scaledb.atlassian.net/browse/FOGL-570
 
 OPTIONS
   Multiple commands can be specified but they all must be
@@ -55,8 +60,8 @@ OPTIONS
   -h, --help      Display this help text
   -v, --version   Display this script's version information
   -l, --lint      Run pylint. Writes output to
-                  pylint-report.txt
-  -p, --py-test   Run only Python tests
+                  pylint_report.log
+  -p, --py-test   Run ALL Python tests
 
 EXIT STATUS
   This script exits with status code 1 when errors occur (e.g.,
@@ -88,10 +93,10 @@ execute_command() {
     FILE_NAMES_LIST=$(git diff-tree --no-commit-id --name-only -r ${ghprbActualCommit})
 
     # find py files only
-    LINT_CHECK_FILES=$(find $FILE_NAMES_LIST -name "*.py")
-    LINT_CHECK_FILENAME_LENGTH=$(echo -n $LINT_CHECK_FILES | wc -m)
+    PY_FILES_ONLY=$(find $FILE_NAMES_LIST -name "*.py")
+    PY_FILE_EXISTS=$(echo -n $PY_FILES_ONLY | wc -m)
 
-    if [ $LINT_CHECK_FILENAME_LENGTH -gt 0 ]
+    if [ $PY_FILE_EXISTS -gt 0 ]
         then
         # Change directory only to run only build.sh commands
         cd src/python
@@ -108,8 +113,8 @@ execute_command() {
         make develop
 
         # pylint check and remove src/python from path
-        OUTPUT="$(echo $LINT_CHECK_FILES | sed 's/src\/python\///g')"
-        pylint ${OUTPUT} > pylint_report.log
+        FILE_WITHOUT_ABSOLUTE_PATH="$(echo $PY_FILES_ONLY | sed 's/src\/python\///g')"
+        pylint ${FILE_WITHOUT_ABSOLUTE_PATH} > pylint_report.log
 
         # lint check result on the basis of code rate and exit code accordingly
         RESULT=$(grep -i "Your code has been rated at 10.00/10" pylint_report.log)
@@ -200,9 +205,9 @@ then
   if [ "$OPTION" == "LINT" ]
     then
      unset FILE_NAMES_LIST
-     unset LINT_CHECK_FILES
-     unset LINT_CHECK_FILENAME_LENGTH
-     unset OUTPUT
+     unset PY_FILES_ONLY
+     unset PY_FILE_EXISTS
+     unset FILE_WITHOUT_ABSOLUTE_PATH
      unset RESULT
      unset FILE_CONTENT_LENGTH
   fi

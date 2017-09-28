@@ -1,0 +1,4 @@
+{ "entryPoint" : "retrieve", "message" : "ERROR:  relation \"doesntexist\" does not exist
+LINE 1: SELECT * FROM doesntexist;
+                      ^
+", "retryable" : false}

@@ -68,7 +68,7 @@ class TestServicesRegistryApi:
         res = dict(r.json())
 
         assert 200 == r.status_code
-        assert "Service with the same name already exists" == res["error"]
+        assert "A Service with the same name already exists" == res["error"]["message"]
 
     async def test_register_dup_address_port(self):
         data = {"type": "Storage", "name": "name-1", "address": "127.0.0.1", "port": 9001}
@@ -84,7 +84,8 @@ class TestServicesRegistryApi:
         res = dict(r.json())
 
         assert 200 == r.status_code
-        assert "Service with the same address and port already exists" == res["error"]
+        assert "A Service is already registered on the same address: {} and port: {}"\
+                   .format(data['address'], data['port']) == res["error"]["message"]
 
     async def test_register_invalid_port(self):
         data = {"type": "Storage", "name": "Storage Services 2", "address": "127.0.0.1", "port": "80a1"}
@@ -93,7 +94,7 @@ class TestServicesRegistryApi:
         res = dict(r.json())
 
         assert 200 == r.status_code
-        assert "Service port can be a positive integer only" == res["error"]
+        assert "Service port can be a positive integer only" == res["error"]["message"]
 
     async def test_unregister(self):
         data = {"type": "Storage", "name": "Storage Services 2", "address": "127.0.0.1", "port": 8091}
@@ -116,7 +117,7 @@ class TestServicesRegistryApi:
         res = dict(r.json())
 
         assert 200 == r.status_code
-        assert "Service with {} does not exist".format("any") == res["error"]
+        assert "Service with {} does not exist".format("any") == res["error"]["message"]
 
     async def test_get(self):
         data1 = {"type": "Storage", "name": "Storage Services x", "address": "127.0.0.1", "port": 8091}
@@ -209,8 +210,7 @@ class TestServicesRegistryApi:
         assert 200 == l.status_code
 
         res = dict(l.json())
-        svc = res["services"]
-        assert 0 == len(svc)
+        assert "Invalid service name and/or type provided" == res['error']["message"]
 
         l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data0["name"]))
         assert 200 == l.status_code

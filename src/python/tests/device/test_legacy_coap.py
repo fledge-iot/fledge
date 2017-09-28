@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from aiocoap.numbers.codes import Code as CoAP_CODES
 from cbor2 import dumps
 
-from foglamp.device.coap import CoAPIngest
+from foglamp.legacy_device.coap import CoAPIngest
 from foglamp.device.ingest import Ingest
 
 __author__ = "Terris Linenbach"

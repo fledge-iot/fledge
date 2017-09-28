@@ -58,8 +58,6 @@ async def get_audit_entries(request):
 
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-    except Exception as ex:
-        raise web.HTTPInternalServerError(reason='FogLAMP has encountered an internal error', text=str(ex))
 
 
 async def get_audit_log_codes(request):

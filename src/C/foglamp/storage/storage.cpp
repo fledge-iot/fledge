@@ -50,7 +50,7 @@ void StorageService::start()
 	logger->info("Starting service...");
 	api->start();
 
-	ManagementApi management(1081);	// Start managemenrt API on port 8081
+	ManagementApi management("storage", 1081);	// Start managemenrt API on port 8081
 
 	api->wait();
 }

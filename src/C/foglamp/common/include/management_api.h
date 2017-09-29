@@ -9,7 +9,7 @@
  *
  * Author: Mark Riddoch
  */
-
+#include <json_provider.h>
 #include <server_http.hpp>
 #include <logger.h>
 #include <string>
@@ -24,16 +24,19 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
  */
 class ManagementApi {
 	public:
-		ManagementApi(const unsigned short port);
+		ManagementApi(const std::string& name, const unsigned short port);
 		~ManagementApi();
 		static ManagementApi *getInstance();
+		void registerStats(JSONProvider *statsProvider);
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
 	private:
 		static ManagementApi *m_instance;
+		std::string	m_name;
 		Logger		*m_logger;
 		time_t		m_startTime;
 		HttpServer	*m_server;
+		JSONProvider	*m_statsProvider;
 		void            respond(std::shared_ptr<HttpServer::Response>, const std::string&);
 };
 #endif

@@ -55,9 +55,35 @@ class PayloadBuilder(object):
     def __init__(self, payload=dict()):
         self.payload = payload
 
+    @staticmethod
+    def verify_condition(arg):
+        retval = False
+        if isinstance(arg, list):
+            if len(arg) == 3:
+                if arg[1] in ['<', '>', '=', '>=', '<=', 'LIKE', 'IN', '!=']:
+                    retval = True
+        return retval
+
+    @staticmethod
+    def verify_aggregation(arg):
+        retval = False
+        if isinstance(arg, list):
+            if len(arg) == 2:
+                    retval = True
+        return retval
+
+    @staticmethod
+    def verify_orderby(arg):
+        retval = False
+        if isinstance(arg, list):
+            if len(arg) == 2:
+                if arg[1].upper() in ['ASC', 'DESC']:
+                    retval = True
+        return retval
+
     def SELECT(self, *args):
         if len(args) > 0:
-            self.payload.update({"columns": ','.join(args)})
+            self.payload.update(dict({"columns": ','.join(args)}))
         return self
 
     def SELECTALL(self, *args):
@@ -67,55 +93,34 @@ class PayloadBuilder(object):
         self.payload.update({'table': tbl_name})
         return self
 
-    def UPDATE(self, tbl_name):
+    def UPDATETABLE(self, tbl_name):
         return self.FROM(tbl_name)
 
-    def SET(self, **kwargs):
+    def COLS(self, kwargs):
         values = {}
-
-        for key, value in kwargs:
+        for key, value in kwargs.items():
             values.update({key: value})
+        return values
 
-        self.payload.update({'values': values})
+    def UPDATE(self, **kwargs):
+        self.payload.update(dict({'values': self.COLS(kwargs)}))
         return self
 
-    def INSERT(self, tbl_name):
+    def INSERT(self, **kwargs):
+        self.payload.update(dict(self.COLS(kwargs)))
+        return self
+
+    def INSERTINTO(self, tbl_name):
         return self.FROM(tbl_name)
 
     def DELETE(self, tbl_name):
         return self.FROM(tbl_name)
 
-    @staticmethod
-    def verify_condition(arg):
-        retval = False
-        if isinstance(dict, arg):
-            if len(arg) == 3:
-                if arg[1] in ['<', '>', '=', '>=', '<=', 'LIKE', 'IN', '!=']:
-                    retval = True
-        return retval
-
-    @staticmethod
-    def verify_aggregation(arg):
-        retval = False
-        if isinstance(dict, arg):
-            if len(arg) == 2:
-                    retval = True
-        return retval
-
-    @staticmethod
-    def verify_orderby(arg):
-        retval = False
-        if isinstance(dict, arg):
-            if len(arg) == 2:
-                if arg[1].upper() in ['ASC', 'DESC']:
-                    retval = True
-        return retval
-
     def WHERE(self, arg):
         condition = {}
         if self.verify_condition(arg):
             condition.update({'column': arg[0], 'condition': arg[1], 'value': arg[2]})
-            self.payload.update({'condition': condition})
+            self.payload.update(dict({'where': condition}))
         return self
 
     def WHERE_AND(self, *args):
@@ -123,7 +128,7 @@ class PayloadBuilder(object):
             condition = {}
             if self.verify_condition(arg):
                 condition.update({'column': arg[0], 'condition': arg[1], 'value': arg[2]})
-                self.payload['condition'].update({'and': condition})
+                self.payload['where'].update(dict({'and': condition}))
         return self
 
     def WHERE_OR(self, *args):
@@ -131,26 +136,26 @@ class PayloadBuilder(object):
             if self.verify_condition(arg):
                 condition = {}
                 condition.update({'column': arg[0], 'condition': arg[1], 'value': arg[2]})
-                self.payload['condition'].update({'or': condition})
+                self.payload['where'].update(dict({'or': condition}))
         return self
 
     def GROUPBY(self, *args):
-        self.payload.update({'group': ', '.join(args)})
+        self.payload.update(dict({'group': ', '.join(args)}))
         return self
 
     def AGGREGATION(self, *args):
         for arg in args:
             aggregation = {}
             if self.verify_aggregation(arg):
-                aggregation.update({'operation': arg[0], 'column': arg[1]})
+                aggregation.update(dict({'operation': arg[0], 'column': arg[1]}))
                 if 'aggregation' in self.payload:
-                    if isinstance(list, self.payload['aggregation']):
+                    if isinstance(self.payload['aggregation'], list):
                         self.payload['aggregation'].append(aggregation)
                     else:
                         self.payload['aggregation'] = list(self.payload.get('aggregation'))
                         self.payload['aggregation'].append(aggregation)
                 else:
-                    self.payload.update({'aggregation': aggregation})
+                    self.payload.update(dict({'aggregation': aggregation}))
         return self
 
     def HAVING(self):
@@ -158,32 +163,56 @@ class PayloadBuilder(object):
         return self
 
     def LIMIT(self, arg):
-        if isinstance(int, arg):
-            self.payload.update({'limit': arg})
+        if isinstance(arg, int):
+            self.payload.update(dict({'limit': arg}))
         return self
 
     def ORDERBY(self, *args):
         for arg in args:
             sort = {}
             if self.verify_orderby(arg):
-                sort.update({'column': arg[0], 'direction': arg[1]})
+                sort.update(dict({'column': arg[0], 'direction': arg[1]}))
                 if 'sort' in self.payload:
-                    if isinstance(list, self.payload['sort']):
+                    if isinstance(self.payload['sort'], list):
                         self.payload['sort'].append(sort)
                     else:
                         self.payload['sort'] = list(self.payload.get('sort'))
                         self.payload['sort'].append(sort)
                 else:
-                    self.payload.update({'sort': sort})
+                    self.payload.update(dict({'sort': sort}))
         return self
 
     def execute(self):
-        return self.payload
-
-    def __str__(self):
         return str(self.payload)
 
 if __name__ == '__main__':
-    pb = PayloadBuilder()
-    sql = pb.SELECT('id', 'type', 'repeat', 'process_name').FROM('schedules')
-    print(sql.__str__())
+    pb = PayloadBuilder(payload=dict())
+    # Select
+    sql = pb.\
+        SELECT('id', 'type', 'repeat', 'process_name').\
+        FROM('schedules').\
+        WHERE(['id', '=', 'test']).\
+        WHERE_AND(['process_name', '=', 'test']). \
+        WHERE_OR(['process_name', '=', 'sleep']).\
+        LIMIT(3).\
+        GROUPBY('process_name', 'id').\
+        ORDERBY(['process_name', 'desc']).\
+        AGGREGATION(['count', 'process_name']).\
+        execute()
+    print(sql)
+
+    pb = PayloadBuilder(payload=dict())
+    # Insert
+    sql = pb.\
+        INSERTINTO('schedules').\
+        INSERT(id='test', process_name='sleep', type=3, repeat=45677).\
+        execute()
+    print(sql)
+
+    pb = PayloadBuilder(payload=dict())
+    # Insert
+    sql = pb.\
+        UPDATETABLE('schedules').\
+        UPDATE(id='test', process_name='sleep', type=3, repeat=45677).\
+        execute()
+    print(sql)

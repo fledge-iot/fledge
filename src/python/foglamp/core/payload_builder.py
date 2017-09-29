@@ -13,6 +13,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 import json
+from collections import OrderedDict
 from foglamp import logger
 
 _LOGGER = logger.setup(__name__)
@@ -52,7 +53,7 @@ class PayloadBuilder(object):
     Ref: http://json-schema.org/
     """
 
-    def __init__(self, payload=dict()):
+    def __init__(self, payload=OrderedDict()):
         self.payload = payload
 
     @staticmethod
@@ -83,7 +84,7 @@ class PayloadBuilder(object):
 
     def SELECT(self, *args):
         if len(args) > 0:
-            self.payload.update(dict({"columns": ','.join(args)}))
+            self.payload.update({"columns": ','.join(args)})
         return self
 
     def SELECTALL(self, *args):
@@ -103,11 +104,11 @@ class PayloadBuilder(object):
         return values
 
     def UPDATE(self, **kwargs):
-        self.payload.update(dict({'values': self.COLS(kwargs)}))
+        self.payload.update({'values': self.COLS(kwargs)})
         return self
 
     def INSERT(self, **kwargs):
-        self.payload.update(dict(self.COLS(kwargs)))
+        self.payload.update(self.COLS(kwargs))
         return self
 
     def INSERTINTO(self, tbl_name):
@@ -120,7 +121,7 @@ class PayloadBuilder(object):
         condition = {}
         if self.verify_condition(arg):
             condition.update({'column': arg[0], 'condition': arg[1], 'value': arg[2]})
-            self.payload.update(dict({'where': condition}))
+            self.payload.update({'where': condition})
         return self
 
     def WHERE_AND(self, *args):
@@ -128,7 +129,7 @@ class PayloadBuilder(object):
             condition = {}
             if self.verify_condition(arg):
                 condition.update({'column': arg[0], 'condition': arg[1], 'value': arg[2]})
-                self.payload['where'].update(dict({'and': condition}))
+                self.payload['where'].update({'and': condition})
         return self
 
     def WHERE_OR(self, *args):
@@ -136,18 +137,18 @@ class PayloadBuilder(object):
             if self.verify_condition(arg):
                 condition = {}
                 condition.update({'column': arg[0], 'condition': arg[1], 'value': arg[2]})
-                self.payload['where'].update(dict({'or': condition}))
+                self.payload['where'].update({'or': condition})
         return self
 
     def GROUPBY(self, *args):
-        self.payload.update(dict({'group': ', '.join(args)}))
+        self.payload.update({'group': ', '.join(args)})
         return self
 
     def AGGREGATION(self, *args):
         for arg in args:
             aggregation = {}
             if self.verify_aggregation(arg):
-                aggregation.update(dict({'operation': arg[0], 'column': arg[1]}))
+                aggregation.update({'operation': arg[0], 'column': arg[1]})
                 if 'aggregation' in self.payload:
                     if isinstance(self.payload['aggregation'], list):
                         self.payload['aggregation'].append(aggregation)
@@ -155,7 +156,7 @@ class PayloadBuilder(object):
                         self.payload['aggregation'] = list(self.payload.get('aggregation'))
                         self.payload['aggregation'].append(aggregation)
                 else:
-                    self.payload.update(dict({'aggregation': aggregation}))
+                    self.payload.update({'aggregation': aggregation})
         return self
 
     def HAVING(self):
@@ -164,14 +165,14 @@ class PayloadBuilder(object):
 
     def LIMIT(self, arg):
         if isinstance(arg, int):
-            self.payload.update(dict({'limit': arg}))
+            self.payload.update({'limit': arg})
         return self
 
     def ORDERBY(self, *args):
         for arg in args:
             sort = {}
             if self.verify_orderby(arg):
-                sort.update(dict({'column': arg[0], 'direction': arg[1]}))
+                sort.update({'column': arg[0], 'direction': arg[1]})
                 if 'sort' in self.payload:
                     if isinstance(self.payload['sort'], list):
                         self.payload['sort'].append(sort)
@@ -179,7 +180,7 @@ class PayloadBuilder(object):
                         self.payload['sort'] = list(self.payload.get('sort'))
                         self.payload['sort'].append(sort)
                 else:
-                    self.payload.update(dict({'sort': sort}))
+                    self.payload.update({'sort': sort})
         return self
 
     def execute(self):
@@ -214,5 +215,13 @@ if __name__ == '__main__':
     sql = pb.\
         UPDATETABLE('schedules').\
         UPDATE(id='test', process_name='sleep', type=3, repeat=45677).\
+        WHERE(['id', '=', 'test']). \
         execute()
     print(sql)
+
+    from foglamp.storage.storage import Storage
+
+    pb = PayloadBuilder(payload=dict())
+    sql = pb.SELECTALL().FROM('scheduled_processes').execute()
+
+    print(Storage.query_tbl(sql['table']))

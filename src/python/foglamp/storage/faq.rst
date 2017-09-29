@@ -15,13 +15,12 @@ Got a question that isn't answered here? Try `Slack`_ or `bug tracker`_.
 How do I…
 =========
 
-
 .. _ storage server:
 
 … build and start the storage server?
---------------------------------------------------------------
+-------------------------------------
 
-To build it check out branch, **FOGL-197**
+Make sure you have pre-requisite installed.
 
     `cd FogLAMP`
 
@@ -32,6 +31,7 @@ To build it check out branch, **FOGL-197**
     `cmake ..`
 
     `make`
+
 
 **Copy the executable and plugin somewhere you want to run it**
 
@@ -73,9 +73,9 @@ There are some curl scripts that demonstrate the usage in FogLAMP/test/storage.
 
 Code allows the environment variable DB_CONNECTION to override the default connection string, so you can set this to
 
-:example:
+:Example:
 
-`export DB_CONNECTION="dbname=foglamp host=/tmp"`
+     `export DB_CONNECTION="dbname=foglamp host=/tmp"`
 
 If you are installing Postgres via the snap package
 

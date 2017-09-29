@@ -14,6 +14,7 @@
 #include <logger.h>
 #include <string>
 #include <time.h>
+#include <thread>
 
 #define PING	"/management/ping"
 
@@ -27,6 +28,8 @@ class ManagementApi {
 		ManagementApi(const std::string& name, const unsigned short port);
 		~ManagementApi();
 		static ManagementApi *getInstance();
+		void start();
+		void startServer();
 		void registerStats(JSONProvider *statsProvider);
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
@@ -37,6 +40,7 @@ class ManagementApi {
 		time_t		m_startTime;
 		HttpServer	*m_server;
 		JSONProvider	*m_statsProvider;
+		std::thread	*m_thread;
 		void            respond(std::shared_ptr<HttpServer::Response>, const std::string&);
 };
 #endif

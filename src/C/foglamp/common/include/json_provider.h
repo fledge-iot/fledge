@@ -14,6 +14,6 @@
 class JSONProvider
 {
 	public:
-		virtual void	asJSON(std::string &) = 0;
+		virtual void	asJSON(std::string &) const = 0;
 };
 #endif

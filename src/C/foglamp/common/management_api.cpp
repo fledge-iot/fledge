@@ -10,6 +10,7 @@
 #include <management_api.h>
 #include <logger.h>
 #include <time.h>
+#include <sstream>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -40,6 +41,21 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_instance = this;
 
 	m_logger->info("Starting management api on port %d.", port);
+}
+
+/**
+ * Start HTTP server for management API
+ */
+static void startService()
+{
+        ManagementApi::getInstance()->startServer();
+}
+
+void ManagementApi::start() {
+        m_thread = new thread(startService);
+}
+
+void ManagementApi::startServer() {
 	m_server->start();
 }
 
@@ -75,22 +91,20 @@ void ManagementApi::registerStats(JSONProvider *statsProvider)
  */
 void ManagementApi::ping(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
+ostringstream convert;
 string responsePayload;
 
 	(void)request;	// Unsused argument
-	responsePayload = "{ \"uptime\" : ";
-	responsePayload += time(0) - m_startTime;
-	responsePayload += ", \"\name\" : \"";
-	responsePayload += m_name;
-	responsePayload += "\"";
+	convert << "{ \"uptime\" : " << time(0) - m_startTime << ",";
+	convert << "\"name\" : \"" << m_name << "\"";
 	if (m_statsProvider)
 	{
 		string stats;
 		m_statsProvider->asJSON(stats);
-		responsePayload += ", \"statistics\" : ";
-		responsePayload += stats;
+		convert << ", \"statistics\" : " << stats;
 	}
-	responsePayload += " }";
+	convert << " }";
+	responsePayload = convert.str();
 	respond(response, responsePayload);
 }
 

@@ -15,7 +15,7 @@
 class StorageStats : public JSONProvider {
 	public:
 		StorageStats();
-		void		asJSON(std::string &);
+		void		asJSON(std::string &) const;
 		unsigned int commonInsert;
 		unsigned int commonSimpleQuery;
 		unsigned int commonQuery;

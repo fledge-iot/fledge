@@ -257,7 +257,7 @@ if __name__ == "__main__":
     Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
 
     pb = PayloadBuilder()
-    sql = pb.WHERE(["key", "=", "COAP_CONF"]).payload()
+    sql = pb.WHERE(["key", "=", "CoAP"]).payload()
     tbl_name = 'configuration'
     q = sql
     print(sql)
@@ -265,7 +265,7 @@ if __name__ == "__main__":
 
     pb = PayloadBuilder()
     # sql = pb.WHERE(["key", "=", "COAP_CONF"]).AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
-    sql = pb.WHERE(["key", "=", "COAP_CONF"]).query_params()
+    sql = pb.WHERE(["key", "=", "CoAP"]).query_params()
     print(sql)
     tbl_name = 'configuration'
     print(Storage().query_tbl(tbl_name, sql))

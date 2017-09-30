@@ -193,7 +193,29 @@ class PayloadBuilder(object):
         return urllib.parse.urlencode(query_params)
 
 if __name__ == "__main__":
-    PayloadBuilder.query_payload = OrderedDict()
+    from foglamp.core.service_registry.service_registry import Service
+    from foglamp.storage.storage import Storage
+
+    Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
+
+    PayloadBuilder.query_payload = OrderedDict() # Must
+    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).payload()
+    tbl_name = 'configuration'
+    q = sql
+    print(sql+'\n')
+    print(Storage().query_tbl_with_payload(tbl_name, q))
+    print('\n')
+
+    PayloadBuilder.query_payload = OrderedDict() # Must
+    # sql = pb.WHERE(["key", "=", "COAP_CONF"]).\
+    # AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
+    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).query_params()
+    print(sql+'\n')
+    tbl_name = 'configuration'
+    print(Storage().query_tbl(tbl_name, sql))
+    print('\n')
+
+    PayloadBuilder.query_payload = OrderedDict() # Must
     # Select
     sql = PayloadBuilder.\
         SELECT('id', 'type', 'repeat', 'process_name').\
@@ -206,41 +228,23 @@ if __name__ == "__main__":
         ORDER_BY(['process_name', 'desc']).\
         AGGREGATE(['count', 'process_name']).\
         payload()
-    print(sql)
+    print(sql+'\n')
 
-    PayloadBuilder.query_payload = OrderedDict()
+    PayloadBuilder.query_payload = OrderedDict() # Must
     # Insert
     sql = PayloadBuilder.\
         INSERT_INTO('schedules').\
         INSERT(id='test', process_name='sleep', type=3, repeat=45677).\
         payload()
-    print(sql)
+    print(sql+'\n')
 
-    PayloadBuilder.query_payload = OrderedDict()
+    PayloadBuilder.query_payload = OrderedDict() # Must
     # Update
     sql = PayloadBuilder.\
         UPDATE_TABLE('schedules').\
         UPDATE(id='test', process_name='sleep', type=3, repeat=45677).\
         WHERE(['id', '=', 'test']). \
         payload()
-    print(sql)
+    print(sql+'\n')
 
-    from foglamp.core.service_registry.service_registry import Service
-    from foglamp.storage.storage import Storage
 
-    Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
-
-    PayloadBuilder.query_payload = OrderedDict()
-    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).payload()
-    tbl_name = 'configuration'
-    q = sql
-    print(sql)
-    print(Storage().query_tbl_with_payload(tbl_name, q))
-
-    PayloadBuilder.query_payload = OrderedDict()
-    # sql = pb.WHERE(["key", "=", "COAP_CONF"]).\
-    # AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
-    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).query_params()
-    print(sql)
-    tbl_name = 'configuration'
-    print(Storage().query_tbl(tbl_name, sql))

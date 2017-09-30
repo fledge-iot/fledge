@@ -20,7 +20,6 @@ from foglamp import logger
 _LOGGER = logger.setup(__name__)
 
 
-
 class PayloadBuilder(object):
     """ Payload Builder to be used in Python wrapper class for Storage Service
     Ref: https://docs.google.com/document/d/1qGIswveF9p2MmAOw_W1oXpo_aFUJd3bXBkW563E16g0/edit#
@@ -69,7 +68,7 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
-    def SELECTALL(cls, *args):
+    def SELECT_ALL(cls, *args):
         return cls
 
     @classmethod
@@ -239,7 +238,8 @@ if __name__ == "__main__":
     print(Storage().query_tbl_with_payload(tbl_name, q))
 
     PayloadBuilder.query_payload = OrderedDict()
-    # sql = pb.WHERE(["key", "=", "COAP_CONF"]).AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
+    # sql = pb.WHERE(["key", "=", "COAP_CONF"]).\
+    # AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
     sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).query_params()
     print(sql)
     tbl_name = 'configuration'

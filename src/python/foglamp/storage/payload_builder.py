@@ -35,40 +35,6 @@ class PayloadBuilder(object):
         # self.query_payload = query_payload
         self.query_payload = OrderedDict()
 
-    schema = None
-    with open('jsonschema.json') as data_file:
-        schema = json.load(data_file, object_pairs_hook=OrderedDict)
-
-    SCHEMA_TYPE_MAP = {
-        "string": str,
-        "number": int,
-        "integer": int,
-        "object": dict,
-        "array": list,
-        "null": None.__class__,
-    }
-
-    @staticmethod
-    def find_type(name, my_schema=schema, retval=None, result=list()):
-        """
-        Recursively searches for 'name' in the given dict of any depth
-
-        :param name:
-        :param my_schema:
-        :param retval:
-        :param result: path of the "name" starting from root, if success else None
-        :return:
-        """
-        for key, value in my_schema.items():
-            result.append(key)
-            if key == name:
-                retval = value['type']
-                break
-            elif isinstance(value, OrderedDict):
-                retval, result = PayloadBuilder.find_type(name, value, retval, result)
-        # FIXME: result
-        return retval, result
-
     # TODO: Add tests
 
     @staticmethod
@@ -76,9 +42,6 @@ class PayloadBuilder(object):
         retval = False
         if isinstance(arg, list):
             if len(arg) == 3:
-                assert isinstance(arg[0], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('where_column')[0]])
-                assert isinstance(arg[1], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('where_condition')[0]])
-                assert isinstance(arg[2], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('where_value')[0]])
                 # TODO: Implement LIKE and IN later when support becomes available in storage service
                 if arg[1] in ['<', '>', '=', '>=', '<=', '!=']:
                     retval = True
@@ -89,8 +52,6 @@ class PayloadBuilder(object):
         retval = False
         if isinstance(arg, list):
             if len(arg) == 2:
-                assert isinstance(arg[0], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('aggregate_operation')[0]])
-                assert isinstance(arg[1], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('aggregate_column')[0]])
                 if arg[0] in ['min', 'max', 'avg', 'sum', 'count']:
                     retval = True
         return retval
@@ -100,8 +61,6 @@ class PayloadBuilder(object):
         retval = False
         if isinstance(arg, list):
             if len(arg) == 2:
-                assert isinstance(arg[0], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('sort_column')[0]])
-                assert isinstance(arg[1], PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('sort_direction')[0]])
                 if arg[1].upper() in ['ASC', 'DESC']:
                     retval = True
         return retval
@@ -188,8 +147,8 @@ class PayloadBuilder(object):
         return self
 
     def LIMIT(self, arg):
-        assert isinstance(arg, PayloadBuilder.SCHEMA_TYPE_MAP[PayloadBuilder.find_type('limit')[0]])
-        self.query_payload.update({"limit": arg})
+        if isinstance(arg, int):
+            self.query_payload.update({"limit": arg})
         return self
 
     def ORDER_BY(self, *args):
@@ -269,5 +228,3 @@ if __name__ == "__main__":
     print(sql)
     tbl_name = 'configuration'
     print(Storage().query_tbl(tbl_name, sql))
-
-    print(PayloadBuilder.find_type('where_column')[0])

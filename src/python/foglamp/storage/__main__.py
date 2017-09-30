@@ -188,6 +188,48 @@ def append_readings():
     Readings().disconnect()
 
 
+def fetch_readings():
+    print("fetch_readings:")
+    r = Readings().connect()
+    # tested,
+    # works fine if records are less then count
+    # also works fine if reading_id does not exist, {'rows': [], 'count': 0}
+    res = r.fetch(reading_id=1, count=2)
+    print(res)
+    Readings().disconnect()
+
+
+def purge_readings():
+    print("purge_readings:")
+
+    r = Readings().connect()
+
+    res = r.purge('24', '100071')
+
+    # TODO: Move to tests :]
+    # try many (type checking)
+
+    res = r.purge(24, '100071')
+
+    res = r.purge(24, '100071', 'puRge')
+
+    res = r.purge(24, '100071', 'RETAIN')
+
+    try:
+        # res = r.purge('b', '100071', 'RETAIN')
+
+        # res = r.purge('1', 'v', 'RETAIN')
+
+        res = r.purge(24, '100071', 'xRETAIN')
+    except ValueError:
+        print("age or reading is not an integer value :/")
+    except InvalidReadingsPurgeFlagParameters:
+        print("AS expected, InvalidReadingsPurgeFlagParameters")
+
+    print(res)
+    Readings().disconnect()
+
+
 def query_readings():
 
     cond1 = OrderedDict()
@@ -233,8 +275,10 @@ try:
     append_readings()
     # what happens on conflict?
 
-    # TODO: fetch readings
-    # fetch_readings()
+    fetch_readings()
+
+    # TODO: these value shall be picked from purge config and passed to it?
+    purge_readings()
 
     query_readings()
 

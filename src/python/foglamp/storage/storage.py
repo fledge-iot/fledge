@@ -340,8 +340,34 @@ class Readings(Storage):
         return json.loads(res)
 
     @classmethod
-    def fetch(cls, reading_id, size):
-        pass
+    def fetch(cls, reading_id, count):
+        """
+
+        :param reading_id: the first reading ID in the block that is retrieved
+        :param count: the number of readings to return, if available
+        :return:
+        :Example:
+            curl -X  GET /storage/reading?id=2&count=3
+
+        """
+
+        conn = http.client.HTTPConnection(cls._base_url)
+        # TODO: need to set http / https based on service protocol
+
+        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
+
+        conn.request('GET', url=get_url)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
 
     @classmethod
     def query(cls, query_payload):
@@ -377,7 +403,38 @@ class Readings(Storage):
         conn.close()
         return json.loads(res)
 
-    # TODO: these value shall be picked from purge config and passed to it?
     @classmethod
-    def purge(cls, age, sent_id, purge_unsent=False):
-        pass
+    def purge(cls, age, sent_id, flag=None):
+        """ Purge readings based on the age of the readings
+
+        :param age: the maximum age of data to retain, expressed in hours
+        :param sent_id: the id of the last reading to be sent out of FogLAMP
+        :param flag: define what to do about unsent readings. Valid options are retain or purge
+        :return: a JSON with the number of readings removed, the number of unsent readings removed
+            and the number of readings that remain
+        :Example:
+            curl -X PUT http://0.0.0.0:8080/storage/reading/purge?age=<age>&sent=<reading id>&flags=<flags>
+
+        """
+        # TODO: flagS should be flag?
+
+        valid_flags = ['retain', 'purge']
+
+        if flag and flag.lower() not in valid_flags:
+            raise InvalidReadingsPurgeFlagParameters
+
+        if flag:
+            _flag = flag.lower()
+
+        # age should be int
+        # sent_id should again be int
+        try:
+            _age = int(age)
+            _sent_id = int(sent_id)
+        except TypeError:
+            raise
+
+        # TODO: If the data could not be deleted because of a conflict,
+        # then the error “409 Conflict” should be returned.
+
+        print("Implement me", _age, _sent_id, _flag if flag else "")

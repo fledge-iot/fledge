@@ -5,6 +5,12 @@
 # FOGLAMP_END
 
 """ Storage layer python client exceptions
+
+    If the data layer was unavailable then return “503 Service Unavailable”
+    If any of the query parameters are missing or payload is malformed then return “400 Bad Request”
+    If the data could not be deleted because of a conflict, then return error “409 Conflict”
+
+    In other circumstances a “400 Bad Request” should be returned.
 """
 
 __author__ = "Praveen Garg"
@@ -12,7 +18,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance')
+__all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance', 'InvalidReadingsPurgeFlagParameters')
 
 
 class StorageClientException(Exception):
@@ -53,4 +59,14 @@ class InvalidServiceInstance(StorageClientException):
         self.code = 502
         self.message = "Storage client needs a valid *FogLAMP storage* micro-service instance"
 
+
+class InvalidReadingsPurgeFlagParameters(BadRequest):
+    """ 400 - Invalid params for Purge request
+    """
+
+    def __init__(self):
+        self.code = 400
+        self.message = "Purge flag valid options are retain or purge only"
+
 # TODO: add more specific exceptions
+

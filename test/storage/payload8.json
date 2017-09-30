@@ -1,0 +1,11 @@
+{
+	"where" : {
+				"column" : "key",
+				"condition" : "=",
+				"value" : "Mark"
+			},
+	"aggregate" : {
+			"column" : "value",
+			"operation" : "min"
+		}
+}

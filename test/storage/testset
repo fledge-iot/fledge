@@ -1,0 +1,35 @@
+Common Read,GET,http://localhost:8080/storage/table/test,
+Common Read key,GET,http://localhost:8080/storage/table/test?id=1,
+Common Read key empty,GET,http://localhost:8080/storage/table/test?id=2,
+Common Read complex,PUT,http://localhost:8080/storage/table/test/query,where_code_1.json
+Common Read complex empty,PUT,http://localhost:8080/storage/table/test/query,where_id_2.json
+Common Read complex not equal,PUT,http://localhost:8080/storage/table/test/query,where_id_not_1.json
+Common Read complex count,PUT,http://localhost:8080/storage/table/test/query,where_count.json
+Common Read complex avg,PUT,http://localhost:8080/storage/table/test/query,where_avg.json
+Common Read complex min,PUT,http://localhost:8080/storage/table/test/query,where_min.json
+Common Read complex max,PUT,http://localhost:8080/storage/table/test/query,where_max.json
+Common Insert,POST,http://localhost:8080/storage/table/test,insert.json
+Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
+Common Insert bad column,POST,http://localhost:8080/storage/table/test,insert_bad.json
+Common Insert bad syntax,POST,http://localhost:8080/storage/table/test,insert_bad2.json
+Common Delete,DELETE,http://localhost:8080/storage/table/test,where_id_2.json
+Common Read deleted,GET,http://localhost:8080/storage/table/test?id=2,
+Common Delete non-existant,DELETE,http://localhost:8080/storage/table/test,where_id_2.json
+Common Insert,POST,http://localhost:8080/storage/table/test,insert.json
+Common Read limit,PUT,http://localhost:8080/storage/table/test/query,limit.json
+Common Read skip,PUT,http://localhost:8080/storage/table/test/query,skip.json
+Common Read bad 1,PUT,http://localhost:8080/storage/table/test/query,where_bad_1.json
+Common Read bad 2,PUT,http://localhost:8080/storage/table/test/query,where_bad_2.json
+Common Read bad 3,PUT,http://localhost:8080/storage/table/test/query,where_bad_3.json
+Common Read bad 4,PUT,http://localhost:8080/storage/table/test/query,where_bad_4.json
+Common Read bad sort 1,PUT,http://localhost:8080/storage/table/test/query,bad_sort_1.json
+Common Read bad sort 2,PUT,http://localhost:8080/storage/table/test/query,bad_sort_2.json
+Common Update,PUT,http://localhost:8080/storage/table/test,update.json
+Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
+Common Update,PUT,http://localhost:8080/storage/table/test,updateKey.json
+Common Read back,GET,http://localhost:8080/storage/table/test?key=UPDA,
+Common Update no vlaues,PUT,http://localhost:8080/storage/table/test,bad_update.json
+Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
+Bad URL,GET,http://localhost:8080/foglamp/nothing,
+Bad table,GET,http://localhost:8080/storage/table/doesntexist,
+Bad column,GET,http://localhost:8080/storage/table/test?doesntexist=9,

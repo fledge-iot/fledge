@@ -31,8 +31,11 @@ class PayloadBuilder(object):
 
     # TODO: Add tests
 
-    query_payload = OrderedDict()
-    
+    query_payload = None
+
+    def __init__(self):
+        self.__class__.query_payload = OrderedDict()
+
     @staticmethod
     def verify_condition(arg):
         retval = False
@@ -198,26 +201,23 @@ if __name__ == "__main__":
 
     Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
 
-    PayloadBuilder.query_payload = OrderedDict() # Must
-    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).payload()
+    sql = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
     tbl_name = 'configuration'
     q = sql
     print(sql+'\n')
     print(Storage().query_tbl_with_payload(tbl_name, q))
     print('\n')
 
-    PayloadBuilder.query_payload = OrderedDict() # Must
     # sql = pb.WHERE(["key", "=", "COAP_CONF"]).\
     # AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
-    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).query_params()
+    sql = PayloadBuilder().WHERE(["key", "=", "CoAP"]).query_params()
     print(sql+'\n')
     tbl_name = 'configuration'
     print(Storage().query_tbl(tbl_name, sql))
     print('\n')
 
-    PayloadBuilder.query_payload = OrderedDict() # Must
     # Select
-    sql = PayloadBuilder.\
+    sql = PayloadBuilder().\
         SELECT('id', 'type', 'repeat', 'process_name').\
         FROM('schedules').\
         WHERE(['id', '=', 'test']).\
@@ -230,17 +230,15 @@ if __name__ == "__main__":
         payload()
     print(sql+'\n')
 
-    PayloadBuilder.query_payload = OrderedDict() # Must
     # Insert
-    sql = PayloadBuilder.\
+    sql = PayloadBuilder().\
         INSERT_INTO('schedules').\
         INSERT(id='test', process_name='sleep', type=3, repeat=45677).\
         payload()
     print(sql+'\n')
 
-    PayloadBuilder.query_payload = OrderedDict() # Must
     # Update
-    sql = PayloadBuilder.\
+    sql = PayloadBuilder().\
         UPDATE_TABLE('schedules').\
         UPDATE(id='test', process_name='sleep', type=3, repeat=45677).\
         WHERE(['id', '=', 'test']). \

@@ -30,13 +30,10 @@ class PayloadBuilder(object):
           Ref: http://json-schema.org/implementations.html#validators
     """
 
-    def __init__(self, query_payload=OrderedDict()):
-        # FIXME: Below line is not working
-        # self.query_payload = query_payload
-        self.query_payload = OrderedDict()
-
     # TODO: Add tests
 
+    query_payload = OrderedDict()
+    
     @staticmethod
     def verify_condition(arg):
         retval = False
@@ -65,112 +62,131 @@ class PayloadBuilder(object):
                     retval = True
         return retval
 
-    def SELECT(self, *args):
+    @classmethod
+    def SELECT(cls, *args):
         if len(args) > 0:
-            self.query_payload.update({"columns": ','.join(args)})
-        return self
+            cls.query_payload.update({"columns": ','.join(args)})
+        return cls
 
-    def SELECTALL(self, *args):
-        return self
+    @classmethod
+    def SELECTALL(cls, *args):
+        return cls
 
-    def FROM(self, tbl_name):
-        self.query_payload.update({"table": tbl_name})
-        return self
+    @classmethod
+    def FROM(cls, tbl_name):
+        cls.query_payload.update({"table": tbl_name})
+        return cls
 
-    def UPDATE_TABLE(self, tbl_name):
-        return self.FROM(tbl_name)
+    @classmethod
+    def UPDATE_TABLE(cls, tbl_name):
+        return cls.FROM(tbl_name)
 
-    def COLS(self, kwargs):
+    @classmethod
+    def COLS(cls, kwargs):
         values = {}
         for key, value in kwargs.items():
             values.update({key: value})
         return values
 
-    def UPDATE(self, **kwargs):
-        self.query_payload.update({"values": self.COLS(kwargs)})
-        return self
+    @classmethod
+    def UPDATE(cls, **kwargs):
+        cls.query_payload.update({"values": cls.COLS(kwargs)})
+        return cls
 
-    def INSERT(self, **kwargs):
-        self.query_payload.update(self.COLS(kwargs))
-        return self
+    @classmethod
+    def INSERT(cls, **kwargs):
+        cls.query_payload.update(cls.COLS(kwargs))
+        return cls
 
-    def INSERT_INTO(self, tbl_name):
-        return self.FROM(tbl_name)
+    @classmethod
+    def INSERT_INTO(cls, tbl_name):
+        return cls.FROM(tbl_name)
 
-    def DELETE(self, tbl_name):
-        return self.FROM(tbl_name)
+    @classmethod
+    def DELETE(cls, tbl_name):
+        return cls.FROM(tbl_name)
 
-    def WHERE(self, arg):
+    @classmethod
+    def WHERE(cls, arg):
         condition = {}
-        if self.verify_condition(arg):
+        if cls.verify_condition(arg):
             condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-            self.query_payload.update({"where": condition})
-        return self
+            cls.query_payload.update({"where": condition})
+        return cls
 
-    def AND_WHERE(self, *args):
+    @classmethod
+    def AND_WHERE(cls, *args):
         for arg in args:
             condition = {}
-            if self.verify_condition(arg):
+            if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                self.query_payload["where"].update({"and": condition})
-        return self
+                cls.query_payload["where"].update({"and": condition})
+        return cls
 
-    def OR_WHERE(self, *args):
+    @classmethod
+    def OR_WHERE(cls, *args):
         for arg in args:
-            if self.verify_condition(arg):
+            if cls.verify_condition(arg):
                 condition = {}
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                self.query_payload["where"].update({"or": condition})
-        return self
+                cls.query_payload["where"].update({"or": condition})
+        return cls
 
-    def GROUP_BY(self, *args):
-        self.query_payload.update({"group": ', '.join(args)})
-        return self
+    @classmethod
+    def GROUP_BY(cls, *args):
+        cls.query_payload.update({"group": ', '.join(args)})
+        return cls
 
-    def AGGREGATE(self, *args):
+    @classmethod
+    def AGGREGATE(cls, *args):
         for arg in args:
             aggregate = {}
-            if self.verify_aggregation(arg):
+            if cls.verify_aggregation(arg):
                 aggregate.update({"operation": arg[0], "column": arg[1]})
-                if 'aggregate' in self.query_payload:
-                    if isinstance(self.query_payload['aggregate'], list):
-                        self.query_payload['aggregate'].append(aggregate)
+                if 'aggregate' in cls.query_payload:
+                    if isinstance(cls.query_payload['aggregate'], list):
+                        cls.query_payload['aggregate'].append(aggregate)
                     else:
-                        self.query_payload['aggregate'] = list(self.query_payload.get('aggregate'))
-                        self.query_payload['aggregate'].append(aggregate)
+                        cls.query_payload['aggregate'] = list(cls.query_payload.get('aggregate'))
+                        cls.query_payload['aggregate'].append(aggregate)
                 else:
-                    self.query_payload.update({"aggregate": aggregate})
-        return self
+                    cls.query_payload.update({"aggregate": aggregate})
+        return cls
 
-    def HAVING(self):
+    @classmethod
+    def HAVING(cls):
         # TODO: To be implemented
-        return self
+        return cls
 
-    def LIMIT(self, arg):
+    @classmethod
+    def LIMIT(cls, arg):
         if isinstance(arg, int):
-            self.query_payload.update({"limit": arg})
-        return self
+            cls.query_payload.update({"limit": arg})
+        return cls
 
-    def ORDER_BY(self, *args):
+    @classmethod
+    def ORDER_BY(cls, *args):
         for arg in args:
             sort = {}
-            if self.verify_orderby(arg):
+            if cls.verify_orderby(arg):
                 sort.update({"column": arg[0], "direction": arg[1]})
-                if 'sort' in self.query_payload:
-                    if isinstance(self.query_payload['sort'], list):
-                        self.query_payload['sort'].append(sort)
+                if 'sort' in cls.query_payload:
+                    if isinstance(cls.query_payload['sort'], list):
+                        cls.query_payload['sort'].append(sort)
                     else:
-                        self.query_payload['sort'] = list(self.query_payload.get('sort'))
-                        self.query_payload['sort'].append(sort)
+                        cls.query_payload['sort'] = list(cls.query_payload.get('sort'))
+                        cls.query_payload['sort'].append(sort)
                 else:
-                    self.query_payload.update({"sort": sort})
-        return self
+                    cls.query_payload.update({"sort": sort})
+        return cls
 
-    def payload(self):
-        return json.dumps(self.query_payload)
+    @classmethod
+    def payload(cls):
+        return json.dumps(cls.query_payload)
 
-    def query_params(self):
-        where = self.query_payload['where']
+    @classmethod
+    def query_params(cls):
+        where = cls.query_payload['where']
         query_params = {where['column']: where['value']}
         for key, value in where.items():
             if key == 'and':
@@ -178,9 +194,9 @@ class PayloadBuilder(object):
         return urllib.parse.urlencode(query_params)
 
 if __name__ == "__main__":
-    pb = PayloadBuilder()
+    PayloadBuilder.query_payload = OrderedDict()
     # Select
-    sql = pb.\
+    sql = PayloadBuilder.\
         SELECT('id', 'type', 'repeat', 'process_name').\
         FROM('schedules').\
         WHERE(['id', '=', 'test']).\
@@ -193,17 +209,17 @@ if __name__ == "__main__":
         payload()
     print(sql)
 
-    pb = PayloadBuilder()
+    PayloadBuilder.query_payload = OrderedDict()
     # Insert
-    sql = pb.\
+    sql = PayloadBuilder.\
         INSERT_INTO('schedules').\
         INSERT(id='test', process_name='sleep', type=3, repeat=45677).\
         payload()
     print(sql)
 
-    pb = PayloadBuilder()
+    PayloadBuilder.query_payload = OrderedDict()
     # Update
-    sql = pb.\
+    sql = PayloadBuilder.\
         UPDATE_TABLE('schedules').\
         UPDATE(id='test', process_name='sleep', type=3, repeat=45677).\
         WHERE(['id', '=', 'test']). \
@@ -215,16 +231,16 @@ if __name__ == "__main__":
 
     Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
 
-    pb = PayloadBuilder()
-    sql = pb.WHERE(["key", "=", "CoAP"]).payload()
+    PayloadBuilder.query_payload = OrderedDict()
+    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).payload()
     tbl_name = 'configuration'
     q = sql
     print(sql)
     print(Storage().query_tbl_with_payload(tbl_name, q))
 
-    pb = PayloadBuilder()
+    PayloadBuilder.query_payload = OrderedDict()
     # sql = pb.WHERE(["key", "=", "COAP_CONF"]).AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
-    sql = pb.WHERE(["key", "=", "CoAP"]).query_params()
+    sql = PayloadBuilder.WHERE(["key", "=", "CoAP"]).query_params()
     print(sql)
     tbl_name = 'configuration'
     print(Storage().query_tbl(tbl_name, sql))

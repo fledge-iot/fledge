@@ -13,6 +13,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 import urllib.parse
+import json
 from collections import OrderedDict
 from foglamp import logger
 
@@ -23,10 +24,18 @@ class PayloadBuilder(object):
     """ Payload Builder to be used in Python wrapper class for Storage Service
     Ref: https://docs.google.com/document/d/1qGIswveF9p2MmAOw_W1oXpo_aFUJd3bXBkW563E16g0/edit#
     Ref: http://json-schema.org/
+
+    TODO: Add json validator feature directly from json schema.
+          Ref: http://json-schema.org/implementations.html#validators
     """
 
     def __init__(self, payload=OrderedDict()):
         self.payload = payload
+        with open('schemajson.json') as data_file:
+            self.schema = json.load(data_file)
+
+    # TODO: Add Validator for each section/key with the help of self.schema
+    # TODO: Add tests
 
     @staticmethod
     def verify_condition(arg):
@@ -42,6 +51,7 @@ class PayloadBuilder(object):
         retval = False
         if isinstance(arg, list):
             if len(arg) == 2:
+                if arg[0] in ['min', 'max', 'avg', 'sum', 'count']:
                     retval = True
         return retval
 
@@ -116,19 +126,19 @@ class PayloadBuilder(object):
         self.payload.update({"group": ', '.join(args)})
         return self
 
-    def AGGREGATION(self, *args):
+    def AGGREGATE(self, *args):
         for arg in args:
-            aggregation = {}
+            aggregate = {}
             if self.verify_aggregation(arg):
-                aggregation.update({"operation": arg[0], "column": arg[1]})
-                if 'aggregation' in self.payload:
-                    if isinstance(self.payload['aggregation'], list):
-                        self.payload['aggregation'].append(aggregation)
+                aggregate.update({"operation": arg[0], "column": arg[1]})
+                if 'aggregate' in self.payload:
+                    if isinstance(self.payload['aggregate'], list):
+                        self.payload['aggregate'].append(aggregate)
                     else:
-                        self.payload['aggregation'] = list(self.payload.get('aggregation'))
-                        self.payload['aggregation'].append(aggregation)
+                        self.payload['aggregate'] = list(self.payload.get('aggregate'))
+                        self.payload['aggregate'].append(aggregate)
                 else:
-                    self.payload.update({"aggregation": aggregation})
+                    self.payload.update({"aggregate": aggregate})
         return self
 
     def HAVING(self):
@@ -178,7 +188,7 @@ if __name__ == "__main__":
         LIMIT(3).\
         GROUPBY('process_name', 'id').\
         ORDERBY(['process_name', 'desc']).\
-        AGGREGATION(['count', 'process_name']).\
+        AGGREGATE(['count', 'process_name']).\
         execute()
     print(str(sql).replace("'", '"'))
 

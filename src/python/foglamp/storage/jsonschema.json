@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "definitions": {},
+  "id": "http://example.com/example.json",
+  "properties": {
+    "group": {
+      "id": "/properties/group",
+      "type": "string"
+    },
+    "sort": {
+      "id": "/properties/sort",
+      "properties": {
+        "column": {
+          "id": "/properties/sort/properties/column",
+          "type": "string"
+        },
+        "direction": {
+          "id": "/properties/sort/properties/direction",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "aggregate": {
+      "id": "/properties/aggregate",
+      "properties": {
+        "column": {
+          "id": "/properties/aggregate/properties/column",
+          "type": "string"
+        },
+        "operation": {
+          "id": "/properties/sort/properties/operation",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "properties": {
+      "limit": {
+        "id": "/properties/limit",
+        "type": "number"
+      },
+      "where": {
+        "id": "/properties/where",
+        "properties": {
+          "and": {
+            "id": "/properties/where/properties/and",
+            "properties": {
+              "column": {
+                "id": "/properties/where/properties/and/properties/column",
+                "type": "string"
+              },
+              "condition": {
+                "id": "/properties/where/properties/and/properties/condition",
+                "type": "string"
+              },
+              "value": {
+                "id": "/properties/where/properties/and/properties/value",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "column": {
+            "id": "/properties/where/properties/column",
+            "type": "string"
+          },
+          "condition": {
+            "id": "/properties/where/properties/condition",
+            "type": "string"
+          },
+          "or": {
+            "id": "/properties/where/properties/or",
+            "properties": {
+              "column": {
+                "id": "/properties/where/properties/or/properties/column",
+                "type": "string"
+              },
+              "condition": {
+                "id": "/properties/where/properties/or/properties/condition",
+                "type": "string"
+              },
+              "value": {
+                "id": "/properties/where/properties/or/properties/value",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "value": {
+            "id": "/properties/where/properties/value",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "type": "object"
+  }
+}

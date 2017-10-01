@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Storage layer python client
+""" Storage layer python client payload builder
 """
 
 __author__ = "Amarendra K Sinha"
@@ -12,23 +12,26 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-import urllib.parse
-import json
 from collections import OrderedDict
+import json
+import urllib.parse
+
 from foglamp import logger
+
 
 _LOGGER = logger.setup(__name__)
 
 
 class PayloadBuilder(object):
-    """ Payload Builder to be used in Python wrapper class for Storage Service
-    Ref: https://docs.google.com/document/d/1qGIswveF9p2MmAOw_W1oXpo_aFUJd3bXBkW563E16g0/edit#
-    Ref: http://json-schema.org/
+    """ Payload Builder to be used in Python client  for Storage Service
 
-    TODO: Add json validator feature directly from json schema.
-          Ref: http://json-schema.org/implementations.html#validators
     """
 
+    # TODO: Add json validator
+    ''' Ref: https://docs.google.com/document/d/1qGIswveF9p2MmAOw_W1oXpo_aFUJd3bXBkW563E16g0/edit#
+        Ref: http://json-schema.org/
+        Ref: http://json-schema.org/implementations.html#validators
+    '''
     # TODO: Add tests
 
     query_payload = None
@@ -91,7 +94,7 @@ class PayloadBuilder(object):
         return values
 
     @classmethod
-    def UPDATE(cls, **kwargs):
+    def SET(cls, **kwargs):
         cls.query_payload.update({"values": cls.COLS(kwargs)})
         return cls
 
@@ -184,7 +187,7 @@ class PayloadBuilder(object):
 
     @classmethod
     def payload(cls):
-        return json.dumps(cls.query_payload)
+        return json.dumps(cls.query_payload, sort_keys=True)
 
     @classmethod
     def query_params(cls):
@@ -195,54 +198,89 @@ class PayloadBuilder(object):
                 query_params.update({value['column']: value['value']})
         return urllib.parse.urlencode(query_params)
 
+
 if __name__ == "__main__":
+
+    # TODO: remove once self registration is done
     from foglamp.core.service_registry.service_registry import Service
     from foglamp.storage.storage import Storage
 
     Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
 
-    sql = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
-    tbl_name = 'configuration'
-    q = sql
-    print(sql+'\n')
-    print(Storage().query_tbl_with_payload(tbl_name, q))
-    print('\n')
-
-    # sql = pb.WHERE(["key", "=", "COAP_CONF"]).\
-    # AND_WHERE(["ts", "=", "2017-09-15 12:33:22.619847+05:30"]).query_params()
-    sql = PayloadBuilder().WHERE(["key", "=", "CoAP"]).query_params()
-    print(sql+'\n')
-    tbl_name = 'configuration'
-    print(Storage().query_tbl(tbl_name, sql))
-    print('\n')
-
     # Select
-    sql = PayloadBuilder().\
-        SELECT('id', 'type', 'repeat', 'process_name').\
-        FROM('schedules').\
-        WHERE(['id', '=', 'test']).\
-        AND_WHERE(['process_name', '=', 'test']). \
-        OR_WHERE(['process_name', '=', 'sleep']).\
-        LIMIT(3).\
-        GROUP_BY('process_name', 'id').\
-        ORDER_BY(['process_name', 'desc']).\
-        AGGREGATE(['count', 'process_name']).\
-        payload()
-    print(sql+'\n')
+    _w_payload = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
+    print(_w_payload, '\n')
+    print(Storage().query_tbl_with_payload('configuration', _w_payload))
+    print('\n')
+
+    _w_query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).query_params()
+    print(_w_query_params, '\n')
+    print(Storage().query_tbl('configuration', _w_query_params))
+    print('\n')
+
+    complex_payload = PayloadBuilder()\
+        .SELECT('id', 'type', 'repeat', 'process_name')\
+        .FROM('schedules')\
+        .WHERE(['id', '=', 'test'])\
+        .AND_WHERE(['process_name', '=', 'test'])\
+        .OR_WHERE(['process_name', '=', 'sleep'])\
+        .LIMIT(3)\
+        .GROUP_BY('process_name', 'id')\
+        .ORDER_BY(['process_name', 'desc'])\
+        .AGGREGATE(['count', 'process_name'])\
+        .payload()
+
+    print(complex_payload, '\n')
+
+    # TODO: Test above complex payload
+    # 1) FROM is not needed, as we pass table table name
+    # 2) Check: SELECT col1, col2 FROM tbl support i.e. specific columns
+    # 3) assert with expected payload
 
     # Insert
-    sql = PayloadBuilder().\
-        INSERT_INTO('schedules').\
-        INSERT(id='test', process_name='sleep', type=3, repeat=45677).\
-        payload()
-    print(sql+'\n')
+    insert_payload = PayloadBuilder()\
+        .INSERT(key='SENT_pb', history_ts='now', value='11')\
+        .payload()
+    print(insert_payload, '\n')
+
+    insert_test_data = OrderedDict()
+    insert_test_data['key'] = 'SENT_pb'
+    insert_test_data['history_ts'] = 'now'
+    insert_test_data['value'] = '11'
+
+    assert insert_payload == json.dumps(insert_test_data, sort_keys=True)
+
+    res = Storage().connect().insert_into_tbl("statistics_history", insert_payload)
+    print(res)
+    # assert res  "{'response': 'inserted'}"
+    Storage().disconnect()
 
     # Update
-    sql = PayloadBuilder().\
-        UPDATE_TABLE('schedules').\
-        UPDATE(id='test', process_name='sleep', type=3, repeat=45677).\
-        WHERE(['id', '=', 'test']). \
-        payload()
-    print(sql+'\n')
+    update_payload = PayloadBuilder()\
+        .SET(value=22)\
+        .WHERE(['key', '=', 'SENT_pb'])\
+        .payload()
+    print(update_payload, '\n')
+
+    # update test data dict sample
+    condition = dict()
+    condition['column'] = 'key'
+    condition['condition'] = '='
+    condition['value'] = 'SENT_pb'
+
+    values = dict()
+    values['value'] = 22
+
+    update_test_data = dict()
+    # update_test_data['condition'] = condition # also works!
+    update_test_data['where'] = condition
+    update_test_data['values'] = values
+
+    assert update_payload == json.dumps(update_test_data, sort_keys=True)
+
+    res = Storage().connect().update_tbl("statistics_history", update_payload)
+    print(res)
+    # assert res  "{'response': 'updated'}"
+    Storage().disconnect()
 
 

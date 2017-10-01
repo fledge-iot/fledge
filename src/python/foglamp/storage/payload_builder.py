@@ -218,18 +218,24 @@ if __name__ == "__main__":
     print(Storage().query_tbl('configuration', _w_query_params))
     print('\n')
 
-    # complex_payload = PayloadBuilder().\
-    #     SELECT('id', 'type', 'repeat', 'process_name').\
-    #     FROM('schedules').\
-    #     WHERE(['id', '=', 'test']).\
-    #     AND_WHERE(['process_name', '=', 'test']). \
-    #     OR_WHERE(['process_name', '=', 'sleep']).\
-    #     LIMIT(3).\
-    #     GROUP_BY('process_name', 'id').\
-    #     ORDER_BY(['process_name', 'desc']).\
-    #     AGGREGATE(['count', 'process_name']).\
-    #     payload()
-    # print(complex_payload, '\n')
+    complex_payload = PayloadBuilder()\
+        .SELECT('id', 'type', 'repeat', 'process_name')\
+        .FROM('schedules')\
+        .WHERE(['id', '=', 'test'])\
+        .AND_WHERE(['process_name', '=', 'test'])\
+        .OR_WHERE(['process_name', '=', 'sleep'])\
+        .LIMIT(3)\
+        .GROUP_BY('process_name', 'id')\
+        .ORDER_BY(['process_name', 'desc'])\
+        .AGGREGATE(['count', 'process_name'])\
+        .payload()
+
+    print(complex_payload, '\n')
+
+    # TODO: Test above complex payload
+    # 1) FROM is not needed, as we pass table table name
+    # 2) Check: SELECT col1, col2 FROM tbl support i.e. specific columns
+    # 3) assert with expected payload
 
     # Insert
     insert_payload = PayloadBuilder()\
@@ -260,16 +266,17 @@ if __name__ == "__main__":
     condition = dict()
     condition['column'] = 'key'
     condition['condition'] = '='
-    condition['value'] = 'SENT_test'
+    condition['value'] = 'SENT_pb'
 
     values = dict()
     values['value'] = 22
 
     update_test_data = dict()
-    update_test_data['condition'] = condition
+    # update_test_data['condition'] = condition # also works!
+    update_test_data['where'] = condition
     update_test_data['values'] = values
 
-    # assert update_payload == json.dumps(update_test_data, sort_keys=True)
+    assert update_payload == json.dumps(update_test_data, sort_keys=True)
 
     res = Storage().connect().update_tbl("statistics_history", update_payload)
     print(res)

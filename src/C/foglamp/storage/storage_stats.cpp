@@ -26,7 +26,7 @@ StorageStats::StorageStats() : commonInsert(0), commonSimpleQuery(0),
 /**
  * Serialise the statistics as JSON
  */
-void StorageStats::asJSON(string& json)
+void StorageStats::asJSON(string& json) const
 {
 ostringstream convert;   // stream used for the conversion
 

@@ -9,13 +9,13 @@
  *
  * Author: Mark Riddoch
  */
-
+#include <json_provider.h>
 #include <string>
 
-class StorageStats {
+class StorageStats : public JSONProvider {
 	public:
 		StorageStats();
-		void		asJSON(std::string &);
+		void		asJSON(std::string &) const;
 		unsigned int commonInsert;
 		unsigned int commonSimpleQuery;
 		unsigned int commonQuery;

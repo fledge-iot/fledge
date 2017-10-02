@@ -10,6 +10,8 @@
 #include <storage_service.h>
 #include <configuration.h>
 #include <management_api.h>
+#include <management_client.h>
+#include <service_record.h>
 #include <plugin_manager.h>
 #include <plugin_api.h>
 #include <plugin.h>
@@ -46,11 +48,19 @@ void StorageService::start()
 		logger->fatal("Failed to load storage plugin.");
 		return;
 	}
+	ManagementApi management("storage", 1081);	// Start managemenrt API on port 8081
 	api->initResources();
 	logger->info("Starting service...");
 	api->start();
 
-	ManagementApi management(1081);	// Start managemenrt API on port 8081
+	management.start();
+
+
+	// Now register our service
+	// TODO Dynamic ports, proper hostname lookup
+	ServiceRecord record("storage", "Storage", "http", "localhost", 8080);
+	ManagementClient *client = new ManagementClient("localhost", 8082);
+	client->registerService(record);
 
 	api->wait();
 }

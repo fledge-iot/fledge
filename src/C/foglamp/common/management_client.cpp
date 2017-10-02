@@ -73,3 +73,94 @@ string payload;
 	}
 	return false;
 }
+
+/**
+ * Unregister this service
+ */
+bool ManagementClient::unregisterService()
+{
+
+	try {
+		string url = "/foglamp/service/";
+		url += *m_uuid;
+		auto res = m_client->request("DELETE", url.c_str());
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of unregistration: %s\n",
+				res->content.string().c_str());
+			return false;
+		}
+		if (doc.HasMember("id"))
+		{
+			m_uuid = new string(doc["id"].GetString());
+			m_logger->info("Unregistered service %s.\n", m_uuid->c_str());
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to unregister service: %s.",
+				doc["message"].GetString());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Unregister service failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
+ * Register interest in a configuration category
+ */
+bool ManagementClient::registerCategory(const string& category)
+{
+ostringstream convert;
+
+	try {
+		convert << "{ \"category\" : \"" << category << "\", ";
+		convert << "\"service\" : \"" << m_uuid << "\" }";
+		auto res = m_client->request("POST", "/foglamp/interest", convert.str());
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of category registration: %s\n",
+				res->content.string().c_str());
+			return false;
+		}
+		if (doc.HasMember("id"))
+		{
+			const char *reg_id = doc["id"].GetString();
+			m_categories[category] = string(reg_id);
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register service: %s.",
+				doc["message"].GetString());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+                m_logger->error("Register configuration category failed %s.", e.what());
+                return false;
+        }
+        return false;
+}
+
+/**
+ * Unegister interest in a configuration category
+ */             
+bool ManagementClient::unregisterCategory(const string& category)
+{               
+ostringstream convert;
+        
+        try {   
+		string url = "/foglamp/interest/";
+		url += m_categories[category];
+                auto res = m_client->request("DELETE", url.c_str());
+        } catch (const SimpleWeb::system_error &e) {
+                m_logger->error("Unregister configuration category failed %s.", e.what());
+                return false;
+        }
+        return false;
+}

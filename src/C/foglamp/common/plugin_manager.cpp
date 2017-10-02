@@ -12,6 +12,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <iostream>
+#include <unistd.h>
 
 using namespace std;
 
@@ -60,6 +61,14 @@ char          buf[128];
    * Find and load the dynamic library that is the plugin
    */
   snprintf(buf, sizeof(buf), "./lib%s.so", name.c_str());
+  if (access(buf, F_OK) != 0)
+  {
+    char *home = getenv("FOGLAMP_HOME");
+    if (home)
+    {
+        snprintf(buf, sizeof(buf), "%s/plugins/lib%s.so", home, name.c_str());
+    }
+  }
   if ((hndl = dlopen(buf, RTLD_LAZY)) != NULL)
   {
     func_t infoEntry = (func_t)dlsym(hndl, "plugin_info");

@@ -109,6 +109,34 @@ string responsePayload;
 }
 
 /**
+ * Received a shutdown request, construct a reply and return to caller
+ */
+void ManagementApi::shutdown(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+
+	(void)request;	// Unsused argument
+	convert << "{ \"message\" : \"Shutdown in progress\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
+/**
+ * Received a config change request, construct a reply and return to caller
+ */
+void ManagementApi::configChange(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+
+	(void)request;	// Unsused argument
+	convert << "{ \"message\" ; \"Config change accepted\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
+/**
  * HTTP response method
  */
 void ManagementApi::respond(shared_ptr<HttpServer::Response> response, const string& payload)

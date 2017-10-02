@@ -16,7 +16,9 @@
 #include <time.h>
 #include <thread>
 
-#define PING	"/management/ping"
+#define PING			"/foglamp/service/ping"
+#define SERVICE_SHUTDOWN	"/foglamp/service/shutdown"
+#define CONFIG_CHANGE		"/foglamp/change"
 
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
@@ -32,6 +34,8 @@ class ManagementApi {
 		void startServer();
 		void registerStats(JSONProvider *statsProvider);
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
 	private:
 		static ManagementApi *m_instance;

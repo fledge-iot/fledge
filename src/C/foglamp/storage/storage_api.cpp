@@ -203,6 +203,10 @@ void StorageApi::start() {
 void StorageApi::startServer() {
 	m_server->start();
 }
+
+void StorageApi::stopServer() {
+	m_server->stop();
+}
 /**
  * Wait for the HTTP server to shutdown
  */

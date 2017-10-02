@@ -61,8 +61,13 @@ void StorageService::start()
 	ServiceRecord record("storage", "Storage", "http", "localhost", 8080);
 	ManagementClient *client = new ManagementClient("localhost", 8082);
 	client->registerService(record);
+	client->registerCategory(STORAGE_CATEGORY);
 
+	// Wait for all the API threads to complete
 	api->wait();
+
+	// Clean shutdown, unregister the storage service
+	client->unregisterService();
 }
 
 /**
@@ -98,4 +103,26 @@ bool StorageService::loadPlugin()
 		return true;
 	}
 	return false;
+}
+
+/**
+ * Shutdown request
+ */
+void StorageService::shutdown()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	api->stopServer();
+}
+
+/**
+ * Configuration change notification
+ */
+void StorageService::configChange(const string& categoryName, const string& category)
+{
+	if (!categoryName.compare(STORAGE_CATEGORY))
+	{
+		config->updateCategory(category);
+	}
 }

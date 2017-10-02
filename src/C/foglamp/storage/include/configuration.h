@@ -14,6 +14,7 @@
 #include <string>
 #include <rapidjson/document.h>
 
+#define STORAGE_CATEGORY	  "STORAGE"
 #define CONFIGURATION_CACHE_FILE  ".storage.json"
 
 /**

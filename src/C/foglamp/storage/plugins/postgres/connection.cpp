@@ -21,6 +21,7 @@
 #include <regex>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sstream>
 
 
 using namespace std;
@@ -61,7 +62,6 @@ Connection::~Connection()
 /**
  * Perform a query against a common table
  *
- * TODO Improve error handling
  */
 bool Connection::retrieve(const string& table, const string& condition, string& resultSet)
 {
@@ -213,7 +213,6 @@ int		col = 0;
 /**
  * Perform an update against a common table
  *
- * TODO Improve error handling
  */
 bool Connection::update(const string& table, const string& payload)
 {
@@ -306,7 +305,6 @@ int		col = 0;
 /**
  * Perform a delete against a common table
  *
- * TODO Improve error handling
  */
 bool Connection::deleteRows(const string& table, const string& condition)
 {
@@ -325,8 +323,6 @@ SQLBuffer	sql;
 		}
 		else
 		{
-			assert(document.IsObject());
-	 
 			if (document.HasMember("where"))
 			{
 				if (!jsonWhereClause(document["where"], sql))
@@ -457,26 +453,85 @@ char	sqlbuffer[100];
 /**
  * Purge readings from the reading table
  */
-unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, unsigned long sent)
+unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& result)
 {
 SQLBuffer sql;
+long unsentPurged = 0;
+long unsentRetained = 0;
+long numReadings = 0;
 
+	if (~flags)
+	{
+		// Get number of unsent rows we are about to remove
+		SQLBuffer unsentBuffer;
+		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - ");
+		unsentBuffer.append(age);
+		unsentBuffer.append(" AND id < ");
+		unsentBuffer.append(sent);
+		unsentBuffer.append(';');
+		const char *query = unsentBuffer.coalesce();
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_TUPLES_OK)
+		{
+			unsentPurged = atol(PQgetvalue(res, 0, 0));
+			PQclear(res);
+		}
+		else
+		{
+			PQclear(res);
+		}
+	}
+	
 	sql.append("DELETE FROM readings WHERE user_ts < now() - ");
 	sql.append(age);
 	if (flags)	// Don't delete unsent rows
 	{
-		sql.append(" AND id < sent");
+		sql.append(" AND id < ");
+		sql.append(sent);
 	}
+	sql.append(';');
 	const char *query = sql.coalesce();
 	PGresult *res = PQexec(dbConnection, query);
-	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	delete[] query;
+	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 	{
-		unsigned int deletedRows = atoi(PQcmdTuples(res));
 		PQclear(res);
-		return deletedRows;
+		return 0;
+	}
+	unsigned int deletedRows = (unsigned int)atoi(PQcmdTuples(res));
+	PQclear(res);
+
+	SQLBuffer retainedBuffer;
+	retainedBuffer.append("SELECT count(*) FROM readings WHERE id > ");
+	retainedBuffer.append(sent);
+	retainedBuffer.append(';');
+	const char *query1 = retainedBuffer.coalesce();
+	res = PQexec(dbConnection, query1);
+	delete[] query1;
+	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+	{
+		unsentRetained = atol(PQgetvalue(res, 0, 0));
 	}
 	PQclear(res);
-	return 0;
+
+	res = PQexec(dbConnection, "SELECT count(*) FROM readings;");
+	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+	{
+		numReadings = atol(PQgetvalue(res, 0, 0));
+	}
+	PQclear(res);
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : " << deletedRows << ", ";
+	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+    	convert << " \"readings\" : " << numReadings << " }";
+
+	result = convert.str();
+
+	return deletedRows;
 }
 
 
@@ -626,8 +681,6 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 /**
  * Convert a JSON where clause into a PostresSQL where clause
  *
- * TODO Improve error handling
- * TODO Add aggregates
  */
 bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 {

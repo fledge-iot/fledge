@@ -48,6 +48,7 @@ string payload;
 	try {
 		service.asJSON(payload);
 		auto res = m_client->request("POST", "/foglamp/service", payload);
+m_logger->info(res->content.string().c_str());
 		Document doc;
 		doc.Parse(res->content.string().c_str());
 		if (doc.HasParseError())

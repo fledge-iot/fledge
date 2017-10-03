@@ -118,14 +118,15 @@ std::string results;
 	return NULL;
 }
 
-unsigned int plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent)
+char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+std::string 	  results;
 
-	unsigned int rval = connection->purgeReadings(age, flags, sent);
+	(void)connection->purgeReadings(age, flags, sent, results);
 	manager->release(connection);
-	return rval;
+	return strdup(results.c_str());
 }
 
 

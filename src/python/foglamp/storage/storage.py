@@ -443,9 +443,6 @@ class Readings(Storage):
         if flag and flag.lower() not in valid_flags:
             raise InvalidReadingsPurgeFlagParameters
 
-        if flag:
-            _flag = flag.lower()
-
         # age should be int
         # sent_id should again be int
         try:
@@ -457,9 +454,9 @@ class Readings(Storage):
         conn = http.client.HTTPConnection(cls._base_url)
         # TODO: need to set http / https based on service protocol
 
-        put_url = '/storage/reading/query?age={}&sent={}'.format(_age, _sent_id)
+        put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
         if flag:
-            put_url += "&flags={}".format(_flag)
+            put_url += "&flags={}".format(flag.lower())
 
         conn.request('PUT', url=put_url, body=None)
         r = conn.getresponse()

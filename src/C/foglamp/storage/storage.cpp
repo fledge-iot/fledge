@@ -57,6 +57,7 @@ void StorageService::start()
 	api->initResources();
 	logger->info("Starting service...");
 	api->start();
+	management.registerService(this);
 
 	management.start();
 
@@ -75,6 +76,7 @@ void StorageService::start()
 
 	// Clean shutdown, unregister the storage service
 	client->unregisterService();
+	logger->info("Storage service shut down.");
 }
 
 /**
@@ -120,6 +122,7 @@ void StorageService::shutdown()
 	/* Stop recieving new requests and allow existing
 	 * requests to drain.
 	 */
+	logger->info("Storage service shutdown in progress.");
 	api->stopServer();
 }
 

@@ -10,6 +10,7 @@
  * Author: Mark Riddoch
  */
 #include <json_provider.h>
+#include <service_handler.h>
 #include <server_http.hpp>
 #include <logger.h>
 #include <string>
@@ -33,6 +34,9 @@ class ManagementApi {
 		void start();
 		void startServer();
 		void registerStats(JSONProvider *statsProvider);
+		void registerService(ServiceHandler *serviceHandler) {
+			m_serviceHandler = serviceHandler;
+		}
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
@@ -44,6 +48,7 @@ class ManagementApi {
 		time_t		m_startTime;
 		HttpServer	*m_server;
 		JSONProvider	*m_statsProvider;
+		ServiceHandler	*m_serviceHandler;
 		std::thread	*m_thread;
 		void            respond(std::shared_ptr<HttpServer::Response>, const std::string&);
 };

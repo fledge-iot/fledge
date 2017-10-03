@@ -10,13 +10,16 @@
  * Author: Mark Riddoch
  */
 #include <json_provider.h>
+#include <service_handler.h>
 #include <server_http.hpp>
 #include <logger.h>
 #include <string>
 #include <time.h>
 #include <thread>
 
-#define PING	"/management/ping"
+#define PING			"/foglamp/service/ping"
+#define SERVICE_SHUTDOWN	"/foglamp/service/shutdown"
+#define CONFIG_CHANGE		"/foglamp/change"
 
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
@@ -31,7 +34,12 @@ class ManagementApi {
 		void start();
 		void startServer();
 		void registerStats(JSONProvider *statsProvider);
+		void registerService(ServiceHandler *serviceHandler) {
+			m_serviceHandler = serviceHandler;
+		}
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
 	private:
 		static ManagementApi *m_instance;
@@ -40,6 +48,7 @@ class ManagementApi {
 		time_t		m_startTime;
 		HttpServer	*m_server;
 		JSONProvider	*m_statsProvider;
+		ServiceHandler	*m_serviceHandler;
 		std::thread	*m_thread;
 		void            respond(std::shared_ptr<HttpServer::Response>, const std::string&);
 };

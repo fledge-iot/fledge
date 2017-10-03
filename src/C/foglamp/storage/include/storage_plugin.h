@@ -38,7 +38,7 @@ public:
 	bool		readingsAppend(const std::string& payload);
 	char		*readingsFetch(unsigned long id, unsigned int blksize);
 	char		*readingsRetrieve(const std::string& payload);
-	unsigned int	readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
+	char		*readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
 	void		release(const char *response);
 	PLUGIN_ERROR	*lastError();
 
@@ -51,7 +51,7 @@ private:
 	bool		(*readingsAppendPtr)(PLUGIN_HANDLE, const char *);
 	char		*(*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
 	char		*(*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
-	unsigned int	(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
+	char		*(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
 	void		(*releasePtr)(PLUGIN_HANDLE, const char *payload);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 };

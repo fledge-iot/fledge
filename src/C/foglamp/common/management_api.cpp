@@ -27,6 +27,24 @@ void pingWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServe
 }
 
 /**
+ * Wrapper for shutdown method
+ */
+void shutdownWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->shutdown(response, request);
+}
+
+/**
+ * Wrapper for config change method
+ */
+void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->configChange(response, request);
+}
+
+/**
  * Construct a microservices management API manager class
  */
 ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_name(name)
@@ -37,6 +55,8 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_startTime = time(0);
 	m_statsProvider = 0;
 	m_server->resource[PING]["GET"] = pingWrapper;
+	m_server->resource[SERVICE_SHUTDOWN]["POST"] = shutdownWrapper;
+	m_server->resource[CONFIG_CHANGE]["POST"] = configChangeWrapper;
 
 	m_instance = this;
 
@@ -104,6 +124,35 @@ string responsePayload;
 		convert << ", \"statistics\" : " << stats;
 	}
 	convert << " }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
+/**
+ * Received a shutdown request, construct a reply and return to caller
+ */
+void ManagementApi::shutdown(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+
+	(void)request;	// Unsused argument
+	m_serviceHandler->shutdown();
+	convert << "{ \"message\" : \"Shutdown in progress\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
+/**
+ * Received a config change request, construct a reply and return to caller
+ */
+void ManagementApi::configChange(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+
+	(void)request;	// Unsused argument
+	convert << "{ \"message\" ; \"Config change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }

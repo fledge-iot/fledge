@@ -22,9 +22,12 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
  */
 #define COMMON_ACCESS		"^/storage/table/([A-Za-z][a-zA-Z0-9_]*)$"
 #define COMMON_QUERY		"^/storage/table/([A-Za-z][a-zA-Z_0-9]*)/query$"
-#define READING_ACCESS  "^/storage/reading$"
-#define READING_QUERY   "^/storage/reading/query"
-#define READING_PURGE   "^/storage/reading/purge"
+#define READING_ACCESS  	"^/storage/reading$"
+#define READING_QUERY   	"^/storage/reading/query"
+#define READING_PURGE   	"^/storage/reading/purge"
+
+#define PURGE_FLAG_RETAIN	"retain"
+#define PURGE_FLAG_PURGE	"purge"
 
 #define TABLE_NAME_COMPONENT	1
 
@@ -36,13 +39,15 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 class StorageApi {
 
 public:
-	StorageApi(const short port, const int threads);
+	StorageApi(const unsigned short port, const int threads);
         static StorageApi *getInstance();
 	void	initResources();
 	void	setPlugin(StoragePlugin *);
 	void	start();
 	void	startServer();
 	void	wait();
+	void	stopServer();
+	unsigned short getListenerPort();
 	void	commonInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	commonSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	commonQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
@@ -57,7 +62,7 @@ public:
 private:
         static StorageApi       *m_instance;
         HttpServer              *m_server;
-	short                   m_port;
+	unsigned short          m_port;
 	int		        m_threads;
         thread                  *m_thread;
 	StoragePlugin		*plugin;

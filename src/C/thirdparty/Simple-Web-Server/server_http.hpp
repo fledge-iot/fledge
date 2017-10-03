@@ -357,6 +357,11 @@ namespace SimpleWeb {
       }
     }
 
+    unsigned short getLocalPort() {
+	boost::asio::ip::tcp::endpoint endpoint = acceptor->local_endpoint();
+	return endpoint.port();
+    }
+
     /// Stop accepting new requests, and close current connections.
     void stop() noexcept {
       if(acceptor) {

@@ -12,6 +12,7 @@
 #include "storage_api.h"
 #include "storage_stats.h"
 #include "management_api.h"
+#include "logger.h"
 
 
 // Added for the default_resource example
@@ -141,12 +142,12 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const short port, const int threads) {
+StorageApi::StorageApi(const unsigned short port, const int threads) {
 
 	m_port = port;
 	m_threads = threads;
 	m_server = new HttpServer();
-	m_server->config.port = 8080;
+	m_server->config.port = port;
 	StorageApi::m_instance = this;
 }
 
@@ -157,9 +158,17 @@ StorageApi *StorageApi::getInstance()
 {
 	if (m_instance == NULL)
 	{
-		m_instance = new StorageApi(8080, 1);
+		m_instance = new StorageApi(0, 1);
 	}
 	return m_instance;
+}
+
+/**
+ * Return the current listener port
+ */
+unsigned short StorageApi::getListenerPort()
+{
+	return m_server->getLocalPort();
 }
 
 /**
@@ -202,6 +211,10 @@ void StorageApi::start() {
 
 void StorageApi::startServer() {
 	m_server->start();
+}
+
+void StorageApi::stopServer() {
+	m_server->stop();
 }
 /**
  * Wait for the HTTP server to shutdown
@@ -552,6 +565,7 @@ void StorageApi::readingPurge(shared_ptr<HttpServer::Response> response, shared_
 SimpleWeb::CaseInsensitiveMultimap query;
 unsigned long age = 0;
 unsigned long lastSent = 0;
+unsigned int  flagsMask = 0;
 string        flags;
 
 	stats.readingPurge++;
@@ -586,12 +600,18 @@ string        flags;
 		{
 			flags = search->second;
 			// TODO Turn flags into a bitmap
+			if (flags.compare(PURGE_FLAG_RETAIN))
+			{
+				flagsMask |= 0x0001;
+			}
+			else if (flags.compare(PURGE_FLAG_PURGE))
+			{
+				flagsMask &= 0xfffe;
+			}
 		}
-		unsigned int purged = plugin->readingsPurge(age, 0, lastSent);
+		char *purged = plugin->readingsPurge(age, flagsMask, lastSent);
 
-		string responsePayload = "{ \"purged\" : ";
-		responsePayload += purged;
-		responsePayload += " }";
+		string responsePayload = purged;
 		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
@@ -619,7 +639,8 @@ string payload = "{ \"Exception\" : \"";
 	payload = payload + string(ex.what());
 	payload = payload + "\"";
 
-	printf("Internal Error: %s\n", ex.what());
+	Logger *logger = Logger::getLogger();
+	logger->error("StorgeApi Internal Error: %s\n", ex.what());
 	respond(response, SimpleWeb::StatusCode::server_error_internal_server_error, payload);
 }
 

@@ -26,7 +26,7 @@ class Connection {
 		bool		deleteRows(const std::string& table, const std::string& condition);
 		bool		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
-		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent);
+		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
 	private:
 		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;

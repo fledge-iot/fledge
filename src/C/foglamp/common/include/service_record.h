@@ -18,14 +18,16 @@ class ServiceRecord : public JSONProvider {
 			      const std::string& type,
 			      const std::string& protocol,
 			      const std::string& address,
-			      const short port);
+			      const unsigned short port,
+			      const unsigned short managementPort);
 		void asJSON(std::string &) const;
 	private:
 		std::string		m_name;
 		std::string		m_type;
 		std::string		m_protocol;
 		std::string		m_address;
-		short			m_port;
+		unsigned short		m_port;
+		unsigned short		m_managementPort;
 };
 
 #endif

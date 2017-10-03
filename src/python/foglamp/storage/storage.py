@@ -25,31 +25,10 @@ _LOGGER = logger.setup(__name__)
 
 
 class AbstractStorage(ABC):
+    """ abstract class for storage client """
 
-    """ abstract class for storage client
-    """
-
-    def __init__(self, service):
-        self.service = service
-        super(AbstractStorage, self).__init__()
-
-    @property
-    def service(self):
-        return self.__service
-
-    @service.setter
-    def service(self, svc):
-        if not isinstance(svc, Service):
-            w_msg = 'Storage should be a valid FogLAMP micro-service instance'
-            _LOGGER.warning(w_msg)
-            raise InvalidServiceInstance
-
-        if not getattr(svc, "_type") == "Storage":
-            w_msg = 'Storage should be a valid *Storage* micro-service instance'
-            _LOGGER.warning(w_msg)
-            raise InvalidServiceInstance
-        # ignore inspection
-        self.__service = svc
+    def __init__(self):
+        super().__init__()
 
     @abstractmethod
     def connect(self):
@@ -80,14 +59,58 @@ class Storage(AbstractStorage):
         except Service.DoesNotExist:
             raise InvalidServiceInstance
 
-    def connect(self):
-        # TODO: (Praveen) connect to storage service
+    @property
+    def base_url(self):
+        return self.__base_url
+
+    @base_url.setter
+    def base_url(self, url):
+        self.__base_url = url
+
+    @property
+    def service(self):
+        return self.__service
+
+    @service.setter
+    def service(self, svc):
+        if not isinstance(svc, Service):
+            w_msg = 'Storage should be a valid FogLAMP micro-service instance'
+            _LOGGER.warning(w_msg)
+            raise InvalidServiceInstance
+
+        if not getattr(svc, "_type") == "Storage":
+            w_msg = 'Storage should be a valid *Storage* micro-service instance'
+            _LOGGER.warning(w_msg)
+            raise InvalidServiceInstance
+
+        self.__service = svc
+
+    def check_service_availibility(self):
+        """ ping Storage service """
+
         print("Connecting to service: %s", self.service.__repr__)
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+
+        get_url = '/storage/ping'
+        conn.request('GET', url=get_url)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
+    def connect(self):
         return self
 
     def disconnect(self):
-        # TODO: (Praveen) disconnect storage service
-        print("Disconnecting service")
+        pass
 
     def insert_into_tbl(self, tbl_name, data):
         """ insert json payload into given table
@@ -275,24 +298,177 @@ class Storage(AbstractStorage):
         return json.loads(res)
 
 
-class Readings(object):
-    """ Readings table operations"""
+class Readings(Storage):
+    """ Readings table operations """
 
-    _TABLE = 'readings'
+    _base_url = ""
 
-    @classmethod
-    def append(cls, conn, readings):
-        pass
-
-    @classmethod
-    def fetch(cls, reading_id, size):
-        pass
+    def __init__(self):
+        super().__init__()
+        # FIXME: WTH?
+        self.__class__._base_url = self.base_url
 
     @classmethod
-    def query(cls, query):
-        pass
+    def append(cls, readings):
+        """
+        :param readings:
+        :return:
 
-    # TODO: these value shall be picked from purge config and passed to it?
+        :Example:
+            curl -X POST http://0.0.0.0:8080/storage/reading -d @payload.json
+
+            {
+              "readings" : [
+                {
+                  "asset_code": "MyAsset",
+                  "read_key" : "5b3be500-ff95-41ae-b5a4-cc99d08bef40",
+                  "reading" : { "rate" : 18.4 },
+                  "user_ts" : "2017-09-21 15:00:09.025655"
+                },
+                {
+                "asset_code": "MyAsset",
+                "read_key" : "5b3be500-ff95-41ae-b5a4-cc99d18bef40",
+                "reading" : { "rate" : 45.1 },
+                "user_ts" : "2017-09-21 15:03:09.025655"
+                }
+              ]
+            }
+
+        """
+
+        conn = http.client.HTTPConnection(cls._base_url)
+        # TODO: need to set http / https based on service protocol
+
+        if not readings:
+            raise ValueError("Readings payload is missing")
+
+        if not Utils.is_json(readings):
+            raise TypeError("Readings payload must be a valid JSON")
+
+        conn.request('POST', url='/storage/reading', body=readings)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
     @classmethod
-    def purge(cls, age, sent_id, purge_unsent=False):
-        pass
+    def fetch(cls, reading_id, count):
+        """
+
+        :param reading_id: the first reading ID in the block that is retrieved
+        :param count: the number of readings to return, if available
+        :return:
+        :Example:
+            curl -X  GET http://0.0.0.0:8080/storage/reading?id=2&count=3
+
+        """
+
+        conn = http.client.HTTPConnection(cls._base_url)
+        # TODO: need to set http / https based on service protocol
+
+        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
+
+        conn.request('GET', url=get_url)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
+    @classmethod
+    def query(cls, query_payload):
+        """
+
+        :param query_payload:
+        :return:
+        :Example:
+            curl -X PUT http://0.0.0.0:8080/storage/reading/query -d @payload.json
+
+            @payload.json content:
+            {
+              "where" : {
+                "column" : "asset_code",
+                "condition" : "=",
+                "value" : "MyAsset"
+                }
+            }
+        """
+        conn = http.client.HTTPConnection(cls._base_url)
+        # TODO: need to set http / https based on service protocol
+
+        conn.request('PUT', url='/storage/reading/query', body=query_payload)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
+    @classmethod
+    def purge(cls, age, sent_id, flag=None):
+        """ Purge readings based on the age of the readings
+
+        :param age: the maximum age of data to retain, expressed in hours
+        :param sent_id: the id of the last reading to be sent out of FogLAMP
+        :param flag: define what to do about unsent readings. Valid options are retain or purge
+        :return: a JSON with the number of readings removed, the number of unsent readings removed
+            and the number of readings that remain
+        :Example:
+            curl -X PUT http://0.0.0.0:8080/storage/reading/purge?age=24&sent=2&flags=PURGE
+            curl -X PUT <base url>?/storage/reading/purge?age=<age>&sent=<reading id>&flags=<flags>
+
+        """
+        # TODO: flagS should be flag?
+
+        valid_flags = ['retain', 'purge']
+
+        if flag and flag.lower() not in valid_flags:
+            raise InvalidReadingsPurgeFlagParameters
+
+        # age should be int
+        # sent_id should again be int
+        try:
+            _age = int(age)
+            _sent_id = int(sent_id)
+        except TypeError:
+            raise
+
+        conn = http.client.HTTPConnection(cls._base_url)
+        # TODO: need to set http / https based on service protocol
+
+        put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
+        if flag:
+            put_url += "&flags={}".format(flag.lower())
+
+        conn.request('PUT', url=put_url, body=None)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        # NOTE: If the data could not be deleted because of a conflict,
+        #       then the error “409 Conflict” will be returned.
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)

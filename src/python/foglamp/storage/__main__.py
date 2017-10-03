@@ -4,7 +4,9 @@
 
 """ This module is for test purpose only!
 
-This must go away when tests and actually STORAGE layer (FOGL-197) are in place
+USE src/python/foglamp/storage/payload_builder.py
+
+This will go away when tests, payload_builder and actually STORAGE layer (FOGL-197) are in place
 
 """
 
@@ -27,9 +29,7 @@ def insert_data():
     data['history_ts'] = 'now'
     data['value'] = 1
 
-    con = Storage().connect()
-    con.insert_into_tbl("statistics_history", json.dumps(data))
-    con.disconnect()
+    Storage().insert_into_tbl("statistics_history", json.dumps(data))
 
 
 def update_data():
@@ -46,9 +46,7 @@ def update_data():
     data['condition'] = condition
     data['values'] = values
 
-    con = Storage().connect()
-    con.update_tbl("statistics_history", json.dumps(data))
-    con.disconnect()
+    Storage().update_tbl("statistics_history", json.dumps(data))
 
 
 def delete_tbl_data():
@@ -78,12 +76,10 @@ def delete_tbl_data():
 
     res = Storage().connect().delete_from_tbl("statistics_history", json.dumps(cond))
     print(res)
-    Storage().disconnect()
 
     ''' DELETE FROM statistics_history '''
     # res = Storage().connect().delete_from_tbl("statistics_history")
     # print(res)
-    # Storage().disconnect()
 
 
 def query_table():
@@ -182,52 +178,45 @@ def append_readings():
 
     print(json.dumps(payload))
 
-    r = Readings().connect()
-    res = r.append(json.dumps(payload))
+    res = Readings().append(json.dumps(payload))
     print(res)
-    Readings().disconnect()
 
 
 def fetch_readings():
     print("fetch_readings:")
-    r = Readings().connect()
     # tested,
     # works fine if records are less then count
     # also works fine if reading_id does not exist, {'rows': [], 'count': 0}
-    res = r.fetch(reading_id=1, count=2)
+    res = Readings().fetch(reading_id=1, count=2)
     print(res)
-    Readings().disconnect()
 
 
 def purge_readings():
     print("purge_readings:")
 
-    r = Readings().connect()
-
-    res = r.purge('24', '100071')
+    res = Readings().purge('24', '100071')
 
     # TODO: Move to tests :]
     # try many (type checking)
 
-    res = r.purge(24, '100071')
+    res = Readings().purge(24, '100071')
 
-    res = r.purge(24, '100071', 'puRge')
+    # res = Readings().purge(24, '100071', 'puRge')
 
-    res = r.purge(24, '100071', 'RETAIN')
+    res = Readings().purge(24, 100071, 'RETAIN')
 
     try:
-        # res = r.purge('b', '100071', 'RETAIN')
+        # res = Readings().purge('b', '100071', 'RETAIN')
 
-        # res = r.purge('1', 'v', 'RETAIN')
+        # res = Readings().purge('1', 'v', 'RETAIN')
 
-        res = r.purge(24, '100071', 'xRETAIN')
+        res = Readings().purge(24, '100071', 'xRETAIN')
     except ValueError:
         print("age or reading is not an integer value :/")
     except InvalidReadingsPurgeFlagParameters:
         print("AS expected, InvalidReadingsPurgeFlagParameters")
 
     print(res)
-    Readings().disconnect()
 
 
 def query_readings():
@@ -241,13 +230,11 @@ def query_readings():
     query_payload['where'] = cond1
 
     query_payload['limit'] = 2
-
     query_payload['skip'] = 1
 
     print("query_readings payload: ", json.dumps(query_payload))
 
-    r = Readings().connect()
-    res = r.query(json.dumps(query_payload))
+    res = Readings().query(json.dumps(query_payload))
     print(res)
 
     # expected response
@@ -257,10 +244,10 @@ def query_readings():
             ]
     }'''
 
-    Readings().disconnect()
-
 
 try:
+    ping_response = Storage().check_service_availibility()
+    print("check_service_availibility res: ", ping_response)
 
     query_table()
 
@@ -277,10 +264,12 @@ try:
 
     fetch_readings()
 
-    # TODO: these value shall be picked from purge config and passed to it?
+    # TODO: Shall these value be picked from purge config and passed to it?
     purge_readings()
 
     query_readings()
+
+    # TODO: verify 1 error payload
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

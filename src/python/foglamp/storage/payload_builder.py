@@ -250,10 +250,9 @@ if __name__ == "__main__":
 
     assert insert_payload == json.dumps(insert_test_data, sort_keys=True)
 
-    res = Storage().connect().insert_into_tbl("statistics_history", insert_payload)
+    res = Storage().insert_into_tbl("statistics_history", insert_payload)
     print(res)
     # assert res  "{'response': 'inserted'}"
-    Storage().disconnect()
 
     # Update
     update_payload = PayloadBuilder()\
@@ -278,9 +277,6 @@ if __name__ == "__main__":
 
     assert update_payload == json.dumps(update_test_data, sort_keys=True)
 
-    res = Storage().connect().update_tbl("statistics_history", update_payload)
+    res = Storage().update_tbl("statistics_history", update_payload)
     print(res)
     # assert res  "{'response': 'updated'}"
-    Storage().disconnect()
-
-

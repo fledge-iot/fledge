@@ -82,16 +82,35 @@ class Storage(AbstractStorage):
             w_msg = 'Storage should be a valid *Storage* micro-service instance'
             _LOGGER.warning(w_msg)
             raise InvalidServiceInstance
+
         self.__service = svc
 
-    def connect(self):
-        # TODO: (Praveen) connect to storage service
+    def check_service_availibility(self):
+        """ ping Storage service """
+
         print("Connecting to service: %s", self.service.__repr__)
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+
+        get_url = '/storage/ping'
+        conn.request('GET', url=get_url)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
+    def connect(self):
         return self
 
     def disconnect(self):
-        # TODO: (Praveen) disconnect storage service
-        print("Disconnecting service")
+        pass
 
     def insert_into_tbl(self, tbl_name, data):
         """ insert json payload into given table
@@ -347,7 +366,7 @@ class Readings(Storage):
         :param count: the number of readings to return, if available
         :return:
         :Example:
-            curl -X  GET /storage/reading?id=2&count=3
+            curl -X  GET http://0.0.0.0:8080/storage/reading?id=2&count=3
 
         """
 
@@ -413,7 +432,8 @@ class Readings(Storage):
         :return: a JSON with the number of readings removed, the number of unsent readings removed
             and the number of readings that remain
         :Example:
-            curl -X PUT http://0.0.0.0:8080/storage/reading/purge?age=<age>&sent=<reading id>&flags=<flags>
+            curl -X PUT http://0.0.0.0:8080/storage/reading/purge?age=24&sent=2&flags=PURGE
+            curl -X PUT <base url>?/storage/reading/purge?age=<age>&sent=<reading id>&flags=<flags>
 
         """
         # TODO: flagS should be flag?
@@ -434,7 +454,25 @@ class Readings(Storage):
         except TypeError:
             raise
 
-        # TODO: If the data could not be deleted because of a conflict,
-        # then the error “409 Conflict” should be returned.
+        conn = http.client.HTTPConnection(cls._base_url)
+        # TODO: need to set http / https based on service protocol
 
-        print("Implement me", _age, _sent_id, _flag if flag else "")
+        put_url = '/storage/reading/query?age={}&sent={}'.format(_age, _sent_id)
+        if flag:
+            put_url += "&flags={}".format(_flag)
+        print(put_url)
+
+        conn.request('PUT', url=put_url, body=None)
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        # NOTE: If the data could not be deleted because of a conflict,
+        #       then the error “409 Conflict” will be returned.
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)

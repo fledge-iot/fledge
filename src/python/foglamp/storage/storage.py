@@ -460,7 +460,6 @@ class Readings(Storage):
         put_url = '/storage/reading/query?age={}&sent={}'.format(_age, _sent_id)
         if flag:
             put_url += "&flags={}".format(_flag)
-        print(put_url)
 
         conn.request('PUT', url=put_url, body=None)
         r = conn.getresponse()

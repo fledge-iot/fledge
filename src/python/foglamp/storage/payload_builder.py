@@ -170,6 +170,18 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
+    def OFFSET(cls, arg):
+        if isinstance(arg, int):
+            try:
+                limit = cls.query_payload['limit']
+            except KeyError:
+                raise KeyError("LIMIT is required to set OFFSET to skip")
+            cls.query_payload.update({"skip": arg})
+        return cls
+
+    SKIP = OFFSET
+
+    @classmethod
     def ORDER_BY(cls, *args):
         for arg in args:
             sort = {}
@@ -280,3 +292,18 @@ if __name__ == "__main__":
     res = Storage().update_tbl("statistics_history", update_payload)
     print(res)
     # assert res  "{'response': 'updated'}"
+
+    try:
+        offset = PayloadBuilder().SKIP(5).payload()
+        print(offset)
+    except Exception as ex:
+        print(str(ex))
+
+    limit = PayloadBuilder().LIMIT(2).payload()
+    print(limit)
+
+    limit_and_offset = PayloadBuilder().LIMIT(2).OFFSET(10).payload()
+    print(limit_and_offset)
+
+    limit_and_skip = PayloadBuilder().LIMIT(2).SKIP(12).payload()
+    print(limit_and_skip)

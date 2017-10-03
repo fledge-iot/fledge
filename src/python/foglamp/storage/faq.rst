@@ -61,7 +61,7 @@ Make sure you have pre-requisite installed.
 
 .. _demo test scripts:
 
-…where can I find the test (demo) scripts?
+… where can I find the test (demo) scripts?
 ------------------------------------------
 There are some curl scripts that demonstrate the usage in FogLAMP/test/storage.
 

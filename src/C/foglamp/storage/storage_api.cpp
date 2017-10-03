@@ -11,6 +11,7 @@
 #include "server_http.hpp"
 #include "storage_api.h"
 #include "storage_stats.h"
+#include "management_api.h"
 
 
 // Added for the default_resource example
@@ -182,6 +183,9 @@ void StorageApi::initResources()
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
 
 	m_server->on_error = on_error;
+
+	ManagementApi *management = ManagementApi::getInstance();
+	management->registerStats(&stats);
 }
 
 void startService()

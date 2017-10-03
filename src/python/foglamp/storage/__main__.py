@@ -23,16 +23,20 @@ Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", po
 
 
 def insert_data():
+    print("Storage::insert_data :")
     data = dict()
 
     data['key'] = 'SENT_test'
     data['history_ts'] = 'now'
     data['value'] = 1
 
-    Storage().insert_into_tbl("statistics_history", json.dumps(data))
+    res = Storage().insert_into_tbl("statistics_history", json.dumps(data))
+    print(res)
 
 
 def update_data():
+    print("Storage::update_data :")
+
     condition = dict()
 
     condition['column'] = 'key'
@@ -46,10 +50,12 @@ def update_data():
     data['condition'] = condition
     data['values'] = values
 
-    Storage().update_tbl("statistics_history", json.dumps(data))
+    res = Storage().update_tbl("statistics_history", json.dumps(data))
+    print(res)
 
 
 def delete_tbl_data():
+    print("Storage::delete_tbl_data :")
 
     # payload as per doc,
     # see: Plugin Common Delete
@@ -74,17 +80,18 @@ def delete_tbl_data():
     ''' DELETE FROM statistics_history WHERE key = 'SENT_test' OR id='13084' '''
     cond['or'] = del_cond_2
 
-    res = Storage().connect().delete_from_tbl("statistics_history", json.dumps(cond))
+    res = Storage().delete_from_tbl("statistics_history", json.dumps(cond))
     print(res)
 
     ''' DELETE FROM statistics_history '''
-    # res = Storage().connect().delete_from_tbl("statistics_history")
+    # res = Storage().delete_from_tbl("statistics_history")
     # print(res)
 
 
 def query_table():
+    print("Storage::query_table :")
 
-    with Storage() as conn:
+    with Storage() as store:
         # commented code
         '''
         query = dict()
@@ -103,15 +110,16 @@ def query_table():
         ''' SELECT * FROM configuration WHERE key='COAP_CONF' '''
         # TODO: check &limit=1 (and offset, order_by) will work here?
         q = 'key=COAP_CONF'
-        res = conn.query_tbl('configuration', q)
+        res = store.query_tbl('configuration', q)
         print(res)
 
         ''' SELECT * FROM statistics '''
-        res = conn.query_tbl('statistics')
+        res = store.query_tbl('statistics')
         print(res)
 
 
 def query_table_with_payload():
+    print("Storage::query_table_with_payload :")
 
     # WHERE key = 'SENT_test'"
 
@@ -145,12 +153,13 @@ def query_table_with_payload():
     payload = json.dumps(query_payload)
     print(payload)
 
-    with Storage() as conn:
-        res = conn.query_tbl_with_payload('statistics_history', payload)
+    with Storage() as store:
+        res = store.query_tbl_with_payload('statistics_history', payload)
     print(res)
 
 
 def append_readings():
+    print("Readings::append_readings :")
     import uuid
     import random
     readings = []
@@ -183,7 +192,7 @@ def append_readings():
 
 
 def fetch_readings():
-    print("fetch_readings:")
+    print("Readings::fetch_readings :")
     # tested,
     # works fine if records are less then count
     # also works fine if reading_id does not exist, {'rows': [], 'count': 0}
@@ -192,18 +201,16 @@ def fetch_readings():
 
 
 def purge_readings():
-    print("purge_readings:")
+    print("Readings::purge_readings :")
 
     res = Readings().purge('24', '100071')
 
-    # TODO: Move to tests :]
     # try many (type checking)
-
     res = Readings().purge(24, '100071')
 
     # res = Readings().purge(24, '100071', 'puRge')
 
-    res = Readings().purge(24, 100071, 'RETAIN')
+    res = Readings().purge(age=24, sent_id=100071, flag='RETAIN')
 
     try:
         # res = Readings().purge('b', '100071', 'RETAIN')
@@ -220,6 +227,7 @@ def purge_readings():
 
 
 def query_readings():
+    print("Readings::query_readings :")
 
     cond1 = OrderedDict()
     cond1['column'] = 'asset_code'
@@ -246,6 +254,8 @@ def query_readings():
 
 
 try:
+    # TODO: Move to tests :]
+
     ping_response = Storage().check_service_availibility()
     print("check_service_availibility res: ", ping_response)
 

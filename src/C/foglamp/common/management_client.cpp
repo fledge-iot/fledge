@@ -21,7 +21,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 /**
  * Management Client constructor
  */
-ManagementClient::ManagementClient(const string& hostname, const short port)
+ManagementClient::ManagementClient(const string& hostname, const unsigned short port)
 {
 ostringstream urlbase;
 

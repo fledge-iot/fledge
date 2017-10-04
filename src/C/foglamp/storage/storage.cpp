@@ -16,15 +16,82 @@
 #include <plugin_api.h>
 #include <plugin.h>
 #include <logger.h>
+#include <iostream>
+
+extern int makeDaemon(void);
+
+using namespace std;
 
 /**
  * Storage service main entry point
  */
 int main(int argc, char *argv[])
 {
+unsigned short corePort = 8082;
+string	       coreAddress = "localhost";
+bool	       daemonMode = true;
+
+	for (int i = 1; i < argc; i++)
+	{
+		if (!strcmp(argv[i], "-d"))
+		{
+			daemonMode = false;
+		}
+		else if (!strncmp(argv[i], "--port=", 7))
+		{
+			corePort = (unsigned short)atoi(&argv[i][7]);
+		}
+		else if (!strncmp(argv[i], "--address=", 10))
+		{
+			coreAddress = &argv[i][10];
+		}
+	}
+
+	if (daemonMode && makeDaemon() == -1)
+	{
+		// Failed to run in daemon mode
+		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
+	}
+
 	StorageService *service = new StorageService();
-	service->start();
+	service->start(coreAddress, corePort);
 	return 0;
+}
+
+/**
+ * Detach the process from the terminal and run in the background.
+ */
+int makeDaemon()
+{
+pid_t pid;
+
+	/* create new process */
+	if ((pid = fork()  ) == -1)
+	{
+		return -1;  
+	}
+	else if (pid != 0)  
+	{
+		exit (EXIT_SUCCESS);  
+	}
+
+	// If we got here we are a child process
+
+	// create new session and process group 
+	if (setsid() == -1)  
+	{
+		return -1;  
+	}
+
+	// Close stdin, stdout and stderr
+	close(0);
+	close(1);
+	close(2);
+	// redirect fd's 0,1,2 to /dev/null
+	open("/dev/null", O_RDWR);  	// stdin
+	dup(0);  			// stdout
+	dup(0);  			// stderr
+ 	return 0;
 }
 
 /**
@@ -45,14 +112,14 @@ unsigned short servicePort;
 /**
  * Start the storage service
  */
-void StorageService::start()
+void StorageService::start(string& coreAddress, unsigned short corePort)
 {
 	if (!loadPlugin())
 	{
 		logger->fatal("Failed to load storage plugin.");
 		return;
 	}
-	unsigned short managementPort = 1081;
+	unsigned short managementPort = (unsigned short)atoi(config->getValue("managementPort"));
 	ManagementApi management("storage", managementPort);	// Start managemenrt API
 	api->initResources();
 	logger->info("Starting service...");
@@ -61,13 +128,13 @@ void StorageService::start()
 
 	management.start();
 
-
+	// Allow time for the listeners to start before we register
 	sleep(10);
 	// Now register our service
 	// TODO Dynamic ports, proper hostname lookup
 	unsigned short listenerPort = api->getListenerPort();
 	ServiceRecord record("storage", "Storage", "http", "localhost", managementPort, listenerPort);
-	ManagementClient *client = new ManagementClient("localhost", 8082);
+	ManagementClient *client = new ManagementClient(coreAddress, corePort);
 	client->registerService(record);
 	client->registerCategory(STORAGE_CATEGORY);
 

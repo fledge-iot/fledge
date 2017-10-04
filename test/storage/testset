@@ -33,3 +33,11 @@ Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
 Bad URL,GET,http://localhost:8080/foglamp/nothing,
 Bad table,GET,http://localhost:8080/storage/table/doesntexist,
 Bad column,GET,http://localhost:8080/storage/table/test?doesntexist=9,
+Ping interface,GET,http://192.168.56.101:1081/foglamp/service/ping,,checkstate
+Add Readings,POST,http://192.168.56.101:8080/storage/reading,asset.json
+Fetch Readings,GET,http://192.168.56.101:8080/storage/reading?id=1&count=1000,,checkstate
+Fetch Readings zero count,GET,http://192.168.56.101:8080/storage/reading?id=1&count=0,
+Fetch Readings no count,GET,http://192.168.56.101:8080/storage/reading?id=1,
+Fetch Readings no id,GET,http://192.168.56.101:8080/storage/reading?count=1000,
+Purge Readings,PUT,http://192.168.56.101:8080/storage/reading/purge?age=1000&sent=10&flags=retain,
+Shutdown,POST,http://192.168.56.101:1081/foglamp/service/shutdown,,checkstate

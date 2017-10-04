@@ -19,7 +19,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 class ManagementClient {
 	public:
-		ManagementClient(const std::string& hostname, const short port);
+		ManagementClient(const std::string& hostname, const unsigned short port);
 		~ManagementClient();
 		bool registerService(const ServiceRecord& service);
 		bool unregisterService();

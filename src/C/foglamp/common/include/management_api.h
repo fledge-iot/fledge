@@ -37,6 +37,9 @@ class ManagementApi {
 		void registerService(ServiceHandler *serviceHandler) {
 			m_serviceHandler = serviceHandler;
 		}
+		unsigned short getListenerPort() {
+			return m_server->getLocalPort();
+		}
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);

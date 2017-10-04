@@ -27,7 +27,7 @@
 class StorageService : public ServiceHandler {
 	public:
 		StorageService();
-		void 			start();
+		void 			start(std::string& coreAddress, unsigned short corePort);
 		void 			stop();
 		void			shutdown();
 		void			configChange(const std::string&, const std::string&);

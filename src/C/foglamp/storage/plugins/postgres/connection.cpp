@@ -464,9 +464,9 @@ long numReadings = 0;
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - ");
+		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
-		unsentBuffer.append(" AND id < ");
+		unsentBuffer.append(" seconds' AND id < ");
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
@@ -479,12 +479,14 @@ long numReadings = 0;
 		}
 		else
 		{
+ 			raiseError("retrieve", PQerrorMessage(dbConnection));
 			PQclear(res);
 		}
 	}
 	
-	sql.append("DELETE FROM readings WHERE user_ts < now() - ");
+	sql.append("DELETE FROM readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
+	sql.append(" seconds'");
 	if (flags)	// Don't delete unsent rows
 	{
 		sql.append(" AND id < ");
@@ -497,6 +499,7 @@ long numReadings = 0;
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
 	{
 		PQclear(res);
+ 		raiseError("retrieve", PQerrorMessage(dbConnection));
 		return 0;
 	}
 	unsigned int deletedRows = (unsigned int)atoi(PQcmdTuples(res));
@@ -513,12 +516,20 @@ long numReadings = 0;
 	{
 		unsentRetained = atol(PQgetvalue(res, 0, 0));
 	}
+	else
+	{
+ 		raiseError("retrieve", PQerrorMessage(dbConnection));
+	}
 	PQclear(res);
 
 	res = PQexec(dbConnection, "SELECT count(*) FROM readings;");
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
 		numReadings = atol(PQgetvalue(res, 0, 0));
+	}
+	else
+	{
+ 		raiseError("retrieve", PQerrorMessage(dbConnection));
 	}
 	PQclear(res);
 

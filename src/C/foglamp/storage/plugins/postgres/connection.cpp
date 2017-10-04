@@ -654,19 +654,55 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 	{
 		sql.append(" ORDER BY ");
 		const Value& sortBy = payload["sort"];
-		if (! sortBy.HasMember("column"))
+		if (sortBy.IsObject())
 		{
-			raiseError("Select sort", "Missing property \"column\"");
-			return false;
+			if (! sortBy.HasMember("column"))
+			{
+				raiseError("Select sort", "Missing property \"column\"");
+				return false;
+			}
+			sql.append(sortBy["column"].GetString());
+			sql.append(' ');
+			if (! sortBy.HasMember("direction"))
+			{
+				sql.append("ASC");
+			}
+			else
+			{
+				sql.append(sortBy["direction"].GetString());
+			}
 		}
-		if (! sortBy.HasMember("direction"))
+		else if (sortBy.IsArray())
 		{
-			raiseError("Select sort", "Missing property \"direction\"");
-			return false;
+			int index = 0;
+			for (Value::ConstValueIterator itr = sortBy.Begin(); itr != sortBy.End(); ++itr)
+			{
+				if (!itr->IsObject())
+				{
+					raiseError("select sort",
+							"Each element in the sort array must be an object");
+					return false;
+				}
+				if (! itr->HasMember("column"))
+				{
+					raiseError("Select sort", "Missing property \"column\"");
+					return false;
+				}
+				if (index)
+					sql.append(", ");
+				index++;
+				sql.append((*itr)["column"].GetString());
+				sql.append(' ');
+				if (! itr->HasMember("direction"))
+				{
+					sql.append("ASC");
+				}
+				else
+				{
+					sql.append((*itr)["direction"].GetString());
+				}
+			}
 		}
-		sql.append(sortBy["column"].GetString());
-		sql.append(' ');
-		sql.append(sortBy["direction"].GetString());
 	}
 
 	if (payload.HasMember("group"))

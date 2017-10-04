@@ -56,6 +56,10 @@ class Storage(AbstractStorage):
             storage_services = Service.Instances.get(name="store")
             self.service = storage_services[0]
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
+
+            # TODO: remove me, will be used by registry API
+            # need to check, if we are adding management_port to service instance?
+            self.management_api_url = '{}:{}'.format(self.service._address, 1081)
         except Service.DoesNotExist:
             raise InvalidServiceInstance
 
@@ -85,15 +89,34 @@ class Storage(AbstractStorage):
 
         self.__service = svc
 
+    # TODO: remove me, and allow this call in service registry API
     def check_service_availibility(self):
         """ ping Storage service """
 
-        print("Connecting to service: %s", self.service.__repr__)
-        conn = http.client.HTTPConnection(self.base_url)
+        conn = http.client.HTTPConnection(self.management_api_url)
         # TODO: need to set http / https based on service protocol
 
-        get_url = '/storage/ping'
-        conn.request('GET', url=get_url)
+        conn.request('GET', url='/foglamp/service/ping')
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
+
+    # TODO: remove me, and allow this call in service registry API
+    def check_shutdown(self):
+        """ stop Storage service """
+
+        conn = http.client.HTTPConnection(self.management_api_url)
+        # TODO: need to set http / https based on service protocol
+
+        conn.request('POST', url='/foglamp/service/shutdown', body=None)
         r = conn.getresponse()
 
         # TODO: log error with message if status is 4xx or 5xx

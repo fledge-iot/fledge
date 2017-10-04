@@ -259,6 +259,13 @@ try:
     ping_response = Storage().check_service_availibility()
     print("check_service_availibility res: ", ping_response)
 
+    """ {'uptime': 1077, 'name': 'storage', 
+        'statistics': {'commonInsert': 8, 'commonUpdate': 8, 'commonSimpleQuery': 16, 'commonDelete': 8, 'commonQuery': 8, 
+                    'readingQuery': 8, 'readingPurge': 13, 'readingFetch': 8, 'readingAppend': 8, }
+        }
+
+    """
+
     query_table()
 
     insert_data()
@@ -280,6 +287,12 @@ try:
     query_readings()
 
     # TODO: verify 1 error payload
+
+    shutdown_response = Storage().check_shutdown()
+    print("check_shutdown res: ", shutdown_response)
+    """  {'message': 'Shutdown in progress'}
+    """
+
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

@@ -20,8 +20,7 @@ class TestPayloadBuilderRead:
         ("name,id", {"columns": "name,id"})
     ])
     def test_select_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.SELECT(test_input).payload()
+        res = PayloadBuilder().SELECT(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
@@ -29,26 +28,36 @@ class TestPayloadBuilderRead:
         ("test, test2", {"table": "test, test2"})
     ])
     def test_from_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.FROM(test_input).payload()
+        res = PayloadBuilder().FROM(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (['name', '=', 'test'], {'where': {'column': 'name', 'condition': '=', 'value': 'test'}}),
+        (['id', '>', 1], {'where': {'column': 'id', 'condition': '>', 'value': 1}}),
+        (['id', '<', 1.5], {'where': {'column': 'id', 'condition': '<', 'value': 1.5}}),
+        (['id', '>=', 9], {'where': {'column': 'id', 'condition': '>=', 'value': 9}}),
+        (['id', '<=', 99], {'where': {'column': 'id', 'condition': '<=', 'value': 99}}),
+        (['id', '!=', False], {'where': {'column': 'id', 'condition': '!=', 'value': False}})
+
+    ])
+    def test_conditions_payload(self, test_input, expected):
+        res = PayloadBuilder().WHERE(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
         (['name', '=', 'test'], {'where': {'column': 'name', 'condition': '=', 'value': 'test'}})
     ])
     def test_where_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.WHERE(test_input).payload()
+        res = PayloadBuilder().WHERE(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
         (3, {'limit': 3}),
-        (3.5, {}),
+        pytest.param(3.5, {'limit': 3.5}, marks=pytest.mark.xfail),
         ('invalid', {})
     ])
     def test_limit_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.LIMIT(test_input).payload()
+        res = PayloadBuilder().LIMIT(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
@@ -58,8 +67,7 @@ class TestPayloadBuilderRead:
         (['name', 'invalid'], {})
     ])
     def test_order_by_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.ORDER_BY(test_input).payload()
+        res = PayloadBuilder().ORDER_BY(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
@@ -67,8 +75,7 @@ class TestPayloadBuilderRead:
         ("name,id", {'group': 'name,id'})
     ])
     def test_group_by_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.GROUP_BY(test_input).payload()
+        res = PayloadBuilder().GROUP_BY(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
@@ -80,28 +87,24 @@ class TestPayloadBuilderRead:
         (['invalid', 'values'], {})
     ])
     def test_aggregate_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.AGGREGATE(test_input).payload()
+        res = PayloadBuilder().AGGREGATE(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
         pytest.param('', {"columns": "*"}, marks=pytest.mark.xfail)
     ])
     def test_select_all_payload(self, test_input, expected):
-        pb = PayloadBuilder()
-        res = pb.SELECT_ALL().payload()
+        res = PayloadBuilder().SELECT_ALL().payload()
         assert expected == json.loads(res)
 
 
 class TestPayloadBuilderCreate:
     def test_insert_payload(self):
-        pb = PayloadBuilder()
-        res = pb.INSERT(key='x').payload()
+        res = PayloadBuilder().INSERT(key='x').payload()
         assert {'key': 'x'} == json.loads(res)
 
     def test_insert_into_payload(self):
-        pb = PayloadBuilder()
-        res = pb.INSERT_INTO('test').payload()
+        res = PayloadBuilder().INSERT_INTO('test').payload()
         assert {'table': 'test'} == json.loads(res)
 
 

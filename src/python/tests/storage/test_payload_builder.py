@@ -149,7 +149,7 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().HAVING().payload()
         assert expected == json.loads(res)
 
-    def test_complex_select(self):
+    def test_complex_select_payload(self):
         res = PayloadBuilder() \
             .SELECT('id', 'name') \
             .FROM('table') \
@@ -162,15 +162,15 @@ class TestPayloadBuilderRead:
             .AGGREGATE(['count', 'name']) \
             .payload()
         assert {"aggregate":
-                    {"column": "name", "operation": "count"},
-                "columns": "id,name", "group": "name, id", "limit": 1,
-                "sort": {"column": "id", "direction": "desc"},
-                "table": "table",
-                "where":
-                    {"and": {"column": "name", "condition": "=", "value": "test"},
-                     "column": "id", "condition": "=", "or": {
-                        "column": "name", "condition": "=", "value": "test2"},
-                     "value": 1}} == json.loads(res)
+                          {"column": "name", "operation": "count"},
+                      "columns": "id,name", "group": "name, id", "limit": 1,
+                      "sort": {"column": "id", "direction": "desc"},
+                      "table": "table",
+                      "where":
+                          {"and": {"column": "name", "condition": "=", "value": "test"},
+                           "column": "id", "condition": "=", "or": {
+                              "column": "name", "condition": "=", "value": "test2"},
+                           "value": 1}} == json.loads(res)
 
 
 class TestPayloadBuilderCreate:
@@ -187,14 +187,14 @@ class TestPayloadBuilderUpdate:
     @pytest.mark.parametrize("test_input, expected", [
         ('test', {'table': 'test'}),
     ])
-    def test_update_table(self, test_input, expected):
+    def test_update_table_payload(self, test_input, expected):
         res = PayloadBuilder().UPDATE_TABLE(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
         ('test_update', {"values": {"value": 'test_update'}}),
     ])
-    def test_set(self, test_input, expected):
+    def test_set_payload(self, test_input, expected):
         res = PayloadBuilder().SET(value=test_input).payload()
         assert expected == json.loads(res)
 
@@ -203,7 +203,7 @@ class TestPayloadBuilderUpdate:
          {"table": "test_tbl", "values": {"value": "test_update"},
           "where": {"column": "name", "condition": "=", "value": "test"}}),
     ])
-    def test_update_set_where(self, input_set, input_where, input_table, expected):
+    def test_update_set_where_payload(self, input_set, input_where, input_table, expected):
         res = PayloadBuilder().SET(value=input_set).WHERE(input_where).UPDATE_TABLE(input_table).payload()
         assert expected == json.loads(res)
 
@@ -212,7 +212,7 @@ class TestPayloadBuilderDelete:
     @pytest.mark.parametrize("test_input, expected", [
         ('test', {'table': 'test'}),
     ])
-    def test_delete(self, test_input, expected):
+    def test_delete_payload(self, test_input, expected):
         res = PayloadBuilder().DELETE(test_input).payload()
         assert expected == json.loads(res)
 
@@ -220,6 +220,6 @@ class TestPayloadBuilderDelete:
         (['name', '=', 'test'], 'test_tbl',
          {"table": "test_tbl", "where": {"column": "name", "condition": "=", "value": "test"}}),
     ])
-    def test_delete_where(self, input_where, input_table, expected):
+    def test_delete_where_payload(self, input_where, input_table, expected):
         res = PayloadBuilder().DELETE(input_table).WHERE(input_where).payload()
         assert expected == json.loads(res)

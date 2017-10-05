@@ -149,6 +149,29 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().HAVING().payload()
         assert expected == json.loads(res)
 
+    def test_complex_select(self):
+        res = PayloadBuilder() \
+            .SELECT('id', 'name') \
+            .FROM('table') \
+            .WHERE(['id', '=', 1]) \
+            .AND_WHERE(['name', '=', 'test']) \
+            .OR_WHERE(['name', '=', 'test2']) \
+            .LIMIT(1) \
+            .GROUP_BY('name', 'id') \
+            .ORDER_BY(['id', 'desc']) \
+            .AGGREGATE(['count', 'name']) \
+            .payload()
+        assert {"aggregate":
+                    {"column": "name", "operation": "count"},
+                "columns": "id,name", "group": "name, id", "limit": 1,
+                "sort": {"column": "id", "direction": "desc"},
+                "table": "table",
+                "where":
+                    {"and": {"column": "name", "condition": "=", "value": "test"},
+                     "column": "id", "condition": "=", "or": {
+                        "column": "name", "condition": "=", "value": "test2"},
+                     "value": 1}} == json.loads(res)
+
 
 class TestPayloadBuilderCreate:
     def test_insert_payload(self):

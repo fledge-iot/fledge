@@ -147,7 +147,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short listenerPort = api->getListenerPort();
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record("storage", "Storage", "http", "localhost", managementListener, listenerPort);
+		ServiceRecord record("storage", "Storage", "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
 		client->registerCategory(STORAGE_CATEGORY);

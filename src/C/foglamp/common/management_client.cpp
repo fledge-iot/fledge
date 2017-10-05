@@ -21,7 +21,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 /**
  * Management Client constructor
  */
-ManagementClient::ManagementClient(const string& hostname, const unsigned short port)
+ManagementClient::ManagementClient(const string& hostname, const unsigned short port) : m_uuid(0)
 {
 ostringstream urlbase;
 
@@ -80,6 +80,10 @@ string payload;
 bool ManagementClient::unregisterService()
 {
 
+	if (!m_uuid)
+	{
+		return false;	// Not registered
+	}
 	try {
 		string url = "/foglamp/service/";
 		url += *m_uuid;

@@ -351,6 +351,9 @@ SQLBuffer	sql;
 	return false;
 }
 
+/**
+ * Append a set of readings to the readings table
+ */
 bool Connection::appendReadings(const char *readings)
 {
 Document 	doc;
@@ -544,7 +547,9 @@ long numReadings = 0;
 	return deletedRows;
 }
 
-
+/**
+ * Map a SQL result set to a JSON document
+ */
 void Connection::mapResultSet(PGresult *res, string& resultSet)
 {
 int nFields, i, j;
@@ -637,7 +642,11 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		sql.append(aggregates["operation"].GetString());
 		sql.append('(');
 		sql.append(aggregates["column"].GetString());
-		sql.append(')');
+		sql.append(") AS \"");
+		sql.append(aggregates["operation"].GetString());
+		sql.append('_');
+		sql.append(aggregates["column"].GetString());
+		sql.append("\"");
 	}
 	else if (aggregates.IsArray())
 	{
@@ -668,6 +677,7 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			sql.append((*itr)["column"].GetString());
 			sql.append(") AS \"");
 			sql.append((*itr)["operation"].GetString());
+			sql.append('_');
 			sql.append((*itr)["column"].GetString());
 			sql.append("\"");
 		}

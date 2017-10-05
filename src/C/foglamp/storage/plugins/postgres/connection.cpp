@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <sstream>
 
-
 using namespace std;
 using namespace rapidjson;
 
@@ -623,20 +622,56 @@ Document doc;
  */
 bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql)
 {
-	if (! aggregates.HasMember("operation"))
+	if (aggregates.IsObject())
 	{
-		raiseError("Select aggregation", "Missing property \"operation\"");
-		return false;
+		if (! aggregates.HasMember("operation"))
+		{
+			raiseError("Select aggregation", "Missing property \"operation\"");
+			return false;
+		}
+		if (! aggregates.HasMember("column"))
+		{
+			raiseError("Select aggregation", "Missing property \"column\"");
+			return false;
+		}
+		sql.append(aggregates["operation"].GetString());
+		sql.append('(');
+		sql.append(aggregates["column"].GetString());
+		sql.append(')');
 	}
-	if (! aggregates.HasMember("column"))
+	else if (aggregates.IsArray())
 	{
-		raiseError("Select aggregation", "Missing property \"column\"");
-		return false;
+		int index = 0;
+		for (Value::ConstValueIterator itr = aggregates.Begin(); itr != aggregates.End(); ++itr)
+		{
+			if (!itr->IsObject())
+			{
+				raiseError("select aggregation",
+						"Each element in the aggregate array must be an object");
+				return false;
+			}
+			if (! itr->HasMember("column"))
+			{
+				raiseError("Select aggregation", "Missing property \"column\"");
+				return false;
+			}
+			if (! itr->HasMember("operation"))
+			{
+				raiseError("Select aggregation", "Missing property \"operation\"");
+				return false;
+			}
+			if (index)
+				sql.append(", ");
+			index++;
+			sql.append((*itr)["operation"].GetString());
+			sql.append('(');
+			sql.append((*itr)["column"].GetString());
+			sql.append(") AS \"");
+			sql.append((*itr)["operation"].GetString());
+			sql.append((*itr)["column"].GetString());
+			sql.append("\"");
+		}
 	}
-	sql.append(aggregates["operation"].GetString());
-	sql.append('(');
-	sql.append(aggregates["column"].GetString());
-	sql.append(')');
 	if (payload.HasMember("group"))
 	{
 		sql.append(", ");
@@ -695,7 +730,7 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 				sql.append(' ');
 				if (! itr->HasMember("direction"))
 				{
-					sql.append("ASC");
+					 sql.append("ASC");
 				}
 				else
 				{

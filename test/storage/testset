@@ -41,4 +41,5 @@ Fetch Readings no count,GET,http://192.168.56.101:8080/storage/reading?id=1,
 Fetch Readings no id,GET,http://192.168.56.101:8080/storage/reading?count=1000,
 Purge Readings,PUT,http://192.168.56.101:8080/storage/reading/purge?age=1000&sent=10&flags=retain,
 Common Read sort array,PUT,http://localhost:8080/storage/table/test/query,sort2.json
+Common Read multiple aggregates,PUT,http://localhost:8080/storage/table/test/query,where_multi_aggregatee.json,
 Shutdown,POST,http://192.168.56.101:1081/foglamp/service/shutdown,,checkstate

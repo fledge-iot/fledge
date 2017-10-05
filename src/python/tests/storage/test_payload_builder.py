@@ -51,6 +51,26 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(test_input).payload()
         assert expected == json.loads(res)
 
+    @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
+        (['name', '=', 'test'], ['id', '>', 3], {'where': {
+            'and': {
+                'column': 'id', 'condition': '>', 'value': 3},
+            'column': 'name', 'condition': '=', 'value': 'test'}})
+    ])
+    def test_and_where_payload(self, test_input_1, test_input_2, expected):
+        res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
+        (['name', '=', 'test'], ['id', '>', 3], {'where': {
+            'or': {
+                'column': 'id', 'condition': '>', 'value': 3},
+            'column': 'name', 'condition': '=', 'value': 'test'}})
+    ])
+    def test_or_where_payload(self, test_input_1, test_input_2, expected):
+        res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).payload()
+        assert expected == json.loads(res)
+
     @pytest.mark.parametrize("test_input, expected", [
         (3, {'limit': 3}),
         pytest.param(3.5, {'limit': 3.5}, marks=pytest.mark.xfail),

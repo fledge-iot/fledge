@@ -117,6 +117,38 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().SELECT_ALL().payload()
         assert expected == json.loads(res)
 
+    @pytest.mark.parametrize("test_input, expected", [
+        pytest.param(3, {'skip': 3}, marks=pytest.mark.xfail),
+        pytest.param(3.5, {'skip': 3.5}, marks=pytest.mark.xfail),
+        ('invalid', {})
+    ])
+    def test_offset_payload(self, test_input, expected):
+        res = PayloadBuilder().OFFSET(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (3, {'limit': 3, 'skip': 3}),
+        pytest.param(3.5, {'limit': 3.5, 'skip': 3.5}, marks=pytest.mark.xfail),
+        ('invalid', {})
+    ])
+    def test_limit_offset_payload(self, test_input, expected):
+        res = PayloadBuilder().LIMIT(test_input).OFFSET(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        pytest.param(3, {'skip': 3}, marks=pytest.mark.xfail),
+        pytest.param(3.5, {'skip': 3.5}, marks=pytest.mark.xfail),
+        ('invalid', {})
+    ])
+    def test_skip_payload(self, test_input, expected):
+        res = PayloadBuilder().SKIP(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.skip
+    def test_having_payload(self, test_input, expected):
+        res = PayloadBuilder().HAVING().payload()
+        assert expected == json.loads(res)
+
 
 class TestPayloadBuilderCreate:
     def test_insert_payload(self):

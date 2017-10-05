@@ -209,4 +209,17 @@ class TestPayloadBuilderUpdate:
 
 
 class TestPayloadBuilderDelete:
-    pass
+    @pytest.mark.parametrize("test_input, expected", [
+        ('test', {'table': 'test'}),
+    ])
+    def test_delete(self, test_input, expected):
+        res = PayloadBuilder().DELETE(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("input_where, input_table, expected", [
+        (['name', '=', 'test'], 'test_tbl',
+         {"table": "test_tbl", "where": {"column": "name", "condition": "=", "value": "test"}}),
+    ])
+    def test_delete_where(self, input_where, input_table, expected):
+        res = PayloadBuilder().DELETE(input_table).WHERE(input_where).payload()
+        assert expected == json.loads(res)

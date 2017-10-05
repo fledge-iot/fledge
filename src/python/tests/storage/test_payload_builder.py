@@ -73,7 +73,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         (3, {'limit': 3}),
-        pytest.param(3.5, {'limit': 3.5}, marks=pytest.mark.xfail),
+        pytest.param(3.5, {'limit': 3.5}, marks=pytest.mark.xfail(reason="FOGL-607 #1")),
         ('invalid', {})
     ])
     def test_limit_payload(self, test_input, expected):
@@ -83,7 +83,7 @@ class TestPayloadBuilderRead:
     @pytest.mark.parametrize("test_input, expected", [
         (['name', 'asc'], {'sort': {'column': 'name', 'direction': 'asc'}}),
         (['name', 'desc'], {'sort': {'column': 'name', 'direction': 'desc'}}),
-        pytest.param(['name'], {'sort': {'column': 'name', 'direction': 'asc'}}, marks=pytest.mark.xfail),
+        pytest.param(['name'], {'sort': {'column': 'name', 'direction': 'asc'}}, marks=pytest.mark.xfail(reason="FOGL-607 #2")),
         (['name', 'invalid'], {})
     ])
     def test_order_by_payload(self, test_input, expected):
@@ -111,15 +111,15 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        pytest.param('', {"columns": "*"}, marks=pytest.mark.xfail)
+        pytest.param('', {"columns": "*"}, marks=pytest.mark.xfail(reason="FOGL-607 #3"))
     ])
     def test_select_all_payload(self, test_input, expected):
         res = PayloadBuilder().SELECT_ALL().payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        pytest.param(3, {'skip': 3}, marks=pytest.mark.xfail),
-        pytest.param(3.5, {'skip': 3.5}, marks=pytest.mark.xfail),
+        pytest.param(3, {'skip': 3}, marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
+        pytest.param(3.5, {'skip': 3.5}, marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
         ('invalid', {})
     ])
     def test_offset_payload(self, test_input, expected):
@@ -128,7 +128,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         (3, {'limit': 3, 'skip': 3}),
-        pytest.param(3.5, {'limit': 3.5, 'skip': 3.5}, marks=pytest.mark.xfail),
+        pytest.param(3.5, {'limit': 3.5, 'skip': 3.5}, marks=pytest.mark.xfail(reason="FOGL-607 #1")),
         ('invalid', {})
     ])
     def test_limit_offset_payload(self, test_input, expected):
@@ -136,15 +136,15 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        pytest.param(3, {'skip': 3}, marks=pytest.mark.xfail),
-        pytest.param(3.5, {'skip': 3.5}, marks=pytest.mark.xfail),
+        pytest.param(3, {'skip': 3}, marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
+        pytest.param(3.5, {'skip': 3.5}, marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
         ('invalid', {})
     ])
     def test_skip_payload(self, test_input, expected):
         res = PayloadBuilder().SKIP(test_input).payload()
         assert expected == json.loads(res)
 
-    @pytest.mark.skip
+    @pytest.mark.skip(reason="FOGL-607 #5")
     def test_having_payload(self, test_input, expected):
         res = PayloadBuilder().HAVING().payload()
         assert expected == json.loads(res)

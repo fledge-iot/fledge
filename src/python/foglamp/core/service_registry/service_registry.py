@@ -10,7 +10,7 @@ import time
 from aiohttp import web
 from foglamp.core.service_registry.instance import Service
 
-__author__ = "Amarendra Kumar Sinha"
+__author__ = "Amarendra Kumar Sinha, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -26,16 +26,20 @@ _help = """
     -----------------------------------------------------------------------------------
 """
 
-async def ping(request):
+
+async def ping():
+    """ health check
+
+    """
     since_started = time.time() - __start_time
     return web.json_response({'uptime': since_started})
 
+
 async def register(request):
-    """
-    Register a service
+    """ Register a service
 
     :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "port": 8090,
-            "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
+            "management_port": 1090, "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
     """
 
     try:
@@ -45,21 +49,31 @@ async def register(request):
         service_type = data.get('type', None)
         service_address = data.get('address', None)
         service_port = data.get('port', None)
+        service_management_port = data.get('management_port', None)
         service_protocol = data.get('protocol', 'http')
 
-        if not (service_name.strip() or service_type.strip() or service_address.strip() or service_port.strip() or not service_port.isdigit()):
-            raise web.HTTPBadRequest(reason='One or more values for type/name/address/port missing')
+        if not (service_name.strip() or service_type.strip() or service_address.strip()
+                or service_port.strip() or not service_port.isdigit()
+                or service_management_port.strip() or not service_management_port.isdigit()):
+            raise web.HTTPBadRequest(reason='One or more values for type/name/address/port/management port missing')
 
         if not isinstance(service_port, int):
             raise web.HTTPBadRequest(reason='Service port can be a positive integer only')
 
+        if not isinstance(service_management_port, int):
+            raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
+
         try:
-            registered_service_id = Service.Instances.register(service_name,service_type,
-                                                               service_address, service_port, service_protocol)
+            registered_service_id = Service.Instances.register(service_name, service_type, service_address,
+                                                               service_port, service_management_port, service_protocol)
         except Service.AlreadyExistsWithTheSameName:
             raise web.HTTPBadRequest(reason='A Service with the same name already exists')
         except Service.AlreadyExistsWithTheSameAddressAndPort:
-            raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and port: {}'.format(service_address, service_port))
+            raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
+                                            'port: {}'.format(service_address, service_port))
+        except Service.AlreadyExistsWithTheSameAddressAndManagementPort:
+            raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
+                                            'management port: {}'.format(service_address, service_management_port))
 
         if not registered_service_id:
             raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
@@ -74,9 +88,9 @@ async def register(request):
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
+
 async def unregister(request):
-    """
-    Unregister a service
+    """ Deregister a service
 
     :Example: curl -X DELETE  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
     """
@@ -102,8 +116,7 @@ async def unregister(request):
 
 
 async def get_service(request):
-    """
-    Returns a list of all services or of the selected service
+    """ Returns a list of all services or of the selected service
 
     :Example: curl -X GET  http://localhost:8082/foglamp/service
     :Example: curl -X GET  http://localhost:8082/foglamp/service?name=X&type=Storage
@@ -133,18 +146,23 @@ async def get_service(request):
             "type": service._type,
             "address": service._address,
             "port": service._port,
+            "management_port": service._management_port,
             "protocol": service._protocol
         })
     return web.json_response({"services": services})
 
+
 async def shutdown(request):
     pass
+
 
 async def register_interest(request):
     pass
 
+
 async def unregister_interest(request):
     pass
+
 
 async def notify_change(request):
     pass

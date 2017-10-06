@@ -42,8 +42,7 @@ class TestConfigurationManager:
 
         - Anything that is currently under @pytest.mark.xfail; currently doesn't work due to an expected behavior change
         - FOGL-572: Verification of data type value in configuration manager (new test needs to be added)
-        - FOGL-585: Invalid Error when setting invalid category_name in create_category (new test needs to be added)
-        - FOGL-577
+        - FOGL-577: Missing expected error when getting value to non-existent category
         - 1 not yet implemented test
     """
 
@@ -113,11 +112,11 @@ class TestConfigurationManager:
                              'type': 'IPv6',
                              'default': '2001:db8::'}}},
             'X509 cer': {'category_description': 'X509 Certification',
-                     'category_value': {
-                         'info': {
-                             'description': "X509 Certification",
-                             'type': 'X509 certificate',
-                             'default': 'x509_certificate.cer'}}},
+                         'category_value': {
+                             'info': {
+                                  'description': "X509 Certification",
+                                  'type': 'X509 certificate',
+                                  'default': 'x509_certificate.cer'}}},
             'password': {'category_description': 'Password Type',
                          'category_value': {
                              'info': {
@@ -242,8 +241,6 @@ class TestConfigurationManager:
             1. `default` and `value` in configuration.value are the same
             2. `value` in configuration.value gets updated, while `default` does not
         """
-        select_value_stmt = sa.select([_configuration_tbl.c.value]).select_from(
-            _configuration_tbl).where(_configuration_tbl.c.key == 'boolean')
         await create_category(category_name='boolean', category_description='boolean type',
                               category_value={
                                   'info': {
@@ -288,6 +285,20 @@ class TestConfigurationManager:
             await create_category(category_name='integer', category_description='integer type',
                                   category_value='1')
         assert "TypeError: category_val must be a dictionary" in str(error_exec)
+
+    async def test_create_category_invalid_name(self):
+        """ Test that create_category returns the expected error when name is invalid
+
+        :assert:
+            Assert that TypeError gets returned when name is not allowed other than string
+        """
+        with pytest.raises(TypeError) as error_exec:
+            await create_category(category_name=None, category_description='invalid name',
+                                  category_value={
+                                      'info': {
+                                          'description': 'invalid name with None type',
+                                          'type': 'None', 'default': 'none'}})
+        assert "TypeError: category_name must be a string" in str(error_exec)
 
     async def test_create_category_invalid_type(self):
         """ Test that create_category returns the expected error when type is invalid
@@ -420,9 +431,23 @@ class TestConfigurationManager:
                                           'description': 'integer type with value False'}})
         assert "ValueError: Missing entry_name default for item_name info" in str(error_exec)
 
+    async def test_create_category_invalid_description(self):
+        """ Test that create_category returns the expected error when description is invalid
+
+        :assert:
+            Assert that TypeError gets returned when description is not allowed other than string
+        """
+        with pytest.raises(TypeError) as error_exec:
+            await create_category(category_name="boolean", category_description=None,
+                                  category_value={
+                                      'info': {
+                                          'description': 'boolean type with default False',
+                                          'type': 'boolean', 'default': 'False'}})
+        assert "TypeError: category_description must be a string" in str(error_exec)
+
     @pytest.mark.xfail(reason="not yet implemented")
     async def test_get_all_category_names_error(self):
-        res = await get_all_category_names()
+        await get_all_category_names()
         # TODO: assert empty list?
 
     @pytest.mark.xfail(reason="FOGL-552")
@@ -501,7 +526,8 @@ class TestConfigurationManager:
         """ Test that when register_interest is called, _registered_interests gets updated
 
         :assert:
-           for (category_name='boolean', callback='tests.callback') the value for _register_interests['boolean'] is {'tests.callback'}
+           for (category_name='boolean', callback='tests.callback')
+           the value for _register_interests['boolean'] is {'tests.callback'}
         """
         register_interest(category_name='boolean', callback='tests.callback')
         assert list(_registered_interests.keys())[0] == 'boolean'

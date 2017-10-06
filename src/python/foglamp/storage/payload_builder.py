@@ -217,7 +217,7 @@ if __name__ == "__main__":
     from foglamp.core.service_registry.service_registry import Service
     from foglamp.storage.storage import Storage
 
-    Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
+    Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080, management_port=1081)
 
     # Select
     _w_payload = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()

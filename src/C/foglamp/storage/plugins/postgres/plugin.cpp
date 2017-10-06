@@ -16,8 +16,14 @@
 #include "libpq-fe.h"
 #include <string>
 
+/**
+ * The Postgres plugin interface
+ */
 extern "C" {
 
+/**
+ * The plugin information structure
+ */
 static PLUGIN_INFORMATION info = {
 	"PostgresSQL",            // Name
 	"1.0.0",                  // Version
@@ -26,11 +32,19 @@ static PLUGIN_INFORMATION info = {
 	"1.0.0"                   // Interface version
 };
 
+/**
+ * Return the information about this plugin
+ */
 PLUGIN_INFORMATION *plugin_info()
 {
 	return &info;
 }
 
+/**
+ * Initialse the plugin, called to ge tthe plugin handle
+ * In the case of Postgres we also get a pool of connections
+ * to use.
+ */
 PLUGIN_HANDLE plugin_init()
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
@@ -39,6 +53,9 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 	return manager;
 }
 
+/**
+ * Insert into an arbitrary table
+ */
 bool plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -49,6 +66,9 @@ Connection        *connection = manager->allocate();
 	return result;
 }
 
+/**
+ * Retrieve data from an arbitrary table
+ */
 const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -64,6 +84,9 @@ std::string results;
 	return NULL;
 }
 
+/**
+ * Update an arbitary table
+ */
 bool plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -74,6 +97,9 @@ Connection        *connection = manager->allocate();
 	return result;
 }
 
+/**
+ * Delete from an arbitrary table
+ */
 bool plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -84,6 +110,9 @@ Connection        *connection = manager->allocate();
 	return result;
 }
 
+/**
+ * Append a sequence of readings to the readings buffer
+ */
 bool plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -94,6 +123,9 @@ Connection        *connection = manager->allocate();
 	return result;;
 }
 
+/**
+ * Fetch a block of readings from the readings buffer
+ */
 char *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int blksize)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -105,6 +137,9 @@ std::string	  resultSet;
 	return strdup(resultSet.c_str());
 }
 
+/**
+ * Retrieve soem readings from the readings buffer
+ */
 char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -118,6 +153,9 @@ std::string results;
 	return NULL;
 }
 
+/**
+ * Purge readings from the buffer
+ */
 char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -129,13 +167,18 @@ std::string 	  results;
 	return strdup(results.c_str());
 }
 
-
+/**
+ * Release a previously returned result set
+ */
 void plugin_release(PLUGIN_HANDLE handle, char *results)
 {
 	(void)handle;
 	free(results);
 }
 
+/**
+ * Return details on the last error that occured.
+ */
 PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
@@ -143,6 +186,9 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 	return manager->getError();
 }
 
+/**
+ * Shutdown the plugin
+ */
 bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;

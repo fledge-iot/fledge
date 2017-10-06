@@ -135,6 +135,13 @@ void ConnectionManager::release(Connection *conn)
 	idleLock.unlock();
 }
 
+/**
+ * Set the last error information for a plugin.
+ *
+ * @param source	The source of the error
+ * @param description	The error description
+ * @param retryable	Flag to determien if the error condition is transient
+ */
 void ConnectionManager::setError(const char *source, const char *description, bool retryable)
 {
 	errorLock.lock();

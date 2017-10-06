@@ -387,6 +387,12 @@ async def create_category(category_name, category_value, category_description=''
     Only default values can be entered for and item's entries.
     A "value" entry specified for an item will raise an exception.
     """
+    if not isinstance(category_name, str):
+        raise TypeError('category_name must be a string')
+
+    if not isinstance(category_description, str):
+        raise TypeError('category_description must be a string')
+
     category_val_prepared = ''
     try:
         # validate new category_val, set "value" from default

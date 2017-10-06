@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <sstream>
 
-
 using namespace std;
 using namespace rapidjson;
 
@@ -352,6 +351,9 @@ SQLBuffer	sql;
 	return false;
 }
 
+/**
+ * Append a set of readings to the readings table
+ */
 bool Connection::appendReadings(const char *readings)
 {
 Document 	doc;
@@ -545,7 +547,9 @@ long numReadings = 0;
 	return deletedRows;
 }
 
-
+/**
+ * Map a SQL result set to a JSON document
+ */
 void Connection::mapResultSet(PGresult *res, string& resultSet)
 {
 int nFields, i, j;
@@ -623,20 +627,61 @@ Document doc;
  */
 bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql)
 {
-	if (! aggregates.HasMember("operation"))
+	if (aggregates.IsObject())
 	{
-		raiseError("Select aggregation", "Missing property \"operation\"");
-		return false;
+		if (! aggregates.HasMember("operation"))
+		{
+			raiseError("Select aggregation", "Missing property \"operation\"");
+			return false;
+		}
+		if (! aggregates.HasMember("column"))
+		{
+			raiseError("Select aggregation", "Missing property \"column\"");
+			return false;
+		}
+		sql.append(aggregates["operation"].GetString());
+		sql.append('(');
+		sql.append(aggregates["column"].GetString());
+		sql.append(") AS \"");
+		sql.append(aggregates["operation"].GetString());
+		sql.append('_');
+		sql.append(aggregates["column"].GetString());
+		sql.append("\"");
 	}
-	if (! aggregates.HasMember("column"))
+	else if (aggregates.IsArray())
 	{
-		raiseError("Select aggregation", "Missing property \"column\"");
-		return false;
+		int index = 0;
+		for (Value::ConstValueIterator itr = aggregates.Begin(); itr != aggregates.End(); ++itr)
+		{
+			if (!itr->IsObject())
+			{
+				raiseError("select aggregation",
+						"Each element in the aggregate array must be an object");
+				return false;
+			}
+			if (! itr->HasMember("column"))
+			{
+				raiseError("Select aggregation", "Missing property \"column\"");
+				return false;
+			}
+			if (! itr->HasMember("operation"))
+			{
+				raiseError("Select aggregation", "Missing property \"operation\"");
+				return false;
+			}
+			if (index)
+				sql.append(", ");
+			index++;
+			sql.append((*itr)["operation"].GetString());
+			sql.append('(');
+			sql.append((*itr)["column"].GetString());
+			sql.append(") AS \"");
+			sql.append((*itr)["operation"].GetString());
+			sql.append('_');
+			sql.append((*itr)["column"].GetString());
+			sql.append("\"");
+		}
 	}
-	sql.append(aggregates["operation"].GetString());
-	sql.append('(');
-	sql.append(aggregates["column"].GetString());
-	sql.append(')');
 	if (payload.HasMember("group"))
 	{
 		sql.append(", ");
@@ -654,19 +699,55 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 	{
 		sql.append(" ORDER BY ");
 		const Value& sortBy = payload["sort"];
-		if (! sortBy.HasMember("column"))
+		if (sortBy.IsObject())
 		{
-			raiseError("Select sort", "Missing property \"column\"");
-			return false;
+			if (! sortBy.HasMember("column"))
+			{
+				raiseError("Select sort", "Missing property \"column\"");
+				return false;
+			}
+			sql.append(sortBy["column"].GetString());
+			sql.append(' ');
+			if (! sortBy.HasMember("direction"))
+			{
+				sql.append("ASC");
+			}
+			else
+			{
+				sql.append(sortBy["direction"].GetString());
+			}
 		}
-		if (! sortBy.HasMember("direction"))
+		else if (sortBy.IsArray())
 		{
-			raiseError("Select sort", "Missing property \"direction\"");
-			return false;
+			int index = 0;
+			for (Value::ConstValueIterator itr = sortBy.Begin(); itr != sortBy.End(); ++itr)
+			{
+				if (!itr->IsObject())
+				{
+					raiseError("select sort",
+							"Each element in the sort array must be an object");
+					return false;
+				}
+				if (! itr->HasMember("column"))
+				{
+					raiseError("Select sort", "Missing property \"column\"");
+					return false;
+				}
+				if (index)
+					sql.append(", ");
+				index++;
+				sql.append((*itr)["column"].GetString());
+				sql.append(' ');
+				if (! itr->HasMember("direction"))
+				{
+					 sql.append("ASC");
+				}
+				else
+				{
+					sql.append((*itr)["direction"].GetString());
+				}
+			}
 		}
-		sql.append(sortBy["column"].GetString());
-		sql.append(' ');
-		sql.append(sortBy["direction"].GetString());
 	}
 
 	if (payload.HasMember("group"))

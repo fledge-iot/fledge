@@ -97,7 +97,7 @@ pid_t pid;
 /**
  * Constructor for the storage service
  */
-StorageService::StorageService()
+StorageService::StorageService() : m_shutdown(false)
 {
 unsigned short servicePort;
 
@@ -141,20 +141,27 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 
 	// Allow time for the listeners to start before we register
 	sleep(10);
-	// Now register our service
-	// TODO Dynamic ports, proper hostname lookup
-	unsigned short listenerPort = api->getListenerPort();
-	unsigned short managementListener = management.getListenerPort();
-	ServiceRecord record("storage", "Storage", "http", "localhost", managementListener, listenerPort);
-	ManagementClient *client = new ManagementClient(coreAddress, corePort);
-	client->registerService(record);
-	client->registerCategory(STORAGE_CATEGORY);
+	if (! m_shutdown)
+	{
+		// Now register our service
+		// TODO proper hostname lookup
+		unsigned short listenerPort = api->getListenerPort();
+		unsigned short managementListener = management.getListenerPort();
+		ServiceRecord record("storage", "Storage", "http", "localhost", listenerPort, managementListener);
+		ManagementClient *client = new ManagementClient(coreAddress, corePort);
+		client->registerService(record);
+		client->registerCategory(STORAGE_CATEGORY);
 
-	// Wait for all the API threads to complete
-	api->wait();
+		// Wait for all the API threads to complete
+		api->wait();
 
-	// Clean shutdown, unregister the storage service
-	client->unregisterService();
+		// Clean shutdown, unregister the storage service
+		client->unregisterService();
+	}
+	else
+	{
+		api->wait();
+	}
 	logger->info("Storage service shut down.");
 }
 
@@ -201,6 +208,7 @@ void StorageService::shutdown()
 	/* Stop recieving new requests and allow existing
 	 * requests to drain.
 	 */
+	m_shutdown = true;
 	logger->info("Storage service shutdown in progress.");
 	api->stopServer();
 }

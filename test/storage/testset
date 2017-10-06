@@ -22,7 +22,7 @@ Common Read bad 1,PUT,http://localhost:8080/storage/table/test/query,where_bad_1
 Common Read bad 2,PUT,http://localhost:8080/storage/table/test/query,where_bad_2.json
 Common Read bad 3,PUT,http://localhost:8080/storage/table/test/query,where_bad_3.json
 Common Read bad 4,PUT,http://localhost:8080/storage/table/test/query,where_bad_4.json
-Common Read bad sort 1,PUT,http://localhost:8080/storage/table/test/query,bad_sort_1.json
+Common Read default sort order,PUT,http://localhost:8080/storage/table/test/query,bad_sort_1.json
 Common Read bad sort 2,PUT,http://localhost:8080/storage/table/test/query,bad_sort_2.json
 Common Update,PUT,http://localhost:8080/storage/table/test,update.json
 Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
@@ -40,4 +40,6 @@ Fetch Readings zero count,GET,http://192.168.56.101:8080/storage/reading?id=1&co
 Fetch Readings no count,GET,http://192.168.56.101:8080/storage/reading?id=1,
 Fetch Readings no id,GET,http://192.168.56.101:8080/storage/reading?count=1000,
 Purge Readings,PUT,http://192.168.56.101:8080/storage/reading/purge?age=1000&sent=10&flags=retain,
+Common Read sort array,PUT,http://localhost:8080/storage/table/test/query,sort2.json
+Common Read multiple aggregates,PUT,http://localhost:8080/storage/table/test/query,where_multi_aggregatee.json,
 Shutdown,POST,http://192.168.56.101:1081/foglamp/service/shutdown,,checkstate

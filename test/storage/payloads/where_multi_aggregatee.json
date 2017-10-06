@@ -1,0 +1,17 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : "=",
+				"value" : "1"
+			},
+	"aggregate" : [
+			{
+				"operation" : "min",
+				"column" : "id"
+			},
+			{
+				"operation" : "max",
+				"column" : "id"
+			}
+		      ]
+}

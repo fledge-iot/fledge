@@ -37,5 +37,6 @@ class StorageService : public ServiceHandler {
 		StorageConfiguration	*config;
 		Logger        		*logger;
 		StoragePlugin 		*storagePlugin;
+		bool			m_shutdown;
 };
 #endif

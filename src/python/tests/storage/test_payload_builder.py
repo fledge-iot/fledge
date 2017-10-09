@@ -267,12 +267,3 @@ class TestPayloadBuilderDelete:
     def test_delete_where_payload(self, input_where, input_table, expected):
         res = PayloadBuilder().DELETE(input_table).WHERE(input_where).payload()
         assert expected == json.loads(res)
-
-
-def test_crap():
-    query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"])
-    print("\n Only where::", query_params)
-    query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
-    print("\n where with payload()::", query_params)
-    query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).OR_WHERE(["name", "=", "Ram"]).query_params()
-    print("\n Where with Query params::", query_params)

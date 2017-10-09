@@ -38,8 +38,9 @@ async def ping():
 async def register(request):
     """ Register a service
 
-    :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "port": 8090,
+    :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
             "management_port": 1090, "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
+    service_port is optional
     """
 
     try:
@@ -48,17 +49,18 @@ async def register(request):
         service_name = data.get('name', None)
         service_type = data.get('type', None)
         service_address = data.get('address', None)
-        service_port = data.get('port', None)
+        service_port = data.get('service_port', 0)
         service_management_port = data.get('management_port', None)
         service_protocol = data.get('protocol', 'http')
 
+        # TODO: make service port optional? or it can point to mgt port if not provided?
         if not (service_name.strip() or service_type.strip() or service_address.strip()
                 or service_port.strip() or not service_port.isdigit()
                 or service_management_port.strip() or not service_management_port.isdigit()):
             raise web.HTTPBadRequest(reason='One or more values for type/name/address/port/management port missing')
 
         if not isinstance(service_port, int):
-            raise web.HTTPBadRequest(reason='Service port can be a positive integer only')
+            raise web.HTTPBadRequest(reason="Service's service port can be a positive integer only")
 
         if not isinstance(service_management_port, int):
             raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
@@ -70,7 +72,7 @@ async def register(request):
             raise web.HTTPBadRequest(reason='A Service with the same name already exists')
         except Service.AlreadyExistsWithTheSameAddressAndPort:
             raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
-                                            'port: {}'.format(service_address, service_port))
+                                            'service port: {}'.format(service_address, service_port))
         except Service.AlreadyExistsWithTheSameAddressAndManagementPort:
             raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
                                             'management port: {}'.format(service_address, service_management_port))
@@ -140,15 +142,17 @@ async def get_service(request):
 
     services = []
     for service in services_list:
-        services.append({
-            "id": service._id,
-            "name": service._name,
-            "type": service._type,
-            "address": service._address,
-            "port": service._port,
-            "management_port": service._management_port,
-            "protocol": service._protocol
-        })
+        svc = dict()
+        svc["id"] = service._id
+        svc["name"] = service._name
+        svc["type"] = service._type
+        svc["address"] = service._address
+        svc["management_port"] = service._management_port
+        svc["protocol"] = service._protocol
+        if service._port:
+            svc["service_port"] = service._port
+        services.append(svc)
+
     return web.json_response({"services": services})
 
 

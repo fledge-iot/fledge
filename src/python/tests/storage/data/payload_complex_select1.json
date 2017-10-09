@@ -5,7 +5,8 @@
   },
   "columns": "id,name",
   "group": "name, id",
-  "limit": 1,
+  "limit": 5,
+  "skip": 1,
   "sort": {
     "column": "id",
     "direction": "desc"

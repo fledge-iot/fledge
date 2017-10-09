@@ -5,6 +5,8 @@
 # FOGLAMP_END
 import pytest
 import json
+import os
+import py
 from foglamp.storage.payload_builder import PayloadBuilder
 
 __author__ = "Vaibhav Singhal"
@@ -14,12 +16,20 @@ __version__ = "${VERSION}"
 
 
 def _payload(test_data_file=None):
-    with open(test_data_file) as data_file:
+    _dir = os.path.dirname(os.path.realpath(__file__))
+    file_path = py.path.local(_dir) / test_data_file
+
+    with open(str(file_path)) as data_file:
         json_data = json.load(data_file)
     return json_data
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("payload_builder")
 class TestPayloadBuilderRead:
+    """
+    This class tests all SELECT (Read) data specific payload methods of payload builder
+    """
 
     @pytest.mark.parametrize("test_input, expected", [
         ("name", _payload("data/payload_select1.json")),
@@ -51,7 +61,7 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        (["name", "=", "test"], _payload("data/payload_where1.json"))
+        (["name", "=", "test"], _payload("data/payload_conditions1.json"))
     ])
     def test_where_payload(self, test_input, expected):
         res = PayloadBuilder().WHERE(test_input).payload()
@@ -83,6 +93,7 @@ class TestPayloadBuilderRead:
     @pytest.mark.parametrize("test_input, expected", [
         (["name", "asc"], _payload("data/payload_order_by1.json")),
         (["name", "desc"], _payload("data/payload_order_by2.json")),
+        pytest.param([{"name", "desc"}, {"id", "asc"}, {"ts", "asc"}], _payload("data/payload_order_by3.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
         pytest.param(["name"], _payload("data/payload_order_by1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #2")),
         (["name", "invalid"], {})
     ])
@@ -104,6 +115,7 @@ class TestPayloadBuilderRead:
         (["avg", "values"], _payload("data/payload_aggregate3.json")),
         (["sum", "values"], _payload("data/payload_aggregate4.json")),
         (["count", "values"], _payload("data/payload_aggregate5.json")),
+        pytest.param([{"min", "values"}, {"max", "values"}, {"avg", "values"}], _payload("data/payload_aggregate6.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
         (["invalid", "values"], {})
     ])
     def test_aggregate_payload(self, test_input, expected):
@@ -144,6 +156,34 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().SKIP(test_input).payload()
         assert expected == json.loads(res)
 
+    @pytest.mark.parametrize("test_input, expected", [
+        (3, _payload("data/payload_limit_offset1.json")),
+        pytest.param(3.5, _payload("data/payload_limit_offset2.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1")),
+        ("invalid", {})
+    ])
+    def test_limit_skip_payload(self, test_input, expected):
+        res = PayloadBuilder().LIMIT(test_input).SKIP(test_input).payload()
+        assert expected == json.loads(res)
+
+    def test_query_params_payload(self):
+        res = PayloadBuilder().WHERE(["key", "=", "value1"]).query_params()
+        assert "key=value1" == res
+
+    @pytest.mark.parametrize("test_input1, test_input2, expected", [
+        (["key1", "=", "value1"], ["key2", "=", 2],  "key1=value1&key2=2"),
+    ])
+    def test_and_query_params_payload(self, test_input1, test_input2, expected):
+        res = PayloadBuilder().WHERE(test_input1).AND_WHERE(test_input2).query_params()
+        assert expected == res
+
+    @pytest.mark.parametrize("test_input1, test_input2, expected", [
+        (["key1", "=", "value1"], ["key2", "=", 2],  "key1=value1"),
+    ])
+    def test_or_query_params_payload(self, test_input1, test_input2, expected):
+        """Since URL does not support OR hence only 1 value should be parsed as query parameter"""
+        res = PayloadBuilder().WHERE(test_input1).OR_WHERE(test_input2).query_params()
+        assert expected == res
+
     @pytest.mark.skip(reason="FOGL-607 #5")
     def test_having_payload(self, test_input, expected):
         res = PayloadBuilder().HAVING().payload()
@@ -156,7 +196,8 @@ class TestPayloadBuilderRead:
             .WHERE(["id", "=", 1]) \
             .AND_WHERE(["name", "=", "test"]) \
             .OR_WHERE(["name", "=", "test2"]) \
-            .LIMIT(1) \
+            .LIMIT(5) \
+            .OFFSET(1) \
             .GROUP_BY("name", "id") \
             .ORDER_BY(["id", "desc"]) \
             .AGGREGATE(["count", "name"]) \
@@ -164,19 +205,27 @@ class TestPayloadBuilderRead:
         assert _payload("data/payload_complex_select1.json") == json.loads(res)
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("payload_builder")
 class TestPayloadBuilderCreate:
+    """
+    This class tests all INSERT data specific payload methods of payload builder
+    """
     def test_insert_payload(self):
         res = PayloadBuilder().INSERT(key="x").payload()
         assert _payload("data/payload_insert1.json") == json.loads(res)
 
     def test_insert_into_payload(self):
         res = PayloadBuilder().INSERT_INTO("test").payload()
-        assert _payload("data/payload_insert_into1.json") == json.loads(res)
+        assert _payload("data/payload_from1.json") == json.loads(res)
 
 
 class TestPayloadBuilderUpdate:
+    """
+    This class tests all UPDATE specific payload methods of payload builder
+    """
     @pytest.mark.parametrize("test_input, expected", [
-        ("test", _payload("data/payload_update_table1.json")),
+        ("test", _payload("data/payload_from1.json")),
     ])
     def test_update_table_payload(self, test_input, expected):
         res = PayloadBuilder().UPDATE_TABLE(test_input).payload()
@@ -198,9 +247,14 @@ class TestPayloadBuilderUpdate:
         assert expected == json.loads(res)
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("payload_builder")
 class TestPayloadBuilderDelete:
+    """
+    This class tests all DELETE specific payload methods of payload builder
+    """
     @pytest.mark.parametrize("test_input, expected", [
-        ("test", _payload("data/payload_delete1.json")),
+        ("test", _payload("data/payload_from1.json")),
     ])
     def test_delete_payload(self, test_input, expected):
         res = PayloadBuilder().DELETE(test_input).payload()
@@ -213,3 +267,12 @@ class TestPayloadBuilderDelete:
     def test_delete_where_payload(self, input_where, input_table, expected):
         res = PayloadBuilder().DELETE(input_table).WHERE(input_where).payload()
         assert expected == json.loads(res)
+
+
+def test_crap():
+    query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"])
+    print("\n Only where::", query_params)
+    query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
+    print("\n where with payload()::", query_params)
+    query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).OR_WHERE(["name", "=", "Ram"]).query_params()
+    print("\n Where with Query params::", query_params)

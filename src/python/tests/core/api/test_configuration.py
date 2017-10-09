@@ -23,7 +23,7 @@ BASE_URL = 'localhost:8082'
 headers = {"Content-Type": 'application/json'}
 
 test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
-             'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def'}}}
+             'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def', 'value': 'def'}}}
 pytestmark = pytest.mark.asyncio
 
 

@@ -12,7 +12,7 @@ import time
 import uuid
 from typing import List, Union
 
-import dateutil.parser
+# import dateutil.parser
 import json
 
 from foglamp import logger

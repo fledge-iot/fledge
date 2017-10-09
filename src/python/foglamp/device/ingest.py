@@ -366,21 +366,11 @@ class Ingest(object):
                 try:
                     payload = dict()
                     payload['readings'] = readings_list
-                    # TODO: remove this print
-                    # print(json.dumps(payload))
-                    res = Readings().append(json.dumps(payload))
-                    # TODO: remove this print
-                    # print(res)
+
+                    Readings().append(json.dumps(payload))
 
                     batch_size = len(readings_list)
-
-                    # TODO: get result from readings append
-                    insert_rows = batch_size
-
-                    cls._readings_stats += insert_rows
-
-                    # insert_rows < batch_size when key conflict occurs
-                    cls._discarded_readings_stats += batch_size - insert_rows
+                    cls._readings_stats += batch_size
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
                     #               list_index, batch_size)
@@ -397,8 +387,7 @@ class Ingest(object):
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
-                        # _LOGGER.debug('Insert failed: Queue index: %s Batch size: %s',
-                        #               list_index, batch_size)
+                        _LOGGER.warning('Insert failed: Queue index: %s Batch size: %s', list_index, batch_size)
                         break
 
             del readings_list[:batch_size]
@@ -512,6 +501,11 @@ class Ingest(object):
             if timestamp is None:
                 raise ValueError('timestamp can not be None')
 
+            # TODO: for?
+            ''' below code from node JS, works fine!
+                dt = new Date()
+                timestamp = dt.toISOString()
+            '''
             # if not isinstance(timestamp, datetime.datetime):
             #     # validate
             #     timestamp = dateutil.parser.parse(timestamp)

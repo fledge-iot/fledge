@@ -49,18 +49,11 @@ class AbstractStorage(ABC):
 class Storage(AbstractStorage):
 
     def __init__(self):
-        # discover the Storage type the service: how do we know the instance name?
-        # with type there can be multiple instances (as allowed)
-        # TODO: (Praveen) do via http
         try:
-            storage_services = Service.Instances.get(name="store")
-            self.service = storage_services[0]
+            self.connect()
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
-
-            # TODO: remove me, will be used by registry API
-            # need to check, if we are adding management_port to service instance?
-            self.management_api_url = '{}:{}'.format(self.service._address, 1081)
-        except Service.DoesNotExist:
+            self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
+        except Exception:
             raise InvalidServiceInstance
 
     @property
@@ -129,7 +122,35 @@ class Storage(AbstractStorage):
         conn.close()
         return json.loads(res)
 
+    def get_storage_service(self):
+        """ get Storage service """
+
+        # TODO: URL to service registry api?
+        conn = http.client.HTTPConnection("localhost:8082")
+        # TODO: need to set http / https based on service protocol
+
+        conn.request('GET', url='/foglamp/service')
+        r = conn.getresponse()
+
+        # TODO: log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        response = json.loads(res)
+        found_services = [s for s in response["services"] if s["name"] == "FogLAMP Storage"]
+        svc = found_services[0]
+        return svc
+
     def connect(self):
+        svc = self.get_storage_service()
+        if len(svc) == 0:
+            raise InvalidServiceInstance
+        self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
+                               m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
         return self
 
     def disconnect(self):

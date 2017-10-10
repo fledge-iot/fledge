@@ -192,7 +192,6 @@ class TestPayloadBuilderRead:
     def test_complex_select_payload(self):
         res = PayloadBuilder() \
             .SELECT("id", "name") \
-            .FROM("table") \
             .WHERE(["id", "=", 1]) \
             .AND_WHERE(["name", "=", "test"]) \
             .OR_WHERE(["name", "=", "test2"]) \

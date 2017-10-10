@@ -1,0 +1,29 @@
+{
+  "aggregate": {
+    "column": "name",
+    "operation": "count"
+  },
+  "columns": "id,name",
+  "group": "name, id",
+  "limit": 5,
+  "skip": 1,
+  "sort": {
+    "column": "id",
+    "direction": "desc"
+  },
+  "where": {
+    "and": {
+      "column": "name",
+      "condition": "=",
+      "value": "test"
+    },
+    "column": "id",
+    "condition": "=",
+    "or": {
+      "column": "name",
+      "condition": "=",
+      "value": "test2"
+    },
+    "value": 1
+  }
+}

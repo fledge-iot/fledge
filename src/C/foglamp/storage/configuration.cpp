@@ -18,7 +18,7 @@
 
 static const char *defaultConfiguration = " { \"plugin\" : { "
 " \"value\" : \"postgres\" }, \"threads\" : { \"value\" : \"1\" },"
-"  \"port\" : { \"value\" : \"8080\" }, \"managementPort\" : { \"value\" : \"1081\" } }";
+"  \"port\" : { \"value\" : \"0\" }, \"managementPort\" : { \"value\" : \"0\" } }";
 
 using namespace std;
 using namespace rapidjson;

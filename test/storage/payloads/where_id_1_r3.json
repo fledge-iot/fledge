@@ -1,0 +1,15 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : "=",
+				"value" : "1"
+			},
+	"return" : [ "key", {
+			 "json" : {
+				 "column" : "data",
+				 "properties" : "json"
+				   },
+			  "alias" : "JSONvalue"
+				 }
+		  ]
+}

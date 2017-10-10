@@ -34,6 +34,7 @@ class Connection {
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
 		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&);
+		bool		returnJson(const rapidjson::Value&, SQLBuffer&);
 		char		*trim(char *str);
 };
 #endif

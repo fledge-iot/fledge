@@ -1,0 +1,16 @@
+{
+  "sort": [
+    {
+      "column": "name",
+      "direction": "desc"
+    },
+    {
+      "column": "id",
+      "direction": "asc"
+    },
+    {
+      "column": "ts",
+      "direction": "asc"
+    }
+  ]
+}

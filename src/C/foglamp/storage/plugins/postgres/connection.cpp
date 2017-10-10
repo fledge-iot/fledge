@@ -88,6 +88,49 @@ SQLBuffer	sql;
 			}
 			sql.append(" FROM ");
 		}
+		else if (document.HasMember("return"))
+		{
+			int col = 0;
+			Value& columns = document["return"];
+			if (! columns.IsArray())
+			{
+				raiseError("retrieve", "The property columns must be an array");
+				return false;
+			}
+			sql.append("SELECT ");
+			for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+			{
+				if (col)
+					sql.append(", ");
+				if (!itr->IsObject())	// Simple column name
+				{
+					sql.append(itr->GetString());
+				}
+				else
+				{
+					if (itr->HasMember("column"))
+					{
+						sql.append((*itr)["column"].GetString());
+						sql.append(' ');
+					}
+					else if (itr->HasMember("json"))
+					{
+						const Value& json = (*itr)["json"];
+						if (! returnJson(json, sql))
+							return false;
+					}
+
+					if (itr->HasMember("alias"))
+                                        {
+						sql.append(" AS \"");
+                                                sql.append((*itr)["alias"].GetString());
+                                                sql.append('"');
+                                        }
+				}
+				col++;
+			}
+			sql.append(" FROM ");
+		}
 		else
 		{
 			sql.append("SELECT * FROM ");
@@ -600,6 +643,14 @@ Document doc;
 				row.AddMember(name, dblVal, allocator);
 				break;
 			}
+			case 1184: // Timestamp
+			{
+				char *str = PQgetvalue(res, i, j);
+				Value value(str, allocator);
+				Value name(PQfname(res, j), allocator);
+				row.AddMember(name, value, allocator);
+				break;
+			}
 			default:
 			{
 				char *str = PQgetvalue(res, i, j);
@@ -820,6 +871,51 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	{
 		sql.append(" OR ");
 		jsonWhereClause(whereClause["or"], sql);
+	}
+
+	return true;
+}
+
+bool Connection::returnJson(const Value& json, SQLBuffer& sql)
+{
+	if (! json.IsObject())
+	{
+		raiseError("retrieve", "The json property must be an object");
+		return false;
+	}
+	if (!json.HasMember("column"))
+	{
+		raiseError("retrieve", "The json property is missing a column property");
+		return false;
+	}
+	sql.append(json["column"].GetString());
+	sql.append("->");
+	if (!json.HasMember("properties"))
+	{
+		raiseError("retrieve", "The json property is missing a properties property");
+		return false;
+	}
+	const Value& jsonFields = json["properties"];
+	if (jsonFields.IsArray())
+	{
+		int field = 0;
+		for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
+		{
+			if (field)
+			{
+				sql.append("->");
+			}
+			field++;
+			sql.append('\'');
+			sql.append(itr->GetString());
+			sql.append('\'');
+		}
+	}
+	else
+	{
+		sql.append('\'');
+		sql.append(jsonFields.GetString());
+		sql.append('\'');
 	}
 
 	return true;

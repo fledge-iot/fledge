@@ -26,12 +26,13 @@
  */
 class StorageService : public ServiceHandler {
 	public:
-		StorageService();
+		StorageService(const string& name);
 		void 			start(std::string& coreAddress, unsigned short corePort);
 		void 			stop();
 		void			shutdown();
 		void			configChange(const std::string&, const std::string&);
 	private:
+		const string&		m_name;
 		bool 			loadPlugin();
 		StorageApi    		*api;
 		StorageConfiguration	*config;

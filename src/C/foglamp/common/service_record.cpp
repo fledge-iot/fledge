@@ -42,8 +42,8 @@ ostringstream convert;
 	convert << "\"type\" : \"" << m_type << "\",";
 	convert << "\"protocol\" : \"" << m_protocol << "\",";
 	convert << "\"address\" : \"" << m_address << "\",";
-	convert << "\"port\" : " << m_managementPort << ",";
-	convert << "\"servicePort\" : " << m_port << " ";
+	convert << "\"management_port\" : " << m_managementPort << ",";
+	convert << "\"service_port\" : " << m_port << " ";
 	convert << "}";
 
 	json = convert.str();

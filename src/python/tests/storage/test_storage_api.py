@@ -71,6 +71,54 @@ class TestStorageRead:
         assert res["rows"][0]["value"] == 10
         assert res["rows"][0]["previous_value"] == 1
 
+    @pytest.mark.skip(reason="Payload builder does not parse more than 1 AND_WHERE correctly")
+    def test_multiple_and_where(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
+                                               WHERE(["value", "!=", 0]).
+                                               AND_WHERE(["key", "=", "TEST_1"]).
+                                               AND_WHERE(["previous_value", "<", 10]).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Testing the storage service data 1"
+        assert res["rows"][0]["value"] == 10
+        assert res["rows"][0]["previous_value"] == 1
+
+    @pytest.mark.skip(reason="Payload builder does not parse more than 1 OR_WHERE correctly")
+    def test_multiple_or_where(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
+                                               WHERE(["value", "=", 0]).
+                                               OR_WHERE(["key", "=", "TEST_1"]).
+                                               OR_WHERE(["previous_value", ">", 10]).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Testing the storage service data 1"
+        assert res["rows"][0]["value"] == 10
+        assert res["rows"][0]["previous_value"] == 1
+
+    def test_limit(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().LIMIT(1).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Testing the storage service data 1"
+        assert res["rows"][0]["value"] == 10
+        assert res["rows"][0]["previous_value"] == 1
+
+    @pytest.mark.skip(reason="Payload builder does not support offset without limit")
+    def test_offset(self):
+        pass
+
+    def test_limit_offset(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().LIMIT(2).OFFSET(1).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_2"
+        assert res["rows"][0]["description"] == "Testing the storage service data 2"
+        assert res["rows"][0]["value"] == 15
+        assert res["rows"][0]["previous_value"] == 2
+
 
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")

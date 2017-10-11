@@ -26,7 +26,10 @@ import logging
 import psycopg2
 import os
 
+from collections import OrderedDict
+
 from foglamp import logger, configuration_manager
+from foglamp.storage.storage import Storage, Readings
 
 # Module information
 __author__ = "Stefano Simonelli"
@@ -49,7 +52,7 @@ except KeyError:
 
 _pg_conn = ()
 _pg_cur = ()
-
+_storage = ()
 
 # Messages used for Information, Warning and Error notice
 _MESSAGES_LIST = {
@@ -85,7 +88,9 @@ _CONFIG_DEFAULT_OMF = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_0001"
+        # FIXME:
+        "default": "omf_statistics_2100"
+        # "default": "omf_translator_3001"
 
     },
     "OMFMaxRetry": {
@@ -128,7 +133,7 @@ _CONFIG_DEFAULT_OMF_TYPES = {
     "type-id": {
         "description": "Identify sensor and measurement types",
         "type": "integer",
-        "default": "0001"
+        "default": "3001"
     },
 }
 
@@ -381,15 +386,20 @@ def plugin_retrieve_info(stream_id):
 
 
 # noinspection PyProtectedMember
-def plugin_init():
+def plugin_init(storage):
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
 
+    # FIXME:
+        storage
     Returns:
     Raises:
         PluginInitializeFailed
     Todo:
     """
 
+    global _storage
+
+    # FIXME:
     global _pg_conn
     global _pg_cur
     global _recreate_omf_objects
@@ -397,7 +407,9 @@ def plugin_init():
     _logger.debug("{0} - URL {1}".format(sys._getframe().f_code.co_name, _config['URL']))
 
     try:
+        _storage = storage
 
+        # FIXME:
         _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
         _pg_cur = _pg_conn.cursor()
 
@@ -500,14 +512,33 @@ def _deleted_omf_types_already_created(config_category_name, type_id):
      Todo:
      """
 
-    global _pg_cur
-    global _pg_conn
+    # FIXME:
+    # global _pg_cur
+    # global _pg_conn
+    #
+    # sql_cmd = "DELETE FROM foglamp.omf_created_objects "\
+    #           "WHERE configuration_key='{0}' AND type_id={1}".format(config_category_name, type_id)
+    #
+    # _pg_cur.execute(sql_cmd)
+    # _pg_conn.commit()
 
-    sql_cmd = "DELETE FROM foglamp.omf_created_objects "\
-              "WHERE configuration_key='{0}' AND type_id={1}".format(config_category_name, type_id)
+    del_cond = dict()
+    del_cond['column'] = 'configuration_key'
+    del_cond['condition'] = '='
+    del_cond['value'] = config_category_name
 
-    _pg_cur.execute(sql_cmd)
-    _pg_conn.commit()
+    # AND
+    del_cond_2 = dict()
+    del_cond_2['column'] = 'type_id'
+    del_cond_2['condition'] = '='
+    del_cond_2['value'] = type_id
+
+    # Combines
+    cond = dict()
+    cond['where'] = del_cond
+    cond['and'] = del_cond_2
+
+    _storage.delete_from_tbl("omf_created_objects", json.dumps(cond))
 
 
 def _retrieve_omf_types_already_created(configuration_key, type_id):
@@ -522,13 +553,43 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
      Todo:
      """
 
-    global _pg_cur
+    # FIXME:
+    # global _pg_cur
+    #
+    # sql_cmd = "SELECT asset_code FROM foglamp.omf_created_objects " \
+    #           "WHERE configuration_key='{0}' and type_id={1}".format(configuration_key, type_id)
+    #
+    # _pg_cur.execute(sql_cmd)
+    # rows = _pg_cur.fetchall()
 
-    sql_cmd = "SELECT asset_code FROM foglamp.omf_created_objects " \
-              "WHERE configuration_key='{0}' and type_id={1}".format(configuration_key, type_id)
+    where = OrderedDict()
+    where['column'] = 'configuration_key'
+    where['condition'] = '='
+    where['value'] = configuration_key
 
-    _pg_cur.execute(sql_cmd)
-    rows = _pg_cur.fetchall()
+    # And
+    where_2 = OrderedDict()
+    where_2['column'] = 'type_id'
+    where_2['condition'] = '='
+    where_2['value'] = type_id
+
+    query_payload = OrderedDict()
+    query_payload['where'] = where
+    query_payload['and'] = where_2
+
+    payload = json.dumps(query_payload)
+
+    omf_created_objects = _storage.query_tbl_with_payload('omf_created_objects', payload)
+
+    # noinspection PyProtectedMember
+    _logger.debug("{func} - omf_created_objects {item} ".format(
+                                                                func=sys._getframe().f_code.co_name,
+                                                                item=omf_created_objects))
+
+    # Extracts only the asset_code column
+    rows = []
+    for row in omf_created_objects['rows']:
+        rows.append(row['asset_code'])
 
     return rows
 
@@ -544,17 +605,26 @@ def _flag_created_omf_type(configuration_key, type_id, asset_code):
      Todo:
      """
 
-    global _pg_cur
-    global _pg_conn
+    # FIXME:
+    # global _pg_cur
+    # global _pg_conn
 
-    sql_cmd = "INSERT INTO foglamp.omf_created_objects  " \
-              "(configuration_key, asset_code, type_id) " \
-              "VALUES ('{0}', '{1}', {2})".format(configuration_key,
-                                                  asset_code,
-                                                  type_id)
+    # sql_cmd = "INSERT INTO foglamp.omf_created_objects  " \
+    #           "(configuration_key, asset_code, type_id) " \
+    #           "VALUES ('{0}', '{1}', {2})".format(configuration_key,
+    #                                               asset_code,
+    #                                               type_id)
+    #
+    # _pg_cur.execute(sql_cmd)
+    # _pg_conn.commit()
 
-    _pg_cur.execute(sql_cmd)
-    _pg_conn.commit()
+    data = dict()
+
+    data['configuration_key'] = configuration_key
+    data['asset_code'] = asset_code
+    data['type_id'] = type_id
+
+    _storage.insert_into_tbl("omf_created_objects", json.dumps(data))
 
 
 def _generate_omf_asset_id(asset_code):
@@ -836,8 +906,8 @@ def _identify_unique_asset_codes(raw_data):
     asset_code_to_evaluate = []
 
     for row in raw_data:
-        asset_code = row[1]
-        asset_data = row[3]
+        asset_code = row['asset_code']
+        asset_data = row['reading']
 
         # Evaluates if the asset_code is already in the list
         if not any(item["asset_code"] == asset_code for item in asset_code_to_evaluate):
@@ -998,8 +1068,8 @@ def _transform_in_memory_data(data_to_send, raw_data):
     try:
         for row in raw_data:
 
-            row_id = row[0]
-            asset_code = row[1]
+            row_id = row['id']
+            asset_code = row['asset_code']
 
             # Identification of the object/sensor
             measurement_id = _generate_omf_measurement(asset_code)
@@ -1047,10 +1117,12 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
     data_available = False
 
     try:
-        row_id = row[0]
-        asset_code = row[1]
-        timestamp = row[2].isoformat()
-        sensor_data = row[3]
+        row_id = row['id']
+        asset_code = row['asset_code']
+        # FIXME:
+        # timestamp = row['user_ts'].isoformat()
+        timestamp = row['user_ts']
+        sensor_data = row['reading']
 
         if _log_debug_level == 3:
             _logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
@@ -1096,5 +1168,8 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 
 if __name__ == "__main__":
+
+    # Used to assign the proper objects type without actually executing them
+    _storage = Storage()
     _logger = logger.setup(_MODULE_NAME)
     _event_loop = asyncio.get_event_loop()

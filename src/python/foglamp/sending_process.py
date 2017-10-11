@@ -25,6 +25,14 @@ import importlib
 import logging
 import datetime
 import os
+import json
+
+from collections import OrderedDict
+
+from foglamp.core.service_registry.service_registry import Service
+from foglamp.storage.storage import Storage, Readings
+from foglamp.storage.exceptions import *
+
 
 from foglamp import logger, statistics, configuration_manager
 
@@ -166,7 +174,9 @@ class SendingProcess:
             "description": "Defines the source of the data to be sent on the stream, "
                            "this may be one of either readings, statistics or audit.",
             "type": "string",
-            "default": _DATA_SOURCE_READINGS
+            # FIXME:
+            "default": _DATA_SOURCE_STATISTICS
+            # "default": _DATA_SOURCE_READINGS
         },
         "blockSize": {
             "description": "The size of a block of readings to send in each transmission.",
@@ -218,6 +228,18 @@ class SendingProcess:
             'interface': "",
             'config': ""
         }
+
+        # FIXME:
+        Service.Instances.register(
+            name="store",
+            s_type="Storage",
+            address="0.0.0.0",
+            port=8080,
+            management_port=1081)
+
+        self._storage = Storage()
+        # self._storage = {}
+        """" The FogLAMP Storage Layer """
 
     # noinspection PyProtectedMember
     def _retrieve_configuration(self, stream_id):
@@ -302,8 +324,24 @@ class SendingProcess:
             _logger.info(_MESSAGES_LIST["i000001"])
 
             try:
+                # FIXME:
                 self._pg_conn = psycopg2.connect(self._DB_CONNECTION_STRING)
                 self._pg_cur = self._pg_conn.cursor()
+
+                # FIXME:
+                # Service.Instances.register(
+                #                             name="store",
+                #                             s_type="Storage",
+                #                             address="0.0.0.0",
+                #                             port=8080,
+                #                             management_port=1081)
+
+                # self._storage = Storage()
+                status = self._storage.check_service_availibility()
+
+                _logger.debug("{fun} - storage engine status {status} ".format(
+                                                                                fun=sys._getframe().f_code.co_name,
+                                                                                status=status))
 
             except Exception as e:
                 _message = _MESSAGES_LIST["e000012"].format(str(e))
@@ -332,7 +370,7 @@ class SendingProcess:
 
                     if self._is_translator_valid():
                         try:
-                            self._plugin.plugin_init()
+                            self._plugin.plugin_init(self._storage)
 
                         except Exception as e:
                             _message = _MESSAGES_LIST["e000018"].format(self._plugin_info['name'])
@@ -438,15 +476,21 @@ class SendingProcess:
         _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
 
         try:
-            sql_cmd = "SELECT id, asset_code, user_ts, reading " \
-                      "FROM foglamp.readings " \
-                      "WHERE id> {0} " \
-                      "ORDER BY id LIMIT {1}" \
-                .format(last_object_id,
-                        self._config['blockSize'])
+            # sql_cmd = "SELECT id, asset_code, user_ts, reading " \
+            #           "FROM foglamp.readings " \
+            #           "WHERE id> {0} " \
+            #           "ORDER BY id LIMIT {1}" \
+            #     .format(last_object_id,
+            #             self._config['blockSize'])
+            #
+            # self._pg_cur.execute(sql_cmd)
+            # raw_data = self._pg_cur.fetchall()
 
-            self._pg_cur.execute(sql_cmd)
-            raw_data = self._pg_cur.fetchall()
+            readings = Readings().fetch(
+                                        reading_id=last_object_id + 1,
+                                        count=self._config['blockSize'])
+
+            raw_data = readings['rows']
 
         except Exception:
             _message = _MESSAGES_LIST["e000009"]
@@ -474,15 +518,29 @@ class SendingProcess:
         _logger.debug("{0} - position |{1}| ".format(sys._getframe().f_code.co_name, last_object_id))
 
         try:
-            sql_cmd = "SELECT id, key, ts, value " \
-                      "FROM foglamp.statistics_history " \
-                      "WHERE id> {0} " \
-                      "ORDER BY id LIMIT {1}" \
-                .format(last_object_id,
-                        self._config['blockSize'])
+            # FIXME:
+            # sql_cmd = "SELECT id, key, ts, value " \
+            #           "FROM foglamp.statistics_history " \
+            #           "WHERE id> {0} " \
+            #           "ORDER BY id LIMIT {1}" \
+            #     .format(last_object_id,
+            #             self._config['blockSize'])
+            #
+            # self._pg_cur.execute(sql_cmd)
+            # raw_data = self._pg_cur.fetchall()
 
-            self._pg_cur.execute(sql_cmd)
-            raw_data = self._pg_cur.fetchall()
+            where = OrderedDict()
+            where['column'] = 'id'
+            where['condition'] = '>'
+            where['value'] = last_object_id
+
+            query_payload = OrderedDict()
+            query_payload['where'] = where
+            query_payload['limit'] = self._config['blockSize']
+
+            statistics_history = self._storage.query_tbl_with_payload('statistics_history', json.dumps(query_payload))
+
+            raw_data = statistics_history['rows']
 
             converted_data = self._transform_in_memory_data_statistics(raw_data)
 
@@ -513,18 +571,23 @@ class SendingProcess:
 
         converted_data = []
 
+        # Extracts only the asset_code column
+        # and renames the columns to id, asset_code, user_ts, reading
+
         try:
-            for item in raw_data:
+            for row in raw_data:
 
                 # Removes spaces
-                asset_code = item[1].replace(" ", "")
+                asset_code = row['key'].replace(" ", "")
 
-                new_data = [item[0],             # Row id
-                            asset_code,          # Asset code
-                            item[2],             # Timestamp
-                            {"value": item[3]}]  # Converts raw data to a Dictionary
+                new_row = {
+                    'id': row['id'],                    # Row id
+                    'asset_code': asset_code,           # Asset code
+                    'user_ts': row['ts'],               # Timestamp
+                    'reading': {'value': row['value']}  # Converts raw data to a Dictionary
+                }
 
-                converted_data.append(new_data)
+                converted_data.append(new_row)
 
         except Exception as e:
             _message = _MESSAGES_LIST["e000022"].format(str(e))
@@ -574,10 +637,9 @@ class SendingProcess:
         """
 
         try:
-            sql_cmd = "SELECT last_object FROM foglamp.streams WHERE id={0}".format(stream_id)
-
-            self._pg_cur.execute(sql_cmd)
-            rows = self._pg_cur.fetchall()
+            where = 'id={0}'.format(stream_id)
+            streams = self._storage.query_tbl('streams', where)
+            rows = streams['rows']
 
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -589,8 +651,8 @@ class SendingProcess:
                 raise ValueError(_message)
 
             else:
-                last_object_id = rows[0][0]
-                _logger.debug("db row last_object_id |{0}| ".format(last_object_id))
+                last_object_id = rows[0]['last_object']
+                _logger.debug("last_object id |{0}| ".format(last_object_id))
 
         except Exception:
             _message = _MESSAGES_LIST["e000019"]
@@ -613,10 +675,8 @@ class SendingProcess:
         """
 
         try:
-            sql_cmd = "SELECT id, active FROM foglamp.streams WHERE id={0}".format(stream_id)
-
-            self._pg_cur.execute(sql_cmd)
-            rows = self._pg_cur.fetchall()
+            streams = self._storage.query_tbl('streams', 'id={0}'.format(stream_id))
+            rows = streams['rows']
 
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -627,7 +687,8 @@ class SendingProcess:
                 _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
                 raise ValueError(_message)
             else:
-                if rows[0][1]:
+                # FIXME:
+                if rows[0]['active'] == 't':
                     stream_id_valid = True
                 else:
                     _message = _MESSAGES_LIST["i000004"].format(stream_id)
@@ -658,12 +719,20 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            sql_cmd = "UPDATE foglamp.streams SET last_object={0}, ts=now()  WHERE id={1}" \
-                .format(new_last_object_id, stream_id)
+            condition = dict()
+            condition['column'] = 'id'
+            condition['condition'] = '='
+            condition['value'] = stream_id
 
-            self._pg_cur.execute(sql_cmd)
+            values = dict()
+            values['last_object'] = new_last_object_id
+            values['ts'] = 'now()'
 
-            self._pg_conn.commit()
+            data = dict()
+            data['condition'] = condition
+            data['values'] = values
+
+            self._storage.update_tbl("streams", json.dumps(data))
 
         except Exception:
             _message = _MESSAGES_LIST["e000020"]

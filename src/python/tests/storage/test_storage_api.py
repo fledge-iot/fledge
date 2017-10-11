@@ -39,7 +39,37 @@ def create_init_data(request):
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")
 class TestStorageRead:
-    pass
+    def test_select(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT().payload())
+        assert len(res["rows"]) == 2
+        assert res["count"] == 2
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Testing the storage service data 1"
+        assert res["rows"][0]["value"] == 10
+        assert res["rows"][0]["previous_value"] == 1
+
+        assert res["rows"][1]["key"] == "TEST_2"
+        assert res["rows"][1]["description"] == "Testing the storage service data 2"
+        assert res["rows"][1]["value"] == 15
+        assert res["rows"][1]["previous_value"] == 2
+
+    def test_where_query_param(self):
+        res = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Testing the storage service data 1"
+        assert res["rows"][0]["value"] == 10
+        assert res["rows"][0]["previous_value"] == 1
+
+    def test_where_payload(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["value", "!=", 15]).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Testing the storage service data 1"
+        assert res["rows"][0]["value"] == 10
+        assert res["rows"][0]["previous_value"] == 1
 
 
 @pytest.allure.feature("api")

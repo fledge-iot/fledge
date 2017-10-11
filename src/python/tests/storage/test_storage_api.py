@@ -46,7 +46,7 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
-        assert res["rows"][0]["previous_value"] == 1
+        assert res["rows"][0]["previous_value"] == 2
 
         assert res["rows"][1]["key"] == "TEST_2"
         assert res["rows"][1]["description"] == "Testing the storage service data 2"
@@ -60,7 +60,7 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
-        assert res["rows"][0]["previous_value"] == 1
+        assert res["rows"][0]["previous_value"] == 2
 
     def test_where_payload(self):
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["value", "!=", 15]).payload())
@@ -69,7 +69,7 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
-        assert res["rows"][0]["previous_value"] == 1
+        assert res["rows"][0]["previous_value"] == 2
 
     @pytest.mark.skip(reason="Payload builder does not parse more than 1 AND_WHERE correctly")
     def test_multiple_and_where(self):
@@ -82,7 +82,7 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
-        assert res["rows"][0]["previous_value"] == 1
+        assert res["rows"][0]["previous_value"] == 2
 
     @pytest.mark.skip(reason="Payload builder does not parse more than 1 OR_WHERE correctly")
     def test_multiple_or_where(self):
@@ -95,7 +95,7 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
-        assert res["rows"][0]["previous_value"] == 1
+        assert res["rows"][0]["previous_value"] == 2
 
     def test_limit(self):
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().LIMIT(1).payload())
@@ -104,7 +104,7 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
-        assert res["rows"][0]["previous_value"] == 1
+        assert res["rows"][0]["previous_value"] == 2
 
     @pytest.mark.skip(reason="Payload builder does not support offset without limit")
     def test_offset(self):
@@ -117,6 +117,39 @@ class TestStorageRead:
         assert res["rows"][0]["key"] == "TEST_2"
         assert res["rows"][0]["description"] == "Testing the storage service data 2"
         assert res["rows"][0]["value"] == 15
+        assert res["rows"][0]["previous_value"] == 2
+
+    def test_order(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
+                                               ORDER_BY(["key", "desc"]).LIMIT(1).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["key"] == "TEST_2"
+        assert res["rows"][0]["description"] == "Testing the storage service data 2"
+        assert res["rows"][0]["value"] == 15
+        assert res["rows"][0]["previous_value"] == 2
+
+    def test_aggregate(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
+                                               AGGREGATE(["max", "value"]).payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["max_value"] == 15
+
+    @pytest.mark.skip(reason="Storage does not support GROUP_BY without aggregate")
+    def test_group(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT("previous_value").
+                                               GROUP_BY("previous_value").payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["previous_value"] == 2
+
+    def test_aggregate_group(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().AGGREGATE(["min", "previous_value"]).
+                                               GROUP_BY("previous_value").payload())
+        assert len(res["rows"]) == 1
+        assert res["count"] == 1
+        assert res["rows"][0]["min_previous_value"] == 2
         assert res["rows"][0]["previous_value"] == 2
 
 

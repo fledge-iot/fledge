@@ -1,0 +1,604 @@
+{
+   "readings" : [
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "f1cfff7a-3769-4f47-9ded-00f0975d66f5",
+			"reading" : { "rate" : 90 },
+			"user_ts" : "2017-10-11 15:10:51.927191906"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "78f73c9f-bc11-4b8d-a246-58863adf66b5",
+			"reading" : { "rate" : 13 },
+			"user_ts" : "2017-10-11 15:10:51.930077316"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "97c6b0ab-8743-466e-84af-4303cfb894eb",
+			"reading" : { "rate" : 84 },
+			"user_ts" : "2017-10-11 15:10:51.933029946"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "6ad6be0f-3f3a-44fa-bdd0-f1fa6e99c199",
+			"reading" : { "rate" : 96 },
+			"user_ts" : "2017-10-11 15:10:51.936351551"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "29884a0e-f7fc-48c4-a481-f65135a3d55c",
+			"reading" : { "rate" : 2 },
+			"user_ts" : "2017-10-11 15:10:51.939633486"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "2fa68434-5d8d-439f-a26a-7eef8d6ee34a",
+			"reading" : { "rate" : 54 },
+			"user_ts" : "2017-10-11 15:10:51.942860303"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "e6fbd574-de9d-4465-926f-586d510ba2ce",
+			"reading" : { "rate" : 28 },
+			"user_ts" : "2017-10-11 15:10:51.946072705"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "c24f787a-5970-44f0-a05d-cf03c75be500",
+			"reading" : { "rate" : 3 },
+			"user_ts" : "2017-10-11 15:10:51.949303775"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "e589d20d-fff1-44ab-aeab-5d4a1044d1c7",
+			"reading" : { "rate" : 77 },
+			"user_ts" : "2017-10-11 15:10:51.952531085"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "a1998ac1-228f-4cbd-a5c8-7a9366575a52",
+			"reading" : { "rate" : 38 },
+			"user_ts" : "2017-10-11 15:10:51.955723213"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "f76a7392-0aac-4912-95fb-d80d00689fd2",
+			"reading" : { "rate" : 26 },
+			"user_ts" : "2017-10-11 15:10:51.959048996"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "27d58452-5d2b-41f7-bb59-315ad195bcff",
+			"reading" : { "rate" : 86 },
+			"user_ts" : "2017-10-11 15:10:51.963008671"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "eeaf2bf2-fec1-4208-9e65-5f6d30f31fde",
+			"reading" : { "rate" : 39 },
+			"user_ts" : "2017-10-11 15:10:51.966955796"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "383e629b-fb49-49d0-8ce0-87e7f683968a",
+			"reading" : { "rate" : 57 },
+			"user_ts" : "2017-10-11 15:10:51.970002731"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "da4ba8aa-6583-46c6-8bac-418a48d4fce4",
+			"reading" : { "rate" : 73 },
+			"user_ts" : "2017-10-11 15:10:51.973462058"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "b8b3c741-fc8f-4694-af8c-9cd2b2096029",
+			"reading" : { "rate" : 22 },
+			"user_ts" : "2017-10-11 15:10:51.979245019"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "0c86dc4b-74f7-4a5e-9e3e-782033b92521",
+			"reading" : { "rate" : 34 },
+			"user_ts" : "2017-10-11 15:10:51.982825759"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "6bd96e92-bd9d-425c-bd38-af2f265ff5ce",
+			"reading" : { "rate" : 78 },
+			"user_ts" : "2017-10-11 15:10:51.986811733"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "7daefc42-53bf-412d-917a-71671faf31be",
+			"reading" : { "rate" : 20 },
+			"user_ts" : "2017-10-11 15:10:51.990407738"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "5efbfc69-66fd-4bb5-908f-28c768c21ee4",
+			"reading" : { "rate" : 70 },
+			"user_ts" : "2017-10-11 15:10:51.993641575"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "8e92ab6c-e018-4489-bdfd-c8a3fa72d7d8",
+			"reading" : { "rate" : 17 },
+			"user_ts" : "2017-10-11 15:10:51.996855039"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "5be8efce-f50c-4d76-89cd-b37fcf38ee1d",
+			"reading" : { "rate" : 2 },
+			"user_ts" : "2017-10-11 15:10:52.000131125"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "b56253e7-f4be-49f3-8dae-9149f42fcd25",
+			"reading" : { "rate" : 18 },
+			"user_ts" : "2017-10-11 15:10:52.005780345"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "95607b7a-581c-439a-bb85-e403d3ba034e",
+			"reading" : { "rate" : 52 },
+			"user_ts" : "2017-10-11 15:10:52.009004973"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "c526608b-9fbd-4ce1-89fa-73fcdba75c35",
+			"reading" : { "rate" : 62 },
+			"user_ts" : "2017-10-11 15:10:52.012432720"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "38c9a1f5-0667-4a06-9e6e-60ccc9e5a17c",
+			"reading" : { "rate" : 47 },
+			"user_ts" : "2017-10-11 15:10:52.015931562"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "231f1277-111e-4c8e-aaa9-cfed7bbe453e",
+			"reading" : { "rate" : 73 },
+			"user_ts" : "2017-10-11 15:10:52.019228599"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "48f76a76-f76d-4c50-baeb-efa44808419c",
+			"reading" : { "rate" : 9 },
+			"user_ts" : "2017-10-11 15:10:52.022430891"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "80e22aed-f0fc-43a4-b79c-efaff49f1ff6",
+			"reading" : { "rate" : 66 },
+			"user_ts" : "2017-10-11 15:10:52.026312804"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "66f62e22-7157-437b-845d-70992f95b7d3",
+			"reading" : { "rate" : 30 },
+			"user_ts" : "2017-10-11 15:10:52.029248210"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "b2860ec5-b07d-47da-bee4-4a57d2832062",
+			"reading" : { "rate" : 70 },
+			"user_ts" : "2017-10-11 15:10:52.031930036"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "9fa165b4-aaa6-4913-a240-05ab2a90c470",
+			"reading" : { "rate" : 41 },
+			"user_ts" : "2017-10-11 15:10:52.034759931"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "58f7ee96-e62e-4a87-a9dc-271761256b66",
+			"reading" : { "rate" : 2 },
+			"user_ts" : "2017-10-11 15:10:52.037494767"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "1b804ce9-2aff-4b6d-a038-ebbd84903146",
+			"reading" : { "rate" : 69 },
+			"user_ts" : "2017-10-11 15:10:52.040900408"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "56437015-bbec-44cc-9b5f-0dc85fdb4c54",
+			"reading" : { "rate" : 98 },
+			"user_ts" : "2017-10-11 15:10:52.043678399"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "40fd38f1-2905-492f-b8c4-5539791217db",
+			"reading" : { "rate" : 13 },
+			"user_ts" : "2017-10-11 15:10:52.046833403"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "c9009def-ea22-4167-84c8-ba4d19ebacef",
+			"reading" : { "rate" : 91 },
+			"user_ts" : "2017-10-11 15:10:52.050656950"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "a120b0d3-7685-4e8f-a2ad-15c4e2a4ab41",
+			"reading" : { "rate" : 18 },
+			"user_ts" : "2017-10-11 15:10:52.053705004"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "7f04dcb1-abb4-4ae3-beb4-38eaebfd8804",
+			"reading" : { "rate" : 78 },
+			"user_ts" : "2017-10-11 15:10:52.056612533"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "ce76ae17-56af-4ebe-a6ff-5db9b4df027d",
+			"reading" : { "rate" : 70 },
+			"user_ts" : "2017-10-11 15:10:52.059816818"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "9d7f0356-43b3-40ca-b230-2ca66a4a5ae5",
+			"reading" : { "rate" : 48 },
+			"user_ts" : "2017-10-11 15:10:52.062667327"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "12e07014-a81c-44f8-8717-98f0950cc999",
+			"reading" : { "rate" : 94 },
+			"user_ts" : "2017-10-11 15:10:52.066313145"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "4045e583-c584-4fcc-b4bf-ac55b3e62f9c",
+			"reading" : { "rate" : 79 },
+			"user_ts" : "2017-10-11 15:10:52.070054298"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "99557fce-9a34-4b2e-90c4-46b3d0c7781e",
+			"reading" : { "rate" : 87 },
+			"user_ts" : "2017-10-11 15:10:52.073032300"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "344350c1-cb77-4a0b-a19e-378477dc1730",
+			"reading" : { "rate" : 60 },
+			"user_ts" : "2017-10-11 15:10:52.075709529"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "85bf6688-243f-47e9-8668-4469a3ca5282",
+			"reading" : { "rate" : 48 },
+			"user_ts" : "2017-10-11 15:10:52.078469594"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "4b59a225-c586-41c0-8f52-02fd0d27d1fc",
+			"reading" : { "rate" : 88 },
+			"user_ts" : "2017-10-11 15:10:52.081413496"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "b3d847ce-8720-4b58-9403-ca951a457ffb",
+			"reading" : { "rate" : 3 },
+			"user_ts" : "2017-10-11 15:10:52.084291705"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "43a25f57-2fbc-40dd-8df0-97396a139eee",
+			"reading" : { "rate" : 93 },
+			"user_ts" : "2017-10-11 15:10:52.086988344"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "39cf1da6-de6b-467c-8169-2fdff16e8ff2",
+			"reading" : { "rate" : 83 },
+			"user_ts" : "2017-10-11 15:10:52.089854394"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "f319f43b-0961-4819-b2af-eb75e7d37705",
+			"reading" : { "rate" : 76 },
+			"user_ts" : "2017-10-11 15:10:52.092628067"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "8b29fdd5-c1ae-49d4-aff6-bc9648b8304c",
+			"reading" : { "rate" : 97 },
+			"user_ts" : "2017-10-11 15:10:52.095270252"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "ed5a5435-7cc0-43d9-982e-b9fe45a607b3",
+			"reading" : { "rate" : 31 },
+			"user_ts" : "2017-10-11 15:10:52.098438807"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "ccb8f0a9-7226-403e-8a64-d0415c599376",
+			"reading" : { "rate" : 49 },
+			"user_ts" : "2017-10-11 15:10:52.100992475"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "75d505e0-f824-432d-be60-1096fbaef457",
+			"reading" : { "rate" : 36 },
+			"user_ts" : "2017-10-11 15:10:52.103591495"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "fcd07b20-d8da-4476-ab6f-d2697dc9e74f",
+			"reading" : { "rate" : 15 },
+			"user_ts" : "2017-10-11 15:10:52.106399825"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "b48f8d91-c6a3-4426-b8bd-46f35185b190",
+			"reading" : { "rate" : 67 },
+			"user_ts" : "2017-10-11 15:10:52.109127938"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "1b0eb02f-c954-414e-a9f5-842ac6605142",
+			"reading" : { "rate" : 67 },
+			"user_ts" : "2017-10-11 15:10:52.111779897"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "cc03cb5e-f37e-429f-bd42-4c98905e9993",
+			"reading" : { "rate" : 94 },
+			"user_ts" : "2017-10-11 15:10:52.114243636"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "202e2b80-1c4a-4444-b726-60f97082d24d",
+			"reading" : { "rate" : 68 },
+			"user_ts" : "2017-10-11 15:10:52.116767938"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "91247a52-bdb2-407a-8c15-6d4be4a999fc",
+			"reading" : { "rate" : 22 },
+			"user_ts" : "2017-10-11 15:10:52.119724561"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "a9437148-db23-41ed-9342-5c37a05007ed",
+			"reading" : { "rate" : 54 },
+			"user_ts" : "2017-10-11 15:10:52.122293876"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "701ea247-c539-441b-9857-43066414fdb9",
+			"reading" : { "rate" : 94 },
+			"user_ts" : "2017-10-11 15:10:52.124791131"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "3c3f36d2-d500-463e-93ef-242c95456d11",
+			"reading" : { "rate" : 49 },
+			"user_ts" : "2017-10-11 15:10:52.127260082"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "50215d16-84b9-4bd2-970b-1671a0bc805f",
+			"reading" : { "rate" : 59 },
+			"user_ts" : "2017-10-11 15:10:52.130223611"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "29582bb6-d900-4f9f-bff8-0f8cb421b984",
+			"reading" : { "rate" : 6 },
+			"user_ts" : "2017-10-11 15:10:52.132656635"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "baaeb92a-c324-48aa-8a81-71ddaccffb14",
+			"reading" : { "rate" : 82 },
+			"user_ts" : "2017-10-11 15:10:52.135199400"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "5010e674-034d-4209-b8e1-a23305fc36fe",
+			"reading" : { "rate" : 5 },
+			"user_ts" : "2017-10-11 15:10:52.137822954"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "3452487a-88ed-4b0e-a44c-b7aca0d3078c",
+			"reading" : { "rate" : 1 },
+			"user_ts" : "2017-10-11 15:10:52.140390135"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "425cee30-83a8-4e97-9638-3726cbb42cab",
+			"reading" : { "rate" : 53 },
+			"user_ts" : "2017-10-11 15:10:52.142788188"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "33b7a3e4-2940-4110-b69f-fb94ba7e7511",
+			"reading" : { "rate" : 69 },
+			"user_ts" : "2017-10-11 15:10:52.145544112"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "88dfa11c-0994-4710-9362-6240e32010b3",
+			"reading" : { "rate" : 97 },
+			"user_ts" : "2017-10-11 15:10:52.147995971"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "93a5aa9e-4d3c-49c8-bde9-07c375c5a6b4",
+			"reading" : { "rate" : 58 },
+			"user_ts" : "2017-10-11 15:10:52.150512948"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "e38be049-3f5c-4fe1-94c8-e6c346df528f",
+			"reading" : { "rate" : 76 },
+			"user_ts" : "2017-10-11 15:10:52.153044797"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "70868334-dd81-4713-9cdf-e216e82f2e67",
+			"reading" : { "rate" : 81 },
+			"user_ts" : "2017-10-11 15:10:52.157244547"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "c61ab51d-b692-4289-9005-b2ec32c1a0cc",
+			"reading" : { "rate" : 30 },
+			"user_ts" : "2017-10-11 15:10:52.160105403"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "85003b04-da8e-4645-8d52-67de59f6f1fb",
+			"reading" : { "rate" : 4 },
+			"user_ts" : "2017-10-11 15:10:52.163172158"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "53c873da-81fa-40f3-8eb5-ad8f70818457",
+			"reading" : { "rate" : 67 },
+			"user_ts" : "2017-10-11 15:10:52.165631529"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "5d90cb2b-159d-4cf1-990c-a7c7e4e668f8",
+			"reading" : { "rate" : 5 },
+			"user_ts" : "2017-10-11 15:10:52.169386767"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "ae33814c-a5fa-4959-b6ff-5e661950782a",
+			"reading" : { "rate" : 72 },
+			"user_ts" : "2017-10-11 15:10:52.171844558"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "39e0bd4a-3b8c-42f6-8b81-7176c2821004",
+			"reading" : { "rate" : 20 },
+			"user_ts" : "2017-10-11 15:10:52.174302648"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "c7d907bf-852c-4c25-a985-47139d60b2a7",
+			"reading" : { "rate" : 58 },
+			"user_ts" : "2017-10-11 15:10:52.176815980"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "5917d7b5-a098-41e4-bcbf-97bead624058",
+			"reading" : { "rate" : 75 },
+			"user_ts" : "2017-10-11 15:10:52.179330413"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "38d844f9-1203-4d59-984b-4e4a1d4d1a10",
+			"reading" : { "rate" : 74 },
+			"user_ts" : "2017-10-11 15:10:52.182026984"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "59a9613d-183b-4488-9fc0-993671a4a945",
+			"reading" : { "rate" : 60 },
+			"user_ts" : "2017-10-11 15:10:52.184453875"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "fc3a0565-86f6-4cc0-8886-37ac686b0bee",
+			"reading" : { "rate" : 96 },
+			"user_ts" : "2017-10-11 15:10:52.187060071"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "7266136f-cacf-4c98-984d-5851b4ebfb5a",
+			"reading" : { "rate" : 30 },
+			"user_ts" : "2017-10-11 15:10:52.189544659"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "518d95ba-ad6b-437a-90d0-84429151b26a",
+			"reading" : { "rate" : 40 },
+			"user_ts" : "2017-10-11 15:10:52.192069519"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "0d6e9728-b6b7-4137-818d-a417de3a29e2",
+			"reading" : { "rate" : 33 },
+			"user_ts" : "2017-10-11 15:10:52.195018406"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "0cbb6401-5574-4a07-bba2-e8427c15e257",
+			"reading" : { "rate" : 87 },
+			"user_ts" : "2017-10-11 15:10:52.197861237"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "72954115-c54a-4b82-83ee-0a61f6b934fd",
+			"reading" : { "rate" : 67 },
+			"user_ts" : "2017-10-11 15:10:52.200490704"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "af54a24a-756b-4760-8699-8356446a9418",
+			"reading" : { "rate" : 40 },
+			"user_ts" : "2017-10-11 15:10:52.203486404"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "a3d499fd-326f-415b-8d30-b75cd9523afc",
+			"reading" : { "rate" : 44 },
+			"user_ts" : "2017-10-11 15:10:52.206153509"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "fde20bd0-90ff-47ae-a284-367bd6ac67de",
+			"reading" : { "rate" : 7 },
+			"user_ts" : "2017-10-11 15:10:52.208776100"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "a8441301-77d5-4fbc-9b9e-5505b30d5951",
+			"reading" : { "rate" : 52 },
+			"user_ts" : "2017-10-11 15:10:52.211964714"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "cb8a4c9e-4443-429f-8b56-9b99a6235270",
+			"reading" : { "rate" : 93 },
+			"user_ts" : "2017-10-11 15:10:52.214504566"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "cf088dc7-d152-4d4c-a06d-defd40bdd560",
+			"reading" : { "rate" : 43 },
+			"user_ts" : "2017-10-11 15:10:52.219924224"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "0295e3ba-b4ab-40f4-ac6c-687b2c4788e0",
+			"reading" : { "rate" : 66 },
+			"user_ts" : "2017-10-11 15:10:52.222819931"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "6d570935-2b81-4863-bba2-5023687e14ea",
+			"reading" : { "rate" : 8 },
+			"user_ts" : "2017-10-11 15:10:52.225401299"
+		},
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "084fb4da-e329-447c-96f0-42d5f7286225",
+			"reading" : { "rate" : 79 },
+			"user_ts" : "2017-10-11 15:10:52.228495495"
+		}
+	]
+}

@@ -110,7 +110,18 @@ SQLBuffer	sql;
 				{
 					if (itr->HasMember("column"))
 					{
-						sql.append((*itr)["column"].GetString());
+						if (itr->HasMember("format"))
+						{
+							sql.append("to_char(");
+							sql.append((*itr)["column"].GetString());
+							sql.append(", '");
+							sql.append((*itr)["format"].GetString());
+							sql.append("')");
+						}
+						else
+						{
+							sql.append((*itr)["column"].GetString());
+						}
 						sql.append(' ');
 					}
 					else if (itr->HasMember("json"))
@@ -118,6 +129,11 @@ SQLBuffer	sql;
 						const Value& json = (*itr)["json"];
 						if (! returnJson(json, sql))
 							return false;
+					}
+					else
+					{
+						raiseError("retrieve", "return object must have either a column or json property");
+						return false;
 					}
 
 					if (itr->HasMember("alias"))
@@ -685,18 +701,73 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			raiseError("Select aggregation", "Missing property \"operation\"");
 			return false;
 		}
-		if (! aggregates.HasMember("column"))
+		if ((! aggregates.HasMember("column")) && (! aggregates.HasMember("json")))
 		{
-			raiseError("Select aggregation", "Missing property \"column\"");
+			raiseError("Select aggregation", "Missing property \"column\" or \"json\"");
 			return false;
 		}
 		sql.append(aggregates["operation"].GetString());
 		sql.append('(');
-		sql.append(aggregates["column"].GetString());
+		if (aggregates.HasMember("column"))
+		{
+			sql.append(aggregates["column"].GetString());
+		}
+		else if (aggregates.HasMember("json"))
+		{
+			const Value& json = aggregates["json"];
+			if (! json.IsObject())
+			{
+				raiseError("Select aggregation", "The json property must be an object");
+				return false;
+			}
+			if (!json.HasMember("column"))
+			{
+				raiseError("retrieve", "The json property is missing a column property");
+				return false;
+			}
+			sql.append('(');
+			sql.append(json["column"].GetString());
+			sql.append("->");
+			if (!json.HasMember("properties"))
+			{
+				raiseError("retrieve", "The json property is missing a properties property");
+				return false;
+			}
+			const Value& jsonFields = json["properties"];
+			if (jsonFields.IsArray())
+			{
+				int field = 0;
+				for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
+				{
+					if (field)
+					{
+						sql.append("->>");
+					}
+					field++;
+					sql.append('\'');
+					sql.append(itr->GetString());
+					sql.append('\'');
+				}
+			}
+			else
+			{
+				sql.append('\'');
+				sql.append(jsonFields.GetString());
+				sql.append('\'');
+			}
+			sql.append(")::float");
+		}
 		sql.append(") AS \"");
-		sql.append(aggregates["operation"].GetString());
-		sql.append('_');
-		sql.append(aggregates["column"].GetString());
+		if (aggregates.HasMember("alias"))
+		{
+			sql.append(aggregates["alias"].GetString());
+		}
+		else
+		{
+			sql.append(aggregates["operation"].GetString());
+			sql.append('_');
+			sql.append(aggregates["column"].GetString());
+		}
 		sql.append("\"");
 	}
 	else if (aggregates.IsArray())
@@ -710,7 +781,7 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 						"Each element in the aggregate array must be an object");
 				return false;
 			}
-			if (! itr->HasMember("column"))
+			if ((! itr->HasMember("column")) && (! itr->HasMember("json")))
 			{
 				raiseError("Select aggregation", "Missing property \"column\"");
 				return false;
@@ -725,11 +796,66 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			index++;
 			sql.append((*itr)["operation"].GetString());
 			sql.append('(');
-			sql.append((*itr)["column"].GetString());
+			if (itr->HasMember("column"))
+			{
+				sql.append((*itr)["column"].GetString());
+			}
+			else if (itr->HasMember("json"))
+			{
+				const Value& json = (*itr)["json"];
+				if (! json.IsObject())
+				{
+					raiseError("Select aggregation", "The json property must be an object");
+					return false;
+				}
+				if (!json.HasMember("column"))
+				{
+					raiseError("retrieve", "The json property is missing a column property");
+					return false;
+				}
+				sql.append('(');
+				sql.append(json["column"].GetString());
+				sql.append("->>");
+				if (!json.HasMember("properties"))
+				{
+					raiseError("retrieve", "The json property is missing a properties property");
+					return false;
+				}
+				const Value& jsonFields = json["properties"];
+				if (jsonFields.IsArray())
+				{
+					int field = 0;
+					for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
+					{
+						if (field)
+						{
+							sql.append("->>");
+						}
+						field++;
+						sql.append('\'');
+						sql.append(itr->GetString());
+						sql.append('\'');
+					}
+				}
+				else
+				{
+					sql.append('\'');
+					sql.append(jsonFields.GetString());
+					sql.append('\'');
+				}
+				sql.append(")::float");
+			}
 			sql.append(") AS \"");
-			sql.append((*itr)["operation"].GetString());
-			sql.append('_');
-			sql.append((*itr)["column"].GetString());
+			if (itr->HasMember("alias"))
+			{
+				sql.append((*itr)["alias"].GetString());
+			}
+			else
+			{
+				sql.append((*itr)["operation"].GetString());
+				sql.append('_');
+				sql.append((*itr)["column"].GetString());
+			}
 			sql.append("\"");
 		}
 	}

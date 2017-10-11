@@ -1,0 +1,15 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : "<",
+				"value" : "6"
+			},
+	"return" : [ "key", "description", 
+			{
+			  "column" : "ts",
+			  "format" : "HH24:MI:SS",
+			  "alias" : "time"
+			}
+		    ]
+}
+

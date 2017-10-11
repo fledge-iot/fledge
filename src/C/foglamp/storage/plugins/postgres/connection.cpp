@@ -110,7 +110,18 @@ SQLBuffer	sql;
 				{
 					if (itr->HasMember("column"))
 					{
-						sql.append((*itr)["column"].GetString());
+						if (itr->HasMember("format"))
+						{
+							sql.append("to_char(");
+							sql.append((*itr)["column"].GetString());
+							sql.append(", '");
+							sql.append((*itr)["format"].GetString());
+							sql.append("')");
+						}
+						else
+						{
+							sql.append((*itr)["column"].GetString());
+						}
 						sql.append(' ');
 					}
 					else if (itr->HasMember("json"))
@@ -118,6 +129,11 @@ SQLBuffer	sql;
 						const Value& json = (*itr)["json"];
 						if (! returnJson(json, sql))
 							return false;
+					}
+					else
+					{
+						raiseError("retrieve", "return object must have either a column or json property");
+						return false;
 					}
 
 					if (itr->HasMember("alias"))

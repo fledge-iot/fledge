@@ -213,11 +213,7 @@ class PayloadBuilder(object):
 
 if __name__ == "__main__":
 
-    # TODO: remove once self registration is done
-    from foglamp.core.service_registry.service_registry import Service
     from foglamp.storage.storage import Storage
-
-    Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080)
 
     # Select
     _w_payload = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()

@@ -33,13 +33,13 @@ Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
 Bad URL,GET,http://localhost:8080/foglamp/nothing,
 Bad table,GET,http://localhost:8080/storage/table/doesntexist,
 Bad column,GET,http://localhost:8080/storage/table/test?doesntexist=9,
-Ping interface,GET,http://192.168.56.101:1081/foglamp/service/ping,,checkstate
-Add Readings,POST,http://192.168.56.101:8080/storage/reading,asset.json
-Fetch Readings,GET,http://192.168.56.101:8080/storage/reading?id=1&count=1000,,checkstate
-Fetch Readings zero count,GET,http://192.168.56.101:8080/storage/reading?id=1&count=0,
-Fetch Readings no count,GET,http://192.168.56.101:8080/storage/reading?id=1,
-Fetch Readings no id,GET,http://192.168.56.101:8080/storage/reading?count=1000,
-Purge Readings,PUT,http://192.168.56.101:8080/storage/reading/purge?age=1000&sent=10&flags=retain,
+Ping interface,GET,http://localhost:1081/foglamp/service/ping,,checkstate
+Add Readings,POST,http://localhost:8080/storage/reading,asset.json
+Fetch Readings,GET,http://localhost:8080/storage/reading?id=1&count=1000,,checkstate
+Fetch Readings zero count,GET,http://localhost:8080/storage/reading?id=1&count=0,
+Fetch Readings no count,GET,http://localhost:8080/storage/reading?id=1,
+Fetch Readings no id,GET,http://localhost:8080/storage/reading?count=1000,
+Purge Readings,PUT,http://localhost:8080/storage/reading/purge?age=1000&sent=10&flags=retain,
 Common Read sort array,PUT,http://localhost:8080/storage/table/test/query,sort2.json
 Common Read multiple aggregates,PUT,http://localhost:8080/storage/table/test/query,where_multi_aggregatee.json,
 Common Read columns,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r1.json,
@@ -54,8 +54,8 @@ Bad format1,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format
 Bad format2,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format2.json
 Count star,PUT,http://localhost:8080/storage/table/test2/query,where_count.json
 sum,PUT,http://localhost:8080/storage/table/test2/query,where_sum.json
-Add more Readings,POST,http://192.168.56.101:8080/storage/reading,readings.json
+Add more Readings,POST,http://localhost:8080/storage/reading,readings.json
 Query Readings,PUT,http://localhost:8080/storage/reading/query,query_readings.json
 Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket.json
 Query Readings Timebucket 1,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket1.json
-Shutdown,POST,http://192.168.56.101:1081/foglamp/service/shutdown,,checkstate
+Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

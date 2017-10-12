@@ -31,9 +31,9 @@ def create_init_data(request):
     _dir = os.path.dirname(os.path.realpath(__file__))
     file_path = py.path.local(_dir).join('/foglamp_test_storage_init.sql')
     os.system("psql < {} > /dev/null 2>&1".format(file_path))
-    yield
-    os.system("psql < `locate foglamp_ddl.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
-    os.system("psql < `locate foglamp_init_data.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
+    # yield
+    # os.system("psql < `locate foglamp_ddl.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
+    # os.system("psql < `locate foglamp_init_data.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
 
 
 @pytest.allure.feature("api")
@@ -156,16 +156,81 @@ class TestStorageRead:
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")
 class TestStorageInsert:
-    pass
+    def test_valid_insert(self):
+        res = Storage().insert_into_tbl("statistics",  PayloadBuilder().
+                                        INSERT(key='TEST_3', description="test", value='11', previous_value=2).payload())
+        assert res == {'response': 'inserted'}
+
+    @pytest.mark.skip(reason="FOGL-615")
+    def test_invalid_insert(self):
+        res = Storage().insert_into_tbl("statistics",  PayloadBuilder().
+                                        INSERT(key='TEST_3', value='11', previous_value=2).payload())
+        assert res == "Some valid JSON error"
 
 
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")
 class TestStorageUpdate:
-    pass
+    def test_valid_update(self):
+        res = Storage().update_tbl("statistics", PayloadBuilder().
+                                        SET(value=90, description="Updated test value").WHERE(["key", "=", "TEST_1"])
+                                        .payload())
+        assert res == {'response': 'updated'}
+        res = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
+        assert res["rows"][0]["key"] == "TEST_1"
+        assert res["rows"][0]["description"] == "Updated test value"
+        assert res["rows"][0]["value"] == 90
+        assert res["rows"][0]["previous_value"] == 2
+
+    # @pytest.mark.skip(reason="FOGL-")
+    def test_invalid_key_update(self):
+        pb = PayloadBuilder().SET(value=23, description="Updated test value 2").\
+            WHERE(["key", "=", "bla"]).payload()
+        print("For Update::", pb)
+        res = Storage().update_tbl("statistics", PayloadBuilder().
+                                   SET(value=23, description="Updated test value 2").
+                                   WHERE(["key", "=", "bla"]).payload())
+        assert res == "Some valid JSON error"
+
+        # Assert that values are not updated (Check any single record)
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_2"]).payload())
+        assert res["rows"][0]["key"] == "TEST_2"
+        assert res["rows"][0]["description"] == "Testing the storage service data 2"
+        assert res["rows"][0]["value"] == 15
+        assert res["rows"][0]["previous_value"] == 2
+
+    @pytest.mark.skip(reason="FOGL-615")
+    def test_invalid_type_update(self):
+        res = Storage().update_tbl("statistics", PayloadBuilder().
+                                   SET(value="invalid", description="Updated test value 3").
+                                   WHERE(["key", "=", "TEST_2"]).payload())
+        assert res == "Some valid JSON error"
+        # Assert that values are not updated
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_2"]).payload())
+        assert res["rows"][0]["key"] == "TEST_2"
+        assert res["rows"][0]["description"] == "Testing the storage service data 2"
+        assert res["rows"][0]["value"] == 15
+        assert res["rows"][0]["previous_value"] == 2
+
+    def test_update_without_key(self):
+        res = Storage().update_tbl("statistics", PayloadBuilder().
+                                   SET(value=1, description="Updated test value 4").payload())
+        assert res == {'response': 'updated'}
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+        for _i in range(len(res["rows"])):
+            assert res["rows"][_i]["value"] == 1
+            assert res["rows"][_i]["description"] == "Updated test value 4"
+
 
 
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")
 class TestStorageDelete:
-    pass
+    def test_valid_delete_with_key(self):
+        pass
+
+    def test_delete_with_invalid_key(self):
+        pass
+
+    def test_delete_all(self):
+        pass

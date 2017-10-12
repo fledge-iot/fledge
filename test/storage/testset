@@ -45,4 +45,15 @@ Common Read multiple aggregates,PUT,http://localhost:8080/storage/table/test/que
 Common Read columns,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r1.json,
 Common Read columns alias,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r2.json,
 Common Read columns json,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r3.json,
+Date format1,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d1.json
+Date format2,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d2.json
+Date format3,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d3.json
+Date format4,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d4.json
+Date format5,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d5.json
+Bad format1,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format1.json
+Bad format2,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format2.json
+Count star,PUT,http://localhost:8080/storage/table/test2/query,where_count.json
+sum,PUT,http://localhost:8080/storage/table/test2/query,where_sum.json
+Add more Readings,POST,http://192.168.56.101:8080/storage/reading,readings.json
+Query Readings,PUT,http://localhost:8080/storage/reading/query,query_readings.json
 Shutdown,POST,http://192.168.56.101:1081/foglamp/service/shutdown,,checkstate

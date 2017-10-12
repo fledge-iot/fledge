@@ -20,9 +20,6 @@ from foglamp import statistics
 from foglamp import configuration_manager
 from foglamp.storage.storage import Readings
 
-# TODO: remove me
-from foglamp.core.service_registry.service_registry import Service
-
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

@@ -285,7 +285,6 @@ try:
 
     # shutdown_response = Storage().check_shutdown()
     # print("check_shutdown res: ", shutdown_response)
-
     """  {'message': 'Shutdown in progress'}
     """
 

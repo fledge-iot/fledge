@@ -13,13 +13,8 @@ This will go away when tests, payload_builder and actually STORAGE layer (FOGL-1
 import json
 from collections import OrderedDict
 
-from foglamp.core.service_registry.service_registry import Service
-
 from foglamp.storage.storage import Storage, Readings
 from foglamp.storage.exceptions import *
-
-# register the service to test the code
-Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080, management_port=1081)
 
 
 def insert_data():
@@ -293,7 +288,6 @@ try:
 
     """  {'message': 'Shutdown in progress'}
     """
-
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

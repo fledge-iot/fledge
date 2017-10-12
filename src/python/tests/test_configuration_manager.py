@@ -450,18 +450,18 @@ class TestConfigurationManager:
         await get_all_category_names()
         # TODO: assert empty list?
 
-    @pytest.mark.xfail(reason="FOGL-552")
     async def test_set_category_item_value_error(self):
-        """ Test update of configuration.value when category_name does not exist
+        """ Test update of configuration.value when category_name or item_name does not exist
 
         :assert:
-            Nothing happens / returned
-        :expected:
-            FOGL-522: When updating category item value, when the category_name
-            doesn't exist, an error should get returned
+             Assert that ValueError gets returned on either category_name nor item_name does not exist
         """
-        await set_category_item_value_entry(category_name='boolean',
-                                            item_name='info', new_value_entry='True')
+        with pytest.raises(ValueError) as error_exec:
+            await set_category_item_value_entry(category_name='boolean',
+                                                item_name='info', new_value_entry='True')
+
+        assert "ValueError: No detail found for the category_name: boolean and item_name: info"\
+               in str(error_exec)
 
     @pytest.mark.xfail(reason="FOGL-577")
     async def test_get_category_item_value_entry_dne(self):

@@ -1,0 +1,15 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : ">",
+				"value" : "3"
+			},
+	"return" : [ "key", "description", 
+			{
+			  "column" : "ts",
+			  "format" : "DD Mon YYYY",
+			  "alias" : "date"
+			}
+		    ]
+}
+

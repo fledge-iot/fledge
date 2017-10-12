@@ -71,7 +71,8 @@ class Daemon(object):
     def _start_server(cls):
         """Starts the core server"""
 
-        cls._configure_logging()
+        # FIXME: FOGL-583
+        # cls._configure_logging()
         Server.start()
 
     @classmethod

@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
 unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
+string	       myName = SERVICE_NAME;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -40,6 +41,10 @@ bool	       daemonMode = true;
 		else if (!strncmp(argv[i], "--port=", 7))
 		{
 			corePort = (unsigned short)atoi(&argv[i][7]);
+		}
+		else if (!strncmp(argv[i], "--name=", 7))
+		{
+			myName = &argv[i][7];
 		}
 		else if (!strncmp(argv[i], "--address=", 10))
 		{
@@ -53,7 +58,7 @@ bool	       daemonMode = true;
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
-	StorageService *service = new StorageService();
+	StorageService *service = new StorageService(myName);
 	service->start(coreAddress, corePort);
 	return 0;
 }
@@ -97,7 +102,7 @@ pid_t pid;
 /**
  * Constructor for the storage service
  */
-StorageService::StorageService() : m_shutdown(false)
+StorageService::StorageService(const string& myName) : m_name(myName), m_shutdown(false)
 {
 unsigned short servicePort;
 
@@ -147,7 +152,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short listenerPort = api->getListenerPort();
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record("storage", "Storage", "http", "localhost", listenerPort, managementListener);
+		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
 		client->registerCategory(STORAGE_CATEGORY);

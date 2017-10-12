@@ -27,7 +27,7 @@ _help = """
 """
 
 
-async def ping():
+async def ping(request):
     """ health check
 
     """

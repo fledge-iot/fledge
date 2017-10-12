@@ -188,12 +188,6 @@ class Ingest(object):
         if cls._started:
             return
 
-        # TODO: remove me
-        try:
-            Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080, management_port=1081)
-        except Exception as ex:
-            print(str(ex))
-
         await cls._read_config()
 
         cls._readings_list_size = int(cls._readings_buffer_size / (
@@ -368,6 +362,8 @@ class Ingest(object):
                     payload['readings'] = readings_list
 
                     Readings().append(json.dumps(payload))
+
+                    # TODO: if error (simulate by stopping storage manually) then stop
 
                     batch_size = len(readings_list)
                     cls._readings_stats += batch_size

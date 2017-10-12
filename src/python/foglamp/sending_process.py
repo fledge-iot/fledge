@@ -20,21 +20,17 @@ import argparse
 import asyncio
 import sys
 import time
-import psycopg2
 import importlib
 import logging
 import datetime
-import os
 import json
-
-from collections import OrderedDict
 
 from foglamp.core.service_registry.service_registry import Service
 from foglamp.storage.storage import Storage, Readings
-from foglamp.storage.exceptions import *
-
-
 from foglamp import logger, statistics, configuration_manager
+
+import foglamp.storage.payload_builder as payload_builder
+
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -62,7 +58,7 @@ _MESSAGES_LIST = {
     "e000006": "cannot complete the sending operation of a block of data.",
     "e000007": "cannot complete the termination of the sending process.",
     "e000008": "unknown data source, it could be only: readings, statistics or audit.",
-    "e000009": "cannot load data into memory.",
+    "e000009": "cannot load data into memory - error details |{0}|",
     "e000010": "cannot update statistics.",
     "e000011": "invalid input parameters, the stream id is required and it should be a number - parameters |{0}|",
     "e000012": "cannot connect to the DB Layer - error details |{0}|",
@@ -137,13 +133,6 @@ def _performance_log(func):
 class SendingProcess:
     """ SendingProcess """
 
-    # DB references
-    # FIXME: it will be removed using the DB layer
-    _DB_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
-
-    _pg_conn = ()
-    _pg_cur = ()
-
     # Filesystem path where the translators reside
     _TRANSLATOR_PATH = "foglamp.translators."
 
@@ -168,15 +157,17 @@ class SendingProcess:
         "duration": {
             "description": "How long the sending process should run before stopping.",
             "type": "integer",
-            "default": "3"
+            # FIXME:
+            # "default": "60"
+            "default": "1"
         },
         "source": {
             "description": "Defines the source of the data to be sent on the stream, "
                            "this may be one of either readings, statistics or audit.",
             "type": "string",
             # FIXME:
-            "default": _DATA_SOURCE_STATISTICS
-            # "default": _DATA_SOURCE_READINGS
+            # "default": _DATA_SOURCE_STATISTICS
+            "default": _DATA_SOURCE_READINGS
         },
         "blockSize": {
             "description": "The size of a block of readings to send in each transmission.",
@@ -199,13 +190,6 @@ class SendingProcess:
     }
 
     def __init__(self):
-
-        try:
-            snap_user_common = os.environ['SNAP_USER_COMMON']
-            unix_socket_dir = "{}/tmp/".format(snap_user_common)
-            self._DB_CONNECTION_STRING = self._DB_CONNECTION_STRING + " host='" + unix_socket_dir + "'"
-        except KeyError:
-            pass
 
         # Configurations retrieved from the Configuration Manager
         self._config = {
@@ -325,10 +309,6 @@ class SendingProcess:
 
             try:
                 # FIXME:
-                self._pg_conn = psycopg2.connect(self._DB_CONNECTION_STRING)
-                self._pg_cur = self._pg_conn.cursor()
-
-                # FIXME:
                 # Service.Instances.register(
                 #                             name="store",
                 #                             s_type="Storage",
@@ -409,8 +389,6 @@ class SendingProcess:
         try:
             self._plugin.plugin_shutdown()
 
-            self._pg_conn.close()
-
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
 
@@ -476,24 +454,18 @@ class SendingProcess:
         _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
 
         try:
-            # sql_cmd = "SELECT id, asset_code, user_ts, reading " \
-            #           "FROM foglamp.readings " \
-            #           "WHERE id> {0} " \
-            #           "ORDER BY id LIMIT {1}" \
-            #     .format(last_object_id,
-            #             self._config['blockSize'])
-            #
-            # self._pg_cur.execute(sql_cmd)
-            # raw_data = self._pg_cur.fetchall()
+            # Loads data
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['id', '>', last_object_id]) \
+                .LIMIT(self._config['blockSize']) \
+                .ORDER_BY(['id', 'ASC']) \
+                .payload()
 
-            readings = Readings().fetch(
-                                        reading_id=last_object_id + 1,
-                                        count=self._config['blockSize'])
-
+            readings = Readings().query(payload)
             raw_data = readings['rows']
 
-        except Exception:
-            _message = _MESSAGES_LIST["e000009"]
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000009"].format(str(_ex))
 
             _logger.error(_message)
             raise
@@ -518,27 +490,13 @@ class SendingProcess:
         _logger.debug("{0} - position |{1}| ".format(sys._getframe().f_code.co_name, last_object_id))
 
         try:
-            # FIXME:
-            # sql_cmd = "SELECT id, key, ts, value " \
-            #           "FROM foglamp.statistics_history " \
-            #           "WHERE id> {0} " \
-            #           "ORDER BY id LIMIT {1}" \
-            #     .format(last_object_id,
-            #             self._config['blockSize'])
-            #
-            # self._pg_cur.execute(sql_cmd)
-            # raw_data = self._pg_cur.fetchall()
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['id', '>', last_object_id]) \
+                .LIMIT(self._config['blockSize']) \
+                .ORDER_BY(['id', 'ASC']) \
+                .payload()
 
-            where = OrderedDict()
-            where['column'] = 'id'
-            where['condition'] = '>'
-            where['value'] = last_object_id
-
-            query_payload = OrderedDict()
-            query_payload['where'] = where
-            query_payload['limit'] = self._config['blockSize']
-
-            statistics_history = self._storage.query_tbl_with_payload('statistics_history', json.dumps(query_payload))
+            statistics_history = self._storage.query_tbl_with_payload('statistics_history', json.dumps(payload))
 
             raw_data = statistics_history['rows']
 
@@ -687,7 +645,6 @@ class SendingProcess:
                 _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
                 raise ValueError(_message)
             else:
-                # FIXME:
                 if rows[0]['active'] == 't':
                     stream_id_valid = True
                 else:
@@ -718,6 +675,18 @@ class SendingProcess:
 
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
+
+            # FIXME:
+            # payload = payload_builder.PayloadBuilder() \
+            #     .WHERE(['column', '=', stream_id]) \
+            #     .SET(last_object=new_last_object_id) \
+            #     .SET(rs=now()) \
+            #     .payload()
+            #
+            # # FIXME:
+            # # values['ts'] = 'now()'
+            #
+            # self._storage.update_tbl("streams", payload)
 
             condition = dict()
             condition['column'] = 'id'

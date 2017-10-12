@@ -13,11 +13,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# TODO: remove once self registration is done
-from foglamp.core.service_registry.service_registry import Service
 from foglamp.storage.storage import Storage
-
-Service.Instances.register(name="store", s_type="Storage", address="0.0.0.0", port=8080, management_port=8092)
 
 # TODO: remove once FOGL-510 is done
 @pytest.fixture(scope="module", autouse=True)
@@ -31,9 +27,9 @@ def create_init_data(request):
     _dir = os.path.dirname(os.path.realpath(__file__))
     file_path = py.path.local(_dir).join('/foglamp_test_storage_init.sql')
     os.system("psql < {} > /dev/null 2>&1".format(file_path))
-    # yield
-    # os.system("psql < `locate foglamp_ddl.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
-    # os.system("psql < `locate foglamp_init_data.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
+    yield
+    os.system("psql < `locate foglamp_ddl.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
+    os.system("psql < `locate foglamp_init_data.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
 
 
 @pytest.allure.feature("api")
@@ -70,6 +66,11 @@ class TestStorageRead:
         assert res["rows"][0]["description"] == "Testing the storage service data 1"
         assert res["rows"][0]["value"] == 10
         assert res["rows"][0]["previous_value"] == 2
+
+    @pytest.mark.skip(reason="FOGL-615")
+    def test_where_invalid_key(self):
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["bla", "=", "invalid"]).payload())
+        assert "ERROR" in res["message"]
 
     @pytest.mark.skip(reason="Payload builder does not parse more than 1 AND_WHERE correctly")
     def test_multiple_and_where(self):
@@ -165,7 +166,7 @@ class TestStorageInsert:
     def test_invalid_insert(self):
         res = Storage().insert_into_tbl("statistics",  PayloadBuilder().
                                         INSERT(key='TEST_3', value='11', previous_value=2).payload())
-        assert res == "Some valid JSON error"
+        assert "ERROR" in res["message"]
 
 
 @pytest.allure.feature("api")
@@ -182,15 +183,12 @@ class TestStorageUpdate:
         assert res["rows"][0]["value"] == 90
         assert res["rows"][0]["previous_value"] == 2
 
-    # @pytest.mark.skip(reason="FOGL-")
+    @pytest.mark.skip(reason="FOGL-616")
     def test_invalid_key_update(self):
-        pb = PayloadBuilder().SET(value=23, description="Updated test value 2").\
-            WHERE(["key", "=", "bla"]).payload()
-        print("For Update::", pb)
         res = Storage().update_tbl("statistics", PayloadBuilder().
                                    SET(value=23, description="Updated test value 2").
                                    WHERE(["key", "=", "bla"]).payload())
-        assert res == "Some valid JSON error"
+        assert "ERROR" in res["message"]
 
         # Assert that values are not updated (Check any single record)
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_2"]).payload())
@@ -204,7 +202,7 @@ class TestStorageUpdate:
         res = Storage().update_tbl("statistics", PayloadBuilder().
                                    SET(value="invalid", description="Updated test value 3").
                                    WHERE(["key", "=", "TEST_2"]).payload())
-        assert res == "Some valid JSON error"
+        assert "ERROR" in res["message"]
         # Assert that values are not updated
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_2"]).payload())
         assert res["rows"][0]["key"] == "TEST_2"

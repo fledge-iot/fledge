@@ -12,7 +12,6 @@ with the third-party daemon module
 """
 
 import os
-import logging
 import signal
 import sys
 import time
@@ -34,14 +33,11 @@ _WAIT_STOP_SECONDS = 5
 """How many seconds to wait for the core server process to stop"""
 _MAX_STOP_RETRY = 5
 """How many times to send TERM signal to core server process when stopping"""
+_LOGGER = logger.setup(logger_name=__name__, level=20)
 
 
 class Daemon(object):
-    # TODO FOGL-282: Return true/false instead of printing
     """FogLAMP Daemon"""
-
-    logging_configured = False
-    """Set to true when it's safe to use logging"""
 
     @staticmethod
     def _safe_make_dirs(path):
@@ -57,21 +53,9 @@ class Daemon(object):
                 raise exception
 
     @classmethod
-    def _configure_logging(cls):
-        """Alters the root logger to send messages to syslog
-           with a filter of WARNING
-        """
-        if cls.logging_configured:
-            return
-
-        logger.setup()
-        cls.logging_configured = True
-
-    @classmethod
     def _start_server(cls):
         """Starts the core server"""
 
-        cls._configure_logging()
         Server.start()
 
     @classmethod
@@ -89,6 +73,7 @@ class Daemon(object):
             # If it is desirable to output the pid to the console,
             # os.getpid() reports the wrong pid so it's not easy.
             print("Starting FogLAMP")
+            _LOGGER.info("Starting FogLAMP")
 
             with daemon.DaemonContext(
                 working_directory=_WORKING_DIR,
@@ -133,6 +118,7 @@ class Daemon(object):
             raise TimeoutError("Unable to stop FogLAMP")
 
         print("FogLAMP stopped")
+        _LOGGER.info("FogLAMP stopped")
 
     @classmethod
     def restart(cls):
@@ -218,15 +204,11 @@ def main():
 
     try:
         Daemon.main()
-        # pylint: disable=W0703
-    except Exception as exception:
-        # pylint: enable=W0703
-        # TODO: FOGL-281
-        if Daemon.logging_configured:
-            logging.getLogger(__name__).exception("Failed")
-        else:
-            # If the daemon package has been invoked, the following 'write' will
-            # do nothing because stdout and stderr are routed to /dev/null
-            sys.stderr.write(format(str(exception)) + "\n")
+    except Exception as ex:
+        _LOGGER.exception(str(ex))
+
+        # If the daemon package has been invoked, the following 'write' will
+        # do nothing because stdout and stderr are routed to /dev/null
+        sys.stderr.write(format(str(ex)) + "\n")
 
         sys.exit(1)

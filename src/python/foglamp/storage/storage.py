@@ -92,7 +92,8 @@ class Storage(AbstractStorage):
         conn.request('GET', url='/foglamp/service/ping')
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -103,7 +104,7 @@ class Storage(AbstractStorage):
         return json.loads(res)
 
     # TODO: remove me, and allow this call in service registry API
-    def check_shutdown(self):
+    def shutdown(self):
         """ stop Storage service """
 
         conn = http.client.HTTPConnection(self.management_api_url)
@@ -112,7 +113,8 @@ class Storage(AbstractStorage):
         conn.request('POST', url='/foglamp/service/shutdown', body=None)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -122,7 +124,7 @@ class Storage(AbstractStorage):
         conn.close()
         return json.loads(res)
 
-    def get_storage_service(self):
+    def _get_storage_service(self):
         """ get Storage service """
 
         # TODO: URL to service registry api?
@@ -132,7 +134,8 @@ class Storage(AbstractStorage):
         conn.request('GET', url='/foglamp/service')
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -146,7 +149,7 @@ class Storage(AbstractStorage):
         return svc
 
     def connect(self):
-        svc = self.get_storage_service()
+        svc = self._get_storage_service()
         if len(svc) == 0:
             raise InvalidServiceInstance
         self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
@@ -154,6 +157,7 @@ class Storage(AbstractStorage):
         return self
 
     def disconnect(self):
+        # Allow shutdown()?
         pass
 
     def insert_into_tbl(self, tbl_name, data):
@@ -186,7 +190,8 @@ class Storage(AbstractStorage):
         conn.request('POST', url=post_url, body=data)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -230,7 +235,8 @@ class Storage(AbstractStorage):
         conn.request('PUT', url=put_url, body=data)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -266,7 +272,8 @@ class Storage(AbstractStorage):
         conn.request('DELETE', url=del_url, body=condition)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -298,7 +305,8 @@ class Storage(AbstractStorage):
         conn.request('GET', url=get_url)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -331,7 +339,8 @@ class Storage(AbstractStorage):
         conn.request('PUT', url=put_url, body=query_payload)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -392,7 +401,8 @@ class Readings(Storage):
         conn.request('POST', url='/storage/reading', body=readings)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -422,7 +432,8 @@ class Readings(Storage):
         conn.request('GET', url=get_url)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -456,7 +467,8 @@ class Readings(Storage):
         conn.request('PUT', url='/storage/reading/query', body=query_payload)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):
@@ -505,7 +517,8 @@ class Readings(Storage):
         conn.request('PUT', url=put_url, body=None)
         r = conn.getresponse()
 
-        # TODO: log error with message if status is 4xx or 5xx
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Client error code: %d", r.status)
         if r.status in range(500, 600):

@@ -864,6 +864,61 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		sql.append(", ");
 		sql.append(payload["group"].GetString());
 	}
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data", "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data", "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+		if (tb.HasMember("format"))
+		{
+			sql.append(", to_char(to_timestamp(");
+		}
+		else
+		{
+			sql.append(", to_timestamp(");
+		}
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+			sql.append(" * ");
+		}
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append("))");
+		if (tb.HasMember("format"))
+		{
+			sql.append(", '");
+			sql.append(tb["format"].GetString());
+			sql.append("')");
+		}
+		sql.append(" AS \"");
+		if (tb.HasMember("alias"))
+		{
+			sql.append(tb["alias"].GetString());
+		}
+		else
+		{
+			sql.append("timestamp");
+		}
+		sql.append('"');
+	}
 	return true;
 }
 
@@ -927,10 +982,46 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 	}
 
+
 	if (payload.HasMember("group"))
 	{
 		sql.append(" GROUP BY ");
 		sql.append(payload["group"].GetString());
+	}
+
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data", "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data", "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+		if (payload.HasMember("group"))
+		{
+			sql.append(", ");
+		}
+		else
+		{
+			sql.append(" GROUP BY ");
+		}
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append(')');
 	}
 
 	if (payload.HasMember("skip"))

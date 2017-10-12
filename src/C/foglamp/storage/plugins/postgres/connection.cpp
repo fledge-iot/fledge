@@ -647,7 +647,7 @@ Document doc;
 			}
 			case 20:
 			{
-				long intVal = atol(PQgetvalue(res, i, j));
+				int64_t intVal = atol(PQgetvalue(res, i, j));
 				Value name(PQfname(res, j), allocator);
 				row.AddMember(name, intVal, allocator);
 				break;

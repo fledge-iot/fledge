@@ -283,7 +283,7 @@ try:
 
     # TODO: verify 1 error payload
 
-    # shutdown_response = Storage().check_shutdown()
+    # shutdown_response = Storage().shutdown()
     # print("check_shutdown res: ", shutdown_response)
     """  {'message': 'Shutdown in progress'}
     """

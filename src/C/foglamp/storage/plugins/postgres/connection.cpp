@@ -94,7 +94,7 @@ SQLBuffer	sql;
 			Value& columns = document["return"];
 			if (! columns.IsArray())
 			{
-				raiseError("retrieve", "The property columns must be an array");
+				raiseError("retrieve", "The property return must be an array");
 				return false;
 			}
 			sql.append("SELECT ");

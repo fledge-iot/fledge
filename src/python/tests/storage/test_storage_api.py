@@ -174,8 +174,8 @@ class TestStorageInsert:
 class TestStorageUpdate:
     def test_valid_update(self):
         res = Storage().update_tbl("statistics", PayloadBuilder().
-                                        SET(value=90, description="Updated test value").WHERE(["key", "=", "TEST_1"])
-                                        .payload())
+                                   SET(value=90, description="Updated test value").WHERE(["key", "=", "TEST_1"])
+                                   .payload())
         assert res == {'response': 'updated'}
         res = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
         assert res["rows"][0]["key"] == "TEST_1"
@@ -220,15 +220,36 @@ class TestStorageUpdate:
             assert res["rows"][_i]["description"] == "Updated test value 4"
 
 
-
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")
 class TestStorageDelete:
     def test_valid_delete_with_key(self):
-        pass
+        res = Storage().delete_from_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).payload())
+        assert res == {'response': 'deleted'}
+
+        # Verify that row is actually deleted
+        res = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
+        assert len(res["rows"]) == 0
+        assert res["count"] == 0
 
     def test_delete_with_invalid_key(self):
-        pass
+        res = Storage().delete_from_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_invalid"]).payload())
+
+        # FIXME: Is deleted the correct response?
+        assert res == {'response': 'deleted'}
+
+        # Verify that no row is deleted
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+        assert len(res["rows"]) == 2
+        assert res["count"] == 2
+        assert res["rows"][0]["key"] == "TEST_2"
+        assert res["rows"][1]["key"] == "TEST_3"
 
     def test_delete_all(self):
-        pass
+        res = Storage().delete_from_tbl("statistics", {})
+        assert res == {'response': 'deleted'}
+
+        # Verify that all rows are deleted
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+        assert len(res["rows"]) == 0
+        assert res["count"] == 0

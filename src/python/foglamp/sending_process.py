@@ -16,6 +16,7 @@ that is devolved to the translation plugin in order to allow for flexibility in 
 
 import resource
 import argparse
+import inspect
 
 import asyncio
 import sys
@@ -25,7 +26,6 @@ import logging
 import datetime
 import json
 
-from foglamp.core.service_registry.service_registry import Service
 from foglamp.storage.storage import Storage, Readings
 from foglamp import logger, statistics, configuration_manager
 
@@ -72,6 +72,7 @@ _MESSAGES_LIST = {
     "e000020": "cannot update the reached position.",
     "e000021": "cannot complete the sending operation - error details |{0}|",
     "e000022": "unable to convert in memory data structure related to the statistics data - error details |{0}|",
+    "e000023": "cannot complete the initialization - error details |{0}|",
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -104,7 +105,6 @@ class InvalidCommandLineParameters(RuntimeError):
 def _performance_log(func):
     """ Logs information for performance measurement """
 
-    # noinspection PyProtectedMember
     def wrapper(*arg):
         """ wrapper """
 
@@ -121,7 +121,7 @@ def _performance_log(func):
             delta_milliseconds = int(delta.total_seconds() * 1000)
 
             _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|"
-                         .format(sys._getframe().f_locals['func'],
+                         .format(func.__name__,
                                  delta_milliseconds,
                                  process_memory))
 
@@ -157,16 +157,12 @@ class SendingProcess:
         "duration": {
             "description": "How long the sending process should run before stopping.",
             "type": "integer",
-            # FIXME:
-            # "default": "60"
-            "default": "1"
+            "default": "60"
         },
         "source": {
             "description": "Defines the source of the data to be sent on the stream, "
                            "this may be one of either readings, statistics or audit.",
             "type": "string",
-            # FIXME:
-            # "default": _DATA_SOURCE_STATISTICS
             "default": _DATA_SOURCE_READINGS
         },
         "blockSize": {
@@ -213,19 +209,9 @@ class SendingProcess:
             'config': ""
         }
 
-        # FIXME:
-        Service.Instances.register(
-            name="store",
-            s_type="Storage",
-            address="0.0.0.0",
-            port=8080,
-            management_port=1081)
-
         self._storage = Storage()
-        # self._storage = {}
         """" The FogLAMP Storage Layer """
 
-    # noinspection PyProtectedMember
     def _retrieve_configuration(self, stream_id):
         """ Retrieves the configuration from the Configuration Manager
 
@@ -237,7 +223,7 @@ class SendingProcess:
         .. todo::
         """
 
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
 
         try:
             config_category_name = self._CONFIG_CATEGORY_NAME + "_" + str(stream_id)
@@ -283,7 +269,6 @@ class SendingProcess:
             _logger.error(_message)
             raise
 
-    # noinspection PyProtectedMember
     def start(self, stream_id):
         """ Setup the correct state for the Sending Process
 
@@ -298,7 +283,7 @@ class SendingProcess:
 
         exec_sending_process = False
 
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
 
         try:
             prg_text = ", for Linux (x86_64)"
@@ -308,20 +293,11 @@ class SendingProcess:
             _logger.info(_MESSAGES_LIST["i000001"])
 
             try:
-                # FIXME:
-                # Service.Instances.register(
-                #                             name="store",
-                #                             s_type="Storage",
-                #                             address="0.0.0.0",
-                #                             port=8080,
-                #                             management_port=1081)
-
-                # self._storage = Storage()
                 status = self._storage.check_service_availibility()
 
                 _logger.debug("{fun} - storage engine status {status} ".format(
-                                                                                fun=sys._getframe().f_code.co_name,
-                                                                                status=status))
+                                                                            fun=inspect.currentframe().f_code.co_name,
+                                                                            status=status))
 
             except Exception as e:
                 _message = _MESSAGES_LIST["e000012"].format(str(e))
@@ -344,13 +320,15 @@ class SendingProcess:
 
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
-                    _logger.debug("{0} - {1} - {2} ".format(sys._getframe().f_code.co_name,
+                    _logger.debug("{0} - {1} - {2} ".format(inspect.currentframe().f_code.co_name,
                                                             self._plugin_info['name'],
                                                             self._plugin_info['version']))
 
                     if self._is_translator_valid():
                         try:
-                            self._plugin.plugin_init(self._storage)
+                            self._plugin._storage = self._storage
+
+                            self._plugin.plugin_init()
 
                         except Exception as e:
                             _message = _MESSAGES_LIST["e000018"].format(self._plugin_info['name'])
@@ -411,8 +389,7 @@ class SendingProcess:
         Todo:
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} ".format(inspect.currentframe().f_code.co_name))
 
         try:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
@@ -450,8 +427,7 @@ class SendingProcess:
         Todo:
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position {1} ".format(inspect.currentframe().f_code.co_name, last_object_id))
 
         try:
             # Loads data
@@ -486,8 +462,7 @@ class SendingProcess:
         Todo:
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - position |{1}| ".format(sys._getframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position |{1}| ".format(inspect.currentframe().f_code.co_name, last_object_id))
 
         try:
             payload = payload_builder.PayloadBuilder() \
@@ -496,7 +471,7 @@ class SendingProcess:
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
 
-            statistics_history = self._storage.query_tbl_with_payload('statistics_history', json.dumps(payload))
+            statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
 
             raw_data = statistics_history['rows']
 
@@ -555,7 +530,6 @@ class SendingProcess:
 
         return converted_data
 
-    # noinspection PyMethodMayBeStatic
     def _load_data_into_memory_audit(self, last_object_id):
         """ Extracts from the DB Layer data related to the statistics audit into the memory
         #
@@ -566,11 +540,14 @@ class SendingProcess:
         Todo: TO BE IMPLEMENTED
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position {1} ".format(inspect.currentframe().f_code.co_name, last_object_id))
 
         try:
-            raw_data = ""
+            # Temporary code
+            if self._module_template != "":
+                raw_data = ""
+            else:
+                raw_data = ""
 
         except Exception:
             _message = _MESSAGES_LIST["e000000"]
@@ -676,15 +653,13 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            # FIXME:
+            # TODO : to be changed using PayloadBuilder after FOGL-616
+            # TODO : verify the support for .SET(rs='now()')
             # payload = payload_builder.PayloadBuilder() \
             #     .WHERE(['column', '=', stream_id]) \
             #     .SET(last_object=new_last_object_id) \
-            #     .SET(rs=now()) \
+            #     .SET(rs='now()') \
             #     .payload()
-            #
-            # # FIXME:
-            # # values['ts'] = 'now()'
             #
             # self._storage.update_tbl("streams", payload)
 
@@ -721,8 +696,7 @@ class SendingProcess:
 
         data_sent = False
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
 
         try:
             last_object_id = self._last_object_id_read(stream_id)
@@ -746,7 +720,6 @@ class SendingProcess:
 
         return data_sent
 
-    # noinspection PyProtectedMember
     def send_data(self, stream_id):
         """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time
 
@@ -756,7 +729,7 @@ class SendingProcess:
         Todo:
         """
 
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
 
         try:
             start_time = time.time()
@@ -774,11 +747,13 @@ class SendingProcess:
                     _logger.error(_message)
 
                 if not data_sent:
-                    _logger.debug("{0} - sleeping".format(sys._getframe().f_code.co_name))
+                    _logger.debug("{0} - sleeping".format(inspect.currentframe().f_code.co_name))
                     time.sleep(self._config['sleepInterval'])
 
                 elapsed_seconds = time.time() - start_time
-                _logger.debug("{0} - elapsed_seconds {1}".format(sys._getframe().f_code.co_name, elapsed_seconds))
+                _logger.debug("{0} - elapsed_seconds {1}".format(
+                                                                inspect.currentframe().f_code.co_name,
+                                                                elapsed_seconds))
 
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
@@ -879,8 +854,6 @@ class SendingProcess:
 
 if __name__ == "__main__":
 
-    sending_process = SendingProcess()
-
     # Logger start
     try:
         _logger = logger.setup(__name__)
@@ -890,6 +863,16 @@ if __name__ == "__main__":
         current_time = time.strftime("%Y-%m-%d %H:%M:%S:")
 
         print("{0} - ERROR - {1}".format(current_time, message))
+        sys.exit(1)
+
+    # Instance creation
+    try:
+        sending_process = SendingProcess()
+
+    except Exception as ex:
+        message = _MESSAGES_LIST["e000023"].format(str(ex))
+
+        _logger.exception(message)
         sys.exit(1)
 
     # Command line parameter handling

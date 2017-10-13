@@ -17,12 +17,12 @@ import copy
 import ast
 import resource
 import datetime
-import sys
 import asyncio
 import time
 import json
 import requests
 import logging
+import inspect
 
 from foglamp import logger, configuration_manager
 from foglamp.storage.storage import Storage
@@ -73,9 +73,7 @@ _CONFIG_DEFAULT_OMF = {
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        # FIXME:
-        # "default": "omf_statistics_2100"
-        "default": "omf_translator_2200"
+        "default": "omf_translator_0001"
 
     },
     "OMFMaxRetry": {
@@ -118,7 +116,7 @@ _CONFIG_DEFAULT_OMF_TYPES = {
     "type-id": {
         "description": "Identify sensor and measurement types",
         "type": "integer",
-        "default": "2200"
+        "default": "0001"
     },
 }
 
@@ -216,7 +214,6 @@ class PluginInitializeFailed(RuntimeError):
 def _performance_log(func):
     """ Logs information for performance measurement """
 
-    # noinspection PyProtectedMember
     def wrapper(*arg):
         """ wrapper """
 
@@ -233,7 +230,7 @@ def _performance_log(func):
             delta_milliseconds = int(delta.total_seconds() * 1000)
 
             _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|"
-                         .format(sys._getframe().f_locals['func'],
+                         .format(func.__name__,
                                  delta_milliseconds,
                                  memory_process))
 
@@ -242,7 +239,6 @@ def _performance_log(func):
     return wrapper
 
 
-# noinspection PyProtectedMember
 def _retrieve_configuration(stream_id):
     """ Retrieves the configuration from the Configuration Manager
 
@@ -256,7 +252,7 @@ def _retrieve_configuration(stream_id):
     global _config_omf_types
     global _config_omf_types_from_manager
 
-    _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+    _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
 
     # Configuration related to the OMF Translator
     try:
@@ -310,7 +306,6 @@ def _retrieve_configuration(stream_id):
         raise
 
 
-# noinspection PyProtectedMember
 def plugin_retrieve_info(stream_id):
     """ Allows the device service to retrieve information from the plugin
 
@@ -347,7 +342,7 @@ def plugin_retrieve_info(stream_id):
 
         raise ex
 
-    _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+    _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
 
     try:
         _event_loop = asyncio.get_event_loop()
@@ -371,26 +366,21 @@ def plugin_retrieve_info(stream_id):
     return plugin_info
 
 
-# noinspection PyProtectedMember
-def plugin_init(storage):
+def plugin_init():
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
 
     Args:
-        storage: Storage engine reference
     Returns:
     Raises:
         PluginInitializeFailed
     Todo:
     """
 
-    global _storage
-
     global _recreate_omf_objects
 
-    _logger.debug("{0} - URL {1}".format(sys._getframe().f_code.co_name, _config['URL']))
+    _logger.debug("{0} - URL {1}".format(inspect.currentframe().f_code.co_name, _config['URL']))
 
     try:
-        _storage = storage
 
         _recreate_omf_objects = True
 
@@ -438,8 +428,7 @@ def plugin_send(raw_data, stream_id):
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
 
-                    # noinspection PyProtectedMember
-                    _logger.debug("{0} - Forces objects recreation ".format(sys._getframe().f_code.co_name))
+                    _logger.debug("{0} - Forces objects recreation ".format(inspect.currentframe().f_code.co_name))
 
                     _deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
@@ -514,9 +503,8 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
 
     omf_created_objects = _storage.query_tbl_with_payload('omf_created_objects', payload)
 
-    # noinspection PyProtectedMember
     _logger.debug("{func} - omf_created_objects {item} ".format(
-                                                                func=sys._getframe().f_code.co_name,
+                                                                func=inspect.currentframe().f_code.co_name,
                                                                 item=omf_created_objects))
 
     # Extracts only the asset_code column

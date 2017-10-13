@@ -37,7 +37,6 @@ def create_init_data(request):
 class TestStorageRead:
     def test_select(self):
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT().payload())
-        print(res)
         assert len(res["rows"]) == 2
         assert res["count"] == 2
         assert res["rows"][0]["key"] == "TEST_1"

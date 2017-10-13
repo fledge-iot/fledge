@@ -209,4 +209,3 @@ class PayloadBuilder(object):
             if key == 'and':
                 query_params.update({value['column']: value['value']})
         return urllib.parse.urlencode(query_params)
-

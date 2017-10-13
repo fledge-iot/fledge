@@ -22,7 +22,7 @@ def create_init_data(request):
     Module level fixture that is called once for the test
         Before the tests starts, it creates the init data
         After all the tests, it clears database and sets the init data
-    Fixture called by default (autouse=False)
+    Fixture called by default (autouse=True)
     """
     _dir = os.path.dirname(os.path.realpath(__file__))
     file_path = py.path.local(_dir).join('/foglamp_test_storage_init.sql')
@@ -37,6 +37,7 @@ def create_init_data(request):
 class TestStorageRead:
     def test_select(self):
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT().payload())
+        print(res)
         assert len(res["rows"]) == 2
         assert res["count"] == 2
         assert res["rows"][0]["key"] == "TEST_1"
@@ -172,16 +173,25 @@ class TestStorageInsert:
 @pytest.allure.feature("api")
 @pytest.allure.story("storage")
 class TestStorageUpdate:
-    def test_valid_update(self):
+    @pytest.mark.skip(reason="FOGL-616")
+    def test_valid_update_with_condition(self):
         res = Storage().update_tbl("statistics", PayloadBuilder().
                                    SET(value=90, description="Updated test value").WHERE(["key", "=", "TEST_1"])
                                    .payload())
         assert res == {'response': 'updated'}
-        res = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
+        res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+
+        # Assert that only one value is updated
         assert res["rows"][0]["key"] == "TEST_1"
         assert res["rows"][0]["description"] == "Updated test value"
         assert res["rows"][0]["value"] == 90
         assert res["rows"][0]["previous_value"] == 2
+
+        # Assert that other value is not updated
+        assert res["rows"][1]["key"] == "TEST_2"
+        assert res["rows"][1]["description"] == "Testing the storage service data 2"
+        assert res["rows"][1]["value"] == 15
+        assert res["rows"][1]["previous_value"] == 2
 
     @pytest.mark.skip(reason="FOGL-616")
     def test_invalid_key_update(self):
@@ -203,6 +213,7 @@ class TestStorageUpdate:
                                    SET(value="invalid", description="Updated test value 3").
                                    WHERE(["key", "=", "TEST_2"]).payload())
         assert "ERROR" in res["message"]
+
         # Assert that values are not updated
         res = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_2"]).payload())
         assert res["rows"][0]["key"] == "TEST_2"

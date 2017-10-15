@@ -64,7 +64,7 @@ class PayloadBuilder(object):
         retval = False
         if isinstance(arg, list):
             if len(arg) == 1:
-                arg.append('ASC')
+                arg.append('asc')
 
             if len(arg) == 2:
                 if arg[1].upper() in ['ASC', 'DESC']:
@@ -73,7 +73,7 @@ class PayloadBuilder(object):
 
     @classmethod
     def ALIAS(cls, *args):
-
+        raise NotImplementedError("To be implemented")
         return cls
 
     @classmethod
@@ -170,7 +170,7 @@ class PayloadBuilder(object):
 
     @classmethod
     def HAVING(cls):
-        # TODO: To be implemented
+        raise NotImplementedError("To be implemented")
         return cls
 
     @classmethod
@@ -210,7 +210,7 @@ class PayloadBuilder(object):
     @classmethod
     def query_params(cls):
         where = cls.query_payload['where']
-        query_params = {where['column']: where['value']}
+        query_params = OrderedDict({where['column']: where['value']})
         for key, value in where.items():
             if key == 'and':
                 query_params.update({value['column']: value['value']})

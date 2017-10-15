@@ -99,8 +99,7 @@ class TestPayloadBuilderRead:
     ])
     def test_order_by_payload(self, test_input, expected):
         res = PayloadBuilder().ORDER_BY(test_input).payload()
-        # I hope .lower() will not harm the integration
-        assert expected == json.loads(res.lower())
+        assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
         ("name", _payload("data/payload_group_by1.json")),

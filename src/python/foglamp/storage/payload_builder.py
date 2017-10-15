@@ -15,6 +15,7 @@ __version__ = "${VERSION}"
 from collections import OrderedDict
 import json
 import urllib.parse
+import numbers
 
 from foglamp import logger
 
@@ -62,10 +63,18 @@ class PayloadBuilder(object):
     def verify_orderby(arg):
         retval = False
         if isinstance(arg, list):
+            if len(arg) == 1:
+                arg.append('ASC')
+
             if len(arg) == 2:
                 if arg[1].upper() in ['ASC', 'DESC']:
                     retval = True
         return retval
+
+    @classmethod
+    def ALIAS(cls, *args):
+
+        return cls
 
     @classmethod
     def SELECT(cls, *args):
@@ -74,7 +83,8 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
-    def SELECT_ALL(cls, *args):
+    def SELECT_ALL(cls):
+        cls.query_payload.update({"columns": '*'})
         return cls
 
     @classmethod
@@ -165,17 +175,13 @@ class PayloadBuilder(object):
 
     @classmethod
     def LIMIT(cls, arg):
-        if isinstance(arg, int):
+        if isinstance(arg, numbers.Real):
             cls.query_payload.update({"limit": arg})
         return cls
 
     @classmethod
     def OFFSET(cls, arg):
-        if isinstance(arg, int):
-            try:
-                limit = cls.query_payload['limit']
-            except KeyError:
-                raise KeyError("LIMIT is required to set OFFSET to skip")
+        if isinstance(arg, numbers.Real):
             cls.query_payload.update({"skip": arg})
         return cls
 

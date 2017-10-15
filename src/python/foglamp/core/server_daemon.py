@@ -41,7 +41,7 @@ class Daemon(object):
 
     @staticmethod
     def _safe_make_dirs(path):
-        """Creates any missing parent directories
+        """ Creates any missing parent directories
 
         :param path: The path of the directory to create
         """
@@ -56,7 +56,7 @@ class Daemon(object):
     def _start_server(cls):
         """Starts the core server"""
 
-        Server.start()
+        Server().start()
 
     @classmethod
     def start(cls):
@@ -94,6 +94,9 @@ class Daemon(object):
         """
 
         # TODO: FOGL-274 Stopping is hard.
+
+        # stop the storage
+        Server().stop_storage()
 
         if not pid:
             pid = cls.get_pid()
@@ -164,7 +167,7 @@ class Daemon(object):
 
     @classmethod
     def main(cls):
-        """Processes command-line arguments
+        """ Processes command-line arguments
 
         COMMAND LINE ARGUMENTS:
             - start
@@ -197,7 +200,7 @@ class Daemon(object):
 
 
 def main():
-    """Processes command-line parameters
+    """ Processes command-line parameters
 
     See :meth:`Daemon.start`
     """

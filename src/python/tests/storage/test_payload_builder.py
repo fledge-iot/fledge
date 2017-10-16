@@ -83,7 +83,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         (3, _payload("data/payload_limit1.json")),
-        pytest.param(3.5, _payload("data/payload_limit2.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1")),
+        (3.5, _payload("data/payload_limit2.json")),
         ("invalid", {})
     ])
     def test_limit_payload(self, test_input, expected):
@@ -94,7 +94,7 @@ class TestPayloadBuilderRead:
         (["name", "asc"], _payload("data/payload_order_by1.json")),
         (["name", "desc"], _payload("data/payload_order_by2.json")),
         pytest.param([{"name", "desc"}, {"id", "asc"}, {"ts", "asc"}], _payload("data/payload_order_by3.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
-        pytest.param(["name"], _payload("data/payload_order_by1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #2")),
+        (["name"], _payload("data/payload_order_by1.json")),
         (["name", "invalid"], {})
     ])
     def test_order_by_payload(self, test_input, expected):
@@ -122,11 +122,9 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().AGGREGATE(test_input).payload()
         assert expected == json.loads(res)
 
-    @pytest.mark.parametrize("expected", [
-        pytest.param(_payload("data/payload_select_all.json"), marks=pytest.mark.xfail(reason="FOGL-607 #3"))
-    ])
-    def test_select_all_payload(self, expected):
+    def test_select_all_payload(self):
         res = PayloadBuilder().SELECT_ALL().payload()
+        expected = _payload("data/payload_select_all.json")
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [

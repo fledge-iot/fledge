@@ -3,9 +3,11 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
+
 import pytest
 import os
 import py
+import json
 from foglamp.storage.payload_builder import PayloadBuilder
 from foglamp.storage.storage import Storage
 
@@ -17,7 +19,7 @@ __version__ = "${VERSION}"
 
 # TODO: remove once FOGL-510 is done
 @pytest.fixture(scope="module", autouse=True)
-def create_init_data(request):
+def create_init_data():
     """
     Module level fixture that is called once for the test
         Before the tests starts, it creates the init data
@@ -111,9 +113,16 @@ class TestStorageRead:
         assert result["rows"][0]["value"] == 10
         assert result["rows"][0]["previous_value"] == 2
 
-    @pytest.mark.skip(reason="FOGL-607 #4")
     def test_offset(self):
-        pass
+        payload = PayloadBuilder().OFFSET(1).payload()
+        assert json.dumps({"skip": 1}) == payload
+        result = Storage().query_tbl_with_payload("statistics", payload)
+        assert len(result["rows"]) == 1
+        assert result["count"] == 1
+        assert result["rows"][0]["key"] == "TEST_2"
+        assert result["rows"][0]["description"] == "Testing the storage service data 2"
+        assert result["rows"][0]["value"] == 15
+        assert result["rows"][0]["previous_value"] == 2
 
     def test_limit_offset(self):
         result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().LIMIT(2).OFFSET(1).payload())
@@ -123,6 +132,13 @@ class TestStorageRead:
         assert result["rows"][0]["description"] == "Testing the storage service data 2"
         assert result["rows"][0]["value"] == 15
         assert result["rows"][0]["previous_value"] == 2
+
+    def test_default_order(self):
+        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
+                                                  ORDER_BY(["key"]).payload())
+        assert len(result["rows"]) == 2
+        assert result["count"] == 2
+        assert result["rows"][0]["key"] == "TEST_1"
 
     def test_order(self):
         result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().

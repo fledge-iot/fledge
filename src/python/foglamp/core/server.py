@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -216,3 +217,25 @@ class Server:
             task.cancel()
 
         loop.stop()
+
+
+def main():
+    """ Processes command-line arguments
+           COMMAND LINE ARGUMENTS:
+               - start
+               - stop
+
+           :raises ValueError: Invalid or missing arguments provided
+           """
+
+    if len(sys.argv) == 1:
+        raise ValueError("Usage: start|stop")
+    elif len(sys.argv) == 2:
+        command = sys.argv[1]
+        if command == 'start':
+            Server().start()
+        elif command == 'stop':
+            Server().stop_storage()
+            # scheduler has signal binding
+        else:
+            raise ValueError("Unknown argument: {}".format(sys.argv[1]))

@@ -27,12 +27,9 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__, level=20)
 
-# TODO: FIXME: the ROOT directory
-_FOGLAMP_ROOT = '/home/foglamp/foglamp/FogLAMP'
+# FOGLAMP_ROOT env variable
+_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/home/foglamp/foglamp/FogLAMP')
 _STORAGE_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/services/storage')
-
-# Remove me
-_STORAGE_DIR = r"/home/foglamp/Downloads/store/1010"
 
 
 class Server:
@@ -77,7 +74,7 @@ class Server:
 
     @staticmethod
     def __start_storage(host, m_port):
-        _logger.info("start storage")
+        _logger.info("start storage, from directory %s", _STORAGE_DIR)
         try:
             cmd_with_args = ['./storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]

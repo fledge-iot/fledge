@@ -17,7 +17,7 @@ __version__ = "${VERSION}"
 
 def _payload(test_data_file=None):
     _dir = os.path.dirname(os.path.realpath(__file__))
-    file_path = py.path.local(_dir) / test_data_file
+    file_path = py.path.local(_dir).join('/').join(test_data_file)
 
     with open(str(file_path)) as data_file:
         json_data = json.load(data_file)
@@ -74,11 +74,25 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).payload()
         assert expected == json.loads(res)
 
+    @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
+        pytest.param(["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #7"))
+    ])
+    def test_multiple_and_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
+        res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).AND_WHERE(test_input_3).payload()
+        assert expected == json.loads(res)
+
     @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
-        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json"))
+        pytest.param(["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json"))
     ])
     def test_or_where_payload(self, test_input_1, test_input_2, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
+        pytest.param(["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #7"))
+    ])
+    def test_multiple_or_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
+        res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).OR_WHERE(test_input_3).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [

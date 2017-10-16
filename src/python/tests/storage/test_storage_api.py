@@ -35,13 +35,13 @@ def create_init_data():
 
 
 @pytest.allure.feature("api")
-@pytest.allure.story("storage")
+@pytest.allure.story("storage client")
 class TestStorageRead:
-    """
-    This class tests SELECT (Read) queries of Storage layer using payload builder
+    """This class tests SELECT (Read) queries of Storage layer using payload builder
     """
     def test_select(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT().payload())
+        payload = PayloadBuilder().SELECT().payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 2
         assert result["count"] == 2
         assert result["rows"][0]["key"] == "TEST_1"
@@ -55,7 +55,8 @@ class TestStorageRead:
         assert result["rows"][1]["previous_value"] == 2
 
     def test_where_query_param(self):
-        result = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
+        payload = PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params()
+        result = Storage().query_tbl("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["key"] == "TEST_1"
@@ -64,7 +65,8 @@ class TestStorageRead:
         assert result["rows"][0]["previous_value"] == 2
 
     def test_where_payload(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().WHERE(["value", "!=", 15]).payload())
+        payload = PayloadBuilder().WHERE(["value", "!=", 15]).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["key"] == "TEST_1"
@@ -74,38 +76,37 @@ class TestStorageRead:
 
     @pytest.mark.skip(reason="FOGL-615")
     def test_where_invalid_key(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  WHERE(["bla", "=", "invalid"]).payload())
+        payload = PayloadBuilder().WHERE(["bla", "=", "invalid"]).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert "ERROR" in result["message"]
 
     @pytest.mark.skip(reason="FOGL-607 #7")
     def test_multiple_and_where(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  WHERE(["value", "!=", 0]).
-                                                  AND_WHERE(["key", "=", "TEST_1"]).
-                                                  AND_WHERE(["previous_value", "<", 10]).payload())
+        payload = PayloadBuilder().WHERE(["asset_code", "=", 'TEST_STORAGE_CLIENT']).\
+            AND_WHERE(["read_key", "!=", '57179e0c-1b53-47b9-94f3-475cdba60628']). \
+            AND_WHERE(["read_key", "=", '7016622d-a4db-4ec0-8b97-85f6057317f1']).payload()
+        result = Storage().query_tbl_with_payload("readings", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
-        assert result["rows"][0]["key"] == "TEST_1"
-        assert result["rows"][0]["description"] == "Testing the storage service data 1"
-        assert result["rows"][0]["value"] == 10
-        assert result["rows"][0]["previous_value"] == 2
+        assert result["rows"][0]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
+        assert result["rows"][0]["asset_code"] == "TEST_STORAGE_CLIENT"
+        assert result["rows"][0]["reading"] == '{"sensor_code_1": 80, "sensor_code_2": 5.8}'
 
     @pytest.mark.skip(reason="FOGL-607 #7")
     def test_multiple_or_where(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  WHERE(["value", "=", 0]).
-                                                  OR_WHERE(["key", "=", "TEST_1"]).
-                                                  OR_WHERE(["previous_value", ">", 10]).payload())
-        assert len(result["rows"]) == 1
-        assert result["count"] == 1
-        assert result["rows"][0]["key"] == "TEST_1"
-        assert result["rows"][0]["description"] == "Testing the storage service data 1"
-        assert result["rows"][0]["value"] == 10
-        assert result["rows"][0]["previous_value"] == 2
+        payload = PayloadBuilder().WHERE(["read_key", "=", 'cc484439-b4de-493a-bf2e-27c413b00120']).\
+            OR_WHERE(["read_key", "=", '57179e0c-1b53-47b9-94f3-475cdba60628']).\
+            OR_WHERE(["read_key", "=", '7016622d-a4db-4ec0-8b97-85f6057317f1']).payload()
+        result = Storage().query_tbl_with_payload("readings", payload)
+        assert len(result["rows"]) == 3
+        assert result["count"] == 3
+        assert result["rows"][0]["read_key"] == "cc484439-b4de-493a-bf2e-27c413b00120"
+        assert result["rows"][1]["read_key"] == "57179e0c-1b53-47b9-94f3-475cdba60628"
+        assert result["rows"][2]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
 
     def test_limit(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().LIMIT(1).payload())
+        payload = PayloadBuilder().LIMIT(1).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["key"] == "TEST_1"
@@ -125,7 +126,8 @@ class TestStorageRead:
         assert result["rows"][0]["previous_value"] == 2
 
     def test_limit_offset(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().LIMIT(2).OFFSET(1).payload())
+        payload = PayloadBuilder().LIMIT(2).OFFSET(1).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["key"] == "TEST_2"
@@ -134,15 +136,15 @@ class TestStorageRead:
         assert result["rows"][0]["previous_value"] == 2
 
     def test_default_order(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  ORDER_BY(["key"]).payload())
+        payload = PayloadBuilder().ORDER_BY(["key"]).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 2
         assert result["count"] == 2
         assert result["rows"][0]["key"] == "TEST_1"
 
     def test_order(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  ORDER_BY(["key", "desc"]).payload())
+        payload = PayloadBuilder().ORDER_BY(["key", "desc"]).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 2
         assert result["count"] == 2
         assert result["rows"][0]["key"] == "TEST_2"
@@ -150,63 +152,103 @@ class TestStorageRead:
         assert result["rows"][0]["value"] == 15
         assert result["rows"][0]["previous_value"] == 2
 
+    @pytest.mark.skip(reason="FOGL-607 #6")
+    def test_multiple_order(self):
+        payload = PayloadBuilder().ORDER_BY({"asset_code", "desc"}, {"read_key"}).payload()
+        result = Storage().query_tbl_with_payload("readings", payload)
+        assert len(result["rows"]) == 3
+        assert result["count"] == 3
+        assert result["rows"][0]["read_key"] == "57179e0c-1b53-47b9-94f3-475cdba60628"
+        assert result["rows"][1]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
+        assert result["rows"][2]["read_key"] == "cc484439-b4de-493a-bf2e-27c413b00120"
+
     def test_aggregate(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  AGGREGATE(["max", "value"]).payload())
+        payload = PayloadBuilder().AGGREGATE(["max", "value"]).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["max_value"] == 15
 
+    @pytest.mark.skip(reason="FOGL-607 #6")
+    def test_multiple_aggregate(self):
+        payload = PayloadBuilder().AGGREGATE({"min", "value"}, {"max", "value"}, {"avg", "value"}).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
+        assert len(result["rows"]) == 1
+        assert result["count"] == 1
+        assert result["rows"][0]["min_value"] == 10
+        assert result["rows"][0]["max_value"] == 15
+        assert result["rows"][0]["avg_value"] == 12.5
+
     @pytest.mark.skip(reason="FOGL-617")
     def test_group(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT("previous_value").
-                                                  GROUP_BY("previous_value").payload())
+        payload = PayloadBuilder().SELECT("previous_value").GROUP_BY("previous_value").payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["previous_value"] == 2
 
     def test_aggregate_group(self):
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  AGGREGATE(["min", "previous_value"]).
-                                                  GROUP_BY("previous_value").payload())
+        payload = PayloadBuilder().AGGREGATE(["min", "previous_value"]).GROUP_BY("previous_value").payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["min_previous_value"] == 2
         assert result["rows"][0]["previous_value"] == 2
 
+    @pytest.mark.skip(reason="FOGL-607 #5")
+    def test_aggregate_group_having(self):
+        pass
+
+    @pytest.mark.skip
+    def test_select_json_data(self):
+        # Example:
+        # SELECT MIN(reading->>'sensor_code_2'), MAX(reading->>'sensor_code_2'), AVG((reading->>'sensor_code_2')::float) FROM readings WHERE asset_code = 'TEST_STORAGE_CLIENT';
+        pass
+
+    @pytest.mark.skip
+    def test_select_date(self):
+        # Example:
+        # SELECT user_ts AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
+        pass
+
+    @pytest.mark.skip
+    def test_select_column_alias(self):
+        # Example:
+        # SELECT TO_CHAR(user_ts, 'YYYY-MM-DD HH24') as "timestamp" FROM readings GROUP BY TO_CHAR(user_ts, 'YYYY-MM-DD HH24');
+        pass
+
 
 @pytest.allure.feature("api")
-@pytest.allure.story("storage")
+@pytest.allure.story("storage client")
 class TestStorageInsert:
+    """This class tests INSERT queries of Storage layer using payload builder
     """
-    This class tests INSERT queries of Storage layer using payload builder
-    """
-    def test_valid_insert(self):
-        result = Storage().insert_into_tbl("statistics",  PayloadBuilder().
-                                           INSERT(key='TEST_3', description="test", value='11', previous_value=2).
-                                           payload())
+    def test_insert(self):
+        payload = PayloadBuilder().INSERT(key='TEST_3', description="test", value='11', previous_value=2).payload()
+        print(payload)
+        result = Storage().insert_into_tbl("statistics", payload)
         assert result == {'response': 'inserted'}
 
     @pytest.mark.skip(reason="FOGL-615")
     def test_invalid_insert(self):
-        result = Storage().insert_into_tbl("statistics",  PayloadBuilder().
-                                           INSERT(key='TEST_3', value='11', previous_value=2).payload())
+        payload = PayloadBuilder().INSERT(key='TEST_3', value='11', previous_value=2).payload()
+        result = Storage().insert_into_tbl("statistics", payload)
         assert "ERROR" in result["message"]
 
 
 @pytest.allure.feature("api")
-@pytest.allure.story("storage")
+@pytest.allure.story("storage client")
 class TestStorageUpdate:
-    """
-    This class tests UPDATE queries of Storage layer using payload builder
+    """This class tests UPDATE queries of Storage layer using payload builder
     """
     @pytest.mark.skip(reason="FOGL-616")
     def test_valid_update_with_condition(self):
-        result = Storage().update_tbl("statistics", PayloadBuilder().
-                                      SET(value=90, description="Updated test value").
-                                      WHERE(["key", "=", "TEST_1"]).payload())
+        payload = PayloadBuilder().SET(value=90, description="Updated test value").\
+            WHERE(["key", "=", "TEST_1"]).payload()
+        result = Storage().update_tbl("statistics", payload)
         assert result == {'response': 'updated'}
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+        payload = PayloadBuilder().SELECT_ALL().payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
 
         # Assert that only one value is updated
         assert result["rows"][0]["key"] == "TEST_1"
@@ -222,68 +264,71 @@ class TestStorageUpdate:
 
     @pytest.mark.skip(reason="FOGL-616")
     def test_invalid_key_update(self):
-        result = Storage().update_tbl("statistics", PayloadBuilder().
-                                      SET(value=23, description="Updated test value 2").
-                                      WHERE(["key", "=", "bla"]).payload())
-        assert "ERROR" in result["message"]
-
-        # Assert that values are not updated (Check any single record)
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  WHERE(["key", "=", "TEST_2"]).payload())
-        assert result["rows"][0]["key"] == "TEST_2"
-        assert result["rows"][0]["description"] == "Testing the storage service data 2"
-        assert result["rows"][0]["value"] == 15
-        assert result["rows"][0]["previous_value"] == 2
-
-    @pytest.mark.skip(reason="FOGL-615")
-    def test_invalid_type_update(self):
-        result = Storage().update_tbl("statistics", PayloadBuilder().
-                                      SET(value="invalid", description="Updated test value 3").
-                                      WHERE(["key", "=", "TEST_2"]).payload())
+        payload = PayloadBuilder().SET(value=23, description="Updated test value 2").\
+            WHERE(["key", "=", "bla"]).payload()
+        result = Storage().update_tbl("statistics", payload)
         assert "ERROR" in result["message"]
 
         # Assert that values are not updated
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().
-                                                  WHERE(["key", "=", "TEST_2"]).payload())
+        payload = PayloadBuilder().SELECT_ALL().payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
+        for r in result["rows"]:
+            assert "Updated test value 2" != r["description"]
+
+    @pytest.mark.skip(reason="FOGL-615")
+    def test_invalid_type_update(self):
+        payload = PayloadBuilder().SET(value="invalid", description="Updated test value 3").\
+            WHERE(["key", "=", "TEST_2"]).payload()
+        # value column is of type int and we are trying to update with a string value
+        result = Storage().update_tbl("statistics", payload)
+        assert "ERROR" in result["message"]
+
+        # Assert that values are not updated
+        payload = PayloadBuilder().WHERE(["key", "=", "TEST_2"]).payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert result["rows"][0]["key"] == "TEST_2"
         assert result["rows"][0]["description"] == "Testing the storage service data 2"
         assert result["rows"][0]["value"] == 15
         assert result["rows"][0]["previous_value"] == 2
 
     def test_update_without_key(self):
-        result = Storage().update_tbl("statistics", PayloadBuilder().
-                                      SET(value=1, description="Updated test value 4").payload())
+        payload = PayloadBuilder().SET(value=1, description="Updated test value 4").payload()
+        result = Storage().update_tbl("statistics", payload)
         assert result == {'response': 'updated'}
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
-        for _i in range(len(result["rows"])):
-            assert result["rows"][_i]["value"] == 1
-            assert result["rows"][_i]["description"] == "Updated test value 4"
+
+        payload = PayloadBuilder().SELECT_ALL().payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
+        for r in result["rows"]:
+            assert 1 == r["value"]
+            assert "Updated test value 4" == r["description"]
 
 
 @pytest.allure.feature("api")
-@pytest.allure.story("storage")
+@pytest.allure.story("storage client")
 class TestStorageDelete:
-    """
-    This class tests DELETE queries of Storage layer using payload builder
+    """This class tests DELETE queries of Storage layer using payload builder
     """
     def test_valid_delete_with_key(self):
-        result = Storage().delete_from_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).payload())
+        payload = PayloadBuilder().WHERE(["key", "=", "TEST_1"]).payload()
+        result = Storage().delete_from_tbl("statistics", payload)
         assert result == {'response': 'deleted'}
 
         # Verify that row is actually deleted
-        result = Storage().query_tbl("statistics", PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params())
+        payload = PayloadBuilder().WHERE(["key", "=", "TEST_1"]).query_params()
+        result = Storage().query_tbl("statistics", payload)
         assert len(result["rows"]) == 0
         assert result["count"] == 0
 
     def test_delete_with_invalid_key(self):
-        result = Storage().delete_from_tbl("statistics", PayloadBuilder().
-                                           WHERE(["key", "=", "TEST_invalid"]).payload())
+        payload = PayloadBuilder().WHERE(["key", "=", "TEST_invalid"]).payload()
+        result = Storage().delete_from_tbl("statistics", payload)
 
         # FIXME: Is deleted the correct response?
         assert result == {'response': 'deleted'}
 
         # Verify that no row is deleted
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+        payload = PayloadBuilder().SELECT_ALL().payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 2
         assert result["count"] == 2
         assert result["rows"][0]["key"] == "TEST_2"
@@ -294,6 +339,7 @@ class TestStorageDelete:
         assert result == {'response': 'deleted'}
 
         # Verify that all rows are deleted
-        result = Storage().query_tbl_with_payload("statistics", PayloadBuilder().SELECT_ALL().payload())
+        payload = PayloadBuilder().SELECT_ALL().payload()
+        result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 0
         assert result["count"] == 0

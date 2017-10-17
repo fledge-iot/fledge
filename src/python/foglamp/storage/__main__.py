@@ -283,11 +283,10 @@ try:
 
     # TODO: verify 1 error payload
 
-    # shutdown_response = Storage().check_shutdown()
-    # print("check_shutdown res: ", shutdown_response)
+    shutdown_response = Storage().shutdown()
+    print("check_shutdown res: ", shutdown_response)
     """  {'message': 'Shutdown in progress'}
     """
-
 
 except InvalidServiceInstance as ex:
     print(ex.code, ex.message)

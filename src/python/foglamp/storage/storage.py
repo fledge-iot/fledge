@@ -160,6 +160,8 @@ class Storage(AbstractStorage):
         # Allow shutdown()?
         pass
 
+    # FIXME: As per JIRA-615 strict=false at python side (interim solution)
+    # fix is required at storage layer (error message with escape sequence using a single quote)
     def insert_into_tbl(self, tbl_name, data):
         """ insert json payload into given table
 
@@ -199,7 +201,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def update_tbl(self, tbl_name, data):
         """ update json payload for specified condition into given table
@@ -244,7 +246,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
@@ -281,7 +283,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def query_tbl(self, tbl_name, query=None):
         """ Simple SELECT query for the specified table with optional query params
@@ -314,7 +316,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def query_tbl_with_payload(self, tbl_name, query_payload):
         """ Complex SELECT query for the specified table with a payload
@@ -348,7 +350,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
 
 class Readings(Storage):
@@ -410,7 +412,7 @@ class Readings(Storage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     @classmethod
     def fetch(cls, reading_id, count):
@@ -441,7 +443,7 @@ class Readings(Storage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     @classmethod
     def query(cls, query_payload):
@@ -476,7 +478,7 @@ class Readings(Storage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     @classmethod
     def purge(cls, age, sent_id, flag=None):
@@ -528,4 +530,4 @@ class Readings(Storage):
         #       then the error “409 Conflict” will be returned.
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)

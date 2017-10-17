@@ -74,7 +74,6 @@ class TestStorageRead:
         assert result["rows"][0]["value"] == 10
         assert result["rows"][0]["previous_value"] == 2
 
-    @pytest.mark.skip(reason="FOGL-615")
     def test_where_invalid_key(self):
         payload = PayloadBuilder().WHERE(["bla", "=", "invalid"]).payload()
         result = Storage().query_tbl_with_payload("statistics", payload)
@@ -228,7 +227,6 @@ class TestStorageInsert:
         result = Storage().insert_into_tbl("statistics", payload)
         assert result == {'response': 'inserted'}
 
-    @pytest.mark.skip(reason="FOGL-615")
     def test_invalid_insert(self):
         payload = PayloadBuilder().INSERT(key='TEST_3', value='11', previous_value=2).payload()
         result = Storage().insert_into_tbl("statistics", payload)
@@ -278,7 +276,6 @@ class TestStorageUpdate:
         for r in result["rows"]:
             assert "Updated test value 2" != r["description"]
 
-    @pytest.mark.skip(reason="FOGL-615")
     def test_invalid_type_update(self):
         payload = PayloadBuilder().SET(value="invalid", description="Updated test value 3").\
             WHERE(["key", "=", "TEST_2"]).payload()

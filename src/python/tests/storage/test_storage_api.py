@@ -199,19 +199,19 @@ class TestStorageRead:
     def test_aggregate_group_having(self):
         pass
 
-    @pytest.mark.skip
+    @pytest.mark.skip(reason="No support yet")
     def test_select_json_data(self):
         # Example:
         # SELECT MIN(reading->>'sensor_code_2'), MAX(reading->>'sensor_code_2'), AVG((reading->>'sensor_code_2')::float) FROM readings WHERE asset_code = 'TEST_STORAGE_CLIENT';
         pass
 
-    @pytest.mark.skip
+    @pytest.mark.skip(reason="No support yet")
     def test_select_date(self):
         # Example:
-        # SELECT user_ts AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
+        # SELECT user_ts FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
         pass
 
-    @pytest.mark.skip
+    @pytest.mark.skip(reason="No support yet")
     def test_select_column_alias(self):
         # Example:
         # SELECT TO_CHAR(user_ts, 'YYYY-MM-DD HH24') as "timestamp" FROM readings GROUP BY TO_CHAR(user_ts, 'YYYY-MM-DD HH24');
@@ -225,7 +225,6 @@ class TestStorageInsert:
     """
     def test_insert(self):
         payload = PayloadBuilder().INSERT(key='TEST_3', description="test", value='11', previous_value=2).payload()
-        print(payload)
         result = Storage().insert_into_tbl("statistics", payload)
         assert result == {'response': 'inserted'}
 
@@ -234,6 +233,10 @@ class TestStorageInsert:
         payload = PayloadBuilder().INSERT(key='TEST_3', value='11', previous_value=2).payload()
         result = Storage().insert_into_tbl("statistics", payload)
         assert "ERROR" in result["message"]
+
+    @pytest.mark.skip(reason="No support yet")
+    def test_insert_json_data(self):
+        pass
 
 
 @pytest.allure.feature("api")
@@ -308,7 +311,7 @@ class TestStorageUpdate:
 class TestStorageDelete:
     """This class tests DELETE queries of Storage layer using payload builder
     """
-    def test_valid_delete_with_key(self):
+    def test_delete_with_key(self):
         payload = PayloadBuilder().WHERE(["key", "=", "TEST_1"]).payload()
         result = Storage().delete_from_tbl("statistics", payload)
         assert result == {'response': 'deleted'}

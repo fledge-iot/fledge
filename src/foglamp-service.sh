@@ -9,7 +9,15 @@
 # Short-Description: foglamp script
 # Description:       starts foglamp core, storage and scheduler
 
-# `make install` will put foglamp as python code entry_point in /home/foglamp/.local/bin
+# `make install` will put foglamp as python package entry_point in /home/foglamp/.local/bin
+# `sudo make install` will put foglamp as python package entry_point in /usr/local/bin
+
+# Installing foglamp script to /usr/local/bin
+
+# Installed /usr/local/lib/python3.5/dist-packages/FogLAMP-0.1-py3.5.egg
+# Processing dependencies for FogLAMP==0.1
+# Finished processing dependencies for FogLAMP==0.1
+
 
 
 # Copy this script into /etc/init.d using
@@ -19,7 +27,8 @@
 # and make sure that it has UNIX line-endings (dos2unix).
 
 
-# running the command `sudo update-rc.d foglamp-service.sh defaults`.
+# run the command `sudo update-rc.d foglamp-service.sh defaults`.
+
 # This command adds in symbolic links to the `/etc/rc?.d` directories
 # so that the init script is run at the default times.
 # you can see these links if you do `ls -l /etc/rc?.d/*foglamp-service.sh`
@@ -27,12 +36,15 @@
 
 # At this point you should be able to start foglamp using the command:
 
-# sudo /etc/init.d/foglamp-service.sh start,
-# check its status with the /etc/init.d/foglamp-service.sh status argument
-# and stop it with sudo /etc/init.d/foglamp-service.sh stop.
+# To start:
+# sudo /etc/init.d/foglamp-service.sh start
+# To check its status:
+# /etc/init.d/foglamp-service.sh status
+# To stop:
+# sudo /etc/init.d/foglamp-service.sh stop
 ### END INIT INFO
 
-DIR=/home/foglamp/.local/bin
+DIR=/usr/local/bin
 DAEMON=$DIR/foglamp
 DAEMON_NAME=foglamp
 

@@ -42,7 +42,7 @@ class Server:
     scheduler = None
     """ foglamp.core.Scheduler """
 
-    _host = 'localhost'  # FIX?
+    _host = '127.0.0.1'  # FIX?
     core_management_port = 0
     rest_service_port = 8081
 
@@ -97,6 +97,7 @@ class Server:
 
         handler = app.make_handler()
         coro = loop.create_server(handler, host, port)
+        # added coroutine
         server = loop.run_until_complete(coro)
         return server, handler
 
@@ -111,24 +112,24 @@ class Server:
             core_server, core_server_handler = cls._start_app(loop, core_app, host, 0)
             address, cls.core_management_port = core_server.sockets[0].getsockname()
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
-            # make sure to
-            loop.run_until_complete(core_app.startup())
+
+            # start storage
+            loop.run_until_complete(cls._start_storage(loop))
+            # start scheduler
+            # scheduler on start will wait for storage service registration
+            loop.run_until_complete(cls._start_scheduler())
 
             service_app = cls._make_app()
             service_server, service_server_handler = cls._start_app(loop, service_app, host, cls.rest_service_port)
             address, service_server_port = service_server.sockets[0].getsockname()
             _logger.info('Rest Server started on http://%s:%s', address, service_server_port)
 
-            # register now
-            cls._register_core(host, cls.core_management_port, service_server_port)
+            # register core
+            # a service with 2 web server instance,
+            # registering now only when service_port is ready to listen the request
+            cls._register_core(host, cls.core_management_port, cls.rest_service_port)
             print("(Press CTRL+C to quit)")
             try:
-                # start storage
-                loop.run_until_complete(cls._start_storage(loop))
-                # start scheduler
-                # scheduler on start will wait for storage service registration
-                loop.run_until_complete(cls._start_scheduler())
-
                 loop.run_forever()
             except KeyboardInterrupt:
                 pass

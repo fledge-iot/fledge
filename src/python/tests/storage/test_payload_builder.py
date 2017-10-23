@@ -215,6 +215,24 @@ class TestPayloadBuilderRead:
             .payload()
         assert _payload("data/payload_complex_select1.json") == json.loads(res)
 
+    def test_chain_payload(self):
+        res_chain = PayloadBuilder() \
+            .SELECT("id", "name") \
+            .WHERE(["id", "=", 1]) \
+            .AND_WHERE(["name", "=", "test"]) \
+            .OR_WHERE(["name", "=", "test2"]) \
+            .chain_payload()
+
+        res = PayloadBuilder(res_chain) \
+            .LIMIT(5) \
+            .OFFSET(1) \
+            .GROUP_BY("name", "id") \
+            .ORDER_BY(["id", "desc"]) \
+            .AGGREGATE(["count", "name"]) \
+            .payload()
+
+        assert _payload("data/payload_complex_select1.json") == json.loads(res)
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("payload_builder")

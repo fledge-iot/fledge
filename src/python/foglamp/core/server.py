@@ -43,6 +43,8 @@ class Server:
 
     _host = '0.0.0.0'
     core_management_port = 0
+
+    # TODO: Get Admin API port from configuration option
     rest_service_port = 8081
 
     @staticmethod
@@ -115,6 +117,7 @@ class Server:
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
             # start scheduler
+            # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
             loop.run_until_complete(cls._start_scheduler())
 

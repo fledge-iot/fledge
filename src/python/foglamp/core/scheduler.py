@@ -1625,6 +1625,9 @@ class Scheduler(object):
             raise NotReadyError("The scheduler is starting")
 
         self._start_time = self.current_time if self.current_time else time.time()
+        # FIXME: This is an inefficient way of waiting for the storage to register.
+        # The spec describes a way to trigger the continued startup on receipt of the registration record.
+        # this will work but is not very elegant.
 
         # make sure that it go forward only when storage service is ready
         storage_service = None
@@ -1635,7 +1638,7 @@ class Scheduler(object):
                 storage_service = found_services[0]
             except Exception:
                 await asyncio.sleep(5)
-        self._logger.info("Starting scheduler; mgt port received is %d", self._core_management_port)
+        self._logger.info("Starting Scheduler; Management port received is %d", self._core_management_port)
 
         await self._read_config()
         await self._mark_tasks_interrupted()

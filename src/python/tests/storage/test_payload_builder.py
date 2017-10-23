@@ -107,7 +107,7 @@ class TestPayloadBuilderRead:
     @pytest.mark.parametrize("test_input, expected", [
         (["name", "asc"], _payload("data/payload_order_by1.json")),
         (["name", "desc"], _payload("data/payload_order_by2.json")),
-        pytest.param([{"name", "desc"}, {"id", "asc"}, {"ts", "asc"}], _payload("data/payload_order_by3.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
+        ((["name", "desc"], ["id", "asc"], ["ts", "asc"]), _payload("data/payload_order_by3.json")),
         (["name"], _payload("data/payload_order_by1.json")),
         (["name", "invalid"], {})
     ])
@@ -129,7 +129,7 @@ class TestPayloadBuilderRead:
         (["avg", "values"], _payload("data/payload_aggregate3.json")),
         (["sum", "values"], _payload("data/payload_aggregate4.json")),
         (["count", "values"], _payload("data/payload_aggregate5.json")),
-        pytest.param([{"min", "values"}, {"max", "values"}, {"avg", "values"}], _payload("data/payload_aggregate6.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
+        ((["min", "values"], ["max", "values"], ["avg", "values"]), _payload("data/payload_aggregate6.json")),
         (["invalid", "values"], {})
     ])
     def test_aggregate_payload(self, test_input, expected):

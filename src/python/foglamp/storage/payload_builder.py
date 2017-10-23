@@ -132,6 +132,7 @@ class PayloadBuilder(object):
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
+                # TODO: Get clarity on multiple "AND" in WHERE clause and then modify per method on AGGREGATE and ORDERBY.
                 if 'where' in cls.query_payload:
                     cls.query_payload['where'].update({"and": condition})
                 else:
@@ -147,6 +148,7 @@ class PayloadBuilder(object):
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
+                # TODO: Get clarity on multiple "AND" in WHERE clause and then modify per method on AGGREGATE and ORDERBY.
                 if 'where' in cls.query_payload:
                     cls.query_payload['where'].update({"and": condition})
                 else:
@@ -161,6 +163,7 @@ class PayloadBuilder(object):
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
+                # TODO: Get clarity on multiple "OR" in WHERE clause and then modify per method on AGGREGATE and ORDERBY.
                 if 'where' in cls.query_payload:
                     cls.query_payload['where'].update({"or": condition})
                 else:

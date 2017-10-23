@@ -58,4 +58,7 @@ Add more Readings,POST,http://localhost:8080/storage/reading,readings.json
 Query Readings,PUT,http://localhost:8080/storage/reading/query,query_readings.json
 Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket.json
 Query Readings Timebucket 1,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket1.json
+Multi And,PUT,http://localhost:8080/storage/table/test2/query,multi_and.json
+Multi Or,PUT,http://localhost:8080/storage/table/test2/query,multi_or.json
+Multi Mixed,PUT,http://localhost:8080/storage/table/test2/query,multi_mised.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

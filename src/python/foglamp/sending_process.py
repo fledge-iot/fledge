@@ -292,19 +292,6 @@ class SendingProcess:
             _logger.info("{0}".format(start_message))
             _logger.info(_MESSAGES_LIST["i000001"])
 
-            try:
-                status = self._storage.check_service_availibility()
-
-                _logger.debug("{fun} - storage engine status {status} ".format(
-                                                                            fun=inspect.currentframe().f_code.co_name,
-                                                                            status=status))
-
-            except Exception as e:
-                _message = _MESSAGES_LIST["e000012"].format(str(e))
-
-                _logger.error(_message)
-                raise
-
             if self._is_stream_id_valid(stream_id):
 
                 self._retrieve_configuration(stream_id)
@@ -653,12 +640,12 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            # TODO : to be changed using PayloadBuilder after FOGL-616
-            # TODO : verify the support for .SET(rs='now()')
+            # TODO : to be changed using PayloadBuilder after
+            # TODO : verify the support for .SET(ts='now()')FOGL-616
             # payload = payload_builder.PayloadBuilder() \
             #     .WHERE(['column', '=', stream_id]) \
             #     .SET(last_object=new_last_object_id) \
-            #     .SET(rs='now()') \
+            #     .SET(ts='now()') \
             #     .payload()
             #
             # self._storage.update_tbl("streams", payload)

@@ -526,13 +526,13 @@ def _flag_created_omf_type(configuration_key, type_id, asset_code):
      Todo:
      """
 
-    data = dict()
+    payload = payload_builder.PayloadBuilder()\
+        .INSERT(configuration_key=configuration_key,
+                asset_code=asset_code,
+                type_id=type_id)\
+        .payload()
 
-    data['configuration_key'] = configuration_key
-    data['asset_code'] = asset_code
-    data['type_id'] = type_id
-
-    _storage.insert_into_tbl("omf_created_objects", json.dumps(data))
+    _storage.insert_into_tbl("omf_created_objects", payload)
 
 
 def _generate_omf_asset_id(asset_code):

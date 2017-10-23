@@ -41,7 +41,7 @@ class Server:
     scheduler = None
     """ foglamp.core.Scheduler """
 
-    _host = '127.0.0.1'  # FIX?
+    _host = '0.0.0.0'
     core_management_port = 0
     rest_service_port = 8081
 

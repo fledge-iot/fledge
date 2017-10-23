@@ -37,8 +37,9 @@ class PayloadBuilder(object):
 
     query_payload = None
 
-    def __init__(self):
-        self.__class__.query_payload = OrderedDict()
+    def __init__(self, initial_payload=OrderedDict()):
+        # TODO: Investigate why simple "self.__class__.query_payload = initial_payload" is not working
+        self.__class__.query_payload = initial_payload if len(initial_payload) else OrderedDict()
 
     @staticmethod
     def verify_condition(arg):
@@ -74,10 +75,11 @@ class PayloadBuilder(object):
     @classmethod
     def ALIAS(cls, *args):
         raise NotImplementedError("To be implemented")
-        return cls
 
     @classmethod
-    def SELECT(cls, *args):
+    def SELECT(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         if len(args) > 0:
             cls.query_payload.update({"columns": ','.join(args)})
         return cls
@@ -122,29 +124,47 @@ class PayloadBuilder(object):
         return cls.FROM(tbl_name)
 
     @classmethod
-    def WHERE(cls, arg):
-        condition = {}
-        if cls.verify_condition(arg):
-            condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-            cls.query_payload.update({"where": condition})
-        return cls
-
-    @classmethod
-    def AND_WHERE(cls, *args):
+    def WHERE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
+        print(args)
         for arg in args:
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                cls.query_payload["where"].update({"and": condition})
+                if 'where' in cls.query_payload:
+                    cls.query_payload['where'].update({"and": condition})
+                else:
+                    cls.query_payload.update({"where": condition})
         return cls
 
     @classmethod
-    def OR_WHERE(cls, *args):
+    def AND_WHERE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
+        print(args)
         for arg in args:
+            condition = {}
             if cls.verify_condition(arg):
-                condition = {}
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                cls.query_payload["where"].update({"or": condition})
+                if 'where' in cls.query_payload:
+                    cls.query_payload['where'].update({"and": condition})
+                else:
+                    cls.query_payload.update({"where": condition})
+        return cls
+
+    @classmethod
+    def OR_WHERE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
+        for arg in args:
+            condition = {}
+            if cls.verify_condition(arg):
+                condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
+                if 'where' in cls.query_payload:
+                    cls.query_payload['where'].update({"or": condition})
+                else:
+                    cls.query_payload.update({"where": condition})
         return cls
 
     @classmethod
@@ -153,17 +173,17 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
-    def AGGREGATE(cls, *args):
+    def AGGREGATE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
             aggregate = {}
             if cls.verify_aggregation(arg):
                 aggregate.update({"operation": arg[0], "column": arg[1]})
                 if 'aggregate' in cls.query_payload:
-                    if isinstance(cls.query_payload['aggregate'], list):
-                        cls.query_payload['aggregate'].append(aggregate)
-                    else:
-                        cls.query_payload['aggregate'] = list(cls.query_payload.get('aggregate'))
-                        cls.query_payload['aggregate'].append(aggregate)
+                    if not isinstance(cls.query_payload['aggregate'], list):
+                        cls.query_payload['aggregate'] = [cls.query_payload.get('aggregate')]
+                    cls.query_payload['aggregate'].append(aggregate)
                 else:
                     cls.query_payload.update({"aggregate": aggregate})
         return cls
@@ -171,7 +191,6 @@ class PayloadBuilder(object):
     @classmethod
     def HAVING(cls):
         raise NotImplementedError("To be implemented")
-        return cls
 
     @classmethod
     def LIMIT(cls, arg):
@@ -188,17 +207,17 @@ class PayloadBuilder(object):
     SKIP = OFFSET
 
     @classmethod
-    def ORDER_BY(cls, *args):
+    def ORDER_BY(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
             sort = {}
             if cls.verify_orderby(arg):
                 sort.update({"column": arg[0], "direction": arg[1]})
                 if 'sort' in cls.query_payload:
-                    if isinstance(cls.query_payload['sort'], list):
-                        cls.query_payload['sort'].append(sort)
-                    else:
-                        cls.query_payload['sort'] = list(cls.query_payload.get('sort'))
-                        cls.query_payload['sort'].append(sort)
+                    if not isinstance(cls.query_payload['sort'], list):
+                        cls.query_payload['sort'] = [cls.query_payload.get('sort')]
+                    cls.query_payload['sort'].append(sort)
                 else:
                     cls.query_payload.update({"sort": sort})
         return cls
@@ -206,6 +225,15 @@ class PayloadBuilder(object):
     @classmethod
     def payload(cls):
         return json.dumps(cls.query_payload, sort_keys=True)
+
+    @classmethod
+    def chain_payload(cls):
+        """
+        Sometimes, we may want to create payload incremently, based upon some conditions.
+        This method will come handy in such Use cases.
+        e.g. core/scheduler.py->get_tasks()
+        """
+        return cls.query_payload
 
     @classmethod
     def query_params(cls):

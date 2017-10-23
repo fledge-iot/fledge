@@ -232,9 +232,8 @@ class PayloadBuilder(object):
     @classmethod
     def chain_payload(cls):
         """
-        Sometimes, we may want to create payload incremently, based upon some conditions.
-        This method will come handy in such Use cases.
-        e.g. core/scheduler.py->get_tasks()
+        Sometimes, we may want to create payload incremently, based upon some conditions, this method will come
+        handy in such Use cases.
         """
         return cls.query_payload
 

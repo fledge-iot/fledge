@@ -63,4 +63,5 @@ Multi Or,PUT,http://localhost:8080/storage/table/test2/query,multi_or.json
 Multi Mixed,PUT,http://localhost:8080/storage/table/test2/query,multi_mised.json
 Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
 Read back,GET,http://localhost:8080/storage/table/test2,
+Count Assets,PUT,http://localhost:8080/storage/reading/query,count_assets.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

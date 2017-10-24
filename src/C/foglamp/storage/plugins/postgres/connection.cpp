@@ -354,7 +354,7 @@ int		col = 0;
 	{
 		if (PQntuples(res) == 0)
 		{
- 			raiseError("update", "Mo rows where updated");
+ 			raiseError("update", "No rows where updated");
 			return false;
 		}
 		PQclear(res);

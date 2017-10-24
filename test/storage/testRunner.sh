@@ -26,7 +26,15 @@ if [ "$optional" = "" ] ; then
 		if [ $? -ne "0" ]; then
 			echo Failed
 			n_failed=`expr $n_failed + 1`
-			touch failed
+			if [ "$payload" = "" ]
+			then
+				echo Test $testNum  curl -X $method $url >> failed
+			else
+				echo Test $testNum  curl -X $method $url -d@payloads/$payload  >> failed
+			fi
+			echo "   " Expected: `cat expected/$testNum` >> failed
+			echo "   " Got:     `cat results/$testNum` >> failed
+			echo >> failed
 		else
 			echo Passed
 			n_passed=`expr $n_passed + 1`
@@ -39,7 +47,12 @@ elif [ "$optional" = "checkstate" ] ; then
 	else
 		echo Failed
 		n_failed=`expr $n_failed + 1`
-		touch failed
+		if [ "$payload" = "" ]
+		then
+			echo Test $testNum  curl -X $method $url >> failed
+		else
+			echo Test $testNum  curl -X $method $url -d@payloads/$payload  >> failed
+		fi
 	fi
 fi
 testNum=`expr $testNum + 1`
@@ -52,6 +65,10 @@ done
 cat tests.result
 rm -f tests.result
 if [ -f "failed" ]; then
+	echo
+	echo "Failed Tests"
+	echo "============"
+	cat failed
 	exit 1
 fi
 exit 0

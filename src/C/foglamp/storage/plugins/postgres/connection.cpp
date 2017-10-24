@@ -352,7 +352,7 @@ int		col = 0;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
-		if (PQntuples(res) == 0)
+		if (atoi(PQcmdTuples(res)) == 0)
 		{
  			raiseError("update", "No rows where updated");
 			return false;

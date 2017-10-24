@@ -28,7 +28,7 @@ Common Update,PUT,http://localhost:8080/storage/table/test,update.json
 Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
 Common Update,PUT,http://localhost:8080/storage/table/test,updateKey.json
 Common Read back,GET,http://localhost:8080/storage/table/test?key=UPDA,
-Common Update no vlaues,PUT,http://localhost:8080/storage/table/test,bad_update.json
+Common Update no values,PUT,http://localhost:8080/storage/table/test,bad_update.json
 Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
 Bad URL,GET,http://localhost:8080/foglamp/nothing,
 Bad table,GET,http://localhost:8080/storage/table/doesntexist,
@@ -52,7 +52,7 @@ Date format4,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d4.
 Date format5,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d5.json
 Bad format1,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format1.json
 Bad format2,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format2.json
-Count star,PUT,http://localhost:8080/storage/table/test2/query,where_count.json
+Count star,PUT,http://localhost:8080/storage/table/test2/query,where_count_star.json
 sum,PUT,http://localhost:8080/storage/table/test2/query,where_sum.json
 Add more Readings,POST,http://localhost:8080/storage/reading,readings.json
 Query Readings,PUT,http://localhost:8080/storage/reading/query,query_readings.json

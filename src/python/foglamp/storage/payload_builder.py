@@ -100,14 +100,17 @@ class PayloadBuilder(object):
 
     @classmethod
     def COLS(cls, kwargs):
-        values = {}
+        values = OrderedDict()
         for key, value in kwargs.items():
             values[key] =  value
         return values
 
     @classmethod
     def SET(cls, **kwargs):
-        cls.query_payload["values"] = cls.COLS(kwargs)
+        if 'values' in cls.query_payload:
+            cls.query_payload["values"].update(cls.COLS(kwargs))
+        else:
+            cls.query_payload["values"] = cls.COLS(kwargs)
         return cls
 
     @classmethod

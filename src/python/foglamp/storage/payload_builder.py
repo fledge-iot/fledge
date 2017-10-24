@@ -144,7 +144,6 @@ class PayloadBuilder(object):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
                 condition["value"] = arg[2]
-                condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:
@@ -260,14 +259,3 @@ class PayloadBuilder(object):
             if key == 'and':
                 query_params.update({value['column']: value['value']})
         return urllib.parse.urlencode(query_params)
-
-if __name__ == '__main__':
-    complex_payload = PayloadBuilder() \
-        .SELECT('id', 'type', 'repeat', 'process_name') \
-        .FROM('schedules') \
-        .WHERE(['id', '=', 'test'])\
-        .AND_WHERE(['process_name', '=', 'test'])\
-        .OR_WHERE(['process_name', '=', 'sleep']) \
-        .payload()
-
-    print(complex_payload, '\n')

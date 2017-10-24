@@ -124,35 +124,42 @@ class PayloadBuilder(object):
         return cls.FROM(tbl_name)
 
     @classmethod
+    def add_new_clause(cls, and_or, main, new):
+        """Recursive method to add 'new' to the last and/or of 'main'"""
+        if 'and' not in main:
+            if 'or' not in main:
+                main.update({and_or: new})
+            else:
+                cls.add_new_clause(and_or, main['or'], new)
+        else:
+            cls.add_new_clause(and_or, main['and'], new)
+
+    @classmethod
     def WHERE(cls, arg, *args):
         # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
         args = (arg,) + args if not isinstance(arg, tuple) else arg
-        print(args)
         for arg in args:
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                # TODO: Get clarity on multiple "AND" in WHERE clause and then modify per method on AGGREGATE and ORDERBY.
-                if 'where' in cls.query_payload:
-                    cls.query_payload['where'].update({"and": condition})
-                else:
+                if 'where' not in cls.query_payload:
                     cls.query_payload.update({"where": condition})
+                else:
+                    cls.add_new_clause('and', cls.query_payload['where'], condition)
         return cls
 
     @classmethod
     def AND_WHERE(cls, arg, *args):
         # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
         args = (arg,) + args if not isinstance(arg, tuple) else arg
-        print(args)
         for arg in args:
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                # TODO: Get clarity on multiple "AND" in WHERE clause and then modify per method on AGGREGATE and ORDERBY.
-                if 'where' in cls.query_payload:
-                    cls.query_payload['where'].update({"and": condition})
-                else:
+                if 'where' not in cls.query_payload:
                     cls.query_payload.update({"where": condition})
+                else:
+                    cls.add_new_clause('and', cls.query_payload['where'], condition)
         return cls
 
     @classmethod
@@ -163,11 +170,10 @@ class PayloadBuilder(object):
             condition = {}
             if cls.verify_condition(arg):
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                # TODO: Get clarity on multiple "OR" in WHERE clause and then modify per method on AGGREGATE and ORDERBY.
-                if 'where' in cls.query_payload:
-                    cls.query_payload['where'].update({"or": condition})
-                else:
+                if 'where' not in cls.query_payload:
                     cls.query_payload.update({"where": condition})
+                else:
+                    cls.add_new_clause('or', cls.query_payload['where'], condition)
         return cls
 
     @classmethod
@@ -245,3 +251,14 @@ class PayloadBuilder(object):
             if key == 'and':
                 query_params.update({value['column']: value['value']})
         return urllib.parse.urlencode(query_params)
+
+if __name__ == '__main__':
+    complex_payload = PayloadBuilder() \
+        .SELECT('id', 'type', 'repeat', 'process_name') \
+        .FROM('schedules') \
+        .WHERE(['id', '=', 'test'])\
+        .AND_WHERE(['process_name', '=', 'test'])\
+        .OR_WHERE(['process_name', '=', 'sleep']) \
+        .payload()
+
+    print(complex_payload, '\n')

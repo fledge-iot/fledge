@@ -139,8 +139,11 @@ class PayloadBuilder(object):
         # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
         args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
-            condition = {}
+            condition = OrderedDict()
             if cls.verify_condition(arg):
+                condition["column"] = arg[0]
+                condition["condition"] = arg[1]
+                condition["value"] = arg[2]
                 condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
                 if 'where' not in cls.query_payload:
                     cls.query_payload.update({"where": condition})
@@ -153,9 +156,11 @@ class PayloadBuilder(object):
         # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
         args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
-            condition = {}
+            condition = OrderedDict()
             if cls.verify_condition(arg):
-                condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
+                condition["column"] = arg[0]
+                condition["condition"] = arg[1]
+                condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload.update({"where": condition})
                 else:
@@ -167,9 +172,11 @@ class PayloadBuilder(object):
         # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
         args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
-            condition = {}
+            condition = OrderedDict()
             if cls.verify_condition(arg):
-                condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
+                condition["column"] = arg[0]
+                condition["condition"] = arg[1]
+                condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload.update({"where": condition})
                 else:
@@ -233,7 +240,7 @@ class PayloadBuilder(object):
 
     @classmethod
     def payload(cls):
-        return json.dumps(cls.query_payload, sort_keys=True)
+        return json.dumps(cls.query_payload, sort_keys=False)
 
     @classmethod
     def chain_payload(cls):

@@ -61,4 +61,6 @@ Query Readings Timebucket 1,PUT,http://localhost:8080/storage/reading/query,quer
 Multi And,PUT,http://localhost:8080/storage/table/test2/query,multi_and.json
 Multi Or,PUT,http://localhost:8080/storage/table/test2/query,multi_or.json
 Multi Mixed,PUT,http://localhost:8080/storage/table/test2/query,multi_mised.json
+Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
+Read back,GET,http://localhost:8080/storage/table/test2,
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

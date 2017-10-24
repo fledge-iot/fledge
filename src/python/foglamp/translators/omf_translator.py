@@ -22,7 +22,6 @@ import time
 import json
 import requests
 import logging
-import inspect
 
 from foglamp import logger, configuration_manager
 from foglamp.storage.storage import Storage
@@ -252,7 +251,7 @@ def _retrieve_configuration(stream_id):
     global _config_omf_types
     global _config_omf_types_from_manager
 
-    _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
+    _logger.debug("{0} - ".format("_retrieve_configuration"))
 
     # Configuration related to the OMF Translator
     try:
@@ -342,7 +341,7 @@ def plugin_retrieve_info(stream_id):
 
         raise ex
 
-    _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
+    _logger.debug("{0} - ".format("plugin_retrieve_info"))
 
     try:
         _event_loop = asyncio.get_event_loop()
@@ -378,7 +377,7 @@ def plugin_init():
 
     global _recreate_omf_objects
 
-    _logger.debug("{0} - URL {1}".format(inspect.currentframe().f_code.co_name, _config['URL']))
+    _logger.debug("{0} - URL {1}".format("plugin_init", _config['URL']))
 
     try:
 
@@ -428,7 +427,7 @@ def plugin_send(raw_data, stream_id):
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
 
-                    _logger.debug("{0} - Forces objects recreation ".format(inspect.currentframe().f_code.co_name))
+                    _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
 
                     _deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
@@ -504,7 +503,7 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
     omf_created_objects = _storage.query_tbl_with_payload('omf_created_objects', payload)
 
     _logger.debug("{func} - omf_created_objects {item} ".format(
-                                                                func=inspect.currentframe().f_code.co_name,
+                                                                func="_retrieve_omf_types_already_created",
                                                                 item=omf_created_objects))
 
     # Extracts only the asset_code column

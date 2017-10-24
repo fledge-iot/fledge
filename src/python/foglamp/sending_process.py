@@ -5,18 +5,20 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" The sending process is run according to a schedule in order to send reading data to the historian,
-e.g. the PI system.
+""" The sending process is run according to a schedule in order to send reading data
+to the historian, e.g. the PI system.
 It’s role is to implement the rules as to what needs to be sent and when,
-extract the data from the storage subsystem and stream it to the translator for sending to the external system.
+extract the data from the storage subsystem and stream it to the translator
+for sending to the external system.
 The sending process does not implement the protocol used to send the data,
-that is devolved to the translation plugin in order to allow for flexibility in the translation process.
+that is devolved to the translation plugin in order to allow for flexibility
+in the translation process.
 
 """
 
 import resource
 import argparse
-import inspect
+from datetime import datetime, timezone
 
 import asyncio
 import sys
@@ -60,7 +62,8 @@ _MESSAGES_LIST = {
     "e000008": "unknown data source, it could be only: readings, statistics or audit.",
     "e000009": "cannot load data into memory - error details |{0}|",
     "e000010": "cannot update statistics.",
-    "e000011": "invalid input parameters, the stream id is required and it should be a number - parameters |{0}|",
+    "e000011": "invalid input parameters, the stream id is required and it should be a number "
+               "- parameters |{0}|",
     "e000012": "cannot connect to the DB Layer - error details |{0}|",
     "e000013": "cannot validate the stream id - error details |{0}|",
     "e000014": "multiple streams having same id are defined - stream id |{0}|",
@@ -69,9 +72,10 @@ _MESSAGES_LIST = {
     "e000017": "cannot handle command line parameters - error details |{0}|",
     "e000018": "cannot initialize the plugin |{0}|",
     "e000019": "cannot retrieve the starting point for sending operation.",
-    "e000020": "cannot update the reached position.",
+    "e000020": "cannot update the reached position - error details |{0}|",
     "e000021": "cannot complete the sending operation - error details |{0}|",
-    "e000022": "unable to convert in memory data structure related to the statistics data - error details |{0}|",
+    "e000022": "unable to convert in memory data structure related to the statistics data "
+               "- error details |{0}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
 }
 """ Messages used for Information, Warning and Error notice """
@@ -150,12 +154,13 @@ class SendingProcess:
 
     _CONFIG_DEFAULT = {
         "enable": {
-            "description": "A switch that can be used to enable or disable execution of the sending process.",
+            "description": "A switch that can be used to enable or disable execution of "
+                           "the sending process.",
             "type": "boolean",
             "default": "True"
         },
         "duration": {
-            "description": "How long the sending process should run before stopping.",
+            "description": "How long the sending process should run (in seconds) before stopping.",
             "type": "integer",
             "default": "60"
         },
@@ -172,9 +177,10 @@ class SendingProcess:
         },
         "sleepInterval": {
             "description": "A period of time, expressed in seconds, "
-                           "to wait between attempts to send readings when there are no readings to be sent.",
+                           "to wait between attempts to send readings when there are no "
+                           "readings to be sent.",
             "type": "integer",
-            "default": "1"
+            "default": "5"
         },
         "translator": {
             "description": "The name of the translator to use to translate the readings "
@@ -223,16 +229,18 @@ class SendingProcess:
         .. todo::
         """
 
-        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
+        _logger.debug("{0} - ".format("_retrieve_configuration"))
 
         try:
             config_category_name = self._CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-            _event_loop.run_until_complete(configuration_manager.create_category(config_category_name,
-                                                                                 self._CONFIG_DEFAULT,
-                                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
-            _config_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
-                                                                  (config_category_name))
+            _event_loop.run_until_complete(configuration_manager.create_category(
+                                                         config_category_name,
+                                                         self._CONFIG_DEFAULT,
+                                                         self._CONFIG_CATEGORY_DESCRIPTION))
+            _config_from_manager = _event_loop.run_until_complete(
+                                            configuration_manager.get_category_all_items
+                                            (config_category_name))
 
             # Retrieves the configurations and apply the related conversions
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
@@ -283,7 +291,7 @@ class SendingProcess:
 
         exec_sending_process = False
 
-        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
+        _logger.debug("{0} - ".format("start"))
 
         try:
             prg_text = ", for Linux (x86_64)"
@@ -307,7 +315,7 @@ class SendingProcess:
 
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
-                    _logger.debug("{0} - {1} - {2} ".format(inspect.currentframe().f_code.co_name,
+                    _logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],
                                                             self._plugin_info['version']))
 
@@ -376,7 +384,7 @@ class SendingProcess:
         Todo:
         """
 
-        _logger.debug("{0} ".format(inspect.currentframe().f_code.co_name))
+        _logger.debug("{0} ".format("_load_data_into_memory"))
 
         try:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
@@ -414,7 +422,7 @@ class SendingProcess:
         Todo:
         """
 
-        _logger.debug("{0} - position {1} ".format(inspect.currentframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
 
         try:
             # Loads data
@@ -449,7 +457,7 @@ class SendingProcess:
         Todo:
         """
 
-        _logger.debug("{0} - position |{1}| ".format(inspect.currentframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position |{1}| ".format("_load_data_into_memory_statistics", last_object_id))
 
         try:
             payload = payload_builder.PayloadBuilder() \
@@ -498,7 +506,7 @@ class SendingProcess:
             for row in raw_data:
 
                 # Removes spaces
-                asset_code = row['key'].replace(" ", "")
+                asset_code = row['key'].strip()
 
                 new_row = {
                     'id': row['id'],                    # Row id
@@ -527,7 +535,7 @@ class SendingProcess:
         Todo: TO BE IMPLEMENTED
         """
 
-        _logger.debug("{0} - position {1} ".format(inspect.currentframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position {1} ".format("_load_data_into_memory_audit", last_object_id))
 
         try:
             # Temporary code
@@ -574,7 +582,7 @@ class SendingProcess:
 
             else:
                 last_object_id = rows[0]['last_object']
-                _logger.debug("last_object id |{0}| ".format(last_object_id))
+                _logger.debug("{0} - last_object id |{1}| ".format("_last_object_id_read", last_object_id))
 
         except Exception:
             _message = _MESSAGES_LIST["e000019"]
@@ -640,12 +648,13 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            # TODO : to be changed using PayloadBuilder after
-            # TODO : verify the support for .SET(ts='now()')FOGL-616
+            # TODO : to be changed using PayloadBuilder after FOGL-616
+            #
+            # timestamp = datetime.datetime.now(tz=timezone.utc)
             # payload = payload_builder.PayloadBuilder() \
             #     .WHERE(['column', '=', stream_id]) \
             #     .SET(last_object=new_last_object_id) \
-            #     .SET(ts='now()') \
+            #     .SET(ts=str(timestamp)) \
             #     .payload()
             #
             # self._storage.update_tbl("streams", payload)
@@ -657,7 +666,8 @@ class SendingProcess:
 
             values = dict()
             values['last_object'] = new_last_object_id
-            values['ts'] = 'now()'
+            timestamp = datetime.datetime.now(tz=timezone.utc)
+            values['ts'] = str(timestamp)
 
             data = dict()
             data['condition'] = condition
@@ -665,8 +675,8 @@ class SendingProcess:
 
             self._storage.update_tbl("streams", json.dumps(data))
 
-        except Exception:
-            _message = _MESSAGES_LIST["e000020"]
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000020"].format(_ex)
 
             _logger.error(_message)
             raise
@@ -683,7 +693,7 @@ class SendingProcess:
 
         data_sent = False
 
-        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
+        _logger.debug("{0} - ".format("_send_data_block"))
 
         try:
             last_object_id = self._last_object_id_read(stream_id)
@@ -708,7 +718,8 @@ class SendingProcess:
         return data_sent
 
     def send_data(self, stream_id):
-        """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time
+        """ Handles the sending of the data to the destination using the configured plugin
+            for a defined amount of time
 
         Args:
         Returns:
@@ -716,7 +727,7 @@ class SendingProcess:
         Todo:
         """
 
-        _logger.debug("{0} - ".format(inspect.currentframe().f_code.co_name))
+        _logger.debug("{0} - ".format("send_data"))
 
         try:
             start_time = time.time()
@@ -734,13 +745,13 @@ class SendingProcess:
                     _logger.error(_message)
 
                 if not data_sent:
-                    _logger.debug("{0} - sleeping".format(inspect.currentframe().f_code.co_name))
+                    _logger.debug("{0} - sleeping".format("send_data"))
                     time.sleep(self._config['sleepInterval'])
 
                 elapsed_seconds = time.time() - start_time
                 _logger.debug("{0} - elapsed_seconds {1}".format(
-                                                                inspect.currentframe().f_code.co_name,
-                                                                elapsed_seconds))
+                                                            "send_data",
+                                                            elapsed_seconds))
 
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
@@ -839,6 +850,7 @@ class SendingProcess:
 
         return stream_id, log_performance, log_debug_level
 
+
 if __name__ == "__main__":
 
     # Logger start
@@ -877,7 +889,8 @@ if __name__ == "__main__":
         # Main code
         #
 
-        # Reconfigures the logger using the Stream ID to differentiates logging from different processes
+        # Reconfigures the logger using the Stream ID to differentiates
+        # logging from different processes
         _logger.removeHandler(_logger.handle)
         logger_name = _MODULE_NAME + "_" + str(input_stream_id)
         _logger = logger.setup(logger_name)

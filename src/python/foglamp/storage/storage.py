@@ -21,6 +21,7 @@ from foglamp.core.service_registry.service_registry import Service
 from foglamp.storage.exceptions import *
 from foglamp.storage.utils import Utils
 
+
 _LOGGER = logger.setup(__name__)
 
 
@@ -128,7 +129,7 @@ class Storage(AbstractStorage):
         """ get Storage service """
 
         # TODO: URL to service registry api?
-        conn = http.client.HTTPConnection("localhost:8082")
+        conn = http.client.HTTPConnection("{0}:{1}".format("", ""))
         # TODO: need to set http / https based on service protocol
 
         conn.request('GET', url='/foglamp/service')
@@ -149,11 +150,17 @@ class Storage(AbstractStorage):
         return svc
 
     def connect(self):
-        svc = self._get_storage_service()
-        if len(svc) == 0:
+        # svc = self._get_storage_service()
+        # if len(svc) == 0:
+        #     raise InvalidServiceInstance
+        # self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
+        #                        m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+        found_services = Service.Instances.get(name="FogLAMP Storage")
+        svc = found_services[0]
+        # retry for a while?
+        if svc is None:
             raise InvalidServiceInstance
-        self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
-                               m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+        self.service = svc
         return self
 
     def disconnect(self):

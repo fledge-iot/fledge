@@ -342,7 +342,18 @@ int		col = 0;
 		if (document.HasMember("condition"))
 		{
 			sql.append(" WHERE ");
-			jsonWhereClause(document["condition"], sql);
+			if (!jsonWhereClause(document["condition"], sql))
+			{
+				return false;
+			}
+		}
+		else if (document.HasMember("where"))
+		{
+			sql.append(" WHERE ");
+			if (!jsonWhereClause(document["where"], sql))
+			{
+				return false;
+			}
 		}
 	}
 	sql.append(';');
@@ -1087,12 +1098,18 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		jsonWhereClause(whereClause["and"], sql);
+		if (!jsonWhereClause(whereClause["and"], sql))
+		{
+			return false;
+		}
 	}
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		jsonWhereClause(whereClause["or"], sql);
+		if (!jsonWhereClause(whereClause["or"], sql))
+		{
+			return false;
+		}
 	}
 
 	return true;

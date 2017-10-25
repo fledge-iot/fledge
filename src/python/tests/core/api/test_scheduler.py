@@ -21,7 +21,7 @@ __version__ = "${VERSION}"
 
 # Module attributes
 __DB_NAME = "foglamp"
-BASE_URL = 'http://localhost:8082/foglamp'
+BASE_URL = 'http://localhost:8081/foglamp'
 headers = {"Content-Type": 'application/json'}
 
 pytestmark = pytest.mark.asyncio

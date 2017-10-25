@@ -20,7 +20,7 @@ __version__ = "${VERSION}"
 
 # Module attributes
 __DB_NAME = "foglamp"
-BASE_URL = 'localhost:8082'
+BASE_URL = 'localhost:8081'
 headers = {"Content-Type": 'application/json'}
 
 test_data_asset_code = 'TESTAPI'

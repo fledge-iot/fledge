@@ -1,0 +1,8 @@
+{
+	"aggregate" : {
+			"operation" : "count",
+			"column" : "*",
+			"alias" : "Count"
+			},
+	"group" : "asset_code"
+}

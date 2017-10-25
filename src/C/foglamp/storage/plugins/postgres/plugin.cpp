@@ -56,12 +56,12 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 /**
  * Insert into an arbitrary table
  */
-bool plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	bool result = connection->insert(std::string(table), std::string(data));
+	int result = connection->insert(std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -87,12 +87,12 @@ std::string results;
 /**
  * Update an arbitary table
  */
-bool plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	bool result = connection->update(std::string(table), std::string(data));
+	int result = connection->update(std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -100,12 +100,12 @@ Connection        *connection = manager->allocate();
 /**
  * Delete from an arbitrary table
  */
-bool plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
+int plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	bool result = connection->deleteRows(std::string(table), std::string(condition));
+	int result = connection->deleteRows(std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
 }
@@ -113,12 +113,12 @@ Connection        *connection = manager->allocate();
 /**
  * Append a sequence of readings to the readings buffer
  */
-bool plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
+int plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	bool result = connection->appendReadings(readings);
+	int result = connection->appendReadings(readings);
 	manager->release(connection);
 	return result;;
 }

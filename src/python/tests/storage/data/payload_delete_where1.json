@@ -1,0 +1,8 @@
+{
+  "table": "test_tbl",
+  "where": {
+    "column": "name",
+    "condition": "=",
+    "value": "test"
+  }
+}

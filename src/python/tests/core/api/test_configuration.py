@@ -23,7 +23,7 @@ BASE_URL = 'localhost:8082'
 headers = {"Content-Type": 'application/json'}
 
 test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
-             'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def'}}}
+             'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def', 'value': 'def'}}}
 pytestmark = pytest.mark.asyncio
 
 
@@ -49,7 +49,7 @@ class TestConfigMgr:
         asyncio.get_event_loop().run_until_complete(add_master_data())
         from subprocess import call
         call(["foglamp", "start"])
-        time.sleep(4)
+        time.sleep(5)
 
     @classmethod
     def teardown_class(cls):

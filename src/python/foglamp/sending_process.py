@@ -648,13 +648,12 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            # TODO : to be changed using PayloadBuilder after FOGL-616
-            #
+            # TODO : the commented code will be used instead of the current one when FOGL-616 will be fixed
+            # TODO : FOGL-623 - avoid the update of the field ts when it will be managed by the DB itself
             # timestamp = datetime.datetime.now(tz=timezone.utc)
             # payload = payload_builder.PayloadBuilder() \
-            #     .WHERE(['column', '=', stream_id]) \
-            #     .SET(last_object=new_last_object_id) \
-            #     .SET(ts=str(timestamp)) \
+            #     .SET(last_object=new_last_object_id, ts=str(timestamp)) \
+            #     .WHERE(['id', '=', stream_id]) \
             #     .payload()
             #
             # self._storage.update_tbl("streams", payload)

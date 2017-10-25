@@ -193,7 +193,7 @@ SQLBuffer	sql;
 /**
  * Insert data into a table
  */
-bool Connection::insert(const std::string& table, const std::string& data)
+int Connection::insert(const std::string& table, const std::string& data)
 {
 SQLBuffer	sql;
 Document	document;
@@ -203,7 +203,7 @@ int		col = 0;
 	if (document.Parse(data.c_str()).HasParseError())
 	{
 		raiseError("insert", "Failed to parse JSON payload\n");
-		return false;
+		return -1;
 	}
  	sql.append("INSERT INTO ");
 	sql.append(table);
@@ -261,18 +261,18 @@ int		col = 0;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("insert", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Perform an update against a common table
  *
  */
-bool Connection::update(const string& table, const string& payload)
+int Connection::update(const string& table, const string& payload)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -281,7 +281,7 @@ int		col = 0;
 	if (document.Parse(payload.c_str()).HasParseError())
 	{
 		raiseError("update", "Failed to parse JSON payload");
-		return false;
+		return -1;
 	}
 	else
 	{
@@ -292,7 +292,7 @@ int		col = 0;
 		if (!document.HasMember("values"))
 		{
 			raiseError("update", "Missing values object in payload");
-			return false;
+			return -1;
 		}
 
 		Value& values = document["values"];
@@ -355,21 +355,21 @@ int		col = 0;
 		if (atoi(PQcmdTuples(res)) == 0)
 		{
  			raiseError("update", "No rows where updated");
-			return false;
+			return -1;
 		}
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("update", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Perform a delete against a common table
  *
  */
-bool Connection::deleteRows(const string& table, const string& condition)
+int Connection::deleteRows(const string& table, const string& condition)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -382,7 +382,7 @@ SQLBuffer	sql;
 		if (document.Parse(condition.c_str()).HasParseError())
 		{
 			raiseError("delete", "Failed to parse JSON payload");
-			return false;
+			return -1;
 		}
 		else
 		{
@@ -390,13 +390,13 @@ SQLBuffer	sql;
 			{
 				if (!jsonWhereClause(document["where"], sql))
 				{
-					return false;
+					return -1;
 				}
 			}
 			else
 			{
 				raiseError("delete", "JSON does not contain where clause");
-				return false;
+				return -1;
 			}
 		}
 	}
@@ -408,17 +408,17 @@ SQLBuffer	sql;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Append a set of readings to the readings table
  */
-bool Connection::appendReadings(const char *readings)
+int Connection::appendReadings(const char *readings)
 {
 Document 	doc;
 SQLBuffer	sql;
@@ -428,7 +428,7 @@ int		row = 0;
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
-		return false;
+		return -1;
 	}
 
 	sql.append("INSERT INTO readings ( asset_code, read_key, reading, user_ts ) VALUES ");
@@ -437,7 +437,7 @@ int		row = 0;
 	if (!rdings.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
-		return false;
+		return -1;
 	}
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
@@ -445,7 +445,7 @@ int		row = 0;
 		{
 			raiseError("appendReadings",
 					"Each reading in the readings array must be an object");
-			return false;
+			return -1;
 		}
 		if (row)
 			sql.append(", (");
@@ -487,11 +487,11 @@ int		row = 0;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("appendReadings", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**

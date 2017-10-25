@@ -21,10 +21,10 @@ class Connection {
 		~Connection();
 		bool		retrieve(const std::string& table, const std::string& condition,
 					std::string& resultSet);
-		bool		insert(const std::string& table, const std::string& data);
-		bool		update(const std::string& table, const std::string& data);
-		bool		deleteRows(const std::string& table, const std::string& condition);
-		bool		appendReadings(const char *readings);
+		int		insert(const std::string& table, const std::string& data);
+		int		update(const std::string& table, const std::string& data);
+		int		deleteRows(const std::string& table, const std::string& condition);
+		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
 	private:

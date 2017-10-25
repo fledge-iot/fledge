@@ -32,8 +32,11 @@ if [ "$optional" = "" ] ; then
 			else
 				echo Test $testNum  curl -X $method $url -d@payloads/$payload  >> failed
 			fi
+			(
+			unset IFS
 			echo "   " Expected: `cat expected/$testNum` >> failed
 			echo "   " Got:     `cat results/$testNum` >> failed
+			)
 			echo >> failed
 		else
 			echo Passed

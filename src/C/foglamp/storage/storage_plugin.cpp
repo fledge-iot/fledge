@@ -28,15 +28,15 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 
 
 	// Setup the function pointers to the plugin
-  	commonInsertPtr = (bool (*)(PLUGIN_HANDLE, const char*, const char*))
+  	commonInsertPtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_insert");
 	commonRetrievePtr = (char * (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_retrieve");
-	commonUpdatePtr = (char * (*)(PLUGIN_HANDLE, const char*, const char*))
+	commonUpdatePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_update");
-	commonDeletePtr = (bool (*)(PLUGIN_HANDLE, const char*, const char*))
+	commonDeletePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_delete");
-	readingsAppendPtr = (bool (*)(PLUGIN_HANDLE, const char *))
+	readingsAppendPtr = (int (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_reading_append");
 	readingsFetchPtr = (char * (*)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize))
 				manager->resolveSymbol(handle, "plugin_reading_fetch");
@@ -53,7 +53,7 @@ StoragePlugin::StoragePlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 /**
  * Call the insert method in the plugin
  */
-bool StoragePlugin::commonInsert(const string& table, const string& payload)
+int StoragePlugin::commonInsert(const string& table, const string& payload)
 {
 	return this->commonInsertPtr(instance, table.c_str(), payload.c_str());
 }
@@ -69,7 +69,7 @@ char *StoragePlugin::commonRetrieve(const string& table, const string& payload)
 /**
  * Call the update method in the plugin
  */
-char * StoragePlugin::commonUpdate(const string& table, const string& payload)
+int StoragePlugin::commonUpdate(const string& table, const string& payload)
 {
 	return this->commonUpdatePtr(instance, table.c_str(), payload.c_str());
 }
@@ -77,7 +77,7 @@ char * StoragePlugin::commonUpdate(const string& table, const string& payload)
 /**
  * Call the delete method in the plugin
  */
-bool StoragePlugin::commonDelete(const string& table, const string& payload)
+int StoragePlugin::commonDelete(const string& table, const string& payload)
 {
 	return this->commonDeletePtr(instance, table.c_str(), payload.c_str());
 }
@@ -85,7 +85,7 @@ bool StoragePlugin::commonDelete(const string& table, const string& payload)
 /**
  * Call the readings append method in the plugin
  */
-bool StoragePlugin::readingsAppend(const string& payload)
+int StoragePlugin::readingsAppend(const string& payload)
 {
 	return this->readingsAppendPtr(instance, payload.c_str());
 }

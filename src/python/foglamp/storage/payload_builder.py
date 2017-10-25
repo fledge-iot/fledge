@@ -15,6 +15,7 @@ __version__ = "${VERSION}"
 from collections import OrderedDict
 import json
 import urllib.parse
+import numbers
 
 from foglamp import logger
 
@@ -62,10 +63,18 @@ class PayloadBuilder(object):
     def verify_orderby(arg):
         retval = False
         if isinstance(arg, list):
+            if len(arg) == 1:
+                arg.append('asc')
+
             if len(arg) == 2:
                 if arg[1].upper() in ['ASC', 'DESC']:
                     retval = True
         return retval
+
+    @classmethod
+    def ALIAS(cls, *args):
+        raise NotImplementedError("To be implemented")
+        return cls
 
     @classmethod
     def SELECT(cls, *args):
@@ -74,7 +83,8 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
-    def SELECT_ALL(cls, *args):
+    def SELECT_ALL(cls):
+        cls.query_payload.update({"columns": '*'})
         return cls
 
     @classmethod
@@ -160,22 +170,18 @@ class PayloadBuilder(object):
 
     @classmethod
     def HAVING(cls):
-        # TODO: To be implemented
+        raise NotImplementedError("To be implemented")
         return cls
 
     @classmethod
     def LIMIT(cls, arg):
-        if isinstance(arg, int):
+        if isinstance(arg, numbers.Real):
             cls.query_payload.update({"limit": arg})
         return cls
 
     @classmethod
     def OFFSET(cls, arg):
-        if isinstance(arg, int):
-            try:
-                limit = cls.query_payload['limit']
-            except KeyError:
-                raise KeyError("LIMIT is required to set OFFSET to skip")
+        if isinstance(arg, numbers.Real):
             cls.query_payload.update({"skip": arg})
         return cls
 
@@ -204,102 +210,8 @@ class PayloadBuilder(object):
     @classmethod
     def query_params(cls):
         where = cls.query_payload['where']
-        query_params = {where['column']: where['value']}
+        query_params = OrderedDict({where['column']: where['value']})
         for key, value in where.items():
             if key == 'and':
                 query_params.update({value['column']: value['value']})
         return urllib.parse.urlencode(query_params)
-
-
-if __name__ == "__main__":
-
-    from foglamp.storage.storage import Storage
-
-    # Select
-    _w_payload = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
-    print(_w_payload, '\n')
-    print(Storage().query_tbl_with_payload('configuration', _w_payload))
-    print('\n')
-
-    _w_query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).query_params()
-    print(_w_query_params, '\n')
-    print(Storage().query_tbl('configuration', _w_query_params))
-    print('\n')
-
-    complex_payload = PayloadBuilder()\
-        .SELECT('id', 'type', 'repeat', 'process_name')\
-        .FROM('schedules')\
-        .WHERE(['id', '=', 'test'])\
-        .AND_WHERE(['process_name', '=', 'test'])\
-        .OR_WHERE(['process_name', '=', 'sleep'])\
-        .LIMIT(3)\
-        .GROUP_BY('process_name', 'id')\
-        .ORDER_BY(['process_name', 'desc'])\
-        .AGGREGATE(['count', 'process_name'])\
-        .payload()
-
-    print(complex_payload, '\n')
-
-    # TODO: Test above complex payload
-    # 1) FROM is not needed, as we pass table table name
-    # 2) Check: SELECT col1, col2 FROM tbl support i.e. specific columns
-    # 3) assert with expected payload
-
-    # Insert
-    insert_payload = PayloadBuilder()\
-        .INSERT(key='SENT_pb', history_ts='now', value='11')\
-        .payload()
-    print(insert_payload, '\n')
-
-    insert_test_data = OrderedDict()
-    insert_test_data['key'] = 'SENT_pb'
-    insert_test_data['history_ts'] = 'now'
-    insert_test_data['value'] = '11'
-
-    assert insert_payload == json.dumps(insert_test_data, sort_keys=True)
-
-    res = Storage().insert_into_tbl("statistics_history", insert_payload)
-    print(res)
-    # assert res  "{'response': 'inserted'}"
-
-    # Update
-    update_payload = PayloadBuilder()\
-        .SET(value=22)\
-        .WHERE(['key', '=', 'SENT_pb'])\
-        .payload()
-    print(update_payload, '\n')
-
-    # update test data dict sample
-    condition = dict()
-    condition['column'] = 'key'
-    condition['condition'] = '='
-    condition['value'] = 'SENT_pb'
-
-    values = dict()
-    values['value'] = 22
-
-    update_test_data = dict()
-    # update_test_data['condition'] = condition # also works!
-    update_test_data['where'] = condition
-    update_test_data['values'] = values
-
-    assert update_payload == json.dumps(update_test_data, sort_keys=True)
-
-    res = Storage().update_tbl("statistics_history", update_payload)
-    print(res)
-    # assert res  "{'response': 'updated'}"
-
-    try:
-        offset = PayloadBuilder().SKIP(5).payload()
-        print(offset)
-    except Exception as ex:
-        print(str(ex))
-
-    limit = PayloadBuilder().LIMIT(2).payload()
-    print(limit)
-
-    limit_and_offset = PayloadBuilder().LIMIT(2).OFFSET(10).payload()
-    print(limit_and_offset)
-
-    limit_and_skip = PayloadBuilder().LIMIT(2).SKIP(12).payload()
-    print(limit_and_skip)

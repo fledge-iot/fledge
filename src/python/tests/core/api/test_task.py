@@ -63,7 +63,9 @@ class TestTask:
         asyncio.get_event_loop().run_until_complete(add_master_data())
         from subprocess import call
         call(["foglamp", "start"])
-        time.sleep(2)
+        # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
+        #       external process to check if foglamp has started.
+        time.sleep(20)
 
     @classmethod
     def teardown_class(cls):

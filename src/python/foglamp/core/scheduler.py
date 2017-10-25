@@ -1633,7 +1633,8 @@ class Scheduler(object):
         # make sure that it go forward only when storage service is ready
         storage_service = None
 
-        # TODO: Remove below 'if' after FOGL-521 is merged
+        # TODO: Remove below 'if' after FOGL-521 is merged, as till we do not use storage layer in scheduler, we need
+        #       to bypass storage discovery/registration in scheduler
         if Scheduler._core_management_port is not None:
             while storage_service is None:  # TODO: wait for x minutes?
                 try:

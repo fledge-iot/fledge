@@ -627,6 +627,10 @@ class Scheduler(object):
         # the start of the awaited coroutine.
         args = self._process_scripts[schedule.process_name]
 
+        # add core management port to process script args
+        args.append("--port")
+        args.append(str(self._core_management_port))
+
         task_process = self._TaskProcess()
         task_process.start_time = time.time()
 

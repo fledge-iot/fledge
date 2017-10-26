@@ -66,4 +66,6 @@ Read back,GET,http://localhost:8080/storage/table/test2,
 Count Assets,PUT,http://localhost:8080/storage/reading/query,count_assets.json
 Reading Rate,PUT,http://localhost:8080/storage/reading/query,reading_property.json
 Bad JSON,PUT,http://localhost:8080/storage/reading/query,reading_property_bad.json
+Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
+Read back update,PUT,http://localhost:8080/storage/table/test2/query,read_id_1xx.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

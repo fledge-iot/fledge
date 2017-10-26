@@ -136,7 +136,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 	{
 		managementPort = (unsigned short)atoi(config->getValue("managementPort"));
 	}
-	ManagementApi management("storage", managementPort);	// Start managemenrt API
+	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	api->initResources();
 	logger->info("Starting service...");
 	api->start();

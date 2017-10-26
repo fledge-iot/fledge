@@ -71,9 +71,6 @@ class Service(object):
         # TypeError('Service port can be a positive integer only')
         pass
 
-    class ReservedPortError(ValueError):
-        pass
-
     class Instances:
         _registry = list()
         # INFO - level 20
@@ -109,10 +106,6 @@ class Service(object):
                 raise Service.NonNumericPortError
             if not isinstance(management_port, int):
                 raise Service.NonNumericPortError
-
-            # TODO: fix as per FOGL-517 or as per the specs
-            if int(port) == 8082:
-                raise Service.ReservedPortError
 
             service_id = str(uuid.uuid4())
             registered_service = Service(service_id, name, s_type, protocol, address, port, management_port)

@@ -4,8 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from aiohttp import web
-
 from foglamp.core.api import audit as api_audit
 from foglamp.core.api import browser
 from foglamp.core.api import common as api_common
@@ -62,6 +60,17 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
     app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
 
+    # enable cors support
+    enable_cors(app)
+
+    # enable a live debugger (watcher) for requests, see https://github.com/aio-libs/aiohttp-debugtoolbar
+    # this will neutralize error middleware
+    # Note: pip install aiohttp_debugtoolbar
+
+    # enable_debugger(app)
+
+
+def core_setup(app):
     # Micro Service support - Core
     app.router.add_route('GET', '/foglamp/service/ping', service_registry.ping)
 
@@ -77,12 +86,6 @@ def setup(app):
 
     # enable cors support
     enable_cors(app)
-
-    # enable a live debugger (watcher) for requests, see https://github.com/aio-libs/aiohttp-debugtoolbar
-    # this will neutralize error middleware
-    # Note: pip install aiohttp_debugtoolbar
-
-    # enable_debugger(app)
 
 
 def enable_cors(app):

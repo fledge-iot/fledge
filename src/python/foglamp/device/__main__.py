@@ -18,24 +18,22 @@ __copyright_ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup("SouthBound Device", level=20)
-# TODO: Support --help, --name plugin, etc.
+_logger = logger.setup("Device", level=20)
 
-parser = argparse.ArgumentParser(prog='SouthBound Device')
-parser.description = '%(prog)s -- Device Service'
-parser.epilog = 'Sensor/device interface of FogLAMP'
+parser = argparse.ArgumentParser(prog='Device Service')
+parser.description = 'FogLAMP %(prog)s'
+parser.epilog = 'FogLAMP %(prog)s'
 # parser.add_argument('-v', '--version', action='version', version='%(prog)s {0!s}'.format(1.0))
-parser.add_argument('--name', default='CoAP')
-parser.add_argument('--port',  required=True, help='Core Management Port')
+parser.add_argument('--name', required=True)
+parser.add_argument('--address',  required=True)
+parser.add_argument('--port',  required=True)
 
 
 namespace = parser.parse_args(sys.argv[1:])
 
-plugin = '{0}'.format(namespace.name)
-
+name = namespace.name
+core_management_host = namespace.address
 core_management_port = int(namespace.port)
 
-print(plugin, core_management_port)
-
-
-Server.start(plugin, core_management_port)
+_logger.info(name, core_management_host, core_management_port)
+Server.start(name, core_management_host, core_management_port)

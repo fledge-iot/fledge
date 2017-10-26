@@ -71,7 +71,7 @@ class Server:
     async def _start_scheduler(cls):
         """Starts the scheduler"""
         _logger.info("start scheduler")
-        cls.scheduler = Scheduler(cls.core_management_port)
+        cls.scheduler = Scheduler(cls._host, cls.core_management_port)
         await cls.scheduler.start()
 
     @staticmethod

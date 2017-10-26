@@ -24,7 +24,9 @@ _LOGGER = logger.setup(__name__)
 
 class Server:
 
+    _core_management_host = None
     _core_management_port = None
+    """ address of service management api"""
 
     _plugin_name = None  # type:str
     """"The name of the plugin"""
@@ -59,9 +61,11 @@ class Server:
         loop.stop()
 
     @classmethod
-    async def _start(cls, plugin: str, core_mgt_port, loop)->None:
+    async def _start(cls, plugin: str, core_mgt_host, core_mgt_port, loop)->None:
         error = None
         cls.plugin_name = plugin
+
+        cls._core_management_host = core_mgt_host
         cls._core_management_port = core_mgt_port
 
         try:
@@ -108,7 +112,7 @@ class Server:
             asyncio.ensure_future(cls._stop(loop))
 
     @classmethod
-    def start(cls, plugin, core_mgt_port):
+    def start(cls, plugin, core_mgt_host, core_mgt_port):
         """Starts the device server
 
         Args:
@@ -124,6 +128,6 @@ class Server:
                 signal_name,
                 lambda: asyncio.ensure_future(cls._stop(loop)))
 
-        asyncio.ensure_future(cls._start(plugin,core_mgt_port, loop))
+        asyncio.ensure_future(cls._start(plugin, core_mgt_host, core_mgt_port, loop))
         loop.run_forever()
 

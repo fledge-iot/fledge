@@ -94,7 +94,7 @@ SQLBuffer	sql;
 			Value& columns = document["return"];
 			if (! columns.IsArray())
 			{
-				raiseError("retrieve", "The property columns must be an array");
+				raiseError("retrieve", "The property return must be an array");
 				return false;
 			}
 			sql.append("SELECT ");
@@ -193,7 +193,7 @@ SQLBuffer	sql;
 /**
  * Insert data into a table
  */
-bool Connection::insert(const std::string& table, const std::string& data)
+int Connection::insert(const std::string& table, const std::string& data)
 {
 SQLBuffer	sql;
 Document	document;
@@ -203,7 +203,7 @@ int		col = 0;
 	if (document.Parse(data.c_str()).HasParseError())
 	{
 		raiseError("insert", "Failed to parse JSON payload\n");
-		return false;
+		return -1;
 	}
  	sql.append("INSERT INTO ");
 	sql.append(table);
@@ -261,18 +261,18 @@ int		col = 0;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("insert", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Perform an update against a common table
  *
  */
-bool Connection::update(const string& table, const string& payload)
+int Connection::update(const string& table, const string& payload)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -281,7 +281,7 @@ int		col = 0;
 	if (document.Parse(payload.c_str()).HasParseError())
 	{
 		raiseError("update", "Failed to parse JSON payload");
-		return false;
+		return -1;
 	}
 	else
 	{
@@ -292,7 +292,7 @@ int		col = 0;
 		if (!document.HasMember("values"))
 		{
 			raiseError("update", "Missing values object in payload");
-			return false;
+			return -1;
 		}
 
 		Value& values = document["values"];
@@ -342,7 +342,18 @@ int		col = 0;
 		if (document.HasMember("condition"))
 		{
 			sql.append(" WHERE ");
-			jsonWhereClause(document["condition"], sql);
+			if (!jsonWhereClause(document["condition"], sql))
+			{
+				return false;
+			}
+		}
+		else if (document.HasMember("where"))
+		{
+			sql.append(" WHERE ");
+			if (!jsonWhereClause(document["where"], sql))
+			{
+				return false;
+			}
 		}
 	}
 	sql.append(';');
@@ -352,19 +363,24 @@ int		col = 0;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
+		if (atoi(PQcmdTuples(res)) == 0)
+		{
+ 			raiseError("update", "No rows where updated");
+			return -1;
+		}
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("update", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Perform a delete against a common table
  *
  */
-bool Connection::deleteRows(const string& table, const string& condition)
+int Connection::deleteRows(const string& table, const string& condition)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -377,7 +393,7 @@ SQLBuffer	sql;
 		if (document.Parse(condition.c_str()).HasParseError())
 		{
 			raiseError("delete", "Failed to parse JSON payload");
-			return false;
+			return -1;
 		}
 		else
 		{
@@ -385,13 +401,13 @@ SQLBuffer	sql;
 			{
 				if (!jsonWhereClause(document["where"], sql))
 				{
-					return false;
+					return -1;
 				}
 			}
 			else
 			{
 				raiseError("delete", "JSON does not contain where clause");
-				return false;
+				return -1;
 			}
 		}
 	}
@@ -403,17 +419,17 @@ SQLBuffer	sql;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Append a set of readings to the readings table
  */
-bool Connection::appendReadings(const char *readings)
+int Connection::appendReadings(const char *readings)
 {
 Document 	doc;
 SQLBuffer	sql;
@@ -423,7 +439,7 @@ int		row = 0;
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
-		return false;
+		return -1;
 	}
 
 	sql.append("INSERT INTO readings ( asset_code, read_key, reading, user_ts ) VALUES ");
@@ -432,7 +448,7 @@ int		row = 0;
 	if (!rdings.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
-		return false;
+		return -1;
 	}
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
@@ -440,7 +456,7 @@ int		row = 0;
 		{
 			raiseError("appendReadings",
 					"Each reading in the readings array must be an object");
-			return false;
+			return -1;
 		}
 		if (row)
 			sql.append(", (");
@@ -482,11 +498,11 @@ int		row = 0;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("appendReadings", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
@@ -647,7 +663,7 @@ Document doc;
 			}
 			case 20:
 			{
-				long intVal = atol(PQgetvalue(res, i, j));
+				int64_t intVal = atol(PQgetvalue(res, i, j));
 				Value name(PQfname(res, j), allocator);
 				row.AddMember(name, intVal, allocator);
 				break;
@@ -864,6 +880,61 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		sql.append(", ");
 		sql.append(payload["group"].GetString());
 	}
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data", "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data", "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+		if (tb.HasMember("format"))
+		{
+			sql.append(", to_char(to_timestamp(");
+		}
+		else
+		{
+			sql.append(", to_timestamp(");
+		}
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+			sql.append(" * ");
+		}
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append("))");
+		if (tb.HasMember("format"))
+		{
+			sql.append(", '");
+			sql.append(tb["format"].GetString());
+			sql.append("')");
+		}
+		sql.append(" AS \"");
+		if (tb.HasMember("alias"))
+		{
+			sql.append(tb["alias"].GetString());
+		}
+		else
+		{
+			sql.append("timestamp");
+		}
+		sql.append('"');
+	}
 	return true;
 }
 
@@ -927,10 +998,46 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 	}
 
+
 	if (payload.HasMember("group"))
 	{
 		sql.append(" GROUP BY ");
 		sql.append(payload["group"].GetString());
+	}
+
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data", "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data", "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+		if (payload.HasMember("group"))
+		{
+			sql.append(", ");
+		}
+		else
+		{
+			sql.append(" GROUP BY ");
+		}
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append(')');
 	}
 
 	if (payload.HasMember("skip"))
@@ -991,12 +1098,18 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		jsonWhereClause(whereClause["and"], sql);
+		if (!jsonWhereClause(whereClause["and"], sql))
+		{
+			return false;
+		}
 	}
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		jsonWhereClause(whereClause["or"], sql);
+		if (!jsonWhereClause(whereClause["or"], sql))
+		{
+			return false;
+		}
 	}
 
 	return true;

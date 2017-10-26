@@ -633,13 +633,10 @@ class Scheduler(object):
         args = self._process_scripts[schedule.process_name]
 
         # add core management host and port to process script args
-        args.append("--name")
-        # TODO: convert to lower/ upper case and replace " " with "-" ?
-        args.append(schedule.process_name)
-        args.append("--address")
-        args.append(self._core_management_host)
-        args.append("--port")
-        args.append(str(self._core_management_port))
+        name = schedule.process_name.lower().replace(" ", "-")
+        args.append("--name={}".format(name))
+        args.append("--address={}".format(self._core_management_host))
+        args.append("--port={}".format(str(self._core_management_port)))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

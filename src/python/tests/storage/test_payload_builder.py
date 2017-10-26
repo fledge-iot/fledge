@@ -138,7 +138,7 @@ class TestPayloadBuilderRead:
 
     def test_select_all_payload(self):
         res = PayloadBuilder().SELECT().payload()
-        expected = _payload("data/payload_select_all.json")
+        expected = {}
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [

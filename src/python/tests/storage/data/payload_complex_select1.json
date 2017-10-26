@@ -3,7 +3,7 @@
     "column": "name",
     "operation": "count"
   },
-  "columns": "id,name",
+  "return": ["id", "name"],
   "group": "name, id",
   "limit": 5,
   "skip": 1,

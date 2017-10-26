@@ -33,7 +33,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         ("name", _payload("data/payload_select1.json")),
-        ("name,id", _payload("data/payload_select2.json"))
+        (("name","id"), _payload("data/payload_select2.json"))
     ])
     def test_select_payload(self, test_input, expected):
         res = PayloadBuilder().SELECT(test_input).payload()
@@ -137,7 +137,7 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     def test_select_all_payload(self):
-        res = PayloadBuilder().SELECT_ALL().payload()
+        res = PayloadBuilder().SELECT().payload()
         expected = _payload("data/payload_select_all.json")
         assert expected == json.loads(res)
 

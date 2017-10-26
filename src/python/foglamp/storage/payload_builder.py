@@ -42,6 +42,15 @@ class PayloadBuilder(object):
         self.__class__.query_payload = initial_payload if len(initial_payload) else OrderedDict()
 
     @staticmethod
+    def verify_select(arg):
+        retval = False
+        if isinstance(arg, str):
+            retval = True
+        elif isinstance(arg, tuple):
+            retval = True
+        return retval
+
+    @staticmethod
     def verify_condition(arg):
         retval = False
         if isinstance(arg, list):
@@ -72,21 +81,31 @@ class PayloadBuilder(object):
                     retval = True
         return retval
 
+    @staticmethod
+    def is_json(myjson):
+        try:
+            json_object = json.loads(myjson)
+        except (ValueError, Exception):
+            return False
+        return True
+
     @classmethod
     def ALIAS(cls, *args):
         raise NotImplementedError("To be implemented")
 
     @classmethod
-    def SELECT(cls, arg, *args):
-        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
-        args = (arg,) + args if not isinstance(arg, tuple) else arg
-        if len(args) > 0:
-            cls.query_payload["columns"] = ','.join(args)
-        return cls
-
-    @classmethod
-    def SELECT_ALL(cls):
-        cls.query_payload["columns"] = '*'
+    def SELECT(cls, *args):
+        for arg in args:
+            if cls.verify_select(arg):
+                if 'return' not in cls.query_payload:
+                    cls.query_payload["return"] = list()
+                if isinstance(arg, tuple):
+                    for a in arg:
+                        select = json.loads(a) if cls.is_json(a) else a
+                        cls.query_payload["return"].append(select)
+                else:
+                    select = json.loads(arg) if cls.is_json(arg) else arg
+                    cls.query_payload["return"].append(select)
         return cls
 
     @classmethod
@@ -102,7 +121,7 @@ class PayloadBuilder(object):
     def COLS(cls, kwargs):
         values = OrderedDict()
         for key, value in kwargs.items():
-            values[key] =  value
+            values[key] = value
         return values
 
     @classmethod
@@ -128,7 +147,18 @@ class PayloadBuilder(object):
 
     @classmethod
     def add_new_clause(cls, and_or, main, new):
-        """Recursive method to add 'new' to the last and/or of 'main'"""
+        """
+        Recursively searches for the innermost and/or block, or cls.query_payload["where"] if none, in "main" to add
+        the 'new' condition block under "and_or" key.
+
+        Args:
+            and_or: one of 'and', 'or'
+            main: Dict (cls.query_payload["where"] or the innermost and/or subset of it) where
+                  the new condition block is to be added
+            new: condition block to be added
+
+        Returns:
+        """
         if 'and' not in main:
             if 'or' not in main:
                 main[and_or] = new
@@ -198,7 +228,7 @@ class PayloadBuilder(object):
             aggregate = OrderedDict()
             if cls.verify_aggregation(arg):
                 aggregate["operation"] = arg[0]
-                aggregate["column"] =  arg[1]
+                aggregate["column"] = arg[1]
                 if 'aggregate' in cls.query_payload:
                     if not isinstance(cls.query_payload['aggregate'], list):
                         cls.query_payload['aggregate'] = [cls.query_payload.get('aggregate')]

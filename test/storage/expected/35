@@ -1,4 +1,4 @@
 { "entryPoint" : "retrieve", "message" : "ERROR:  column \"doesntexist\" does not exist
-LINE 1: SELECT * FROM test WHERE doesntexist = '9';
-                                 ^
+LINE 1: SELECT  * FROM test WHERE doesntexist = '9';
+                                  ^
 ", "retryable" : false}

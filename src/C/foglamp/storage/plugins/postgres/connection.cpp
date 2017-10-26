@@ -82,6 +82,11 @@ SQLBuffer	sql;
 		if (document.HasMember("aggregate"))
 		{
 			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
 			if (!jsonAggregates(document, document["aggregate"], sql))
 			{
 				return false;
@@ -98,6 +103,11 @@ SQLBuffer	sql;
 				return false;
 			}
 			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
 			for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
 			{
 				if (col)
@@ -149,7 +159,13 @@ SQLBuffer	sql;
 		}
 		else
 		{
-			sql.append("SELECT * FROM ");
+			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
+			sql.append(" * FROM ");
 		}
 		sql.append(table);
 		if (document.HasMember("where"))

@@ -68,4 +68,5 @@ Reading Rate,PUT,http://localhost:8080/storage/reading/query,reading_property.js
 Bad JSON,PUT,http://localhost:8080/storage/reading/query,reading_property_bad.json
 Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
 Read back update,PUT,http://localhost:8080/storage/table/test2/query,read_id_1xx.json
+Distinct,PUT,http://localhost:8080/storage/table/test2/query,where_distinct.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

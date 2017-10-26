@@ -8,6 +8,7 @@
 import sys
 
 from foglamp.device.server import Server
+from foglamp.parser import Parser
 
 """Starts the device server"""
 
@@ -18,19 +19,7 @@ __version__ = "${VERSION}"
 
 
 # TODO: Support --help, --name plugin, etc.
-try:
-    plugin = sys.argv[1]
-    index = plugin.find('--name=')
-    if index == -1:
-        plugin = None
-    else:
-        plugin = plugin
-except IndexError:
-    plugin = None
-
-if plugin is None:
-    # TODO: delete this
-    plugin = 'CoAP'
+plugin = Parser.get('--name')
 
 if plugin is None:
     # TODO: Output to STDERR

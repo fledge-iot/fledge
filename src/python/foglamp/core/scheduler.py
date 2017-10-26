@@ -410,7 +410,8 @@ class Scheduler(object):
     _logger = None  # type: logging.Logger
     _core_management_port = None
 
-    def __init__(self, core_management_port):
+    # TODO: Remove below '=None' after FOGL-521 is merged
+    def __init__(self, core_management_port=None):
         """Constructor"""
 
         cls = Scheduler
@@ -1632,13 +1633,16 @@ class Scheduler(object):
         # make sure that it go forward only when storage service is ready
         storage_service = None
 
-        while storage_service is None:  # TODO: wait for x minutes?
-            try:
-                found_services = Service.Instances.get(name="FogLAMP Storage")
-                storage_service = found_services[0]
-            except Exception:
-                await asyncio.sleep(5)
-        self._logger.info("Starting Scheduler; Management port received is %d", self._core_management_port)
+        # TODO: Remove below 'if' after FOGL-521 is merged, as till we do not use storage layer in scheduler, we need
+        #       to bypass storage discovery/registration in scheduler
+        if Scheduler._core_management_port is not None:
+            while storage_service is None:  # TODO: wait for x minutes?
+                try:
+                    found_services = Service.Instances.get(name="FogLAMP Storage")
+                    storage_service = found_services[0]
+                except Exception:
+                    await asyncio.sleep(5)
+            self._logger.info("Starting Scheduler; Management port received is %d", self._core_management_port)
 
         await self._read_config()
         await self._mark_tasks_interrupted()

@@ -82,6 +82,11 @@ SQLBuffer	sql;
 		if (document.HasMember("aggregate"))
 		{
 			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
 			if (!jsonAggregates(document, document["aggregate"], sql))
 			{
 				return false;
@@ -98,6 +103,11 @@ SQLBuffer	sql;
 				return false;
 			}
 			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
 			for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
 			{
 				if (col)
@@ -149,7 +159,13 @@ SQLBuffer	sql;
 		}
 		else
 		{
-			sql.append("SELECT * FROM ");
+			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
+			sql.append(" * FROM ");
 		}
 		sql.append(table);
 		if (document.HasMember("where"))
@@ -289,54 +305,132 @@ int		col = 0;
 		sql.append(table);
 		sql.append(" SET ");
 
-		if (!document.HasMember("values"))
+		if (document.HasMember("values"))
 		{
-			raiseError("update", "Missing values object in payload");
-			return -1;
+			Value& values = document["values"];
+			for (Value::ConstMemberIterator itr = values.MemberBegin();
+					itr != values.MemberEnd(); ++itr)
+			{
+				if (col != 0)
+				{
+					sql.append( ", ");
+				}
+				sql.append(itr->name.GetString());
+				sql.append(" = ");
+	 
+				if (itr->value.IsString())
+				{
+					const char *str = itr->value.GetString();
+					// Check if the string is a function
+					string s (str);
+					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+					if (regex_match (s,e))
+					{
+						sql.append(str);
+					}
+					else
+					{
+						sql.append('\'');
+						sql.append(str);
+						sql.append('\'');
+					}
+				}
+				else if (itr->value.IsDouble())
+					sql.append(itr->value.GetDouble());
+				else if (itr->value.IsNumber())
+					sql.append(itr->value.GetInt());
+				else if (itr->value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					itr->value.Accept(writer);
+					sql.append('\'');
+					sql.append(buffer.GetString());
+					sql.append('\'');
+				}
+				col++;
+			}
+		}
+		if (document.HasMember("expressions"))
+		{
+			Value& exprs = document["expressions"];
+			if (!exprs.IsArray())
+			{
+				raiseError("update", "The property exressions must be an array");
+				return -1;
+			}
+			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
+			{
+				if (col != 0)
+				{
+					sql.append( ", ");
+				}
+				if (!itr->IsObject())
+				{
+					raiseError("update", "expressions must be an array of objects");
+					return -1;
+				}
+				if (!itr->HasMember("column"))
+				{
+					raiseError("update", "Missing column property in expressions array item");
+					return -1;
+				}
+				if (!itr->HasMember("operator"))
+				{
+					raiseError("update", "Missing operator property in expressions array item");
+					return -1;
+				}
+				if (!itr->HasMember("value"))
+				{
+					raiseError("update", "Missing value property in expressions array item");
+					return -1;
+				}
+				sql.append((*itr)["column"].GetString());
+				sql.append(" = ");
+				sql.append((*itr)["column"].GetString());
+				sql.append(' ');
+				sql.append((*itr)["operator"].GetString());
+				sql.append(' ');
+				const Value& value = (*itr)["value"];
+	 
+				if (value.IsString())
+				{
+					const char *str = value.GetString();
+					// Check if the string is a function
+					string s (str);
+					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+					if (regex_match (s,e))
+					{
+						sql.append(str);
+					}
+					else
+					{
+						sql.append('\'');
+						sql.append(str);
+						sql.append('\'');
+					}
+				}
+				else if (value.IsDouble())
+					sql.append(value.GetDouble());
+				else if (value.IsNumber())
+					sql.append(value.GetInt());
+				else if (value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					value.Accept(writer);
+					sql.append('\'');
+					sql.append(buffer.GetString());
+					sql.append('\'');
+				}
+				col++;
+			}
 		}
 
-		Value& values = document["values"];
-		for (Value::ConstMemberIterator itr = values.MemberBegin();
-				itr != values.MemberEnd(); ++itr)
+		if (col == 0)
 		{
-			if (col != 0)
-			{
-				sql.append( ", ");
-			}
-			sql.append(itr->name.GetString());
-			sql.append(" = ");
- 
-			if (itr->value.IsString())
-			{
-				const char *str = itr->value.GetString();
-				// Check if the string is a function
-				string s (str);
-				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-				if (regex_match (s,e))
-				{
-					sql.append(str);
-				}
-				else
-				{
-					sql.append('\'');
-					sql.append(str);
-					sql.append('\'');
-				}
-			}
-			else if (itr->value.IsDouble())
-				sql.append(itr->value.GetDouble());
-			else if (itr->value.IsNumber())
-				sql.append(itr->value.GetInt());
-			else if (itr->value.IsObject())
-			{
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				itr->value.Accept(writer);
-				sql.append('\'');
-				sql.append(buffer.GetString());
-				sql.append('\'');
-			}
-			col++;
+			raiseError("update", "Missing values or expressions object in payload");
+			return -1;
 		}
 
 		if (document.HasMember("condition"))

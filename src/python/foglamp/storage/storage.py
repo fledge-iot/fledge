@@ -49,9 +49,9 @@ class AbstractStorage(ABC):
 
 class Storage(AbstractStorage):
 
-    def __init__(self):
+    def __init__(self, core_management_port):
         try:
-            self.connect()
+            self.connect(core_management_port)
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
         except Exception:
@@ -104,32 +104,11 @@ class Storage(AbstractStorage):
         conn.close()
         return json.loads(res)
 
-    # TODO: remove me, and allow this call in service registry API
-    def shutdown(self):
-        """ stop Storage service """
-
-        conn = http.client.HTTPConnection(self.management_api_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('POST', url='/foglamp/service/shutdown', body=None)
-        r = conn.getresponse()
-
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
-
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res)
-
-    def _get_storage_service(self):
+    def _get_storage_service(self, host, port):
         """ get Storage service """
 
         # TODO: URL to service registry api?
-        conn = http.client.HTTPConnection("{0}:{1}".format("", ""))
+        conn = http.client.HTTPConnection("{0}:{1}".format(host, port))
         # TODO: need to set http / https based on service protocol
 
         conn.request('GET', url='/foglamp/service')
@@ -149,18 +128,18 @@ class Storage(AbstractStorage):
         svc = found_services[0]
         return svc
 
-    def connect(self):
-        # svc = self._get_storage_service()
-        # if len(svc) == 0:
-        #     raise InvalidServiceInstance
-        # self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
-        #                        m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
-        found_services = Service.Instances.get(name="FogLAMP Storage")
-        svc = found_services[0]
-        # retry for a while?
-        if svc is None:
+    def connect(self, core_management_port):
+        svc = self._get_storage_service(host='0.0.0.0', port=core_management_port)
+        if len(svc) == 0:
             raise InvalidServiceInstance
-        self.service = svc
+        self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
+                               m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+        # found_services = Service.Instances.get(name="FogLAMP Storage")
+        # svc = found_services[0]
+        # # retry for a while?
+        # if svc is None:
+        #     raise InvalidServiceInstance
+        # self.service = svc
         return self
 
     def disconnect(self):
@@ -365,8 +344,8 @@ class Readings(Storage):
 
     _base_url = ""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, core_mgt_port):
+        super().__init__(core_management_port=core_mgt_port)
         # FIXME: WTH?
         self.__class__._base_url = self.base_url
 

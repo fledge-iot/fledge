@@ -32,6 +32,8 @@ class Server:
     _plugin_data = None
     """The value that is returned by the plugin_init"""
 
+    _core_management_port = None
+
     @classmethod
     async def _stop(cls, loop):
         if cls._plugin is not None:
@@ -56,9 +58,10 @@ class Server:
         loop.stop()
 
     @classmethod
-    async def _start(cls, plugin: str, loop)->None:
+    async def _start(cls, plugin: str, core_mgt_port, loop)->None:
         error = None
         cls.plugin_name = plugin
+        cls._core_management_port = core_mgt_port
 
         try:
             # TODO: Category name column is allows only 10 characters.
@@ -95,7 +98,7 @@ class Server:
             cls._plugin_data = cls._plugin.plugin_init(config)
             cls._plugin.plugin_run(cls._plugin_data)
 
-            await Ingest.start()
+            await Ingest.start(core_mgt_port)
         except Exception:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(plugin)
@@ -104,7 +107,7 @@ class Server:
             asyncio.ensure_future(cls._stop(loop))
 
     @classmethod
-    def start(cls, plugin):
+    def start(cls, plugin, core_mgt_port):
         """Starts the device server
 
         Args:
@@ -120,6 +123,6 @@ class Server:
                 signal_name,
                 lambda: asyncio.ensure_future(cls._stop(loop)))
 
-        asyncio.ensure_future(cls._start(plugin, loop))
+        asyncio.ensure_future(cls._start(plugin, core_mgt_port, loop))
         loop.run_forever()
 

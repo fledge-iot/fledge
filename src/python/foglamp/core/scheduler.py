@@ -634,12 +634,9 @@ class Scheduler(object):
 
         # add core management host and port to process script args
         args_to_exec = args.copy()
-        args_to_exec.append("--port")
-        args_to_exec.append(str(self._core_management_port))
-        args_to_exec.append("--address")
-        args_to_exec.append("127.0.0.1")
-        args_to_exec.append("--name")
-        args_to_exec.append(schedule.process_name.lower().replace(" ", "-"))
+        args_to_exec.append("--port={}".format(self._core_management_port))
+        args_to_exec.append("--address=127.0.0.1")
+        args_to_exec.append("--name={}".format(schedule.process_name))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

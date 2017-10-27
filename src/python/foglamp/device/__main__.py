@@ -9,6 +9,7 @@ import sys
 
 from foglamp.device.server import Server
 from foglamp.parser import Parser
+from foglamp.parser import ArgumentParserError
 from foglamp import logger
 
 """Starts the device server"""
@@ -20,10 +21,13 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup("Device", level=20)
 
-
-plugin = Parser.get('--name')
-core_mgt_port = Parser.get('--port')
-core_mgt_address = Parser.get('--address')
+try:
+    plugin = Parser.get('--name')
+    core_mgt_port = Parser.get('--port')
+    core_mgt_address = Parser.get('--address')
+except ArgumentParserError:
+    _logger.exception('Unable to parse command line argument')
+    sys.exit(1)
 
 if plugin is None:
     print("Required argument '--name' is missing")

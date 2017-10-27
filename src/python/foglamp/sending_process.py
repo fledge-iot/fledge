@@ -18,7 +18,6 @@ in the translation process.
 
 import resource
 import argparse
-from datetime import datetime, timezone
 
 import asyncio
 import sys
@@ -26,7 +25,6 @@ import time
 import importlib
 import logging
 import datetime
-import json
 
 from foglamp.storage.storage import Storage, Readings
 from foglamp import logger, statistics, configuration_manager
@@ -216,7 +214,7 @@ class SendingProcess:
         }
 
         self._storage = Storage()
-        """" The FogLAMP Storage Layer """
+        """" The interface to the FogLAMP Storage Layer """
 
     def _retrieve_configuration(self, stream_id):
         """ Retrieves the configuration from the Configuration Manager
@@ -648,31 +646,14 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            # TODO : the commented code will be used instead of the current one when FOGL-616 will be fixed
             # TODO : FOGL-623 - avoid the update of the field ts when it will be managed by the DB itself
-            # timestamp = datetime.datetime.now(tz=timezone.utc)
-            # payload = payload_builder.PayloadBuilder() \
-            #     .SET(last_object=new_last_object_id, ts=str(timestamp)) \
-            #     .WHERE(['id', '=', stream_id]) \
-            #     .payload()
             #
-            # self._storage.update_tbl("streams", payload)
+            payload = payload_builder.PayloadBuilder() \
+                .SET(last_object=new_last_object_id, ts='now()') \
+                .WHERE(['id', '=', stream_id]) \
+                .payload()
 
-            condition = dict()
-            condition['column'] = 'id'
-            condition['condition'] = '='
-            condition['value'] = stream_id
-
-            values = dict()
-            values['last_object'] = new_last_object_id
-            timestamp = datetime.datetime.now(tz=timezone.utc)
-            values['ts'] = str(timestamp)
-
-            data = dict()
-            data['condition'] = condition
-            data['values'] = values
-
-            self._storage.update_tbl("streams", json.dumps(data))
+            self._storage.update_tbl("streams", payload)
 
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000020"].format(_ex)

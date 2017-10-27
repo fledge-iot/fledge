@@ -33,7 +33,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         ("name", _payload("data/payload_select1.json")),
-        (("name","id"), _payload("data/payload_select2.json"))
+        (("name", "id"), _payload("data/payload_select2.json"))
     ])
     def test_select_payload(self, test_input, expected):
         res = PayloadBuilder().SELECT(test_input).payload()
@@ -196,8 +196,8 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(test_input1).OR_WHERE(test_input2).query_params()
         assert expected == res
 
-    @pytest.mark.skip(reason="FOGL-607 #5")
-    def test_having_payload(self, test_input, expected):
+    @pytest.mark.skip(reason="No support from storage layer yet")
+    def test_having_payload(self, expected):
         res = PayloadBuilder().HAVING().payload()
         assert expected == json.loads(res)
 

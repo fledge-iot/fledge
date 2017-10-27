@@ -1,0 +1,6 @@
+{
+	"id" : 4,
+	"key" : "Admin",
+	"description" : "URL of the admin API",
+	"data" : { "url" : { "value" : "inserted object" } }
+}

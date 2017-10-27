@@ -426,6 +426,106 @@ int		col = 0;
 				col++;
 			}
 		}
+		if (document.HasMember("json_properties"))
+		{
+			Value& exprs = document["json_properties"];
+			if (!exprs.IsArray())
+			{
+				raiseError("update", "The property json_properties must be an array");
+				return -1;
+			}
+			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
+			{
+				if (col != 0)
+				{
+					sql.append( ", ");
+				}
+				if (!itr->IsObject())
+				{
+					raiseError("update", "json_properties must be an array of objects");
+					return -1;
+				}
+				if (!itr->HasMember("column"))
+				{
+					raiseError("update", "Missing column property in json_properties array item");
+					return -1;
+				}
+				if (!itr->HasMember("path"))
+				{
+					raiseError("update", "Missing path property in json_properties array item");
+					return -1;
+				}
+				if (!itr->HasMember("value"))
+				{
+					raiseError("update", "Missing value property in json_properties array item");
+					return -1;
+				}
+				sql.append((*itr)["column"].GetString());
+				sql.append(" = jsonb_set(");
+				sql.append((*itr)["column"].GetString());
+				sql.append(", '{");
+				const Value& path = (*itr)["path"];
+				if (!path.IsArray())
+				{
+					raiseError("update", "The property path must be an array");
+					return -1;
+				}
+				int pathElement = 0;
+				for (Value::ConstValueIterator itr2 = path.Begin();
+					itr2 != path.End(); ++itr2)
+				{
+					if (pathElement > 0)
+					{
+						sql.append(',');
+					}
+					if (itr2->IsString())
+					{
+						sql.append(itr2->GetString());
+					}
+					else
+					{
+						raiseError("update", "The elements of path must all be strings");
+						return -1;
+					}
+					pathElement++;
+				}
+				sql.append("}', ");
+				const Value& value = (*itr)["value"];
+	 
+				if (value.IsString())
+				{
+					const char *str = value.GetString();
+					// Check if the string is a function
+					string s (str);
+					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+					if (regex_match (s,e))
+					{
+						sql.append(str);
+					}
+					else
+					{
+						sql.append("'\"");
+						sql.append(str);
+						sql.append("\"'");
+					}
+				}
+				else if (value.IsDouble())
+					sql.append(value.GetDouble());
+				else if (value.IsNumber())
+					sql.append(value.GetInt());
+				else if (value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					value.Accept(writer);
+					sql.append('\'');
+					sql.append(buffer.GetString());
+					sql.append('\'');
+				}
+				sql.append(")");
+				col++;
+			}
+		}
 
 		if (col == 0)
 		{

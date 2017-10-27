@@ -69,4 +69,9 @@ Bad JSON,PUT,http://localhost:8080/storage/reading/query,reading_property_bad.js
 Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
 Read back update,PUT,http://localhost:8080/storage/table/test2/query,read_id_1xx.json
 Distinct,PUT,http://localhost:8080/storage/table/test2/query,where_distinct.json
+Update JSON,PUT,http://localhost:8080/storage/table/test,update_json.json
+Read back update,GET,http://localhost:8080/storage/table/test,
+Add JSON,POST,http://localhost:8080/storage/table/test,insert2.json
+Update Complex JSON,PUT,http://localhost:8080/storage/table/test,update_json2.json
+Read back update,GET,http://localhost:8080/storage/table/test?id=4,
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

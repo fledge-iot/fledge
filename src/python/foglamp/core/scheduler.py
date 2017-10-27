@@ -408,10 +408,12 @@ class Scheduler(object):
     _schedules_tbl = None  # type: sqlalchemy.Table
     _tasks_tbl = None  # type: sqlalchemy.Table
     _logger = None  # type: logging.Logger
+
+    _core_management_host = None
     _core_management_port = None
 
     # TODO: Remove below '=None' after FOGL-521 is merged
-    def __init__(self, core_management_port=None):
+    def __init__(self, core_management_host=None, core_management_port=None):
         """Constructor"""
 
         cls = Scheduler
@@ -425,6 +427,9 @@ class Scheduler(object):
 
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
+        if not cls._core_management_host:
+            cls._core_management_host = core_management_host
+
         if cls._schedules_tbl is None:
             metadata = sqlalchemy.MetaData()
 
@@ -626,6 +631,12 @@ class Scheduler(object):
         # This check is necessary only if significant time can elapse between "await" and
         # the start of the awaited coroutine.
         args = self._process_scripts[schedule.process_name]
+
+        # add core management host and port to process script args
+        name = schedule.process_name.lower().replace(" ", "-")
+        args.append("--name={}".format(name))
+        args.append("--address={}".format(self._core_management_host))
+        args.append("--port={}".format(str(self._core_management_port)))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

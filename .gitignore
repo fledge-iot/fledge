@@ -14,3 +14,7 @@ docs/.cache/
 # Allure
 allure/
 allure-report/
+
+# storage specific
+build/
+services/storage/*

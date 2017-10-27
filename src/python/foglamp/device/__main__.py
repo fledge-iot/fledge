@@ -30,11 +30,11 @@ except ArgumentParserError:
     sys.exit(1)
 
 if plugin is None:
-    print("Required argument '--name' is missing")
+    _logger.warning("Required argument '--name' is missing")
 elif core_mgt_port is None:
-    print("Required argument '--port' is missing")
+    _logger.warning("Required argument '--port' is missing")
 elif core_mgt_address is None:
-    print("Required argument '--address' is missing")
+    _logger.warning("Required argument '--address' is missing")
 else:
     Server.start(plugin, core_mgt_port, core_mgt_address)
 

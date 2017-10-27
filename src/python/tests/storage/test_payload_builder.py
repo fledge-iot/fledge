@@ -33,7 +33,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         ("name", _payload("data/payload_select1.json")),
-        ("name,id", _payload("data/payload_select2.json"))
+        (("name", "id"), _payload("data/payload_select2.json"))
     ])
     def test_select_payload(self, test_input, expected):
         res = PayloadBuilder().SELECT(test_input).payload()
@@ -75,21 +75,21 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
-        pytest.param(["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #7"))
+        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where2.json"))
     ])
     def test_multiple_and_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).AND_WHERE(test_input_3).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
-        pytest.param(["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json"))
+        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json"))
     ])
     def test_or_where_payload(self, test_input_1, test_input_2, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
-        pytest.param(["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #7"))
+        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where2.json"))
     ])
     def test_multiple_or_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).OR_WHERE(test_input_3).payload()
@@ -107,7 +107,7 @@ class TestPayloadBuilderRead:
     @pytest.mark.parametrize("test_input, expected", [
         (["name", "asc"], _payload("data/payload_order_by1.json")),
         (["name", "desc"], _payload("data/payload_order_by2.json")),
-        pytest.param([{"name", "desc"}, {"id", "asc"}, {"ts", "asc"}], _payload("data/payload_order_by3.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
+        ((["name", "desc"], ["id", "asc"], ["ts", "asc"]), _payload("data/payload_order_by3.json")),
         (["name"], _payload("data/payload_order_by1.json")),
         (["name", "invalid"], {})
     ])
@@ -129,7 +129,7 @@ class TestPayloadBuilderRead:
         (["avg", "values"], _payload("data/payload_aggregate3.json")),
         (["sum", "values"], _payload("data/payload_aggregate4.json")),
         (["count", "values"], _payload("data/payload_aggregate5.json")),
-        pytest.param([{"min", "values"}, {"max", "values"}, {"avg", "values"}], _payload("data/payload_aggregate6.json"), marks=pytest.mark.xfail(reason="FOGL-607 #6")),
+        ((["min", "values"], ["max", "values"], ["avg", "values"]), _payload("data/payload_aggregate6.json")),
         (["invalid", "values"], {})
     ])
     def test_aggregate_payload(self, test_input, expected):
@@ -137,13 +137,13 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     def test_select_all_payload(self):
-        res = PayloadBuilder().SELECT_ALL().payload()
-        expected = _payload("data/payload_select_all.json")
+        res = PayloadBuilder().SELECT().payload()
+        expected = {}
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        pytest.param(3, _payload("data/payload_offset1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
-        pytest.param(3.5, _payload("data/payload_offset1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
+        (3, _payload("data/payload_offset1.json")),
+        (3.5, _payload("data/payload_offset2.json")),
         ("invalid", {})
     ])
     def test_offset_payload(self, test_input, expected):
@@ -152,7 +152,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         (3, _payload("data/payload_limit_offset1.json")),
-        pytest.param(3.5, _payload("data/payload_limit_offset2.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1")),
+        (3.5, _payload("data/payload_limit_offset2.json")),
         ("invalid", {})
     ])
     def test_limit_offset_payload(self, test_input, expected):
@@ -160,8 +160,8 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        pytest.param(3, _payload("data/payload_offset1.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
-        pytest.param(3.5, _payload("data/payload_offset2.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1 #4")),
+        (3, _payload("data/payload_offset1.json")),
+        (3.5, _payload("data/payload_offset2.json")),
         ("invalid", {})
     ])
     def test_skip_payload(self, test_input, expected):
@@ -170,7 +170,7 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         (3, _payload("data/payload_limit_offset1.json")),
-        pytest.param(3.5, _payload("data/payload_limit_offset2.json"), marks=pytest.mark.xfail(reason="FOGL-607 #1")),
+        (3.5, _payload("data/payload_limit_offset2.json")),
         ("invalid", {})
     ])
     def test_limit_skip_payload(self, test_input, expected):
@@ -196,8 +196,8 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(test_input1).OR_WHERE(test_input2).query_params()
         assert expected == res
 
-    @pytest.mark.skip(reason="FOGL-607 #5")
-    def test_having_payload(self, test_input, expected):
+    @pytest.mark.skip(reason="No support from storage layer yet")
+    def test_having_payload(self, expected):
         res = PayloadBuilder().HAVING().payload()
         assert expected == json.loads(res)
 
@@ -213,6 +213,24 @@ class TestPayloadBuilderRead:
             .ORDER_BY(["id", "desc"]) \
             .AGGREGATE(["count", "name"]) \
             .payload()
+        assert _payload("data/payload_complex_select1.json") == json.loads(res)
+
+    def test_chain_payload(self):
+        res_chain = PayloadBuilder() \
+            .SELECT("id", "name") \
+            .WHERE(["id", "=", 1]) \
+            .AND_WHERE(["name", "=", "test"]) \
+            .OR_WHERE(["name", "=", "test2"]) \
+            .chain_payload()
+
+        res = PayloadBuilder(res_chain) \
+            .LIMIT(5) \
+            .OFFSET(1) \
+            .GROUP_BY("name", "id") \
+            .ORDER_BY(["id", "desc"]) \
+            .AGGREGATE(["count", "name"]) \
+            .payload()
+
         assert _payload("data/payload_complex_select1.json") == json.loads(res)
 
 

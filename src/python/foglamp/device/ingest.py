@@ -40,7 +40,8 @@ class Ingest(object):
 
     # Class attributes
 
-    _core_management_port = 0 # type: int
+    _core_management_host = ""
+    _core_management_port = 0
 
     _readings_stats = 0  # type: int
     """Number of readings accepted before statistics were written to storage"""
@@ -183,11 +184,12 @@ class Ingest(object):
             config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
 
     @classmethod
-    async def start(cls, core_mgt_port):
+    async def start(cls, core_mgt_host, core_mgt_port):
         """Starts the server"""
         if cls._started:
             return
 
+        cls._core_management_host = core_mgt_host
         cls._core_management_port = core_mgt_port
 
         await cls._read_config()
@@ -355,6 +357,7 @@ class Ingest(object):
             cls._last_insert_time = time.time()
 
             # Perform insert. Retry when fails.
+            readings_storage = Readings(cls._core_management_host, cls._core_management_port)
             while True:
                 # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
                 #               len(list))
@@ -363,11 +366,9 @@ class Ingest(object):
                     payload = dict()
                     payload['readings'] = readings_list
 
-                    readings = Readings(cls._core_management_port)
-                    readings.append(json.dumps(payload))
+                    res = readings_storage.append(json.dumps(payload))
 
                     # TODO: if error (simulate by stopping storage manually) then stop
-
                     batch_size = len(readings_list)
                     cls._readings_stats += batch_size
 

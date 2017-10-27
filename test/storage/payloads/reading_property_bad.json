@@ -1,0 +1,15 @@
+{
+	"return" : [
+			{
+				"column": "user_ts",
+				"format": "YYYY-MM-DD HH24:MI:SS.MS",
+				"alias" : "timestamp"},
+			{
+			 "json" : {
+					 "column"     : "reading",
+					 "properties" : "temperature"
+				   },
+				   "alias" : "Temperature"
+				 }
+		  ]
+}

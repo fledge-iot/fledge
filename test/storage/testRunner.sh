@@ -34,8 +34,8 @@ if [ "$optional" = "" ] ; then
 			fi
 			(
 			unset IFS
-			echo "   " Expected: `cat expected/$testNum` >> failed
-			echo "   " Got:     `cat results/$testNum` >> failed
+			echo "   " Expected: "`cat expected/$testNum`" >> failed
+			echo "   " Got:     "`cat results/$testNum`" >> failed
 			)
 			echo >> failed
 		else

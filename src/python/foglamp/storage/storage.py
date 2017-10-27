@@ -49,9 +49,9 @@ class AbstractStorage(ABC):
 
 class Storage(AbstractStorage):
 
-    def __init__(self, core_management_port):
+    def __init__(self, core_management_host, core_management_port):
         try:
-            self.connect(core_management_port)
+            self.connect(core_management_host, core_management_port)
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
         except Exception:
@@ -107,11 +107,10 @@ class Storage(AbstractStorage):
     def _get_storage_service(self, host, port):
         """ get Storage service """
 
-        # TODO: URL to service registry api?
         conn = http.client.HTTPConnection("{0}:{1}".format(host, port))
         # TODO: need to set http / https based on service protocol
 
-        conn.request('GET', url='/foglamp/service')
+        conn.request('GET', url='/foglamp/service?name=FogLAMP%20Storage')
         r = conn.getresponse()
 
         # TODO: FOGL-615
@@ -124,12 +123,11 @@ class Storage(AbstractStorage):
         res = r.read().decode()
         conn.close()
         response = json.loads(res)
-        found_services = [s for s in response["services"] if s["name"] == "FogLAMP Storage"]
-        svc = found_services[0]
+        svc = response["services"][0]
         return svc
 
-    def connect(self, core_management_port):
-        svc = self._get_storage_service(host='0.0.0.0', port=core_management_port)
+    def connect(self, core_management_host, core_management_port):
+        svc = self._get_storage_service(host=core_management_host, port=core_management_port)
         if len(svc) == 0:
             raise InvalidServiceInstance
         self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
@@ -344,9 +342,8 @@ class Readings(Storage):
 
     _base_url = ""
 
-    def __init__(self, core_mgt_port):
-        super().__init__(core_management_port=core_mgt_port)
-        # FIXME: WTH?
+    def __init__(self, core_mgt_host, core_mgt_port):
+        super().__init__(core_management_host=core_mgt_host, core_management_port=core_mgt_port)
         self.__class__._base_url = self.base_url
 
     @classmethod

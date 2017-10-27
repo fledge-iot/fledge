@@ -69,20 +69,17 @@ class Server:
         cls._core_management_port = core_mgt_port
 
         try:
-            # TODO: Category name column is allows only 10 characters.
-            # This needs to be increased
             category = plugin
-
             config = {}
-
             await configuration_manager.create_category(category, config,
                                                         '{} Device'.format(plugin), True)
 
+            config = await configuration_manager.get_category_all_items(category)
+
             try:
-                plugin_module = config['plugin']
+                plugin_module = config['plugin']['value']
             except KeyError:
-                # TODO: Delete me
-                plugin_module = 'foglamp.device.coap_device'
+                sys.exit(1)
 
             try:
                 cls._plugin = __import__(plugin_module, fromlist=[''])

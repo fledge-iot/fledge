@@ -73,7 +73,12 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SYPURGE', 'System Purge', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
 
-
+-- SYPRG: System Purge
+--        retention : data retention in seconds. Default is 3 days (259200 seconds)
+--        last purge: ts of the last purge call
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "foglamp.device.coap_device", "default" : "foglamp.device.coap_device", "description" : "Python module name of the plugin to load" } } ');
+--     VALUES ( 'COAP', 'CoAP Plugin Configuration', to_jsonb( '{ "plugin" : { "type" : "string", "value" : "foglamp.device.coap_device", "default" : "foglamp.device.coap_device", "description" : "Python module name of the plugin to load" } }'::TEXT ) );
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;
@@ -115,7 +120,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 -- Use this to create guids: https://www.uuidgenerator.net/version1 */
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
-insert into foglamp.scheduled_processes (name, script) values ('device', '["python3", "-m", "foglamp.device"]');
+insert into foglamp.scheduled_processes (name, script) values ('COAP', '["python3", "-m", "foglamp.device"]');
 insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
 insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.update_statistics_history"]');
 insert into foglamp.scheduled_processes (name, script) values ('sending process', '["python3", "-m", "foglamp.sending_process", "-s", "1", "-d", "1"]');
@@ -125,7 +130,7 @@ insert into foglamp.scheduled_processes (name, script) values ('statistics to pi
 -- Start the device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)
-values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'device', 1,
+values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 '0:0', true);
 
 -- Run the purge process every 5 minutes

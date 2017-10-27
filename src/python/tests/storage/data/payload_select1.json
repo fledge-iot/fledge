@@ -1,4 +1,4 @@
  {
-  "columns": "name"
+  "return": ["name"]
  }
 

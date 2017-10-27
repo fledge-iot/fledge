@@ -608,11 +608,11 @@ string        flags;
 		{
 			flags = search->second;
 			// TODO Turn flags into a bitmap
-			if (flags.compare(PURGE_FLAG_RETAIN))
+			if (flags.compare(PURGE_FLAG_RETAIN) == 0)
 			{
 				flagsMask |= 0x0001;
 			}
-			else if (flags.compare(PURGE_FLAG_PURGE))
+			else if (flags.compare(PURGE_FLAG_PURGE) == 0)
 			{
 				flagsMask &= 0xfffe;
 			}

@@ -79,7 +79,6 @@ class TestStorageRead:
         result = Storage().query_tbl_with_payload("statistics", payload)
         assert "ERROR" in result["message"]
 
-    @pytest.mark.skip(reason="FOGL-607 #7")
     def test_multiple_and_where(self):
         payload = PayloadBuilder().WHERE(["asset_code", "=", 'TEST_STORAGE_CLIENT']).\
             AND_WHERE(["read_key", "!=", '57179e0c-1b53-47b9-94f3-475cdba60628']). \
@@ -89,9 +88,8 @@ class TestStorageRead:
         assert result["count"] == 1
         assert result["rows"][0]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
         assert result["rows"][0]["asset_code"] == "TEST_STORAGE_CLIENT"
-        assert result["rows"][0]["reading"] == '{"sensor_code_1": 80, "sensor_code_2": 5.8}'
+        assert result["rows"][0]["reading"] == json.loads('{"sensor_code_1": 80, "sensor_code_2": 5.8}')
 
-    @pytest.mark.skip(reason="FOGL-607 #7")
     def test_multiple_or_where(self):
         payload = PayloadBuilder().WHERE(["read_key", "=", 'cc484439-b4de-493a-bf2e-27c413b00120']).\
             OR_WHERE(["read_key", "=", '57179e0c-1b53-47b9-94f3-475cdba60628']).\
@@ -99,8 +97,8 @@ class TestStorageRead:
         result = Storage().query_tbl_with_payload("readings", payload)
         assert len(result["rows"]) == 3
         assert result["count"] == 3
-        assert result["rows"][0]["read_key"] == "cc484439-b4de-493a-bf2e-27c413b00120"
-        assert result["rows"][1]["read_key"] == "57179e0c-1b53-47b9-94f3-475cdba60628"
+        assert result["rows"][0]["read_key"] == "57179e0c-1b53-47b9-94f3-475cdba60628"
+        assert result["rows"][1]["read_key"] == "cc484439-b4de-493a-bf2e-27c413b00120"
         assert result["rows"][2]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
 
     def test_limit(self):
@@ -151,15 +149,14 @@ class TestStorageRead:
         assert result["rows"][0]["value"] == 15
         assert result["rows"][0]["previous_value"] == 2
 
-    @pytest.mark.skip(reason="FOGL-607 #6")
     def test_multiple_order(self):
         payload = PayloadBuilder().ORDER_BY({"asset_code", "desc"}, {"read_key"}).payload()
         result = Storage().query_tbl_with_payload("readings", payload)
         assert len(result["rows"]) == 3
         assert result["count"] == 3
         assert result["rows"][0]["read_key"] == "57179e0c-1b53-47b9-94f3-475cdba60628"
-        assert result["rows"][1]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
-        assert result["rows"][2]["read_key"] == "cc484439-b4de-493a-bf2e-27c413b00120"
+        assert result["rows"][1]["read_key"] == "cc484439-b4de-493a-bf2e-27c413b00120"
+        assert result["rows"][2]["read_key"] == "7016622d-a4db-4ec0-8b97-85f6057317f1"
 
     def test_aggregate(self):
         payload = PayloadBuilder().AGGREGATE(["max", "value"]).payload()
@@ -168,17 +165,16 @@ class TestStorageRead:
         assert result["count"] == 1
         assert result["rows"][0]["max_value"] == 15
 
-    @pytest.mark.skip(reason="FOGL-607 #6")
     def test_multiple_aggregate(self):
-        payload = PayloadBuilder().AGGREGATE({"min", "value"}, {"max", "value"}, {"avg", "value"}).payload()
+        payload = PayloadBuilder().AGGREGATE(["min", "value"], ["max", "value"], ["avg", "value"]).payload()
         result = Storage().query_tbl_with_payload("statistics", payload)
+        print(result)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["min_value"] == 10
         assert result["rows"][0]["max_value"] == 15
-        assert result["rows"][0]["avg_value"] == 12.5
+        assert float(result["rows"][0]["avg_value"]) == 12.5
 
-    @pytest.mark.skip(reason="FOGL-607 - No support for 'return' yet")
     def test_group(self):
         payload = PayloadBuilder().SELECT("previous_value").GROUP_BY("previous_value").payload()
         result = Storage().query_tbl_with_payload("statistics", payload)
@@ -187,30 +183,31 @@ class TestStorageRead:
         assert result["rows"][0]["previous_value"] == 2
 
     def test_aggregate_group(self):
-        payload = PayloadBuilder().AGGREGATE(["min", "previous_value"]).GROUP_BY("previous_value").payload()
+        payload = PayloadBuilder().AGGREGATE(["min", "previous_value"]).GROUP_BY("previous_value") \
+                .WHERE(["key", "=", "TEST_2"]).payload()
         result = Storage().query_tbl_with_payload("statistics", payload)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["min_previous_value"] == 2
         assert result["rows"][0]["previous_value"] == 2
 
-    @pytest.mark.skip(reason="FOGL-607 #5")
+    @pytest.mark.skip(reason="No support from storage layer yet")
     def test_aggregate_group_having(self):
         pass
 
-    @pytest.mark.skip(reason="No support yet")
+    @pytest.mark.skip(reason="FOGL-643")
     def test_select_json_data(self):
         # Example:
         # SELECT MIN(reading->>'sensor_code_2'), MAX(reading->>'sensor_code_2'), AVG((reading->>'sensor_code_2')::float) FROM readings WHERE asset_code = 'TEST_STORAGE_CLIENT';
         pass
 
-    @pytest.mark.skip(reason="No support yet")
+    @pytest.mark.skip(reason="FOGL-640")
     def test_select_date(self):
         # Example:
         # SELECT user_ts FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
         pass
 
-    @pytest.mark.skip(reason="No support yet")
+    @pytest.mark.skip(reason="FOGL-637")
     def test_select_column_alias(self):
         # Example:
         # SELECT TO_CHAR(user_ts, 'YYYY-MM-DD HH24') as "timestamp" FROM readings GROUP BY TO_CHAR(user_ts, 'YYYY-MM-DD HH24');
@@ -232,9 +229,12 @@ class TestStorageInsert:
         result = Storage().insert_into_tbl("statistics", payload)
         assert "ERROR" in result["message"]
 
-    @pytest.mark.skip(reason="No support yet")
     def test_insert_json_data(self):
-        pass
+        payload = PayloadBuilder().INSERT(asset_code='TEST_STORAGE_CLIENT',
+                                          read_key='74540500-0ac2-4166-afa7-9dd1a93a10e5'
+                                          , reading='{"sensor_code_1": 90, "sensor_code_2": 6.9}').payload()
+        result = Storage().insert_into_tbl("readings", payload)
+        assert result == {'rows_affected': 1, 'response': 'inserted'}
 
 
 @pytest.allure.feature("api")

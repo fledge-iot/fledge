@@ -19,7 +19,7 @@ __version__ = "${VERSION}"
 
 # Module attributes
 __DB_NAME = "foglamp"
-BASE_URL = 'localhost:8082'
+BASE_URL = 'localhost:8081'
 headers = {"Content-Type": 'application/json'}
 
 test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
@@ -49,7 +49,9 @@ class TestConfigMgr:
         asyncio.get_event_loop().run_until_complete(add_master_data())
         from subprocess import call
         call(["foglamp", "start"])
-        time.sleep(5)
+        # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
+        #       external process to check if foglamp has started.
+        time.sleep(20)
 
     @classmethod
     def teardown_class(cls):

@@ -73,9 +73,8 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SYPURGE', 'System Purge', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
 
--- SYPRG: System Purge
---        retention : data retention in seconds. Default is 3 days (259200 seconds)
---        last purge: ts of the last purge call
+-- COAP:  CoAP device server
+--        plugin: python module to load dynamically
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "foglamp.device.coap_device", "default" : "foglamp.device.coap_device", "description" : "Python module name of the plugin to load" } } ');
 

@@ -27,7 +27,7 @@ import datetime
 
 from foglamp.parser import Parser
 from foglamp.storage.storage import Storage, Readings
-from foglamp import logger, statistics
+from foglamp import logger
 from foglamp.configuration_manager import ConfigurationManager
 
 import foglamp.storage.payload_builder as payload_builder
@@ -191,7 +191,7 @@ class SendingProcess:
     """ SendingProcess """
 
     # Filesystem path where the translators reside
-    _TRANSLATOR_PATH = "foglamp.translators."
+    _TRANSLATOR_PATH = "plugins.north."
 
     # Define the type of the plugin managed by the Sending Process
     _PLUGIN_TYPE = "translator"
@@ -239,7 +239,7 @@ class SendingProcess:
             "description": "The name of the translator to use to translate the readings "
                            "into the output format and send them",
             "type": "string",
-            "default": "omf_translator"
+            "default": "omf"
         },
 
     }
@@ -268,7 +268,7 @@ class SendingProcess:
         self._config_from_manager = ""
 
         # Plugin handling - loading an empty plugin
-        self._module_template = self._TRANSLATOR_PATH + "empty_translator"
+        self._module_template = self._TRANSLATOR_PATH + "empty."+ "empty"
         self._plugin = importlib.import_module(self._module_template)
         self._plugin_info = {
             'name': "",
@@ -338,7 +338,7 @@ class SendingProcess:
         Todo:
         """
 
-        module_to_import = self._TRANSLATOR_PATH + self._config['translator']
+        module_to_import = self._TRANSLATOR_PATH + self._config['translator'] + "." + self._config['translator']
 
         try:
             self._plugin = importlib.import_module(module_to_import)
@@ -386,7 +386,6 @@ class SendingProcess:
                     self._plugin._log_performance = _log_performance
 
                     self._plugin._storage = self._storage
-
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
                     _logger.debug("{0} - {1} - {2} ".format("start",

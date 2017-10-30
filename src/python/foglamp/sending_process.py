@@ -17,7 +17,6 @@ in the translation process.
 """
 
 import resource
-import argparse
 
 import asyncio
 import sys
@@ -26,6 +25,7 @@ import importlib
 import logging
 import datetime
 
+from foglamp.parser import Parser
 from foglamp.storage.storage import Storage, Readings
 from foglamp import logger, statistics, configuration_manager
 
@@ -75,6 +75,12 @@ _MESSAGES_LIST = {
     "e000022": "unable to convert in memory data structure related to the statistics data "
                "- error details |{0}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
+
+    "e000025": "Required argument '--name' is missing - command line |{0}|",
+    "e000026": "Required argument '--port' is missing - command line |{0}|",
+    "e000027": "Required argument '--address' is missing - command line |{0}|",
+
+
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -189,7 +195,17 @@ class SendingProcess:
 
     }
 
-    def __init__(self):
+    def __init__(self, _mgt_name, _mgt_port, _mgt_address):
+        """
+
+        Args:
+            _mgt_name: Unique name that represents the microservice - Used by the Storage layer
+            _mgt_port: Dynamic port of the management API - Used by the Storage layer
+            _mgt_address: IP address of the server - Used by the Storage layer
+
+        Returns:
+        Raises:
+        """
 
         # Configurations retrieved from the Configuration Manager
         self._config = {
@@ -213,8 +229,16 @@ class SendingProcess:
             'config': ""
         }
 
-        self._storage = Storage()
-        """" The interface to the FogLAMP Storage Layer """
+        self._mgt_name = _mgt_name
+        self._mgt_port = _mgt_port
+        self._mgt_address = _mgt_address
+        ''' Parameters for the Storage layer '''
+
+        # FIXME:
+        self._storage = Storage(_mgt_address, _mgt_port)
+        self._readings = Readings(_mgt_address, _mgt_port)
+
+        """" Interfaces to the FogLAMP Storage Layer """
 
     def _retrieve_configuration(self, stream_id):
         """ Retrieves the configuration from the Configuration Manager
@@ -430,7 +454,8 @@ class SendingProcess:
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
 
-            readings = Readings().query(payload)
+            readings = self._readings.query(payload)
+
             raw_data = readings['rows']
 
         except Exception as _ex:
@@ -782,53 +807,83 @@ class SendingProcess:
             _logger.error(_message)
             raise
 
-    @staticmethod
-    def handling_input_parameters():
-        """ Handles command line parameters
 
-        Raises :
-            InvalidCommandLineParameters
-        """
+def handling_input_parameters():
+    """ Handles command line parameters
 
-        parser = argparse.ArgumentParser(prog=_MODULE_NAME)
-        parser.description = '%(prog)s -- extract the data from the storage subsystem ' \
-                             'and stream it to the translator for sending to the external system.'
-        parser.epilog = ' '
+    Raises :
+        InvalidCommandLineParameters
+    """
 
-        parser.add_argument('-s', '--stream_id',
-                            required=True,
-                            default=0,
-                            help='Define the stream id, it should be a number.')
+    _logger.debug("{func} - argv {v0} ".format(
+                func="handling_input_parameters",
+                v0=str(sys.argv[1:])))
 
-        parser.add_argument('-p', '--performance_log',
-                            default=False,
-                            choices=['y', 'yes', 'n', 'no'],
-                            help='Enable the logging of the performance.')
+    # Retrieves parameters
+    param_mgt_name = Parser.get('--name')
+    param_mgt_port = Parser.get('--port')
+    param_mgt_address = Parser.get('--address')
 
-        parser.add_argument('-d', '--debug_level',
-                            default='0',
-                            choices=['0', '1', '2', '3'],
-                            help='Enable/define the level of logging for debugging '
-                                 '- level 0 only warnings/errors'
-                                 '- level 1 info'
-                                 '- level 2 debug'
-                                 '- level 3 detailed debug - impacts performance')
+    param_stream_id = Parser.get('--stream_id')
+    param_performance_log = Parser.get('--performance_log')
+    param_debug_level = Parser.get('--debug_level')
 
-        namespace = parser.parse_args(sys.argv[1:])
+    # Evaluates mandatory parameters
+    if param_mgt_name is None:
+        _message = _MESSAGES_LIST["e000025"].format(str(sys.argv))
+        _logger.warning(_message)
 
-        log_performance = True if namespace.performance_log in ['y', 'yes'] else False
-        log_debug_level = int(namespace.debug_level)
+    if param_mgt_port is None:
+        _message = _MESSAGES_LIST["e000026"].format(str(sys.argv))
+        _logger.error(_message)
 
+        raise InvalidCommandLineParameters(_message)
+
+    if param_mgt_address is None:
+        _message = _MESSAGES_LIST["e000027"].format(str(sys.argv))
+        _logger.warning(_message)
+
+    if param_stream_id is None:
+        _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))
+        _logger.error(_message)
+
+        raise InvalidCommandLineParameters(_message)
+    else:
         try:
-            stream_id = int(namespace.stream_id) if namespace.stream_id else 1
+            stream_id = int(param_stream_id)
 
         except Exception:
             _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))
-
             _logger.error(_message)
+
             raise InvalidCommandLineParameters(_message)
 
-        return stream_id, log_performance, log_debug_level
+    # Evaluates optional parameters
+    if param_performance_log is not None:
+        log_performance = True
+    else:
+        log_performance = False
+
+    if param_debug_level is not None:
+        log_debug_level = int(param_debug_level)
+    else:
+        log_debug_level = 0
+
+    _logger.debug("{func} "
+                  "- name |{name}| - port |{port}| - address |{address}| "
+                  "- stream_id |{stream_id}| - log_performance |{perf}| "
+                  "- log_debug_level |{debug_level}|".format(
+                        func="handling_input_parameters",
+
+                        name=param_mgt_name,
+                        port=param_mgt_port,
+                        address=param_mgt_address,
+
+                        stream_id=stream_id,
+                        perf=log_performance,
+                        debug_level=log_debug_level))
+
+    return param_mgt_name, param_mgt_port, param_mgt_address, stream_id, log_performance, log_debug_level
 
 
 if __name__ == "__main__":
@@ -844,22 +899,24 @@ if __name__ == "__main__":
         print("{0} - ERROR - {1}".format(current_time, message))
         sys.exit(1)
 
-    # Instance creation
+    # Command line parameter handling
     try:
-        sending_process = SendingProcess()
+        mgt_name, mgt_port, mgt_address, \
+            input_stream_id, _log_performance, _log_debug_level \
+            = handling_input_parameters()
 
     except Exception as ex:
-        message = _MESSAGES_LIST["e000023"].format(str(ex))
+        message = _MESSAGES_LIST["e000017"].format(str(ex))
 
         _logger.exception(message)
         sys.exit(1)
 
-    # Command line parameter handling
+    # Instance creation
     try:
-        input_stream_id, _log_performance, _log_debug_level = sending_process.handling_input_parameters()
+        sending_process = SendingProcess(mgt_name, mgt_port, mgt_address)
 
     except Exception as ex:
-        message = _MESSAGES_LIST["e000017"].format(str(ex))
+        message = _MESSAGES_LIST["e000023"].format(str(ex))
 
         _logger.exception(message)
         sys.exit(1)

@@ -78,7 +78,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
 --        last purge: ts of the last purge call
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "foglamp.device.coap_device", "default" : "foglamp.device.coap_device", "description" : "Python module name of the plugin to load" } } ');
---     VALUES ( 'COAP', 'CoAP Plugin Configuration', to_jsonb( '{ "plugin" : { "type" : "string", "value" : "foglamp.device.coap_device", "default" : "foglamp.device.coap_device", "description" : "Python module name of the plugin to load" } }'::TEXT ) );
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;

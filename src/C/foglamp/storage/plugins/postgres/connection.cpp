@@ -731,13 +731,13 @@ long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
 
-	if (~flags)
+	if ((flags & 0x01) == 0)
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
 		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
-		unsentBuffer.append(" seconds' AND id < ");
+		unsentBuffer.append(" seconds' AND id > ");
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
@@ -758,7 +758,7 @@ long numReadings = 0;
 	sql.append("DELETE FROM readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
 	sql.append(" seconds'");
-	if (flags)	// Don't delete unsent rows
+	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
 	{
 		sql.append(" AND id < ");
 		sql.append(sent);

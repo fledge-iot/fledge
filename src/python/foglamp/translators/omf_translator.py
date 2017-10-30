@@ -17,16 +17,16 @@ import copy
 import ast
 import resource
 import datetime
-import sys
 import asyncio
 import time
 import json
 import requests
 import logging
-import psycopg2
-import os
 
 from foglamp import logger, configuration_manager
+from foglamp.storage.storage import Storage
+
+import foglamp.storage.payload_builder as payload_builder
 
 # Module information
 __author__ = "Stefano Simonelli"
@@ -36,20 +36,7 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "omf_translator"
 
-# DB references
-# FIXME: it will be removed using the DB layer
-_DB_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
-try:
-    snap_user_common = os.environ['SNAP_USER_COMMON']
-    unix_socket_dir = "{}/tmp/".format(snap_user_common)
-    _DB_CONNECTION_STRING = _DB_CONNECTION_STRING + " host='" + unix_socket_dir + "'"
-except KeyError:
-    pass
-
-
-_pg_conn = ()
-_pg_cur = ()
-
+_storage = ()
 
 # Messages used for Information, Warning and Error notice
 _MESSAGES_LIST = {
@@ -226,7 +213,6 @@ class PluginInitializeFailed(RuntimeError):
 def _performance_log(func):
     """ Logs information for performance measurement """
 
-    # noinspection PyProtectedMember
     def wrapper(*arg):
         """ wrapper """
 
@@ -243,7 +229,7 @@ def _performance_log(func):
             delta_milliseconds = int(delta.total_seconds() * 1000)
 
             _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|"
-                         .format(sys._getframe().f_locals['func'],
+                         .format(func.__name__,
                                  delta_milliseconds,
                                  memory_process))
 
@@ -252,7 +238,6 @@ def _performance_log(func):
     return wrapper
 
 
-# noinspection PyProtectedMember
 def _retrieve_configuration(stream_id):
     """ Retrieves the configuration from the Configuration Manager
 
@@ -266,7 +251,7 @@ def _retrieve_configuration(stream_id):
     global _config_omf_types
     global _config_omf_types_from_manager
 
-    _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+    _logger.debug("{0} - ".format("_retrieve_configuration"))
 
     # Configuration related to the OMF Translator
     try:
@@ -320,7 +305,6 @@ def _retrieve_configuration(stream_id):
         raise
 
 
-# noinspection PyProtectedMember
 def plugin_retrieve_info(stream_id):
     """ Allows the device service to retrieve information from the plugin
 
@@ -346,6 +330,7 @@ def plugin_retrieve_info(stream_id):
             _logger = logger.setup(logger_name, level=logging.INFO)
 
         elif _log_debug_level >= 2:
+            # noinspection PyArgumentEqualDefault
             _logger = logger.setup(logger_name, level=logging.DEBUG)
 
     except Exception as ex:
@@ -356,7 +341,7 @@ def plugin_retrieve_info(stream_id):
 
         raise ex
 
-    _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+    _logger.debug("{0} - ".format("plugin_retrieve_info"))
 
     try:
         _event_loop = asyncio.get_event_loop()
@@ -380,26 +365,21 @@ def plugin_retrieve_info(stream_id):
     return plugin_info
 
 
-# noinspection PyProtectedMember
 def plugin_init():
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
 
+    Args:
     Returns:
     Raises:
         PluginInitializeFailed
     Todo:
     """
 
-    global _pg_conn
-    global _pg_cur
     global _recreate_omf_objects
 
-    _logger.debug("{0} - URL {1}".format(sys._getframe().f_code.co_name, _config['URL']))
+    _logger.debug("{0} - URL {1}".format("plugin_init", _config['URL']))
 
     try:
-
-        _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
-        _pg_cur = _pg_conn.cursor()
 
         _recreate_omf_objects = True
 
@@ -447,8 +427,7 @@ def plugin_send(raw_data, stream_id):
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
 
-                    # noinspection PyProtectedMember
-                    _logger.debug("{0} - Forces objects recreation ".format(sys._getframe().f_code.co_name))
+                    _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
 
                     _deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
@@ -474,12 +453,8 @@ def plugin_shutdown():
     Todo:
     """
 
-    global _pg_conn
-
     try:
         _logger.debug("{0} - plugin_shutdown".format(_MODULE_NAME))
-
-        _pg_conn.close()
 
     except Exception as ex:
         _message = _MESSAGES_LIST["e000011"].format(ex)
@@ -500,14 +475,12 @@ def _deleted_omf_types_already_created(config_category_name, type_id):
      Todo:
      """
 
-    global _pg_cur
-    global _pg_conn
+    payload = payload_builder.PayloadBuilder() \
+        .WHERE(['configuration_key', '=', config_category_name]) \
+        .AND_WHERE(['type_id', '=', type_id]) \
+        .payload()
 
-    sql_cmd = "DELETE FROM foglamp.omf_created_objects "\
-              "WHERE configuration_key='{0}' AND type_id={1}".format(config_category_name, type_id)
-
-    _pg_cur.execute(sql_cmd)
-    _pg_conn.commit()
+    _storage.delete_from_tbl("omf_created_objects", payload)
 
 
 def _retrieve_omf_types_already_created(configuration_key, type_id):
@@ -522,13 +495,21 @@ def _retrieve_omf_types_already_created(configuration_key, type_id):
      Todo:
      """
 
-    global _pg_cur
+    payload = payload_builder.PayloadBuilder() \
+        .WHERE(['configuration_key', '=', configuration_key]) \
+        .AND_WHERE(['type_id', '=', type_id]) \
+        .payload()
 
-    sql_cmd = "SELECT asset_code FROM foglamp.omf_created_objects " \
-              "WHERE configuration_key='{0}' and type_id={1}".format(configuration_key, type_id)
+    omf_created_objects = _storage.query_tbl_with_payload('omf_created_objects', payload)
 
-    _pg_cur.execute(sql_cmd)
-    rows = _pg_cur.fetchall()
+    _logger.debug("{func} - omf_created_objects {item} ".format(
+                                                                func="_retrieve_omf_types_already_created",
+                                                                item=omf_created_objects))
+
+    # Extracts only the asset_code column
+    rows = []
+    for row in omf_created_objects['rows']:
+        rows.append(row['asset_code'])
 
     return rows
 
@@ -544,17 +525,13 @@ def _flag_created_omf_type(configuration_key, type_id, asset_code):
      Todo:
      """
 
-    global _pg_cur
-    global _pg_conn
+    payload = payload_builder.PayloadBuilder()\
+        .INSERT(configuration_key=configuration_key,
+                asset_code=asset_code,
+                type_id=type_id)\
+        .payload()
 
-    sql_cmd = "INSERT INTO foglamp.omf_created_objects  " \
-              "(configuration_key, asset_code, type_id) " \
-              "VALUES ('{0}', '{1}', {2})".format(configuration_key,
-                                                  asset_code,
-                                                  type_id)
-
-    _pg_cur.execute(sql_cmd)
-    _pg_conn.commit()
+    _storage.insert_into_tbl("omf_created_objects", payload)
 
 
 def _generate_omf_asset_id(asset_code):
@@ -836,8 +813,8 @@ def _identify_unique_asset_codes(raw_data):
     asset_code_to_evaluate = []
 
     for row in raw_data:
-        asset_code = row[1]
-        asset_data = row[3]
+        asset_code = row['asset_code']
+        asset_data = row['reading']
 
         # Evaluates if the asset_code is already in the list
         if not any(item["asset_code"] == asset_code for item in asset_code_to_evaluate):
@@ -876,7 +853,7 @@ def _create_omf_objects(raw_data, config_category_name, type_id):
         asset_code = item["asset_code"]
 
         # Evaluates if it is a new OMF type
-        if not any(tmp_item[0] == asset_code for tmp_item in asset_codes_already_created):
+        if not any(tmp_item == asset_code for tmp_item in asset_codes_already_created):
 
             asset_code_omf_type = ""
 
@@ -998,8 +975,8 @@ def _transform_in_memory_data(data_to_send, raw_data):
     try:
         for row in raw_data:
 
-            row_id = row[0]
-            asset_code = row[1]
+            row_id = row['id']
+            asset_code = row['asset_code']
 
             # Identification of the object/sensor
             measurement_id = _generate_omf_measurement(asset_code)
@@ -1047,10 +1024,10 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
     data_available = False
 
     try:
-        row_id = row[0]
-        asset_code = row[1]
-        timestamp = row[2].isoformat()
-        sensor_data = row[3]
+        row_id = row['id']
+        asset_code = row['asset_code']
+        timestamp = row['user_ts']
+        sensor_data = row['reading']
 
         if _log_debug_level == 3:
             _logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
@@ -1096,5 +1073,8 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 
 if __name__ == "__main__":
+
+    # Used to assign the proper objects type without actually executing them
+    _storage = Storage()
     _logger = logger.setup(_MODULE_NAME)
     _event_loop = asyncio.get_event_loop()

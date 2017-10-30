@@ -10,8 +10,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-#@pytest.allure.feature("unit")
-#@pytest.allure.story("logger testing")
+@pytest.allure.feature("unit")
+@pytest.allure.story("logger testing")
 class TestLogger:
     """
     Logger Tests

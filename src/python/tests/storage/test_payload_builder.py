@@ -136,10 +136,10 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().AGGREGATE(test_input).payload()
         assert expected == json.loads(res)
 
-    # def test_select_all_payload(self):
-    #     res = PayloadBuilder().SELECT().payload()
-    #     expected = {}
-    #     assert expected == json.loads(res)
+    def test_select_all_payload(self):
+        res = PayloadBuilder().SELECT().payload()
+        expected = {}
+        assert expected == json.loads(res)
 
     def test_select_distinct_payload(self):
         expr = PayloadBuilder().\

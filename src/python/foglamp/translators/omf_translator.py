@@ -1075,6 +1075,6 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 if __name__ == "__main__":
 
     # Used to assign the proper objects type without actually executing them
-    _storage = Storage()
+    _storage = Storage("127.0.0.1", "0")
     _logger = logger.setup(_MODULE_NAME)
     _event_loop = asyncio.get_event_loop()

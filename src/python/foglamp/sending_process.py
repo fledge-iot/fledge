@@ -245,7 +245,7 @@ class SendingProcess:
         """
 
         Args:
-            _mgt_name: Unique name that represents the microservice - Used by the Storage layer
+            _mgt_name: Unique name that represents the microservice
             _mgt_port: Dynamic port of the management API - Used by the Storage layer
             _mgt_address: IP address of the server for the management API - Used by the Storage layer
 

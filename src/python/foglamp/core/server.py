@@ -12,8 +12,6 @@ import signal
 import asyncio
 from aiohttp import web
 import subprocess
-import http
-import json
 
 import http
 import json

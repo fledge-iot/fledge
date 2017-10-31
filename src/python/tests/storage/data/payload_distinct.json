@@ -5,5 +5,5 @@
     "value" : 1000
   },
   "modifier" : "distinct",
-  "return" : [ "description"]
+  "return" : ["description"]
 }

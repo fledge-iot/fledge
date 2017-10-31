@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -17,8 +17,6 @@ in the translation process.
 """
 
 import resource
-import argparse
-from datetime import datetime, timezone
 
 import asyncio
 import sys
@@ -26,7 +24,6 @@ import time
 import importlib
 import logging
 import datetime
-import json
 
 from foglamp.parser import Parser
 from foglamp.storage.storage import Storage, Readings
@@ -56,7 +53,7 @@ _MESSAGES_LIST = {
     "e000001": "cannot start the logger - error details |{0}|",
     "e000002": "cannot complete the operation - error details |{0}|",
     "e000003": "cannot complete the retrieval of the configuration",
-    "e000004": "cannot complete the initialization",
+    "e000004": "cannot complete the initialization - error details |{0}|",
     "e000005": "cannot load the plugin |{0}|",
     "e000006": "cannot complete the sending operation of a block of data.",
     "e000007": "cannot complete the termination of the sending process.",
@@ -146,18 +143,20 @@ class LogStorage(object):
     """ Logs operations in the Storage layer """
 
     LOG_CODE = "STRMN"
-    """ Process name to use for logging the actions """
+    """ Process name for logging the operations """
 
-    # Log levels
-    SUCCESS = 0
-    FAILURE = 1
-    WARNING = 2
-    INFO = 4
+    class Severity(object):
+        """ Log severity level """
+
+        SUCCESS = 0
+        FAILURE = 1
+        WARNING = 2
+        INFO = 4
 
     def __init__(self, storage):
 
         self._storage = storage
-        """ Reference to the Storage Layer to use """
+        """ Reference to the Storage Layer """
 
     def write(self, level, log):
         """ Logs an operation in the Storage layer
@@ -167,7 +166,7 @@ class LogStorage(object):
             log: message to log as a dict
         Returns:
         Raises:
-            Logs in the syslog in case of an error but do not propagate it
+            Logs in the syslog in case of an error but the exception is not propagated
         """
 
         try:
@@ -179,16 +178,13 @@ class LogStorage(object):
 
             self._storage.insert_into_tbl("log", payload)
 
-            # FIXME:
-            raise PluginInitialiseFailed("Test error Error")
-
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000024"].format(_ex)
 
             _logger.error(_message)
 
 
-class SendingProcess(object):
+class SendingProcess:
     """ SendingProcess """
 
     # Filesystem path where the translators reside
@@ -366,21 +362,6 @@ class SendingProcess(object):
 
         _logger.debug("{0} - ".format("start"))
 
-        # FIXME:
-        ###  #########################################################################################:
-
-        self._log_storage.write(LogStorage.INFO, {"sentRows": 1})
-
-        try:
-            raise PluginInitialiseFailed("Test error")
-
-        except Exception as _ex:
-            _message = _MESSAGES_LIST["e000000"].format(str(_ex))
-            self._log_storage.write(LogStorage.FAILURE, {"error": _message})
-
-        sys.exit(0)
-        ###  #########################################################################################:
-
         try:
             prg_text = ", for Linux (x86_64)"
 
@@ -430,10 +411,12 @@ class SendingProcess(object):
 
                     _logger.info(_message)
 
-        except Exception:
-            _message = _MESSAGES_LIST["e000004"]
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000004"].format(str(_ex))
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on start": _message})
             raise
 
         return exec_sending_process
@@ -454,6 +437,8 @@ class SendingProcess(object):
             _message = _MESSAGES_LIST["e000007"]
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on stop": _message})
             raise
 
     def _load_data_into_memory(self, last_object_id):
@@ -737,31 +722,14 @@ class SendingProcess(object):
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            # TODO : the commented code will be used instead of the current one when FOGL-616 will be fixed
             # TODO : FOGL-623 - avoid the update of the field ts when it will be managed by the DB itself
-            # timestamp = datetime.datetime.now(tz=timezone.utc)
-            # payload = payload_builder.PayloadBuilder() \
-            #     .SET(last_object=new_last_object_id, ts='now()') \
-            #     .WHERE(['id', '=', stream_id]) \
-            #     .payload()
             #
-            # self._storage.update_tbl("streams", payload)
+            payload = payload_builder.PayloadBuilder() \
+                .SET(last_object=new_last_object_id, ts='now()') \
+                .WHERE(['id', '=', stream_id]) \
+                .payload()
 
-            condition = dict()
-            condition['column'] = 'id'
-            condition['condition'] = '='
-            condition['value'] = stream_id
-
-            values = dict()
-            values['last_object'] = new_last_object_id
-            timestamp = datetime.datetime.now(tz=timezone.utc)
-            values['ts'] = str(timestamp)
-
-            data = dict()
-            data['condition'] = condition
-            data['values'] = values
-
-            self._storage.update_tbl("streams", json.dumps(data))
+            self._storage.update_tbl("streams", payload)
 
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000020"].format(_ex)
@@ -793,9 +761,13 @@ class SendingProcess(object):
                 data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(data_to_send, stream_id)
 
                 if data_sent:
+                    # Updates reached position, statistics and logs the operation within the Storage Layer
+
                     self._last_object_id_update(new_last_object_id, stream_id)
 
                     self._update_statistics(num_sent, stream_id)
+
+                    self._log_storage.write(LogStorage.Severity.INFO, {"sentRows": num_sent})
 
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
@@ -845,6 +817,8 @@ class SendingProcess(object):
             _message = _MESSAGES_LIST["e000021"].format("")
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on send_data": _message})
             raise
 
     def _is_translator_valid(self):

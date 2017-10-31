@@ -53,7 +53,7 @@ _MESSAGES_LIST = {
     "e000001": "cannot start the logger - error details |{0}|",
     "e000002": "cannot complete the operation - error details |{0}|",
     "e000003": "cannot complete the retrieval of the configuration",
-    "e000004": "cannot complete the initialization",
+    "e000004": "cannot complete the initialization - error details |{0}|",
     "e000005": "cannot load the plugin |{0}|",
     "e000006": "cannot complete the sending operation of a block of data.",
     "e000007": "cannot complete the termination of the sending process.",
@@ -75,6 +75,8 @@ _MESSAGES_LIST = {
     "e000022": "unable to convert in memory data structure related to the statistics data "
                "- error details |{0}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
+
+    "e000024": "unable to log the operation in the Storage Layer - error details |{0}|",
 
     "e000025": "Required argument '--name' is missing - command line |{0}|",
     "e000026": "Required argument '--port' is missing - command line |{0}|",
@@ -138,6 +140,51 @@ def _performance_log(func):
     return wrapper
 
 
+class LogStorage(object):
+    """ Logs operations in the Storage layer """
+
+    LOG_CODE = "STRMN"
+    """ Process name for logging the operations """
+
+    class Severity(object):
+        """ Log severity level """
+
+        SUCCESS = 0
+        FAILURE = 1
+        WARNING = 2
+        INFO = 4
+
+    def __init__(self, storage):
+
+        self._storage = storage
+        """ Reference to the Storage Layer """
+
+    def write(self, level, log):
+        """ Logs an operation in the Storage layer
+
+        Args:
+            level: {SUCCESS|FAILURE|WARNING|INFO}
+            log: message to log as a dict
+        Returns:
+        Raises:
+            Logs in the syslog in case of an error but the exception is not propagated
+        """
+
+        try:
+            payload = payload_builder.PayloadBuilder() \
+                .INSERT(code=LogStorage.LOG_CODE,
+                        level=level,
+                        log=log) \
+                .payload()
+
+            self._storage.insert_into_tbl("log", payload)
+
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000024"].format(_ex)
+
+            _logger.error(_message)
+
+
 class SendingProcess:
     """ SendingProcess """
 
@@ -199,7 +246,7 @@ class SendingProcess:
         """
 
         Args:
-            _mgt_name: Unique name that represents the microservice - Used by the Storage layer
+            _mgt_name: Unique name that represents the microservice
             _mgt_port: Dynamic port of the management API - Used by the Storage layer
             _mgt_address: IP address of the server for the management API - Used by the Storage layer
 
@@ -237,6 +284,9 @@ class SendingProcess:
         self._storage = Storage(_mgt_address, _mgt_port)
         self._readings = Readings(_mgt_address, _mgt_port)
         """" Interfaces to the FogLAMP Storage Layer """
+
+        self._log_storage = LogStorage(self._storage)
+        """" Used to log operations in the Storage Layer """
 
     def _retrieve_configuration(self, stream_id):
         """ Retrieves the configuration from the Configuration Manager
@@ -362,10 +412,12 @@ class SendingProcess:
 
                     _logger.info(_message)
 
-        except Exception:
-            _message = _MESSAGES_LIST["e000004"]
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000004"].format(str(_ex))
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on start": _message})
             raise
 
         return exec_sending_process
@@ -386,6 +438,8 @@ class SendingProcess:
             _message = _MESSAGES_LIST["e000007"]
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on stop": _message})
             raise
 
     def _load_data_into_memory(self, last_object_id):
@@ -708,9 +762,13 @@ class SendingProcess:
                 data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(data_to_send, stream_id)
 
                 if data_sent:
+                    # Updates reached position, statistics and logs the operation within the Storage Layer
+
                     self._last_object_id_update(new_last_object_id, stream_id)
 
                     self._update_statistics(num_sent, stream_id)
+
+                    self._log_storage.write(LogStorage.Severity.INFO, {"sentRows": num_sent})
 
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
@@ -760,6 +818,8 @@ class SendingProcess:
             _message = _MESSAGES_LIST["e000021"].format("")
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on send_data": _message})
             raise
 
     def _is_translator_valid(self):
@@ -841,6 +901,7 @@ def handling_input_parameters():
         _logger.error(_message)
 
         raise InvalidCommandLineParameters(_message)
+
 
     if param_stream_id is None:
         _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))

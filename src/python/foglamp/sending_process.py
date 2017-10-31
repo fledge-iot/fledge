@@ -75,6 +75,7 @@ _MESSAGES_LIST = {
     "e000022": "unable to convert in memory data structure related to the statistics data "
                "- error details |{0}|",
     "e000023": "cannot complete the initialization - error details |{0}|",
+
     "e000024": "unable to log the operation in the Storage Layer - error details |{0}|",
 
     "e000025": "Required argument '--name' is missing - command line |{0}|",
@@ -900,6 +901,7 @@ def handling_input_parameters():
         _logger.error(_message)
 
         raise InvalidCommandLineParameters(_message)
+
 
     if param_stream_id is None:
         _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))

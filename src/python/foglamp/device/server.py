@@ -79,10 +79,11 @@ class Server:
             try:
                 plugin_module = config['plugin']['value']
             except KeyError:
-                sys.exit(1)
+                _LOGGER.warning("Unable to obtain configuration of module for plugin {}".format(plugin))
+                raise
 
             try:
-                cls._plugin = __import__(plugin_module, fromlist=[''])
+                cls._plugin = __import__("foglamp.device.{}_device".format(plugin_module), fromlist=[''])
             except Exception:
                 error = 'Unable to load module {} for device plugin {}'.format(plugin_module,
                                                                                plugin)

@@ -141,6 +141,12 @@ class TestPayloadBuilderRead:
         expected = {}
         assert expected == json.loads(res)
 
+    def test_select_distinct_payload(self):
+        expr = PayloadBuilder().\
+            SELECT().DISTINCT(["description"])\
+            .WHERE(["id", "<", 1000]).payload()
+        assert _payload("data/payload_distinct.json") == json.loads(expr)
+
     @pytest.mark.parametrize("test_input, expected", [
         (3, _payload("data/payload_offset1.json")),
         (3.5, _payload("data/payload_offset2.json")),

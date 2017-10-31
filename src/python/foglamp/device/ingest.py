@@ -374,9 +374,7 @@ class Ingest(object):
                             cls._readings_stats += batch_size
                     except KeyError:
                         # if key error in next, it will be automatically in parent except block
-                        # TODO: test this, simulate the payload
-                        # TODO: check, error payload has retryable as proper string?
-                        if res["retryable"] == 'true':
+                        if res["retryable"]:  # retryable is bool
                             # raise and exception handler will retry
                             raise res["message"]
                         else:

@@ -1,1 +1,1 @@
-{ "entryPoint" : "update", "message" : "Missing values object in payload", "retryable" : false}
+{ "entryPoint" : "update", "message" : "Missing values or expressions object in payload", "retryable" : false}

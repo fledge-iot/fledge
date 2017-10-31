@@ -1,7 +1,6 @@
 {
 	"aggregate" : {
 			"operation" : "count",
-			"column" : "*",
-			"alias" : "Entries"
+			"column" : "id"
 			}
 }

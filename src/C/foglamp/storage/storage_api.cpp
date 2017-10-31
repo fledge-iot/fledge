@@ -276,10 +276,12 @@ string  responsePayload;
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
 
-		bool rval = plugin->commonInsert(tableName, payload);
-		if (rval)
+		int rval = plugin->commonInsert(tableName, payload);
+		if (rval != -1)
 		{
-			responsePayload = "{ \"response\" : \"inserted\" }";
+			responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
+			responsePayload += to_string(rval);
+			responsePayload += " }";
 			respond(response, responsePayload);
 		}
 		else
@@ -310,10 +312,12 @@ string	responsePayload;
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
 
-		bool rval = plugin->commonUpdate(tableName, payload);
-		if (rval)
+		int rval = plugin->commonUpdate(tableName, payload);
+		if (rval != -1)
 		{
-			responsePayload = "{ \"response\" : \"updated\" }";
+			responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
+			responsePayload += to_string(rval);
+			responsePayload += " }";
 			respond(response, responsePayload);
 		}
 		else
@@ -431,10 +435,12 @@ string  responsePayload;
 		tableName = request->path_match[TABLE_NAME_COMPONENT];
 		payload = request->content.string();
 
-		bool rval = plugin->commonDelete(tableName, payload);
-		if (rval)
+		int rval = plugin->commonDelete(tableName, payload);
+		if (rval != -1)
 		{
-			responsePayload = "{ \"response\" : \"deleted\" }";
+			responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
+			responsePayload += to_string(rval);
+			responsePayload += " }";
 			respond(response, responsePayload);
 		}
 		else
@@ -463,10 +469,12 @@ string  responsePayload;
 	stats.readingAppend++;
 	try {
 		payload = request->content.string();
-		bool rval = plugin->readingsAppend(payload);
+		int rval = plugin->readingsAppend(payload);
 		if (rval)
 		{
-			responsePayload = "{ \"response\" : \"appended\" }";
+			responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
+			responsePayload += to_string(rval);
+			responsePayload += " }";
 			respond(response, responsePayload);
 		}
 		else
@@ -600,11 +608,11 @@ string        flags;
 		{
 			flags = search->second;
 			// TODO Turn flags into a bitmap
-			if (flags.compare(PURGE_FLAG_RETAIN))
+			if (flags.compare(PURGE_FLAG_RETAIN) == 0)
 			{
 				flagsMask |= 0x0001;
 			}
-			else if (flags.compare(PURGE_FLAG_PURGE))
+			else if (flags.compare(PURGE_FLAG_PURGE) == 0)
 			{
 				flagsMask &= 0xfffe;
 			}

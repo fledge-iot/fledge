@@ -21,7 +21,7 @@ __version__ = "${VERSION}"
 
 # Module attributes
 __DB_NAME = "foglamp"
-BASE_URL = 'http://localhost:8082/foglamp'
+BASE_URL = 'http://localhost:8081/foglamp'
 headers = {"Content-Type": 'application/json'}
 
 pytestmark = pytest.mark.asyncio
@@ -55,7 +55,9 @@ class TestScheduler:
         asyncio.get_event_loop().run_until_complete(add_master_data())
         from subprocess import call
         call(["foglamp", "start"])
-        time.sleep(4)
+        # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
+        #       external process to check if foglamp has started.
+        time.sleep(20)
 
     @classmethod
     def teardown_class(cls):

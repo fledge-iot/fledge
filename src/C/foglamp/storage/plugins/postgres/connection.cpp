@@ -82,6 +82,11 @@ SQLBuffer	sql;
 		if (document.HasMember("aggregate"))
 		{
 			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
 			if (!jsonAggregates(document, document["aggregate"], sql))
 			{
 				return false;
@@ -94,10 +99,15 @@ SQLBuffer	sql;
 			Value& columns = document["return"];
 			if (! columns.IsArray())
 			{
-				raiseError("retrieve", "The property columns must be an array");
+				raiseError("retrieve", "The property return must be an array");
 				return false;
 			}
 			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
 			for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
 			{
 				if (col)
@@ -149,7 +159,13 @@ SQLBuffer	sql;
 		}
 		else
 		{
-			sql.append("SELECT * FROM ");
+			sql.append("SELECT ");
+			if (document.HasMember("modifier"))
+			{
+				sql.append(document["modifier"].GetString());
+				sql.append(' ');
+			}
+			sql.append(" * FROM ");
 		}
 		sql.append(table);
 		if (document.HasMember("where"))
@@ -193,7 +209,7 @@ SQLBuffer	sql;
 /**
  * Insert data into a table
  */
-bool Connection::insert(const std::string& table, const std::string& data)
+int Connection::insert(const std::string& table, const std::string& data)
 {
 SQLBuffer	sql;
 Document	document;
@@ -203,7 +219,7 @@ int		col = 0;
 	if (document.Parse(data.c_str()).HasParseError())
 	{
 		raiseError("insert", "Failed to parse JSON payload\n");
-		return false;
+		return -1;
 	}
  	sql.append("INSERT INTO ");
 	sql.append(table);
@@ -261,18 +277,18 @@ int		col = 0;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("insert", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Perform an update against a common table
  *
  */
-bool Connection::update(const string& table, const string& payload)
+int Connection::update(const string& table, const string& payload)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -281,7 +297,7 @@ int		col = 0;
 	if (document.Parse(payload.c_str()).HasParseError())
 	{
 		raiseError("update", "Failed to parse JSON payload");
-		return false;
+		return -1;
 	}
 	else
 	{
@@ -289,60 +305,249 @@ int		col = 0;
 		sql.append(table);
 		sql.append(" SET ");
 
-		if (!document.HasMember("values"))
+		if (document.HasMember("values"))
 		{
-			raiseError("update", "Missing values object in payload");
-			return false;
+			Value& values = document["values"];
+			for (Value::ConstMemberIterator itr = values.MemberBegin();
+					itr != values.MemberEnd(); ++itr)
+			{
+				if (col != 0)
+				{
+					sql.append( ", ");
+				}
+				sql.append(itr->name.GetString());
+				sql.append(" = ");
+	 
+				if (itr->value.IsString())
+				{
+					const char *str = itr->value.GetString();
+					// Check if the string is a function
+					string s (str);
+					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+					if (regex_match (s,e))
+					{
+						sql.append(str);
+					}
+					else
+					{
+						sql.append('\'');
+						sql.append(str);
+						sql.append('\'');
+					}
+				}
+				else if (itr->value.IsDouble())
+					sql.append(itr->value.GetDouble());
+				else if (itr->value.IsNumber())
+					sql.append(itr->value.GetInt());
+				else if (itr->value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					itr->value.Accept(writer);
+					sql.append('\'');
+					sql.append(buffer.GetString());
+					sql.append('\'');
+				}
+				col++;
+			}
+		}
+		if (document.HasMember("expressions"))
+		{
+			Value& exprs = document["expressions"];
+			if (!exprs.IsArray())
+			{
+				raiseError("update", "The property exressions must be an array");
+				return -1;
+			}
+			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
+			{
+				if (col != 0)
+				{
+					sql.append( ", ");
+				}
+				if (!itr->IsObject())
+				{
+					raiseError("update", "expressions must be an array of objects");
+					return -1;
+				}
+				if (!itr->HasMember("column"))
+				{
+					raiseError("update", "Missing column property in expressions array item");
+					return -1;
+				}
+				if (!itr->HasMember("operator"))
+				{
+					raiseError("update", "Missing operator property in expressions array item");
+					return -1;
+				}
+				if (!itr->HasMember("value"))
+				{
+					raiseError("update", "Missing value property in expressions array item");
+					return -1;
+				}
+				sql.append((*itr)["column"].GetString());
+				sql.append(" = ");
+				sql.append((*itr)["column"].GetString());
+				sql.append(' ');
+				sql.append((*itr)["operator"].GetString());
+				sql.append(' ');
+				const Value& value = (*itr)["value"];
+	 
+				if (value.IsString())
+				{
+					const char *str = value.GetString();
+					// Check if the string is a function
+					string s (str);
+					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+					if (regex_match (s,e))
+					{
+						sql.append(str);
+					}
+					else
+					{
+						sql.append('\'');
+						sql.append(str);
+						sql.append('\'');
+					}
+				}
+				else if (value.IsDouble())
+					sql.append(value.GetDouble());
+				else if (value.IsNumber())
+					sql.append(value.GetInt());
+				else if (value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					value.Accept(writer);
+					sql.append('\'');
+					sql.append(buffer.GetString());
+					sql.append('\'');
+				}
+				col++;
+			}
+		}
+		if (document.HasMember("json_properties"))
+		{
+			Value& exprs = document["json_properties"];
+			if (!exprs.IsArray())
+			{
+				raiseError("update", "The property json_properties must be an array");
+				return -1;
+			}
+			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
+			{
+				if (col != 0)
+				{
+					sql.append( ", ");
+				}
+				if (!itr->IsObject())
+				{
+					raiseError("update", "json_properties must be an array of objects");
+					return -1;
+				}
+				if (!itr->HasMember("column"))
+				{
+					raiseError("update", "Missing column property in json_properties array item");
+					return -1;
+				}
+				if (!itr->HasMember("path"))
+				{
+					raiseError("update", "Missing path property in json_properties array item");
+					return -1;
+				}
+				if (!itr->HasMember("value"))
+				{
+					raiseError("update", "Missing value property in json_properties array item");
+					return -1;
+				}
+				sql.append((*itr)["column"].GetString());
+				sql.append(" = jsonb_set(");
+				sql.append((*itr)["column"].GetString());
+				sql.append(", '{");
+				const Value& path = (*itr)["path"];
+				if (!path.IsArray())
+				{
+					raiseError("update", "The property path must be an array");
+					return -1;
+				}
+				int pathElement = 0;
+				for (Value::ConstValueIterator itr2 = path.Begin();
+					itr2 != path.End(); ++itr2)
+				{
+					if (pathElement > 0)
+					{
+						sql.append(',');
+					}
+					if (itr2->IsString())
+					{
+						sql.append(itr2->GetString());
+					}
+					else
+					{
+						raiseError("update", "The elements of path must all be strings");
+						return -1;
+					}
+					pathElement++;
+				}
+				sql.append("}', ");
+				const Value& value = (*itr)["value"];
+	 
+				if (value.IsString())
+				{
+					const char *str = value.GetString();
+					// Check if the string is a function
+					string s (str);
+					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
+					if (regex_match (s,e))
+					{
+						sql.append(str);
+					}
+					else
+					{
+						sql.append("'\"");
+						sql.append(str);
+						sql.append("\"'");
+					}
+				}
+				else if (value.IsDouble())
+					sql.append(value.GetDouble());
+				else if (value.IsNumber())
+					sql.append(value.GetInt());
+				else if (value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					value.Accept(writer);
+					sql.append('\'');
+					sql.append(buffer.GetString());
+					sql.append('\'');
+				}
+				sql.append(")");
+				col++;
+			}
 		}
 
-		Value& values = document["values"];
-		for (Value::ConstMemberIterator itr = values.MemberBegin();
-				itr != values.MemberEnd(); ++itr)
+		if (col == 0)
 		{
-			if (col != 0)
-			{
-				sql.append( ", ");
-			}
-			sql.append(itr->name.GetString());
-			sql.append(" = ");
- 
-			if (itr->value.IsString())
-			{
-				const char *str = itr->value.GetString();
-				// Check if the string is a function
-				string s (str);
-				regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-				if (regex_match (s,e))
-				{
-					sql.append(str);
-				}
-				else
-				{
-					sql.append('\'');
-					sql.append(str);
-					sql.append('\'');
-				}
-			}
-			else if (itr->value.IsDouble())
-				sql.append(itr->value.GetDouble());
-			else if (itr->value.IsNumber())
-				sql.append(itr->value.GetInt());
-			else if (itr->value.IsObject())
-			{
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				itr->value.Accept(writer);
-				sql.append('\'');
-				sql.append(buffer.GetString());
-				sql.append('\'');
-			}
-			col++;
+			raiseError("update", "Missing values or expressions object in payload");
+			return -1;
 		}
 
 		if (document.HasMember("condition"))
 		{
 			sql.append(" WHERE ");
-			jsonWhereClause(document["condition"], sql);
+			if (!jsonWhereClause(document["condition"], sql))
+			{
+				return false;
+			}
+		}
+		else if (document.HasMember("where"))
+		{
+			sql.append(" WHERE ");
+			if (!jsonWhereClause(document["where"], sql))
+			{
+				return false;
+			}
 		}
 	}
 	sql.append(';');
@@ -352,19 +557,24 @@ int		col = 0;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
+		if (atoi(PQcmdTuples(res)) == 0)
+		{
+ 			raiseError("update", "No rows where updated");
+			return -1;
+		}
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("update", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Perform a delete against a common table
  *
  */
-bool Connection::deleteRows(const string& table, const string& condition)
+int Connection::deleteRows(const string& table, const string& condition)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -377,7 +587,7 @@ SQLBuffer	sql;
 		if (document.Parse(condition.c_str()).HasParseError())
 		{
 			raiseError("delete", "Failed to parse JSON payload");
-			return false;
+			return -1;
 		}
 		else
 		{
@@ -385,13 +595,13 @@ SQLBuffer	sql;
 			{
 				if (!jsonWhereClause(document["where"], sql))
 				{
-					return false;
+					return -1;
 				}
 			}
 			else
 			{
 				raiseError("delete", "JSON does not contain where clause");
-				return false;
+				return -1;
 			}
 		}
 	}
@@ -403,17 +613,17 @@ SQLBuffer	sql;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("delete", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
  * Append a set of readings to the readings table
  */
-bool Connection::appendReadings(const char *readings)
+int Connection::appendReadings(const char *readings)
 {
 Document 	doc;
 SQLBuffer	sql;
@@ -423,7 +633,7 @@ int		row = 0;
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
-		return false;
+		return -1;
 	}
 
 	sql.append("INSERT INTO readings ( asset_code, read_key, reading, user_ts ) VALUES ");
@@ -432,7 +642,7 @@ int		row = 0;
 	if (!rdings.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
-		return false;
+		return -1;
 	}
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
@@ -440,7 +650,7 @@ int		row = 0;
 		{
 			raiseError("appendReadings",
 					"Each reading in the readings array must be an object");
-			return false;
+			return -1;
 		}
 		if (row)
 			sql.append(", (");
@@ -482,11 +692,11 @@ int		row = 0;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
 		PQclear(res);
-		return true;
+		return atoi(PQcmdTuples(res));
 	}
  	raiseError("appendReadings", PQerrorMessage(dbConnection));
 	PQclear(res);
-	return false;
+	return -1;
 }
 
 /**
@@ -521,13 +731,13 @@ long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
 
-	if (~flags)
+	if ((flags & 0x01) == 0)
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
 		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
-		unsentBuffer.append(" seconds' AND id < ");
+		unsentBuffer.append(" seconds' AND id > ");
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
@@ -548,7 +758,7 @@ long numReadings = 0;
 	sql.append("DELETE FROM readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
 	sql.append(" seconds'");
-	if (flags)	// Don't delete unsent rows
+	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
 	{
 		sql.append(" AND id < ");
 		sql.append(sent);
@@ -647,7 +857,7 @@ Document doc;
 			}
 			case 20:
 			{
-				long intVal = atol(PQgetvalue(res, i, j));
+				int64_t intVal = atol(PQgetvalue(res, i, j));
 				Value name(PQfname(res, j), allocator);
 				row.AddMember(name, intVal, allocator);
 				break;
@@ -864,6 +1074,61 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 		sql.append(", ");
 		sql.append(payload["group"].GetString());
 	}
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data", "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data", "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+		if (tb.HasMember("format"))
+		{
+			sql.append(", to_char(to_timestamp(");
+		}
+		else
+		{
+			sql.append(", to_timestamp(");
+		}
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+			sql.append(" * ");
+		}
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append("))");
+		if (tb.HasMember("format"))
+		{
+			sql.append(", '");
+			sql.append(tb["format"].GetString());
+			sql.append("')");
+		}
+		sql.append(" AS \"");
+		if (tb.HasMember("alias"))
+		{
+			sql.append(tb["alias"].GetString());
+		}
+		else
+		{
+			sql.append("timestamp");
+		}
+		sql.append('"');
+	}
 	return true;
 }
 
@@ -927,10 +1192,46 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 	}
 
+
 	if (payload.HasMember("group"))
 	{
 		sql.append(" GROUP BY ");
 		sql.append(payload["group"].GetString());
+	}
+
+	if (payload.HasMember("timebucket"))
+	{
+		const Value& tb = payload["timebucket"];
+		if (! tb.IsObject())
+		{
+			raiseError("Select data", "The \"timebucket\" property must be an object");
+			return false;
+		}
+		if (! tb.HasMember("timestamp"))
+		{
+			raiseError("Select data", "The \"timebucket\" object must have a timestamp property");
+			return false;
+		}
+		if (payload.HasMember("group"))
+		{
+			sql.append(", ");
+		}
+		else
+		{
+			sql.append(" GROUP BY ");
+		}
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append(')');
 	}
 
 	if (payload.HasMember("skip"))
@@ -991,12 +1292,18 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		jsonWhereClause(whereClause["and"], sql);
+		if (!jsonWhereClause(whereClause["and"], sql))
+		{
+			return false;
+		}
 	}
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		jsonWhereClause(whereClause["or"], sql);
+		if (!jsonWhereClause(whereClause["or"], sql))
+		{
+			return false;
+		}
 	}
 
 	return true;

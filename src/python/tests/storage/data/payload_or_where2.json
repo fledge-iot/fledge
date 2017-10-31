@@ -1,0 +1,17 @@
+{
+  "where": {
+  "or": {
+    "column": "id",
+    "condition": ">",
+    "value": 3,
+    "or": {
+      "column": "value",
+      "condition": "!=",
+      "value": 0
+    }
+  },
+  "column": "name",
+  "condition": "=",
+  "value": "test"
+  }
+}

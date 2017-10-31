@@ -1,0 +1,12 @@
+{
+	"where" : {
+			"column" : "id",
+			"condition" : ">",
+			"value" : "2",
+			"and" : {
+				"column" : "id",
+				"condition" : "<",
+				"value" : "7"
+			}
+		}
+}

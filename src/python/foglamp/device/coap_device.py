@@ -27,7 +27,7 @@ _DEFAULT_CONFIG = {
     'plugin': {
          'description': 'Python module name of the plugin to load',
          'type': 'string',
-         'default': 'foglamp.device.coap_device'
+         'default': 'coap'
     },
     'port': {
         'description': 'Port to listen on',

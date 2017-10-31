@@ -56,6 +56,7 @@ _MESSAGES_LIST = {
     "e000009": "cannot retrieve information about the sensor.",
     "e000010": "unable to extend the memory structure with new data.",
     "e000011": "cannot complete the termination of the OMF translator - error details |{0}|",
+    "e000012": "ERROR - the plugin cannot be executed directly.",
 
 }
 
@@ -1074,7 +1075,11 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 if __name__ == "__main__":
 
-    # Used to assign the proper objects type without actually executing them
-    _storage = Storage()
-    _logger = logger.setup(_MODULE_NAME)
-    _event_loop = asyncio.get_event_loop()
+    message = _MESSAGES_LIST["e000012"]
+    print (message)
+
+    if False:
+        # Used to assign the proper objects type without actually executing them
+        _storage = Storage("127.0.0.1", "0")
+        _logger = logger.setup(_MODULE_NAME)
+        _event_loop = asyncio.get_event_loop()

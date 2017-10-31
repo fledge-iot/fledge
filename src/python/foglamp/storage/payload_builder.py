@@ -114,6 +114,18 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
+    def DISTINCT(cls, cols):
+        if cols is None:
+            return cls
+        if not isinstance(cols, list):
+            return cls
+        if len(cols) == 0:
+            return cls
+        cls.query_payload["modifier"] = "distinct"
+        cls.query_payload["return"] = cols
+        return cls
+
+    @classmethod
     def UPDATE_TABLE(cls, tbl_name):
         return cls.FROM(tbl_name)
 

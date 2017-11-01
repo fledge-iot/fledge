@@ -368,27 +368,40 @@ class Ingest(object):
 
                     res = readings_storage.append(json.dumps(payload))
 
-                    # TODO: if error (simulate by stopping storage manually) then stop
-                    batch_size = len(readings_list)
-                    cls._readings_stats += batch_size
+                    try:
+                        if res["response"] == "appended":
+                            batch_size = len(readings_list)
+                            cls._readings_stats += batch_size
+                    except KeyError:
+                        # if key error in next, it will be automatically in parent except block
+                        if res["retryable"]:  # retryable is bool
+                            # raise and exception handler will retry
+                            raise res["message"]
+                        else:
+                            # not re-tryable
+                            _LOGGER.error(res["message"])
+                            batch_size = len(readings_list)
+                            cls._discarded_readings_stats += batch_size
+                            # let the loop break
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
                     #               list_index, batch_size)
 
                     break
-                except Exception:  # TODO: replace with known exception and re-tryable
+                except Exception:
                     attempt += 1
 
                     # TODO logging each time is overkill
                     _LOGGER.exception('Insert failed on attempt #%s, list index: %s',
                                       attempt, list_index)
 
-                    if cls._stop and attempt >= 5:
+                    if cls._stop and attempt >= 1:
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
                         _LOGGER.warning('Insert failed: Queue index: %s Batch size: %s', list_index, batch_size)
-                        break
+
+                    break
 
             del readings_list[:batch_size]
 

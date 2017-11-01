@@ -489,6 +489,7 @@ class Ingest(object):
             cls._readings_stats = 0
 
             try:
+                # FIXME: Use Statistics object post merge of FOGL-519
                 await statistics.update_statistics_value('READINGS', readings)
             except Exception:  # TODO catch real exception
                 cls._readings_stats += readings
@@ -497,6 +498,7 @@ class Ingest(object):
             readings = cls._discarded_readings_stats
             cls._discarded_readings_stats = 0
             try:
+                # FIXME: Use Statistics object post merge of FOGL-519
                 await statistics.update_statistics_value('DISCARDED', readings)
             # TODO catch real exception
             except Exception:  # TODO catch real exception

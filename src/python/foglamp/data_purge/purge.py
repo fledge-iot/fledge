@@ -223,6 +223,7 @@ def purge_main():
     total_purged, unsent_purged = purge(config, _READING_TABLE)
 
     event_loop = asyncio.get_event_loop()
+    # FIXME: Use Statistics object post merge of FOGL-626
     event_loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
     event_loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
 

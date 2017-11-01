@@ -139,7 +139,7 @@ class Purge:
         self._insert_into_log(level=error_level, log={"start_time": start_time, "end_time": end_time,
                                                       "rowsRemoved": total_rows_removed,
                                                       "unsentRowsRemoved": unsent_rows_removed,
-                                                      "rows_retained": unsent_retained, "rowsRemaining": total_count})
+                                                      "rowsRetained": unsent_retained, "rowsRemaining": total_count})
 
         return total_rows_removed, unsent_rows_removed
 

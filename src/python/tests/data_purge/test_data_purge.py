@@ -28,7 +28,7 @@ __version__ = "${VERSION}"
 class TestPurge:
 
     # TODO: FOGL-510 Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
-    _core_management_port = 36979
+    _core_management_port = 43807
 
     _store = Storage("localhost", _core_management_port)
     _readings = Readings("localhost", _core_management_port)
@@ -168,7 +168,7 @@ class TestPurge:
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
-        assert log[1]["rows_retained"] == 0
+        assert log[1]["rowsRetained"] == 0
         assert log[1]["rowsRemaining"] == 0
 
         stats = self._get_stats()
@@ -194,7 +194,7 @@ class TestPurge:
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
-        assert log[1]["rows_retained"] == 1
+        assert log[1]["rowsRetained"] == 1
         assert log[1]["rowsRemaining"] == 1
 
         stats = self._get_stats()
@@ -223,7 +223,7 @@ class TestPurge:
         assert log[0] == 2
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 1
-        assert log[1]["rows_retained"] == 0
+        assert log[1]["rowsRetained"] == 0
         assert log[1]["rowsRemaining"] == 0
 
         stats = self._get_stats()
@@ -257,7 +257,7 @@ class TestPurge:
         assert log[0] == 2
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 1
-        assert log[1]["rows_retained"] == 1
+        assert log[1]["rowsRetained"] == 1
         assert log[1]["rowsRemaining"] == 1
 
         stats = self._get_stats()
@@ -292,7 +292,7 @@ class TestPurge:
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 0
-        assert log[1]["rows_retained"] == 0
+        assert log[1]["rowsRetained"] == 0
         assert log[1]["rowsRemaining"] == 1
 
         stats = self._get_stats()
@@ -324,7 +324,7 @@ class TestPurge:
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
-        assert log[1]["rows_retained"] == 2
+        assert log[1]["rowsRetained"] == 2
         assert log[1]["rowsRemaining"] == 2
 
         stats = self._get_stats()
@@ -357,7 +357,7 @@ class TestPurge:
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
-        assert log[1]["rows_retained"] == 2
+        assert log[1]["rowsRetained"] == 2
         assert log[1]["rowsRemaining"] == 2
 
         stats = self._get_stats()
@@ -390,7 +390,7 @@ class TestPurge:
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 0
-        assert log[1]["rows_retained"] == 0
+        assert log[1]["rowsRetained"] == 0
         assert log[1]["rowsRemaining"] == 1
 
         stats = self._get_stats()
@@ -422,7 +422,7 @@ class TestPurge:
         assert log[0] == 2
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 1
-        assert log[1]["rows_retained"] == 1
+        assert log[1]["rowsRetained"] == 1
         assert log[1]["rowsRemaining"] == 1
 
         stats = self._get_stats()

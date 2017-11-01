@@ -207,6 +207,16 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().HAVING().payload()
         assert expected == json.loads(res)
 
+    def test_expr_payload(self):
+
+        res = PayloadBuilder().WHERE(["key", "=", "READINGS"]).EXPR(["value", "+", 10]).payload()
+        assert _payload("data/payload_expr1.json") == json.loads(res)
+
+        exprs = (["value1", "+", 10], ["value2", "-", 5])  # a tuple
+        res = PayloadBuilder().WHERE(["key", "=", "READINGS"]).EXPR(exprs).payload()
+        assert 2 == len(json.loads(res))
+        assert _payload("data/payload_expr2.json") == json.loads(res)
+
     def test_complex_select_payload(self):
         res = PayloadBuilder() \
             .SELECT("id", "name") \

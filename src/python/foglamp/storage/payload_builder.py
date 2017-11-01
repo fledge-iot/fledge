@@ -285,6 +285,22 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
+    def EXPR(cls, arg, *args):
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
+
+        for arg in args:
+            expr = OrderedDict()
+            expr["column"] = arg[0]
+            expr["operator"] = arg[1]
+            expr["value"] = arg[2]
+
+            if 'expressions' in cls.query_payload:
+                cls.query_payload['expressions'].append(expr)
+            else:
+                cls.query_payload['expressions'] = [expr]
+        return cls
+
+    @classmethod
     def payload(cls):
         return json.dumps(cls.query_payload, sort_keys=False)
 

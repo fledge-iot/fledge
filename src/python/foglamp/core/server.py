@@ -17,9 +17,10 @@ import http
 import json
 
 from foglamp import logger
-from foglamp.core import routes
-from foglamp.core import middleware
-from foglamp.core.service_registry.instance import Service
+from foglamp.core import routes as admin_routes
+from foglamp.microservice_management import routes as management_routes
+from foglamp.web import middleware
+from foglamp.microservice_management.service_registry.instance import Service
 from foglamp.core.scheduler import Scheduler
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
@@ -56,7 +57,7 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        routes.setup(app)
+        admin_routes.setup(app)
         return app
 
     @staticmethod
@@ -66,7 +67,7 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        routes.core_setup(app)
+        management_routes.setup(app, is_core=True)
         return app
 
     @classmethod

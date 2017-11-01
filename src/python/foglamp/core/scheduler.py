@@ -23,7 +23,7 @@ from sqlalchemy.dialects import postgresql as pg_types
 
 from foglamp import logger
 from foglamp import configuration_manager
-from foglamp.core.service_registry.instance import Service
+from foglamp.microservice_management.service_registry.instance import Service
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

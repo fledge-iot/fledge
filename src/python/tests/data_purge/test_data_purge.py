@@ -5,7 +5,6 @@
 # FOGLAMP_END
 
 import asyncio
-from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
 import pytest
 import random
@@ -28,7 +27,7 @@ __version__ = "${VERSION}"
 class TestPurge:
 
     # TODO: FOGL-510 Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
-    _core_management_port = 43807
+    _core_management_port = 39940
 
     _store = Storage("localhost", _core_management_port)
     _readings = Readings("localhost", _core_management_port)
@@ -91,17 +90,8 @@ class TestPurge:
         """Get values from readings table where asset_code is asset_code of test data
         """
 
-        # TODO: use payload builder
-
-        cond1 = OrderedDict()
-        cond1['column'] = 'asset_code'
-        cond1['condition'] = '='
-        cond1['value'] = 'TEST_PURGE_UNIT'
-    
-        query_payload = OrderedDict()
-        query_payload['where'] = cond1
-    
-        res = cls._readings.query(json.dumps(query_payload))
+        query_payload = PayloadBuilder().WHERE(["asset_code", "=", 'TEST_PURGE_UNIT']).payload()
+        res = cls._readings.query(query_payload)
         return res
     
     @classmethod

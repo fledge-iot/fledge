@@ -13,7 +13,7 @@ import uuid
 import json
 
 from foglamp import configuration_manager
-from foglamp.data_purge.purge import start
+from foglamp.data_purge.purge import Purge
 from foglamp.storage.payload_builder import PayloadBuilder
 from foglamp.storage.storage import Storage, Readings
 
@@ -26,10 +26,13 @@ __version__ = "${VERSION}"
 @pytest.allure.feature("unit")
 @pytest.allure.story("data_purge")
 class TestPurge:
-    # TODO: FOGL-510:Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
+
+    # TODO: FOGL-510 Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
     _core_management_port = 36979
+
     _store = Storage("localhost", _core_management_port)
     _readings = Readings("localhost", _core_management_port)
+
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
 
     @classmethod
@@ -49,7 +52,7 @@ class TestPurge:
         # Update streams
         payload = PayloadBuilder().SET(last_object=0).payload()
         cls._store.update_tbl("streams", payload)
-        #
+
         # Restore default configuration
         cls._update_configuration()
     
@@ -63,6 +66,7 @@ class TestPurge:
     
         """
         readings = []
+
         read = dict()
         read["asset_code"] = "TEST_PURGE_UNIT"
         read["read_key"] = str(uuid.uuid4())
@@ -70,10 +74,14 @@ class TestPurge:
         read['reading']['rate'] = random.randint(1, 100)
         ts = str(datetime.now(tz=timezone.utc) - timedelta(hours=hours_delta))
         read["user_ts"] = ts
+
         readings.append(read)
+
         payload = dict()
         payload['readings'] = readings
+
         cls._readings.append(json.dumps(payload))
+
         payload = PayloadBuilder.AGGREGATE(["max", "id"]).payload()
         result = cls._store.query_tbl_with_payload("readings", payload)
         return int(result["rows"][0]["max_id"])
@@ -82,6 +90,9 @@ class TestPurge:
     def _get_reads(cls):
         """Get values from readings table where asset_code is asset_code of test data
         """
+
+        # TODO: use payload builder
+
         cond1 = OrderedDict()
         cond1['column'] = 'asset_code'
         cond1['condition'] = '='
@@ -106,7 +117,7 @@ class TestPurge:
         else:
             payload = PayloadBuilder().SET(last_object=id_last_object).payload()
             cls._store.update_tbl("streams", payload)
-    
+
     @classmethod
     def _update_configuration(cls, age=72, retain_unsent=False) -> dict:
         """"Update the configuration table with the appropriate information regarding "PURE_READ" using pre-existing
@@ -132,8 +143,10 @@ class TestPurge:
         """
         payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", 'PURGED']).payload()
         result_purged = cls._store.query_tbl_with_payload("statistics", payload)
+
         payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", 'UNSNPURGED']).payload()
         result_unsnpurged = cls._store.query_tbl_with_payload("statistics", payload)
+
         return result_purged["rows"][0]["value"], result_unsnpurged["rows"][0]["value"]
     
     @classmethod
@@ -148,13 +161,16 @@ class TestPurge:
     
     def test_no_read_purge(self):
         """Test that when there is no data in readings table, purge process runs but no data is purged"""
-        start("localhost", self._core_management_port)
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
         assert log[1]["rows_retained"] == 0
         assert log[1]["rowsRemaining"] == 0
+
         stats = self._get_stats()
         assert stats[0] == 0
         assert stats[1] == 0
@@ -170,16 +186,21 @@ class TestPurge:
         """
         
         last_id = self._insert_readings_data(0)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
         assert log[1]["rows_retained"] == 1
         assert log[1]["rowsRemaining"] == 1
+
         stats = self._get_stats()
         assert stats[0] == 0
         assert stats[1] == 0
+
         readings = self._get_reads()
         assert readings["count"] == 1
         assert readings["rows"][0]["id"] == last_id
@@ -195,16 +216,20 @@ class TestPurge:
         """
         
         self._insert_readings_data(80)
-        start("localhost", self._core_management_port)
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 2
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 1
         assert log[1]["rows_retained"] == 0
         assert log[1]["rowsRemaining"] == 0
+
         stats = self._get_stats()
         assert stats[0] == 1
         assert stats[1] == 1
+
         readings = self._get_reads()
         assert readings["count"] == 0
 
@@ -224,23 +249,28 @@ class TestPurge:
         self._insert_readings_data(80)
         last_id = self._insert_readings_data(0)
         self._update_streams(rows_to_update=1, id_last_object=last_id)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 2
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 1
         assert log[1]["rows_retained"] == 1
         assert log[1]["rowsRemaining"] == 1
+
         stats = self._get_stats()
         assert stats[0] == 1
         assert stats[1] == 1
+
         readings = self._get_reads()
         assert readings["count"] == 1
         assert readings["rows"][0]["id"] == last_id
     
     def test_all_dest_sent_reads_purge(self):
-        """Test that when there is data in readings table which is sent to all historians
-         with user_ts >= configured age and user_ts = now(),
+        """ Test that when there is data in readings table which is sent to all historians
+        with user_ts >= configured age and user_ts = now(),
         purge process runs and data is purged
         If retainUnsent=False then all readings older than the age passed in,
         regardless of the value of sent will be removed
@@ -254,16 +284,21 @@ class TestPurge:
         self._insert_readings_data(80)
         last_id = self._insert_readings_data(0)
         self._update_streams(rows_to_update=-1, id_last_object=last_id)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 0
         assert log[1]["rows_retained"] == 0
         assert log[1]["rowsRemaining"] == 1
+
         stats = self._get_stats()
         assert stats[0] == 1
         assert stats[1] == 0
+
         readings = self._get_reads()
         assert readings["count"] == 1
         assert readings["rows"][0]["id"] == last_id
@@ -281,16 +316,21 @@ class TestPurge:
         self._insert_readings_data(80)
         self._insert_readings_data(0)
         self._update_configuration(age=72, retain_unsent=True)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
         assert log[1]["rows_retained"] == 2
         assert log[1]["rowsRemaining"] == 2
+
         stats = self._get_stats()
         assert stats[0] == 0
         assert stats[1] == 0
+
         readings = self._get_reads()
         assert readings["count"] == 2
 
@@ -309,16 +349,21 @@ class TestPurge:
         last_id = self._insert_readings_data(0)
         self._update_configuration(age=72, retain_unsent=True)
         self._update_streams(rows_to_update=1, id_last_object=last_id)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 0
         assert log[1]["unsentRowsRemoved"] == 0
         assert log[1]["rows_retained"] == 2
         assert log[1]["rowsRemaining"] == 2
+
         stats = self._get_stats()
         assert stats[0] == 0
         assert stats[1] == 0
+
         readings = self._get_reads()
         assert readings["count"] == 2
 
@@ -337,16 +382,21 @@ class TestPurge:
         last_id = self._insert_readings_data(0)
         self._update_configuration(age=72, retain_unsent=True)
         self._update_streams(rows_to_update=-1, id_last_object=last_id)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 0
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 0
         assert log[1]["rows_retained"] == 0
         assert log[1]["rowsRemaining"] == 1
+
         stats = self._get_stats()
         assert stats[0] == 1
         assert stats[1] == 0
+
         readings = self._get_reads()
         assert readings["count"] == 1
         assert readings["rows"][0]["id"] == last_id
@@ -364,16 +414,21 @@ class TestPurge:
         self._insert_readings_data(15)
         last_id = self._insert_readings_data(0)
         self._update_configuration(age=15, retain_unsent=False)
-        start("localhost", self._core_management_port)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
         log = self._get_log()
         assert log[0] == 2
         assert log[1]["rowsRemoved"] == 1
         assert log[1]["unsentRowsRemoved"] == 1
         assert log[1]["rows_retained"] == 1
         assert log[1]["rowsRemaining"] == 1
+
         stats = self._get_stats()
         assert stats[0] == 1
         assert stats[1] == 1
+
         readings = self._get_reads()
         assert readings["count"] == 1
         assert readings["rows"][0]["id"] == last_id

@@ -8,7 +8,8 @@
 """Purge process starter"""
 
 import sys
-from foglamp.data_purge import purge
+
+from foglamp.data_purge.purge import Purge
 from foglamp import logger
 from foglamp.parser import ArgumentParserError, Parser
 
@@ -32,4 +33,5 @@ if __name__ == '__main__':
     elif core_mgt_address is None:
         _logger.warning("Required argument '--address' is missing")
     else:
-        purge.start(core_mgt_address, core_mgt_port)
+        purge = Purge(core_mgt_address, core_mgt_port)
+        purge.start()

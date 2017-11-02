@@ -14,7 +14,7 @@ import cbor2
 
 from foglamp import logger
 from foglamp.device.ingest import Ingest
-
+import uuid
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -129,6 +129,9 @@ class CoAPIngest(aiocoap.resource.Resource):
                 timestamp = payload.get('timestamp')
 
                 key = payload.get('key')
+
+                if key is None:
+                    key = uuid.uuid4()
 
                 # readings and sensor_readings are optional
                 try:

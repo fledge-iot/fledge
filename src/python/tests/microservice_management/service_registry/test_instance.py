@@ -7,7 +7,7 @@
 import uuid
 import pytest
 
-from foglamp.core.service_registry.instance import Service
+from foglamp.microservice_management.service_registry.instance import Service
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

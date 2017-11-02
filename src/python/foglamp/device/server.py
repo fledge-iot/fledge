@@ -195,8 +195,23 @@ class Server:
                 signal_name,
                 lambda: asyncio.ensure_future(cls._stop(loop)))
 
-        cls._make_microservice_management_app()
-        cls._run_microservice_management_app(loop)
-        cls._register_microservice()
+        try:
+            cls._make_microservice_management_app()
+        except Exception:
+            _LOGGER.exception("Unable to create microservice management app")
+            raise
+
+        try:
+            cls._run_microservice_management_app(loop)
+        except Exception:
+            _LOGGER.exception("Unable to run microservice management app")
+            raise
+
+        try:
+            cls._register_microservice()
+        except Exception:
+            _LOGGER.exception("Unable to register")
+            raise
+
         asyncio.ensure_future(cls._start(loop))
         loop.run_forever()

@@ -130,9 +130,6 @@ class CoAPIngest(aiocoap.resource.Resource):
 
                 key = payload.get('key')
 
-                if key is None:
-                    key = uuid.uuid4()
-
                 # readings and sensor_readings are optional
                 try:
                     readings = payload['readings']

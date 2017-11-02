@@ -26,8 +26,7 @@ import asyncio
 import time
 
 from foglamp import configuration_manager
-# from foglamp.statistics import Statistics
-from foglamp import statistics
+from foglamp.statistics import Statistics
 from foglamp.storage.payload_builder import PayloadBuilder
 from foglamp.storage.storage import Storage, Readings
 from foglamp import logger
@@ -65,12 +64,9 @@ class Purge:
     def write_statistics(self, total_purged, unsent_purged):
         loop = asyncio.get_event_loop()
 
-        # stats = Statistics(self._storage)
-        # loop.run_until_complete(stats.update('PURGED', total_purged))
-        # loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
-
-        loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
-        loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
+        stats = Statistics(self._storage)
+        loop.run_until_complete(stats.update('PURGED', total_purged))
+        loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 
     def _insert_into_log(self, level=0, log=None):
         """" INSERT into log table values """

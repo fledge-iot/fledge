@@ -30,7 +30,7 @@ from foglamp.storage.storage import Storage, Readings
 from foglamp import logger, statistics, configuration_manager
 
 import foglamp.storage.payload_builder as payload_builder
-
+from foglamp.statistics import Statistics
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -848,16 +848,16 @@ class SendingProcess:
 
         return translator_ok
 
-    @staticmethod
-    def _update_statistics(num_sent, stream_id):
+    def _update_statistics(self, num_sent, stream_id):
         """ Updates FogLAMP statistics
 
         Raises :
         """
 
         try:
-            stat = 'SENT_' + str(stream_id)
-            _event_loop.run_until_complete(statistics.update_statistics_value(stat, num_sent))
+            key = 'SENT_' + str(stream_id)
+            _stats = Statistics(self._storage)
+            _event_loop.run_until_complete(_stats.update(key, num_sent))
 
         except Exception:
             _message = _MESSAGES_LIST["e000010"]

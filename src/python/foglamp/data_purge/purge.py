@@ -24,14 +24,14 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
+
 from foglamp import configuration_manager
-from foglamp import statistics
-from foglamp.storage.storage import Storage, Readings
+from foglamp.statistics import Statistics
 from foglamp.storage.payload_builder import PayloadBuilder
+from foglamp.storage.storage import Storage, Readings
 from foglamp import logger
 
 
-"""Script information and connection to the Database"""
 __author__ = "Ori Shadmon, Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
@@ -39,6 +39,7 @@ __version__ = "${VERSION}"
 
 
 class Purge:
+
     _DEFAULT_PURGE_CONFIG = {
         "age": {
             "description": "Age of data to be retained, all data that is older than this value will be removed," +
@@ -60,11 +61,12 @@ class Purge:
         self._readings = Readings(core_mgt_address, core_mgt_port)
         self._logger = logger.setup("Data Purge")
 
-    @classmethod
-    def write_statistics(cls, total_purged, unsent_purged):
+    def write_statistics(self, total_purged, unsent_purged):
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(statistics.update_statistics_value('PURGED', total_purged))
-        loop.run_until_complete(statistics.update_statistics_value('UNSNPURGED', unsent_purged))
+
+        stats = Statistics(self._storage)
+        loop.run_until_complete(stats.update('PURGED', total_purged))
+        loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 
     def _insert_into_log(self, level=0, log=None):
         """" INSERT into log table values """
@@ -89,7 +91,7 @@ class Purge:
         return event_loop.run_until_complete(configuration_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
 
     def purge_data(self, config):
-        """"Purge readings table based on the set configuration
+        """" Purge readings table based on the set configuration
         :return:
             total rows removed
             rows removed that were not sent to any historian
@@ -107,7 +109,7 @@ class Purge:
         result = self._storage.query_tbl_with_payload("streams", payload)
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
-        """Error Levels:
+        """ Error Levels:
             - 0: No errors
             - 1: Rows failed to remove
             - 2: Unsent rows were removed
@@ -133,19 +135,21 @@ class Purge:
         self._insert_into_log(level=error_level, log={"start_time": start_time, "end_time": end_time,
                                                       "rowsRemoved": total_rows_removed,
                                                       "unsentRowsRemoved": unsent_rows_removed,
-                                                      "rows_retained": unsent_retained, "rowsRemaining": total_count})
+                                                      "rowsRetained": unsent_retained, "rowsRemaining": total_count})
 
         return total_rows_removed, unsent_rows_removed
 
+    def start(self):
+        """" Starts the purge task
 
-def start(core_mgt_address, core_mgt_port):
-    """"Entry point of the purge process
-        Configure
-        Collect statistics
-        Write statistics to statistics table
-    """
-
-    purge = Purge(core_mgt_address, core_mgt_port)
-    config = purge.set_configuration()
-    total_purged, unsent_purged = purge.purge_data(config)
-    purge.write_statistics(total_purged, unsent_purged)
+            1. Write and read Purge task configuration
+            2. Purge as per the configuration
+            3. Collect statistics
+            4. Write statistics to statistics table
+        """
+        try:
+            config = self.set_configuration()
+            total_purged, unsent_purged = self.purge_data(config)
+            self.write_statistics(total_purged, unsent_purged)
+        except Exception as ex:
+            self._logger.exception(str(ex))

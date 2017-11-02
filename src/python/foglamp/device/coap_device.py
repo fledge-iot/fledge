@@ -14,7 +14,6 @@ import cbor2
 
 from foglamp import logger
 from foglamp.device.ingest import Ingest
-import uuid
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

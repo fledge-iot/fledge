@@ -565,7 +565,7 @@ class Ingest(object):
         read = dict()
         read['asset_code'] = asset
         read['read_key'] = str(key)
-        read['reading'] = json.dumps(readings)
+        read['reading'] = readings
         read['user_ts'] = timestamp
 
         readings_list.append(read)

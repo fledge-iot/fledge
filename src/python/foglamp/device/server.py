@@ -26,7 +26,7 @@ class Server:
 
     _core_management_host = None
     _core_management_port = None
-    """ address of service management api"""
+    """ address of service management api """
 
     _plugin_name = None  # type:str
     """"The name of the plugin"""
@@ -101,7 +101,7 @@ class Server:
             cls._plugin_data = cls._plugin.plugin_init(config)
             cls._plugin.plugin_run(cls._plugin_data)
 
-            await Ingest.start()
+            await Ingest.start(core_mgt_host, core_mgt_port)
         except Exception:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(plugin)
@@ -128,4 +128,3 @@ class Server:
 
         asyncio.ensure_future(cls._start(plugin, core_mgt_host, core_mgt_port, loop))
         loop.run_forever()
-

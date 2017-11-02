@@ -37,4 +37,3 @@ elif core_mgt_address is None:
     _logger.warning("Required argument '--address' is missing")
 else:
     Server.start(plugin, core_mgt_address, core_mgt_port)
-

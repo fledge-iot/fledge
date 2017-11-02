@@ -8,20 +8,17 @@
 
 import asyncio
 import datetime
-import logging
-import os
 import time
 import uuid
-from random import randint
 from typing import List, Union
 
-import asyncpg
-import dateutil.parser
+# import dateutil.parser
 import json
 
 from foglamp import logger
 from foglamp import statistics
 from foglamp import configuration_manager
+from foglamp.storage.storage import Readings
 
 
 __author__ = "Terris Linenbach"
@@ -38,12 +35,14 @@ class Ingest(object):
     """Adds sensor readings to FogLAMP
 
     Also tracks readings-related statistics.
-
-    Readings are added to a configurable list. Configurable batches
-    of inserts are sent to storage via multiple connections concurrently.
+    Readings are added to a configurable list. Configurable batches of inserts are sent to storage
     """
 
     # Class attributes
+
+    _core_management_host = ""
+    _core_management_port = 0
+
     _readings_stats = 0  # type: int
     """Number of readings accepted before statistics were written to storage"""
 
@@ -125,7 +124,7 @@ class Ingest(object):
                                "statistics to storage",
                 "type": "integer",
                 "default": str(cls._write_statistics_frequency_seconds)
-            },
+             },
             "readings_buffer_size": {
                 "description": "The maximum number of readings to buffer in memory",
                 "type": "integer",
@@ -185,10 +184,13 @@ class Ingest(object):
             config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
 
     @classmethod
-    async def start(cls):
+    async def start(cls, core_mgt_host, core_mgt_port):
         """Starts the server"""
         if cls._started:
             return
+
+        cls._core_management_host = core_mgt_host
+        cls._core_management_port = core_mgt_port
 
         await cls._read_config()
 
@@ -275,24 +277,13 @@ class Ingest(object):
         cls._discarded_readings_stats += 1
 
     @classmethod
-    async def _close_connection(cls, connection: asyncpg.connection.Connection):
-        if connection is not None:
-            try:
-                await connection.close()
-            except Exception:
-                _LOGGER.exception('Closing connection failed')
-
-    @classmethod
     async def _insert_readings(cls, list_index):
         """Inserts rows into the readings table
 
-        Uses "copy" to load rows into a temp table and then
-        inserts the temp table into the readings table because
-        "copy" does not support "on conflict ignore"
+        Use Readings().append(json_payload_of_readings)
         """
         _LOGGER.info('Insert readings loop started')
 
-        connection = None  # type: asyncpg.connection.Connection
         readings_list = cls._readings_lists[list_index]
         min_readings_reached = cls._readings_list_batch_size_reached[list_index]
         list_not_empty = cls._readings_list_not_empty[list_index]
@@ -339,12 +330,9 @@ class Ingest(object):
                 # _LOGGER.debug('Waiting for first item: Queue index: %s', list_index)
 
                 try:
-                    if connection is None:
-                        await waiter
-                    else:
-                        await asyncio.wait_for(
-                                waiter,
-                                cls._max_readings_insert_batch_connection_idle_seconds)
+                    await asyncio.wait_for(
+                            waiter,
+                            cls._max_readings_insert_batch_connection_idle_seconds)
                 except asyncio.CancelledError:
                     # Don't assume the list is empty
 
@@ -354,8 +342,6 @@ class Ingest(object):
                 except asyncio.TimeoutError:
                     # _LOGGER.debug('Closing idle connection: Queue index: %s',
                     #               list_index)
-                    await cls._close_connection(connection)
-                    connection = None
                     continue
                 finally:
                     cls._insert_readings_wait_tasks[list_index] = None
@@ -366,102 +352,61 @@ class Ingest(object):
                     time.time() - cls._last_insert_time) <
                     cls._readings_insert_batch_timeout_seconds):
                 continue
-                
-            # inserts = list[:batch_size]
-            # inserts = [(item[0], item[1], item[2],
-            #           json.dumps(item[3])) for item in list[:batch_size]]
 
             attempt = 0
             cls._last_insert_time = time.time()
 
             # Perform insert. Retry when fails.
+            readings_storage = Readings(cls._core_management_host, cls._core_management_port)
             while True:
                 # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
                 #               len(list))
 
                 try:
-                    if connection is None:
-                        __CONNECTION = {'user': 'foglamp', 'database': 'foglamp'}
+                    payload = dict()
+                    payload['readings'] = readings_list
 
-                        try:
-                            snap_user_common = os.environ['SNAP_USER_COMMON']
-                            unix_socket_dir = "{}/tmp/".format(snap_user_common)
-                            __CONNECTION['host'] = unix_socket_dir
-                        except KeyError:
-                            pass
-                        connection = await asyncpg.connect(**__CONNECTION)
-                        # Create a temp table for 'copy' command
-                        await connection.execute('create temp table t_readings '
-                                                 'as select asset_code, user_ts, read_key, reading '
-                                                 'from foglamp.readings where 1=0')
-                    else:
-                        await connection.execute('truncate table t_readings')
+                    res = readings_storage.append(json.dumps(payload))
 
-                    result1 = await connection.copy_records_to_table(table_name='t_readings',
-                                                                     records=readings_list)
-
-                    result2 = await connection.execute('insert into foglamp.readings '
-                                                       '(asset_code,user_ts,read_key,reading) '
-                                                       'select * from t_readings '
-                                                       'on conflict do nothing')
-
-                    # result1 looks like COPY 10
-                    batch_size = int(result1[5:])
-
-                    # result2 looks like INSERT 0 10
-                    insert_index = result2.index(' ', 7)+1
-                    insert_rows = int(result2[insert_index:])
-
-                    cls._readings_stats += insert_rows
-
-                    # insert_rows < batch_size when key conflict occurs
-                    cls._discarded_readings_stats += batch_size - insert_rows
+                    try:
+                        if res["response"] == "appended":
+                            batch_size = len(readings_list)
+                            cls._readings_stats += batch_size
+                    except KeyError:
+                        # if key error in next, it will be automatically in parent except block
+                        if res["retryable"]:  # retryable is bool
+                            # raise and exception handler will retry
+                            raise res["message"]
+                        else:
+                            # not re-tryable
+                            _LOGGER.error(res["message"])
+                            batch_size = len(readings_list)
+                            cls._discarded_readings_stats += batch_size
+                            # let the loop break
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
                     #               list_index, batch_size)
 
                     break
-                except Exception:  # TODO: Catch exception from asyncpg
+                except Exception:
                     attempt += 1
 
                     # TODO logging each time is overkill
                     _LOGGER.exception('Insert failed on attempt #%s, list index: %s',
                                       attempt, list_index)
 
-                    if cls._stop and attempt >= 5:
+                    if cls._stop and attempt >= 1:
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
-                        # _LOGGER.debug('Insert failed: Queue index: %s Batch size: %s',
-                        #               list_index, batch_size)
-                        break
-                    else:
-                        if connection is None:
-                            if not cls._stop:
-                                # Connection failure
-                                waiter = asyncio.ensure_future(asyncio.sleep(
-                                    randint(1,
-                                            cls._max_readings_insert_batch_reconnect_wait_seconds)))
+                        _LOGGER.warning('Insert failed: Queue index: %s Batch size: %s', list_index, batch_size)
 
-                                cls._insert_readings_wait_tasks[list_index] = waiter
-
-                                try:
-                                    await waiter
-                                except asyncio.TimeoutError:
-                                    pass
-                                finally:
-                                    cls._insert_readings_wait_tasks[list_index] = None
-                        else:
-                            await cls._close_connection(connection)
-                            connection = None
+                    break
 
             del readings_list[:batch_size]
 
             if not lists_not_full.is_set():
                 lists_not_full.set()
-
-        # End of the method
-        await cls._close_connection(connection)
 
         _LOGGER.info('Insert readings loop stopped')
 
@@ -569,9 +514,14 @@ class Ingest(object):
             if timestamp is None:
                 raise ValueError('timestamp can not be None')
 
-            if not isinstance(timestamp, datetime.datetime):
-                # validate
-                timestamp = dateutil.parser.parse(timestamp)
+            # TODO: for?
+            ''' below code from node JS, works fine!
+                dt = new Date()
+                timestamp = dt.toISOString()
+            '''
+            # if not isinstance(timestamp, datetime.datetime):
+            #     # validate
+            #     timestamp = dateutil.parser.parse(timestamp)
 
             if key is not None and not isinstance(key, uuid.UUID):
                 # Validate
@@ -604,8 +554,13 @@ class Ingest(object):
         list_index = cls._current_readings_list_index
         readings_list = cls._readings_lists[list_index]
 
-        readings = json.dumps(readings)
-        readings_list.append((asset, timestamp, key, readings))
+        read = dict()
+        read['asset_code'] = asset
+        read['read_key'] = str(key)
+        read['reading'] = json.dumps(readings)
+        read['user_ts'] = timestamp
+
+        readings_list.append(read)
 
         list_size = len(readings_list)
 

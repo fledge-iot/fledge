@@ -18,6 +18,7 @@ __version__ = "${VERSION}"
 
 store = Storage("0.0.0.0", core_management_port=37251)
 
+
 # TODO: remove once FOGL-510 is done
 @pytest.fixture(scope="module", autouse=True)
 def create_init_data():

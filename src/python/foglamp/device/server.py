@@ -8,10 +8,15 @@
 
 import asyncio
 import signal
+from aiohttp import web
+import http.client
+import json
 
 from foglamp import configuration_manager
 from foglamp import logger
 from foglamp.device.ingest import Ingest
+from foglamp.microservice_management import routes
+from foglamp.web import middleware
 
 
 __author__ = "Terris Linenbach"
@@ -125,6 +130,41 @@ class Server:
             loop.add_signal_handler(
                 signal_name,
                 lambda: asyncio.ensure_future(cls._stop(loop)))
+
+        microservice_management_app = web.Application(middlewares=[middleware.error_middleware])
+        routes.setup(microservice_management_app)
+
+        microservice_management_handler = microservice_management_app.make_handler()
+        coro = loop.create_server(microservice_management_handler, '0.0.0.0', 0)
+        # added coroutine
+        microservice_management_server = loop.run_until_complete(coro)
+
+        microservice_management_address, microservice_management_port = microservice_management_server.sockets[0].getsockname()
+        _LOGGER.warning('Device - Management API started on http://%s:%s', microservice_management_address, microservice_management_port)
+
+        conn = http.client.HTTPConnection("{0}:{1}".format(core_mgt_host, core_mgt_port))
+        
+        service_registration_payload = {
+                "name"            : plugin,
+                "type"            : "Southbound",
+                "management_port" : int(microservice_management_port),
+                "service_port"    : 0,
+                "address"         : "127.0.0.1",
+                "protocol"        : "http"
+            }
+
+        conn.request(method='POST', url='/foglamp/service', body=json.dumps(service_registration_payload))
+        r = conn.getresponse()
+
+        if r.status in range(400, 500):
+            _LOGGER.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _LOGGER.error("Server error code: %d", r.status)
+
+        res = r.read().decode()
+        conn.close()
+        response = json.loads(res)
+        _LOGGER.warning('Device - Registered Service %s', response["id"])
 
         asyncio.ensure_future(cls._start(plugin, core_mgt_host, core_mgt_port, loop))
         loop.run_forever()

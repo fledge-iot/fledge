@@ -43,6 +43,9 @@ class Ingest(object):
     _core_management_host = ""
     _core_management_port = 0
 
+    readings_storage = None  # type: Readings
+    storage = None  # type: Storage
+
     _readings_stats = 0  # type: int
     """Number of readings accepted before statistics were written to storage"""
 
@@ -191,6 +194,9 @@ class Ingest(object):
 
         cls._core_management_host = core_mgt_host
         cls._core_management_port = core_mgt_port
+
+        cls.readings_storage = Readings(cls._core_management_host, cls._core_management_port)
+        cls.storage = Storage(cls._core_management_host, cls._core_management_port)
 
         await cls._read_config()
 
@@ -357,7 +363,6 @@ class Ingest(object):
             cls._last_insert_time = time.time()
 
             # Perform insert. Retry when fails.
-            readings_storage = Readings(cls._core_management_host, cls._core_management_port)
             while True:
                 # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
                 #               len(list))
@@ -366,7 +371,7 @@ class Ingest(object):
                     payload = dict()
                     payload['readings'] = readings_list
 
-                    res = readings_storage.append(json.dumps(payload))
+                    res = cls.readings_storage.append(json.dumps(payload))
 
                     try:
                         if res["response"] == "appended":
@@ -415,8 +420,7 @@ class Ingest(object):
         """Periodically commits collected readings statistics"""
         _LOGGER.info('Device statistics writer started')
 
-        storage = Storage(cls._core_management_host, cls._core_management_port)
-        stats = Statistics(storage)
+        stats = Statistics(cls.storage)
 
         while not cls._stop:
             # stop() calls _write_statistics_sleep_task.cancel().
@@ -437,15 +441,16 @@ class Ingest(object):
             cls._readings_stats = 0
 
             try:
-                stats.update('READINGS', readings)
+                await stats.update('READINGS', readings)
             except Exception:  # TODO catch real exception
                 cls._readings_stats += readings
                 _LOGGER.exception('An error occurred while writing readings statistics')
 
             readings = cls._discarded_readings_stats
             cls._discarded_readings_stats = 0
+            
             try:
-                stats.update('DISCARDED', readings)
+                await stats.update('DISCARDED', readings)
             # TODO catch real exception
             except Exception:  # TODO catch real exception
                 cls._discarded_readings_stats += readings

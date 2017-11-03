@@ -25,24 +25,17 @@ This is because when SORT isn't declared, the order in which rows are returned a
 14. LIMIT  + OFFSET + WHERE + SORT
 """
 
-import asyncio
 import datetime
-import os
 import random
-import signal
 import time
 import uuid
 import aiopg
 import aiopg.sa
 import pytest
-import http.client
-from multiprocessing import Process, Queue
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 from foglamp.core.scheduler.scheduler import Scheduler
 from foglamp.core.scheduler.entities import Task
-from foglamp.core.server import Server
-from foglamp.storage.storage import Storage
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -61,88 +54,13 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
                                        sqlalchemy.Column('exit_code', sqlalchemy.types.INT),
                                        sqlalchemy.Column('reason', sqlalchemy.types.VARCHAR(255)))
 
-_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/home/foglamp/foglamp/FogLAMP')
-_STORAGE_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/services/storage')
-
-"""
-    _address, _host, _m_port, pid are module level variables. 
-    start_storage() and start_server() are module level functions. 
-    setup_module() and teardown_module() are module level setup.
-"""
-
-_is_scheduler_started = False
-_address = None
-_host = '0.0.0.0'
-_m_port = 0
-pid = None
-scheduler = None
-
-
-def start_storage(host, m_port):
-    try:
-        cmd_with_args = ['./storage', '--address={}'.format(host),
-                         '--port={}'.format(m_port)]
-        import subprocess
-        subprocess.call(cmd_with_args, cwd=_STORAGE_DIR)
-    except Exception as ex:
-        pass
-
-
-def start_server(q):
-    loop = asyncio.get_event_loop()
-    app = Server._make_core_app()
-    server_handler = app.make_handler()
-    coro = loop.create_server(server_handler, _host, 0)
-    # added coroutine
-    server = loop.run_until_complete(coro)
-    address, m_port = server.sockets[0].getsockname()
-    q.put((address, m_port))
-    start_storage(address, m_port)
-
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.close()
-        loop.run_until_complete(server.wait_closed())
-        loop.run_until_complete(app.shutdown())
-        loop.run_until_complete(server_handler.shutdown(60.0))
-        loop.run_until_complete(app.cleanup())
-    loop.close()
-
-
-def setup_module():
-    global pid, _address, _m_port, scheduler
-    q = Queue()
-    p = Process(target=start_server, args=(q,))
-    p.start()
-    _address, _m_port = q.get()
-    pid = p.pid
-    scheduler = Scheduler(_address, _m_port)
-
-def teardown_module():
-    global pid, _address, _m_port, scheduler
-
-    try:
-        storage = Storage(_address, _m_port)
-        svc = storage._get_storage_service(_address, _m_port)
-        management_api_url = '{}:{}'.format(svc['address'], svc['management_port'])
-        print(management_api_url)
-        conn = http.client.HTTPConnection(management_api_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('POST', url='/foglamp/service/shutdown', body=None)
-        r = conn.getresponse()
-
-        res = r.read().decode()
-        conn.close()
-        print(res)
-
-        os.kill(pid, signal.SIGTERM)
-    except (OSError, Exception) as ex:
-        print(str(ex))
-
+# TODO: To run this test,
+#       1) Do 'foglamp start' and note the management_port from syslog
+#       2) Change _m_port below with the management_port
+#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/core/test_scheduler_get_tasks.py
+_address = '0.0.0.0'
+_m_port = 44476
+scheduler = Scheduler(_address, _m_port)
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("scheduler get_tasks")
@@ -195,11 +113,6 @@ class TestSchedulerGetTasks:
         :assert:
             when state=0 and state=5 ValueError is called
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         stmt = """INSERT INTO tasks
                         (id, process_name, state, start_time, end_time, pid, exit_code, reason)
                     VALUES ('%s', '%s', %s, '%s', '%s', %s, %s, '');"""
@@ -229,11 +142,6 @@ class TestSchedulerGetTasks:
         :assert:
             number of tasks returned is equal to the limit
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -252,11 +160,6 @@ class TestSchedulerGetTasks:
         :assert:
             the count(task) == total_rows - offset
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -274,11 +177,6 @@ class TestSchedulerGetTasks:
         :assert:
             the number of rows returned is as expected
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -306,11 +204,6 @@ class TestSchedulerGetTasks:
             1. process_name and integer value of task state are as correct
             2. The expected INTEGER value correlate to the actual task state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -349,11 +242,6 @@ class TestSchedulerGetTasks:
         :assert:
             The number of rows returned is equal to the limit of total_rows - offset
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -379,11 +267,6 @@ class TestSchedulerGetTasks:
         :assert:
             The number of rows returned is equal to the limit of the WHERE condition
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -416,13 +299,9 @@ class TestSchedulerGetTasks:
             2. The value per process_name and state is as expected
             3. The numerical value of expected state is correlated to the proper name of the task.state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
+
         for limit in (1, 5, 25, 125, 250, 750, 1000):
             stmt = sqlalchemy.select([_TASKS_TABLE.c.process_name, _TASKS_TABLE.c.state]).select_from(
                 _TASKS_TABLE).order_by(_TASKS_TABLE.c.state.desc(), _TASKS_TABLE.c.process_name.desc()).limit(limit)
@@ -459,11 +338,6 @@ class TestSchedulerGetTasks:
         :assert:
             The number of rows returned is equal to the WHERE condition of total_rows - OFFSET
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -495,11 +369,6 @@ class TestSchedulerGetTasks:
             2. The value per process_name and state is as expected
             3. The numerical value of expected state is correlated to the proper name of the task.state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         total_rows = 100
 
         await self.drop_from_tasks()
@@ -542,11 +411,6 @@ class TestSchedulerGetTasks:
             1. process_name and integer value of task state are as correct
             2. The expected INTEGER value correlate to the actual task state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -586,11 +450,6 @@ class TestSchedulerGetTasks:
         :assert:
             The number of tasks is equal to the limit of the total_rows returned based on the WHERE condition - OFFSET
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -623,11 +482,6 @@ class TestSchedulerGetTasks:
             2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -672,11 +526,6 @@ class TestSchedulerGetTasks:
             2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -715,11 +564,6 @@ class TestSchedulerGetTasks:
             2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -764,11 +608,6 @@ class TestSchedulerGetTasks:
             2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        global _is_scheduler_started, scheduler
-        if _is_scheduler_started is False:
-            await scheduler.start()
-            _is_scheduler_started = True
-
         await self.drop_from_tasks()
         await self.insert_into_tasks()
         for limit in (1, 5, 25, 125, 250, 750, 1000):

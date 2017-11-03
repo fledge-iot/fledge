@@ -13,6 +13,7 @@ import logging
 import math
 import signal
 import sys
+import os
 import time
 import uuid
 from typing import List
@@ -30,6 +31,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+# TODO: FOGL-510 - Prepare foglamp testing environment
+_ENV = os.getenv('FOGLAMP_ENV', 'DEV')
 
 class Scheduler(object):
     """FogLAMP Task Scheduler
@@ -703,16 +706,18 @@ class Scheduler(object):
         # ************ make sure that it go forward only when storage service is ready
         storage_service = None
 
-        while storage_service is None:
+        while storage_service is None and self._storage is None:
             try:
-                found_services = Service.Instances.get(name="FogLAMP Storage")
-                storage_service = found_services[0]
+                # TODO: FOGL-510 - Prepare foglamp testing environment
+                if _ENV != 'TEST':
+                    found_services = Service.Instances.get(name="FogLAMP Storage")
+                    storage_service = found_services[0]
 
                 self._storage = Storage(self._core_management_host, self._core_management_port, svc=storage_service)
                 print("Storage Service: ", type(self._storage))
 
             except (Service.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
-                print(str(ex))
+                print(_ENV, self._core_management_host, self._core_management_port, str(ex))
                 await asyncio.sleep(5)
         # **************
 

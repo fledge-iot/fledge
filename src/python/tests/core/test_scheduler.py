@@ -6,22 +6,16 @@
 
 import asyncio
 import datetime
-import http.client
-import json
 import os
-import signal
 import time
 import uuid
 import aiopg
 import aiopg.sa
 import pytest
-from multiprocessing import Process, Queue
 from foglamp.core.scheduler.scheduler import Scheduler
 from foglamp.core.scheduler.entities import IntervalSchedule, Task, Schedule, TimedSchedule, ManualSchedule, \
     StartUpSchedule
 from foglamp.core.scheduler.exceptions import ScheduleNotFoundError
-from foglamp.core.server import Server
-from foglamp.storage.storage import Storage
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -29,85 +23,12 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
-_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/home/foglamp/foglamp/FogLAMP')
-_STORAGE_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/services/storage')
-
-"""
-    _address, _host, _m_port, pid are module level variables.
-    start_storage() and start_server() are module level functions.
-    setup_module() and teardown_module() are module level setup.
-"""
-
-_address = None
-_host = '0.0.0.0'
-_m_port = 0
-pid = None
-
-
-def start_storage(host, m_port):
-    try:
-        cmd_with_args = ['./storage', '--address={}'.format(host),
-                         '--port={}'.format(m_port)]
-        import subprocess
-        subprocess.call(cmd_with_args, cwd=_STORAGE_DIR)
-    except Exception as ex:
-        pass
-
-
-def start_server(q):
-    loop = asyncio.get_event_loop()
-    app = Server._make_core_app()
-    server_handler = app.make_handler()
-    coro = loop.create_server(server_handler, _host, 0)
-    # added coroutine
-    server = loop.run_until_complete(coro)
-    _address, _m_port = server.sockets[0].getsockname()
-    q.put((_address, _m_port))
-    start_storage(_address, _m_port)
-
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.close()
-        loop.run_until_complete(server.wait_closed())
-        loop.run_until_complete(app.shutdown())
-        loop.run_until_complete(server_handler.shutdown(60.0))
-        loop.run_until_complete(app.cleanup())
-    loop.close()
-
-
-def setup_module():
-    global pid, _address, _m_port
-    q = Queue()
-    p = Process(target=start_server, args=(q,))
-    p.start()
-    _address, _m_port = q.get()
-    pid = p.pid
-
-
-def teardown_module():
-    global pid, _address, _m_port
-
-    try:
-        storage = Storage(_address, _m_port)
-        svc = storage._get_storage_service(_address, _m_port)
-        management_api_url = '{}:{}'.format(svc['address'], svc['management_port'])
-        print(management_api_url)
-        conn = http.client.HTTPConnection(management_api_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('POST', url='/foglamp/service/shutdown', body=None)
-        r = conn.getresponse()
-
-        res = r.read().decode()
-        conn.close()
-        print(res)
-
-        os.kill(pid, signal.SIGTERM)
-    except (OSError, Exception) as ex:
-        print(str(ex))
+# TODO: To run this test,
+#       1) Do 'foglamp start' and note the management_port from syslog
+#       2) Change _m_port below with the management_port
+#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/core/test_scheduler.py
+_address = '0.0.0.0'
+_m_port = 44476
 
 
 @pytest.allure.feature("unit")
@@ -161,7 +82,6 @@ class TestScheduler:
         """Test that stop_scheduler actually works"""
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -185,7 +105,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -219,7 +138,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -241,7 +159,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -276,7 +193,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -331,7 +247,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -387,7 +302,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -416,7 +330,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -472,7 +385,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -520,7 +432,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -551,7 +462,6 @@ class TestScheduler:
         """Cancel a running process"""
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -576,7 +486,6 @@ class TestScheduler:
             Schedule is retrieved by id """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -611,7 +520,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -642,7 +550,6 @@ class TestScheduler:
         """
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 
@@ -701,7 +608,6 @@ class TestScheduler:
     async def test_purge_tasks(self):
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
-        global pid, _address, _m_port
         scheduler = Scheduler(_address, _m_port)
         await scheduler.start()
 

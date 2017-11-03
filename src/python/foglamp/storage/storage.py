@@ -49,9 +49,12 @@ class AbstractStorage(ABC):
 
 class Storage(AbstractStorage):
 
-    def __init__(self, core_management_host, core_management_port):
+    def __init__(self, core_management_host, core_management_port, svc=None):
         try:
-            self.connect(core_management_host, core_management_port)
+            if svc:
+                self.service = svc
+            else:
+                self.connect(core_management_host, core_management_port)
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
         except Exception:
@@ -342,8 +345,8 @@ class Readings(Storage):
 
     _base_url = ""
 
-    def __init__(self, core_mgt_host, core_mgt_port):
-        super().__init__(core_management_host=core_mgt_host, core_management_port=core_mgt_port)
+    def __init__(self, core_mgt_host, core_mgt_port, svc=None):
+        super().__init__(core_management_host=core_mgt_host, core_management_port=core_mgt_port, svc=svc)
         self.__class__._base_url = self.base_url
 
     @classmethod

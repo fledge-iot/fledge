@@ -7,23 +7,21 @@
 
 """Core server module"""
 
-import os
-import sys
-import signal
 import asyncio
-from aiohttp import web
+import os
+import signal
 import subprocess
-
-import http
+import sys
+import http.client
 import json
-
+from aiohttp import web
 from foglamp import logger
 from foglamp.core import routes as admin_routes
 from foglamp.microservice_management import routes as management_routes
 from foglamp.web import middleware
 from foglamp.microservice_management.service_registry.instance import Service
+from foglamp.core.scheduler.scheduler import Scheduler
 from foglamp.microservice_management.service_registry.monitor import Monitor
-from foglamp.core.scheduler import Scheduler
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -223,9 +221,9 @@ class Server:
             # TODO: FOGL-615
             # log error with message if status is 4xx or 5xx
             if r.status in range(400, 500):
-                cls._logger.error("Client error code: %d", r.status)
+                _logger.error("Client error code: %d", r.status)
             if r.status in range(500, 600):
-                cls._logger.error("Server error code: %d", r.status)
+                _logger.error("Server error code: %d", r.status)
 
             res = r.read().decode()
             conn.close()

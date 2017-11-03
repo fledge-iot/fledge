@@ -66,20 +66,20 @@ async def asset_counts(request):
     """ Browse all the assets for which we have recorded readings and
     return a readings count.
 
-    Return the result of the Postgres query
+    Return the result of the query
     SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
     """
 
     # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
     # PayloadBuilder().AGGREGATE(["count", "*"]).GROUP_BY('asset_code')
 
-    agg = {"operation": "count", "column": "*", "alias": "Count"}
-    d = OrderedDict()
-    d['aggregate'] = agg
-    d['group'] = "asset_code"
+    aggregate = {"operation": "count", "column": "*", "alias": "Count"}
+    payload = OrderedDict()
+    payload['aggregate'] = aggregate
+    payload['group'] = "asset_code"
 
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(d))
+    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
 
     return web.json_response(results['rows'])
 
@@ -90,31 +90,31 @@ async def asset(request):
     return is defaulted to a small number (20), this may be changed by supplying
     the query parameter ?limit=xx&skip=xx
 
-    Return the result of the Postgres query
+    Return the result of the query
     SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
     """
     asset_code = request.match_info.get('asset_code', '')
 
     # TODO: FOGL-637, 640
     timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
-    d = OrderedDict()
-    d['return'] = [timestamp, "reading"]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    _and = _where_clause(request)
-    if len(_and) > 0:
-        d['where'].update(_and)
+    payload = OrderedDict()
+    payload['return'] = [timestamp, "reading"]
+    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    _and_where = _where_clause(request)
+    if len(_and_where) > 0:
+        payload['where'].update(_and_where)
 
     # Add the order by and limit clause
-    d['sort'] = {"column": "user_ts", "direction": "desc"}
+    payload['sort'] = {"column": "user_ts", "direction": "desc"}
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
     offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
 
-    d['limit'] = limit
+    payload['limit'] = limit
     if offset:
-        d['skip'] = offset
+        payload['skip'] = offset
 
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(d))
+    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
 
     return web.json_response(results['rows'])
 
@@ -139,7 +139,7 @@ async def asset_reading(request):
 
     Only one of hour, minutes or seconds should be supplied
 
-    Return the result of the Postgres query
+    Return the result of the query
     SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
     """
     asset_code = request.match_info.get('asset_code', '')
@@ -151,26 +151,26 @@ async def asset_reading(request):
     json_property['json'] = {"column": "reading", "properties": reading}
     json_property['alias'] = "reading"
 
-    d = OrderedDict()
-    d['return'] = [timestamp, json_property]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    payload = OrderedDict()
+    payload['return'] = [timestamp, json_property]
+    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
 
     val = _where_clause(request)
     if val is not None:
         and_op = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
-        d['where'].update(and_op)
+        payload['where'].update(and_op)
 
     # Add the order by and limit clause
-    d['sort'] = {"column": "user_ts", "direction": "desc"}
+    payload['sort'] = {"column": "user_ts", "direction": "desc"}
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
     offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
 
-    d['limit'] = limit
+    payload['limit'] = limit
     if offset:
-        d['skip'] = offset
+        payload['skip'] = offset
 
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(d))
+    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
 
     return web.json_response(results['rows'])
 
@@ -194,7 +194,7 @@ async def asset_summary(request):
 
     Only one of hour, minutes or seconds should be supplied
 
-    Return the result of the Postgres query
+    Return the result of the query
     SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code'
     """
     asset_code = request.match_info.get('asset_code', '')
@@ -206,15 +206,15 @@ async def asset_summary(request):
     max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
     avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
 
-    d = OrderedDict()
-    d['aggregate'] = [min_dict, max_dict, avg_dict]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    _and = _where_clause(request)
-    if len(_and) > 0:
-        d['where'].update(_and)
+    payload = OrderedDict()
+    payload['aggregate'] = [min_dict, max_dict, avg_dict]
+    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    _and_where = _where_clause(request)
+    if len(_and_where) > 0:
+        payload['where'].update(_and_where)
 
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(d))
+    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
 
     return web.json_response({reading: results['rows']})
 
@@ -241,7 +241,7 @@ async def asset_averages(request):
     The amount of time covered by each returned value is set using the
     query parameter group. This may be set to seconds, minutes or hours
 
-    Return the result of the Postgres query
+    Return the result of the query
     SELECT user_ts AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
     """
     asset_code = request.match_info.get('asset_code', '')
@@ -263,14 +263,14 @@ async def asset_averages(request):
     max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
     avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
 
-    agg = OrderedDict()
-    agg['aggregate'] = [min_dict, max_dict, avg_dict]
-    d = OrderedDict()
-    d['return'] = [timestamp, agg]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    _and = _where_clause(request)
-    if len(_and) > 0:
-        d['where'].update(_and)
+    aggregate = OrderedDict()
+    aggregate['aggregate'] = [min_dict, max_dict, avg_dict]
+    payload = OrderedDict()
+    payload['return'] = [timestamp, aggregate]
+    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    _and_where = _where_clause(request)
+    if len(_and_where) > 0:
+        payload['where'].update(_and_where)
 
     # TODO: FOGL-668 No support from Storage service yet, so this end point is blocked
     # Add the group by
@@ -278,28 +278,28 @@ async def asset_averages(request):
 
     # Add the order by and limit clause
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    d['limit'] = limit
+    payload['limit'] = limit
 
     # TODO: Remove print
-    print("asset_summary:", json.dumps(d))
+    print("asset_summary:", json.dumps(payload))
 
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(d))
+    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
 
     return web.json_response(results['rows'])
 
 
 def _where_clause(request):
-    _and = {}
+    _and_where = {}
 
     if 'seconds' in request.query:
         val = int(request.query['seconds'])
-        _and = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
+        _and_where = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
     elif 'minutes' in request.query:
         val = int(request.query['minutes']) * 60
-        _and = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
+        _and_where = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
     elif 'hours' in request.query:
         val = int(request.query['hours']) * 60 * 60
-        _and = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
+        _and_where = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
 
-    return _and
+    return _and_where

@@ -100,7 +100,9 @@ async def asset(request):
     d = OrderedDict()
     d['return'] = [timestamp, "reading"]
     d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    # TODO: + where_clause(request)
+    _and = _where_clause(request)
+    if len(_and) > 0:
+        d['where'].update(_and)
 
     # Add the order by and limit clause
     d['sort'] = {"column": "user_ts", "direction": "desc"}
@@ -217,6 +219,7 @@ async def asset_summary(request):
     return web.json_response({reading: results['rows']})
 
 
+# FIXME: FOGL-668 No support from Storage service yet, so this end point is blocked
 async def asset_averages(request):
     """ Browse all the assets for which we have recorded readings and
     return a series of averages per second, minute or hour.

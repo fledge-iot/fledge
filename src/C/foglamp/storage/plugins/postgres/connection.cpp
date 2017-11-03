@@ -737,7 +737,7 @@ long numReadings = 0;
 		SQLBuffer unsentBuffer;
 		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
-		unsentBuffer.append(" seconds' AND id > ");
+		unsentBuffer.append(" hours' AND id > ");
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
@@ -757,7 +757,7 @@ long numReadings = 0;
 	
 	sql.append("DELETE FROM readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
-	sql.append(" seconds'");
+	sql.append(" hours'");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
 	{
 		sql.append(" AND id < ");

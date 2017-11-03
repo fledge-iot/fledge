@@ -133,7 +133,7 @@ class Scheduler(object):
 
         # Instance attributes
 
-        self. _storage = None
+        self._storage = None
 
         self._ready = False
         """True when the scheduler is ready to accept API calls"""
@@ -711,7 +711,8 @@ class Scheduler(object):
                 self._storage = Storage(self._core_management_host, self._core_management_port, svc=storage_service)
                 print("Storage Service: ", type(self._storage))
 
-            except (StorageServiceUnavailable, InvalidServiceInstance, Exception) as ex:
+            except (Service.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                print(str(ex))
                 await asyncio.sleep(5)
         # **************
 

@@ -25,29 +25,32 @@ This is because when SORT isn't declared, the order in which rows are returned a
 14. LIMIT  + OFFSET + WHERE + SORT
 """
 
-import aiopg
 import asyncio
 import datetime
 import os
 import random
-import sqlalchemy
-import sqlalchemy.dialects.postgresql
+import signal
 import time
 import uuid
-
+import aiopg
+import aiopg.sa
 import pytest
+import http.client
+from multiprocessing import Process, Queue
+import sqlalchemy
+import sqlalchemy.dialects.postgresql
+from foglamp.core.scheduler.scheduler import Scheduler
+from foglamp.core.scheduler.entities import Task
+from foglamp.core.server import Server
+from foglamp.storage.storage import Storage
 
-from foglamp.core.scheduler import (Scheduler, IntervalSchedule, ScheduleNotFoundError, Task,
-                                    Schedule, TimedSchedule, ManualSchedule, StartUpSchedule, Where)
-
-
-__author__ = "Terris Linenbach"
+__author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+# TODO: Get rid of sqlalchemy or any dedicated DB oriented  code in tests.
 _CONNECTION_STRING = "dbname='foglamp'"
-
 _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
                                        sqlalchemy.Column('id', sqlalchemy.dialects.postgresql.UUID, primary_key=True),
                                        sqlalchemy.Column('process_name', sqlalchemy.types.VARCHAR(20), default=''   ),
@@ -58,9 +61,92 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
                                        sqlalchemy.Column('exit_code', sqlalchemy.types.INT),
                                        sqlalchemy.Column('reason', sqlalchemy.types.VARCHAR(255)))
 
+_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/home/foglamp/foglamp/FogLAMP')
+_STORAGE_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/services/storage')
+
+"""
+    _address, _host, _m_port, pid are module level variables. 
+    start_storage() and start_server() are module level functions. 
+    setup_module() and teardown_module() are module level setup.
+"""
+
+_is_scheduler_started = False
+_address = None
+_host = '0.0.0.0'
+_m_port = 0
+pid = None
+scheduler = None
+
+
+def start_storage(host, m_port):
+    try:
+        cmd_with_args = ['./storage', '--address={}'.format(host),
+                         '--port={}'.format(m_port)]
+        import subprocess
+        subprocess.call(cmd_with_args, cwd=_STORAGE_DIR)
+    except Exception as ex:
+        pass
+
+
+def start_server(q):
+    loop = asyncio.get_event_loop()
+    app = Server._make_core_app()
+    server_handler = app.make_handler()
+    coro = loop.create_server(server_handler, _host, 0)
+    # added coroutine
+    server = loop.run_until_complete(coro)
+    address, m_port = server.sockets[0].getsockname()
+    q.put((address, m_port))
+    start_storage(address, m_port)
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.close()
+        loop.run_until_complete(server.wait_closed())
+        loop.run_until_complete(app.shutdown())
+        loop.run_until_complete(server_handler.shutdown(60.0))
+        loop.run_until_complete(app.cleanup())
+    loop.close()
+
+
+def setup_module():
+    global pid, _address, _m_port, scheduler
+    q = Queue()
+    p = Process(target=start_server, args=(q,))
+    p.start()
+    _address, _m_port = q.get()
+    pid = p.pid
+    scheduler = Scheduler(_address, _m_port)
+
+def teardown_module():
+    global pid, _address, _m_port, scheduler
+
+    try:
+        storage = Storage(_address, _m_port)
+        svc = storage._get_storage_service(_address, _m_port)
+        management_api_url = '{}:{}'.format(svc['address'], svc['management_port'])
+        print(management_api_url)
+        conn = http.client.HTTPConnection(management_api_url)
+        # TODO: need to set http / https based on service protocol
+
+        conn.request('POST', url='/foglamp/service/shutdown', body=None)
+        r = conn.getresponse()
+
+        res = r.read().decode()
+        conn.close()
+        print(res)
+
+        os.kill(pid, signal.SIGTERM)
+    except (OSError, Exception) as ex:
+        print(str(ex))
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("scheduler get_tasks")
-class TestScheduler:
+class TestSchedulerGetTasks:
     @staticmethod
     async def drop_from_tasks():
         """DELETE data from tasks table"""
@@ -101,6 +187,7 @@ class TestScheduler:
             print('Insert failed: %s' % stmt)
             raise
 
+
     @pytest.mark.asyncio
     async def test_insert_error_tasks_table(self):
         """
@@ -108,7 +195,11 @@ class TestScheduler:
         :assert:
             when state=0 and state=5 ValueError is called
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         stmt = """INSERT INTO tasks
                         (id, process_name, state, start_time, end_time, pid, exit_code, reason)
                     VALUES ('%s', '%s', %s, '%s', '%s', %s, %s, '');"""
@@ -138,7 +229,11 @@ class TestScheduler:
         :assert:
             number of tasks returned is equal to the limit
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -157,23 +252,33 @@ class TestScheduler:
         :assert:
             the count(task) == total_rows - offset
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
         for offset in (0, 1, 5, 10, 25, 50, 75, 100):
-            tasks = await scheduler.get_tasks(offset=offset)
+            # limit is required for offset
+            tasks = await scheduler.get_tasks(limit=100, offset=offset)
+            print(len(tasks))
             assert len(tasks) == 100 - offset
-        await  self.drop_from_tasks()
+        # await  self.drop_from_tasks()
 
     @pytest.mark.asyncio
     async def test_get_tasks_where(self):
         """
-        Check where condition against an INT value returns correct results            
+        Check where condition against an INT value returns correct results
         :assert:
             the number of rows returned is as expected
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -189,7 +294,7 @@ class TestScheduler:
             except Exception:
                 print('Query failed: %s' % stmt)
                 raise
-            tasks = await scheduler.get_tasks(where=Task.attr.state == state)
+            tasks = await scheduler.get_tasks(where=["state", "=", state])
             assert expect == len(tasks)
         await self.drop_from_tasks()
 
@@ -198,10 +303,14 @@ class TestScheduler:
         """
         Check that sort variable of scheduler.get_tasks() works properlly
         :assert:
-            1. process_name and integer value of task state are as correct  
+            1. process_name and integer value of task state are as correct
             2. The expected INTEGER value correlate to the actual task state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -217,7 +326,7 @@ class TestScheduler:
             print('Query failed: %s' % stmt)
             raise
 
-        tasks = await scheduler.get_tasks(sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+        tasks = await scheduler.get_tasks(sort=(["state", "desc"], ["process_name", "desc"]))
 
         assert len(tasks) == len(expect) # verify that the same number of rows are returned
         for i in range(len(expect)):
@@ -240,7 +349,11 @@ class TestScheduler:
         :assert:
             The number of rows returned is equal to the limit of total_rows - offset
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -266,7 +379,11 @@ class TestScheduler:
         :assert:
             The number of rows returned is equal to the limit of the WHERE condition
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -285,7 +402,7 @@ class TestScheduler:
                     print('Query failed: %s' % stmt)
                     raise
 
-                tasks = await scheduler.get_tasks(limit=limit, where=Task.attr.state == state)
+                tasks = await scheduler.get_tasks(limit=limit, where=["state", "=", state])
                 assert len(expect) == len(tasks)
 
         await self.drop_from_tasks()
@@ -295,11 +412,15 @@ class TestScheduler:
         """
         A combination of LIMIT and 'ORDER BY'
         :assert:
-            1. The number of rows returned is equal to the limit 
+            1. The number of rows returned is equal to the limit
             2. The value per process_name and state is as expected
             3. The numerical value of expected state is correlated to the proper name of the task.state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
         for limit in (1, 5, 25, 125, 250, 750, 1000):
@@ -315,7 +436,7 @@ class TestScheduler:
                 print('Query failed: %s' % stmt)
                 raise
 
-            tasks = await scheduler.get_tasks(limit=limit, sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+            tasks = await scheduler.get_tasks(limit=limit, sort=(["state", "desc"], ["process_name", "desc"]))
 
             assert len(tasks) == len(expect) and len(tasks) == limit  # verify that the same number of rows are returned
             for i in range(len(expect)):
@@ -336,9 +457,13 @@ class TestScheduler:
         """
         Combination of OFFSET and WHERE conditions in table
         :assert:
-            The number of rows returned is equal to the WHERE condition of total_rows - OFFSET 
+            The number of rows returned is equal to the WHERE condition of total_rows - OFFSET
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -356,7 +481,7 @@ class TestScheduler:
                     print('Query failed: %s' % stmt)
                     raise
 
-                tasks = await scheduler.get_tasks(offset=offset, where=Task.attr.state == state)
+                tasks = await scheduler.get_tasks(offset=offset, where=["state", "=", state])
                 assert len(expect) == len(tasks)
 
         await self.drop_from_tasks()
@@ -366,12 +491,17 @@ class TestScheduler:
         """
         A combination of OFFSET and SORTED parameters
         :assert:
-            1. Total number of rows returned is equal to total_rows - offset 
+            1. Total number of rows returned is equal to total_rows - offset
             2. The value per process_name and state is as expected
             3. The numerical value of expected state is correlated to the proper name of the task.state
         """
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         total_rows = 100
-        scheduler = Scheduler()
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=total_rows)
 
@@ -388,7 +518,7 @@ class TestScheduler:
                 print('Query failed: %s' % stmt)
                 raise
 
-            tasks = await scheduler.get_tasks(offset=offset,sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+            tasks = await scheduler.get_tasks(limit=100, offset=offset, sort=(["state", "desc"], ["process_name", "desc"]))
 
             assert len(tasks) == len(expect)  and len(tasks) == total_rows - offset # verify that the same number of rows are returned
             for i in range(len(expect)):
@@ -408,11 +538,15 @@ class TestScheduler:
     async def test_get_tasks_where_sorted(self):
         """
         Case where tasks are based on WHERE condition, and sorted
-        :assert: 
-            1. process_name and integer value of task state are as correct  
+        :assert:
+            1. process_name and integer value of task state are as correct
             2. The expected INTEGER value correlate to the actual task state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -430,7 +564,8 @@ class TestScheduler:
                 print('Query failed: %s' % stmt)
                 raise
 
-            tasks = await scheduler.get_tasks(where=Task.attr.state == state, sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+            tasks = await scheduler.get_tasks(where=["state", "=", state], sort=(["state", "desc"], ["process_name", "desc"]))
+
             for i in range(len(expect)):
                 assert tasks[i].process_name == expect[i][0]
                 assert int(tasks[i].state) == expect[i][1]
@@ -447,11 +582,15 @@ class TestScheduler:
     @pytest.mark.asyncio
     async def test_get_tasks_limit_offset_where(self):
         """
-        A combination of LIMIT, OFFSET, and WHERE conditions 
+        A combination of LIMIT, OFFSET, and WHERE conditions
         :assert:
-            The number of tasks is equal to the limit of the total_rows returned based on the WHERE condition - OFFSET 
+            The number of tasks is equal to the limit of the total_rows returned based on the WHERE condition - OFFSET
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -470,7 +609,7 @@ class TestScheduler:
                         print('Query failed: %s' % stmt)
                         raise
 
-                    tasks = await scheduler.get_tasks(limit=limit, offset=offset, where=Task.attr.state == state)
+                    tasks = await scheduler.get_tasks(limit=limit, offset=offset, where=["state", "=", state])
                     assert len(expect) == len(tasks)
 
         await self.drop_from_tasks()
@@ -479,12 +618,16 @@ class TestScheduler:
     async def test_get_tasks_limit_offset_sorted(self):
         """
         A combination of limit, offset, and sorting
-        :assert: 
+        :assert:
             1. The number of rows returned is equal to the limit of the total_rows - offset
-            2. process_name and integer value of task state are as correct  
+            2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -504,7 +647,7 @@ class TestScheduler:
                     raise
 
                 tasks = await scheduler.get_tasks(limit=limit, offset=offset,
-                                                  sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+                                                   sort=(["state", "desc"], ["process_name", "desc"]))
 
                 assert len(tasks) == len(expect)  # verify that the same number of rows are returned
                 for i in range(len(expect)):
@@ -524,12 +667,16 @@ class TestScheduler:
     async def test_get_tasks_limit_where_sorted(self):
         """
         A combination of LIMIT, WHERE, and SORTing
-        :assert: 
+        :assert:
             1. The number of rows returned is equal to the limit of the total_rows returned based on the WHERE condition
-            2. process_name and integer value of task state are as correct  
+            2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
 
@@ -549,9 +696,9 @@ class TestScheduler:
                     print('Query failed: %s' % stmt)
                     raise
 
-                tasks = await scheduler.get_tasks(limit=limit,
-                                                  where=Task.attr.state == state,
-                                                  sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+                tasks = await scheduler.get_tasks(limit=limit, where=["state", "=", state],
+                                                   sort = (["state", "desc"], ["process_name", "desc"]))
+
                 for i in range(len(expect)):
                     assert tasks[i].process_name == expect[i][0]
                     assert int(tasks[i].state) == expect[i][1]
@@ -563,12 +710,16 @@ class TestScheduler:
     async def test_get_tasks_offset_where_sorted(self):
         """
         A combination of OFFSET, WHERE, and SORTing
-        :assert: 
+        :assert:
             1. The number of rows returned in equal to the total_rows returned based on the WHERE condition - OFFSET
-            2. process_name and integer value of task state are as correct  
+            2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks(total_rows=100)
 
@@ -588,9 +739,9 @@ class TestScheduler:
                     print('Query failed: %s' % stmt)
                     raise
 
-                tasks = await scheduler.get_tasks(offset=offset,
-                                                  where=Task.attr.state == state,
-                                                  sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+                tasks = await scheduler.get_tasks(offset=offset, where=["state", "=", state],
+                                                   sort = (["state", "desc"], ["process_name", "desc"]))
+
                 for i in range(len(expect)):
                     assert tasks[i].process_name == expect[i][0]
                     assert int(tasks[i].state) == expect[i][1]
@@ -610,10 +761,14 @@ class TestScheduler:
         A combination of all parameters allowed by scheduler.get_tasks()
         :assert:
             1. The number of rows returned is equal to the limit of the subset of total_rows (based on the WHERE condition) - OFFSET
-            2. process_name and integer value of task state are as correct  
+            2. process_name and integer value of task state are as correct
             3. The expected INTEGER value correlate to the actual task state
         """
-        scheduler = Scheduler()
+        global _is_scheduler_started, scheduler
+        if _is_scheduler_started is False:
+            await scheduler.start()
+            _is_scheduler_started = True
+
         await self.drop_from_tasks()
         await self.insert_into_tasks()
         for limit in (1, 5, 25, 125, 250, 750, 1000):
@@ -633,9 +788,10 @@ class TestScheduler:
                         print('Query failed: %s' % stmt)
                         raise
 
-                    tasks = await scheduler.get_tasks(offset=offset,
-                                                      where=Task.attr.state == state, limit=limit,
-                                                      sort=(Task.attr.state.desc, Task.attr.process_name.desc))
+                    tasks = await scheduler.get_tasks(offset=offset, limit=limit,
+                                                       where=["state", "=", state],
+                                                       sort=(["state", "desc"], ["process_name", "desc"]))
+
                     assert len(tasks) == len(expect)
                     for i in range(len(expect)):
                         assert tasks[i].process_name == expect[i][0]

@@ -44,9 +44,7 @@ class TestScheduler:
             self._engine = await aiopg.sa.create_engine(_CONNECTION_STRING)
         return self._engine
 
-    # TODO: Now "sleep" is not more acceptable as a process. We need to think of something else, probably
-    #       a custom task, which can accept --port and --address command line arguments. In fact, "sleep" is
-    #       causing tests to fail.
+    # TODO: Think of a better location for sleep.py + specify location with reference to FOGLAMP_ROOT in scheduled_processes table
     async def populate_test_data(self):
         """Delete all schedule-related tables and insert processes for testing"""
         async with (await self._get_connection_pool()).acquire() as conn:

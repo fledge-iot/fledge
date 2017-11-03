@@ -23,7 +23,7 @@ class Service(object):
 
         Storage = 1
         Core = 2
-        Device = 3
+        Southbound = 3
 
     __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
 
@@ -82,7 +82,7 @@ class Service(object):
             """ registers the service instance
            
             :param name: name of the service
-            :param s_type: a valid service type; e.g. Storage, Core, Device
+            :param s_type: a valid service type; e.g. Storage, Core, Southbound
             :param address: any IP or host address
             :param port: a valid positive integer
             :param management_port: a valid positive integer for management operations e.g. ping, shutdown

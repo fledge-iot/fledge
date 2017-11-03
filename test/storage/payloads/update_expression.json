@@ -1,0 +1,17 @@
+{
+    "condition" : { 
+                    "column"    : "id",
+                    "condition" : ">",
+                    "value"     : 5
+                  },
+    "values"    : {
+                    "description" : "Updated with expression"
+                  },
+    "expressions" : [
+			{
+			  "column"   : "id",
+			  "operator" : "+",
+			  "value"    : 100
+			}
+	   	    ]
+}

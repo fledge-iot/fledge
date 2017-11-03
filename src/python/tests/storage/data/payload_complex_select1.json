@@ -3,7 +3,7 @@
     "column": "name",
     "operation": "count"
   },
-  "columns": "id,name",
+  "return": ["id", "name"],
   "group": "name, id",
   "limit": 5,
   "skip": 1,
@@ -12,18 +12,18 @@
     "direction": "desc"
   },
   "where": {
+    "column": "id",
+    "condition": "=",
+    "value": 1,
     "and": {
       "column": "name",
       "condition": "=",
-      "value": "test"
-    },
-    "column": "id",
-    "condition": "=",
-    "or": {
-      "column": "name",
-      "condition": "=",
-      "value": "test2"
-    },
-    "value": 1
+      "value": "test",
+      "or": {
+        "column": "name",
+        "condition": "=",
+        "value": "test2"
+      }
+    }
   }
 }

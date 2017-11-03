@@ -14,11 +14,15 @@ import asyncio
 from aiohttp import web
 import subprocess
 
+import http
+import json
+
 from foglamp import logger
-from foglamp.core import routes
-from foglamp.core import middleware
-from foglamp.core.service_registry.instance import Service
-from foglamp.storage.storage import Storage
+from foglamp.core import routes as admin_routes
+from foglamp.microservice_management import routes as management_routes
+from foglamp.web import middleware
+from foglamp.microservice_management.service_registry.instance import Service
+from foglamp.microservice_management.service_registry.monitor import Monitor
 from foglamp.core.scheduler import Scheduler
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
@@ -42,8 +46,13 @@ class Server:
     scheduler = None
     """ foglamp.core.Scheduler """
 
-    _host = '127.0.0.1'  # FIX?
+    service_monitor = None
+    """ foglamp.microservice_management.service_registry.Monitor """
+
+    _host = '0.0.0.0'
     core_management_port = 0
+
+    # TODO: Get Admin API port from configuration option
     rest_service_port = 8081
 
     @staticmethod
@@ -53,7 +62,7 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        routes.setup(app)
+        admin_routes.setup(app)
         return app
 
     @staticmethod
@@ -63,14 +72,20 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        routes.core_setup(app)
+        management_routes.setup(app, is_core=True)
         return app
+
+    @classmethod
+    async def _start_service_monitor(cls):
+        """Starts the microservice monitor"""
+        cls.service_monitor = Monitor()
+        await cls.service_monitor.start()
 
     @classmethod
     async def _start_scheduler(cls):
         """Starts the scheduler"""
         _logger.info("start scheduler")
-        cls.scheduler = Scheduler(cls.core_management_port)
+        cls.scheduler = Scheduler(cls._host, cls.core_management_port)
         await cls.scheduler.start()
 
     @staticmethod
@@ -116,8 +131,12 @@ class Server:
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
             # start scheduler
+            # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
             loop.run_until_complete(cls._start_scheduler())
+
+            # start monitor
+            loop.run_until_complete(cls._start_service_monitor())
 
             service_app = cls._make_app()
             service_server, service_server_handler = cls._start_app(loop, service_app, host, cls.rest_service_port)
@@ -182,11 +201,35 @@ class Server:
 
         # see http://host:<core_mgt_port>/foglamp/service for registered services
 
-    @staticmethod
-    def stop_storage():
-        # TODO: make client call to service mgt API to ask to shutdown storage?
+    @classmethod
+    def stop_storage(cls):
+        """ stop Storage service """
+        # TODO: remove me, and allow this call in service registry API
+
         try:
-            Storage().shutdown()
+            found_services = Service.Instances.get(name="FogLAMP Storage")
+            svc = found_services[0]
+            if svc is None:
+                return
+
+            management_api_url = '{}:{}'.format(svc._address, svc._management_port)
+
+            conn = http.client.HTTPConnection(management_api_url)
+            # TODO: need to set http / https based on service protocol
+
+            conn.request('POST', url='/foglamp/service/shutdown', body=None)
+            r = conn.getresponse()
+
+            # TODO: FOGL-615
+            # log error with message if status is 4xx or 5xx
+            if r.status in range(400, 500):
+                cls._logger.error("Client error code: %d", r.status)
+            if r.status in range(500, 600):
+                cls._logger.error("Server error code: %d", r.status)
+
+            res = r.read().decode()
+            conn.close()
+            return json.loads(res)
         except Exception as ex:
             _logger.exception(str(ex))
 

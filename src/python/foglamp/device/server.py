@@ -23,6 +23,11 @@ _LOGGER = logger.setup(__name__)
 
 
 class Server:
+
+    _core_management_host = None
+    _core_management_port = None
+    """ address of service management api """
+
     _plugin_name = None  # type:str
     """"The name of the plugin"""
     
@@ -56,28 +61,29 @@ class Server:
         loop.stop()
 
     @classmethod
-    async def _start(cls, plugin: str, loop)->None:
+    async def _start(cls, plugin: str, core_mgt_host, core_mgt_port, loop)->None:
         error = None
         cls.plugin_name = plugin
 
+        cls._core_management_host = core_mgt_host
+        cls._core_management_port = core_mgt_port
+
         try:
-            # TODO: Category name column is allows only 10 characters.
-            # This needs to be increased
             category = plugin
-
             config = {}
-
             await configuration_manager.create_category(category, config,
                                                         '{} Device'.format(plugin), True)
 
-            try:
-                plugin_module = config['plugin']
-            except KeyError:
-                # TODO: Delete me
-                plugin_module = 'foglamp.device.coap_device'
+            config = await configuration_manager.get_category_all_items(category)
 
             try:
-                cls._plugin = __import__(plugin_module, fromlist=[''])
+                plugin_module = config['plugin']['value']
+            except KeyError:
+                _LOGGER.warning("Unable to obtain configuration of module for plugin {}".format(plugin))
+                raise
+
+            try:
+                cls._plugin = __import__("foglamp.device.{}_device".format(plugin_module), fromlist=[''])
             except Exception:
                 error = 'Unable to load module {} for device plugin {}'.format(plugin_module,
                                                                                plugin)
@@ -95,7 +101,7 @@ class Server:
             cls._plugin_data = cls._plugin.plugin_init(config)
             cls._plugin.plugin_run(cls._plugin_data)
 
-            await Ingest.start()
+            await Ingest.start(core_mgt_host, core_mgt_port)
         except Exception:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(plugin)
@@ -104,7 +110,7 @@ class Server:
             asyncio.ensure_future(cls._stop(loop))
 
     @classmethod
-    def start(cls, plugin):
+    def start(cls, plugin, core_mgt_host, core_mgt_port):
         """Starts the device server
 
         Args:
@@ -120,6 +126,5 @@ class Server:
                 signal_name,
                 lambda: asyncio.ensure_future(cls._stop(loop)))
 
-        asyncio.ensure_future(cls._start(plugin, loop))
+        asyncio.ensure_future(cls._start(plugin, core_mgt_host, core_mgt_port, loop))
         loop.run_forever()
-

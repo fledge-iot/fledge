@@ -1,0 +1,12 @@
+ {
+  	"expressions": [{
+  		"column": "value",
+  		"operator": "+",
+  		"value": 10
+  	}],
+  	"where": {
+  		"column": "key",
+  		"condition": "=",
+  		"value": "READINGS"
+  	}
+  }

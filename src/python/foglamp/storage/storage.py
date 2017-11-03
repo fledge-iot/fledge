@@ -17,7 +17,7 @@ import http.client
 import json
 
 from foglamp import logger
-from foglamp.core.service_registry.service_registry import Service
+from foglamp.microservice_management.service_registry.service_registry import Service
 from foglamp.storage.exceptions import *
 from foglamp.storage.utils import Utils
 
@@ -49,9 +49,9 @@ class AbstractStorage(ABC):
 
 class Storage(AbstractStorage):
 
-    def __init__(self):
+    def __init__(self, core_management_host, core_management_port):
         try:
-            self.connect()
+            self.connect(core_management_host, core_management_port)
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
         except Exception:
@@ -104,35 +104,13 @@ class Storage(AbstractStorage):
         conn.close()
         return json.loads(res)
 
-    # TODO: remove me, and allow this call in service registry API
-    def shutdown(self):
-        """ stop Storage service """
-
-        conn = http.client.HTTPConnection(self.management_api_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('POST', url='/foglamp/service/shutdown', body=None)
-        r = conn.getresponse()
-
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
-
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res)
-
-    def _get_storage_service(self):
+    def _get_storage_service(self, host, port):
         """ get Storage service """
 
-        # TODO: URL to service registry api?
-        conn = http.client.HTTPConnection("{0}:{1}".format("", ""))
+        conn = http.client.HTTPConnection("{0}:{1}".format(host, port))
         # TODO: need to set http / https based on service protocol
 
-        conn.request('GET', url='/foglamp/service')
+        conn.request('GET', url='/foglamp/service?name=FogLAMP%20Storage')
         r = conn.getresponse()
 
         # TODO: FOGL-615
@@ -145,28 +123,29 @@ class Storage(AbstractStorage):
         res = r.read().decode()
         conn.close()
         response = json.loads(res)
-        found_services = [s for s in response["services"] if s["name"] == "FogLAMP Storage"]
-        svc = found_services[0]
+        svc = response["services"][0]
         return svc
 
-    def connect(self):
-        # svc = self._get_storage_service()
-        # if len(svc) == 0:
-        #     raise InvalidServiceInstance
-        # self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
-        #                        m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
-        found_services = Service.Instances.get(name="FogLAMP Storage")
-        svc = found_services[0]
-        # retry for a while?
-        if svc is None:
+    def connect(self, core_management_host, core_management_port):
+        svc = self._get_storage_service(host=core_management_host, port=core_management_port)
+        if len(svc) == 0:
             raise InvalidServiceInstance
-        self.service = svc
+        self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
+                               m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+        # found_services = Service.Instances.get(name="FogLAMP Storage")
+        # svc = found_services[0]
+        # # retry for a while?
+        # if svc is None:
+        #     raise InvalidServiceInstance
+        # self.service = svc
         return self
 
     def disconnect(self):
         # Allow shutdown()?
         pass
 
+    # FIXME: As per JIRA-615 strict=false at python side (interim solution)
+    # fix is required at storage layer (error message with escape sequence using a single quote)
     def insert_into_tbl(self, tbl_name, data):
         """ insert json payload into given table
 
@@ -206,7 +185,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def update_tbl(self, tbl_name, data):
         """ update json payload for specified condition into given table
@@ -251,7 +230,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
@@ -288,7 +267,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def query_tbl(self, tbl_name, query=None):
         """ Simple SELECT query for the specified table with optional query params
@@ -321,7 +300,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     def query_tbl_with_payload(self, tbl_name, query_payload):
         """ Complex SELECT query for the specified table with a payload
@@ -355,7 +334,7 @@ class Storage(AbstractStorage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
 
 class Readings(Storage):
@@ -363,9 +342,8 @@ class Readings(Storage):
 
     _base_url = ""
 
-    def __init__(self):
-        super().__init__()
-        # FIXME: WTH?
+    def __init__(self, core_mgt_host, core_mgt_port):
+        super().__init__(core_management_host=core_mgt_host, core_management_port=core_mgt_port)
         self.__class__._base_url = self.base_url
 
     @classmethod
@@ -417,7 +395,7 @@ class Readings(Storage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     @classmethod
     def fetch(cls, reading_id, count):
@@ -448,7 +426,7 @@ class Readings(Storage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     @classmethod
     def query(cls, query_payload):
@@ -483,7 +461,7 @@ class Readings(Storage):
 
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)
 
     @classmethod
     def purge(cls, age, sent_id, flag=None):
@@ -535,4 +513,4 @@ class Readings(Storage):
         #       then the error “409 Conflict” will be returned.
         res = r.read().decode()
         conn.close()
-        return json.loads(res)
+        return json.loads(res, strict=False)

@@ -15,6 +15,7 @@ __version__ = "${VERSION}"
 from collections import OrderedDict
 import json
 import urllib.parse
+import numbers
 
 from foglamp import logger
 
@@ -36,8 +37,18 @@ class PayloadBuilder(object):
 
     query_payload = None
 
-    def __init__(self):
-        self.__class__.query_payload = OrderedDict()
+    def __init__(self, initial_payload=OrderedDict()):
+        # TODO: Investigate why simple "self.__class__.query_payload = initial_payload" is not working
+        self.__class__.query_payload = initial_payload if len(initial_payload) else OrderedDict()
+
+    @staticmethod
+    def verify_select(arg):
+        retval = False
+        if isinstance(arg, str):
+            retval = True
+        elif isinstance(arg, tuple):
+            retval = True
+        return retval
 
     @staticmethod
     def verify_condition(arg):
@@ -62,24 +73,56 @@ class PayloadBuilder(object):
     def verify_orderby(arg):
         retval = False
         if isinstance(arg, list):
+            if len(arg) == 1:
+                arg.append('asc')
+
             if len(arg) == 2:
                 if arg[1].upper() in ['ASC', 'DESC']:
                     retval = True
         return retval
 
-    @classmethod
-    def SELECT(cls, *args):
-        if len(args) > 0:
-            cls.query_payload.update({"columns": ','.join(args)})
-        return cls
+    @staticmethod
+    def is_json(myjson):
+        try:
+            json_object = json.loads(myjson)
+        except (ValueError, Exception):
+            return False
+        return True
 
     @classmethod
-    def SELECT_ALL(cls, *args):
+    def ALIAS(cls, *args):
+        raise NotImplementedError("To be implemented")
+
+    @classmethod
+    def SELECT(cls, *args):
+        for arg in args:
+            if cls.verify_select(arg):
+                if 'return' not in cls.query_payload:
+                    cls.query_payload["return"] = list()
+                if isinstance(arg, tuple):
+                    for a in arg:
+                        select = json.loads(a) if cls.is_json(a) else a
+                        cls.query_payload["return"].append(select)
+                else:
+                    select = json.loads(arg) if cls.is_json(arg) else arg
+                    cls.query_payload["return"].append(select)
         return cls
 
     @classmethod
     def FROM(cls, tbl_name):
-        cls.query_payload.update({"table": tbl_name})
+        cls.query_payload["table"] = tbl_name
+        return cls
+
+    @classmethod
+    def DISTINCT(cls, cols):
+        if cols is None:
+            return cls
+        if not isinstance(cols, list):
+            return cls
+        if len(cols) == 0:
+            return cls
+        cls.query_payload["modifier"] = "distinct"
+        cls.query_payload["return"] = cols
         return cls
 
     @classmethod
@@ -88,14 +131,17 @@ class PayloadBuilder(object):
 
     @classmethod
     def COLS(cls, kwargs):
-        values = {}
+        values = OrderedDict()
         for key, value in kwargs.items():
-            values.update({key: value})
+            values[key] = value
         return values
 
     @classmethod
     def SET(cls, **kwargs):
-        cls.query_payload.update({"values": cls.COLS(kwargs)})
+        if 'values' in cls.query_payload:
+            cls.query_payload["values"].update(cls.COLS(kwargs))
+        else:
+            cls.query_payload["values"] = cls.COLS(kwargs)
         return cls
 
     @classmethod
@@ -112,194 +158,165 @@ class PayloadBuilder(object):
         return cls.FROM(tbl_name)
 
     @classmethod
-    def WHERE(cls, arg):
-        condition = {}
-        if cls.verify_condition(arg):
-            condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-            cls.query_payload.update({"where": condition})
+    def add_new_clause(cls, and_or, main, new):
+        """
+        Recursively searches for the innermost and/or block, or cls.query_payload["where"] if none, in "main" to add
+        the 'new' condition block under "and_or" key.
+
+        Args:
+            and_or: one of 'and', 'or'
+            main: Dict (cls.query_payload["where"] or the innermost and/or subset of it) where
+                  the new condition block is to be added
+            new: condition block to be added
+
+        Returns:
+        """
+        if 'and' not in main:
+            if 'or' not in main:
+                main[and_or] = new
+            else:
+                cls.add_new_clause(and_or, main['or'], new)
+        else:
+            cls.add_new_clause(and_or, main['and'], new)
+
+    @classmethod
+    def WHERE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
+        for arg in args:
+            condition = OrderedDict()
+            if cls.verify_condition(arg):
+                condition["column"] = arg[0]
+                condition["condition"] = arg[1]
+                condition["value"] = arg[2]
+                if 'where' not in cls.query_payload:
+                    cls.query_payload["where"] = condition
+                else:
+                    cls.add_new_clause('and', cls.query_payload['where'], condition)
         return cls
 
     @classmethod
-    def AND_WHERE(cls, *args):
+    def AND_WHERE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
-            condition = {}
+            condition = OrderedDict()
             if cls.verify_condition(arg):
-                condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                cls.query_payload["where"].update({"and": condition})
+                condition["column"] = arg[0]
+                condition["condition"] = arg[1]
+                condition["value"] = arg[2]
+                if 'where' not in cls.query_payload:
+                    cls.query_payload["where"] = condition
+                else:
+                    cls.add_new_clause('and', cls.query_payload['where'], condition)
         return cls
 
     @classmethod
-    def OR_WHERE(cls, *args):
+    def OR_WHERE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
+            condition = OrderedDict()
             if cls.verify_condition(arg):
-                condition = {}
-                condition.update({"column": arg[0], "condition": arg[1], "value": arg[2]})
-                cls.query_payload["where"].update({"or": condition})
+                condition["column"] = arg[0]
+                condition["condition"] = arg[1]
+                condition["value"] = arg[2]
+                if 'where' not in cls.query_payload:
+                    cls.query_payload["where"] = condition
+                else:
+                    cls.add_new_clause('or', cls.query_payload['where'], condition)
         return cls
 
     @classmethod
     def GROUP_BY(cls, *args):
-        cls.query_payload.update({"group": ', '.join(args)})
+        cls.query_payload["group"] = ', '.join(args)
         return cls
 
     @classmethod
-    def AGGREGATE(cls, *args):
+    def AGGREGATE(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
-            aggregate = {}
+            aggregate = OrderedDict()
             if cls.verify_aggregation(arg):
-                aggregate.update({"operation": arg[0], "column": arg[1]})
+                aggregate["operation"] = arg[0]
+                aggregate["column"] = arg[1]
                 if 'aggregate' in cls.query_payload:
-                    if isinstance(cls.query_payload['aggregate'], list):
-                        cls.query_payload['aggregate'].append(aggregate)
-                    else:
-                        cls.query_payload['aggregate'] = list(cls.query_payload.get('aggregate'))
-                        cls.query_payload['aggregate'].append(aggregate)
+                    if not isinstance(cls.query_payload['aggregate'], list):
+                        cls.query_payload['aggregate'] = [cls.query_payload.get('aggregate')]
+                    cls.query_payload['aggregate'].append(aggregate)
                 else:
-                    cls.query_payload.update({"aggregate": aggregate})
+                    cls.query_payload["aggregate"] = aggregate
         return cls
 
     @classmethod
     def HAVING(cls):
-        # TODO: To be implemented
-        return cls
+        raise NotImplementedError("To be implemented")
 
     @classmethod
     def LIMIT(cls, arg):
-        if isinstance(arg, int):
-            cls.query_payload.update({"limit": arg})
+        if isinstance(arg, numbers.Real):
+            cls.query_payload["limit"] = arg
         return cls
 
     @classmethod
     def OFFSET(cls, arg):
-        if isinstance(arg, int):
-            try:
-                limit = cls.query_payload['limit']
-            except KeyError:
-                raise KeyError("LIMIT is required to set OFFSET to skip")
-            cls.query_payload.update({"skip": arg})
+        if isinstance(arg, numbers.Real):
+            cls.query_payload["skip"] = arg
         return cls
 
     SKIP = OFFSET
 
     @classmethod
-    def ORDER_BY(cls, *args):
+    def ORDER_BY(cls, arg, *args):
+        # Pass multiple arguments in a single tuple also. Useful when called from external process i.e. api, test.
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
         for arg in args:
-            sort = {}
+            sort = OrderedDict()
             if cls.verify_orderby(arg):
-                sort.update({"column": arg[0], "direction": arg[1]})
+                sort["column"] = arg[0]
+                sort["direction"] = arg[1]
                 if 'sort' in cls.query_payload:
-                    if isinstance(cls.query_payload['sort'], list):
-                        cls.query_payload['sort'].append(sort)
-                    else:
-                        cls.query_payload['sort'] = list(cls.query_payload.get('sort'))
-                        cls.query_payload['sort'].append(sort)
+                    if not isinstance(cls.query_payload['sort'], list):
+                        cls.query_payload['sort'] = [cls.query_payload.get('sort')]
+                    cls.query_payload['sort'].append(sort)
                 else:
-                    cls.query_payload.update({"sort": sort})
+                    cls.query_payload["sort"] = sort
+        return cls
+
+    @classmethod
+    def EXPR(cls, arg, *args):
+        args = (arg,) + args if not isinstance(arg, tuple) else arg
+
+        for arg in args:
+            expr = OrderedDict()
+            expr["column"] = arg[0]
+            expr["operator"] = arg[1]
+            expr["value"] = arg[2]
+
+            if 'expressions' in cls.query_payload:
+                cls.query_payload['expressions'].append(expr)
+            else:
+                cls.query_payload['expressions'] = [expr]
         return cls
 
     @classmethod
     def payload(cls):
-        return json.dumps(cls.query_payload, sort_keys=True)
+        return json.dumps(cls.query_payload, sort_keys=False)
+
+    @classmethod
+    def chain_payload(cls):
+        """
+        Sometimes, we may want to create payload incremently, based upon some conditions, this method will come
+        handy in such Use cases.
+        """
+        return cls.query_payload
 
     @classmethod
     def query_params(cls):
         where = cls.query_payload['where']
-        query_params = {where['column']: where['value']}
+        query_params = OrderedDict({where['column']: where['value']})
         for key, value in where.items():
             if key == 'and':
                 query_params.update({value['column']: value['value']})
         return urllib.parse.urlencode(query_params)
-
-
-if __name__ == "__main__":
-
-    from foglamp.storage.storage import Storage
-
-    # Select
-    _w_payload = PayloadBuilder().WHERE(["key", "=", "CoAP"]).payload()
-    print(_w_payload, '\n')
-    print(Storage().query_tbl_with_payload('configuration', _w_payload))
-    print('\n')
-
-    _w_query_params = PayloadBuilder().WHERE(["key", "=", "CoAP"]).query_params()
-    print(_w_query_params, '\n')
-    print(Storage().query_tbl('configuration', _w_query_params))
-    print('\n')
-
-    complex_payload = PayloadBuilder()\
-        .SELECT('id', 'type', 'repeat', 'process_name')\
-        .FROM('schedules')\
-        .WHERE(['id', '=', 'test'])\
-        .AND_WHERE(['process_name', '=', 'test'])\
-        .OR_WHERE(['process_name', '=', 'sleep'])\
-        .LIMIT(3)\
-        .GROUP_BY('process_name', 'id')\
-        .ORDER_BY(['process_name', 'desc'])\
-        .AGGREGATE(['count', 'process_name'])\
-        .payload()
-
-    print(complex_payload, '\n')
-
-    # TODO: Test above complex payload
-    # 1) FROM is not needed, as we pass table table name
-    # 2) Check: SELECT col1, col2 FROM tbl support i.e. specific columns
-    # 3) assert with expected payload
-
-    # Insert
-    insert_payload = PayloadBuilder()\
-        .INSERT(key='SENT_pb', history_ts='now', value='11')\
-        .payload()
-    print(insert_payload, '\n')
-
-    insert_test_data = OrderedDict()
-    insert_test_data['key'] = 'SENT_pb'
-    insert_test_data['history_ts'] = 'now'
-    insert_test_data['value'] = '11'
-
-    assert insert_payload == json.dumps(insert_test_data, sort_keys=True)
-
-    res = Storage().insert_into_tbl("statistics_history", insert_payload)
-    print(res)
-    # assert res  "{'response': 'inserted'}"
-
-    # Update
-    update_payload = PayloadBuilder()\
-        .SET(value=22)\
-        .WHERE(['key', '=', 'SENT_pb'])\
-        .payload()
-    print(update_payload, '\n')
-
-    # update test data dict sample
-    condition = dict()
-    condition['column'] = 'key'
-    condition['condition'] = '='
-    condition['value'] = 'SENT_pb'
-
-    values = dict()
-    values['value'] = 22
-
-    update_test_data = dict()
-    # update_test_data['condition'] = condition # also works!
-    update_test_data['where'] = condition
-    update_test_data['values'] = values
-
-    assert update_payload == json.dumps(update_test_data, sort_keys=True)
-
-    res = Storage().update_tbl("statistics_history", update_payload)
-    print(res)
-    # assert res  "{'response': 'updated'}"
-
-    try:
-        offset = PayloadBuilder().SKIP(5).payload()
-        print(offset)
-    except Exception as ex:
-        print(str(ex))
-
-    limit = PayloadBuilder().LIMIT(2).payload()
-    print(limit)
-
-    limit_and_offset = PayloadBuilder().LIMIT(2).OFFSET(10).payload()
-    print(limit_and_offset)
-
-    limit_and_skip = PayloadBuilder().LIMIT(2).SKIP(12).payload()
-    print(limit_and_skip)

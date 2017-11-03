@@ -8,7 +8,7 @@
 
 import time
 from aiohttp import web
-from foglamp.core.service_registry.instance import Service
+from foglamp.microservice_management.service_registry.instance import Service
 
 __author__ = "Amarendra Kumar Sinha, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -149,6 +149,7 @@ async def get_service(request):
         svc["address"] = service._address
         svc["management_port"] = service._management_port
         svc["protocol"] = service._protocol
+        svc["status"] =  service._status
         if service._port:
             svc["service_port"] = service._port
         services.append(svc)

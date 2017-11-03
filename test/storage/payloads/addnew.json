@@ -1,0 +1,7 @@
+{
+	"id" : 200,
+	"key" : "T2NOW",
+	"description" : "An inserted row with the current timestamp",
+	"data" : { "json" : "inserted object" },
+	"ts" : "now()"
+}

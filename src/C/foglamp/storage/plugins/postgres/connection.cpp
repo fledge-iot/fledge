@@ -1277,16 +1277,42 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 
 	sql.append(whereClause["column"].GetString());
 	sql.append(' ');
-	sql.append(whereClause["condition"].GetString()); 
-	sql.append(' ');
-	if (whereClause["value"].IsInt())
+	string cond = whereClause["condition"].GetString();
+	if (!cond.compare("older"))
 	{
+		if (!whereClause["value"].IsInt())
+		{
+			raiseError("where clause", "The \"value\" of an \"older\" condition must be an integer");
+			return false;
+		}
+		sql.append("< now() - INTERVAL '");
 		sql.append(whereClause["value"].GetInt());
-	} else if (whereClause["value"].IsString())
+		sql.append(" seconds'");
+	}
+	else if (!cond.compare("newer"))
 	{
-		sql.append('\'');
-		sql.append(whereClause["value"].GetString());
-		sql.append('\'');
+		if (!whereClause["value"].IsInt())
+		{
+			raiseError("where clause", "The \"value\" of an \"newer\" condition must be an integer");
+			return false;
+		}
+		sql.append("> now() - INTERVAL '");
+		sql.append(whereClause["value"].GetInt());
+		sql.append(" seconds'");
+	}
+	else
+	{
+		sql.append(cond);
+		sql.append(' ');
+		if (whereClause["value"].IsInt())
+		{
+			sql.append(whereClause["value"].GetInt());
+		} else if (whereClause["value"].IsString())
+		{
+			sql.append('\'');
+			sql.append(whereClause["value"].GetString());
+			sql.append('\'');
+		}
 	}
  
 	if (whereClause.HasMember("and"))

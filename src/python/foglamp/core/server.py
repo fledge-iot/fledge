@@ -20,6 +20,7 @@ from foglamp.microservice_management import routes as management_routes
 from foglamp.web import middleware
 from foglamp.microservice_management.service_registry.instance import Service
 from foglamp.core.scheduler.scheduler import Scheduler
+from foglamp.microservice_management.service_registry.monitor import Monitor
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -41,6 +42,9 @@ class Server:
 
     scheduler = None
     """ foglamp.core.Scheduler """
+
+    service_monitor = None
+    """ foglamp.microservice_management.service_registry.Monitor """
 
     _host = '0.0.0.0'
     core_management_port = 0
@@ -67,6 +71,12 @@ class Server:
         app = web.Application(middlewares=[middleware.error_middleware])
         management_routes.setup(app, is_core=True)
         return app
+
+    @classmethod
+    async def _start_service_monitor(cls):
+        """Starts the microservice monitor"""
+        cls.service_monitor = Monitor()
+        await cls.service_monitor.start()
 
     @classmethod
     async def _start_scheduler(cls):
@@ -121,6 +131,9 @@ class Server:
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
             loop.run_until_complete(cls._start_scheduler())
+
+            # start monitor
+            loop.run_until_complete(cls._start_service_monitor())
 
             service_app = cls._make_app()
             service_server, service_server_handler = cls._start_app(loop, service_app, host, cls.rest_service_port)

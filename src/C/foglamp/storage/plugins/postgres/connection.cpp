@@ -1072,7 +1072,38 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 	if (payload.HasMember("group"))
 	{
 		sql.append(", ");
-		sql.append(payload["group"].GetString());
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+			if (grp.HasMember("format"))
+			{
+				sql.append("to_char(");
+				sql.append(grp["column"].GetString());
+				sql.append(", '");
+				sql.append(grp["format"].GetString());
+				sql.append("')");
+			}
+			else
+			{
+				sql.append(grp["column"].GetString());
+			}
+			if (grp.HasMember("alias"))
+			{
+				sql.append(" AS \"");
+				sql.append(grp["alias"].GetString());
+				sql.append("\"");
+			}
+			else
+			{
+				sql.append(" AS \"");
+				sql.append(grp["column"].GetString());
+				sql.append("\"");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
 	}
 	if (payload.HasMember("timebucket"))
 	{
@@ -1196,7 +1227,22 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 	if (payload.HasMember("group"))
 	{
 		sql.append(" GROUP BY ");
-		sql.append(payload["group"].GetString());
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+			if (grp.HasMember("format"))
+			{
+				sql.append("to_char(");
+				sql.append(grp["column"].GetString());
+				sql.append(", '");
+				sql.append(grp["format"].GetString());
+				sql.append("')");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
 	}
 
 	if (payload.HasMember("timebucket"))

@@ -697,6 +697,9 @@ class Scheduler(object):
 
         self._start_time = self.current_time if self.current_time else time.time()
 
+        # FIXME: Move below part code to server.py->_start_core(), line 123, after start of storage and before start
+        #        of scheduler. May need to either pass the storage object or create a storage object here itself.
+        #        Also provide a timeout option.
         # ************ make sure that it go forward only when storage service is ready
         storage_service = None
 
@@ -710,6 +713,7 @@ class Scheduler(object):
 
             except (StorageServiceUnavailable, InvalidServiceInstance, Exception) as ex:
                 await asyncio.sleep(5)
+        # **************
 
         # Everything OK, so now start Scheduler and create Storage instance
         self._logger.info("Starting Scheduler: Management port received is %d", self._core_management_port)

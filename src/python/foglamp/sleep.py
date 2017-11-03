@@ -5,6 +5,7 @@ from foglamp import logger
 
 
 """ To test scheduler """
+# TODO: Find a better location for this file
 
 _logger = logger.setup(__name__, level=20)
 
@@ -15,5 +16,5 @@ parser.add_argument("--port", help="port")
 parser.add_argument("--name", help="name")
 args = parser.parse_args()
 
-_logger.info("sleeping for %s". args.duration)
+_logger.info("sleeping for %s", args.duration)
 time.sleep(args.duration)

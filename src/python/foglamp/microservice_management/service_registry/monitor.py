@@ -23,7 +23,6 @@ __version__ = "${VERSION}"
 
 
 class Monitor(object):
-    # Constant class attributes
     _DEFAULT_SLEEP_INTERVAL = 5
     """The time (in seconds) to sleep between health checks"""
     _DEFAULT_PING_TIMEOUT = 1
@@ -86,9 +85,7 @@ class Monitor(object):
         config = await configuration_manager.get_category_all_items('SMNTR')
 
         self._sleep_interval = int(config['sleep_interval']['value'])
-        self._sleep_interval = self._sleep_interval if self._sleep_interval >=5 else 5
         self._ping_timeout = int(config['ping_timeout']['value'])
-        self._ping_timeout = self._ping_timeout if self._ping_timeout >=0 else 3
 
 
     async def start(self):

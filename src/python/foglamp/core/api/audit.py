@@ -4,15 +4,16 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from aiohttp import web
 
-from foglamp.core.api import audit_trail_db_services
+from enum import IntEnum
+from aiohttp import web
+from foglamp.storage.storage import Storage
+from foglamp.storage.payload_builder import PayloadBuilder
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
 
 _help = """
     -------------------------------------------------------------------------------
@@ -22,9 +23,19 @@ _help = """
     -------------------------------------------------------------------------------
 """
 
+
+class Severity(IntEnum):
+    """Enumeration for log.severity"""
+    FATAL = 1
+    ERROR = 2
+    WARNING = 3
+    INFORMATION = 4
+
+
 ####################################
 #  Audit Trail
 ####################################
+
 
 async def get_audit_entries(request):
     """
@@ -51,10 +62,33 @@ async def get_audit_entries(request):
             offset = request.query.get('skip') if 'skip' in request.query else 0
         source = request.query.get('source') if 'source' in request.query else None
         severity = request.query.get('severity') if 'severity' in request.query else None
-        audit_entries = await audit_trail_db_services.read_audit_entries(limit=int(limit), offset=int(offset),
-                                                                         source=source, severity=severity)
 
-        return web.json_response({'audit': audit_entries})
+        # HACK: This way when we can more future we do not get an exponential
+        # explosion of if statements
+        complex_payload = PayloadBuilder().WHERE(['1', '=', '1'])
+
+        if source is not None:
+            complex_payload.AND_WHERE(['code', '=', source])
+
+        # TODO: FOGL-607(#7) if source is there then severity is not appending in payload
+        # WHERE 1=1 AND code=PURGE AND level=2 - we need this type syntax
+        if severity is not None:
+            complex_payload.AND_WHERE(['level', '=', Severity[severity].value])
+
+        complex_payload.ORDER_BY(['ts', 'desc'])
+
+        if limit:
+            complex_payload.LIMIT(int(limit))
+        if offset:
+            complex_payload.OFFSET(int(offset))
+
+        # TODO: Remove print once storage layer becomes stable
+        print(complex_payload.payload())
+
+        with Storage() as store:
+            results = store.query_tbl_with_payload('log', complex_payload.payload())
+
+        return web.json_response({'audit': results['rows']})
 
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
@@ -72,10 +106,10 @@ async def get_audit_log_codes(request):
 
         curl -X GET http://localhost:8082/foglamp/audit/logcode
     """
+    with Storage() as store:
+        result = store.query_tbl('log_codes')
 
-    log_codes = await audit_trail_db_services.read_log_codes()
-
-    return web.json_response({'log_code': log_codes})
+    return web.json_response({'log_code': result['rows']})
 
 
 async def get_audit_log_severity(request):
@@ -91,7 +125,7 @@ async def get_audit_log_severity(request):
         curl -X GET http://localhost:8082/foglamp/audit/severity
     """
     results = []
-    for _severity in audit_trail_db_services.Severity:
+    for _severity in Severity:
         data = {'index': _severity.value, 'name': _severity.name}
         results.append(data)
 

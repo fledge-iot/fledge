@@ -11,8 +11,6 @@ import requests
 import pytest
 import asyncio
 import uuid
-from foglamp.core.scheduler import Schedule
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -57,13 +55,13 @@ class TestScheduler:
         call(["foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
-        time.sleep(20)
+        time.sleep(30)
 
     @classmethod
     def teardown_class(cls):
         from subprocess import call
         call(["foglamp", "stop"])
-        time.sleep(4)
+        time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 
     def setup_method(self, method):

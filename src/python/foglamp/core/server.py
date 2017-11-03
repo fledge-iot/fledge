@@ -7,22 +7,21 @@
 
 """Core server module"""
 
-import os
-import sys
 import asyncio
-from aiohttp import web
+import os
 import subprocess
-
-import http
+import sys
+import http.client
 import json
+from aiohttp import web
 
 from foglamp import logger
 from foglamp.core import routes as admin_routes
 from foglamp.microservice_management import routes as management_routes
 from foglamp.web import middleware
 from foglamp.microservice_management.service_registry.instance import Service
+from foglamp.core.scheduler.scheduler import Scheduler
 from foglamp.microservice_management.service_registry.monitor import Monitor
-from foglamp.core.scheduler import Scheduler
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

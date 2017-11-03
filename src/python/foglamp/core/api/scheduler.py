@@ -4,16 +4,14 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import datetime
 import re
 import uuid
-import datetime
 from aiohttp import web
-
 from foglamp.core import server
 from foglamp.core.api import scheduler_db_services
-from foglamp.core.scheduler import NotReadyError, DuplicateRequestError, TaskNotRunningError, TaskNotFoundError, ScheduleNotFoundError
-from foglamp.core.scheduler import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task, Where
-
+from foglamp.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
+from foglamp.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError
 
 __author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -478,7 +476,7 @@ async def get_task(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Task ID {}".format(task_id))
 
-        tsk = await server.Server.scheduler.get_task(uuid.UUID(task_id))
+        tsk = await server.Server.scheduler.get_task(task_id)
 
         task = {
             'id': str(tsk.task_id),
@@ -507,8 +505,6 @@ async def get_tasks(request):
 
     try:
         limit = request.query.get('limit') if 'limit' in request.query else '100'
-        state = request.query.get('state') if 'state' in request.query else None
-
         if limit:
             if not re.match("(^[0-9]*$)", limit):
                 raise web.HTTPBadRequest(reason='This limit {} not permitted.'.format(limit))
@@ -517,6 +513,7 @@ async def get_tasks(request):
             else:
                 limit = int(limit)
 
+        state = request.query.get('state') if 'state' in request.query else None
         if state:
             if state.upper() not in [t.name for t in list(Task.State)]:
                 raise web.HTTPBadRequest(reason='This state value {} not permitted.'.format(state))
@@ -530,13 +527,16 @@ async def get_tasks(request):
 
         where_clause = None
         if name and state:
-            where_clause = Where.and_((Task.attr.state == state), (Task.attr.process_name == name))
+            where_clause = (["process_name", "=", name], ["state", "=", state])
         elif name:
-            where_clause = Task.attr.process_name.in_(name)
+            where_clause = ["process_name", "=", name]
         elif state:
-            where_clause = Task.attr.state.in_(state)
+            where_clause = ["state", "=", state]
 
         tasks = await server.Server.scheduler.get_tasks(where=where_clause, limit=limit)
+
+        if len(tasks) == 0:
+            raise TaskNotFoundError("No Tasks")
 
         new_tasks = []
         for task in tasks:
@@ -604,7 +604,7 @@ async def cancel_task(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Task ID {}".format(task_id))
 
-        task = await server.Server.scheduler.get_task(uuid.UUID(task_id))
+        task = await server.Server.scheduler.get_task(task_id)
 
         # Cancel Task
         await server.Server.scheduler.cancel_task(uuid.UUID(task_id))

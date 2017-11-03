@@ -31,6 +31,7 @@ import time
 import uuid
 import aiopg
 import aiopg.sa
+import asyncio
 import pytest
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
@@ -65,6 +66,14 @@ scheduler = Scheduler(_address, _m_port)
 @pytest.allure.feature("unit")
 @pytest.allure.story("scheduler get_tasks")
 class TestSchedulerGetTasks:
+    @classmethod
+    def setup_class(cls):
+        asyncio.get_event_loop().run_until_complete(scheduler.start())
+
+    @classmethod
+    def teardown_class(cls):
+        asyncio.get_event_loop().run_until_complete(scheduler.stop())
+
     @staticmethod
     async def drop_from_tasks():
         """DELETE data from tasks table"""
@@ -166,7 +175,6 @@ class TestSchedulerGetTasks:
         for offset in (0, 1, 5, 10, 25, 50, 75, 100):
             # limit is required for offset
             tasks = await scheduler.get_tasks(limit=100, offset=offset)
-            print(len(tasks))
             assert len(tasks) == 100 - offset
         # await  self.drop_from_tasks()
 

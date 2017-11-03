@@ -60,7 +60,7 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
 #       2) Change _m_port below with the management_port
 #       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/core/test_scheduler_get_tasks.py
 _address = '0.0.0.0'
-_m_port = 44476
+_m_port = 41041
 scheduler = Scheduler(_address, _m_port)
 
 @pytest.allure.feature("unit")
@@ -176,7 +176,7 @@ class TestSchedulerGetTasks:
             # limit is required for offset
             tasks = await scheduler.get_tasks(limit=100, offset=offset)
             assert len(tasks) == 100 - offset
-        # await  self.drop_from_tasks()
+        await  self.drop_from_tasks()
 
     @pytest.mark.asyncio
     async def test_get_tasks_where(self):

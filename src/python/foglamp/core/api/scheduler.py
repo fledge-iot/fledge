@@ -182,10 +182,6 @@ async def _check_schedule_post_parameters(data, curr_value=None):
     _storage = connect.get_storage()
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
 
-    payload = PayloadBuilder().SELECT(("name")).WHERE(["name", "=", _schedule.get('schedule_process_name')]).payload()
-    _storage = connect.get_storage()
-    scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
-
     if len(scheduled_process['rows']) == 0:
         _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
 
@@ -578,7 +574,7 @@ async def get_tasks_latest(request):
             payload = PayloadBuilder() \
                     .SELECT(("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
                     .WHERE(["process_name", "=", name])\
-                    .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]) \
+                    .ORDER_BY(["start_time", "desc"]) \
                     .payload()
         else:
             payload = PayloadBuilder() \

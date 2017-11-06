@@ -74,12 +74,13 @@ async def asset_counts(request):
     # PayloadBuilder().AGGREGATE(["count", "*"]).GROUP_BY('asset_code')
 
     aggregate = {"operation": "count", "column": "*", "alias": "Count"}
-    payload = OrderedDict()
-    payload['aggregate'] = aggregate
-    payload['group'] = "asset_code"
+    d = OrderedDict()
+    d['aggregate'] = aggregate
+    d['group'] = "asset_code"
 
+    payload = json.dumps(d)
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
+    results = _storage.query_tbl_with_payload('readings', payload)
 
     return web.json_response(results['rows'])
 
@@ -97,24 +98,25 @@ async def asset(request):
 
     # TODO: FOGL-637, 640
     timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
-    payload = OrderedDict()
-    payload['return'] = [timestamp, "reading"]
-    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    d = OrderedDict()
+    d['return'] = [timestamp, "reading"]
+    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
     _and_where = _where_clause(request)
     if len(_and_where) > 0:
-        payload['where'].update(_and_where)
+        d['where'].update(_and_where)
 
     # Add the order by and limit clause
-    payload['sort'] = {"column": "user_ts", "direction": "desc"}
+    d['sort'] = {"column": "user_ts", "direction": "desc"}
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
     offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
 
-    payload['limit'] = limit
+    d['limit'] = limit
     if offset:
-        payload['skip'] = offset
+        d['skip'] = offset
 
+    payload = json.dumps(d)
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
+    results = _storage.query_tbl_with_payload('readings', payload)
 
     return web.json_response(results['rows'])
 
@@ -151,26 +153,26 @@ async def asset_reading(request):
     json_property['json'] = {"column": "reading", "properties": reading}
     json_property['alias'] = "reading"
 
-    payload = OrderedDict()
-    payload['return'] = [timestamp, json_property]
-    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    d = OrderedDict()
+    d['return'] = [timestamp, json_property]
+    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
 
     val = _where_clause(request)
     if val is not None:
-        and_op = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
-        payload['where'].update(and_op)
+        d['where'].update(val)
 
     # Add the order by and limit clause
-    payload['sort'] = {"column": "user_ts", "direction": "desc"}
+    d['sort'] = {"column": "user_ts", "direction": "desc"}
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
     offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
 
-    payload['limit'] = limit
+    d['limit'] = limit
     if offset:
-        payload['skip'] = offset
+        d['skip'] = offset
 
+    payload = json.dumps(d)
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
+    results = _storage.query_tbl_with_payload('readings', payload)
 
     return web.json_response(results['rows'])
 
@@ -206,20 +208,20 @@ async def asset_summary(request):
     max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
     avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
 
-    payload = OrderedDict()
-    payload['aggregate'] = [min_dict, max_dict, avg_dict]
-    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    d = OrderedDict()
+    d['aggregate'] = [min_dict, max_dict, avg_dict]
+    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
     _and_where = _where_clause(request)
     if len(_and_where) > 0:
-        payload['where'].update(_and_where)
+        d['where'].update(_and_where)
 
+    payload = json.dumps(d)
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
+    results = _storage.query_tbl_with_payload('readings', payload)
 
     return web.json_response({reading: results['rows']})
 
 
-# FIXME: FOGL-668 No support from Storage service yet, so this end point is blocked
 async def asset_averages(request):
     """ Browse all the assets for which we have recorded readings and
     return a series of averages per second, minute or hour.
@@ -265,26 +267,22 @@ async def asset_averages(request):
 
     aggregate = OrderedDict()
     aggregate['aggregate'] = [min_dict, max_dict, avg_dict]
-    payload = OrderedDict()
-    payload['return'] = [timestamp, aggregate]
-    payload['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
+    d = OrderedDict()
+    d['aggregate'] = [min_dict, max_dict, avg_dict]
+    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
     _and_where = _where_clause(request)
     if len(_and_where) > 0:
-        payload['where'].update(_and_where)
+        d['where'].update(_and_where)
 
-    # TODO: FOGL-668 No support from Storage service yet, so this end point is blocked
-    # Add the group by
-    # query += """ GROUP BY TO_CHAR(user_ts, '{0}') ORDER BY 1""".format(ts_restraint)
+    # Add the group by and limit clause
+    d['group'] = timestamp
 
-    # Add the order by and limit clause
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    payload['limit'] = limit
+    d['limit'] = limit
 
-    # TODO: Remove print
-    print("asset_summary:", json.dumps(payload))
-
+    payload = json.dumps(d)
     _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', json.dumps(payload))
+    results = _storage.query_tbl_with_payload('readings', payload)
 
     return web.json_response(results['rows'])
 

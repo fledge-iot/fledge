@@ -23,9 +23,9 @@ class Service(object):
 
         Storage = 1
         Core = 2
-        Device = 3
+        Southbound = 3
 
-    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port']
+    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
 
     def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
@@ -35,12 +35,13 @@ class Service(object):
         self._address = s_address
         self._port = int(s_port)
         self._management_port = int(m_port)
+        self._status = 0
         # TODO: MUST
         # well, reserve the self PORT?
 
     def __repr__(self):
         template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \
-                   'address={s._address}, service port={s._port}, management port={s._management_port}>'
+                   'address={s._address}, service port={s._port}, management port={s._management_port}, status={s._status}>'
         return template.format(s=self)
 
     def __str__(self):
@@ -81,7 +82,7 @@ class Service(object):
             """ registers the service instance
            
             :param name: name of the service
-            :param s_type: a valid service type; e.g. Storage, Core, Device
+            :param s_type: a valid service type; e.g. Storage, Core, Southbound
             :param address: any IP or host address
             :param port: a valid positive integer
             :param management_port: a valid positive integer for management operations e.g. ping, shutdown

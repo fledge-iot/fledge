@@ -737,7 +737,7 @@ long numReadings = 0;
 		SQLBuffer unsentBuffer;
 		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
-		unsentBuffer.append(" seconds' AND id > ");
+		unsentBuffer.append(" hours' AND id > ");
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
@@ -757,7 +757,7 @@ long numReadings = 0;
 	
 	sql.append("DELETE FROM readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
-	sql.append(" seconds'");
+	sql.append(" hours'");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
 	{
 		sql.append(" AND id < ");
@@ -1072,7 +1072,38 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 	if (payload.HasMember("group"))
 	{
 		sql.append(", ");
-		sql.append(payload["group"].GetString());
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+			if (grp.HasMember("format"))
+			{
+				sql.append("to_char(");
+				sql.append(grp["column"].GetString());
+				sql.append(", '");
+				sql.append(grp["format"].GetString());
+				sql.append("')");
+			}
+			else
+			{
+				sql.append(grp["column"].GetString());
+			}
+			if (grp.HasMember("alias"))
+			{
+				sql.append(" AS \"");
+				sql.append(grp["alias"].GetString());
+				sql.append("\"");
+			}
+			else
+			{
+				sql.append(" AS \"");
+				sql.append(grp["column"].GetString());
+				sql.append("\"");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
 	}
 	if (payload.HasMember("timebucket"))
 	{
@@ -1196,7 +1227,22 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 	if (payload.HasMember("group"))
 	{
 		sql.append(" GROUP BY ");
-		sql.append(payload["group"].GetString());
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+			if (grp.HasMember("format"))
+			{
+				sql.append("to_char(");
+				sql.append(grp["column"].GetString());
+				sql.append(", '");
+				sql.append(grp["format"].GetString());
+				sql.append("')");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
 	}
 
 	if (payload.HasMember("timebucket"))

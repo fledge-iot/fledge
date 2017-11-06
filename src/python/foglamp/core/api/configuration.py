@@ -35,7 +35,7 @@ async def get_categories(request):
             the list of known categories in the configuration database
 
     :Example:
-            curl -X GET http://localhost:8082/foglamp/asset
+            curl -X GET http://localhost:8081/foglamp/categories
     """
     categories = await configuration_manager.get_all_category_names()
     categories_json = [{"key": c[0], "description": c[1]} for c in categories]
@@ -52,9 +52,7 @@ async def get_category(request):
             the configuration items in the given category.
 
     :Example:
-            curl -X GET http://localhost:8082/foglamp/asset/mouse
-
-            curl -X GET http://localhost:8082/foglamp/asset/TI%20sensorTag%2Ftemperature
+            curl -X GET http://localhost:8081/category/PURGE_READ
     """
     category_name = request.match_info.get('category_name', None)
 
@@ -78,7 +76,7 @@ async def get_category_item(request):
             the configuration item in the given category.
 
     :Example:
-            curl -X GET http://localhost:8082/foglamp/asset/TI%20sensorTag%2Ftemperature/ambient
+            curl -X GET http://localhost:8081/foglamp/category/PURGE_READ/age
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
@@ -103,10 +101,10 @@ async def set_configuration_item(request):
             set the configuration item value in the given category.
 
     :Example:
-        curl -X PUT -H "Content-Type: application/json" -d '{"value": <some value> }' http://localhost:8082/foglamp/category/{category_name}/{config_item}
+        curl -X PUT -H "Content-Type: application/json" -d '{"value": <some value> }' http://localhost:8081/foglamp/category/{category_name}/{config_item}
 
         For {category_name}=>PURGE update value for {config_item}=>age
-        curl -X PUT -H "Content-Type: application/json" -d '{"value": 24}' http://localhost:8082/foglamp/category/PURGE/age
+        curl -X PUT -H "Content-Type: application/json" -d '{"value": 24}' http://localhost:8081/foglamp/category/PURGE/age
 
     """
     category_name = request.match_info.get('category_name', None)
@@ -137,10 +135,10 @@ async def delete_configuration_item_value(request):
         set the configuration item value to empty string in the given category
 
     :Example:
-        curl -X DELETE http://localhost:8082/foglamp/category/{category_name}/{config_item}/value
+        curl -X DELETE http://localhost:8081/foglamp/category/{category_name}/{config_item}/value
 
         For {category_name}=>PURGE delete value for {config_item}=>age
-        curl -X DELETE http://localhost:8082/foglamp/category/PURGE/age/value
+        curl -X DELETE http://localhost:8081/foglamp/category/PURGE/age/value
 
     """
     category_name = request.match_info.get('category_name', None)

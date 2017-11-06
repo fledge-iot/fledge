@@ -10,19 +10,24 @@
 import aiopg.sa
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql import text
 from importlib import import_module
 import copy
 import json
 import os
 
+from collections import OrderedDict
+from foglamp.storage.payload_builder import PayloadBuilder
+from foglamp.core import connect
+
 from foglamp import logger
 
-__author__ = "Ashwin Gopalakrishnan"
+__author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+# TODO: SQLAlchemy dependencies remove when all methods are done with storage
 _configuration_tbl = sa.Table(
     'configuration',
     sa.MetaData(),
@@ -69,6 +74,7 @@ category(s)
                 value_val - string (dynamic)
 """
 
+
 def _run_callbacks(category_name):
     callbacks = _registered_interests.get(category_name)
     if callbacks is not None:
@@ -85,6 +91,7 @@ def _run_callbacks(category_name):
                 _logger.exception(
                     'Unable to run %s.run(category_name) for category_name %s', callback, category_name)
                 raise
+
 
 async def _merge_category_vals(category_val_new, category_val_storage, keep_original_items):
     # preserve all value_vals from category_val_storage
@@ -147,22 +154,32 @@ async def _validate_category_val(category_val, set_value_val_from_default_val=Tr
 
 
 async def _create_new_category(category_name, category_val, category_description):
-    async with aiopg.sa.create_engine(_connection_string) as engine:
-        async with engine.acquire() as conn:
-            await conn.execute(_configuration_tbl.insert().values(key=category_name, value=category_val,
-                                                                  description=category_description))
+    payload = PayloadBuilder().INSERT(key=category_name, description=category_description, value=category_val).payload()
+    _storage = connect.get_storage()
+    _storage.insert_into_tbl("configuration", payload)
 
 
 async def _read_all_category_names():
-    async with aiopg.sa.create_engine(_connection_string) as engine:
-        async with engine.acquire() as conn:
-            category_info = []
-            async for row in conn.execute(_configuration_tbl.select()):
-                category_info.append((row.key, row.description))
-            return category_info
+    # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
+    payload = PayloadBuilder().SELECT(("key", "description", "value", "ts")).payload()
+    _storage = connect.get_storage()
+    results = _storage.query_tbl_with_payload('configuration', payload)
+
+    category_info = []
+    for row in results['rows']:
+        category_info.append((row['key'], row['description']))
+    return category_info
 
 
 async def _read_category_val(category_name):
+    # SELECT configuration.key, configuration.description, configuration.value,
+    # configuration.ts FROM configuration WHERE configuration.key = :key_1
+    # payload = PayloadBuilder().SELECT(("value"))\
+    #     .WHERE(["key", "=", category_name]).payload()
+    # _storage = connect.get_storage()
+    # results = _storage.query_tbl_with_payload('configuration', payload)
+    # for row in results['rows']:
+    #     return row['value']
     async with aiopg.sa.create_engine(_connection_string) as engine:
         async with engine.acquire() as conn:
             async for row in conn.execute(
@@ -171,55 +188,58 @@ async def _read_category_val(category_name):
 
 
 async def _read_item_val(category_name, item_name):
-    query_template = """
-        SELECT 
-            configuration.value::json->'{}' as value
-        FROM 
-            foglamp.configuration
-        WHERE 
-            configuration.key='{}'
-    """
-    query_full = query_template.format(item_name, category_name)
-    async with aiopg.sa.create_engine(_connection_string) as engine:
-        async with engine.acquire() as conn:
-            async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
-                return row.value
+    #  SELECT configuration.value::json->'configuration' as value
+    #  FROM foglamp.configuration WHERE configuration.key='SENSORS'
+    # TODO: FOGL-637, 640
+    d = OrderedDict()
+    property_dict = {"column": "value", "properties": [item_name]}
+    json_column_dict = OrderedDict()
+    json_column_dict['json'] = property_dict
+    json_column_dict['alias'] = "value"
+    d['return'] = [json_column_dict]
+    d['where'] = {"column": "key", "condition": "=", "value": category_name}
+    payload = json.dumps(d)
+    _storage = connect.get_storage()
+    results = _storage.query_tbl_with_payload('configuration', payload)
+    return results['rows']
 
 
 async def _read_value_val(category_name, item_name):
-    query_template = """
-        SELECT 
-            configuration.value::json->'{}'->'value' as value
-        FROM 
-            foglamp.configuration
-        WHERE 
-            configuration.key='{}'
-    """
-    query_full = query_template.format(item_name, category_name)
-    async with aiopg.sa.create_engine(_connection_string) as engine:
-        async with engine.acquire() as conn:
-            async for row in conn.execute(text(query_full).columns(_configuration_tbl.c.value)):
-                return row.value
+    #  SELECT configuration.value::json->'retainUnsent'->'value' as value
+    #  FROM foglamp.configuration WHERE configuration.key='PURGE_READ'
+    # TODO: FOGL-637, 640
+    d = OrderedDict()
+    property_dict = {"column": "value", "properties": [item_name, "value"]}
+    json_column_dict = OrderedDict()
+    json_column_dict['json'] = property_dict
+    json_column_dict['alias'] = "value"
+    d['return'] = [json_column_dict]
+    d['where'] = {"column": "key", "condition": "=", "value": category_name}
+    payload = json.dumps(d)
+    _storage = connect.get_storage()
+    results = _storage.query_tbl_with_payload('configuration', payload)
+    return results['rows']
 
 
 async def _update_value_val(category_name, item_name, new_value_val):
-    query_template = """
-            UPDATE foglamp.configuration 
-            SET value = jsonb_set(value, '{{{},value}}', '"{}"') 
-            WHERE key='{}'
-        """
-    query_full = query_template.format(item_name, new_value_val, category_name)
-    async with aiopg.sa.create_engine(_connection_string) as engine:
-        async with engine.acquire() as conn:
-            await conn.execute(query_full)
+    # UPDATE foglamp.configuration
+    # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
+    # WHERE key='PURGE_READ'
+    # TODO: FOGL-637, 640
+    jsonb_prop_dict = {"column": "value", "path": [item_name, "value"], "value": new_value_val}
+    d = OrderedDict()
+    d['json_properties'] = [jsonb_prop_dict]
+    d['where'] = {"column": "key", "condition": "=", "value": category_name}
+    payload = json.dumps(d)
+    _storage = connect.get_storage()
+    _storage.update_tbl("configuration", payload)
 
 
 async def _update_category(category_name, category_val, category_description):
-    async with aiopg.sa.create_engine(_connection_string) as engine:
-        async with engine.acquire() as conn:
-            await conn.execute(
-                _configuration_tbl.update().where(_configuration_tbl.c.key == category_name).values(value=category_val,
-                                                                                                    description=category_description))
+    payload = PayloadBuilder().SET(value=category_val, description=category_description).\
+        WHERE(["key", "=", category_name]).payload()
+    _storage = connect.get_storage()
+    _storage.update_tbl("configuration", payload)
 
 
 async def get_all_category_names():

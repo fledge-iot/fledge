@@ -15,4 +15,4 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-Server.start()
+Server().start()

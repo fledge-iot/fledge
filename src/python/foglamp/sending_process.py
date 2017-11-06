@@ -5,28 +5,32 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" The sending process is run according to a schedule in order to send reading data to the historian,
-e.g. the PI system.
+""" The sending process is run according to a schedule in order to send reading data
+to the historian, e.g. the PI system.
 It’s role is to implement the rules as to what needs to be sent and when,
-extract the data from the storage subsystem and stream it to the translator for sending to the external system.
+extract the data from the storage subsystem and stream it to the translator
+for sending to the external system.
 The sending process does not implement the protocol used to send the data,
-that is devolved to the translation plugin in order to allow for flexibility in the translation process.
+that is devolved to the translation plugin in order to allow for flexibility
+in the translation process.
 
 """
 
 import resource
-import argparse
 
 import asyncio
 import sys
 import time
-import psycopg2
 import importlib
 import logging
 import datetime
-import os
 
+from foglamp.parser import Parser
+from foglamp.storage.storage import Storage, Readings
 from foglamp import logger, statistics, configuration_manager
+
+import foglamp.storage.payload_builder as payload_builder
+from foglamp.statistics import Statistics
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -49,14 +53,15 @@ _MESSAGES_LIST = {
     "e000001": "cannot start the logger - error details |{0}|",
     "e000002": "cannot complete the operation - error details |{0}|",
     "e000003": "cannot complete the retrieval of the configuration",
-    "e000004": "cannot complete the initialization",
+    "e000004": "cannot complete the initialization - error details |{0}|",
     "e000005": "cannot load the plugin |{0}|",
     "e000006": "cannot complete the sending operation of a block of data.",
     "e000007": "cannot complete the termination of the sending process.",
     "e000008": "unknown data source, it could be only: readings, statistics or audit.",
-    "e000009": "cannot load data into memory.",
+    "e000009": "cannot load data into memory - error details |{0}|",
     "e000010": "cannot update statistics.",
-    "e000011": "invalid input parameters, the stream id is required and it should be a number - parameters |{0}|",
+    "e000011": "invalid input parameters, the stream id is required and it should be a number "
+               "- parameters |{0}|",
     "e000012": "cannot connect to the DB Layer - error details |{0}|",
     "e000013": "cannot validate the stream id - error details |{0}|",
     "e000014": "multiple streams having same id are defined - stream id |{0}|",
@@ -65,9 +70,19 @@ _MESSAGES_LIST = {
     "e000017": "cannot handle command line parameters - error details |{0}|",
     "e000018": "cannot initialize the plugin |{0}|",
     "e000019": "cannot retrieve the starting point for sending operation.",
-    "e000020": "cannot update the reached position.",
+    "e000020": "cannot update the reached position - error details |{0}|",
     "e000021": "cannot complete the sending operation - error details |{0}|",
-    "e000022": "unable to convert in memory data structure related to the statistics data - error details |{0}|",
+    "e000022": "unable to convert in memory data structure related to the statistics data "
+               "- error details |{0}|",
+    "e000023": "cannot complete the initialization - error details |{0}|",
+
+    "e000024": "unable to log the operation in the Storage Layer - error details |{0}|",
+
+    "e000025": "Required argument '--name' is missing - command line |{0}|",
+    "e000026": "Required argument '--port' is missing - command line |{0}|",
+    "e000027": "Required argument '--address' is missing - command line |{0}|",
+
+
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -100,7 +115,6 @@ class InvalidCommandLineParameters(RuntimeError):
 def _performance_log(func):
     """ Logs information for performance measurement """
 
-    # noinspection PyProtectedMember
     def wrapper(*arg):
         """ wrapper """
 
@@ -117,7 +131,7 @@ def _performance_log(func):
             delta_milliseconds = int(delta.total_seconds() * 1000)
 
             _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|"
-                         .format(sys._getframe().f_locals['func'],
+                         .format(func.__name__,
                                  delta_milliseconds,
                                  process_memory))
 
@@ -126,15 +140,53 @@ def _performance_log(func):
     return wrapper
 
 
+class LogStorage(object):
+    """ Logs operations in the Storage layer """
+
+    LOG_CODE = "STRMN"
+    """ Process name for logging the operations """
+
+    class Severity(object):
+        """ Log severity level """
+
+        SUCCESS = 0
+        FAILURE = 1
+        WARNING = 2
+        INFO = 4
+
+    def __init__(self, storage):
+
+        self._storage = storage
+        """ Reference to the Storage Layer """
+
+    def write(self, level, log):
+        """ Logs an operation in the Storage layer
+
+        Args:
+            level: {SUCCESS|FAILURE|WARNING|INFO}
+            log: message to log as a dict
+        Returns:
+        Raises:
+            Logs in the syslog in case of an error but the exception is not propagated
+        """
+
+        try:
+            payload = payload_builder.PayloadBuilder() \
+                .INSERT(code=LogStorage.LOG_CODE,
+                        level=level,
+                        log=log) \
+                .payload()
+
+            self._storage.insert_into_tbl("log", payload)
+
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000024"].format(_ex)
+
+            _logger.error(_message)
+
+
 class SendingProcess:
     """ SendingProcess """
-
-    # DB references
-    # FIXME: it will be removed using the DB layer
-    _DB_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
-
-    _pg_conn = ()
-    _pg_cur = ()
 
     # Filesystem path where the translators reside
     _TRANSLATOR_PATH = "foglamp.translators."
@@ -153,14 +205,15 @@ class SendingProcess:
 
     _CONFIG_DEFAULT = {
         "enable": {
-            "description": "A switch that can be used to enable or disable execution of the sending process.",
+            "description": "A switch that can be used to enable or disable execution of "
+                           "the sending process.",
             "type": "boolean",
             "default": "True"
         },
         "duration": {
-            "description": "How long the sending process should run before stopping.",
+            "description": "How long the sending process should run (in seconds) before stopping.",
             "type": "integer",
-            "default": "3"
+            "default": "60"
         },
         "source": {
             "description": "Defines the source of the data to be sent on the stream, "
@@ -175,9 +228,10 @@ class SendingProcess:
         },
         "sleepInterval": {
             "description": "A period of time, expressed in seconds, "
-                           "to wait between attempts to send readings when there are no readings to be sent.",
+                           "to wait between attempts to send readings when there are no "
+                           "readings to be sent.",
             "type": "integer",
-            "default": "1"
+            "default": "5"
         },
         "translator": {
             "description": "The name of the translator to use to translate the readings "
@@ -188,14 +242,17 @@ class SendingProcess:
 
     }
 
-    def __init__(self):
+    def __init__(self, _mgt_name, _mgt_port, _mgt_address):
+        """
 
-        try:
-            snap_user_common = os.environ['SNAP_USER_COMMON']
-            unix_socket_dir = "{}/tmp/".format(snap_user_common)
-            self._DB_CONNECTION_STRING = self._DB_CONNECTION_STRING + " host='" + unix_socket_dir + "'"
-        except KeyError:
-            pass
+        Args:
+            _mgt_name: Unique name that represents the microservice
+            _mgt_port: Dynamic port of the management API - Used by the Storage layer
+            _mgt_address: IP address of the server for the management API - Used by the Storage layer
+
+        Returns:
+        Raises:
+        """
 
         # Configurations retrieved from the Configuration Manager
         self._config = {
@@ -219,7 +276,18 @@ class SendingProcess:
             'config': ""
         }
 
-    # noinspection PyProtectedMember
+        self._mgt_name = _mgt_name
+        self._mgt_port = _mgt_port
+        self._mgt_address = _mgt_address
+        ''' Parameters for the Storage layer '''
+
+        self._storage = Storage(_mgt_address, _mgt_port)
+        self._readings = Readings(_mgt_address, _mgt_port)
+        """" Interfaces to the FogLAMP Storage Layer """
+
+        self._log_storage = LogStorage(self._storage)
+        """" Used to log operations in the Storage Layer """
+
     def _retrieve_configuration(self, stream_id):
         """ Retrieves the configuration from the Configuration Manager
 
@@ -231,16 +299,18 @@ class SendingProcess:
         .. todo::
         """
 
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format("_retrieve_configuration"))
 
         try:
             config_category_name = self._CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-            _event_loop.run_until_complete(configuration_manager.create_category(config_category_name,
-                                                                                 self._CONFIG_DEFAULT,
-                                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
-            _config_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
-                                                                  (config_category_name))
+            _event_loop.run_until_complete(configuration_manager.create_category(
+                                                         config_category_name,
+                                                         self._CONFIG_DEFAULT,
+                                                         self._CONFIG_CATEGORY_DESCRIPTION))
+            _config_from_manager = _event_loop.run_until_complete(
+                                            configuration_manager.get_category_all_items
+                                            (config_category_name))
 
             # Retrieves the configurations and apply the related conversions
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
@@ -277,7 +347,6 @@ class SendingProcess:
             _logger.error(_message)
             raise
 
-    # noinspection PyProtectedMember
     def start(self, stream_id):
         """ Setup the correct state for the Sending Process
 
@@ -292,7 +361,7 @@ class SendingProcess:
 
         exec_sending_process = False
 
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format("start"))
 
         try:
             prg_text = ", for Linux (x86_64)"
@@ -300,16 +369,6 @@ class SendingProcess:
             start_message = "" + _MODULE_NAME + "" + prg_text + " " + __copyright__ + " "
             _logger.info("{0}".format(start_message))
             _logger.info(_MESSAGES_LIST["i000001"])
-
-            try:
-                self._pg_conn = psycopg2.connect(self._DB_CONNECTION_STRING)
-                self._pg_cur = self._pg_conn.cursor()
-
-            except Exception as e:
-                _message = _MESSAGES_LIST["e000012"].format(str(e))
-
-                _logger.error(_message)
-                raise
 
             if self._is_stream_id_valid(stream_id):
 
@@ -326,12 +385,14 @@ class SendingProcess:
 
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
-                    _logger.debug("{0} - {1} - {2} ".format(sys._getframe().f_code.co_name,
+                    _logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],
                                                             self._plugin_info['version']))
 
                     if self._is_translator_valid():
                         try:
+                            self._plugin._storage = self._storage
+
                             self._plugin.plugin_init()
 
                         except Exception as e:
@@ -351,10 +412,12 @@ class SendingProcess:
 
                     _logger.info(_message)
 
-        except Exception:
-            _message = _MESSAGES_LIST["e000004"]
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000004"].format(str(_ex))
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on start": _message})
             raise
 
         return exec_sending_process
@@ -371,12 +434,12 @@ class SendingProcess:
         try:
             self._plugin.plugin_shutdown()
 
-            self._pg_conn.close()
-
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on stop": _message})
             raise
 
     def _load_data_into_memory(self, last_object_id):
@@ -395,8 +458,7 @@ class SendingProcess:
         Todo:
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} ".format("_load_data_into_memory"))
 
         try:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
@@ -434,22 +496,22 @@ class SendingProcess:
         Todo:
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
 
         try:
-            sql_cmd = "SELECT id, asset_code, user_ts, reading " \
-                      "FROM foglamp.readings " \
-                      "WHERE id> {0} " \
-                      "ORDER BY id LIMIT {1}" \
-                .format(last_object_id,
-                        self._config['blockSize'])
+            # Loads data
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['id', '>', last_object_id]) \
+                .LIMIT(self._config['blockSize']) \
+                .ORDER_BY(['id', 'ASC']) \
+                .payload()
 
-            self._pg_cur.execute(sql_cmd)
-            raw_data = self._pg_cur.fetchall()
+            readings = self._readings.query(payload)
 
-        except Exception:
-            _message = _MESSAGES_LIST["e000009"]
+            raw_data = readings['rows']
+
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000009"].format(str(_ex))
 
             _logger.error(_message)
             raise
@@ -470,19 +532,18 @@ class SendingProcess:
         Todo:
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - position |{1}| ".format(sys._getframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position |{1}| ".format("_load_data_into_memory_statistics", last_object_id))
 
         try:
-            sql_cmd = "SELECT id, key, ts, value " \
-                      "FROM foglamp.statistics_history " \
-                      "WHERE id> {0} " \
-                      "ORDER BY id LIMIT {1}" \
-                .format(last_object_id,
-                        self._config['blockSize'])
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['id', '>', last_object_id]) \
+                .LIMIT(self._config['blockSize']) \
+                .ORDER_BY(['id', 'ASC']) \
+                .payload()
 
-            self._pg_cur.execute(sql_cmd)
-            raw_data = self._pg_cur.fetchall()
+            statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+
+            raw_data = statistics_history['rows']
 
             converted_data = self._transform_in_memory_data_statistics(raw_data)
 
@@ -513,18 +574,23 @@ class SendingProcess:
 
         converted_data = []
 
+        # Extracts only the asset_code column
+        # and renames the columns to id, asset_code, user_ts, reading
+
         try:
-            for item in raw_data:
+            for row in raw_data:
 
                 # Removes spaces
-                asset_code = item[1].replace(" ", "")
+                asset_code = row['key'].strip()
 
-                new_data = [item[0],             # Row id
-                            asset_code,          # Asset code
-                            item[2],             # Timestamp
-                            {"value": item[3]}]  # Converts raw data to a Dictionary
+                new_row = {
+                    'id': row['id'],                    # Row id
+                    'asset_code': asset_code,           # Asset code
+                    'user_ts': row['ts'],               # Timestamp
+                    'reading': {'value': row['value']}  # Converts raw data to a Dictionary
+                }
 
-                converted_data.append(new_data)
+                converted_data.append(new_row)
 
         except Exception as e:
             _message = _MESSAGES_LIST["e000022"].format(str(e))
@@ -534,7 +600,6 @@ class SendingProcess:
 
         return converted_data
 
-    # noinspection PyMethodMayBeStatic
     def _load_data_into_memory_audit(self, last_object_id):
         """ Extracts from the DB Layer data related to the statistics audit into the memory
         #
@@ -545,11 +610,14 @@ class SendingProcess:
         Todo: TO BE IMPLEMENTED
         """
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - position {1} ".format(sys._getframe().f_code.co_name, last_object_id))
+        _logger.debug("{0} - position {1} ".format("_load_data_into_memory_audit", last_object_id))
 
         try:
-            raw_data = ""
+            # Temporary code
+            if self._module_template != "":
+                raw_data = ""
+            else:
+                raw_data = ""
 
         except Exception:
             _message = _MESSAGES_LIST["e000000"]
@@ -574,10 +642,9 @@ class SendingProcess:
         """
 
         try:
-            sql_cmd = "SELECT last_object FROM foglamp.streams WHERE id={0}".format(stream_id)
-
-            self._pg_cur.execute(sql_cmd)
-            rows = self._pg_cur.fetchall()
+            where = 'id={0}'.format(stream_id)
+            streams = self._storage.query_tbl('streams', where)
+            rows = streams['rows']
 
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -589,8 +656,8 @@ class SendingProcess:
                 raise ValueError(_message)
 
             else:
-                last_object_id = rows[0][0]
-                _logger.debug("db row last_object_id |{0}| ".format(last_object_id))
+                last_object_id = rows[0]['last_object']
+                _logger.debug("{0} - last_object id |{1}| ".format("_last_object_id_read", last_object_id))
 
         except Exception:
             _message = _MESSAGES_LIST["e000019"]
@@ -613,10 +680,8 @@ class SendingProcess:
         """
 
         try:
-            sql_cmd = "SELECT id, active FROM foglamp.streams WHERE id={0}".format(stream_id)
-
-            self._pg_cur.execute(sql_cmd)
-            rows = self._pg_cur.fetchall()
+            streams = self._storage.query_tbl('streams', 'id={0}'.format(stream_id))
+            rows = streams['rows']
 
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -627,7 +692,7 @@ class SendingProcess:
                 _message = _MESSAGES_LIST["e000014"].format(str(stream_id))
                 raise ValueError(_message)
             else:
-                if rows[0][1]:
+                if rows[0]['active'] == 't':
                     stream_id_valid = True
                 else:
                     _message = _MESSAGES_LIST["i000004"].format(stream_id)
@@ -658,15 +723,17 @@ class SendingProcess:
         try:
             _logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
 
-            sql_cmd = "UPDATE foglamp.streams SET last_object={0}, ts=now()  WHERE id={1}" \
-                .format(new_last_object_id, stream_id)
+            # TODO : FOGL-623 - avoid the update of the field ts when it will be managed by the DB itself
+            #
+            payload = payload_builder.PayloadBuilder() \
+                .SET(last_object=new_last_object_id, ts='now()') \
+                .WHERE(['id', '=', stream_id]) \
+                .payload()
 
-            self._pg_cur.execute(sql_cmd)
+            self._storage.update_tbl("streams", payload)
 
-            self._pg_conn.commit()
-
-        except Exception:
-            _message = _MESSAGES_LIST["e000020"]
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000020"].format(_ex)
 
             _logger.error(_message)
             raise
@@ -683,8 +750,7 @@ class SendingProcess:
 
         data_sent = False
 
-        # noinspection PyProtectedMember
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format("_send_data_block"))
 
         try:
             last_object_id = self._last_object_id_read(stream_id)
@@ -696,9 +762,13 @@ class SendingProcess:
                 data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(data_to_send, stream_id)
 
                 if data_sent:
+                    # Updates reached position, statistics and logs the operation within the Storage Layer
+
                     self._last_object_id_update(new_last_object_id, stream_id)
 
                     self._update_statistics(num_sent, stream_id)
+
+                    self._log_storage.write(LogStorage.Severity.INFO, {"sentRows": num_sent})
 
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
@@ -708,9 +778,9 @@ class SendingProcess:
 
         return data_sent
 
-    # noinspection PyProtectedMember
     def send_data(self, stream_id):
-        """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time
+        """ Handles the sending of the data to the destination using the configured plugin
+            for a defined amount of time
 
         Args:
         Returns:
@@ -718,7 +788,7 @@ class SendingProcess:
         Todo:
         """
 
-        _logger.debug("{0} - ".format(sys._getframe().f_code.co_name))
+        _logger.debug("{0} - ".format("send_data"))
 
         try:
             start_time = time.time()
@@ -736,16 +806,20 @@ class SendingProcess:
                     _logger.error(_message)
 
                 if not data_sent:
-                    _logger.debug("{0} - sleeping".format(sys._getframe().f_code.co_name))
+                    _logger.debug("{0} - sleeping".format("send_data"))
                     time.sleep(self._config['sleepInterval'])
 
                 elapsed_seconds = time.time() - start_time
-                _logger.debug("{0} - elapsed_seconds {1}".format(sys._getframe().f_code.co_name, elapsed_seconds))
+                _logger.debug("{0} - elapsed_seconds {1}".format(
+                                                            "send_data",
+                                                            elapsed_seconds))
 
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
 
             _logger.error(_message)
+
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on send_data": _message})
             raise
 
     def _is_translator_valid(self):
@@ -774,16 +848,16 @@ class SendingProcess:
 
         return translator_ok
 
-    @staticmethod
-    def _update_statistics(num_sent, stream_id):
+    def _update_statistics(self, num_sent, stream_id):
         """ Updates FogLAMP statistics
 
         Raises :
         """
 
         try:
-            stat = 'SENT_' + str(stream_id)
-            _event_loop.run_until_complete(statistics.update_statistics_value(stat, num_sent))
+            key = 'SENT_' + str(stream_id)
+            _stats = Statistics(self._storage)
+            _event_loop.run_until_complete(_stats.update(key, num_sent))
 
         except Exception:
             _message = _MESSAGES_LIST["e000010"]
@@ -791,57 +865,96 @@ class SendingProcess:
             _logger.error(_message)
             raise
 
-    @staticmethod
-    def handling_input_parameters():
-        """ Handles command line parameters
 
-        Raises :
-            InvalidCommandLineParameters
-        """
+def handling_input_parameters():
+    """ Handles command line parameters
 
-        parser = argparse.ArgumentParser(prog=_MODULE_NAME)
-        parser.description = '%(prog)s -- extract the data from the storage subsystem ' \
-                             'and stream it to the translator for sending to the external system.'
-        parser.epilog = ' '
+    Returns:
+        param_mgt_name: Parameter generated by the scheduler, unique name that represents the microservice.
+        param_mgt_port: Parameter generated by the scheduler, Dynamic port of the management API.
+        param_mgt_address: Parameter generated by the scheduler, IP address of the server for the management API.
+        stream_id: Define the stream id to be used.
+        log_performance: Enable/Disable the logging of the performance.
+        log_debug_level: Enable/define the level of logging for the debugging 0-3.
 
-        parser.add_argument('-s', '--stream_id',
-                            required=True,
-                            default=0,
-                            help='Define the stream id, it should be a number.')
+    Raises :
+        InvalidCommandLineParameters
 
-        parser.add_argument('-p', '--performance_log',
-                            default=False,
-                            choices=['y', 'yes', 'n', 'no'],
-                            help='Enable the logging of the performance.')
+    """
 
-        parser.add_argument('-d', '--debug_level',
-                            default='0',
-                            choices=['0', '1', '2', '3'],
-                            help='Enable/define the level of logging for debugging '
-                                 '- level 0 only warnings/errors'
-                                 '- level 1 info'
-                                 '- level 2 debug'
-                                 '- level 3 detailed debug - impacts performance')
+    _logger.debug("{func} - argv {v0} ".format(
+                func="handling_input_parameters",
+                v0=str(sys.argv[1:])))
 
-        namespace = parser.parse_args(sys.argv[1:])
+    # Retrieves parameters
+    param_mgt_name = Parser.get('--name')
+    param_mgt_port = Parser.get('--port')
+    param_mgt_address = Parser.get('--address')
 
-        log_performance = True if namespace.performance_log in ['y', 'yes'] else False
-        log_debug_level = int(namespace.debug_level)
+    param_stream_id = Parser.get('--stream_id')
+    param_performance_log = Parser.get('--performance_log')
+    param_debug_level = Parser.get('--debug_level')
 
+    # Evaluates mandatory parameters
+    if param_mgt_port is None:
+        _message = _MESSAGES_LIST["e000026"].format(str(sys.argv))
+        _logger.error(_message)
+
+        raise InvalidCommandLineParameters(_message)
+
+
+    if param_stream_id is None:
+        _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))
+        _logger.error(_message)
+
+        raise InvalidCommandLineParameters(_message)
+    else:
         try:
-            stream_id = int(namespace.stream_id) if namespace.stream_id else 1
+            stream_id = int(param_stream_id)
 
         except Exception:
             _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))
-
             _logger.error(_message)
+
             raise InvalidCommandLineParameters(_message)
 
-        return stream_id, log_performance, log_debug_level
+    # Evaluates optional parameters
+    if param_mgt_name is None:
+        _message = _MESSAGES_LIST["e000025"].format(str(sys.argv))
+        _logger.warning(_message)
+
+    if param_mgt_address is None:
+        _message = _MESSAGES_LIST["e000027"].format(str(sys.argv))
+        _logger.warning(_message)
+
+    if param_performance_log is not None:
+        log_performance = True
+    else:
+        log_performance = False
+
+    if param_debug_level is not None:
+        log_debug_level = int(param_debug_level)
+    else:
+        log_debug_level = 0
+
+    _logger.debug("{func} "
+                  "- name |{name}| - port |{port}| - address |{address}| "
+                  "- stream_id |{stream_id}| - log_performance |{perf}| "
+                  "- log_debug_level |{debug_level}|".format(
+                        func="handling_input_parameters",
+
+                        name=param_mgt_name,
+                        port=param_mgt_port,
+                        address=param_mgt_address,
+
+                        stream_id=stream_id,
+                        perf=log_performance,
+                        debug_level=log_debug_level))
+
+    return param_mgt_name, param_mgt_port, param_mgt_address, stream_id, log_performance, log_debug_level
+
 
 if __name__ == "__main__":
-
-    sending_process = SendingProcess()
 
     # Logger start
     try:
@@ -856,10 +969,22 @@ if __name__ == "__main__":
 
     # Command line parameter handling
     try:
-        input_stream_id, _log_performance, _log_debug_level = sending_process.handling_input_parameters()
+        mgt_name, mgt_port, mgt_address, \
+            input_stream_id, _log_performance, _log_debug_level \
+            = handling_input_parameters()
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000017"].format(str(ex))
+
+        _logger.exception(message)
+        sys.exit(1)
+
+    # Instance creation
+    try:
+        sending_process = SendingProcess(mgt_name, mgt_port, mgt_address)
+
+    except Exception as ex:
+        message = _MESSAGES_LIST["e000023"].format(str(ex))
 
         _logger.exception(message)
         sys.exit(1)
@@ -869,7 +994,8 @@ if __name__ == "__main__":
         # Main code
         #
 
-        # Reconfigures the logger using the Stream ID to differentiates logging from different processes
+        # Reconfigures the logger using the Stream ID to differentiates
+        # logging from different processes
         _logger.removeHandler(_logger.handle)
         logger_name = _MODULE_NAME + "_" + str(input_stream_id)
         _logger = logger.setup(logger_name)

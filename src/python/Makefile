@@ -15,8 +15,7 @@ CODEDIR := ../src/python/foglamp
 
 check-root:
 ifeq ($(USER), root)
-	@echo "WARNING: Installing as root should be avoided. Use a virtual environment."
-	exit 1
+	@echo "INFO: Installing as root."
 endif
 
 help:
@@ -82,7 +81,7 @@ ifeq ($(OS), Linux)
 endif
 
 develop: install-dev-dep
-	pip install -e .
+	pip3 install -e . --user
 
 doc: install-doc-dep
 	make install
@@ -92,22 +91,22 @@ doc-build-test: install-tox
 	tox -e docs
 
 install-dep: check-root
-	pip install -r requirements.txt
+	pip3 install -r requirements.txt
 
 install: install-dep
-	pip install -e .
+	python3 setup.py install
 
 install-dev-dep: check-root
-	pip install -r requirements-dev.txt
+	pip3 install -r requirements-dev.txt --user
 
 install-doc-dep: check-root
-	pip install -r requirements-doc.txt
+	pip3 install -r requirements-doc.txt --user
 
 install-test-dep: check-root
-	pip install -r requirements-test.txt
+	pip3 install -r requirements-test.txt --user
 
 install-tox: check-root
-	pip install tox
+	pip3 install tox --user
 
 lint: lint-python lint-js
 

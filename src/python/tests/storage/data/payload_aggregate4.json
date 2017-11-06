@@ -1,0 +1,6 @@
+{
+  "aggregate": {
+    "column": "values",
+    "operation": "sum"
+  }
+}

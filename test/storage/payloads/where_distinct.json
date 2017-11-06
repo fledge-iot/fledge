@@ -1,0 +1,11 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : "<",
+				"value" : 1000
+			},
+         "modifier" : "distinct",
+	"return" : [ "description"
+		    ]
+}
+

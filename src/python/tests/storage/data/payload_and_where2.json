@@ -1,0 +1,17 @@
+{
+  "where": {
+  "and": {
+    "column": "id",
+    "condition": ">",
+    "value": 3,
+    "and": {
+      "column": "value",
+      "condition": "!=",
+      "value": 0
+    }
+  },
+  "column": "name",
+  "condition": "=",
+  "value": "test"
+  }
+}

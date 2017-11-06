@@ -1,0 +1,19 @@
+ {
+	 "expressions": [
+		{
+			"column": "value1",
+			"operator": "+",
+			"value": 10
+		},
+		{
+			"column": "value2",
+			"operator": "-",
+			"value": 5
+		}
+	],
+	 "where": {
+		 "column": "key",
+		 "condition": "=",
+		 "value": "READINGS"
+	 }
+ }

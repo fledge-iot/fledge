@@ -4,15 +4,12 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from aiohttp import web
-
 from foglamp.core.api import audit as api_audit
 from foglamp.core.api import browser
 from foglamp.core.api import common as api_common
 from foglamp.core.api import configuration as api_configuration
 from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
-from foglamp.core.service_registry import service_registry
 from foglamp.core.api import backup_restore
 
 __author__ = "Ashish Jabble, Praveen Garg"
@@ -63,19 +60,6 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
     app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
 
-    # Micro Service support - Core
-    app.router.add_route('GET', '/foglamp/service/ping', service_registry.ping)
-
-    app.router.add_route('POST', '/foglamp/service', service_registry.register)
-    app.router.add_route('DELETE', '/foglamp/service/{service_id}', service_registry.unregister)
-    app.router.add_route('GET', '/foglamp/service', service_registry.get_service)
-
-    # TODO: shutdown, register_interest, unregister_interest and notify_changes - pending
-    app.router.add_route('POST', '/foglamp/service/shutdown', service_registry.shutdown)
-    app.router.add_route('POST', '/foglamp/service/interest', service_registry.register_interest)
-    app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', service_registry.unregister_interest)
-    app.router.add_route('POST', '/foglamp/change', service_registry.notify_change)
-
     # Backup & Restore - As per doc
     app.router.add_route('GET', '/foglamp/backup', backup_restore.get_backups)
     app.router.add_route('POST', '/foglamp/backup', backup_restore.create_backup)
@@ -118,4 +102,3 @@ def enable_debugger(app):
     # dev mode only
     # this will be served at API_SERVER_URL/_debugtoolbar
     aiohttp_debugtoolbar.setup(app)
-

@@ -15,7 +15,6 @@ import cbor2
 from foglamp import logger
 from foglamp.device.ingest import Ingest
 
-
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -27,7 +26,7 @@ _DEFAULT_CONFIG = {
     'plugin': {
          'description': 'Python module name of the plugin to load',
          'type': 'string',
-         'default': 'foglamp.device.coap_device'
+         'default': 'coap'
     },
     'port': {
         'description': 'Port to listen on',

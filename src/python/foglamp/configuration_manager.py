@@ -316,6 +316,10 @@ async def set_category_item_value_entry(category_name, item_name, new_value_entr
     try:
         # get storage_value_entry and compare against new_value_value, update if different
         storage_value_entry = await _read_value_val(category_name, item_name)
+        # check for category_name and item_name combination existence in storage
+        if storage_value_entry is None:
+            raise ValueError("No detail found for the category_name: {} and item_name: {}"
+                             .format(category_name, item_name))
         if storage_value_entry == new_value_entry:
             return
         await _update_value_val(category_name, item_name, new_value_entry)
@@ -387,6 +391,12 @@ async def create_category(category_name, category_value, category_description=''
     Only default values can be entered for and item's entries.
     A "value" entry specified for an item will raise an exception.
     """
+    if not isinstance(category_name, str):
+        raise TypeError('category_name must be a string')
+
+    if not isinstance(category_description, str):
+        raise TypeError('category_description must be a string')
+
     category_val_prepared = ''
     try:
         # validate new category_val, set "value" from default

@@ -1,0 +1,4 @@
+{ "entryPoint" : "insert", "message" : "ERROR:  column \"nonexistant\" of relation \"test\" does not exist
+LINE 1: INSERT INTO test (id, key, description, data, Nonexistant) v...
+                                                      ^
+", "retryable" : false}

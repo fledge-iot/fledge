@@ -166,7 +166,7 @@ class TestPurge:
         assert stats[1] == 0
     
     def test_unsent_read_purge_current(self):
-        """Test that when there is unsent  data in readings table with user_ts < configured age,
+        """Test that when there is unsent  data in readings table with user_ts = now,
         purge process runs but no data is purged
         Precondition:
             age=72
@@ -176,6 +176,36 @@ class TestPurge:
         """
         
         last_id = self._insert_readings_data(0)
+
+        purge = Purge("localhost", self._core_management_port)
+        purge.start()
+
+        log = self._get_log()
+        assert log[0] == 0
+        assert log[1]["rowsRemoved"] == 0
+        assert log[1]["unsentRowsRemoved"] == 0
+        assert log[1]["rowsRetained"] == 1
+        assert log[1]["rowsRemaining"] == 1
+
+        stats = self._get_stats()
+        assert stats[0] == 0
+        assert stats[1] == 0
+
+        readings = self._get_reads()
+        assert readings["count"] == 1
+        assert readings["rows"][0]["id"] == last_id
+
+    def test_unsent_read_purge_within_age(self):
+        """Test that when there is unsent  data in readings table with user_ts < configured age,
+        purge process runs but no data is purged
+        Precondition:
+            age=72
+            retainUnsent=False
+            readings in readings table = 1 with user_ts = now() -15 hours (less than 72)
+            last_object in streams = 0 (default for all rows)
+        """
+
+        last_id = self._insert_readings_data(15)
 
         purge = Purge("localhost", self._core_management_port)
         purge.start()

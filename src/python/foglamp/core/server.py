@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -6,22 +7,21 @@
 
 """Core server module"""
 
-import os
-import sys
-import signal
 import asyncio
-from aiohttp import web
+import os
+import signal
 import subprocess
-
-import http
+import sys
+import http.client
 import json
-
+from aiohttp import web
 from foglamp import logger
 from foglamp.core import routes as admin_routes
 from foglamp.microservice_management import routes as management_routes
 from foglamp.web import middleware
 from foglamp.microservice_management.service_registry.instance import Service
-from foglamp.core.scheduler import Scheduler
+from foglamp.core.scheduler.scheduler import Scheduler
+from foglamp.microservice_management.service_registry.monitor import Monitor
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -43,6 +43,9 @@ class Server:
 
     scheduler = None
     """ foglamp.core.Scheduler """
+
+    service_monitor = None
+    """ foglamp.microservice_management.service_registry.Monitor """
 
     _host = '0.0.0.0'
     core_management_port = 0
@@ -69,6 +72,12 @@ class Server:
         app = web.Application(middlewares=[middleware.error_middleware])
         management_routes.setup(app, is_core=True)
         return app
+
+    @classmethod
+    async def _start_service_monitor(cls):
+        """Starts the microservice monitor"""
+        cls.service_monitor = Monitor()
+        await cls.service_monitor.start()
 
     @classmethod
     async def _start_scheduler(cls):
@@ -123,6 +132,9 @@ class Server:
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
             loop.run_until_complete(cls._start_scheduler())
+
+            # start monitor
+            loop.run_until_complete(cls._start_service_monitor())
 
             service_app = cls._make_app()
             service_server, service_server_handler = cls._start_app(loop, service_app, host, cls.rest_service_port)
@@ -209,9 +221,9 @@ class Server:
             # TODO: FOGL-615
             # log error with message if status is 4xx or 5xx
             if r.status in range(400, 500):
-                cls._logger.error("Client error code: %d", r.status)
+                _logger.error("Client error code: %d", r.status)
             if r.status in range(500, 600):
-                cls._logger.error("Server error code: %d", r.status)
+                _logger.error("Server error code: %d", r.status)
 
             res = r.read().decode()
             conn.close()
@@ -247,3 +259,25 @@ class Server:
             task.cancel()
 
         loop.stop()
+
+
+def main():
+    """ Processes command-line arguments
+           COMMAND LINE ARGUMENTS:
+               - start
+               - stop
+
+           :raises ValueError: Invalid or missing arguments provided
+           """
+
+    if len(sys.argv) == 1:
+        raise ValueError("Usage: start|stop")
+    elif len(sys.argv) == 2:
+        command = sys.argv[1]
+        if command == 'start':
+            Server().start()
+        elif command == 'stop':
+            Server().stop_storage()
+            # scheduler has signal binding
+        else:
+            raise ValueError("Unknown argument: {}".format(sys.argv[1]))

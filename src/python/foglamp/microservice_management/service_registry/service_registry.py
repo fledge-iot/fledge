@@ -149,6 +149,7 @@ async def get_service(request):
         svc["address"] = service._address
         svc["management_port"] = service._management_port
         svc["protocol"] = service._protocol
+        svc["status"] =  service._status
         if service._port:
             svc["service_port"] = service._port
         services.append(svc)

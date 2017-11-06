@@ -10,6 +10,7 @@ from foglamp.core.api import common as api_common
 from foglamp.core.api import configuration as api_configuration
 from foglamp.core.api import scheduler as api_scheduler
 from foglamp.core.api import statistics as api_statistics
+from foglamp.core.api import backup_restore
 
 __author__ = "Ashish Jabble, Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -59,6 +60,13 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
     app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
 
+    # Backup & Restore - As per doc
+    app.router.add_route('GET', '/foglamp/backup', backup_restore.get_backups)
+    app.router.add_route('POST', '/foglamp/backup', backup_restore.create_backup)
+    app.router.add_route('GET', '/foglamp/backup/{backup_id}', backup_restore.get_backup_details)
+    app.router.add_route('DELETE', '/foglamp/backup/{backup_id}', backup_restore.delete_backup)
+    app.router.add_route('PUT', '/foglamp/backup/{backup_id}/restore', backup_restore.restore_backup)
+
     # enable cors support
     enable_cors(app)
 
@@ -94,4 +102,3 @@ def enable_debugger(app):
     # dev mode only
     # this will be served at API_SERVER_URL/_debugtoolbar
     aiohttp_debugtoolbar.setup(app)
-

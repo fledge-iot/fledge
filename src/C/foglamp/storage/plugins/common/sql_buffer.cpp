@@ -62,7 +62,14 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
         if (buffer->offset + len >= buffer->length)
         {
-		buffer = new SQLBuffer::Buffer();
+		if (len > BUFFER_CHUNK)
+		{
+			buffer = new SQLBuffer::Buffer(len + BUFFER_CHUNK);
+		}
+		else
+		{
+			buffer = new SQLBuffer::Buffer();
+		}
 		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], data, len);
@@ -181,7 +188,14 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
         if (buffer->offset + len >= buffer->length)
         {
-		buffer = new SQLBuffer::Buffer();
+		if (len > BUFFER_CHUNK)
+		{
+			buffer = new SQLBuffer::Buffer(len + BUFFER_CHUNK);
+		}
+		else
+		{
+			buffer = new SQLBuffer::Buffer();
+		}
 		buffers.push_back(buffer);
 	}
 	memcpy(&buffer->data[buffer->offset], cstr, len);
@@ -221,6 +235,15 @@ char	     *buffer = 0;
 SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 {
 	data = new char[BUFFER_CHUNK+1];
+	data[0] = 0;
+}
+
+/**
+ * Construct a large buffer
+ */
+SQLBuffer::Buffer::Buffer(unsigned int size) : offset(0), length(size), attached(true)
+{
+	data = new char[size+1];
 	data[0] = 0;
 }
 

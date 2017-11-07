@@ -9,12 +9,12 @@
 
 import asyncio
 import os
-import signal
 import subprocess
 import sys
 import http.client
 import json
 from aiohttp import web
+
 from foglamp import logger
 from foglamp.core import routes as admin_routes
 from foglamp.microservice_management import routes as management_routes
@@ -50,7 +50,7 @@ class Server:
     _host = '0.0.0.0'
     core_management_port = 0
 
-    # TODO: Get Admin API port from configuration option
+    # TODO: FOGL-655 Get Admin API port from configuration option
     rest_service_port = 8081
 
     @staticmethod
@@ -125,6 +125,7 @@ class Server:
             core_server, core_server_handler = cls._start_app(loop, core_app, host, 0)
             address, cls.core_management_port = core_server.sockets[0].getsockname()
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
+            # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
@@ -146,27 +147,36 @@ class Server:
             # registering now only when service_port is ready to listen the request
             cls._register_core(host, cls.core_management_port, cls.rest_service_port)
             print("(Press CTRL+C to quit)")
+
             try:
                 loop.run_forever()
             except KeyboardInterrupt:
                 pass
             finally:
-                cls.stop_storage()
                 # graceful-shutdown
                 # http://aiohttp.readthedocs.io/en/stable/web.html
-                core_server.close()
-                loop.run_until_complete(core_server.wait_closed())
-                loop.run_until_complete(core_app.shutdown())
-                loop.run_until_complete(core_server_handler.shutdown(60.0))
-                loop.run_until_complete(core_app.cleanup())
+                # TODO: FOGL-653 shutdown implementation
+                # stop the scheduler
+                loop.run_until_complete(cls._stop_scheduler())
 
+                # stop the REST api (exposed on service port)
                 service_server.close()
                 loop.run_until_complete(service_server.wait_closed())
                 loop.run_until_complete(service_app.shutdown())
                 loop.run_until_complete(service_server_handler.shutdown(60.0))
                 loop.run_until_complete(service_app.cleanup())
 
-            loop.close()
+                # stop storage
+                cls.stop_storage()
+
+                # stop core management api
+                core_server.close()
+                loop.run_until_complete(core_server.wait_closed())
+                loop.run_until_complete(core_app.shutdown())
+                loop.run_until_complete(core_server_handler.shutdown(60.0))
+                loop.run_until_complete(core_app.cleanup())
+
+                loop.close()
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -186,66 +196,41 @@ class Server:
         """Starts the server"""
 
         loop = asyncio.get_event_loop()
-
-        # Register signal handlers
-        # Registering SIGTERM creates an error at shutdown. See
-        # https://github.com/python/asyncio/issues/396
-        for signal_name in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(
-                signal_name,
-                lambda: asyncio.ensure_future(cls._stop(loop)))
-
         cls._start_core(loop=loop)
-
-        # see http://host:<core_mgt_port>/foglamp/service for registered services
 
     @classmethod
     def stop_storage(cls):
         """ stop Storage service """
-        # TODO: remove me, and allow this call in service registry API
 
-        try:
-            found_services = Service.Instances.get(name="FogLAMP Storage")
-            svc = found_services[0]
-            if svc is None:
-                return
+        # TODO: FOGL-653 shutdown implementation
+        # remove me, and allow this call in service registry API
 
-            management_api_url = '{}:{}'.format(svc._address, svc._management_port)
+        found_services = Service.Instances.get(name="FogLAMP Storage")
+        svc = found_services[0]
+        if svc is None:
+            return
 
-            conn = http.client.HTTPConnection(management_api_url)
-            # TODO: need to set http / https based on service protocol
+        management_api_url = '{}:{}'.format(svc._address, svc._management_port)
 
-            conn.request('POST', url='/foglamp/service/shutdown', body=None)
-            r = conn.getresponse()
+        conn = http.client.HTTPConnection(management_api_url)
+        # TODO: need to set http / https based on service protocol
 
-            # TODO: FOGL-615
-            # log error with message if status is 4xx or 5xx
-            if r.status in range(400, 500):
-                _logger.error("Client error code: %d", r.status)
-            if r.status in range(500, 600):
-                _logger.error("Server error code: %d", r.status)
+        conn.request('POST', url='/foglamp/service/shutdown', body=None)
+        r = conn.getresponse()
 
-            res = r.read().decode()
-            conn.close()
-            return json.loads(res)
-        except Exception as ex:
-            _logger.exception(str(ex))
+        # TODO: FOGL-615
+        # log error with message if status is 4xx or 5xx
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d", r.status)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d", r.status)
 
-    @classmethod
-    async def _stop_core(cls):
-        # wait for stop storage to unregister?!
-        # does not matter btw! as in memory service_registry is in memory
-        # stop aiohttp (shutdown apps)
-        pass
+        res = r.read().decode()
+        conn.close()
+        return json.loads(res)
 
     @classmethod
-    async def _stop(cls, loop):
-        """Attempts to stop the server
-
-        If the scheduler stops successfully, the event loop is
-        stopped.
-        """
-
+    async def _stop_scheduler(cls):
         if cls.scheduler:
             try:
                 await cls.scheduler.stop()
@@ -253,12 +238,6 @@ class Server:
             except TimeoutError:
                 _logger.exception('Unable to stop the scheduler')
                 return
-
-        # Cancel asyncio tasks
-        for task in asyncio.Task.all_tasks():
-            task.cancel()
-
-        loop.stop()
 
 
 def main():

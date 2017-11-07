@@ -5,7 +5,8 @@
 # FOGLAMP_END
 
 from aiohttp import web
-from foglamp import configuration_manager
+from foglamp.core import connect
+from foglamp.configuration_manager import ConfigurationManager
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -37,7 +38,9 @@ async def get_categories(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/categories
     """
-    categories = await configuration_manager.get_all_category_names()
+    # TODO: make it optimized and elegant
+    cf_mgr = ConfigurationManager(connect.get_storage())
+    categories = await cf_mgr.get_all_category_names()
     categories_json = [{"key": c[0], "description": c[1]} for c in categories]
 
     return web.json_response({'categories': categories_json})
@@ -59,7 +62,9 @@ async def get_category(request):
     if not category_name:
         raise web.HTTPBadRequest(reason="Category Name is required")
 
-    category = await configuration_manager.get_category_all_items(category_name)
+    # TODO: make it optimized and elegant
+    cf_mgr = ConfigurationManager(connect.get_storage())
+    category = await cf_mgr.get_category_all_items(category_name)
 
     if category is None:
         raise web.HTTPNotFound(reason="No such Category Found for {}".format(category_name))
@@ -84,7 +89,9 @@ async def get_category_item(request):
     if not category_name or not config_item:
         raise web.HTTPBadRequest(reason="Both Category Name and Config items are required")
 
-    category_item = await configuration_manager.get_category_item(category_name, config_item)
+    # TODO: make it optimized and elegant
+    cf_mgr = ConfigurationManager(connect.get_storage())
+    category_item = await cf_mgr.get_category_item(category_name, config_item)
 
     if category_item is None:
         raise web.HTTPNotFound(reason="No Category Item Found")
@@ -111,11 +118,13 @@ async def set_configuration_item(request):
     config_item = request.match_info.get('config_item', None)
 
     data = await request.json()
+    # TODO: make it optimized and elegant
+    cf_mgr = ConfigurationManager(connect.get_storage())
 
     try:
         value = data['value']
-        await configuration_manager.set_category_item_value_entry(category_name, config_item, value)
-        result = await configuration_manager.get_category_item(category_name, config_item)
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
+        result = await cf_mgr.get_category_item(category_name, config_item)
 
         if result is None:
             raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
@@ -147,8 +156,10 @@ async def delete_configuration_item_value(request):
     if not category_name or not config_item:
         raise web.HTTPBadRequest(reason="Both Category Name and Config items are required")
 
-    await configuration_manager.set_category_item_value_entry(category_name, config_item, '')
-    result = await configuration_manager.get_category_item(category_name, config_item)
+    # TODO: make it optimized and elegant
+    cf_mgr = ConfigurationManager(connect.get_storage())
+    await cf_mgr.set_category_item_value_entry(category_name, config_item, '')
+    result = await cf_mgr.get_category_item(category_name, config_item)
 
     if result is None:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))

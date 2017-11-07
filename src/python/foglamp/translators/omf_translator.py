@@ -282,10 +282,10 @@ def _retrieve_configuration(stream_id):
 
     # Configuration related to the OMF Types
     try:
-        _event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_OMF_TYPES_NAME,
+        _event_loop.run_until_complete(cfg_manager.create_category(_CONFIG_CATEGORY_OMF_TYPES_NAME,
                                                                              _CONFIG_DEFAULT_OMF_TYPES,
                                                                              _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION))
-        _config_omf_types_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
+        _config_omf_types_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                                         (_CONFIG_CATEGORY_OMF_TYPES_NAME))
 
         _config_omf_types = copy.deepcopy(_config_omf_types_from_manager)

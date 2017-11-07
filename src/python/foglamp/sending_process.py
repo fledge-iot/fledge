@@ -385,6 +385,7 @@ class SendingProcess:
                     self._plugin._log_debug_level = _log_debug_level
                     self._plugin._log_performance = _log_performance
 
+                    self._plugin._storage = self._storage
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
                     _logger.debug("{0} - {1} - {2} ".format("start",
@@ -393,8 +394,6 @@ class SendingProcess:
 
                     if self._is_translator_valid():
                         try:
-                            self._plugin._storage = self._storage
-
                             self._plugin.plugin_init()
 
                         except Exception as e:

@@ -80,4 +80,6 @@ Older,PUT,http://localhost:8080/storage/table/test2/query,older.json
 Newer Bad,PUT,http://localhost:8080/storage/table/test2/query,newerBad.json
 Like,PUT,http://localhost:8080/storage/table/test2/query,where_like.json
 Group Time,PUT,http://localhost:8080/storage/reading/query,group_time.json
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,error-fogl690.json
+Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,delete.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

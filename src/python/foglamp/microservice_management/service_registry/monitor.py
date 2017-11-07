@@ -9,12 +9,13 @@
 import asyncio
 import aiohttp
 import logging
-import os
 import json
 
 from foglamp import logger
-from foglamp import configuration_manager
+from foglamp.configuration_manager import ConfigurationManager
 from foglamp.microservice_management.service_registry.instance import Service
+from foglamp.storage.storage import Storage
+from foglamp.core import connect
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -79,10 +80,12 @@ class Monitor(object):
             },
         }
 
-        await configuration_manager.create_category('SMNTR', default_config,
+        storage_client = connect.get_storage()
+        cfg_manager = ConfigurationManager(storage_client)
+        await cfg_manager.create_category('SMNTR', default_config,
                                                     'Service Monitor configuration')
 
-        config = await configuration_manager.get_category_all_items('SMNTR')
+        config = await cfg_manager.get_category_all_items('SMNTR')
 
         self._sleep_interval = int(config['sleep_interval']['value'])
         self._ping_timeout = int(config['ping_timeout']['value'])

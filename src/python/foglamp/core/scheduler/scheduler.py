@@ -714,10 +714,10 @@ class Scheduler(object):
                     storage_service = found_services[0]
 
                 self._storage = Storage(self._core_management_host, self._core_management_port, svc=storage_service)
-                print("Storage Service: ", type(self._storage))
+                # print("Storage Service: ", type(self._storage))
 
             except (Service.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
-                print(_ENV, self._core_management_host, self._core_management_port, str(ex))
+                # print(_ENV, self._core_management_host, self._core_management_port, str(ex))
                 await asyncio.sleep(5)
         # **************
 

@@ -135,8 +135,7 @@ class ConfigurationManager(object):
 
     async def _create_new_category(self, category_name, category_val, category_description):
         payload = PayloadBuilder().INSERT(key=category_name, description=category_description, value=category_val).payload()
-        result = self._storage.insert_into_tbl("configuration", payload)
-        print("Category_name {} : {}", category_name, result)
+        self._storage.insert_into_tbl("configuration", payload)
 
     async def _read_all_category_names(self):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration

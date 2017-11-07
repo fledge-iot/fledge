@@ -11,7 +11,7 @@ import random
 import uuid
 import json
 
-from foglamp import configuration_manager
+from foglamp.configuration_manager import ConfigurationManager
 from foglamp.data_purge.purge import Purge
 from foglamp.storage.payload_builder import PayloadBuilder
 from foglamp.storage.storage import Storage, Readings
@@ -119,11 +119,12 @@ class TestPurge:
             The corresponding values set in the configuration for the purge process
         """
         event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(cls._CONFIG_CATEGORY_NAME,
+        cfg_manager = ConfigurationManager(cls._store)
+        event_loop.run_until_complete(cfg_manager.set_category_item_value_entry(cls._CONFIG_CATEGORY_NAME,
                                                                                           'age', age))
-        event_loop.run_until_complete(configuration_manager.set_category_item_value_entry(
+        event_loop.run_until_complete(cfg_manager.set_category_item_value_entry(
             cls._CONFIG_CATEGORY_NAME, 'retainUnsent', retain_unsent))
-        return event_loop.run_until_complete(configuration_manager.get_category_all_items(cls._CONFIG_CATEGORY_NAME))
+        return event_loop.run_until_complete(cfg_manager.get_category_all_items(cls._CONFIG_CATEGORY_NAME))
     
     @classmethod
     def _get_stats(cls):

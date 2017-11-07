@@ -17,7 +17,7 @@ import os
 import time
 import uuid
 from typing import List
-from foglamp import configuration_manager
+from foglamp.configuration_manager import ConfigurationManager
 from foglamp import logger
 from foglamp.core.scheduler.entities import ScheduledProcess, Schedule, Task, IntervalSchedule, TimedSchedule, StartUpSchedule, ManualSchedule
 from foglamp.core.scheduler.exceptions import *
@@ -668,10 +668,11 @@ class Scheduler(object):
             },
         }
 
-        await configuration_manager.create_category('SCHEDULER', default_config,
+        cfg_manager = ConfigurationManager(self._storage)
+        await cfg_manager.create_category('SCHEDULER', default_config,
                                                     'Scheduler configuration')
 
-        config = await configuration_manager.get_category_all_items('SCHEDULER')
+        config = await cfg_manager.get_category_all_items('SCHEDULER')
 
         self._max_running_tasks = int(config['max_running_tasks']['value'])
         self._max_completed_task_age = datetime.timedelta(

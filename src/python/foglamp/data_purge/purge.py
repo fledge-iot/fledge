@@ -25,7 +25,7 @@ Statistics reported by Purge process are:
 import asyncio
 import time
 
-from foglamp import configuration_manager
+from foglamp.configuration_manager import ConfigurationManager
 from foglamp.statistics import Statistics
 from foglamp.storage.payload_builder import PayloadBuilder
 from foglamp.storage.storage import Storage, Readings
@@ -85,10 +85,11 @@ class Purge:
             Configuration information that was set for purge process
         """
         event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(configuration_manager.create_category(self._CONFIG_CATEGORY_NAME,
+        cfg_manager = ConfigurationManager(self._storage)
+        event_loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                                                             self._DEFAULT_PURGE_CONFIG,
                                                                             self._CONFIG_CATEGORY_DESCRIPTION))
-        return event_loop.run_until_complete(configuration_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
+        return event_loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
 
     def purge_data(self, config):
         """" Purge readings table based on the set configuration

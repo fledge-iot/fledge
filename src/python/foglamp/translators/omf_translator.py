@@ -23,9 +23,9 @@ import json
 import requests
 import logging
 
-from foglamp import logger, configuration_manager
+from foglamp import logger
+from foglamp.configuration_manager import ConfigurationManager
 from foglamp.storage.storage import Storage
-
 import foglamp.storage.payload_builder as payload_builder
 
 # Module information
@@ -258,9 +258,11 @@ def _retrieve_configuration(stream_id):
     try:
         config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-        _event_loop.run_until_complete(configuration_manager.create_category(config_category_name, _CONFIG_DEFAULT_OMF,
+        cfg_manager = ConfigurationManager(_storage)
+
+        _event_loop.run_until_complete(cfg_manager.create_category(config_category_name, _CONFIG_DEFAULT_OMF,
                                                                              _CONFIG_CATEGORY_DESCRIPTION))
-        _config_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
+        _config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                               (config_category_name))
 
         # Retrieves the configurations and apply the related conversions
@@ -280,10 +282,10 @@ def _retrieve_configuration(stream_id):
 
     # Configuration related to the OMF Types
     try:
-        _event_loop.run_until_complete(configuration_manager.create_category(_CONFIG_CATEGORY_OMF_TYPES_NAME,
+        _event_loop.run_until_complete(cfg_manager.create_category(_CONFIG_CATEGORY_OMF_TYPES_NAME,
                                                                              _CONFIG_DEFAULT_OMF_TYPES,
                                                                              _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION))
-        _config_omf_types_from_manager = _event_loop.run_until_complete(configuration_manager.get_category_all_items
+        _config_omf_types_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                                         (_CONFIG_CATEGORY_OMF_TYPES_NAME))
 
         _config_omf_types = copy.deepcopy(_config_omf_types_from_manager)

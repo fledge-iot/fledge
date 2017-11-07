@@ -17,7 +17,7 @@ import json
 
 from foglamp import logger
 from foglamp.statistics import Statistics
-from foglamp import configuration_manager
+from foglamp.configuration_manager import ConfigurationManager
 from foglamp.storage.storage import Readings, Storage
 
 
@@ -165,11 +165,12 @@ class Ingest(object):
         }
 
         # Create configuration category and any new keys within it
-        await configuration_manager.create_category(category, default_config,
+        cfg_manager = ConfigurationManager(cls.storage)
+        await cfg_manager.create_category(category, default_config,
                                                     'Device server configuration')
 
         # Read configuration
-        config = await configuration_manager.get_category_all_items(category)
+        config = await cfg_manager.get_category_all_items(category)
 
         cls._write_statistics_frequency_seconds = int(config['write_statistics_frequency_seconds']
                                                             ['value'])

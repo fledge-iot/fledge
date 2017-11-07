@@ -23,6 +23,7 @@ class SQLBuffer {
 	class Buffer {
 		public:
 			Buffer();
+			Buffer(unsigned int);
 			~Buffer();
 			char		*detach();
 			char		*data;

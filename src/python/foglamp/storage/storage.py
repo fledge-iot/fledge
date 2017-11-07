@@ -55,6 +55,7 @@ class Storage(AbstractStorage):
                 self.service = svc
             else:
                 self.connect(core_management_host, core_management_port)
+
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
         except Exception:

@@ -12,7 +12,8 @@ from aiohttp import web
 import http.client
 import json
 
-from foglamp import configuration_manager
+from foglamp.configuration_manager import ConfigurationManager
+from foglamp.storage.storage import Storage
 from foglamp import logger
 from foglamp.device.ingest import Ingest
 from foglamp.microservice_management import routes
@@ -84,12 +85,15 @@ class Server:
     @classmethod
     async def _start(cls, loop)->None:
         error = None
+
         try:
             config = {}
-            await configuration_manager.create_category(cls._plugin_name, config,
+            storage = Storage(cls._core_management_host, cls._core_management_port, svc=None)
+            cfg_manager = ConfigurationManager(storage)
+            await cfg_manager.create_category(cls._plugin_name, config,
                                                         '{} Device'.format(cls._plugin_name), True)
 
-            config = await configuration_manager.get_category_all_items(cls._plugin_name)
+            config = await cfg_manager.get_category_all_items(cls._plugin_name)
 
             try:
                 plugin_module_name = config['plugin']['value']
@@ -106,10 +110,10 @@ class Server:
 
             default_config = cls._plugin.plugin_info()['config']
 
-            await configuration_manager.create_category(cls._plugin_name, default_config,
+            await cfg_manager.create_category(cls._plugin_name, default_config,
                                                         '{} Device'.format(cls._plugin_name))
 
-            config = await configuration_manager.get_category_all_items(cls._plugin_name)
+            config = await cfg_manager.get_category_all_items(cls._plugin_name)
 
             # TODO: Register for config changes
 
@@ -169,9 +173,12 @@ class Server:
         res = r.read().decode()
         conn.close()
         response = json.loads(res)
-        cls._microservice_id = response["id"]
-        _LOGGER.info('Device - Registered Service %s', response["id"])
-
+        try:
+            cls._microservice_id = response["id"]
+            _LOGGER.info('Device - Registered Service %s', response["id"])
+        except:
+            _LOGGER.error("Device - Could not register")
+            raise
 
 
     @classmethod

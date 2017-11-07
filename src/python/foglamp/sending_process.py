@@ -27,10 +27,12 @@ import datetime
 
 from foglamp.parser import Parser
 from foglamp.storage.storage import Storage, Readings
-from foglamp import logger, statistics, configuration_manager
+from foglamp import logger, statistics
+from foglamp.configuration_manager import ConfigurationManager
 
 import foglamp.storage.payload_builder as payload_builder
 from foglamp.statistics import Statistics
+
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -300,16 +302,16 @@ class SendingProcess:
         """
 
         _logger.debug("{0} - ".format("_retrieve_configuration"))
+        cfg_manager = ConfigurationManager(self._storage)
 
         try:
             config_category_name = self._CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-            _event_loop.run_until_complete(configuration_manager.create_category(
+            _event_loop.run_until_complete(cfg_manager.create_category(
                                                          config_category_name,
                                                          self._CONFIG_DEFAULT,
                                                          self._CONFIG_CATEGORY_DESCRIPTION))
-            _config_from_manager = _event_loop.run_until_complete(
-                                            configuration_manager.get_category_all_items
+            _config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                             (config_category_name))
 
             # Retrieves the configurations and apply the related conversions
@@ -383,6 +385,7 @@ class SendingProcess:
                     self._plugin._log_debug_level = _log_debug_level
                     self._plugin._log_performance = _log_performance
 
+                    self._plugin._storage = self._storage
                     self._plugin_info = self._plugin.plugin_retrieve_info(stream_id)
 
                     _logger.debug("{0} - {1} - {2} ".format("start",
@@ -391,8 +394,6 @@ class SendingProcess:
 
                     if self._is_translator_valid():
                         try:
-                            self._plugin._storage = self._storage
-
                             self._plugin.plugin_init()
 
                         except Exception as e:

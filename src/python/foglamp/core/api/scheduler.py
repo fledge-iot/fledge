@@ -9,9 +9,10 @@ import re
 import uuid
 from aiohttp import web
 from foglamp.core import server
-from foglamp.core.api import scheduler_db_services
 from foglamp.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
 from foglamp.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError
+from foglamp.core import connect
+from foglamp.storage.payload_builder import PayloadBuilder
 
 __author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -67,12 +68,14 @@ async def get_scheduled_process(request):
     if not scheduled_process_name:
         raise web.HTTPBadRequest(reason='No Scheduled Process Name given')
 
-    scheduled_process = await scheduler_db_services.read_scheduled_processes(scheduled_process_name)
+    payload = PayloadBuilder().SELECT(("name")).WHERE(["name", "=", scheduled_process_name]).payload()
+    _storage = connect.get_storage()
+    scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
 
-    if not scheduled_process:
+    if len(scheduled_process['rows']) == 0:
         raise web.HTTPNotFound(reason='No such Scheduled Process: {}.'.format(scheduled_process_name))
 
-    return web.json_response(scheduled_process[0].get("name"))
+    return web.json_response(scheduled_process['rows'][0].get("name"))
 
 
 #################################
@@ -175,8 +178,11 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Schedule name and Process name cannot be empty.')
 
     # Raise error if scheduled_process name is wrong
-    scheduled_process = await scheduler_db_services.read_scheduled_processes(_schedule.get('schedule_process_name'))
-    if not scheduled_process:
+    payload = PayloadBuilder().SELECT(("name")).WHERE(["name", "=", _schedule.get('schedule_process_name')]).payload()
+    _storage = connect.get_storage()
+    scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
+
+    if len(scheduled_process['rows']) == 0:
         _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
 
     # Raise error if exclusive is wrong
@@ -426,8 +432,6 @@ async def delete_schedule(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
-        is_schedule = await scheduler_db_services.read_schedule(schedule_id)
-
         await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
         return web.json_response({'message': 'Schedule deleted successfully', 'id': schedule_id})
@@ -566,8 +570,26 @@ async def get_tasks_latest(request):
 
     try:
         name = request.query.get('name') if 'name' in request.query else None
+        if name:
+            payload = PayloadBuilder() \
+                    .SELECT(("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
+                    .WHERE(["process_name", "=", name])\
+                    .ORDER_BY(["start_time", "desc"]) \
+                    .payload()
+        else:
+            payload = PayloadBuilder() \
+                .SELECT(("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
+                .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]) \
+                .payload()
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('tasks', payload)
 
-        tasks = await scheduler_db_services.read_tasks_latest(name)
+        tasks = []
+        previous_process = None
+        for row in results['rows']:
+            if previous_process != row['process_name']:
+                tasks.append(row)
+                previous_process = row['process_name']
 
         new_tasks = []
         for task in tasks:
@@ -582,7 +604,6 @@ async def get_tasks_latest(request):
                  'pid': task['pid']
                  }
             )
-
         return web.json_response({'tasks': new_tasks})
     except (ValueError, TaskNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))

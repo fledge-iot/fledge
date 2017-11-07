@@ -592,7 +592,7 @@ class Scheduler(object):
             for row in res['rows']:
                 self._process_scripts[row.get('name')] = row.get('script')
         except Exception:
-            self._logger.exception('Query failed: %s', query_payload)
+            self._logger.exception('Query failed: %s', "scheduled_processes")
             raise
 
     async def _get_schedules(self):
@@ -629,7 +629,7 @@ class Scheduler(object):
                 self._schedules[schedule_id] = schedule
                 self._schedule_first_task(schedule, self._start_time)
         except Exception:
-            self._logger.exception('Query failed: %s', query_payload)
+            self._logger.exception('Query failed: %s', 'schedules')
             raise
 
     async def _read_storage(self):
@@ -662,7 +662,7 @@ class Scheduler(object):
             },
             "max_completed_task_age_days": {
                 "description": "The maximum age, in days (based on the start time), for a rows "
-                               "in the tasks table that do not have a status of 'running'",
+                               "in the tasks table that do not have a status of running",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
             },
@@ -673,7 +673,6 @@ class Scheduler(object):
                                                     'Scheduler configuration')
 
         config = await cfg_manager.get_category_all_items('SCHEDULER')
-
         self._max_running_tasks = int(config['max_running_tasks']['value'])
         self._max_completed_task_age = datetime.timedelta(
             seconds=int(config['max_completed_task_age_days']['value']) * self._DAY_SECONDS)

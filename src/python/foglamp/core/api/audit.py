@@ -65,17 +65,17 @@ async def get_audit_entries(request):
         # explosion of if statements
         complex_payload = PayloadBuilder().WHERE(['1', '=', '1'])
 
-        if source is not None:
+        if source is not None and source != "":
             complex_payload.AND_WHERE(['code', '=', source])
 
-        if severity is not None:
+        if severity is not None and severity != "":
             complex_payload.AND_WHERE(['level', '=', Severity[severity].value])
 
         complex_payload.ORDER_BY(['ts', 'desc'])
 
-        if limit:
+        if limit != '' and int(limit) > 0:
             complex_payload.LIMIT(int(limit))
-        if offset:
+        if offset != '' and int(offset) > 0:
             complex_payload.OFFSET(int(offset))
 
         _storage = connect.get_storage()
@@ -85,10 +85,11 @@ async def get_audit_entries(request):
         for row in results['rows']:
             r = dict()
             r["details"] = row["log"]
-            r["severity"] = Severity[int(row["level"])].value
+            # TODO: FOGL-695 fix PURGE logging level
+            severity_level = int(row["level"])
+            r["severity"] = Severity(severity_level).name if severity_level in range(1, 5) else "UNKNOWN"
             r["source"] = row["code"]
             r["timestamp"] = row["ts"]
-            r["id"] = row["id"]
 
             res.append(r)
 

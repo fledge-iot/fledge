@@ -1,7 +1,7 @@
-North Services
-==============
+Scheduled Tasks
+===============
 
-This directory contains the code that relaed to the north bound processing
-of FogLAMP, i.e. the code the is responsible for sending data up to the
-destination historians and cloud services beyond the edge or into the
-FOG layer.
+This directory contains the code that relaed to the tasks that are
+executed by the FogLAMP scheduler using either on-demand or timed
+schedules. This does not include microservices that are run as a startup
+task by the scheduler code.

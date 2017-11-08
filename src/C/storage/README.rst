@@ -1,4 +1,3 @@
-
 FogLAMP Storage Service
 =======================
 

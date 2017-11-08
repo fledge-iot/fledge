@@ -8,8 +8,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 file(GLOB SOURCES *.cpp)
 
 # Include header files
-include_directories(include ../../../common/include ../common/include)
-include_directories(../../../../thirdparty/rapidjson/include /usr/include/postgresql)
+include_directories(include ../../../services/common/include ../common/include)
+include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)
 
 file(GLOB SOURCES "*.cpp" ../common/*.cpp)
 

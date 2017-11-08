@@ -5,7 +5,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
 
-include_directories(. include ../thirdparty/Simple-Web-Server ../thirdparty/rapidjson/include  ../common/include)
+include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../common/include)
 
 find_package(Threads REQUIRED)
 
@@ -33,8 +33,6 @@ target_link_libraries(storage ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(storage ${DLLIB})
 
 install(TARGETS storage RUNTIME DESTINATION bin)
-
-add_subdirectory(plugins/postgres)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(storage ws2_32 wsock32)

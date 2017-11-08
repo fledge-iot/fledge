@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='FogLAMP',
@@ -8,7 +8,7 @@ setup(
     author='OSIsoft, LLC',
     author_email='info@dianomic.com',
     license='Apache 2.0',
-    packages=['foglamp'],
+    packages=find_packages(),
     entry_points={
         'console_scripts': [
             'foglamp = foglamp.core.server:main'

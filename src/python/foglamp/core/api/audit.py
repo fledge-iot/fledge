@@ -81,7 +81,18 @@ async def get_audit_entries(request):
         _storage = connect.get_storage()
         results = _storage.query_tbl_with_payload('log', complex_payload.payload())
 
-        return web.json_response({'audit': results['rows']})
+        res = []
+        for row in results['rows']:
+            r = dict()
+            r["details"] = row["log"]
+            r["severity"] = Severity[int(row["level"])].value
+            r["source"] = row["code"]
+            r["timestamp"] = row["ts"]
+            r["id"] = row["id"]
+
+            res.append(r)
+
+        return web.json_response({'audit': res})
 
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))

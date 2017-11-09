@@ -268,7 +268,7 @@ class SendingProcess:
         self._config_from_manager = ""
 
         # Plugin handling - loading an empty plugin
-        self._module_template = self._TRANSLATOR_PATH + "empty."+ "empty"
+        self._module_template = self._TRANSLATOR_PATH + "empty." + "empty"
         self._plugin = importlib.import_module(self._module_template)
         self._plugin_info = {
             'name': "",
@@ -311,8 +311,8 @@ class SendingProcess:
                                                          config_category_name,
                                                          self._CONFIG_DEFAULT,
                                                          self._CONFIG_CATEGORY_DESCRIPTION))
-            _config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
-                                            (config_category_name))
+            _config_from_manager = _event_loop.run_until_complete(
+                                        cfg_manager.get_category_all_items(config_category_name))
 
             # Retrieves the configurations and apply the related conversions
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
@@ -902,7 +902,6 @@ def handling_input_parameters():
         _logger.error(_message)
 
         raise InvalidCommandLineParameters(_message)
-
 
     if param_stream_id is None:
         _message = _MESSAGES_LIST["e000011"].format(str(sys.argv))

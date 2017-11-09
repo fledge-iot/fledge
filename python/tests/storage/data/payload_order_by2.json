@@ -1,0 +1,6 @@
+{
+  "sort": {
+    "column": "name",
+    "direction": "desc"
+  }
+}

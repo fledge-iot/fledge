@@ -1,0 +1,4 @@
+docutils==0.13.1
+Sphinx==1.6.2
+sphinx-autobuild==0.6.0
+sphinx_rtd_theme==0.2.4

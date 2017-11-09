@@ -1,0 +1,16 @@
+name: foglamp
+version: '10.17.00'
+summary: Alpha version of FogLAMP
+description: |
+     FogLAMP is the IIoT Edge Module my Dianomic Systems that allows buffering
+     of IoT sensor data in an appliance and uploading that data to an OSIsoft PI server
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+parts:
+  foglamp:
+    source: https://github.com/foglamp/FogLAMP.git
+    plugin: python
+    python-version: python3
+    requirements: src/python/requirements.txt

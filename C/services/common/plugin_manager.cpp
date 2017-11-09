@@ -66,7 +66,7 @@ char          buf[128];
     char *home = getenv("FOGLAMP_HOME");
     if (home)
     {
-        snprintf(buf, sizeof(buf), "%s/plugins/lib%s.so", home, name.c_str());
+        snprintf(buf, sizeof(buf), "%s/plugins/%s/%s/lib%s.so", home, type.c_str(), name.c_str(), name.c_str());
     }
   }
   if ((hndl = dlopen(buf, RTLD_LAZY)) != NULL)

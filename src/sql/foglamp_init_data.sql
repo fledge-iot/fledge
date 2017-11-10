@@ -119,8 +119,8 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
 insert into foglamp.scheduled_processes (name, script) values ('COAP', '["python3", "-m", "foglamp.device"]');
-insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.data_purge"]');
-insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.statistics_history"]');
+insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.tasks.purge.purge"]');
+insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.taks.statistics.statistics_history"]');
 insert into foglamp.scheduled_processes (name, script) values ('sending process', '["python3", "-m", "foglamp.tasks.north.sending_process", "--stream_id", "1", "--debug_level", "1"]');
 -- FogLAMP statistics into PI
 insert into foglamp.scheduled_processes (name, script) values ('statistics to pi','["python3", "-m", "foglamp.tasks.north.sending_process", "--stream_id", "2", "--debug_level", "1"]');

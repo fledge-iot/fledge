@@ -4,10 +4,10 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from foglamp import logger
+from foglamp.common import logger
 
-from foglamp.storage.payload_builder import PayloadBuilder
-from foglamp.storage.storage import Storage
+from foglamp.common.storage.payload_builder import PayloadBuilder
+from foglamp.common.storage.storage import Storage
 
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"

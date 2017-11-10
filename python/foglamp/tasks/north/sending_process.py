@@ -25,13 +25,13 @@ import importlib
 import logging
 import datetime
 
-from foglamp.parser import Parser
-from foglamp.storage.storage import Storage, Readings
-from foglamp import logger
-from foglamp.configuration_manager import ConfigurationManager
+from foglamp.common.parser import Parser
+from foglamp.common.storage.storage import Storage, Readings
+from foglamp.common import logger
+from foglamp.common.configuration_manager import ConfigurationManager
 
-import foglamp.storage.payload_builder as payload_builder
-from foglamp.statistics import Statistics
+from foglamp.common.storage.payload_builder import payload_builder
+from foglamp.common.statistics import Statistics
 
 
 __author__ = "Stefano Simonelli"
@@ -191,7 +191,7 @@ class SendingProcess:
     """ SendingProcess """
 
     # Filesystem path where the translators reside
-    _TRANSLATOR_PATH = "plugins.north."
+    _TRANSLATOR_PATH = "foglamp.plugins.north."
 
     # Define the type of the plugin managed by the Sending Process
     _PLUGIN_TYPE = "translator"

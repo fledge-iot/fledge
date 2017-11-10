@@ -23,10 +23,10 @@ import json
 import requests
 import logging
 
-from foglamp import logger
-from foglamp.configuration_manager import ConfigurationManager
-from foglamp.storage.storage import Storage
-import foglamp.storage.payload_builder as payload_builder
+from foglamp.common import logger
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.storage.storage import Storage
+from foglamp.common.storage.payload_builder import payload_builder
 
 # Module information
 __author__ = "Stefano Simonelli"

@@ -76,7 +76,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- COAP:  CoAP device server
 --        plugin: python module to load dynamically
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap", "default" : "coap", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } ');
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;
@@ -118,9 +118,9 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 -- Use this to create guids: https://www.uuidgenerator.net/version1 */
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
-insert into foglamp.scheduled_processes (name, script) values ('COAP', '["python3", "-m", "foglamp.device"]');
+insert into foglamp.scheduled_processes (name, script) values ('COAP', '["python3", "-m", "foglamp.services.south"]');
 insert into foglamp.scheduled_processes (name, script) values ('purge', '["python3", "-m", "foglamp.tasks.purge.purge"]');
-insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.taks.statistics.statistics_history"]');
+insert into foglamp.scheduled_processes (name, script) values ('stats collector', '["python3", "-m", "foglamp.tasks.statistics.statistics_history"]');
 insert into foglamp.scheduled_processes (name, script) values ('sending process', '["python3", "-m", "foglamp.tasks.north.sending_process", "--stream_id", "1", "--debug_level", "1"]');
 -- FogLAMP statistics into PI
 insert into foglamp.scheduled_processes (name, script) values ('statistics to pi','["python3", "-m", "foglamp.tasks.north.sending_process", "--stream_id", "2", "--debug_level", "1"]');

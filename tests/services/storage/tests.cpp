@@ -17,7 +17,7 @@ TEST(ConfigurationTest, getport)
 {
 StorageConfiguration	conf;
 
-	ASSERT_EQ(strcmp(conf.getValue(string("port")), "8080"), 0);
+	ASSERT_EQ(strcmp(conf.getValue(string("port")), "0"), 0);
 }
 
 /**

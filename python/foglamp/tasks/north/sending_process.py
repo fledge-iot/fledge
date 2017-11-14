@@ -30,7 +30,7 @@ from foglamp.common.storage.storage import Storage, Readings
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 
-from foglamp.common.storage.payload_builder import payload_builder
+from foglamp.common.storage import payload_builder
 from foglamp.common.statistics import Statistics
 
 

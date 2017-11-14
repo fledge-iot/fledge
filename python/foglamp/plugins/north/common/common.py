@@ -109,10 +109,10 @@ def identify_unique_asset_codes(raw_data):
 
 
 def retrieve_configuration(_storage, _category_name, _default, _category_description):
-    """Retrieves the configuration for a category name from the Category Manager
+    """Retrieves the configuration from the Category Manager for a category name
 
      Args:
-         _storage: Reference to the Storage Client to used
+         _storage: Reference to the Storage Client to be used
          _category_name: Category name to be retrieved
          _default: default values for the category
          _category_description: category description

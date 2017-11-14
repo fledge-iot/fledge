@@ -21,7 +21,7 @@ import json
 import requests
 import logging
 
-import foglamp.plugins.north.common.common as plugin_north_common
+import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 
 from foglamp.common import logger
@@ -177,8 +177,6 @@ _log_performance = False
 
 _logger = ""
 
-_event_loop = ""
-
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
 _config_omf_types_from_manager = {}
@@ -236,7 +234,7 @@ def _retrieve_configuration(stream_id):
     try:
         config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-        _config_from_manager = plugin_north_common.retrieve_configuration(
+        _config_from_manager = plugin_common.retrieve_configuration(
                                                     _storage,
                                                     config_category_name,
                                                     _CONFIG_DEFAULT_OMF,
@@ -252,14 +250,14 @@ def _retrieve_configuration(stream_id):
         _config['StaticData'] = ast.literal_eval(_config_from_manager['StaticData']['value'])
 
     except Exception:
-        _message = plugin_north_common.MESSAGES_LIST["e000030"]
+        _message = plugin_common.MESSAGES_LIST["e000030"]
 
         _logger.error(_message)
         raise
 
     # Configuration related to the OMF Types
     try:
-        _config_omf_types_from_manager = plugin_north_common.retrieve_configuration(
+        _config_omf_types_from_manager = plugin_common.retrieve_configuration(
                                                     _storage,
                                                     _CONFIG_CATEGORY_OMF_TYPES_NAME,
                                                     _CONFIG_DEFAULT_OMF_TYPES,
@@ -279,7 +277,7 @@ def _retrieve_configuration(stream_id):
                 _config_omf_types[item]['value'] = new_value
 
     except Exception:
-        _message = plugin_north_common.MESSAGES_LIST["e000030"]
+        _message = plugin_common.MESSAGES_LIST["e000030"]
 
         _logger.error(_message)
         raise
@@ -297,7 +295,6 @@ def plugin_retrieve_info(stream_id):
     """
 
     global _logger
-    global _event_loop
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
@@ -314,7 +311,7 @@ def plugin_retrieve_info(stream_id):
             _logger = logger.setup(logger_name, level=logging.DEBUG)
 
     except Exception as ex:
-        _message = plugin_north_common.MESSAGES_LIST["e000012"].format(str(ex))
+        _message = plugin_common.MESSAGES_LIST["e000012"].format(str(ex))
         _current_time = time.strftime("%Y-%m-%d %H:%M:%S:")
 
         print ("{0} - ERROR - {1}".format(_current_time, _message))
@@ -335,7 +332,7 @@ def plugin_retrieve_info(stream_id):
         }
 
     except Exception as ex:
-        _message = plugin_north_common.MESSAGES_LIST["e000012"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000012"].format(ex)
 
         _logger.error(_message)
         raise
@@ -362,7 +359,7 @@ def plugin_init():
         _recreate_omf_objects = True
 
     except Exception as ex:
-        _message = plugin_north_common.MESSAGES_LIST["e000011"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000011"].format(ex)
 
         _logger.error(_message)
         raise plugin_exceptions.PluginInitializeFailed(ex)
@@ -415,7 +412,7 @@ def plugin_send(raw_data, stream_id):
                 data_sent = True
 
     except Exception as ex:
-        _message = plugin_north_common.MESSAGES_LIST["e000031"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000031"].format(ex)
 
         _logger.exception(_message)
         raise
@@ -435,7 +432,7 @@ def plugin_shutdown():
         _logger.debug("{0} - plugin_shutdown".format(_MODULE_NAME))
 
     except Exception as ex:
-        _message = plugin_north_common.MESSAGES_LIST["e000013"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000013"].format(ex)
 
         _logger.error(_message)
         raise
@@ -621,7 +618,7 @@ def _create_omf_type_automatic(asset_info):
 
     for item in asset_data:
 
-        item_type = plugin_north_common.evaluate_type(asset_data[item])
+        item_type = plugin_common.evaluate_type(asset_data[item])
         omf_type[typename][1]["properties"][item] = {"type": item_type}
 
     if _log_debug_level == 3:
@@ -752,7 +749,7 @@ def _create_omf_objects(raw_data, config_category_name, type_id):
     Todo:
     """
 
-    asset_codes_to_evaluate = plugin_north_common.identify_unique_asset_codes(raw_data)
+    asset_codes_to_evaluate = plugin_common.identify_unique_asset_codes(raw_data)
 
     asset_codes_already_created = _retrieve_omf_types_already_created(config_category_name, type_id)
 
@@ -833,7 +830,7 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
                                      verify=False,
                                      timeout=_config['OMFHttpTimeout'])
         except Exception as e:
-            _message = plugin_north_common.MESSAGES_LIST["e000024"].format(e)
+            _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
             _error = Exception(_message)
 
         else:
@@ -841,7 +838,7 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
             if not str(response.status_code).startswith('2'):
 
                 tmp_text = str(response.status_code) + " " + response.text
-                _message = plugin_north_common.MESSAGES_LIST["e000024"].format(tmp_text)
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
                 _error = plugin_exceptions.URLFetchError(_message)
 
             _logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
@@ -903,11 +900,11 @@ def _transform_in_memory_data(data_to_send, raw_data):
             except Exception as e:
                 num_unsent += 1
 
-                _message = plugin_north_common.MESSAGES_LIST["e000023"].format(e)
+                _message = plugin_common.MESSAGES_LIST["e000023"].format(e)
                 _logger.warning(_message)
 
     except Exception:
-        _message = plugin_north_common.MESSAGES_LIST["e000021"]
+        _message = plugin_common.MESSAGES_LIST["e000021"]
 
         _logger.error(_message)
         raise
@@ -970,11 +967,11 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
                 _logger.debug("in memory info |{0}| ".format(new_data))
 
         else:
-            _message = plugin_north_common.MESSAGES_LIST["e000020"]
+            _message = plugin_common.MESSAGES_LIST["e000020"]
             _logger.warning(_message)
 
     except Exception:
-        _message = plugin_north_common.MESSAGES_LIST["e000022"]
+        _message = plugin_common.MESSAGES_LIST["e000022"]
 
         _logger.error(_message)
         raise
@@ -982,7 +979,7 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 if __name__ == "__main__":
 
-    message = plugin_north_common.MESSAGES_LIST["e000001"]
+    message = plugin_common.MESSAGES_LIST["e000001"]
     print (message)
 
     if False:

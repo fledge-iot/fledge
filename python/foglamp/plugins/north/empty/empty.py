@@ -11,7 +11,7 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "Empty translator"
 
-import foglamp.plugins.north.common.common as plugin_north_common
+import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 
 from foglamp.common import logger

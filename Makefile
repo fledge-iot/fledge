@@ -1,56 +1,68 @@
+# COMMANDS
+MKDIR := mkdir
+CD := cd
+LN := ln -sf
+CMAKE := cmake
+PIP_INSTALL_REQUIREMENTS := pip3 install --user -Ur
+PIP_INSTALL_PACKAGE := pip3 install --user -e
+PIP_UNINSTALL_PACKAGE := pip3 uninstall -y
 
-storage_service_build_dir = './C/services/storage/build/'
-# TODO: verify that this is okay
-# storage
-storage_service : 
-	echo "storage service"
-	echo $(storage_service_build_dir)
-	mkdir -p $(storage_service_build_dir)
-	cd $(storage_service_build_dir) ; cmake .. ; make
+# PARENT DIR
+MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR := $(dir $(MKFILE_PATH))
 
-postgres_plugin_build_dir = './C/plugins/storage/postgres/build/'
-postgresql_plugin:
-	echo "postgresql plugin"
-	echo $(postgres_plugin_build_dir)
-	mkdir -p $(postgres_plugin_build_dir)
-	cd $(postgres_plugin_build_dir) ; cmake .. ; make
+# C BUILD DIRS/FILES
+CMAKE_BUILD_DIR := cmake_build
+CMAKE_GEN_MAKEFILE := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/src/C/services
+CMAKE_PLUGINS_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/src/C/plugins
+SYMLINK_SERVICES_DIR := $(CURRENT_DIR)/services
+SYMLINK_PLUGINS_DIR := $(CURRENT_DIR)/plugins
 
-# TODO: we have foglamp package AND all dependencies
-# TODO: do we have any plans to put our python package into PyPi? https://packaging.python.org/glossary/#term-python-package-index-pypi
-foglamp_python_package_dir = './python/'
-foglamp_python_package : 
-	echo "foglamp python package"
-	echo $(foglamp_python_package_dir)
-	cd $(foglamp_python_package_dir) ; python3 setup.py sdist --dist-dir=./build
+# PYTHON BUILD DIRS/FILES
+PYTHON_DIR := python
+PYTHON_REQUIREMENTS_FILE := $(PYTHON_DIR)/requirements.txt
 
+# ETC
+PACKAGE_NAME=FogLAMP
 
-#default - e.g. simple make with no arguments
-#Compiles any code that must be compiled and general prepares the development tree to allow the Core to be run.
-default :
-	echo "default"
+# TARGETS
+# compile any code that must be compiled and generally prepare the development tree to allow for core to be run
+default : c_build $(SYMLINK_SERVICES_DIR) $(SYMLINK_PLUGINS_DIR) python_build
 
-#install
-#Creates a deployment structure in the default destination, /usr/local. Destination may be overridden by use of the DESTDIR=<location> directive. This first does a make to build anything needed for the installation.
-install :
-	echo "install"
+# create symlink for plugins dir
+$(SYMLINK_PLUGINS_DIR) :
+	$(LN) $(CMAKE_PLUGINS_DIR) $(SYMLINK_PLUGINS_DIR)
 
-#clean
-#Return the source tree to the state it would be in after a checkout, i.e. remove anything built as a consequence of the execution of make
+# create symlink for services dir
+$(SYMLINK_SERVICES_DIR) :
+	$(LN) $(CMAKE_SERVICES_DIR) $(SYMLINK_SERVICES_DIR)
+
+# create build dir
+$(CMAKE_BUILD_DIR) :
+	-$(MKDIR) $@
+
+# run cmake to generate makefiles
+$(CMAKE_GEN_MAKEFILE) : $(CMAKE_BUILD_DIR)
+	$(CD) $(CMAKE_BUILD_DIR) ; $(CMAKE) $(CURRENT_DIR)
+
+# run make execute makefiles producer by cmake
+c_build : $(CMAKE_GEN_MAKEFILE)
+	$(CD) $(CMAKE_BUILD_DIR) ; $(MAKE)
+
+# install python requirements
+python_requirements : $(PYTHON_REQUIREMENTS_FILE)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
+
+# install python FogLAMP package
+python_build : python_requirements 
+	$(PIP_INSTALL_PACKAGE) $(PYTHON_DIR)
+
+# clean
 clean : 
-	echo "clean"
+	-rm -r $(CMAKE_BUILD_DIR)
+	-rm $(SYMLINK_SERVICES_DIR)
+	-rm $(SYMLINK_PLUGINS_DIR)
+	-pip3 uninstall -y $(PACKAGE_NAME)
 
-#snap
-#Make the deployment structure, building whatever is necessary (e.g. doing a make) and then create a snap package from it.
-snap : 
-	echo "snap"
-
-#docker
-#Create a deployment structure (e.g. run make) and then create a docker file that can be used to create a docker container that will run FogLAMP
-docker : 
-	echo "docker"
-
-#doc
-#Generate the FogLAMP documentation
-doc : 
-	echo "doc"
 

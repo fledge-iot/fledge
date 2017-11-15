@@ -43,7 +43,6 @@ _DEFAULT_CONFIG = {
 }
 
 
-# TODO write to SysLog
 # TODO write to Audit Log
 # As per specs it should be plugin_info
 # def plugin_info():
@@ -114,6 +113,7 @@ class HttpTranslatorPlugin(object):
             # read it and use for future stuff in this plugin
             self.config = self.event_loop.run_until_complete(cfg_manager.get_category_all_items(_CONFIG_CATEGORY_NAME))
         except Exception as ex:
+            _LOGGER.exception("Can not initialize the plugin, Got configuration error %s", str(ex))
             raise ConfigurationError(str(ex))
             # TODO: should sys.exit(1) ?
 
@@ -163,24 +163,31 @@ class HttpTranslatorPlugin(object):
 
     def send_payload(self, cfg, payload):
         self.config = cfg
+        # TODO: validate payload? as per specified format;
+        # perhaps not needed, as sending process is reading from the readings table
+        # and error handling, logging is being handled by _send def, and it returns actual response
         resp = self.event_loop.run_until_complete(self._send_payload(payload))
         return resp
 
     async def _send_payload(self, payload):
-        """ send a single block payload """
-
+        """ Send a single block payload """
         async with aiohttp.ClientSession() as session:
             resp = await self._send(payload=payload, session=session)
             return resp
 
     async def _send(self, payload, session):
-        """Send the payload, using ClientSession."""
+        """ Send the payload, using ClientSession """
         url = self.config['url']['value']
         headers = {'content-type': 'application/json'}
         async with session.post(url, data=payload, headers=headers) as resp:
-            resp = await resp.text()
-            # TODO: if error/ exception
-            return resp
+            result = await resp.text()
+            status_code = resp.status
+            if status_code in range(400, 500):
+                _LOGGER.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+            if status_code in range(500, 600):
+                _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
+
+            return result
 
 
 if __name__ == "__main__":
@@ -203,7 +210,7 @@ if __name__ == "__main__":
                     'temperature': 41,
                     'humidity': 88
                 },
-                'user_ts': '2017-10-11 15:10:51.927191906'
+                'timestamp': '2017-10-11 15:10:51.927191906'
             }
         ]
     }

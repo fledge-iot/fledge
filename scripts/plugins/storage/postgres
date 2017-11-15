@@ -1,0 +1,273 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2017 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+#set -e
+
+USAGE="Usage: `basename ${0}` {help|start|stop|restart|status|reset}"
+
+# Check Variables FOGLAMP_ROOT and FOGLAMP_DATA
+if [ -z ${FOGLAMP_ROOT+x} ]; then
+    FOGLAMP_ROOT="/usr/local/foglamp"
+fi
+if [ -z ${FOGLAMP_DATA+x} ]; then
+    FOGLAMP_DATA="/usr/local/foglamp/data"
+fi
+
+# Set Variables
+PG_ROOT_DATA="${FOGLAMP_DATA}/storage/postgres"
+PG_DATA="${PG_ROOT_DATA}/pgsql"
+PG_BIN="${FOGLAMP_ROOT}/plugins/storage/postgres/pgsql/bin"
+
+
+## The Error Message Handler
+#
+# Paramaters: $1 - Priority:
+#                  - debug
+#                  - info
+#                  - notice
+#                  - err
+#                  - crit
+#                  - alert
+#                  - emerg
+#             $2 - Message
+#             $3 - silent (option)
+#                - nice : Do not show the date and priority
+#
+pg_err() {
+
+    if ! [[ "$1" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
+        pg_err "err" "Internal error: unrecognized priority: $1"
+        exit 1
+        #kill -s TERM $TOP_PID
+    fi
+
+    logger -p local0.$1 -t foglamp.storage.postgres $2
+
+    case "$3" in
+        silent)
+            ;;
+        nice)
+            echo "$2" >&2
+            ;;
+        *)
+            echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+            ;;
+    esac
+
+}
+
+
+## PostgreSQL Reset
+pg_reset() {
+
+    echo "This script will remove all data stored in the server."
+    echo -n "Enter YES if you want to continue: "
+    read continue_reset
+
+    if [ "$continue_reset" != 'YES' ]; then
+        echo "Goodbye."
+        exit 0
+    fi
+
+    pg_stop
+    pg_init_datadir
+    pg_err "info" "FogLAMP PostgreSQL plugin reset." nice
+
+}
+
+
+## PostgreSQL Initialize the data directory
+#
+#  This function is used to create the PostgreSQL data directory
+#  using the pg_ctl init command
+#
+pg_init_datadir() {
+
+    pg_err "info" "Cleaning the Root Data directory..." nice
+    rm -rf "${PG_ROOT_DATA}"/*
+
+    pg_err "info" "Initializing the Data directory..." nice
+    "${PG_BIN}/pg_ctl" initdb -D "${PG_DATA}" -s > /dev/null
+}
+
+
+## PostgreSQL Start
+#
+#  The function also builds the metadata model, if it does not exist
+#
+#  Parameters: $1 - silent : does not call pg_err for info
+pg_start() {
+
+    # Check if the data directory already exists
+    if ! [[ -d "${PG_DATA}" ]]; then
+        pg_init_datadir
+    fi
+
+    if [[ `pg_status` = "FogLAMP PostgreSQL plugin not running." ]]; then
+
+        "${PG_BIN}/pg_ctl" -D "${PG_DATA}" -w -l logfile start
+
+        # Check if the database exists
+        if [[ `${PG_BIN}/psql -lqt | cut -d \| -f 1 | grep -c "foglamp"` -eq 0 ]]; then
+
+            pg_err "info" "Building the metadata for the FogLAMP Plugin..." "nice"
+            "${PG_BIN}/psql" --host="${PG_ROOT_DATA}" -U foglamp -d postgres -q -f "${FOGLAMP_ROOT}/plugins/storage/postgres/init.sql"
+            pg_err "info" "Build completed." "nice"
+
+        fi
+
+        if [[ "$1" != "silent" ]]; then
+            pg_err "info" "FogLAMP PostgreSQL plugin started." silent
+        fi
+
+    else
+
+        pg_err "notice" "FagLAMP PostgreSQL is already running."
+
+    fi
+
+}
+
+
+## PostgreSQL Restart
+pg_restart() {
+
+    if [[ `pg_status` = "FogLAMP PostgreSQL plugin running." ]]; then
+        pg_stop silent
+    fi
+
+    cycle=60
+    while [ "$cycle" -gt 0 ]; do
+        if [[ `pg_status` = "FogLAMP PostgreSQL plugin not running." ]]; then
+            cycle=0
+        else
+            if [ "$cycle" -eq 1 ]; then
+                pg_err "err" "FogLAMP PostgreSQL plugin cannot be stopped."
+                exit 1
+                #kill -s TERM $TOP_PID
+            else
+                echo -n "."
+                cycle=$((cycle -1))
+                sleep 1
+            fi
+        fi
+    done
+
+    pg_start silent
+
+    pg_err "info" "FogLAMP PostgreSQL plugin restarted." "nice"
+
+}
+
+
+## PostgreSQL Stop
+#  Parameters: $1 - silent : does not call pg_err for info
+pg_stop() {
+
+    case "`pg_status`" in
+        "FogLAMP PostgreSQL plugin running.")
+            "${PG_BIN}/pg_ctl" -D "${PG_DATA}" -l logfile stop
+            if [[ "$1" != "silent" ]]; then
+                pg_err "info" "FogLAMP PostgreSQL plugin stopped." silent
+            fi
+            ;;
+        "FogLAMP PostgreSQL plugin not running.")
+            pg_err "info" "FagLAMP PostgreSQL plugin does not appear to be running." nice
+            ;;
+        *)
+            ;;
+    esac
+
+}
+
+
+## PostgreSQL Status
+pg_status() {
+
+    if ! [[ -d "${PG_DATA}" ]]; then
+        pg_err "notice" "The FogLAMP PostgreSQL plugin is not running and must be initialized." "nice"
+        exit 1
+    fi
+
+    ret_message=`"${PG_BIN}/pg_ctl" -D "${PG_DATA}" status`
+
+    case "${ret_message}" in
+        "pg_ctl: no server running")
+            echo "FogLAMP PostgreSQL plugin not running."
+            ;;
+        "pg_ctl: server is running"*)
+            echo "FogLAMP PostgreSQL plugin running."
+            ;;
+        *)
+            pg_err "err" "Unknow status return by the PostgreSQL database server."
+            exit 1
+            #kill -s TERM $TOP_PID
+    esac
+
+}
+
+
+## PostgreSQL Help
+pg_help() {
+
+    echo "${USAGE}
+PostgreSQL Storage Layer plugin init script. 
+The script is used to control the PostgreSQL plugin as database for FogLAMP
+Arguments:
+ reset   - Bring the database server to the original installation.
+           WARNING: all the data stored in the server will be lost!
+ start   - Start the database server
+ stop    - Stop the database server
+ kill    - Kill the database server process. Use this argument only if you 
+           cannot stop the server gracefully
+ status  - Check the status of the database server
+ restart - Stop and Start the database server
+ help    - This text"
+
+}
+
+
+### Main Logic ###
+case "$1" in
+  reset)
+    pg_reset
+    ;;
+  start)
+    pg_start
+    ;;
+  stop)
+    pg_stop
+    ;;
+  restart|reload|condrestart)
+    pg_restart
+    ;;
+  kill)
+    ;;
+  status)
+    pg_status
+    ;;
+  help)
+    pg_help
+    ;;
+  *)
+    echo "${USAGE}"
+    exit 1
+esac
+
+exit 0
+

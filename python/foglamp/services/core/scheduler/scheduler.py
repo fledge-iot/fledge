@@ -34,6 +34,10 @@ __version__ = "${VERSION}"
 # TODO: FOGL-510 - Prepare foglamp testing environment
 _ENV = os.getenv('FOGLAMP_ENV', 'DEV')
 
+# FOGLAMP_HOME env variable
+_FOGLAMP_HOME = os.getenv("FOGLAMP_HOME", default='/usr/local/foglamp')
+_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_HOME + '/scripts')
+
 class Scheduler(object):
     """FogLAMP Task Scheduler
 
@@ -298,7 +302,7 @@ class Scheduler(object):
         task_process.start_time = time.time()
 
         try:
-            process = await asyncio.create_subprocess_exec(*args_to_exec)
+            process = await asyncio.create_subprocess_exec(*args_to_exec, cwd=_SCRIPTS_DIR)
         except EnvironmentError:
             self._logger.exception(
                 "Unable to start schedule '%s' process '%s'\n%s".format(

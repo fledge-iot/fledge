@@ -1,7 +1,7 @@
 #!/bin/sh
 if [ "${FOGLAMP_HOME}" = "" ]; then
 	if [ ! -x /usr/local/foglamp/services/storage ]; then
-		logger "Unable to find FogLAMP storage microservice in the default local"
+		logger "Unable to find FogLAMP storage microservice in the default location"
 		exit 1
 	else
 		/usr/local/foglamp/services/storage $@
@@ -9,7 +9,7 @@ if [ "${FOGLAMP_HOME}" = "" ]; then
 	fi
 else
 	if [ ! -x ${FOGLAMP_HOME}/services/storage ]; then
-		logger "Unable to find FogLAMP storage microservice"
+		logger "Unable to find FogLAMP storage microservice in ${FOGLAMP_HOME}/services/storage"
 		exit 1
 	else
 		${FOGLAMP_HOME}/services/storage $@

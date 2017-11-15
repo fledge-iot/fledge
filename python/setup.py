@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
+    name='FogLAMP',
     python_requires='~=3.5',
-    name='foglamp',
     version='0.1',
     description='FogLAMP',
     url='http://github.com/foglamp/FogLAMP',

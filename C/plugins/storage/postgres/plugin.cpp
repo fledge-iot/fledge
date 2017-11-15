@@ -41,13 +41,21 @@ PLUGIN_INFORMATION *plugin_info()
 }
 
 /**
- * Initialse the plugin, called to ge tthe plugin handle
+ * Initialse the plugin, called to get the plugin handle
  * In the case of Postgres we also get a pool of connections
  * to use.
  */
 PLUGIN_HANDLE plugin_init()
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
+
+	// Start the postgres server if it is not already running
+	char *home = getenv("FOGLAMP_HOME");
+	if (! home)
+		home = (char *)"/usr/local/foglamp";
+	char buf[256];
+	snprintf(buf, sizeof(buf), "%s/scripts/plugins/storage/postgres start", home);
+	system(buf);
   
 	manager->growPool(5);
 	return manager;

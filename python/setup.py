@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    python_requires='==3.5.3',
+    python_requires='~=3.5',
     name='foglamp',
     version='0.1',
     description='FogLAMP',

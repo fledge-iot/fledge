@@ -1,0 +1,20 @@
+#!/bin/sh
+# Run a FogLAMP south service written in Python
+if [ "${FOGLAMP_HOME}" = "" ]; then
+	FOGLAMP_HOME=/usr/local/foglamp
+fi
+
+if [ ! -d "${FOGLAMP_HOME}" ]; then
+	logger "FogLAMP home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+if [ ! -d "${FOGLAMP_HOME}/python" ]; then
+	logger "FogLAMP home directory is missing the Python installation"
+	exit 1
+fi
+
+# We run the Python code from the python directory
+cd "${FOGLAMP_HOME}/python"
+
+python3 -m foglamp.tasks.purge.purge $@

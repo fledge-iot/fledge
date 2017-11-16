@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -17,14 +16,15 @@ import copy
 import ast
 import resource
 import datetime
-import asyncio
 import time
 import json
 import requests
 import logging
 
+import foglamp.plugins.north.common.common as plugin_common
+import foglamp.plugins.north.common.exceptions as plugin_exceptions
+
 from foglamp.common import logger
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage.storage import Storage
 from foglamp.common.storage import payload_builder
 
@@ -42,22 +42,10 @@ _storage = ()
 _MESSAGES_LIST = {
 
     # Information messages
-    "i000001": " ",
+    "i000000": "information.",
 
     # Warning / Error messages
-    "e000001": "cannot initialize the plugin - error details |{0}|",
-    "e000002": "cannot complete the preparation of the in memory structure.",
-    "e000003": "cannot update the reached position.",
-    "e000004": "cannot complete the sending operation - error details |{0}|",
-    "e000005": "cannot start the logger - error details |{0}|",
-    "e000006": "cannot prepare sensor information for PICROMF - error details |{0}|",
-    "e000007": "an error occurred during the OMF request - error details |{0}|",
-    "e000008": "cannot complete the retrieval of the plugin information - error details |{0}|",
-    "e000009": "cannot retrieve information about the sensor.",
-    "e000010": "unable to extend the memory structure with new data.",
-    "e000011": "cannot complete the termination of the OMF translator - error details |{0}|",
-    "e000012": "ERROR - the plugin cannot be executed directly.",
-
+    "e000000": "general error.",
 }
 
 # Configuration related to the OMF Translator
@@ -189,8 +177,6 @@ _log_performance = False
 
 _logger = ""
 
-_event_loop = ""
-
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
 _config_omf_types_from_manager = {}
@@ -199,16 +185,6 @@ _config_from_manager = {}
 
 # Forces the recreation of PIServer objects when the first error occurs
 _recreate_omf_objects = True
-
-
-class URLFetchError(RuntimeError):
-    """ URLFetchError """
-    pass
-
-
-class PluginInitializeFailed(RuntimeError):
-    """ PluginInitializeFailed """
-    pass
 
 
 def _performance_log(func):
@@ -258,12 +234,11 @@ def _retrieve_configuration(stream_id):
     try:
         config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
 
-        cfg_manager = ConfigurationManager(_storage)
-
-        _event_loop.run_until_complete(cfg_manager.create_category(config_category_name, _CONFIG_DEFAULT_OMF,
-                                                                             _CONFIG_CATEGORY_DESCRIPTION))
-        _config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
-                                                              (config_category_name))
+        _config_from_manager = plugin_common.retrieve_configuration(
+                                                    _storage,
+                                                    config_category_name,
+                                                    _CONFIG_DEFAULT_OMF,
+                                                    _CONFIG_CATEGORY_DESCRIPTION)
 
         # Retrieves the configurations and apply the related conversions
         _config['URL'] = _config_from_manager['URL']['value']
@@ -275,18 +250,18 @@ def _retrieve_configuration(stream_id):
         _config['StaticData'] = ast.literal_eval(_config_from_manager['StaticData']['value'])
 
     except Exception:
-        _message = _MESSAGES_LIST["e000003"]
+        _message = plugin_common.MESSAGES_LIST["e000030"]
 
         _logger.error(_message)
         raise
 
     # Configuration related to the OMF Types
     try:
-        _event_loop.run_until_complete(cfg_manager.create_category(_CONFIG_CATEGORY_OMF_TYPES_NAME,
-                                                                             _CONFIG_DEFAULT_OMF_TYPES,
-                                                                             _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION))
-        _config_omf_types_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
-                                                                        (_CONFIG_CATEGORY_OMF_TYPES_NAME))
+        _config_omf_types_from_manager = plugin_common.retrieve_configuration(
+                                                    _storage,
+                                                    _CONFIG_CATEGORY_OMF_TYPES_NAME,
+                                                    _CONFIG_DEFAULT_OMF_TYPES,
+                                                    _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION)
 
         _config_omf_types = copy.deepcopy(_config_omf_types_from_manager)
 
@@ -302,7 +277,7 @@ def _retrieve_configuration(stream_id):
                 _config_omf_types[item]['value'] = new_value
 
     except Exception:
-        _message = _MESSAGES_LIST["e000003"]
+        _message = plugin_common.MESSAGES_LIST["e000030"]
 
         _logger.error(_message)
         raise
@@ -320,7 +295,6 @@ def plugin_retrieve_info(stream_id):
     """
 
     global _logger
-    global _event_loop
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
@@ -337,7 +311,7 @@ def plugin_retrieve_info(stream_id):
             _logger = logger.setup(logger_name, level=logging.DEBUG)
 
     except Exception as ex:
-        _message = _MESSAGES_LIST["e000005"].format(str(ex))
+        _message = plugin_common.MESSAGES_LIST["e000012"].format(str(ex))
         _current_time = time.strftime("%Y-%m-%d %H:%M:%S:")
 
         print ("{0} - ERROR - {1}".format(_current_time, _message))
@@ -347,8 +321,6 @@ def plugin_retrieve_info(stream_id):
     _logger.debug("{0} - ".format("plugin_retrieve_info"))
 
     try:
-        _event_loop = asyncio.get_event_loop()
-
         _retrieve_configuration(stream_id)
 
         plugin_info = {
@@ -360,7 +332,7 @@ def plugin_retrieve_info(stream_id):
         }
 
     except Exception as ex:
-        _message = _MESSAGES_LIST["e000008"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000012"].format(ex)
 
         _logger.error(_message)
         raise
@@ -387,10 +359,10 @@ def plugin_init():
         _recreate_omf_objects = True
 
     except Exception as ex:
-        _message = _MESSAGES_LIST["e000001"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000011"].format(ex)
 
         _logger.error(_message)
-        raise PluginInitializeFailed(ex)
+        raise plugin_exceptions.PluginInitializeFailed(ex)
 
 
 @_performance_log
@@ -440,7 +412,7 @@ def plugin_send(raw_data, stream_id):
                 data_sent = True
 
     except Exception as ex:
-        _message = _MESSAGES_LIST["e000004"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000031"].format(ex)
 
         _logger.exception(_message)
         raise
@@ -460,7 +432,7 @@ def plugin_shutdown():
         _logger.debug("{0} - plugin_shutdown".format(_MODULE_NAME))
 
     except Exception as ex:
-        _message = _MESSAGES_LIST["e000011"].format(ex)
+        _message = plugin_common.MESSAGES_LIST["e000013"].format(ex)
 
         _logger.error(_message)
         raise
@@ -584,45 +556,6 @@ def _generate_omf_typename_automatic(asset_code):
     return asset_id + _OMF_SUFFIX_TYPENAME
 
 
-def _evaluate_property_type(value):
-    """ Evaluates the type of the property in relation to its value
-
-     Args:
-        value : value of the property
-     Returns:
-         Evaluated type {integer,number,string}
-     Raises:
-     Todo:
-     """
-
-    try:
-        float(value)
-
-        try:
-            # Evaluates if it is a int or a number
-            if int(float(value)) == value:
-
-                # Checks the case having .0 as 967.0
-                int_str = str(int(float(value)))
-                value_str = str(value)
-
-                if int_str == value_str:
-                    property_type = "integer"
-                else:
-                    property_type = "number"
-
-            else:
-                property_type = "number"
-
-        except ValueError:
-            property_type = "string"
-
-    except ValueError:
-        property_type = "string"
-
-    return property_type
-
-
 def _create_omf_objects_automatic(asset_info):
     """ Handles the Automatic OMF Type Mapping
 
@@ -684,7 +617,8 @@ def _create_omf_type_automatic(asset_info):
     omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
 
     for item in asset_data:
-        item_type = _evaluate_property_type(asset_data[item])
+
+        item_type = plugin_common.evaluate_type(asset_data[item])
         omf_type[typename][1]["properties"][item] = {"type": item_type}
 
     if _log_debug_level == 3:
@@ -801,38 +735,6 @@ def _create_omf_object_links(asset_code, typename, omf_type):
 
 
 @_performance_log
-def _identify_unique_asset_codes(raw_data):
-    """ Identify unique asset codes in the data block
-
-    Args:
-        raw_data : data block retrieved from the Storage layer that should be handled/sent
-    Returns:
-        asset_code_to_evaluate : list of unique codes
-
-    Raises:
-    Todo:
-    """
-
-    asset_code_to_evaluate = []
-
-    for row in raw_data:
-        asset_code = row['asset_code']
-        asset_data = row['reading']
-
-        # Evaluates if the asset_code is already in the list
-        if not any(item["asset_code"] == asset_code for item in asset_code_to_evaluate):
-
-            asset_code_to_evaluate.append(
-                {
-                    "asset_code": asset_code,
-                    "asset_data": asset_data
-                }
-            )
-
-    return asset_code_to_evaluate
-
-
-@_performance_log
 def _create_omf_objects(raw_data, config_category_name, type_id):
     """ Handles the creation of the OMF types related to the asset codes using one of the 2 possible ways :
             Automatic OMF Type Mapping
@@ -847,7 +749,7 @@ def _create_omf_objects(raw_data, config_category_name, type_id):
     Todo:
     """
 
-    asset_codes_to_evaluate = _identify_unique_asset_codes(raw_data)
+    asset_codes_to_evaluate = plugin_common.identify_unique_asset_codes(raw_data)
 
     asset_codes_already_created = _retrieve_omf_types_already_created(config_category_name, type_id)
 
@@ -928,7 +830,7 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
                                      verify=False,
                                      timeout=_config['OMFHttpTimeout'])
         except Exception as e:
-            _message = _MESSAGES_LIST["e000007"].format(e)
+            _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
             _error = Exception(_message)
 
         else:
@@ -936,8 +838,8 @@ def _send_in_memory_data_to_picromf(message_type, omf_data):
             if not str(response.status_code).startswith('2'):
 
                 tmp_text = str(response.status_code) + " " + response.text
-                _message = _MESSAGES_LIST["e000007"].format(tmp_text)
-                _error = URLFetchError(_message)
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
+                _error = plugin_exceptions.URLFetchError(_message)
 
             _logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
                                                                              response.status_code,
@@ -998,11 +900,11 @@ def _transform_in_memory_data(data_to_send, raw_data):
             except Exception as e:
                 num_unsent += 1
 
-                _message = _MESSAGES_LIST["e000006"].format(e)
+                _message = plugin_common.MESSAGES_LIST["e000023"].format(e)
                 _logger.warning(_message)
 
     except Exception:
-        _message = _MESSAGES_LIST["e000002"]
+        _message = plugin_common.MESSAGES_LIST["e000021"]
 
         _logger.error(_message)
         raise
@@ -1065,11 +967,11 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
                 _logger.debug("in memory info |{0}| ".format(new_data))
 
         else:
-            _message = _MESSAGES_LIST["e000009"]
+            _message = plugin_common.MESSAGES_LIST["e000020"]
             _logger.warning(_message)
 
     except Exception:
-        _message = _MESSAGES_LIST["e000010"]
+        _message = plugin_common.MESSAGES_LIST["e000022"]
 
         _logger.error(_message)
         raise
@@ -1077,11 +979,10 @@ def _transform_in_memory_row(data_to_send, row, target_stream_id):
 
 if __name__ == "__main__":
 
-    message = _MESSAGES_LIST["e000012"]
+    message = plugin_common.MESSAGES_LIST["e000001"]
     print (message)
 
     if False:
         # Used to assign the proper objects type without actually executing them
         _storage = Storage("127.0.0.1", "0")
         _logger = logger.setup(_MODULE_NAME)
-        _event_loop = asyncio.get_event_loop()

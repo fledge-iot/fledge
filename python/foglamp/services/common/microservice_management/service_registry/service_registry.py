@@ -49,17 +49,15 @@ async def register(request):
         service_name = data.get('name', None)
         service_type = data.get('type', None)
         service_address = data.get('address', None)
-        service_port = data.get('service_port', 0)
+        service_port = data.get('service_port', None)
         service_management_port = data.get('management_port', None)
         service_protocol = data.get('protocol', 'http')
 
-        # TODO: make service port optional? or it can point to mgt port if not provided?
         if not (service_name.strip() or service_type.strip() or service_address.strip()
-                or service_port.strip() or not service_port.isdigit()
                 or service_management_port.strip() or not service_management_port.isdigit()):
-            raise web.HTTPBadRequest(reason='One or more values for type/name/address/port/management port missing')
+            raise web.HTTPBadRequest(reason='One or more values for type/name/address/management port missing')
 
-        if not isinstance(service_port, int):
+        if not (service_port.strip() and isinstance(service_port, int)):
             raise web.HTTPBadRequest(reason="Service's service port can be a positive integer only")
 
         if not isinstance(service_management_port, int):

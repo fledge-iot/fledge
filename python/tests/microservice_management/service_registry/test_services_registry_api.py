@@ -82,6 +82,50 @@ class TestServicesRegistryApi:
         assert data["address"] == svc[0]["address"]
         assert data["management_port"] == svc[0]["management_port"]
 
+    async def test_register_multiple_without_service_port(self):
+        data = {"type": "Storage", "name": "CoAP service", "address": "127.0.0.1", "management_port": 1090}
+
+        r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
+        res = dict(r.json())
+
+        assert 200 == r.status_code
+        print(res)
+        assert str(uuid.UUID(res["id"], version=4)) == res["id"]
+        assert "Service registered successfully" == res["message"]
+
+        l = requests.get(BASE_URL + '/service?name={}'.format(data["name"]))
+        assert 200 == l.status_code
+
+        res = dict(l.json())
+        svc = res["services"]
+        assert 1 == len(svc)
+
+        assert data["name"] == svc[0]["name"]
+        assert data["type"] == svc[0]["type"]
+        assert data["address"] == svc[0]["address"]
+        assert data["management_port"] == svc[0]["management_port"]
+        data = {"type": "Storage", "name": "Second service", "address": "127.0.0.1", "management_port": 1290}
+
+        r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
+        res = dict(r.json())
+
+        assert 200 == r.status_code
+        print(res)
+        assert str(uuid.UUID(res["id"], version=4)) == res["id"]
+        assert "Service registered successfully" == res["message"]
+
+        l = requests.get(BASE_URL + '/service?name={}'.format(data["name"]))
+        assert 200 == l.status_code
+
+        res = dict(l.json())
+        svc = res["services"]
+        assert 1 == len(svc)
+
+        assert data["name"] == svc[0]["name"]
+        assert data["type"] == svc[0]["type"]
+        assert data["address"] == svc[0]["address"]
+        assert data["management_port"] == svc[0]["management_port"]
+
     async def test_register_dup_name(self):
         data = {"type": "Storage", "name": "name-dup", "address": "127.0.0.1", "service_port": 9001, "management_port": 1009}
 

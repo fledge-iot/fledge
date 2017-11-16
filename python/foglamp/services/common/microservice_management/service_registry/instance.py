@@ -97,13 +97,13 @@ class Service(object):
             else:
                 raise Service.AlreadyExistsWithTheSameName
 
-            if cls.check_address_and_port(address, port):
+            if port != None and cls.check_address_and_port(address, port):
                 raise Service.AlreadyExistsWithTheSameAddressAndPort
 
             if cls.check_address_and_mgt_port(address, management_port):
                 raise Service.AlreadyExistsWithTheSameAddressAndManagementPort
 
-            if not isinstance(port, int):
+            if port != None and (not isinstance(port, int)):
                 raise Service.NonNumericPortError
             if not isinstance(management_port, int):
                 raise Service.NonNumericPortError

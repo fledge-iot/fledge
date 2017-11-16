@@ -19,4 +19,4 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 target_link_libraries(${PROJECT_NAME} -lpq)
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION lib/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/storage//${PROJECT_NAME})

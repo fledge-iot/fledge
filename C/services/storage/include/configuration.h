@@ -15,7 +15,7 @@
 #include <rapidjson/document.h>
 
 #define STORAGE_CATEGORY	  "STORAGE"
-#define CONFIGURATION_CACHE_FILE  ".storage.json"
+#define CONFIGURATION_CACHE_FILE  "storage.json"
 
 /**
  * The storage service must handle its own configuration differently
@@ -33,6 +33,7 @@ class StorageConfiguration {
     bool                  setValue(const std::string& key, const std::string& value);
     void                  updateCategory(const std::string& json);
   private:
+    void		  getConfigCache(std::string& cache);
     rapidjson::Document   document;
     void                  readCache();
     void                  writeCache();

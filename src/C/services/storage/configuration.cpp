@@ -17,7 +17,7 @@
 #include <unistd.h>
 
 static const char *defaultConfiguration = " { \"plugin\" : { "
-" \"value\" : \"postgres\" }, \"threads\" : { \"value\" : \"1\" },"
+" \"value\" : \"postgresql\" }, \"threads\" : { \"value\" : \"1\" },"
 "  \"port\" : { \"value\" : \"0\" }, \"managementPort\" : { \"value\" : \"0\" } }";
 
 using namespace std;

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.4.0)
 
-project(postgres)
+project(postgresql)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 
@@ -19,4 +19,4 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 target_link_libraries(${PROJECT_NAME} -lpq)
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION lib/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/storage/postgresql)

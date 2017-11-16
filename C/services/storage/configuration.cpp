@@ -78,7 +78,10 @@ void StorageConfiguration::updateCategory(const string& json)
  */
 void StorageConfiguration::readCache()
 {
-	if (access(CONFIGURATION_CACHE_FILE, F_OK ) != 0)
+string	cachefile;
+
+	getConfigCache(cachefile);
+	if (access(cachefile.c_str(), F_OK ) != 0)
 	{
 		logger->info("Using default configuration: %s.", defaultConfiguration);
 		document.Parse(defaultConfiguration);
@@ -90,7 +93,7 @@ void StorageConfiguration::readCache()
 		return;
 	}
 	try {
-		ifstream ifs(CONFIGURATION_CACHE_FILE);
+		ifstream ifs(cachefile);
 		IStreamWrapper isw(ifs);
 		document.ParseStream(isw);
 		if (document.HasParseError())
@@ -107,8 +110,58 @@ void StorageConfiguration::readCache()
  */
 void StorageConfiguration::writeCache()
 {
-	ofstream ofs(CONFIGURATION_CACHE_FILE);
+string	cachefile;
+
+	getConfigCache(cachefile);
+	ofstream ofs(cachefile);
 	OStreamWrapper osw(ofs);
 	Writer<OStreamWrapper> writer(osw);
 	document.Accept(writer);
+}
+
+/**
+ * Retrieve the location of the configuration cache to use
+ *
+ * If a configuration cache exists in the current directory then it is used
+ *
+ * If not and the environment variable FOGLAMP_DATA exists then the
+ * configuration file under etc in that directory will be used.
+ *
+ * If that does not exist and the configuration variable FOGLAMP_HONE
+ * exists then a configuration file under etc in that dirstory is used
+ */
+void StorageConfiguration::getConfigCache(string& cache)
+{
+char buf[512], *basedir;
+
+	if (access(CONFIGURATION_CACHE_FILE, F_OK) == 0)
+	{
+		cache = CONFIGURATION_CACHE_FILE;
+		return;
+	}
+	if ((basedir = getenv("FOGLAMP_DATA")) != NULL)
+	{
+		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
+		if (access(buf, F_OK) == 0)
+		{
+			cache = buf;
+			return;
+		}
+	}
+	else if ((basedir = getenv("FOGLAMP_ROOT")) != NULL)
+	{
+		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
+		if (access(buf, F_OK) == 0)
+		{
+			cache = buf;
+			return;
+		}
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "%s", CONFIGURATION_CACHE_FILE);
+	}
+
+	// No configuration cache has been found - return the default location
+	cache = buf;
 }

@@ -35,8 +35,8 @@ import asyncio
 import pytest
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
-from foglamp.core.scheduler.scheduler import Scheduler
-from foglamp.core.scheduler.entities import Task
+from foglamp.services.core.scheduler.scheduler import Scheduler
+from foglamp.services.core.scheduler.entities import Task
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

@@ -12,10 +12,10 @@ import uuid
 import aiopg
 import aiopg.sa
 import pytest
-from foglamp.core.scheduler.scheduler import Scheduler
-from foglamp.core.scheduler.entities import IntervalSchedule, Task, Schedule, TimedSchedule, ManualSchedule, \
+from foglamp.services.core.scheduler.scheduler import Scheduler
+from foglamp.services.core.scheduler.entities import IntervalSchedule, Task, Schedule, TimedSchedule, ManualSchedule, \
     StartUpSchedule
-from foglamp.core.scheduler.exceptions import ScheduleNotFoundError
+from foglamp.services.core.scheduler.exceptions import ScheduleNotFoundError
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

@@ -11,10 +11,10 @@ import random
 import uuid
 import json
 
-from foglamp.configuration_manager import ConfigurationManager
-from foglamp.data_purge.purge import Purge
-from foglamp.storage.payload_builder import PayloadBuilder
-from foglamp.storage.storage import Storage, Readings
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.tasks.purge.purge import Purge
+from foglamp.common.storage.payload_builder import PayloadBuilder
+from foglamp.common.storage.storage import Storage, Readings
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"

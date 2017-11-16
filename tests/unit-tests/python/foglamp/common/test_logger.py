@@ -2,7 +2,7 @@
 import logging 
 import pytest
 
-from foglamp import logger
+from foglamp.common import logger
 
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

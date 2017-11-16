@@ -148,7 +148,7 @@ char buf[512], *basedir;
 			return;
 		}
 	}
-	else if ((basedir = getenv("FOGLAMP_HOME")) != NULL)
+	else if ((basedir = getenv("FOGLAMP_ROOT")) != NULL)
 	{
 		snprintf(buf, sizeof(buf), "%s/etc/%s", basedir, CONFIGURATION_CACHE_FILE);
 		if (access(buf, F_OK) == 0)

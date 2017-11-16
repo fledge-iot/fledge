@@ -61,7 +61,7 @@ can however be overwritten by the use of the command line argument --port=
 and --address= to set the port and address of the core microservice.
 
 The storage layer will look for storage plugins in the current directory
-or in the directory $FOGLAMP_HOME/plugins
+or in the directory $FOGLAMP_ROOT/plugins
 
 Ports
 -----

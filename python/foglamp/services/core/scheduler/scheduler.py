@@ -34,9 +34,9 @@ __version__ = "${VERSION}"
 # TODO: FOGL-510 - Prepare foglamp testing environment
 _ENV = os.getenv('FOGLAMP_ENV', 'DEV')
 
-# FOGLAMP_HOME env variable
-_FOGLAMP_HOME = os.getenv("FOGLAMP_HOME", default='/usr/local/foglamp')
-_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_HOME + '/scripts')
+# FOGLAMP_ROOT env variable
+_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 
 class Scheduler(object):
     """FogLAMP Task Scheduler

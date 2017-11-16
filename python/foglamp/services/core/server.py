@@ -30,9 +30,9 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__, level=20)
 
-# FOGLAMP_HOME env variable
-_FOGLAMP_HOME = os.getenv("FOGLAMP_HOME", default='/usr/local/foglamp')
-_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_HOME + '/scripts')
+# FOGLAMP_ROOT env variable
+_FOGLAMP_ROOT= os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 
 
 class Server:

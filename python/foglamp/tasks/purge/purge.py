@@ -24,6 +24,7 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
+import logging
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics

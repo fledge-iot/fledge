@@ -78,8 +78,21 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap", "default" : "coap", "description" : "Python module name of the plugin to load" } } ');
 
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO)
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'HTTP_TR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_translator", "default" : "http_translator", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'HTTP_TR_3', 'HTTP North Plugin Configuration', ' {
+	"plugin": {
+		"type": "string",
+		"value": "http_translator",
+		"default": "http_translator",
+		"description": "Python module name of the plugin to load"
+	},
+	"translator": {
+		"description": "The name of the translator to use to translate the readings into the output format and send them",
+		"type": "string",
+		"default": "http_translator"
+	}
+} ');
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;

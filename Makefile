@@ -1,14 +1,22 @@
-# COMMANDS
-MKDIR := mkdir
+
+###############################################################################
+################################### COMMANDS ##################################
+###############################################################################
+MKDIR_PATH := mkdir -p
 CD := cd
 LN := ln -sf
 CMAKE := cmake
-PIP_INSTALL_REQUIREMENTS := pip3 install --user -Ur
-PIP_INSTALL_PACKAGE := pip3 install --user -e
-PIP_UNINSTALL_PACKAGE := pip3 uninstall -y
+PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
+PIP_UNINSTALL_REQUIREMENTS := pip3 uninstall -yr
+PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
+MAKE_INSTALL = $(MAKE) install
+CP_DIR := cp -r
 
+###############################################################################
+################################### DIRS/FILES ################################
+###############################################################################
 # PARENT DIR
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
@@ -23,16 +31,38 @@ SYMLINK_SERVICES_DIR := $(CURRENT_DIR)/services
 SYMLINK_PLUGINS_DIR := $(CURRENT_DIR)/plugins
 
 # PYTHON BUILD DIRS/FILES
-PYTHON_DIR := python
-PYTHON_REQUIREMENTS_FILE := $(PYTHON_DIR)/requirements.txt
+PYTHON_SRC_DIR := python
+PYTHON_BUILD_DIR := python_build
+PYTHON_LIB_DIR := $(PYTHON_BUILD_DIR)/lib
+PYTHON_REQUIREMENTS_FILE := $(PYTHON_SRC_DIR)/requirements.txt
+PYTHON_SETUP_FILE := $(PYTHON_SRC_DIR)/setup.py
 
+# INSTALL DIRS
+INSTALL_DIR=$(DESTDIR)/usr/local/foglamp
+PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
+
+###############################################################################
+################################### OTHER VARS ################################
+###############################################################################
 # ETC
 PACKAGE_NAME=FogLAMP
 
-# TARGETS
-# compile any code that must be compiled and generally prepare the development tree to allow for core to be run
-default : c_build $(SYMLINK_SERVICES_DIR) $(SYMLINK_PLUGINS_DIR) python_build
+###############################################################################
+############################ PRIMARY TARGETS ##################################
+###############################################################################
+# default
+# compile any code that must be compiled
+# generally prepare the development tree to allow for core to be run
+default : c_build $(SYMLINK_SERVICES_DIR) $(SYMLINK_PLUGINS_DIR) python_build python_requirements
 
+# install
+# Creates a deployment structure in the default destination, /usr/local/foglamp
+# Destination may be overridden by use of the DESTDIR=<location> directive
+# This first does a make to build anything needed for the installation.
+install : $(INSTALL_DIR) c_install python_install python_requirements
+
+############################ C BUILD/INSTALL TARGETS ##########################
+###############################################################################
 # run make execute makefiles producer by cmake
 c_build : $(CMAKE_GEN_MAKEFILE)
 	$(CD) $(CMAKE_BUILD_DIR) ; $(MAKE)
@@ -45,8 +75,8 @@ $(CMAKE_GEN_MAKEFILE) : $(CMAKE_FILE) $(CMAKE_BUILD_DIR)
 	$(CD) $(CMAKE_BUILD_DIR) ; $(CMAKE) $(CURRENT_DIR)
 
 # create build dir
-$(CMAKE_BUILD_DIR) : 
-	-$(MKDIR) $@
+$(CMAKE_BUILD_DIR) :
+	$(MKDIR_PATH) $@
 
 # create symlink for services dir
 $(SYMLINK_SERVICES_DIR) :
@@ -56,19 +86,49 @@ $(SYMLINK_SERVICES_DIR) :
 $(SYMLINK_PLUGINS_DIR) :
 	$(LN) $(CMAKE_PLUGINS_DIR) $(SYMLINK_PLUGINS_DIR)
 
-# install python FogLAMP package
-python_build : python_requirements 
-	$(PIP_INSTALL_PACKAGE) $(PYTHON_DIR)
+# run make install on cmake based components
+c_install : c_build
+	$(CD) $(CMAKE_BUILD_DIR) ; $(MAKE_INSTALL)
+
+###############################################################################
+###################### PYTHON BUILD/INSTALL TARGETS ###########################
+###############################################################################
+# build python source
+python_build : $(PYTHON_SETUP_FILE)
+	cd $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE)
 
 # install python requirements
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
 	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
 
+# create python install dir
+$(PYTHON_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
+
+# copy python package into install dir
+python_install : python_build $(PYTHON_INSTALL_DIR)
+	$(CP_DIR) $(PYTHON_LIB_DIR)/* $(PYTHON_INSTALL_DIR)
+
+###############################################################################
+######################## SUPPORTING BUILD/INSTALL TARGETS #####################
+###############################################################################
+# create install directory
+$(INSTALL_DIR) : 
+	$(MKDIR_PATH) $@
+
+###############################################################################
+###############################################################################
+###################### CLEAN/UNINSTALL TARGETS ################################
+###############################################################################
 # clean
 clean : 
 	-$(RM_DIR) $(CMAKE_BUILD_DIR)
+	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM) $(SYMLINK_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
-	-$(PIP_UNINSTALL_PACKAGE) $(PACKAGE_NAME)
 
+# uninstall
+uninstall : 
+	-$(RM_DIR) $(INSTALL_DIR)
+	-$(PIP_UNINSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
 

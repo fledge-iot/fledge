@@ -32,7 +32,7 @@ target_link_libraries(storage ${Boost_LIBRARIES})
 target_link_libraries(storage ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(storage ${DLLIB})
 
-install(TARGETS storage RUNTIME DESTINATION bin)
+install(TARGETS storage RUNTIME DESTINATION foglamp/services/storage)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
     target_link_libraries(storage ws2_32 wsock32)

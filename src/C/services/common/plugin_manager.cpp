@@ -44,7 +44,7 @@ PluginManager::PluginManager()
 PLUGIN_HANDLE PluginManager::loadPlugin(const string& name, const string& type)
 {
 PLUGIN_HANDLE hndl = NULL;
-char          buf[128];
+char          buf[512];
 
   if (pluginNames.find(name) != pluginNames.end())
   {
@@ -64,10 +64,11 @@ char          buf[128];
   if (access(buf, F_OK) != 0)
   {
     char *home = getenv("FOGLAMP_HOME");
-    if (home)
+    if (home == NULL)
     {
-        snprintf(buf, sizeof(buf), "%s/plugins/lib%s.so", home, name.c_str());
+	home = (char *)"/usr/local/foglamp";
     }
+    snprintf(buf, sizeof(buf), "%s/plugins/%s/%s/lib%s.so", home, type.c_str(), name.c_str(), name.c_str());
   }
   if ((hndl = dlopen(buf, RTLD_LAZY)) != NULL)
   {

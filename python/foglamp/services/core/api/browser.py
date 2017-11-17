@@ -73,7 +73,7 @@ async def asset_counts(request):
     # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
     # PayloadBuilder().AGGREGATE(["count", "*"]).GROUP_BY('asset_code')
 
-    aggregate = {"operation": "count", "column": "*", "alias": "Count"}
+    aggregate = {"operation": "count", "column": "*", "alias": "count"}
     d = OrderedDict()
     d['aggregate'] = aggregate
     d['group'] = "asset_code"

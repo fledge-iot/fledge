@@ -100,9 +100,9 @@ class Storage(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Ping: Client error code: %d", r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Ping: Server error code: %d", r.status)
 
         res = r.read().decode()
         conn.close()
@@ -120,9 +120,9 @@ class Storage(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Get Service: Client error code: %d", r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Get Service: Server error code: %d", r.status)
 
         res = r.read().decode()
         conn.close()
@@ -183,9 +183,9 @@ class Storage(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Post %s: Client error code: %d", post_url, r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Post %s: Server error code: %d", post_url, r.status)
 
         res = r.read().decode()
         conn.close()
@@ -225,16 +225,19 @@ class Storage(AbstractStorage):
         conn.request('PUT', url=put_url, body=data)
         r = conn.getresponse()
 
+        res = r.read().decode()
+        jdoc = json.loads(res, strict=False)
+
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("PUT %s: Client error code: %d", put_url, r.status)
+            _LOGGER.error("PUT %s: %s", put_url, jdoc['message'])
+            _LOGGER.error("Request payload: %s", data);
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
-
-        res = r.read().decode()
+            _LOGGER.error("PUT %s Server error code: %d", put_url, r.status)
         conn.close()
-        return json.loads(res, strict=False)
+        return jdoc;
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
@@ -265,9 +268,9 @@ class Storage(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Delete %s: Client error code: %d", del_url, r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Delete %s: Server error code: %d", del_url, r.status)
 
         res = r.read().decode()
         conn.close()
@@ -298,9 +301,9 @@ class Storage(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Get %s: Client error code: %d", get_url, r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Get %s: Server error code: %d", get_url, r.status)
 
         res = r.read().decode()
         conn.close()
@@ -332,9 +335,9 @@ class Storage(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Put %s: Client error code: %d", put_url, r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Put %s: Server error code: %d", put_url, r.status) 
 
         res = r.read().decode()
         conn.close()
@@ -393,9 +396,9 @@ class Readings(Storage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Post readings: Client error code: %d", r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Post readings: Server error code: %d", r.status)
 
         res = r.read().decode()
         conn.close()
@@ -424,9 +427,9 @@ class Readings(Storage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Fetch readings: Client error code: %d", r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Fetch readings: Server error code: %d", r.status)
 
         res = r.read().decode()
         conn.close()
@@ -459,9 +462,9 @@ class Readings(Storage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Query readings: Client error code: %d", r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Query readings: Server error code: %d", r.status)
 
         res = r.read().decode()
         conn.close()
@@ -509,9 +512,9 @@ class Readings(Storage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Client error code: %d", r.status)
+            _LOGGER.error("Purge readings: Client error code: %d", r.status)
         if r.status in range(500, 600):
-            _LOGGER.error("Server error code: %d", r.status)
+            _LOGGER.error("Purge readings: Server error code: %d", r.status)
 
         # NOTE: If the data could not be deleted because of a conflict,
         #       then the error “409 Conflict” will be returned.

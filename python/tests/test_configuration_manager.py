@@ -10,7 +10,7 @@ import sqlalchemy as sa
 import aiopg.sa
 from sqlalchemy.dialects.postgresql import JSONB
 from foglamp.configuration_manager import ConfigurationManager
-from foglamp.storage.storage import Storage
+from foglamp.storage_client.storage_client import StorageClient
 
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -30,7 +30,7 @@ _configuration_tbl = sa.Table(
     sa.Column('ts', sa.types.TIMESTAMP)
 )
 
-_storage = Storage(core_management_host='0.0.0.0', core_management_port=43395, svc=None)
+_storage = StorageClient(core_management_host='0.0.0.0', core_management_port=43395, svc=None)
 cf_mgr = None
 
 

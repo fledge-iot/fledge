@@ -26,11 +26,11 @@ import logging
 import datetime
 
 from foglamp.common.parser import Parser
-from foglamp.common.storage.storage import Storage, Readings
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 
-from foglamp.common.storage import payload_builder
+from foglamp.common.storage_client import payload_builder
 from foglamp.common.statistics import Statistics
 
 
@@ -283,8 +283,8 @@ class SendingProcess:
         self._mgt_address = _mgt_address
         ''' Parameters for the Storage layer '''
 
-        self._storage = Storage(_mgt_address, _mgt_port)
-        self._readings = Readings(_mgt_address, _mgt_port)
+        self._storage = StorageClient(_mgt_address, _mgt_port)
+        self._readings = ReadingsStorageClient(_mgt_address, _mgt_port)
         """" Interfaces to the FogLAMP Storage Layer """
 
         self._log_storage = LogStorage(self._storage)

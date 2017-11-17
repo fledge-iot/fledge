@@ -18,7 +18,7 @@ import json
 from foglamp.common import logger
 from foglamp.common.statistics import Statistics
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.storage.storage import Readings, Storage
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 
 
 __author__ = "Terris Linenbach"
@@ -196,8 +196,8 @@ class Ingest(object):
         cls._core_management_host = core_mgt_host
         cls._core_management_port = core_mgt_port
 
-        cls.readings_storage = Readings(cls._core_management_host, cls._core_management_port)
-        cls.storage = Storage(cls._core_management_host, cls._core_management_port)
+        cls.readings_storage = ReadingsStorageClient(cls._core_management_host, cls._core_management_port)
+        cls.storage = StorageClient(cls._core_management_host, cls._core_management_port)
 
         await cls._read_config()
 
@@ -287,7 +287,7 @@ class Ingest(object):
     async def _insert_readings(cls, list_index):
         """Inserts rows into the readings table
 
-        Use Readings().append(json_payload_of_readings)
+        Use ReadingsStorageClient().append(json_payload_of_readings)
         """
         _LOGGER.info('Insert readings loop started')
 

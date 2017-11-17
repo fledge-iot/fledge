@@ -18,8 +18,8 @@ import json
 
 from foglamp.common import logger
 from foglamp.services.common.microservice_management.service_registry.service_registry import Service
-from foglamp.common.storage.exceptions import *
-from foglamp.common.storage.utils import Utils
+from foglamp.common.storage_client.exceptions import *
+from foglamp.common.storage_client.utils import Utils
 
 
 _LOGGER = logger.setup(__name__)
@@ -47,7 +47,7 @@ class AbstractStorage(ABC):
         self.disconnect()
 
 
-class Storage(AbstractStorage):
+class StorageClient(AbstractStorage):
 
     def __init__(self, core_management_host, core_management_port, svc=None):
         try:
@@ -341,7 +341,7 @@ class Storage(AbstractStorage):
         return json.loads(res, strict=False)
 
 
-class Readings(Storage):
+class ReadingsStorageClient(StorageClient):
     """ Readings table operations """
 
     _base_url = ""
@@ -382,10 +382,10 @@ class Readings(Storage):
         # TODO: need to set http / https based on service protocol
 
         if not readings:
-            raise ValueError("Readings payload is missing")
+            raise ValueError("ReadingsStorageClient payload is missing")
 
         if not Utils.is_json(readings):
-            raise TypeError("Readings payload must be a valid JSON")
+            raise TypeError("ReadingsStorageClient payload must be a valid JSON")
 
         conn.request('POST', url='/storage/reading', body=readings)
         r = conn.getresponse()

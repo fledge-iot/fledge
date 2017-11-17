@@ -13,24 +13,24 @@ This will go away when tests, payload_builder and actually STORAGE layer (FOGL-1
 import json
 from collections import OrderedDict
 
-from foglamp.common.storage.storage import Storage, Readings
-from foglamp.common.storage.exceptions import *
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
+from foglamp.common.storage_client.exceptions import *
 
 
 def insert_data():
-    print("Storage::insert_data :")
+    print("StorageClient::insert_data :")
     data = dict()
 
     data['key'] = 'SENT_test'
     data['history_ts'] = 'now'
     data['value'] = 1
 
-    res = Storage().insert_into_tbl("statistics_history", json.dumps(data))
+    res = StorageClient().insert_into_tbl("statistics_history", json.dumps(data))
     print(res)
 
 
 def update_data():
-    print("Storage::update_data :")
+    print("StorageClient::update_data :")
 
     condition = dict()
 
@@ -45,12 +45,12 @@ def update_data():
     data['condition'] = condition
     data['values'] = values
 
-    res = Storage().update_tbl("statistics_history", json.dumps(data))
+    res = StorageClient().update_tbl("statistics_history", json.dumps(data))
     print(res)
 
 
 def delete_tbl_data():
-    print("Storage::delete_tbl_data :")
+    print("StorageClient::delete_tbl_data :")
 
     # payload as per doc,
     # see: Plugin Common Delete
@@ -75,18 +75,18 @@ def delete_tbl_data():
     ''' DELETE FROM statistics_history WHERE key = 'SENT_test' OR id='13084' '''
     cond['or'] = del_cond_2
 
-    res = Storage().delete_from_tbl("statistics_history", json.dumps(cond))
+    res = StorageClient().delete_from_tbl("statistics_history", json.dumps(cond))
     print(res)
 
     ''' DELETE FROM statistics_history '''
-    # res = Storage().delete_from_tbl("statistics_history")
+    # res = StorageClient().delete_from_tbl("statistics_history")
     # print(res)
 
 
 def query_table():
-    print("Storage::query_table :")
+    print("StorageClient::query_table :")
 
-    with Storage() as store:
+    with StorageClient() as store:
         # commented code
         '''
         query = dict()
@@ -114,7 +114,7 @@ def query_table():
 
 
 def query_table_with_payload():
-    print("Storage::query_table_with_payload :")
+    print("StorageClient::query_table_with_payload :")
 
     # WHERE key = 'SENT_test'"
 
@@ -148,13 +148,13 @@ def query_table_with_payload():
     payload = json.dumps(query_payload)
     print(payload)
 
-    with Storage() as store:
+    with StorageClient() as store:
         res = store.query_tbl_with_payload('statistics_history', payload)
     print(res)
 
 
 def append_readings():
-    print("Readings::append_readings :")
+    print("ReadingsStorageClient::append_readings :")
     import uuid
     import random
     readings = []
@@ -182,37 +182,37 @@ def append_readings():
 
     print(json.dumps(payload))
 
-    res = Readings().append(json.dumps(payload))
+    res = ReadingsStorageClient().append(json.dumps(payload))
     print(res)
 
 
 def fetch_readings():
-    print("Readings::fetch_readings :")
+    print("ReadingsStorageClient::fetch_readings :")
     # tested,
     # works fine if records are less then count
     # also works fine if reading_id does not exist, {'rows': [], 'count': 0}
-    res = Readings().fetch(reading_id=1, count=2)
+    res = ReadingsStorageClient().fetch(reading_id=1, count=2)
     print(res)
 
 
 def purge_readings():
-    print("Readings::purge_readings :")
+    print("ReadingsStorageClient::purge_readings :")
 
-    res = Readings().purge('24', '100071')
+    res = ReadingsStorageClient().purge('24', '100071')
 
     # try many (type checking)
-    res = Readings().purge(24, '100071')
+    res = ReadingsStorageClient().purge(24, '100071')
 
-    # res = Readings().purge(24, '100071', 'puRge')
+    # res = ReadingsStorageClient().purge(24, '100071', 'puRge')
 
-    res = Readings().purge(age=24, sent_id=100071, flag='RETAIN')
+    res = ReadingsStorageClient().purge(age=24, sent_id=100071, flag='RETAIN')
 
     try:
-        # res = Readings().purge('b', '100071', 'RETAIN')
+        # res = ReadingsStorageClient().purge('b', '100071', 'RETAIN')
 
-        # res = Readings().purge('1', 'v', 'RETAIN')
+        # res = ReadingsStorageClient().purge('1', 'v', 'RETAIN')
 
-        res = Readings().purge(24, '100071', 'xRETAIN')
+        res = ReadingsStorageClient().purge(24, '100071', 'xRETAIN')
     except ValueError:
         print("age or reading is not an integer value :/")
     except InvalidReadingsPurgeFlagParameters:
@@ -222,7 +222,7 @@ def purge_readings():
 
 
 def query_readings():
-    print("Readings::query_readings :")
+    print("ReadingsStorageClient::query_readings :")
 
     cond1 = OrderedDict()
     cond1['column'] = 'asset_code'
@@ -237,7 +237,7 @@ def query_readings():
 
     print("query_readings payload: ", json.dumps(query_payload))
 
-    res = Readings().query(json.dumps(query_payload))
+    res = ReadingsStorageClient().query(json.dumps(query_payload))
     print(res)
 
     # expected response
@@ -251,7 +251,7 @@ def query_readings():
 try:
     # TODO: Move to tests :]
 
-    ping_response = Storage().check_service_availibility()
+    ping_response = StorageClient().check_service_availibility()
     print("check_service_availibility res: ", ping_response)
 
     """ {'uptime': 1077, 'name': 'storage', 
@@ -283,7 +283,7 @@ try:
 
     # TODO: verify 1 error payload
 
-    # shutdown_response = Storage().shutdown()
+    # shutdown_response = StorageClient().shutdown()
     # print("check_shutdown res: ", shutdown_response)
     """  {'message': 'Shutdown in progress'}
     """

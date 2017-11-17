@@ -25,8 +25,8 @@ import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 
 from foglamp.common import logger
-from foglamp.common.storage.storage import Storage
-from foglamp.common.storage import payload_builder
+from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client import payload_builder
 
 # Module information
 __author__ = "Stefano Simonelli"
@@ -984,5 +984,5 @@ if __name__ == "__main__":
 
     if False:
         # Used to assign the proper objects type without actually executing them
-        _storage = Storage("127.0.0.1", "0")
+        _storage = StorageClient("127.0.0.1", "0")
         _logger = logger.setup(_MODULE_NAME)

@@ -22,7 +22,7 @@
 
 -- NOTE:
 -- This script must be launched with:
--- psql --host=/usr/local/foglamp/data/storage/postgres -U foglamp -d postgres -f init.sql
+-- psql -U postgres -d postgres -f init.sql
 
 
 ----------------------------------------------------------------------
@@ -41,9 +41,7 @@
 --           every change.
 
 
-----------------------------------------------------------------------
--- SCHEMA CREATION
-----------------------------------------------------------------------
+-- This first part of the script must be executed by the postgres user
 
 -- Disable the NOTICE notes
 SET client_min_messages TO WARNING;
@@ -51,30 +49,25 @@ SET client_min_messages TO WARNING;
 -- Dropping objects
 DROP SCHEMA IF EXISTS foglamp CASCADE;
 DROP DATABASE IF EXISTS foglamp;
-DROP TABLESPACE IF EXISTS foglamp;
-
-
--- Create the foglamp tablespace
-CREATE TABLESPACE foglamp
-  OWNER foglamp
-  LOCATION '/usr/local/foglamp/data/storage/postgres';
 
 
 -- Create the foglamp database
 CREATE DATABASE foglamp WITH
-    OWNER = foglamp
-    ENCODING = 'UTF8'
-    TABLESPACE = foglamp
-    CONNECTION LIMIT = -1;
+    ENCODING = 'UTF8';
+
+GRANT CONNECT ON DATABASE foglamp TO PUBLIC;
 
 
 -- Connect to foglamp database
 \connect foglamp
 
--- Create the foglamp schema
-CREATE SCHEMA foglamp
-    AUTHORIZATION foglamp;
+----------------------------------------------------------------------
+-- SCHEMA CREATION
+----------------------------------------------------------------------
 
+-- Create the foglamp schema
+CREATE SCHEMA foglamp;
+GRANT USAGE ON SCHEMA foglamp TO PUBLIC;
 
 ------ SEQUENCES
 CREATE SEQUENCE foglamp.asset_message_status_id_seq
@@ -83,8 +76,6 @@ CREATE SEQUENCE foglamp.asset_message_status_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.asset_message_status_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.asset_messages_id_seq
     INCREMENT 1
@@ -92,8 +83,6 @@ CREATE SEQUENCE foglamp.asset_messages_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.asset_messages_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.asset_status_changes_id_seq
     INCREMENT 1
@@ -101,8 +90,6 @@ CREATE SEQUENCE foglamp.asset_status_changes_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.asset_status_changes_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.asset_status_id_seq
     INCREMENT 1
@@ -110,8 +97,6 @@ CREATE SEQUENCE foglamp.asset_status_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.asset_status_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.asset_types_id_seq
     INCREMENT 1
@@ -119,8 +104,6 @@ CREATE SEQUENCE foglamp.asset_types_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.asset_types_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.assets_id_seq
     INCREMENT 1
@@ -128,8 +111,6 @@ CREATE SEQUENCE foglamp.assets_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.assets_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.destinations_id_seq
     INCREMENT 1
@@ -137,8 +118,6 @@ CREATE SEQUENCE foglamp.destinations_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.destinations_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.links_id_seq
     INCREMENT 1
@@ -146,8 +125,6 @@ CREATE SEQUENCE foglamp.links_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.links_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.readings_id_seq
     INCREMENT 1
@@ -155,8 +132,6 @@ CREATE SEQUENCE foglamp.readings_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.readings_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.statistics_history_id_seq
     INCREMENT 1
@@ -164,9 +139,6 @@ CREATE SEQUENCE foglamp.statistics_history_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.statistics_history_id_seq OWNER TO foglamp;
-
-
 
 CREATE SEQUENCE foglamp.resources_id_seq
     INCREMENT 1
@@ -174,8 +146,6 @@ CREATE SEQUENCE foglamp.resources_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.resources_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.roles_id_seq
     INCREMENT 1
@@ -183,8 +153,6 @@ CREATE SEQUENCE foglamp.roles_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.roles_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.streams_id_seq
     INCREMENT 1
@@ -192,8 +160,6 @@ CREATE SEQUENCE foglamp.streams_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.streams_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.user_logins_id_seq
     INCREMENT 1
@@ -201,8 +167,6 @@ CREATE SEQUENCE foglamp.user_logins_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.user_logins_id_seq OWNER TO foglamp;
-
 
 CREATE SEQUENCE foglamp.users_id_seq
     INCREMENT 1
@@ -210,7 +174,6 @@ CREATE SEQUENCE foglamp.users_id_seq
     MINVALUE 1
     MAXVALUE 9223372036854775807
     CACHE 1;
-ALTER SEQUENCE foglamp.users_id_seq OWNER TO foglamp;
 
 
 ----- TABLES & SEQUENCES
@@ -220,9 +183,7 @@ ALTER SEQUENCE foglamp.users_id_seq OWNER TO foglamp;
 CREATE TABLE foglamp.log_codes (
        code        character(5)          NOT NULL,   -- The process that logs actions
        description character varying(80) NOT NULL,
-       CONSTRAINT log_codes_pkey PRIMARY KEY (code)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT log_codes_pkey PRIMARY KEY (code) );
 
 
 -- Generic Log Table
@@ -240,31 +201,25 @@ CREATE TABLE foglamp.log (
        level smallint                    NOT NULL DEFAULT 0,                                      -- 0 Success - 1 Failure - 2 Warning - 4 Info
        log   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                            -- Generic log structure
        ts    timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT log_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT log_pkey PRIMARY KEY (id),
        CONSTRAINT log_fk1 FOREIGN KEY (code)
        REFERENCES foglamp.log_codes (code) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE) TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
 ALTER SEQUENCE foglamp.log_id_seq OWNED BY foglamp.log.id;
 
 -- Index: log_ix1 - For queries by code
 CREATE INDEX log_ix1
-    ON foglamp.log USING btree (code, ts, level)
-    TABLESPACE foglamp;
+    ON foglamp.log USING btree (code, ts, level);
 
 
 -- Asset status
 CREATE TABLE foglamp.asset_status (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_status_id_seq'::regclass),
        descriprion character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-        CONSTRAINT asset_status_pkey PRIMARY KEY (id)
-             USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+        CONSTRAINT asset_status_pkey PRIMARY KEY (id) );
 
-ALTER TABLE foglamp.asset_status OWNER to foglamp;
 COMMENT ON TABLE foglamp.asset_status IS
 'List of status an asset can have.';
 
@@ -273,11 +228,8 @@ COMMENT ON TABLE foglamp.asset_status IS
 CREATE TABLE foglamp.asset_types (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_types_id_seq'::regclass),
        description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", 
-        CONSTRAINT asset_types_pkey PRIMARY KEY (id)
-             USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+        CONSTRAINT asset_types_pkey PRIMARY KEY (id) );
 
-ALTER TABLE foglamp.asset_types OWNER to foglamp;
 COMMENT ON TABLE foglamp.asset_types IS
 'Type of asset (for example device, sensor etc.)';
 
@@ -296,8 +248,7 @@ CREATE TABLE foglamp.assets (
        properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the devices or data to the cloud
        has_readings boolean                     NOT NULL DEFAULT false,                                              -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
        ts           timestamp(6) with time zone NOT NULL DEFAULT now(),
-         CONSTRAINT assets_pkey PRIMARY KEY (id)
-              USING INDEX TABLESPACE foglamp,
+         CONSTRAINT assets_pkey PRIMARY KEY (id),
          CONSTRAINT assets_fk1 FOREIGN KEY (status_id)
          REFERENCES foglamp.asset_status (id) MATCH SIMPLE
                  ON UPDATE NO ACTION
@@ -305,27 +256,22 @@ CREATE TABLE foglamp.assets (
          CONSTRAINT assets_fk2 FOREIGN KEY (type_id)
          REFERENCES foglamp.asset_types (id) MATCH SIMPLE
                  ON UPDATE NO ACTION
-                 ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+                 ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.assets OWNER to foglamp;
 COMMENT ON TABLE foglamp.assets IS
 'The assets table.';
 
 -- Index: fki_assets_fk1
 CREATE INDEX fki_assets_fk1
-    ON foglamp.assets USING btree (status_id)
-    TABLESPACE foglamp;
+    ON foglamp.assets USING btree (status_id);
 
 -- Index: fki_assets_fk2
 CREATE INDEX fki_assets_fk2
-    ON foglamp.assets USING btree (type_id)
-    TABLESPACE foglamp;
+    ON foglamp.assets USING btree (type_id);
 
 -- Index: assets_ix1
 CREATE UNIQUE INDEX assets_ix1
-    ON foglamp.assets USING btree (code)
-    TABLESPACE foglamp;
+    ON foglamp.assets USING btree (code);
 
 
 -- Asset Status Changes
@@ -336,8 +282,7 @@ CREATE TABLE foglamp.asset_status_changes (
        log        jsonb                       NOT NULL DEFAULT '{}'::jsonb,
        start_ts   timestamp(6) with time zone NOT NULL,
        ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT asset_status_changes_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT asset_status_changes_pkey PRIMARY KEY (id),
        CONSTRAINT asset_status_changes_fk1 FOREIGN KEY (asset_id)
        REFERENCES foglamp.assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -345,21 +290,17 @@ CREATE TABLE foglamp.asset_status_changes (
        CONSTRAINT asset_status_changes_fk2 FOREIGN KEY (status_id)
        REFERENCES foglamp.asset_status (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.asset_status_changes OWNER to foglamp;
 COMMENT ON TABLE foglamp.asset_status_changes IS
 'When an asset changes its status, the previous status is added here.
 start_ts contains the value of ts of the row in the asset table.';
 
 CREATE INDEX fki_asset_status_changes_fk1
-    ON foglamp.asset_status_changes USING btree (asset_id)
-    TABLESPACE foglamp;
+    ON foglamp.asset_status_changes USING btree (asset_id);
 
 CREATE INDEX fki_asset_status_changes_fk2
-    ON foglamp.asset_status_changes USING btree (status_id)
-    TABLESPACE foglamp;
+    ON foglamp.asset_status_changes USING btree (status_id);
 
 
 -- Links table
@@ -368,21 +309,17 @@ CREATE TABLE foglamp.links (
        asset_id   integer                     NOT NULL,
        properties jsonb                       NOT NULL DEFAULT '{}'::jsonb,
        ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT links_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT links_pkey PRIMARY KEY (id),
        CONSTRAINT links_fk1 FOREIGN KEY (asset_id)
        REFERENCES foglamp.assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.links OWNER to foglamp;
 COMMENT ON TABLE foglamp.links IS
 'Links among assets in 1:M relationships.';
 
 CREATE INDEX fki_links_fk1
-    ON foglamp.links USING btree (asset_id)
-    TABLESPACE foglamp;
+    ON foglamp.links USING btree (asset_id);
 
 
 -- Assets Linked table
@@ -391,28 +328,21 @@ CREATE TABLE foglamp.asset_links (
        link_id  integer                     NOT NULL,
        asset_id integer                     NOT NULL,
        ts       timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT asset_links_pkey PRIMARY KEY (link_id, asset_id)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT asset_links_pkey PRIMARY KEY (link_id, asset_id) );
 
 CREATE INDEX fki_asset_links_fk1
-    ON foglamp.asset_links USING btree (link_id)
-    TABLESPACE foglamp;
+    ON foglamp.asset_links USING btree (link_id);
 
 CREATE INDEX fki_asset_link_fk2
-    ON foglamp.asset_links USING btree (asset_id)
-    TABLESPACE foglamp;
+    ON foglamp.asset_links USING btree (asset_id);
 
 
 -- Asset Message Status table
 CREATE TABLE foglamp.asset_message_status (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_message_status_id_seq'::regclass),
        description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-        CONSTRAINT asset_message_status_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+        CONSTRAINT asset_message_status_pkey PRIMARY KEY (id) );
 
-ALTER TABLE foglamp.asset_message_status OWNER to foglamp;
 COMMENT ON TABLE foglamp.asset_message_status IS
 'Status of the messages to send to a device';
 
@@ -424,8 +354,7 @@ CREATE TABLE foglamp.asset_messages (
        status_id integer                     NOT NULL,
        message   jsonb                       NOT NULL DEFAULT '{}'::jsonb,
        ts        timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT asset_messages_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT asset_messages_pkey PRIMARY KEY (id),
        CONSTRAINT asset_messages_fk1 FOREIGN KEY (asset_id)
        REFERENCES foglamp.assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -433,20 +362,16 @@ CREATE TABLE foglamp.asset_messages (
        CONSTRAINT asset_messages_fk2 FOREIGN KEY (status_id)
        REFERENCES foglamp.asset_message_status (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.asset_messages OWNER to foglamp;
 COMMENT ON TABLE foglamp.asset_messages IS
 'Messages directed to the devices.';
 
 CREATE INDEX fki_asset_messages_fk1
-    ON foglamp.asset_messages USING btree (asset_id)
-    TABLESPACE foglamp;
+    ON foglamp.asset_messages USING btree (asset_id);
 
 CREATE INDEX fki_asset_messages_fk2
-    ON foglamp.asset_messages USING btree (status_id)
-    TABLESPACE foglamp;
+    ON foglamp.asset_messages USING btree (status_id);
 
 
 -- Readings table
@@ -461,27 +386,16 @@ CREATE TABLE foglamp.readings (
     reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,  -- The json object received
     user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),        -- The user timestamp extracted by the received message
     ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-    CONSTRAINT readings_pkey PRIMARY KEY (id)
-         USING INDEX TABLESPACE foglamp
---  , CONSTRAINT readings_fk1 FOREIGN KEY (asset_code)
---  REFERENCES foglamp.assets (code) MATCH SIMPLE
---          ON UPDATE NO ACTION
---          ON DELETE NO ACTION
-  )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+    CONSTRAINT readings_pkey PRIMARY KEY (id) );
 
-ALTER TABLE foglamp.readings OWNER to foglamp;
 COMMENT ON TABLE foglamp.readings IS
 'Readings from sensors and devices.';
 
 CREATE INDEX fki_readings_fk1
-    ON foglamp.readings USING btree (asset_code)
-    TABLESPACE foglamp;
+    ON foglamp.readings USING btree (asset_code);
 
 CREATE INDEX readings_ix1
-    ON foglamp.readings USING btree (read_key)
-    TABLESPACE foglamp;
+    ON foglamp.readings USING btree (read_key);
 
 
 -- Destinations table
@@ -493,11 +407,8 @@ CREATE TABLE foglamp.destinations (
        active_window jsonb                       NOT NULL DEFAULT '[ "always" ]'::jsonb,                              -- The window of operations
        active        boolean                     NOT NULL DEFAULT true,                                               -- When false, all streams to this destination stop and are inactive
        ts            timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Creation or last update
-       CONSTRAINT destination_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT destination_pkey PRIMARY KEY (id) );
 
-ALTER TABLE foglamp.destinations OWNER to foglamp;
 COMMENT ON TABLE foglamp.destinations IS
 'Multiple destinations are allowed, for example multiple PI servers.';
 
@@ -515,22 +426,17 @@ CREATE TABLE foglamp.streams (
        active         boolean                     NOT NULL DEFAULT true,                                                -- When false, all data to this stream stop and are inactive
        last_object    bigint                      NOT NULL DEFAULT 0,                                                   -- The ID of the last object streamed (asset or reading, depending on the object_stream)
        ts             timestamp(6) with time zone NOT NULL DEFAULT now(),                                               -- Creation or last update
-       CONSTRAINT strerams_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT strerams_pkey PRIMARY KEY (id),
        CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
        REFERENCES foglamp.destinations (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.streams OWNER to foglamp;
 COMMENT ON TABLE foglamp.streams IS
 'List of the streams to the Cloud.';
 
 CREATE INDEX fki_streams_fk1
-    ON foglamp.streams USING btree (destination_id)
-    TABLESPACE foglamp;
+    ON foglamp.streams USING btree (destination_id);
 
 
 -- Configuration table
@@ -543,11 +449,8 @@ CREATE TABLE foglamp.configuration (
        description character varying(255)      NOT NULL,                              -- Description, in plan text
        value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
-       CONSTRAINT configuration_pkey PRIMARY KEY (key)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT configuration_pkey PRIMARY KEY (key) );
 
-ALTER TABLE foglamp.configuration OWNER to foglamp;
 
 
 -- Configuration changes
@@ -558,11 +461,8 @@ CREATE TABLE foglamp.configuration_changes (
        configuration_ts    timestamp(6) with time zone NOT NULL,
        configuration_value jsonb                       NOT NULL,
        ts                  timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts) );
 
-ALTER TABLE foglamp.configuration_changes OWNER to foglamp;
 
 
 -- Statistics table
@@ -573,11 +473,8 @@ CREATE TABLE foglamp.statistics (
        value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
        previous_value       bigint             NOT NULL DEFAULT 0,                    -- Integer value, the prev stat to be updated by metrics collector
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
-       CONSTRAINT statistics_pkey PRIMARY KEY (key)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT statistics_pkey PRIMARY KEY (key) );
 
-ALTER TABLE foglamp.statistics OWNER to foglamp;
 
 
 -- Statistics history
@@ -589,11 +486,8 @@ CREATE TABLE foglamp.statistics_history (
        history_ts  timestamp(6) with time zone NOT NULL,                                                      -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change
-       CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts)
-            USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+       CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts) );
 
-ALTER TABLE foglamp.statistics_history OWNER to foglamp;
 
 
 -- Resources table
@@ -601,11 +495,8 @@ CREATE TABLE foglamp.resources (
     id          bigint                 NOT NULL DEFAULT nextval('foglamp.resources_id_seq'::regclass),
     code        character(10)          NOT NULL COLLATE pg_catalog."default",
     description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-    CONSTRAINT  resources_pkey PRIMARY KEY (id)
-         USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+    CONSTRAINT  resources_pkey PRIMARY KEY (id) );
 
-ALTER TABLE foglamp.resources OWNER to foglamp;
 COMMENT ON TABLE foglamp.resources IS
 'A resource and be anything that is available or can be done in FogLAMP. Examples: 
 - Access to assets
@@ -613,8 +504,7 @@ COMMENT ON TABLE foglamp.resources IS
 - Access to streams';
 
 CREATE UNIQUE INDEX resource_ix1
-    ON foglamp.resources USING btree (code COLLATE pg_catalog."default")
-    TABLESPACE foglamp;
+    ON foglamp.resources USING btree (code COLLATE pg_catalog."default");
 
 
 -- Roles table
@@ -622,20 +512,11 @@ CREATE TABLE foglamp.roles (
     id          integer                NOT NULL DEFAULT nextval('foglamp.roles_id_seq'::regclass),
     name        character varying(25)  NOT NULL COLLATE pg_catalog."default",
     description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-    CONSTRAINT  roles_pkey PRIMARY KEY (id)
-        USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE)
-  TABLESPACE foglamp;
-
-ALTER TABLE foglamp.roles
-    OWNER to foglamp;
-COMMENT ON TABLE foglamp.roles
-    IS 'Roles are a set of permissions that users inherit.';
+    CONSTRAINT  roles_pkey PRIMARY KEY (id) );
 
 
 CREATE UNIQUE INDEX roles_ix1
-    ON foglamp.roles USING btree (name COLLATE pg_catalog."default")
-    TABLESPACE foglamp;
+    ON foglamp.roles USING btree (name COLLATE pg_catalog."default");
 
 
 -- Roles, Resources and Permssions table
@@ -643,8 +524,7 @@ CREATE TABLE foglamp.role_resource_permission (
        role_id     integer NOT NULL,
        resource_id integer NOT NULL,
        access      jsonb   NOT NULL DEFAULT '{}'::jsonb,
-       CONSTRAINT role_resource_permission_pkey PRIMARY KEY (role_id, resource_id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT role_resource_permission_pkey PRIMARY KEY (role_id, resource_id),
        CONSTRAINT role_resource_permissions_fk1 FOREIGN KEY (role_id)
        REFERENCES foglamp.roles (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -652,21 +532,16 @@ CREATE TABLE foglamp.role_resource_permission (
        CONSTRAINT role_resource_permissions_fk2 FOREIGN KEY (resource_id)
        REFERENCES foglamp.resources (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.role_resource_permission OWNER to foglamp;
 COMMENT ON TABLE foglamp.role_resource_permission IS
 'For each role there are resources associated, with a given permission.';
 
 CREATE INDEX fki_role_resource_permissions_fk1
-    ON foglamp.role_resource_permission USING btree (role_id)
-    TABLESPACE foglamp;
+    ON foglamp.role_resource_permission USING btree (role_id);
 
 CREATE INDEX fki_role_resource_permissions_fk2
-    ON foglamp.role_resource_permission USING btree (resource_id)
-    TABLESPACE foglamp;
+    ON foglamp.role_resource_permission USING btree (resource_id);
 
 
 -- Roles Assets Permissions table
@@ -674,8 +549,7 @@ CREATE TABLE foglamp.role_asset_permissions (
     role_id    integer NOT NULL,
     asset_id   integer NOT NULL,
     access     jsonb   NOT NULL DEFAULT '{}'::jsonb,
-    CONSTRAINT role_asset_permissions_pkey PRIMARY KEY (role_id, asset_id)
-         USING INDEX TABLESPACE foglamp,
+    CONSTRAINT role_asset_permissions_pkey PRIMARY KEY (role_id, asset_id),
     CONSTRAINT role_asset_permissions_fk1 FOREIGN KEY (role_id)
     REFERENCES foglamp.roles (id) MATCH SIMPLE
             ON UPDATE NO ACTION
@@ -687,21 +561,16 @@ CREATE TABLE foglamp.role_asset_permissions (
     CONSTRAINT user_asset_permissions_fk1 FOREIGN KEY (role_id)
     REFERENCES foglamp.roles (id) MATCH SIMPLE
             ON UPDATE NO ACTION
-            ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+            ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.role_asset_permissions OWNER to foglamp;
 COMMENT ON TABLE foglamp.role_asset_permissions IS
 'Combination of roles, assets and access';
 
 CREATE INDEX fki_role_asset_permissions_fk1
-    ON foglamp.role_asset_permissions USING btree
-    (role_id) TABLESPACE foglamp;
+    ON foglamp.role_asset_permissions USING btree (role_id);
 
 CREATE INDEX fki_role_asset_permissions_fk2
-    ON foglamp.role_asset_permissions USING btree (asset_id)
-    TABLESPACE foglamp;
+    ON foglamp.role_asset_permissions USING btree (asset_id);
 
 
 -- Users table
@@ -713,16 +582,12 @@ CREATE TABLE foglamp.users (
        pwd           character varying(255) COLLATE pg_catalog."default",
        public_key    character varying(255) COLLATE pg_catalog."default",
        access_method smallint               NOT NULL DEFAULT 0,
-          CONSTRAINT users_pkey PRIMARY KEY (id)
-               USING INDEX TABLESPACE foglamp,
+          CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES foglamp.roles (id) MATCH SIMPLE
                   ON UPDATE NO ACTION
-                  ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+                  ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.users OWNER to foglamp;
 COMMENT ON TABLE foglamp.users IS
 'FogLAMP users table.
 Authentication Method:
@@ -731,12 +596,10 @@ Authentication Method:
 2 - Public Key';
 
 CREATE INDEX fki_users_fk1
-    ON foglamp.users USING btree (role_id)
-    TABLESPACE foglamp;
+    ON foglamp.users USING btree (role_id);
 
 CREATE UNIQUE INDEX users_ix1
-    ON foglamp.users USING btree (uid COLLATE pg_catalog."default")
-    TABLESPACE foglamp;
+    ON foglamp.users USING btree (uid COLLATE pg_catalog."default");
 
 -- User Login table
 CREATE TABLE foglamp.user_logins (
@@ -744,22 +607,17 @@ CREATE TABLE foglamp.user_logins (
        user_id integer                     NOT NULL,
        ip      inet                        NOT NULL,
        ts      timestamp(6) with time zone NOT NULL,
-       CONSTRAINT user_logins_pkey PRIMARY KEY (id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT user_logins_pkey PRIMARY KEY (id),
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)
        REFERENCES foglamp.users (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.user_logins OWNER to foglamp;
 COMMENT ON TABLE foglamp.user_logins IS
 'List of logins executed by the users.';
 
 CREATE INDEX fki_user_logins_fk1
-    ON foglamp.user_logins USING btree (user_id)
-    TABLESPACE foglamp;
+    ON foglamp.user_logins USING btree (user_id);
 
 
 -- User Resource Permissions table
@@ -767,8 +625,7 @@ CREATE TABLE foglamp.user_resource_permissions (
        user_id     integer NOT NULL,
        resource_id integer NOT NULL,
        access      jsonb NOT NULL DEFAULT '{}'::jsonb,
-        CONSTRAINT user_resource_permissions_pkey PRIMARY KEY (user_id, resource_id)
-             USING INDEX TABLESPACE foglamp,
+        CONSTRAINT user_resource_permissions_pkey PRIMARY KEY (user_id, resource_id),
         CONSTRAINT user_resource_permissions_fk1 FOREIGN KEY (user_id)
         REFERENCES foglamp.users (id) MATCH SIMPLE
                 ON UPDATE NO ACTION
@@ -776,21 +633,16 @@ CREATE TABLE foglamp.user_resource_permissions (
         CONSTRAINT user_resource_permissions_fk2 FOREIGN KEY (resource_id)
         REFERENCES foglamp.resources (id) MATCH SIMPLE
                 ON UPDATE NO ACTION
-                ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+                ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.user_resource_permissions OWNER to foglamp;
 COMMENT ON TABLE foglamp.user_resource_permissions IS
 'Association of users with resources and given permissions for each resource.';
 
 CREATE INDEX fki_user_resource_permissions_fk1
-    ON foglamp.user_resource_permissions USING btree (user_id)
-    TABLESPACE foglamp;
+    ON foglamp.user_resource_permissions USING btree (user_id);
 
 CREATE INDEX fki_user_resource_permissions_fk2
-    ON foglamp.user_resource_permissions USING btree (resource_id)
-    TABLESPACE foglamp;
+    ON foglamp.user_resource_permissions USING btree (resource_id);
 
 
 -- User Asset Permissions table
@@ -798,8 +650,7 @@ CREATE TABLE foglamp.user_asset_permissions (
        user_id    integer NOT NULL,
        asset_id   integer NOT NULL,
        access     jsonb NOT NULL DEFAULT '{}'::jsonb,
-       CONSTRAINT user_asset_permissions_pkey PRIMARY KEY (user_id, asset_id)
-            USING INDEX TABLESPACE foglamp,
+       CONSTRAINT user_asset_permissions_pkey PRIMARY KEY (user_id, asset_id),
        CONSTRAINT user_asset_permissions_fk1 FOREIGN KEY (user_id)
        REFERENCES foglamp.users (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -807,32 +658,24 @@ CREATE TABLE foglamp.user_asset_permissions (
        CONSTRAINT user_asset_permissions_fk2 FOREIGN KEY (asset_id)
        REFERENCES foglamp.assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
-               ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE )
-  TABLESPACE foglamp;
+               ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.user_asset_permissions OWNER to foglamp;
 COMMENT ON TABLE foglamp.user_asset_permissions IS
 'Association of users with assets';
 
 CREATE INDEX fki_user_asset_permissions_fk1
-    ON foglamp.user_asset_permissions USING btree (user_id)
-    TABLESPACE foglamp;
+    ON foglamp.user_asset_permissions USING btree (user_id);
 
 CREATE INDEX fki_user_asset_permissions_fk2
-    ON foglamp.user_asset_permissions USING btree (asset_id)
-    TABLESPACE foglamp;
+    ON foglamp.user_asset_permissions USING btree (asset_id);
 
 
 -- List of scheduled Processes
 CREATE TABLE foglamp.scheduled_processes (
   name   character varying(20)  NOT NULL, -- Name of the process
   script jsonb, -- Full path of the process
-  CONSTRAINT scheduled_processes_pkey PRIMARY KEY (name)
-       USING INDEX TABLESPACE foglamp )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+  CONSTRAINT scheduled_processes_pkey PRIMARY KEY (name) );
 
-ALTER TABLE foglamp.scheduled_processes OWNER to foglamp;
 
 
 -- List of schedules
@@ -847,15 +690,12 @@ CREATE TABLE foglamp.schedules (
   schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
   exclusive         boolean not null default true,  -- true = Only one task can run
                                                     -- at any given time
-  CONSTRAINT schedules_pkey PRIMARY KEY (id)
-       USING INDEX TABLESPACE foglamp,
+  CONSTRAINT schedules_pkey PRIMARY KEY (id),
   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
   REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
              ON UPDATE NO ACTION
-             ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+             ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.schedules OWNER to foglamp;
 
 
 -- List of tasks
@@ -868,15 +708,12 @@ CREATE TABLE foglamp.tasks (
   reason       character varying(255),                             -- The reason why the task ended
   pid          int                         NOT NULL,               -- Linux process id
   exit_code    int,                                                -- Process exit status code (negative means exited via signal)
-  CONSTRAINT tasks_pkey PRIMARY KEY (id)
-       USING INDEX TABLESPACE foglamp,
+  CONSTRAINT tasks_pkey PRIMARY KEY (id),
   CONSTRAINT tasks_fk1 FOREIGN KEY (process_name)
   REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
              ON UPDATE NO ACTION
-             ON DELETE NO ACTION )
-  WITH ( OIDS = FALSE ) TABLESPACE foglamp;
+             ON DELETE NO ACTION );
 
-ALTER TABLE foglamp.tasks OWNER to foglamp;
 
 
 -- Tracks types already created into PI Server
@@ -884,49 +721,18 @@ CREATE TABLE foglamp.omf_created_objects (
     configuration_key   character(10)			NOT NULL,                             -- FK to foglamp.configuration
     type_id             integer           	    NOT NULL,                             -- Identifies the specific PI Server type
     asset_code			character varying(50)   NOT NULL,
-
-    CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code)
-        USING INDEX TABLESPACE foglamp,
+    CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
-        REFERENCES foglamp.configuration (key) MATCH SIMPLE
+    REFERENCES foglamp.configuration (key) MATCH SIMPLE
             ON UPDATE NO ACTION
-            ON DELETE NO ACTION )
-    WITH ( OIDS = FALSE )
-    TABLESPACE foglamp;
+            ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.streams IS
-'Tracks types already created into PI Server.';
 
-ALTER TABLE foglamp.omf_created_objects OWNER to foglamp;
-----------------------------------------------------------------------
--- Copyright (c) 2017 DB Software, Inc.
---
--- Licensed under the Apache License, Version 2.0 (the "License");
--- you may not use this file except in compliance with the License.
--- You may obtain a copy of the License at
---
---     http://www.apache.org/licenses/LICENSE-2.0
---
--- Unless required by applicable law or agreed to in writing, software
--- distributed under the License is distributed on an "AS IS" BASIS,
--- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
--- See the License for the specific language governing permissions and
--- limitations under the License.
-----------------------------------------------------------------------
-
---
--- foglamp_init_data.sql
---
--- PostgreSQL script to insert the first set of data necessary to run FogLAMP
---
-
--- NOTE:
--- This script must be launched with:
--- PGPASSWORD=foglamp psql -U foglamp -h localhost -f foglamp_init_data.sql foglamp
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 
 
 ----------------------------------------------------------------------
--- 
+-- Initialization phase - DML
 ----------------------------------------------------------------------
 
 -- Log Codes

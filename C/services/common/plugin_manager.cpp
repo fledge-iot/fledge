@@ -63,10 +63,10 @@ char          buf[128];
   snprintf(buf, sizeof(buf), "./lib%s.so", name.c_str());
   if (access(buf, F_OK) != 0)
   {
-    char *home = getenv("FOGLAMP_HOME");
+    char *home = getenv("FOGLAMP_ROOT");
     if (home)
     {
-        snprintf(buf, sizeof(buf), "%s/plugins/lib%s.so", home, name.c_str());
+        snprintf(buf, sizeof(buf), "%s/plugins/%s/%s/lib%s.so", home, type.c_str(), name.c_str(), name.c_str());
     }
   }
   if ((hndl = dlopen(buf, RTLD_LAZY)) != NULL)

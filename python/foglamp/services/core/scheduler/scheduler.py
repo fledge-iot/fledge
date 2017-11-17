@@ -643,7 +643,9 @@ class Scheduler(object):
 
     async def _mark_tasks_interrupted(self):
         """The state for any task with a NULL end_time is set to interrupted"""
-        # Update the task's status
+        # TODO FOGL-722 NULL can not be passed like this
+        
+        """ # Update the task's status
         update_payload = PayloadBuilder() \
             .SET(state=int(Task.State.INTERRUPTED),
                  end_time=str(datetime.datetime.now())) \
@@ -655,6 +657,8 @@ class Scheduler(object):
         except Exception:
             self._logger.exception('Update failed: %s', update_payload)
             raise
+        """
+        pass
 
     async def _read_config(self):
         """Reads configuration"""

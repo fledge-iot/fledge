@@ -12,8 +12,8 @@ stores the delta value (statistics.value - statistics.previous_value) in the sta
 import sys
 from datetime import datetime
 
-from foglamp.common.storage.payload_builder import PayloadBuilder
-from foglamp.common.storage.storage import Storage
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.storage_client import StorageClient
 
 from foglamp.common import logger
 from foglamp.common.parser import ArgumentParserError, Parser
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     elif core_mgt_address is None:
         _logger.warning("Required argument '--address' is missing")
     else:
-        _storage = Storage(core_mgt_address, core_mgt_port)
+        _storage = StorageClient(core_mgt_address, core_mgt_port)
         _main()
 
 # TODO: FOGL-484 Move below commented code to tests/ and use storage instead of SQLAlchemy

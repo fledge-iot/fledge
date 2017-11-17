@@ -6,8 +6,8 @@
 
 from foglamp.common import logger
 
-from foglamp.common.storage.payload_builder import PayloadBuilder
-from foglamp.common.storage.storage import Storage
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.storage_client import StorageClient
 
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
@@ -26,7 +26,7 @@ class Statistics(object):
     """
 
     def __init__(self, storage):
-        if not isinstance(storage, Storage):
+        if not isinstance(storage, StorageClient):
             raise TypeError('Must be a valid Storage object')
 
         self._storage = storage
@@ -56,7 +56,7 @@ class Statistics(object):
 
 # TODO: FOGL-484 Move below commented code to tests directory
 # async def _main():
-#     _storage = Storage(core_management_host="0.0.0.0", core_management_port=33881)
+#     _storage = StorageClient(core_management_host="0.0.0.0", core_management_port=33881)
 #
 #     _stats = Statistics(_storage)
 #     await _stats.update(key='READINGS', value_increment=10)

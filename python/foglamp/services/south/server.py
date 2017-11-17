@@ -13,7 +13,7 @@ import http.client
 import json
 
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.storage.storage import Storage
+from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice_management import routes
@@ -88,7 +88,7 @@ class Server:
 
         try:
             config = {}
-            storage = Storage(cls._core_management_host, cls._core_management_port, svc=None)
+            storage = StorageClient(cls._core_management_host, cls._core_management_port, svc=None)
             cfg_manager = ConfigurationManager(storage)
             await cfg_manager.create_category(cls._plugin_name, config,
                                                         '{} Device'.format(cls._plugin_name), True)

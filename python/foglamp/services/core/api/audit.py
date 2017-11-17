@@ -8,7 +8,7 @@
 from enum import IntEnum
 
 from aiohttp import web
-from foglamp.common.storage.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"

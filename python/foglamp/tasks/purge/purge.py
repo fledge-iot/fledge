@@ -28,8 +28,8 @@ import logging
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics
-from foglamp.common.storage.payload_builder import PayloadBuilder
-from foglamp.common.storage.storage import Storage, Readings
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common import logger
 
 
@@ -58,8 +58,8 @@ class Purge:
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
     def __init__(self, core_mgt_address, core_mgt_port):
-        self._storage = Storage(core_mgt_address, core_mgt_port)
-        self._readings = Readings(core_mgt_address, core_mgt_port)
+        self._storage = StorageClient(core_mgt_address, core_mgt_port)
+        self._readings = ReadingsStorageClient(core_mgt_address, core_mgt_port)
         self._logger = logger.setup("Data Purge")
 
     def write_statistics(self, total_purged, unsent_purged):

@@ -14,7 +14,7 @@ import json
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.common.microservice_management.service_registry.instance import Service
-from foglamp.common.storage.storage import Storage
+from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import connect
 
 __author__ = "Ashwin Gopalakrishnan"

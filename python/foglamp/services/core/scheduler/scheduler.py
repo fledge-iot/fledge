@@ -34,6 +34,10 @@ __version__ = "${VERSION}"
 # TODO: FOGL-510 - Prepare foglamp testing environment
 _ENV = os.getenv('FOGLAMP_ENV', 'DEV')
 
+# FOGLAMP_ROOT env variable
+_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+
 class Scheduler(object):
     """FogLAMP Task Scheduler
 
@@ -298,7 +302,7 @@ class Scheduler(object):
         task_process.start_time = time.time()
 
         try:
-            process = await asyncio.create_subprocess_exec(*args_to_exec)
+            process = await asyncio.create_subprocess_exec(*args_to_exec, cwd=_SCRIPTS_DIR)
         except EnvironmentError:
             self._logger.exception(
                 "Unable to start schedule '%s' process '%s'\n%s".format(
@@ -639,7 +643,9 @@ class Scheduler(object):
 
     async def _mark_tasks_interrupted(self):
         """The state for any task with a NULL end_time is set to interrupted"""
-        # Update the task's status
+        # TODO FOGL-722 NULL can not be passed like this
+        
+        """ # Update the task's status
         update_payload = PayloadBuilder() \
             .SET(state=int(Task.State.INTERRUPTED),
                  end_time=str(datetime.datetime.now())) \
@@ -651,6 +657,8 @@ class Scheduler(object):
         except Exception:
             self._logger.exception('Update failed: %s', update_payload)
             raise
+        """
+        pass
 
     async def _read_config(self):
         """Reads configuration"""

@@ -31,8 +31,8 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__, level=20)
 
 # FOGLAMP_ROOT env variable
-_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/home/foglamp/foglamp/FogLAMP')
-_STORAGE_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/services/storage')
+_FOGLAMP_ROOT= os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 
 
 class Server:
@@ -88,11 +88,11 @@ class Server:
 
     @staticmethod
     def __start_storage(host, m_port):
-        _logger.info("start storage, from directory %s", _STORAGE_DIR)
+        _logger.info("start storage, from directory %s", _SCRIPTS_DIR)
         try:
-            cmd_with_args = ['./storage', '--address={}'.format(host),
+            cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
-            subprocess.call(cmd_with_args, cwd=_STORAGE_DIR)
+            subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
         except Exception as ex:
             _logger.exception(str(ex))
 

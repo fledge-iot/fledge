@@ -57,8 +57,9 @@ async def register(request):
                 or service_management_port.strip() or not service_management_port.isdigit()):
             raise web.HTTPBadRequest(reason='One or more values for type/name/address/management port missing')
 
-        if not (service_port.strip() and isinstance(service_port, int)):
-            raise web.HTTPBadRequest(reason="Service's service port can be a positive integer only")
+        if service_port != None:
+            if not (service_port.strip() and isinstance(service_port, int)):
+                raise web.HTTPBadRequest(reason="Service's service port can be a positive integer only")
 
         if not isinstance(service_management_port, int):
             raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')

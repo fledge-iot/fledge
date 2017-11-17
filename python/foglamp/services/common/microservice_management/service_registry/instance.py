@@ -33,7 +33,9 @@ class Service(object):
         self._type = self.valid_type(s_type)  # check with Service.Type, if not a valid type raise error
         self._protocol = s_protocol
         self._address = s_address
-        self._port = int(s_port)
+        self._port = None
+        if s_port != None:
+            self._port = int(s_port)
         self._management_port = int(m_port)
         self._status = 0
         # TODO: MUST

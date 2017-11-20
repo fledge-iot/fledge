@@ -9,8 +9,8 @@ import pytest
 import sqlalchemy as sa
 import aiopg.sa
 from sqlalchemy.dialects.postgresql import JSONB
-from foglamp.configuration_manager import ConfigurationManager
-from foglamp.storage_client.storage_client import StorageClient
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.storage.storage import Storage
 
 __author__ = "Ori Shadmon"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

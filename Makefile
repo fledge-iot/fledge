@@ -6,6 +6,8 @@ MKDIR_PATH := mkdir -p
 CD := cd
 LN := ln -sf
 CMAKE := cmake
+PIP_USER_FLAG = --user
+PIP_SYSTEM_FLAG = --system
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 PIP_UNINSTALL_REQUIREMENTS := pip3 uninstall -yr
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
@@ -99,7 +101,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
+ifeq ($(USER), root)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_SYSTEM_FLAG)
+else
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG)
+endif
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -121,14 +127,16 @@ $(INSTALL_DIR) :
 ###################### CLEAN/UNINSTALL TARGETS ################################
 ###############################################################################
 # clean
-clean : 
+clean : uninstall_python_requirements
 	-$(RM_DIR) $(CMAKE_BUILD_DIR)
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM) $(SYMLINK_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
 
 # uninstall
-uninstall : 
+uninstall : uninstall_python_requirements
 	-$(RM_DIR) $(INSTALL_DIR)
+
+uninstall_python_requirements : 
 	-$(PIP_UNINSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
 

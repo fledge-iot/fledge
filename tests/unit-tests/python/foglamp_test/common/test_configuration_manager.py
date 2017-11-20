@@ -30,7 +30,7 @@ _configuration_tbl = sa.Table(
     sa.Column('ts', sa.types.TIMESTAMP)
 )
 
-_storage = Storage(core_management_host='0.0.0.0', core_management_port=43395, svc=None)
+_storage = StorageClient(core_management_host='0.0.0.0', core_management_port=43395, svc=None)
 cf_mgr = None
 
 

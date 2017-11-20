@@ -29,8 +29,8 @@ class TestPurge:
     # TODO: FOGL-510 Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
     _core_management_port = 39940
 
-    _store = Storage("localhost", _core_management_port)
-    _readings = Readings("localhost", _core_management_port)
+    _store = StorageClient("localhost", _core_management_port)
+    _readings = ReadingsStorageClient("localhost", _core_management_port)
 
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
 

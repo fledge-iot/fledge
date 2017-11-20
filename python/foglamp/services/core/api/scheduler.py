@@ -12,7 +12,7 @@ from foglamp.services.core import server
 from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
 from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError
 from foglamp.services.core import connect
-from foglamp.common.storage.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
 __author__ = "Amarendra K. Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

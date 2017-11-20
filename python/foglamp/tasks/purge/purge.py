@@ -24,11 +24,12 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
+import logging
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics
-from foglamp.common.storage.payload_builder import PayloadBuilder
-from foglamp.common.storage.storage import Storage, Readings
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common import logger
 
 
@@ -57,8 +58,8 @@ class Purge:
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
     def __init__(self, core_mgt_address, core_mgt_port):
-        self._storage = Storage(core_mgt_address, core_mgt_port)
-        self._readings = Readings(core_mgt_address, core_mgt_port)
+        self._storage = StorageClient(core_mgt_address, core_mgt_port)
+        self._readings = ReadingsStorageClient(core_mgt_address, core_mgt_port)
         self._logger = logger.setup("Data Purge")
 
     def write_statistics(self, total_purged, unsent_purged):
@@ -110,26 +111,20 @@ class Purge:
         result = self._storage.query_tbl_with_payload("streams", payload)
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
-        """ Error Levels:
-            - 0: No errors
-            - 1: Rows failed to remove
-            - 2: Unsent rows were removed
-        """
-        error_level = 0
 
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
         result = self._readings.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
+        error_level = logging.INFO
+
         if "message" in result.keys() and "409 Conflict" in result["message"]:
-            error_level = 1
+            error_level = logging.ERROR 
         else:
             total_count = result['readings']
             total_rows_removed = result['removed']
             unsent_rows_removed = result['unsentPurged']
             unsent_retained = result['unsentRetained']
 
-            if result['unsentPurged'] != 0:
-                error_level = 2
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 

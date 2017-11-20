@@ -9,8 +9,8 @@ import copy
 import json
 
 from collections import OrderedDict
-from foglamp.common.storage.payload_builder import PayloadBuilder
-from foglamp.common.storage.storage import Storage
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.storage_client import StorageClient
 
 from foglamp.common import logger
 
@@ -52,7 +52,7 @@ class ConfigurationManager(object):
     """
 
     def __init__(self, storage):
-        if not isinstance(storage, Storage):
+        if not isinstance(storage, StorageClient):
             raise TypeError('Must be a valid Storage object')
 
         self._storage = storage
@@ -629,5 +629,5 @@ class ConfigurationManager(object):
 #     import asyncio
 #     loop = asyncio.get_event_loop()
 #     # storage client object
-#     _storage = Storage(core_management_host="0.0.0.0", core_management_port=41533, svc=None)
+#     _storage = StorageClient(core_management_host="0.0.0.0", core_management_port=41533, svc=None)
 #     loop.run_until_complete(_main(_storage))

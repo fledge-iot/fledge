@@ -9,7 +9,6 @@ CMAKE := cmake
 PIP_USER_FLAG = --user
 PIP_SYSTEM_FLAG = --system
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
-PIP_UNINSTALL_REQUIREMENTS := pip3 uninstall -yr
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
@@ -55,13 +54,13 @@ PACKAGE_NAME=FogLAMP
 # default
 # compile any code that must be compiled
 # generally prepare the development tree to allow for core to be run
-default : c_build $(SYMLINK_SERVICES_DIR) $(SYMLINK_PLUGINS_DIR) python_build python_requirements
+default : c_build $(SYMLINK_SERVICES_DIR) $(SYMLINK_PLUGINS_DIR) python_build python_requirements_user
 
 # install
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
-install : $(INSTALL_DIR) c_install python_install python_requirements
+install : $(INSTALL_DIR) c_install python_install python_requirements_system
 
 ############################ C BUILD/INSTALL TARGETS ##########################
 ###############################################################################
@@ -100,13 +99,13 @@ c_install : c_build
 python_build : $(PYTHON_SETUP_FILE)
 	cd $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE)
 
-# install python requirements
-python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-ifeq ($(USER), root)
+# install python requirements for system
+python_requirements_system : $(PYTHON_REQUIREMENTS_FILE)
 	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_SYSTEM_FLAG)
-else
+
+# install python requirements for user
+python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
 	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG)
-endif
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -128,16 +127,9 @@ $(INSTALL_DIR) :
 ###################### CLEAN/UNINSTALL TARGETS ################################
 ###############################################################################
 # clean
-clean : uninstall_python_requirements
+clean :
 	-$(RM_DIR) $(CMAKE_BUILD_DIR)
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM) $(SYMLINK_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
-
-# uninstall
-uninstall : uninstall_python_requirements
-	-$(RM_DIR) $(INSTALL_DIR)
-
-uninstall_python_requirements : 
-	-$(PIP_UNINSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
 

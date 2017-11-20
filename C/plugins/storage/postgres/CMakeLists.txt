@@ -13,8 +13,6 @@ include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresq
 
 file(GLOB SOURCES "*.cpp" ../common/*.cpp)
 
-
-
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
@@ -32,4 +30,3 @@ install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/storage//${PROJECT_N
 
 # Install init.sql
 install(FILES init.sql DESTINATION foglamp/plugins/storage//${PROJECT_NAME})
-

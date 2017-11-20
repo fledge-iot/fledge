@@ -8,8 +8,8 @@ import pytest
 import os
 import py
 import json
-from foglamp.storage.payload_builder import PayloadBuilder
-from foglamp.storage_client.storage_client import StorageClient
+from foglamp.common.storage.payload_builder import PayloadBuilder
+from foglamp.common.storage.storage import Storage
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

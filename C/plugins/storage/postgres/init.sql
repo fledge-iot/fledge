@@ -767,6 +767,22 @@ INSERT INTO foglamp.configuration ( key, description, value )
               'Sensors and Device Interface',
               '{ "category" : "CoAP", "configuration" : { "port" : { "description" : "Port to listen on", "default" : "5432", "value" : "5432", "type" : "integer" }, "url" : { "description" : "URL to accept data on", "default" : "sensor/reading-values", "value" : "sensor/reading-values", "type" : "string" }, "certificate" : { "description" : "X509 certificate used to identify ingress interface", "value" : "47676565", "type" : "x509 certificate" } } }' );
 
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'HTTP_TR_3', 'HTTP North Plugin Configuration', ' {
+        "plugin": {
+                "type": "string",
+                "value": "http_translator",
+                "default": "http_translator",
+                "description": "Python module name of the plugin to load"
+        },
+        "translator": {
+                "description": "The name of the translator to use to translate the readings into the output format and send them",
+                "type": "string",
+                "default": "http_translator"
+        }
+} ');
+
 -- STRMN: Streaming
 --        status      : the process is on or off, it is on by default
 --        time window : the time window when the process is active, always active by default (it means every second)
@@ -832,6 +848,8 @@ insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collect
 insert into foglamp.scheduled_processes ( name, script ) values ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
 -- FogLAMP statistics into PI
 insert into foglamp.scheduled_processes ( name, script ) values ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+-- Send readings via HTTP
+insert into foglamp.scheduled_processes (name, script) values ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
 
 -- Start the device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -869,3 +887,7 @@ INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUE
 
 -- FogLAMP statistics into PI configuration
 INSERT INTO foglamp.streams (id,destination_id,description, last_object,ts ) VALUES (2,1,'FogLAMP statistics into PI', 0,now());
+
+-- HTTP translator configuration
+INSERT INTO foglamp.destinations(id,description, ts) VALUES (2,'HTTP_TR', now());
+INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (3,2,'HTTP translator', 0,now());

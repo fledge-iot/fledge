@@ -78,7 +78,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap", "default" : "coap", "description" : "Python module name of the plugin to load" } } ');
 
--- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO)
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'HTTP_TR_3', 'HTTP North Plugin Configuration', ' {
 	"plugin": {

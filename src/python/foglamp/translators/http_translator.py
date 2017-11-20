@@ -137,8 +137,16 @@ class HttpTranslatorPlugin(object):
             pending_task.cancel()
 
     def send_payloads(self, payloads, stream_id):
-        new_last_object_id, num_sent = self.event_loop.run_until_complete(self._send_payloads(payloads))
-        return payloads, new_last_object_id, num_sent
+        is_data_sent = False
+        new_last_object_id = 0
+        num_sent = 0
+        try:
+            new_last_object_id, num_sent = self.event_loop.run_until_complete(self._send_payloads(payloads))
+            is_data_sent = True
+        except Exception as ex:
+            _LOGGER.exception("Data could not be sent, %s", str(ex))
+
+        return is_data_sent, new_last_object_id, num_sent
 
     async def _send_payloads(self, payloads):
         """ send a list of block payloads """
@@ -158,7 +166,13 @@ class HttpTranslatorPlugin(object):
         """ Send the payload, using ClientSession """
         url = config['url']['value']
         headers = {'content-type': 'application/json'}
-        async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
+        p = {"asset_code": payload['asset_code'],
+             "readings": [{
+                            "read_key": payload['read_key'],
+                            "user_ts": payload['user_ts'],
+                            "reading": payload['reading']
+                        }]}
+        async with session.post(url, data=json.dumps(p), headers=headers) as resp:
             result = await resp.text()
             status_code = resp.status
             if status_code in range(400, 500):

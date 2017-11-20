@@ -33,7 +33,9 @@ class Service(object):
         self._type = self.valid_type(s_type)  # check with Service.Type, if not a valid type raise error
         self._protocol = s_protocol
         self._address = s_address
-        self._port = int(s_port)
+        self._port = None
+        if s_port != None:
+            self._port = int(s_port)
         self._management_port = int(m_port)
         self._status = 0
         # TODO: MUST
@@ -97,13 +99,13 @@ class Service(object):
             else:
                 raise Service.AlreadyExistsWithTheSameName
 
-            if cls.check_address_and_port(address, port):
+            if port != None and cls.check_address_and_port(address, port):
                 raise Service.AlreadyExistsWithTheSameAddressAndPort
 
             if cls.check_address_and_mgt_port(address, management_port):
                 raise Service.AlreadyExistsWithTheSameAddressAndManagementPort
 
-            if not isinstance(port, int):
+            if port != None and (not isinstance(port, int)):
                 raise Service.NonNumericPortError
             if not isinstance(management_port, int):
                 raise Service.NonNumericPortError

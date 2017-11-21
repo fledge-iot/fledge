@@ -18,4 +18,3 @@ allure-report/
 # storage specific
 build/
 services/storage/*
-cmake_build/

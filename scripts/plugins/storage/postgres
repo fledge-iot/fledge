@@ -1,0 +1,164 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2017 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+#set -e
+
+USAGE="Usage: `basename ${0}` {help|init|status|reset}"
+
+# Check FOGLAMP_ROOT
+if [ -z ${FOGLAMP_ROOT+x} ]; then
+    FOGLAMP_ROOT="/usr/local/foglamp"
+fi
+
+## The Error Message Handler
+#
+# Paramaters: $1 - Priority:
+#                  - debug
+#                  - info
+#                  - notice
+#                  - err
+#                  - crit
+#                  - alert
+#                  - emerg
+#             $2 - Message
+#             $3 - silent (option)
+#                - nice : Do not show the date and priority
+#
+pg_err() {
+
+    if ! [[ "$1" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
+        pg_err "err" "Internal error: unrecognized priority: $1"
+        exit 1
+    fi
+
+    logger -p local0.$1 -t foglamp.storage.postgres $2
+
+    case "$3" in
+        silent)
+            ;;
+        nice)
+            echo "$2" >&2
+            ;;
+        *)
+            echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+            ;;
+    esac
+
+}
+
+
+## PostgreSQL Reset
+pg_reset() {
+
+    # Check if the init.sql file exists
+    if [[ ! -e "${FOGLAMP_ROOT}/plugins/storage/postgres/init.sql" ]]; then
+        pg_err "err" "Missing initialization file init.sql - initialization aborted." "nice"
+        exit 1
+    fi
+
+    # Check if the postgres user exists
+    if [[ `grep -c '^postgres:' /etc/passwd` -ne 1 ]]; then
+        pg_err "err" "No valid postgres user found: is PostgreSQL installed?" "nice"
+        exit 3
+    fi
+
+    if [[ ! `pg_status` = "PostgreSQL running." ]]; then
+        pg_err "err" "PostgreSQL not running." "nice"
+        exit 3
+    fi
+
+    echo "This script will remove all data stored in the server."
+    echo -n "Enter YES if you want to continue: "
+    read continue_reset
+
+    if [ "$continue_reset" != 'YES' ]; then
+        echo "Goodbye."
+        exit 0
+    fi
+
+    pg_err "info" "Building the metadata for the FogLAMP Plugin..." "nice"
+    sudo -u postgres psql -q -f "${FOGLAMP_ROOT}/plugins/storage/postgres/init.sql"
+    pg_err "info" "Build complete." "nice"
+
+}
+
+
+## PostgreSQL Status
+pg_status() {
+
+    if ! [[ -x "$(command -v pg_isready)" ]]; then
+        pg_err "info" "Status check cannot be found. Is PostgreSQL installed?" nice
+        pg_err "info" "If PostgreSQL is installed, check if the bin dir is in the PATH." nice
+        exit 1
+    fi
+
+    ret_message=`pg_isready`
+
+    case "${ret_message}" in
+        *"no response")
+            echo "PostgreSQL not running."
+            ;;
+        *"accepting connections")
+            echo "PostgreSQL running."
+            ;;
+        *)
+            pg_err "err" "Unknow status return by the PostgreSQL database server."
+            exit 1
+    esac
+
+}
+
+
+## PostgreSQL Help
+pg_help() {
+
+    echo "${USAGE}
+PostgreSQL Storage Layer plugin init script. 
+The script is used to control the PostgreSQL plugin as database for FogLAMP
+Arguments:
+ init    - Initialize the database server
+ reset   - Bring the database server to the original installation.
+           This is a synonym of init.
+           WARNING: all the data stored in the server will be lost!
+ status  - Check the status of the database server
+ help    - This text"
+
+}
+
+
+### Main Logic ###
+case "$1" in
+  init)
+    pg_reset
+    ;;
+  reset)
+    pg_reset
+    ;;
+  status)
+    pg_status
+    ;;
+  help)
+    pg_help
+    ;;
+  *)
+    echo "${USAGE}"
+    exit 1
+esac
+
+exit 0
+

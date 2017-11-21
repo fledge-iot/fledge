@@ -15,6 +15,9 @@ docs/.cache/
 allure/
 allure-report/
 
-# storage specific
-build/
-services/storage/*
+# build specific
+cmake_build/
+plugins
+python_build/
+services/
+

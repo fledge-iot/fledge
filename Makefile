@@ -27,9 +27,11 @@ CMAKE_FILE := $(CURRENT_DIR)/CMakeLists.txt
 CMAKE_BUILD_DIR := cmake_build
 CMAKE_GEN_MAKEFILE := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
 CMAKE_SERVICES_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_STORAGE_BINARY := $(CMAKE_SERVICES_DIR)/storage/storage
 CMAKE_PLUGINS_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-SYMLINK_SERVICES_DIR := $(CURRENT_DIR)/services
+DEV_SERVICES_DIR := $(CURRENT_DIR)/services
 SYMLINK_PLUGINS_DIR := $(CURRENT_DIR)/plugins
+SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/storage
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -54,7 +56,7 @@ PACKAGE_NAME=FogLAMP
 # default
 # compile any code that must be compiled
 # generally prepare the development tree to allow for core to be run
-default : c_build $(SYMLINK_SERVICES_DIR) $(SYMLINK_PLUGINS_DIR) python_build python_requirements_user
+default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) python_build python_requirements_user
 
 # install
 # Creates a deployment structure in the default destination, /usr/local/foglamp
@@ -79,10 +81,13 @@ $(CMAKE_GEN_MAKEFILE) : $(CMAKE_FILE) $(CMAKE_BUILD_DIR)
 $(CMAKE_BUILD_DIR) :
 	$(MKDIR_PATH) $@
 
-# create symlink for services dir
-$(SYMLINK_SERVICES_DIR) :
-	$(MKDIR_PATH) $(SYMLINK_SERVICES_DIR)
-	$(LN) $(CMAKE_SERVICES_DIR)/storage/storage $(SYMLINK_SERVICES_DIR)/storage
+# create symlink to storage binary
+$(SYMLINK_STORAGE_BINARY) : $(DEV_SERVICES_DIR)
+	$(LN) $(CMAKE_STORAGE_BINARY) $(SYMLINK_STORAGE_BINARY)
+
+# create services dir
+$(DEV_SERVICES_DIR) :
+	$(MKDIR_PATH) $(DEV_SERVICES_DIR)
 
 # create symlink for plugins dir
 $(SYMLINK_PLUGINS_DIR) :
@@ -130,6 +135,6 @@ $(INSTALL_DIR) :
 clean :
 	-$(RM_DIR) $(CMAKE_BUILD_DIR)
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
-	-$(RM) $(SYMLINK_SERVICES_DIR)
+	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
 

@@ -3,11 +3,11 @@ export FOGLAMP_DATA=.
 if [ $# -eq 1 ] ; then
 	echo Starting storage layer $1
 	$1 
-elif [ "${FOGLAMP_HOME}" != "" ] ; then
-	echo Starting storage service in $FOGLAMP_HOME
-	$FOGLAMP_HOME/services/storage/storage
+elif [ "${FOGLAMP_ROOT}" != "" ] ; then
+	echo Starting storage service in $FOGLAMP_ROOT
+	$FOGLAMP_ROOT/services/storage
 else
-	echo Must either set FOGLAMP_HOME or provide storage service to test
+	echo Must either set FOGLAMP_ROOT or provide storage service to test
 	exit 1
 fi
 

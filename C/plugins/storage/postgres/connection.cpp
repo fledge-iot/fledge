@@ -69,7 +69,7 @@ SQLBuffer	sql;
 
 	if (condition.empty())
 	{
-		sql.append("SELECT * FROM ");
+		sql.append("SELECT * FROM foglamp.");
 		sql.append(table);
 	}
 	else
@@ -91,7 +91,7 @@ SQLBuffer	sql;
 			{
 				return false;
 			}
-			sql.append(" FROM ");
+			sql.append(" FROM foglamp.");
 		}
 		else if (document.HasMember("return"))
 		{
@@ -155,7 +155,7 @@ SQLBuffer	sql;
 				}
 				col++;
 			}
-			sql.append(" FROM ");
+			sql.append(" FROM foglamp.");
 		}
 		else
 		{
@@ -165,7 +165,7 @@ SQLBuffer	sql;
 				sql.append(document["modifier"].GetString());
 				sql.append(' ');
 			}
-			sql.append(" * FROM ");
+			sql.append(" * FROM foglamp.");
 		}
 		sql.append(table);
 		if (document.HasMember("where"))
@@ -221,7 +221,7 @@ int		col = 0;
 		raiseError("insert", "Failed to parse JSON payload\n");
 		return -1;
 	}
- 	sql.append("INSERT INTO ");
+ 	sql.append("INSERT INTO foglamp.");
 	sql.append(table);
 	sql.append(" (");
 	for (Value::ConstMemberIterator itr = document.MemberBegin();
@@ -301,7 +301,7 @@ int		col = 0;
 	}
 	else
 	{
-		sql.append("UPDATE ");
+		sql.append("UPDATE foglamp.");
 		sql.append(table);
 		sql.append(" SET ");
 
@@ -636,7 +636,7 @@ int		row = 0;
 		return -1;
 	}
 
-	sql.append("INSERT INTO readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
 
 	Value &rdings = doc["readings"];
 	if (!rdings.IsArray())
@@ -707,7 +707,7 @@ bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::stri
 char	sqlbuffer[100];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT * FROM readings WHERE id >= %ld LIMIT %d;", id, blksize);
+		"SELECT * FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
 	
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
@@ -735,7 +735,7 @@ long numReadings = 0;
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < now() - INTERVAL '");
+		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < now() - INTERVAL '");
 		unsentBuffer.append(age);
 		unsentBuffer.append(" hours' AND id > ");
 		unsentBuffer.append(sent);
@@ -755,7 +755,7 @@ long numReadings = 0;
 		}
 	}
 	
-	sql.append("DELETE FROM readings WHERE user_ts < now() - INTERVAL '");
+	sql.append("DELETE FROM foglamp.readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
 	sql.append(" hours'");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
@@ -777,7 +777,7 @@ long numReadings = 0;
 	PQclear(res);
 
 	SQLBuffer retainedBuffer;
-	retainedBuffer.append("SELECT count(*) FROM readings WHERE id > ");
+	retainedBuffer.append("SELECT count(*) FROM foglamp.readings WHERE id > ");
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query1 = retainedBuffer.coalesce();
@@ -793,7 +793,7 @@ long numReadings = 0;
 	}
 	PQclear(res);
 
-	res = PQexec(dbConnection, "SELECT count(*) FROM readings;");
+	res = PQexec(dbConnection, "SELECT count(*) FROM foglamp.readings;");
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
 		numReadings = atol(PQgetvalue(res, 0, 0));

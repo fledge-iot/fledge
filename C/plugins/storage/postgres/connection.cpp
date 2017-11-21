@@ -579,7 +579,7 @@ int Connection::deleteRows(const string& table, const string& condition)
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
  
-	sql.append("DELETE from ");
+	sql.append("DELETE FROM foglamp.");
 	sql.append(table);
 	if (! condition.empty())
 	{

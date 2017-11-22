@@ -1,5 +1,7 @@
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-access-control")
 
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+
 add_executable(io_test io_test.cpp)
 target_link_libraries(io_test ${Boost_LIBRARIES})
 target_link_libraries(io_test ${CMAKE_THREAD_LIBS_INIT})

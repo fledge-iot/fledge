@@ -13,11 +13,13 @@ Architecture
 ------------
 
 FogLAMP is built using a microservices architecture for major component areas, these services consist of:
+
 - a **core service** responsible for the management of the other services, the external REST API's, scheduling and monitoring of activities.
 - a **south service** responsible for the communication between FogLAMP and the sensors/actuators.
 - a **storage service** responsible for the persistance of configuration and metrics and the buffering of sensor data.
 
 FogLAMP makes extensive use of plugin components in order to increase the flexibility of the implementation:
+
 - **south plugins** are used to allow for the easy expansion of FogLAMP to deal with new devices and device connection buses.
 - **translator plugins** are used to allow for connection to different historians
 - **datastore plugins** are used to allow FogLAMP to use different storage mechanisms for persisting meta data and the sensor data
@@ -40,10 +42,14 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 
 On Ubuntu based Linux distrobutions thse can be installed with apt-get (with or without _sudo_):
 
-``apt-get install cmake g++ make``<br>
-``apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev``<br>
-``apt-get install python3-pip``<br>
+``apt-get install cmake g++ make``
+
+``apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev``
+
+``apt-get install python3-pip``
+
 ``apt-get install postgresql``
+
 
 **Build**
 
@@ -64,22 +70,29 @@ Create an installation by executing ``make install``. The installation will be p
 
 **Creating the Database Repository**
 
-This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via _apt-get_ first you need to create a new database user with:<br>
-``sudo -u postgres createuser <user>`` <br>
+This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via _apt-get_ first you need to create a new database user with:
+
+``sudo -u postgres createuser <user>``
+
 where _user_ is the name of the Linux user that will run FogLAMP.
 
-Last, you must create the FogLAMP database, schema and tables:<br>
-``sudo -u postgres psql -f <FOGLAMP_ROOT>/plugins/storage/postgres/init.sql`` <br>
+Last, you must create the FogLAMP database, schema and tables:
+
+``sudo -u postgres psql -f <FOGLAMP_ROOT>/plugins/storage/postgres/init.sql``
+
 Replace _FOGLAMP\_ROOT_ with the path you have used to install FogLAMP.
 
 
 Executing FogLAMP
 -----------------
 
-FogLAMP is now ready to start. Use the command:<br>
+FogLAMP is now ready to start. Use the command:
+
 ``<FOGLAMP_ROOT>/bin/foglamp start``
 
-To check if FogLAMP is running, simply use _curl_ (you may need to install it first): <br>
-``curl http://localhost:8081/foglamp/ping`` <br>
+To check if FogLAMP is running, simply use _curl_ (you may need to install it first):
+
+``curl http://localhost:8081/foglamp/ping``
+
 The command should return a JSON text with the total uptime in seconds.
  

@@ -2,6 +2,7 @@ from foglamp.common.storage_client.storage_client import ReadingsStorageClient, 
 from abc import ABC, abstractmethod
 import argparse
 import http.client
+import json
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -69,6 +70,10 @@ class FoglampProcess(ABC):
             raise
         else:
             return list(vars(parser_result[0]).values())[0]
+
+    def register_service(self, service_registration_payload):
+        self._m_client.register_service(service_registration_payload)
+
 
     class MicroserviceManagementClient(object):
         _management_client_conn = None

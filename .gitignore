@@ -16,8 +16,8 @@ allure/
 allure-report/
 
 # build specific
-cmake_build/
-plugins
-python_build/
-services/
+/cmake_build
+/plugins
+/python_build
+/services
 

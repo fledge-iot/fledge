@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run FogLAMP fogbench
 # execution sample :
-# "${FOGLAMP_ROOT}/scripts/foglamp.fogbench" -t "${FOGLAMP_ROOT}/extras/python/fogbench/templates/fogbench_sensor_coap.template.json" -H localhost -P 5683  -O 100
+# "${FOGLAMP_ROOT}/scripts/extras/foglamp.fogbench" -t "${FOGLAMP_ROOT}/extras/python/fogbench/templates/fogbench_sensor_coap.template.json" -H localhost -P 5683  -O 100
 
 if [ "${FOGLAMP_ROOT}" = "" ]; then
 	FOGLAMP_ROOT=/usr/local/foglamp

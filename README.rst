@@ -1,4 +1,5 @@
-# FogLAMP
+FogLAMP
+=======
 
 This is the FogLAMP project.
 
@@ -8,7 +9,8 @@ FogLAMP also provides a means of buffering data coming from sensors and forwardi
 
 FogLAMP has been designed to run in a Linux environment and make use of Linux services.
 
-## Architecture
+Architecture
+------------
 
 FogLAMP is built using a microservices architecture for major component areas, these services consist of:
 - a **core service** responsible for the management of the other services, the external REST API's, scheduling and monitoring of activities.
@@ -25,9 +27,10 @@ The other paradigm that is used extensively within FogLAMP is the idea of **sche
 
 Scheduled processes are used to send data from FogLAMP to the historian, to purge data from the FogLAMP data buffer, to gather statistics for historical analysis and perform backups of the FogLAMP environment.
 
-## Building FogLAMP
+Building FogLAMP
+----------------
 
-### Build Prerequisites
+**Build Prerequisites**
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 - cmake, g++, make
@@ -42,7 +45,7 @@ On Ubuntu based Linux distrobutions thse can be installed with apt-get (with or 
 ``apt-get install python3-pip``<br>
 ``apt-get install postgresql``
 
-### Build
+**Build**
 
 To build FogLAMP simply run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
@@ -53,12 +56,13 @@ Once the _make_ has completed set one environment variable to be able to run Fog
 Where _basedir_ is the base directory into which you cloned the FogLAMP repository.
 
 
-## Installing FogLAMP
+Installing FogLAMP
+------------------
 
 Create an installation by executing ``make install``. The installation will be placed in _/usr/local/foglamp_, this may be overriden by setting the variable DESTDIR to a location in which you wish to install FogLAMP. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions.
 
 
-### Creating the Database Repository
+**Creating the Database Repository**
 
 This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via _apt-get_ first you need to create a new database user with:<br>
 ``sudo -u postgres createuser <user>`` <br>
@@ -69,7 +73,8 @@ Last, you must create the FogLAMP database, schema and tables:<br>
 Replace _FOGLAMP\_ROOT_ with the path you have used to install FogLAMP.
 
 
-## Executing FogLAMP
+Executing FogLAMP
+-----------------
 
 FogLAMP is now ready to start. Use the command:<br>
 ``<FOGLAMP_ROOT>/bin/foglamp start``

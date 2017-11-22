@@ -55,7 +55,7 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 		home = (char *)"/usr/local/foglamp";
 	char buf[256];
 	snprintf(buf, sizeof(buf), "%s/scripts/plugins/storage/postgres start", home);
-	system(buf);
+	(void)system(buf);
   
 	manager->growPool(5);
 	return manager;

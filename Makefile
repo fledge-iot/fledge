@@ -7,7 +7,6 @@ CD := cd
 LN := ln -sf
 CMAKE := cmake
 PIP_USER_FLAG = --user
-PIP_SYSTEM_FLAG = --system
 PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
@@ -62,7 +61,7 @@ default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) python_build 
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
-install : $(INSTALL_DIR) c_install python_install python_requirements_system
+install : $(INSTALL_DIR) c_install python_install python_requirements
 
 ############################ C BUILD/INSTALL TARGETS ##########################
 ###############################################################################
@@ -104,9 +103,9 @@ c_install : c_build
 python_build : $(PYTHON_SETUP_FILE)
 	cd $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE)
 
-# install python requirements for system
-python_requirements_system : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_SYSTEM_FLAG)
+# install python requirements without --user 
+python_requirements : $(PYTHON_REQUIREMENTS_FILE)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)

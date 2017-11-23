@@ -37,12 +37,13 @@ Building FogLAMP
 **Build Prerequisites**
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
-- cmake, g++, make
-- libboost-dev, libboost-system-dev, libboost-thread-dev, libpq-dev
-- python3-pip
-- postgresql
 
-On Ubuntu based Linux distrobutions thse can be installed with apt-get (with or without _sudo_):
+- _cmake_, _g++_, _make_
+- _libboost-dev_, _libboost-system-dev_, _libboost-thread-dev_, _libpq-dev_
+- _python3-pip_
+- _postgresql_
+
+On Ubuntu based Linux distributions these can be installed with _apt-get_ (with or without _sudo_):
 
 ``apt-get install cmake g++ make``
 

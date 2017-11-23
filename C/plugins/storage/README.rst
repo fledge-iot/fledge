@@ -6,7 +6,7 @@ This directory contains the source code for the plugins used by the storage serv
 Building
 --------
 
-To make this plugin outside the general build, run the commands:
+To make this plugin, run the commands:
 
   ``mkdir build``
 
@@ -21,6 +21,6 @@ Use the command:
   ``make install``
 
 to install in the default location, note you will need permission on the
-installation directory or use the sudo command. Pass the option DESTDIR=
+installation directory or use the sudo command. Pass the option _DESTDIR=_
 to set your own destination into which to install the storage service.
 

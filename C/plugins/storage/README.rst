@@ -1,26 +1,26 @@
-Storage Plugins
-===============
+.. |br| raw:: html
 
-This directory contains the source code for the plugins used by the storage service
+   <br />
+
+
+***************
+Storage Plugins
+***************
+
+This directory contains the source code for the plugins used by the storage service.
 
 Building
---------
+========
 
 To make this plugin, run the commands:
+::
+  mkdir build
+  cd build
+  cmake ..
+  make
 
-  ``mkdir build``
-
-  ``cd build``
-
-  ``cmake ..``
-
-  ``make``
-
-Use the command:
-
-  ``make install``
-
-to install in the default location, note you will need permission on the
-installation directory or use the sudo command. Pass the option _DESTDIR=_
-to set your own destination into which to install the storage service.
+Use the command ``make install`` to install in the default location,
+note you will need permission on the installation directory or use
+the sudo command. Pass the option *DESTDIR=* to set your own destination
+into which to install the storage service.
 

@@ -1,5 +1,6 @@
+***************************
 FogLAMP South CoAP Listener
-===========================
+***************************
 
 This directory contains a plugin that implements the CoAP protocol
 and listens for incoming sensor readings sent to FogLAMP by sensors

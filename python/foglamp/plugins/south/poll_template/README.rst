@@ -1,4 +1,6 @@
-FogLAMP South Poll mode template
+********************************
+FogLAMP South Poll Mode Template
+********************************
 ================================
 
 This directory contains a template for the implementation of a plugin

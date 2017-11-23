@@ -22,9 +22,14 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sstream>
+#include <logger.h>
+#include <time.h>
 
 using namespace std;
 using namespace rapidjson;
+
+static time_t connectErrorTime = 0;
+#define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 /**
  * Create a database connection
@@ -45,7 +50,12 @@ Connection::Connection()
 	/* Check to see that the backend connection was successfully made */
 	if (PQstatus(dbConnection) != CONNECTION_OK)
 	{
-		cerr << "Failed to connect" << endl;
+		if (time(0) - connectErrorTime > CONNECT_ERROR_THRESHOLD)
+		{
+			Logger::getLogger()->error("Failed to connection to the database: %s",
+				PQerrorMessage(dbConnection));
+			connectErrorTime = time(0);
+		}
 	}
 }
 

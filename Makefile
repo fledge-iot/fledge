@@ -85,7 +85,7 @@ default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
-install : $(INSTALL_DIR) c_install python_install python_requirements_system \
+install : $(INSTALL_DIR) c_install python_install python_requirements \
 	scripts_install bin_install extras_install
 
 ###############################################################################

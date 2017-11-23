@@ -30,7 +30,7 @@ async def add_master_data():
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('testsleep30', '["sleep", "30"]')''')
+        values('testsleep30', '["../scripts/sleep.py", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
     await conn.close()
@@ -52,7 +52,7 @@ class TestScheduler:
     def setup_class(cls):
         asyncio.get_event_loop().run_until_complete(add_master_data())
         from subprocess import call
-        call(["foglamp", "start"])
+        call(["scripts/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
         time.sleep(30)
@@ -60,7 +60,7 @@ class TestScheduler:
     @classmethod
     def teardown_class(cls):
         from subprocess import call
-        call(["foglamp", "stop"])
+        call(["scripts/foglamp", "stop"])
         time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 

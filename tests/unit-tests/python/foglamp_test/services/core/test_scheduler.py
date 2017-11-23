@@ -26,9 +26,9 @@ _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 # TODO: To run this test,
 #       1) Do 'foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
-#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/core/test_scheduler.py
+#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit-tests/python/foglamp_test/services/core/test_scheduler.py
 _address = '0.0.0.0'
-_m_port = 44476
+_m_port = 41449
 
 
 @pytest.allure.feature("unit")
@@ -53,16 +53,16 @@ class TestScheduler:
             await conn.execute('delete from foglamp.scheduled_processes')
             await conn.execute(
                 '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep1', '["python3", "foglamp/sleep.py", "1"]')''')
+                values('sleep1', '["python3", "../scripts/sleep.py", "1"]')''')
             await conn.execute(
                 '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep10', '["python3", "foglamp/sleep.py", "10"]')''')
+                values('sleep10', '["python3", "../scripts/sleep.py", "10"]')''')
             await conn.execute(
                 '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep30', '["python3", "foglamp/sleep.py", "30"]')''')
+                values('sleep30', '["python3", "../scripts/sleep.py", "30"]')''')
             await conn.execute(
                 '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep5', '["python3", "foglamp/sleep.py", "5"]')''')
+                values('sleep5', '["python3", "../scripts/sleep.py", "5"]')''')
 
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler) -> None:
@@ -81,6 +81,7 @@ class TestScheduler:
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
         scheduler = Scheduler(_address, _m_port)
+        print(scheduler, _address, _m_port)
         await scheduler.start()
 
         # Set schedule interval

@@ -1,0 +1,33 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+"""Exceptions module """
+
+
+class ConfigRetrievalError(Exception):
+    """ Unable to retrieve the parameters from the configuration manager """
+    pass
+
+
+class BackupOrRestoreAlreadyRunning(Exception):
+    """ Backup or restore cannot proceed as another operation is already running """
+    pass
+
+
+class BackupFailed(Exception):
+    """ An error occurred during the backup operation """
+    pass
+
+
+class RestoreFailed(Exception):
+    """ An error occurred during the restore operation """
+    pass
+
+
+class DoesNotExist(Exception):
+    """ The requested backup id doesn't exist """
+    pass
+

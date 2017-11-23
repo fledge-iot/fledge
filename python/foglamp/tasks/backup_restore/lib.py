@@ -6,18 +6,17 @@
 """
 
 import subprocess
-import sys
 import time
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
 
-from foglamp import logger
+from foglamp.common import logger
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+_MODULE_NAME = "foglamp_backup_library"
 
 _MESSAGES_LIST = {
 
@@ -32,9 +31,6 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-# FIXME: it will be removed using the DB layer
-_DB_CONNECTION_STRING = "user='foglamp' dbname='foglamp'"
-
 _CMD_TIMEOUT = " timeout --signal=9  "
 
 _BACKUP_STATUS_SUCCESSFUL = 0
@@ -43,55 +39,10 @@ _BACKUP_STATUS_RESTORED = -2
 
 # FIXME:
 _JOB_SEM_FILE_PATH = "/tmp"
-_JOB_SEM_FILE_BACKUP = "backup.sem"
-_JOB_SEM_FILE_RESTORE = "restore.sem"
+JOB_SEM_FILE_BACKUP = "backup.sem"
+JOB_SEM_FILE_RESTORE = "restore.sem"
 
 _logger = ""
-
-
-def storage_update(sql_cmd):
-    """  Executes a sql command against the Storage layer that updates data
-
-    Args:
-        sql_cmd: sql command to execute
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    _logger.debug("{func} - sql cmd |{cmd}| ".format(
-                                                    func=sys._getframe().f_code.co_name,
-                                                    cmd=sql_cmd))
-
-    _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING)
-    _pg_cur = _pg_conn.cursor()
-
-    _pg_cur.execute(sql_cmd)
-    _pg_conn.commit()
-    _pg_conn.close()
-
-
-def storage_retrieve(sql_cmd):
-    """  Executes a sql command against the Storage layer that retrieves data
-
-    Args:
-    Returns:
-        raw_data: Python list containing the rows retrieved from the Storage layer
-    Raises:
-    Todo:
-    """
-
-    _logger.debug("{func} - sql cmd |{cmd}| ".format(func=sys._getframe().f_code.co_name,
-                                                     cmd=sql_cmd))
-
-    _pg_conn = psycopg2.connect(_DB_CONNECTION_STRING, cursor_factory=RealDictCursor)
-
-    _pg_cur = _pg_conn.cursor()
-
-    _pg_cur.execute(sql_cmd)
-    raw_data = _pg_cur.fetchall()
-
-    return raw_data
 
 
 def exec_wait(_cmd, _output_capture=False, _timeout=0):
@@ -106,7 +57,6 @@ def exec_wait(_cmd, _output_capture=False, _timeout=0):
         _status: exit status of the command
         _output: output of the command
     Raises:
-    Todo:
     """
 
     _output = ""
@@ -115,7 +65,7 @@ def exec_wait(_cmd, _output_capture=False, _timeout=0):
         _cmd = _CMD_TIMEOUT + str(_timeout) + " " + _cmd
         _logger.debug("Executing command using the timeout |{timeout}| ".format(timeout=_timeout))
 
-    _logger.debug("{func} - cmd |{cmd}| ".format(func=sys._getframe().f_code.co_name,
+    _logger.debug("{func} - cmd |{cmd}| ".format(func="exec_wait",
                                                  cmd=_cmd))
 
     if _output_capture:
@@ -152,12 +102,11 @@ def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_
         _output: output of the command
 
     Raises:
-    Todo:
     """
 
     global _logger
 
-    _logger.debug("{func} - cmd |{cmd}| ".format(func=sys._getframe().f_code.co_name,
+    _logger.debug("{func} - cmd |{cmd}| ".format(func="exec_wait_retry",
                                                  cmd=cmd))
 
     _status = 0
@@ -179,7 +128,7 @@ def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_
             if write_error:
                 short_output = _output[0:50]
                 _logger.debug("{func} - cmd |{cmd}| - N retry |{retry}| - message |{msg}| ".format(
-                    func=sys._getframe().f_code.co_name,
+                    func="exec_wait_retry",
                     cmd=cmd,
                     retry=retry,
                     msg=short_output)
@@ -194,52 +143,6 @@ def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_
     return _status, _output
 
 
-def backup_status_create(file_name, status):
-    """ Logs the creation of the backup in the Storage layer
-
-    Args:
-        file_name: file_name, as a full path, used for the backup
-        status: backup status, BACKUP_STATUS_RUNNING
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    _logger.debug("{0} - file name |{1}| ".format(sys._getframe().f_code.co_name, file_name))
-
-    sql_cmd = """
-        INSERT INTO foglamp.backups
-        (file_name, ts, type, status)
-        VALUES ('{file}', now(), 0, {status} );
-        """.format(file=file_name,
-                   status=status)
-
-    storage_update(sql_cmd)
-
-
-def backup_status_update(file_name, status):
-    """ Updates the status of the backup in the Storage layer
-
-    Args:
-        file_name: file_name, as a full path, used for the backup
-        status: {exit status of the backup|BACKUP_STATUS_RESTORED|}
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    _logger.debug("{0} - file name |{1}| ".format(sys._getframe().f_code.co_name, file_name))
-
-    sql_cmd = """
-
-        UPDATE foglamp.backups SET  status={status} WHERE file_name='{file}';
-
-        """.format(status=status,
-                   file=file_name, )
-
-    storage_update(sql_cmd)
-
-
 class Job:
     """" Handles backup and restore operations synchronization """
 
@@ -248,11 +151,10 @@ class Job:
         """ Retrieves the PID from the semaphore file
 
         Args:
-            file_name: semaphore file, full path
+            file_name: full path of the semaphore file
         Returns:
             pid: pid retrieved from the semaphore file
         Raises:
-        Todo:
         """
 
         with open(file_name) as f:
@@ -267,11 +169,10 @@ class Job:
         """ Creates the semaphore file having the PID as content
 
         Args:
-            file_name: semaphore file, full path
+            file_name: full path of the semaphore file
             pid: pid to store into the semaphore file
         Returns:
         Raises:
-        Todo:
         """
 
         file = open(file_name, "w")
@@ -279,7 +180,7 @@ class Job:
         file.close()
 
     @classmethod
-    def check_semaphore_file(cls, file_name):
+    def _check_semaphore_file(cls, file_name):
         """ Evaluates if a specific either backup or restore operation is in execution
 
         Args:
@@ -287,10 +188,9 @@ class Job:
         Returns:
             pid: 0= no operation is in execution or the pid retrieved from the semaphore file
         Raises:
-        Todo:
         """
 
-        _logger.debug("{0}".format(sys._getframe().f_code.co_name))
+        _logger.debug("{func}".format(func="check_semaphore_file"))
 
         pid = 0
 
@@ -318,19 +218,20 @@ class Job:
         Returns:
             pid: 0= no operation is in execution or the pid retrieved from the semaphore file
         Raises:
-        Todo:
         """
 
-        _logger.debug("{0}".format(sys._getframe().f_code.co_name))
+        # FIXME: _JOB_SEM_FILE_PATH from config manager
+
+        _logger.debug("{func}".format(func="is_running"))
 
         # Checks if a backup process is still running
-        full_path_backup = _JOB_SEM_FILE_PATH + "/" + _JOB_SEM_FILE_BACKUP
-        pid = cls.check_semaphore_file(full_path_backup)
+        full_path_backup = _JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_BACKUP
+        pid = cls._check_semaphore_file(full_path_backup)
 
         # Checks if a restore process is still running
         if pid == 0:
-            full_path_restore = _JOB_SEM_FILE_PATH + "/" + _JOB_SEM_FILE_RESTORE
-            pid = cls.check_semaphore_file(full_path_restore)
+            full_path_restore = _JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_RESTORE
+            pid = cls._check_semaphore_file(full_path_restore)
 
         return pid
 
@@ -340,13 +241,12 @@ class Job:
 
         Args:
             file_name: semaphore file either fot backup or restore
-            pid: pid of the process stored within the semaphore file
+            pid: pid of the process to be stored within the semaphore file
         Returns:
         Raises:
-        Todo:
         """
 
-        _logger.debug("{0}".format(sys._getframe().f_code.co_name))
+        _logger.debug("{func}".format(func="set_as_running"))
 
         full_path = _JOB_SEM_FILE_PATH + "/" + file_name
 
@@ -367,10 +267,9 @@ class Job:
             file_name: semaphore file either for backup or restore operations
         Returns:
         Raises:
-        Todo:
         """
 
-        _logger.debug("{0}".format(sys._getframe().f_code.co_name))
+        _logger.debug("{func}".format(func="set_as_completed"))
 
         full_path = _JOB_SEM_FILE_PATH + "/" + file_name
 
@@ -380,4 +279,4 @@ class Job:
 
 if __name__ == "__main__":
 
-    _logger = logger.setup(__name__)
+    _logger = logger.setup(_MODULE_NAME)

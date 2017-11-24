@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Copyright (C) 2017
 
@@ -10,6 +9,9 @@ import time
 import os
 
 from foglamp.common import logger
+from foglamp.common.storage_client import payload_builder
+from foglamp.common.storage_client.storage_client import StorageClient
+import foglamp.tasks.backup_restore.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -28,21 +30,41 @@ _MESSAGES_LIST = {
     "e000001": "semaphore file deleted because it was already in existence - file |{0}|",
     "e000002": "semaphore file deleted because it existed even if the corresponding process was not running "
                "- file |{0}| - pid |{1}|",
+    "e000003": "ERROR - the library cannot be executed directly.",
 }
 """ Messages used for Information, Warning and Error notice """
 
-_CMD_TIMEOUT = " timeout --signal=9  "
+MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
+"""" Maximum number of backup information to retrieve from the storage layer"""
 
-_BACKUP_STATUS_SUCCESSFUL = 0
-_BACKUP_STATUS_RUNNING = -1
-_BACKUP_STATUS_RESTORED = -2
+STORAGE_TABLE_BACKUPS = "backups"
+""" Table name containing the backup information"""
+
+_CMD_TIMEOUT = " timeout --signal=9  "
+""" Every external commands will be launched using timeout to avoid endless executions """
+
+BACKUP_TYPE_FULL = 1
+BACKUP_TYPE_INCREMENTAL = 2
+""" Backup types supported """
+
+BACKUP_STATUS_UNDEFINED = -1
+BACKUP_STATUS_RUNNING = 1
+BACKUP_STATUS_SUCCESSFUL = 2
+BACKUP_STATUS_CANCELLED = 3
+BACKUP_STATUS_INTERRUPTED = 4
+BACKUP_STATUS_FAILED = 5
+BACKUP_STATUS_RESTORED = 6
+"""" Backup status"""
 
 # FIXME:
-_JOB_SEM_FILE_PATH = "/tmp"
+_JOB_SEM_FILE_PATH = "/tmp/test"
 JOB_SEM_FILE_BACKUP = "backup.sem"
 JOB_SEM_FILE_RESTORE = "restore.sem"
+"""" Semaphores information for the handling of the backup/restore synchronization """
 
-_logger = ""
+_logger = {}
+_storage = {}
+"""" Objects references assigned by the caller """
 
 
 def exec_wait(_cmd, _output_capture=False, _timeout=0):
@@ -54,7 +76,7 @@ def exec_wait(_cmd, _output_capture=False, _timeout=0):
         _timeout: 0 no timeout or the timeout in seconds for the execution of the command
 
     Returns:
-        _status: exit status of the command
+        _exit_code: exit status of the command
         _output: output of the command
     Raises:
     """
@@ -63,42 +85,43 @@ def exec_wait(_cmd, _output_capture=False, _timeout=0):
 
     if _timeout != 0:
         _cmd = _CMD_TIMEOUT + str(_timeout) + " " + _cmd
-        _logger.debug("Executing command using the timeout |{timeout}| ".format(timeout=_timeout))
+        _logger.debug("{func} - Executing command using the timeout |{timeout}| ".format(
+                                        func="exec_wait",
+                                        timeout=_timeout))
 
     _logger.debug("{func} - cmd |{cmd}| ".format(func="exec_wait",
                                                  cmd=_cmd))
 
     if _output_capture:
         process = subprocess.Popen(_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
     else:
         process = subprocess.Popen(_cmd, shell=True)
 
-    _status = process.wait()
+    _exit_code = process.wait()
 
     if _output_capture:
-        output_tmp = process.stdout.read()
+        output_step1 = process.stdout.read()
+        output_step2 = output_step1.decode("utf-8")
+        # FIXME: TBD
+        _output = output_step2.replace("\n", "\n\r")
 
-        output_tmp2 = output_tmp.decode("utf-8")
-        _output = output_tmp2.replace("\n", "\n\r")
-
-    return _status, _output
+    return _exit_code, _output
 
 
-def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_error=True, sleep_time=1, timeout=0):
+def exec_wait_retry(cmd, output_capture=False, exit_code_ok=0, max_retry=3, write_error=True, sleep_time=1, timeout=0):
     """ Executes an external command retrying x time the operation up to the exit status match a specific value
 
     Args:
         cmd: command to execute
-        output_capture: if the _output of the command should be captured or not
-        status_ok: exit status to achieve
+        output_capture: if the output of the command should be captured or not
+        exit_code_ok: exit status to achieve
         max_retry: maximum number of retries to achieve the desired exit status
         write_error: if a message should be generated for each retry
         sleep_time: seconds to sleep between each retry
         timeout: 0= no timeout, or the timeout in seconds for the execution of the external command
 
     Returns:
-        _status: exit status of the command
+        _exit_code: exit status of the command
         _output: output of the command
 
     Raises:
@@ -109,7 +132,7 @@ def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_
     _logger.debug("{func} - cmd |{cmd}| ".format(func="exec_wait_retry",
                                                  cmd=cmd))
 
-    _status = 0
+    _exit_code = 0
     _output = ""
 
     # try X times the operation
@@ -118,13 +141,14 @@ def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_
 
     while loop_continue:
 
-        _status, _output = exec_wait(cmd, output_capture, timeout)
+        _exit_code, _output = exec_wait(cmd, output_capture, timeout)
 
-        if _status == status_ok:
+        if _exit_code == exit_code_ok:
             loop_continue = False
 
         elif retry <= max_retry:
 
+            # Prepares for the retry operation
             if write_error:
                 short_output = _output[0:50]
                 _logger.debug("{func} - cmd |{cmd}| - N retry |{retry}| - message |{msg}| ".format(
@@ -140,7 +164,89 @@ def exec_wait_retry(cmd, output_capture=False, status_ok=0, max_retry=3,  write_
         else:
             loop_continue = False
 
-    return _status, _output
+    return _exit_code, _output
+
+
+def get_backup_details_from_file_name(_file_name):
+    """ Retrieves backup information from file name
+
+    Args:
+        _file_name: file name to search in the Storage layer
+
+    Returns:
+        backup_information: Backup information related to the file name
+
+    Raises:
+        exceptions.DoesNotExist
+        exceptions.NotUniqueBackup
+    """
+
+    payload = payload_builder.PayloadBuilder() \
+        .WHERE(['file_name', '=', _file_name]) \
+        .payload()
+
+    backups_from_storage = _storage.query_tbl_with_payload(STORAGE_TABLE_BACKUPS, payload)
+
+    if backups_from_storage['count'] == 1:
+
+        backup_information = backups_from_storage['rows'][0]
+
+    elif backups_from_storage['count'] == 0:
+        raise exceptions.DoesNotExist
+
+    else:
+        raise exceptions.NotUniqueBackup
+
+    return backup_information
+
+
+def backup_status_create(_file_name, _type, _status):
+    """ Logs the creation of the backup in the Storage layer
+
+    Args:
+        _file_name: file_name used for the backup as a full path
+        _type: backup type {BACKUP_TYPE_FULL|BACKUP_TYPE_INCREMENTAL}
+        _status: backup status, usually BACKUP_STATUS_RUNNING
+    Returns:
+    Raises:
+    Todo:
+    """
+
+    _logger.debug("{func} - file name |{file}| ".format(func="backup_status_create", file=_file_name))
+
+    payload = payload_builder.PayloadBuilder() \
+        .INSERT(file_name=_file_name,
+                ts="now()",
+                type=_type,
+                state=_status,
+                exit_code=0) \
+        .payload()
+
+    _storage.insert_into_tbl(STORAGE_TABLE_BACKUPS, payload)
+
+
+def backup_status_update(_id, _status, _exit_code):
+    """ Updates the status of the backup in the Storage layer
+
+    Args:
+        _id: Backup's Id to update
+        _status: status of the backup {BACKUP_STATUS_SUCCESSFUL|BACKUP_STATUS_RESTORED}
+        _exit_code: exit status of the backup/restore execution
+    Returns:
+    Raises:
+    Todo:
+    """
+
+    _logger.debug("{func} - file name |{file}| ".format(func="backup_status_update", file=_id))
+
+    payload = payload_builder.PayloadBuilder() \
+        .SET(state=_status,
+             ts="now()",
+             exit_code=_exit_code) \
+        .WHERE(['id', '=', _id]) \
+        .payload()
+
+    _storage.update_tbl(STORAGE_TABLE_BACKUPS, payload)
 
 
 class Job:
@@ -203,10 +309,11 @@ class Job:
             except ProcessLookupError:
                 # Process is not running, removing the semaphore file
                 os.remove(file_name)
-                pid = 0
 
-                message = _MESSAGES_LIST["e000002"].format(file_name, pid)
-                _logger.warning("{0}".format(message))
+                _message = _MESSAGES_LIST["e000002"].format(file_name, pid)
+                _logger.warning("{0}".format(_message))
+
+                pid = 0
 
         return pid
 
@@ -254,8 +361,8 @@ class Job:
 
             os.remove(full_path)
 
-            message = _MESSAGES_LIST["e000001"].format(full_path)
-            _logger.warning("{0}".format(message))
+            _message = _MESSAGES_LIST["e000001"].format(full_path)
+            _logger.warning("{0}".format(_message))
 
         cls._pid_file_create(full_path, pid)
 
@@ -279,4 +386,10 @@ class Job:
 
 if __name__ == "__main__":
 
-    _logger = logger.setup(_MODULE_NAME)
+    message = _MESSAGES_LIST["e000003"]
+    print (message)
+
+    if False:
+        # Used to assign the proper objects type without actually executing them
+        _storage = StorageClient("127.0.0.1", "0")
+        _logger = logger.setup(_MODULE_NAME)

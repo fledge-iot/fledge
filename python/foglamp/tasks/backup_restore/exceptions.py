@@ -27,6 +27,11 @@ class RestoreFailed(Exception):
     pass
 
 
+class NotUniqueBackup(Exception):
+    """ There are more backups having the same id """
+    pass
+
+
 class DoesNotExist(Exception):
     """ The requested backup id doesn't exist """
     pass

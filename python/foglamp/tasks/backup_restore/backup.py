@@ -20,6 +20,7 @@ import configparser
 import os
 
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.storage_client import payload_builder
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 import logging
@@ -68,15 +69,17 @@ class Backup(FoglampProcess):
         "e000002": "cannot retrieve the configuration from the manager, trying retrieving from file "
                    "- error details |{0}|",
         "e000003": "cannot retrieve the configuration from file - error details |{0}|",
-        "e000004": "cannot delete/purge old backup file on file system - file name |{0}| error details |{1}|",
-        "e000005": "cannot delete/purge old backup information on the storage layer "
-                   "- file name |{0}| error details |{1}|",
+        "e000004": "cannot delete/purge backup file on file system - id |{0}| - file name |{1}| error details |{2}|",
+        "e000005": "cannot delete/purge backup information on the storage layer "
+                   "- id |{0}| - file name |{1}| error details |{2}|",
         "e000007": "Backup failed.",
         "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
+        "e000009": "cannot retrieve information for the backup id |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
 
-    _CONFIG_FILE = "configuration.ini"
+    # FIXME:
+    _CONFIG_FILE = "/home/foglamp/Development/FogLAMP/python/foglamp/tasks/backup_restore/configuration.ini"
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'BACK_REST'
@@ -102,7 +105,7 @@ class Backup(FoglampProcess):
         "backup_dir": {
             "description": "Directory where the backups will be created.",
             "type": "string",
-            "default": "/tmp"
+            "default": "/tmp/test"
         },
         "retention": {
             "description": "Number of backups to maintain, old ones will be deleted.",
@@ -110,7 +113,7 @@ class Backup(FoglampProcess):
             "default": "5"
         },
         "max_retry": {
-            "description": "Number of retries for FogLAMP stop/start operations.",
+            "description": "Number of retries for the operations.",
             "type": "integer",
             "default": "5"
         },
@@ -122,15 +125,15 @@ class Backup(FoglampProcess):
     }
 
     def __init__(self):
+
         super().__init__()
 
         try:
-            self._logger = logger.setup(self._MODULE_NAME)
-
             # FIXME:
-            # Sets the logger for the library
-            lib._logger = self._logger
-    
+            self._logger = logger.setup(self._MODULE_NAME,
+                                        destination=logger.CONSOLE,
+                                        level=logging.DEBUG)
+
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000001"].format(str(_ex))
             _current_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -140,9 +143,33 @@ class Backup(FoglampProcess):
 
         self._config_from_manager = {}
         self._config = {}
-
         self._job = lib.Job()
         self._event_loop = asyncio.get_event_loop()
+
+        # Creates the objects references used by the library
+        lib._logger = self._logger
+        lib._storage = self._storage
+
+    def _generate_file_name(self):
+        """ Generates the file name for the backup operation, it uses hours/minutes/seconds for the file name generation
+
+        Args:
+        Returns:
+            _backup_file: generated file name
+        Raises:
+        """
+
+        self._logger.debug("{func}".format(func="_generate_file_name"))
+
+        # Evaluates the parameters
+        execution_time = time.strftime("%Y_%m_%d_%H_%M_%S")
+
+        full_file_name = self._config['backup_dir'] + "/" + "foglamp" + "_" + execution_time
+        ext = "dump"
+
+        _backup_file = "{file}.{ext}".format(file=full_file_name, ext=ext)
+
+        return _backup_file
 
     def init(self):
         """  Setups the correct state for the execution of the backup
@@ -174,11 +201,214 @@ class Backup(FoglampProcess):
 
         Args:
         Returns:
-
         Raises:
+            exceptions.BackupFailed
         """
 
         self._logger.debug("{func}".format(func="run"))
+
+        self._purge_old_backups()
+
+        backup_file = self._generate_file_name()
+
+        lib.backup_status_create(backup_file, lib.BACKUP_TYPE_FULL, lib.BACKUP_STATUS_RUNNING)
+        status, exit_code = self._exec_backup(backup_file)
+
+        backup_information = lib.get_backup_details_from_file_name(backup_file)
+
+        lib.backup_status_update(backup_information['id'], status, exit_code)
+
+        if status != lib.BACKUP_STATUS_SUCCESSFUL:
+
+            self._logger.error(self._MESSAGES_LIST["e000007"])
+            raise exceptions.BackupFailed
+
+    # noinspection PyUnusedLocal
+    def get_backup_list(self, limit, skip, status):
+        """  Retrieves backups information
+
+        Args:
+            limit: maximum number of backups information to retrieve
+            skip: TBD - # FIXME:
+            status: BACKUP_STATUS_UNDEFINED= retrieves the information for all the backups state
+                    or for a specific state only
+        Returns:
+        Raises:
+        """
+
+        if status == lib.BACKUP_STATUS_UNDEFINED:
+            payload = payload_builder.PayloadBuilder() \
+                .LIMIT(limit) \
+                .ORDER_BY(['ts', 'ASC']) \
+                .payload()
+        else:
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['state', '=', status]) \
+                .LIMIT(limit) \
+                .ORDER_BY(['ts', 'ASC']) \
+                .payload()
+
+        backups_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
+        backups_information = backups_from_storage['rows']
+
+        return backups_information
+
+    def _purge_old_backups(self):
+        """  Deletes old backups in relation at the retention parameter
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        backups_info = self.get_backup_list(lib.MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE,
+                                            0,
+                                            lib.BACKUP_STATUS_UNDEFINED)
+
+        # Evaluates which backup should be deleted
+        backups_n = len(backups_info)
+        last_to_delete = backups_n - self._config['retention']
+
+        if last_to_delete > 0:
+
+            # Deletes backups
+            backups_to_delete = backups_info[:last_to_delete]
+
+            for row in backups_to_delete:
+                backup_id = row['id']
+                file_name = row['file_name']
+
+                self._logger.debug("{func} - id |{id}| - file_name |{file}|".format(func="_purge_old_backups",
+                                                                                    id=backup_id,
+                                                                                    file=file_name))
+                self.delete_backup(backup_id)
+
+    def get_backup_details(self, _id):
+        """ Retrieves information for a specific backup
+
+        Args:
+            _id: Backup id to retrieve
+        Returns:
+            backup_information: information related to the requested backup
+        Raises:
+            exceptions.DoesNotExist
+        """
+
+        payload = payload_builder.PayloadBuilder() \
+            .WHERE(['id', '=', _id]) \
+            .payload()
+
+        backup_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        if backup_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+
+        elif backup_from_storage['count'] == 1:
+
+            backup_information = backup_from_storage['rows'][0]
+        else:
+            raise exceptions.NotUniqueBackup
+
+        return backup_information
+
+    def delete_backup(self, _id):
+        """ Deletes a specific backup
+
+        Args:
+            _id: Backup id to delete
+        Returns:
+        Raises:
+        """
+
+        try:
+            backup_information = self.get_backup_details(_id)
+
+            file_name = backup_information['file_name']
+
+            # Deletes backup file from the file system
+            if os.path.exists(file_name):
+
+                try:
+                    os.remove(file_name)
+
+                except Exception as _ex:
+                    _message = self._MESSAGES_LIST["e000004"].format(_id, file_name, _ex)
+                    self._logger.warning(_message)
+
+            # Deletes backup information from the Storage layer
+            # only if it was possible to delete the file from the file system
+            self._delete_backup_information(_id, file_name)
+
+        except exceptions.DoesNotExist:
+            _message = self._MESSAGES_LIST["e000009"].format(_id)
+            self._logger.warning(_message)
+
+    def _delete_backup_information(self, _id, _file_name):
+        """ Deletes backup information from the Storage layer
+
+        Args:
+            _id: Backup id to delete
+            _file_name: file name to delete
+        Returns:
+        Raises:
+        """
+
+        try:
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['id', '=', _id]) \
+                .payload()
+
+            self._storage.delete_from_tbl(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        except Exception as _ex:
+            _message = self._MESSAGES_LIST["e000005"].format(_id, _file_name, _ex)
+            self._logger.warning(_message)
+
+    def _exec_backup(self, _backup_file):
+        """ Backups the entire FogLAMP repository into a file in the local file system
+
+        Args:
+            _backup_file: backup file to create  as a full path
+        Returns:
+            _status: status of the backup
+            _exit_code: exit status of the operation, 0=Successful
+        Raises:
+        """
+
+        self._logger.debug("{func} - file_name |{file}|".format(func="_exec_backup", file=_backup_file))
+
+        # Prepares the backup command
+        cmd = "pg_dump"
+        cmd += " --serializable-deferrable -Fc  "
+        cmd += " -h {host} -p {port} {db} > {file}".format(
+            host=self._config['host'],
+            port=self._config['port'],
+            db=self._config['database'],
+            file=_backup_file)
+
+        # Executes the backup waiting for the completion and using a retry mechanism
+        # noinspection PyArgumentEqualDefault
+        _exit_code, output = lib.exec_wait_retry(cmd,
+                                                 output_capture=True,
+                                                 exit_code_ok=0,
+                                                 max_retry=self._config['max_retry'],
+                                                 timeout=self._config['timeout']
+                                                 )
+
+        if _exit_code == 0:
+            _status = lib.BACKUP_STATUS_SUCCESSFUL
+        else:
+            _status = lib.BACKUP_STATUS_FAILED
+
+        self._logger.debug("{func} - status |{status}| - exit_code |{exit_code}| "
+                           "- cmd |{cmd}|  output |{output}| ".format(
+                                                                        func="_exec_backup",
+                                                                        status=_status,
+                                                                        exit_code=_exit_code,
+                                                                        cmd=cmd,
+                                                                        output=output))
+
+        return _status, _exit_code
 
     def shutdown(self):
         """ Sets the correct state to terminate the execution
@@ -189,6 +419,8 @@ class Backup(FoglampProcess):
         """
 
         self._logger.debug("{func}".format(func="shutdown"))
+
+        self._job.set_as_completed(lib.JOB_SEM_FILE_BACKUP)
 
     def _retrieve_configuration_from_manager(self):
         """" Retrieves the configuration from the configuration manager
@@ -213,6 +445,7 @@ class Backup(FoglampProcess):
         self._config['database'] = self._config_from_manager['database']['value']
         self._config['backup_dir'] = self._config_from_manager['backup_dir']['value']
         self._config['retention'] = int(self._config_from_manager['retention']['value'])
+        self._config['max_retry'] = int(self._config_from_manager['max_retry']['value'])
         self._config['timeout'] = int(self._config_from_manager['timeout']['value'])
 
     def _retrieve_configuration_from_file(self):
@@ -231,6 +464,7 @@ class Backup(FoglampProcess):
         self._config['database'] = config_file['DEFAULT']['database']
         self._config['backup_dir'] = config_file['DEFAULT']['backup_dir']
         self._config['retention'] = int(config_file['DEFAULT']['retention'])
+        self._config['max_retry'] = int(config_file['DEFAULT']['max_retry'])
         self._config['timeout'] = int(config_file['DEFAULT']['timeout'])
 
     def _update_configuration_file(self):
@@ -248,6 +482,7 @@ class Backup(FoglampProcess):
         config_file['DEFAULT']['database'] = self._config['database']
         config_file['DEFAULT']['backup_dir'] = self._config['backup_dir']
         config_file['DEFAULT']['retention'] = str(self._config['retention'])
+        config_file['DEFAULT']['max_retry'] = str(self._config['max_retry'])
         config_file['DEFAULT']['timeout'] = str(self._config['timeout'])
 
         with open(self._CONFIG_FILE, 'w') as file:
@@ -278,9 +513,21 @@ class Backup(FoglampProcess):
                 _message = self._MESSAGES_LIST["e000003"].format(_ex)
                 self._logger.error(_message)
 
-                raise exceptions.ConfigRetrievalError(ex)
+                raise exceptions.ConfigRetrievalError
         else:
             self._update_configuration_file()
+
+    def create_backup(self):
+        """  Creates/Executes a new backup
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        self.init()
+        self.run()
+        self.shutdown()
 
 
 if __name__ == "__main__":
@@ -315,7 +562,6 @@ if __name__ == "__main__":
 
     # Executes the backup
     try:
-        # FIXME: To be removed
         # noinspection PyProtectedMember
         _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
             module=_MODULE_NAME,
@@ -323,15 +569,10 @@ if __name__ == "__main__":
             addr=backup._core_management_host,
             port=backup._core_management_port))
 
-        exit_value = 1
-
-        backup.init()
-        backup.run()
-        exit_value = 0
-        backup.shutdown()
+        backup.create_backup()
 
         _logger.info(_MESSAGES_LIST["i000002"])
-        sys.exit(exit_value)
+        sys.exit(0)
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)

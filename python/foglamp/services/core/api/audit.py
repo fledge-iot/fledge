@@ -87,8 +87,8 @@ async def get_audit_entries(request):
         total_count_payload = json.dumps(d)
 
         # SELECT count (*) FROM log <_and_where_payload>
-        storage = connect.get_storage()
-        result = storage.query_tbl_with_payload('log', total_count_payload)
+        storage_client = connect.get_storage()
+        result = storage_client.query_tbl_with_payload('log', total_count_payload)
         total_count = result['rows'][0]['count']
 
         payload.ORDER_BY(['ts', 'desc'])
@@ -98,7 +98,7 @@ async def get_audit_entries(request):
             payload.OFFSET(int(offset))
 
         # SELECT * FROM log <payload.payload()>
-        results = storage.query_tbl_with_payload('log', payload.payload())
+        results = storage_client.query_tbl_with_payload('log', payload.payload())
         res = []
         for row in results['rows']:
             r = dict()
@@ -129,8 +129,8 @@ async def get_audit_log_codes(request):
 
         curl -X GET http://localhost:8081/foglamp/audit/logcode
     """
-    storage = connect.get_storage()
-    result = storage.query_tbl('log_codes')
+    storage_client = connect.get_storage()
+    result = storage_client.query_tbl('log_codes')
 
     return web.json_response({'log_code': result['rows']})
 

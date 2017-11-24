@@ -83,7 +83,7 @@ class TestInstance:
     async def test_get(self):
         s = Service.Instances.register("StorageService", "Storage", "localhost", 8881, 1888)
         c = Service.Instances.register("CoreService", "Core", "localhost", 7771, 1777)
-        d = Service.Instances.register("DeviceService", "Device", "127.0.0.1", 9991, 1999, "https")
+        d = Service.Instances.register("DeviceService", "Southbound", "127.0.0.1", 9991, 1999, "https")
 
         l = Service.Instances.get()
         assert 3 == len(l)
@@ -108,7 +108,7 @@ class TestInstance:
 
         assert d == l[2]._id
         assert "DeviceService" == l[2]._name
-        assert "Device" == l[2]._type
+        assert "Southbound" == l[2]._type
         assert "127.0.0.1" == l[2]._address
         assert 9991 == int(l[2]._port)
         assert 1999 == int(l[2]._management_port)

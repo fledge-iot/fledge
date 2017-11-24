@@ -114,8 +114,7 @@ class HttpSouthIngest(object):
 
         Args:
             request:
-                The payload is a cbor-encoded array that decodes to JSON
-                similar to the following:
+                The payload decodes to JSON similar to the following:
 
                 .. code-block:: python
 

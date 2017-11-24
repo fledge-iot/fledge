@@ -61,14 +61,16 @@ class TestTask:
     @classmethod
     def setup_class(cls):
         asyncio.get_event_loop().run_until_complete(add_master_data())
-        from subprocess import call
-        call(["scripts/foglamp", "start"])
+        # TODO: Separate test db from a production/dev db as other running tasks interfere in the test execution
+        # from subprocess import call
+        # call(["scripts/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
         time.sleep(30)
 
     @classmethod
     def teardown_class(cls):
+        # TODO: Separate test db from a production/dev db as other running tasks interfere in the test execution
         # TODO: Figure out how to do a "foglamp stop" in the new dir structure
         # from subprocess import call
         # call(["scripts/foglamp", "stop"])

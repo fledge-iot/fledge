@@ -56,7 +56,7 @@ def plugin_init(config):
     _LOGGER.info("Retrieve HTTP Listener Configuration %s", config)
 
     host = config['host']['value']
-    port = config['port']['value']  # Make port dynamic? its unattended env! expose as service port?
+    port = config['port']['value']
     uri = config['uri']['value']
 
     return {'host': host, 'port': port, 'uri': uri}

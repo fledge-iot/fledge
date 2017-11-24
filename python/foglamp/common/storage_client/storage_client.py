@@ -233,11 +233,11 @@ class StorageClient(AbstractStorage):
         if r.status in range(400, 500):
             _LOGGER.error("PUT %s: Client error code: %d", put_url, r.status)
             _LOGGER.error("PUT %s: %s", put_url, jdoc['message'])
-            _LOGGER.error("Request payload: %s", data);
+            _LOGGER.error("Request payload: %s", data)
         if r.status in range(500, 600):
             _LOGGER.error("PUT %s Server error code: %d", put_url, r.status)
         conn.close()
-        return jdoc;
+        return jdoc
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table

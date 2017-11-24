@@ -59,8 +59,9 @@ class TestScheduler:
 
     @classmethod
     def teardown_class(cls):
-        from subprocess import call
-        call(["scripts/foglamp", "stop"])
+        # TODO: Figure out how to do a "foglamp stop" in the new dir structure
+        # from subprocess import call
+        # call(["scripts/foglamp", "stop"])
         time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 

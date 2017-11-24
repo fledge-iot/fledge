@@ -27,6 +27,8 @@ _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 #       1) Do 'foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
 #       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit-tests/python/foglamp_test/services/core/test_scheduler.py
+
+# TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = '0.0.0.0'
 _m_port = 41449
 
@@ -67,7 +69,6 @@ class TestScheduler:
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler) -> None:
         """stop the schedule process - called at the end of each test"""
-        print("Stopping Scheduler from Test")
         while True:
             try:
                 await scheduler.stop()  # Call the stop command
@@ -81,7 +82,6 @@ class TestScheduler:
         await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
 
         scheduler = Scheduler(_address, _m_port)
-        print(scheduler, _address, _m_port)
         await scheduler.start()
 
         # Set schedule interval
@@ -585,7 +585,6 @@ class TestScheduler:
         tasks = await scheduler.get_tasks(
             where=["state", "=", int(Task.State.RUNNING)],
             sort=[["state", "desc"]], offset=50)
-        print(tasks)
         assert not tasks
 
         tasks = await scheduler.get_tasks(

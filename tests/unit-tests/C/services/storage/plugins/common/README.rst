@@ -10,7 +10,7 @@ Install with:
     cd /usr/src/gtest
     cmake CMakeLists.txt
     sudo make
-    sudo cp \*.a /usr/lib
+    sudo make install
 
 To build the unit test:
 ::

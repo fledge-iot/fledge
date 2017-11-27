@@ -16,8 +16,8 @@ retrieving the parameters for the execution from the local file 'configuration.i
 import time
 import sys
 import asyncio
-import configparser
 import os
+import json
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
@@ -50,7 +50,29 @@ _MESSAGES_LIST = {
 _logger = {}
 
 
-class Backup(FoglampProcess):
+class Backup(object):
+    """ Backup API integration
+
+    # CURRENTLY NOT IMPLEMENTED !!
+    """
+
+    # noinspection PyUnusedLocal
+    def get_backup_list(self, limit, skip, status):
+        """  Retrieves backups information
+
+        Args:
+            limit: maximum number of backups information to retrieve
+            skip: TBD - # FIXME:
+            status: BACKUP_STATUS_UNDEFINED= retrieves the information for all the backups state
+                    or for a specific state only
+        Returns:
+        Raises:
+        """
+
+        pass
+
+
+class BackupProcess(FoglampProcess):
     """ Backups the entire FogLAMP repository into a file in the local filesystem,
         it executes a full warm backup
     """
@@ -75,11 +97,15 @@ class Backup(FoglampProcess):
         "e000007": "Backup failed.",
         "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
         "e000009": "cannot retrieve information for the backup id |{0}|",
+        "e000010": "Directory used to store backups doesn't exist - dir |{0}|",
+        "e000011": "Directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
 
-    # FIXME:
-    _CONFIG_FILE = "/home/foglamp/Development/FogLAMP/python/foglamp/tasks/backup_restore/configuration.ini"
+    # FIXME: to be changed in $FOGLAMP_DATA/etc/backup_configuration_cache.json -
+    #        or $FOGLAMP_ROOT/etc/backup_configuration_cache.json if $FOGLAMP_DATA does not exists
+    _CONFIG_FILE = "/tmp/configuration_cache.json"
+    """ Stores a configuration cache in case the configuration Manager is not available"""
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'BACK_REST'
@@ -105,7 +131,13 @@ class Backup(FoglampProcess):
         "backup_dir": {
             "description": "Directory where the backups will be created.",
             "type": "string",
-            "default": "/tmp/test"
+            "default": "/tmp"
+        },
+        # FIXME:
+        "semaphores_dir": {
+            "description": "Directory used to store semaphores for backup/restore synchronization.",
+            "type": "string",
+            "default": "/tmp"
         },
         "retention": {
             "description": "Number of backups to maintain, old ones will be deleted.",
@@ -130,6 +162,7 @@ class Backup(FoglampProcess):
 
         try:
             # FIXME:
+            # self._logger = logger.setup(self._MODULE_NAME)
             self._logger = logger.setup(self._MODULE_NAME,
                                         destination=logger.CONSOLE,
                                         level=logging.DEBUG)
@@ -183,6 +216,24 @@ class Backup(FoglampProcess):
 
         self._retrieve_configuration()
 
+        # Checks backups/semaphores directories existences
+        if not os.path.isdir(self._config['backup_dir']):
+
+            _message = self._MESSAGES_LIST["e000010"].format(self._config['backup_dir'])
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.BackupsDirDoesNotExist
+
+        if not os.path.isdir(self._config['semaphores_dir']):
+
+            _message = self._MESSAGES_LIST["e000011"].format(self._config['semaphores_dir'])
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.SemaphoresDirDoesNotExist
+        else:
+            lib.JOB_SEM_FILE_PATH = self._config['semaphores_dir']
+
+        # Checks for backup/restore synchronization
         pid = self._job.is_running()
         if pid == 0:
 
@@ -267,7 +318,8 @@ class Backup(FoglampProcess):
 
         # Evaluates which backup should be deleted
         backups_n = len(backups_info)
-        last_to_delete = backups_n - self._config['retention']
+        # -1 so at the end of the current backup up to 'retention' backups will be available
+        last_to_delete = backups_n - (self._config['retention'] - 1)
 
         if last_to_delete > 0:
 
@@ -439,14 +491,26 @@ class Backup(FoglampProcess):
         self._config_from_manager = self._event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                                         (self._CONFIG_CATEGORY_NAME))
 
-        self._config['host'] = self._config_from_manager['host']['value']
+        self._decode_configuration_from_manager(self._config_from_manager)
 
-        self._config['port'] = int(self._config_from_manager['port']['value'])
-        self._config['database'] = self._config_from_manager['database']['value']
-        self._config['backup_dir'] = self._config_from_manager['backup_dir']['value']
-        self._config['retention'] = int(self._config_from_manager['retention']['value'])
-        self._config['max_retry'] = int(self._config_from_manager['max_retry']['value'])
-        self._config['timeout'] = int(self._config_from_manager['timeout']['value'])
+    def _decode_configuration_from_manager(self, _config_from_manager):
+        """" Decodes a json configuration as generated by the configuration manager
+
+        Args:
+            _config_from_manager: Json configuration to decode
+        Returns:
+        Raises:
+        """
+
+        self._config['host'] = _config_from_manager['host']['value']
+
+        self._config['port'] = int(_config_from_manager['port']['value'])
+        self._config['database'] = _config_from_manager['database']['value']
+        self._config['backup_dir'] = _config_from_manager['backup_dir']['value']
+        self._config['semaphores_dir'] = _config_from_manager['semaphores_dir']['value']
+        self._config['retention'] = int(_config_from_manager['retention']['value'])
+        self._config['max_retry'] = int(_config_from_manager['max_retry']['value'])
+        self._config['timeout'] = int(_config_from_manager['timeout']['value'])
 
     def _retrieve_configuration_from_file(self):
         """" Retrieves the configuration from the local file
@@ -456,16 +520,10 @@ class Backup(FoglampProcess):
         Raises:
         """
 
-        config_file = configparser.ConfigParser()
-        config_file.read(self._CONFIG_FILE)
+        with open(self._CONFIG_FILE) as file:
+            self._config_from_manager = json.load(file)
 
-        self._config['host'] = config_file['DEFAULT']['host']
-        self._config['port'] = int(config_file['DEFAULT']['port'])
-        self._config['database'] = config_file['DEFAULT']['database']
-        self._config['backup_dir'] = config_file['DEFAULT']['backup_dir']
-        self._config['retention'] = int(config_file['DEFAULT']['retention'])
-        self._config['max_retry'] = int(config_file['DEFAULT']['max_retry'])
-        self._config['timeout'] = int(config_file['DEFAULT']['timeout'])
+        self._decode_configuration_from_manager(self._config_from_manager)
 
     def _update_configuration_file(self):
         """ Updates the configuration file with the values retrieved from tha manager.
@@ -475,18 +533,8 @@ class Backup(FoglampProcess):
         Raises:
         """
 
-        config_file = configparser.ConfigParser()
-
-        config_file['DEFAULT']['host'] = self._config['host']
-        config_file['DEFAULT']['port'] = str(self._config['port'])
-        config_file['DEFAULT']['database'] = self._config['database']
-        config_file['DEFAULT']['backup_dir'] = self._config['backup_dir']
-        config_file['DEFAULT']['retention'] = str(self._config['retention'])
-        config_file['DEFAULT']['max_retry'] = str(self._config['max_retry'])
-        config_file['DEFAULT']['timeout'] = str(self._config['timeout'])
-
         with open(self._CONFIG_FILE, 'w') as file:
-            config_file.write(file)
+            json.dump(self._config_from_manager, file)
 
     def _retrieve_configuration(self):
         """  Retrieves the configuration either from the manager or from a local file.
@@ -551,7 +599,7 @@ if __name__ == "__main__":
 
     # Initializes FoglampProcess and Backup classes - handling the command line parameters
     try:
-        backup = Backup()
+        backup = BackupProcess()
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)

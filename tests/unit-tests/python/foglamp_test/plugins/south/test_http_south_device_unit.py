@@ -17,6 +17,9 @@ from multidict import CIMultiDict
 from foglamp.plugins.south.http_south.http_south import HttpSouthIngest
 from foglamp.plugins.south.coap_listen.coap_listen import Ingest
 
+pytestmark = pytest.mark.asyncio
+
+
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -45,7 +48,6 @@ class TestHttpSouthDeviceUnit(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """
 
-    @pytest.mark.asyncio
     async def test_post_sensor_reading_ok(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
@@ -69,8 +71,7 @@ class TestHttpSouthDeviceUnit(object):
                 assert 'success' == retval['result']
 
 
-    @pytest.mark.asyncio
-    async def test_post_sensor_reading_bad_1(self):
+    async def test_post_sensor_reading_missing_demiliter(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor1",
@@ -87,14 +88,12 @@ class TestHttpSouthDeviceUnit(object):
                 request = mock_request(data)
                 r = await HttpSouthIngest.render_post(request)
                 retval = json.loads(r.body.decode())
-                print(retval)
                 # Assert the POST request response
                 assert 400 == retval['status']
                 assert retval['error'].startswith("Expecting ',' delimiter:")
 
 
-    @pytest.mark.asyncio
-    async def test_post_sensor_reading_bad_2(self):
+    async def test_post_sensor_reading_not_dict(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor2",
@@ -106,7 +105,6 @@ class TestHttpSouthDeviceUnit(object):
                 request = mock_request(data)
                 r = await HttpSouthIngest.render_post(request)
                 retval = json.loads(r.body.decode())
-                print(retval)
                 # Assert the POST request response
                 assert 400 == retval['status']
                 assert "readings must be a dictionary" == retval['error']

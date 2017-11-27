@@ -20,7 +20,7 @@ headers = {"Content-Type": 'application/json'}
 
 @pytest.allure.story("device")
 class TestIngestReadings(object):
-    """Unit tests for foglamp.device.coap.IngestReadings
+    """Integration tests for foglamp.device.coap.IngestReadings
     """
 
     def test_post_sensor_reading_ok(self):
@@ -104,6 +104,7 @@ class TestIngestReadings(object):
         retval = dict(r.json())
 
         # Assert the POST request response
+        # TODO: Check why code is considering it ok and returns 200 instead of 400
         assert 200 == retval['status']
         assert 'success' == retval['result']
 

@@ -31,7 +31,7 @@ async def add_master_data():
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('testsleep30', '["../scripts/sleep.py", "30"]')''')
+        values('testsleep30', '["python3", "../scripts/sleep.py", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
     await conn.close()
@@ -62,8 +62,10 @@ class TestTask:
     def setup_class(cls):
         asyncio.get_event_loop().run_until_complete(add_master_data())
         # TODO: Separate test db from a production/dev db as other running tasks interfere in the test execution
-        # from subprocess import call
-        # call(["scripts/foglamp", "start"])
+        # Starting foglamp from within test is mandatory, otherwise test scheduled_processes are not added to the
+        # server if started externally.
+        from subprocess import call
+        call(["scripts/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
         time.sleep(30)
@@ -74,7 +76,7 @@ class TestTask:
         # TODO: Figure out how to do a "foglamp stop" in the new dir structure
         # from subprocess import call
         # call(["scripts/foglamp", "stop"])
-        time.sleep(10)
+        # time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 
     def _schedule_task(self, data):
@@ -93,7 +95,7 @@ class TestTask:
     # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
 
-    @pytest.mark.run(order=1)
+    @pytest.mark.asyncio
     async def test_cancel_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_task_1", "process_name": "testsleep30", "repeat": "3600"}
@@ -131,7 +133,7 @@ class TestTask:
         await delete_tasks_data(schedule_id)
 
 
-    @pytest.mark.run(order=2)
+    @pytest.mark.asyncio
     async def test_get_tasks_latest(self):
         # First create two schedules to get the schedule_id
         data = {"type": 3, "name": "test_get_task2a", "process_name": "testsleep30", "repeat": 2}
@@ -162,7 +164,7 @@ class TestTask:
         await delete_tasks_data(schedule_id2)
 
 
-    @pytest.mark.run(order=3)
+    @pytest.mark.asyncio
     async def test_get_tasks(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task3", "process_name": "echo_test", "repeat": 2}
@@ -183,7 +185,7 @@ class TestTask:
         await delete_tasks_data(schedule_id)
 
 
-    @pytest.mark.run(order=4)
+    @pytest.mark.asyncio
     async def test_get_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task4", "process_name": "testsleep30", "repeat": 200}

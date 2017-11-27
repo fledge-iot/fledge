@@ -17,7 +17,6 @@ fi
 # We run the Python code from the python directory
 cd "${FOGLAMP_ROOT}/python"
 
-# Restore wrapper to avoid its termination at the FogLAMP stop
+# Avoid FogLAMP termination at the FogLAMP stop
 command="python3 -m foglamp.tasks.backup_restore.restore $@"
-
 nohup $command </dev/null >/dev/null 2>&1 &

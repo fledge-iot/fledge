@@ -32,7 +32,16 @@ class NotUniqueBackup(Exception):
     pass
 
 
+class BackupsDirDoesNotExist(Exception):
+    """ Directory used to store backups doesn't exist """
+    pass
+
+
+class SemaphoresDirDoesNotExist(Exception):
+    """ Directory used to store semaphores for backup/restore synchronization doesn't exist """
+    pass
+
+
 class DoesNotExist(Exception):
     """ The requested backup id doesn't exist """
     pass
-

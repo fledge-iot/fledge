@@ -56,8 +56,8 @@ BACKUP_STATUS_FAILED = 5
 BACKUP_STATUS_RESTORED = 6
 """" Backup status"""
 
-# FIXME:
-_JOB_SEM_FILE_PATH = "/tmp/test"
+JOB_SEM_FILE_PATH = "/tmp"
+""" Updated by the caller retrieving from the configuration manager """
 JOB_SEM_FILE_BACKUP = "backup.sem"
 JOB_SEM_FILE_RESTORE = "restore.sem"
 """" Semaphores information for the handling of the backup/restore synchronization """
@@ -101,9 +101,7 @@ def exec_wait(_cmd, _output_capture=False, _timeout=0):
 
     if _output_capture:
         output_step1 = process.stdout.read()
-        output_step2 = output_step1.decode("utf-8")
-        # FIXME: TBD
-        _output = output_step2.replace("\n", "\n\r")
+        _output = output_step1.decode("utf-8")
 
     return _exit_code, _output
 
@@ -237,7 +235,7 @@ def backup_status_update(_id, _status, _exit_code):
     Todo:
     """
 
-    _logger.debug("{func} - file name |{file}| ".format(func="backup_status_update", file=_id))
+    _logger.debug("{func} - id |{file}| ".format(func="backup_status_update", file=_id))
 
     payload = payload_builder.PayloadBuilder() \
         .SET(state=_status,
@@ -327,17 +325,15 @@ class Job:
         Raises:
         """
 
-        # FIXME: _JOB_SEM_FILE_PATH from config manager
-
         _logger.debug("{func}".format(func="is_running"))
 
         # Checks if a backup process is still running
-        full_path_backup = _JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_BACKUP
+        full_path_backup = JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_BACKUP
         pid = cls._check_semaphore_file(full_path_backup)
 
         # Checks if a restore process is still running
         if pid == 0:
-            full_path_restore = _JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_RESTORE
+            full_path_restore = JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_RESTORE
             pid = cls._check_semaphore_file(full_path_restore)
 
         return pid
@@ -355,7 +351,7 @@ class Job:
 
         _logger.debug("{func}".format(func="set_as_running"))
 
-        full_path = _JOB_SEM_FILE_PATH + "/" + file_name
+        full_path = JOB_SEM_FILE_PATH + "/" + file_name
 
         if os.path.exists(full_path):
 
@@ -378,7 +374,7 @@ class Job:
 
         _logger.debug("{func}".format(func="set_as_completed"))
 
-        full_path = _JOB_SEM_FILE_PATH + "/" + file_name
+        full_path = JOB_SEM_FILE_PATH + "/" + file_name
 
         if os.path.exists(full_path):
             os.remove(full_path)

@@ -9,8 +9,6 @@
 import requests
 import pytest
 
-pytestmark = pytest.mark.asyncio
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -25,7 +23,7 @@ class TestIngestReadings(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """
 
-    async def test_post_sensor_reading_ok(self):
+    def test_post_sensor_reading_ok(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor1",
@@ -47,7 +45,7 @@ class TestIngestReadings(object):
         assert 'success' == retval['result']
 
 
-    async def test_missing_timestamp(self):
+    def test_missing_timestamp(self):
         data =  """{
             "asset": "sensor1",
             "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
@@ -68,7 +66,7 @@ class TestIngestReadings(object):
         assert retval['error'].startswith('timestamp can not be None')
 
 
-    async def test_missing_asset(self):
+    def test_missing_asset(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
@@ -89,7 +87,7 @@ class TestIngestReadings(object):
         assert retval['error'].startswith('asset can not be None')
 
 
-    async def test_missing_key(self):
+    def test_missing_key(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor1",
@@ -110,7 +108,7 @@ class TestIngestReadings(object):
         assert 'success' == retval['result']
 
 
-    async def test_missing_reading(self):
+    def test_missing_reading(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor1",
@@ -125,7 +123,7 @@ class TestIngestReadings(object):
         assert retval['error'].startswith('readings must be a dictionary')
 
 
-    async def test_post_sensor_reading_readings_not_dict(self):
+    def test_post_sensor_reading_readings_not_dict(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor2",
@@ -141,7 +139,7 @@ class TestIngestReadings(object):
         assert retval['error'].startswith('readings must be a dictionary')
 
 
-    async def test_post_sensor_reading_bad_delimiter(self):
+    def test_post_sensor_reading_bad_delimiter(self):
         data =  """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor1",

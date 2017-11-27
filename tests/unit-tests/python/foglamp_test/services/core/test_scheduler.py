@@ -30,7 +30,7 @@ _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = '0.0.0.0'
-_m_port = 41449
+_m_port = 45004
 
 
 @pytest.allure.feature("unit")

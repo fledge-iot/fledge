@@ -62,7 +62,7 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = '0.0.0.0'
-_m_port = 41449
+_m_port = 45004
 scheduler = Scheduler(_address, _m_port)
 
 @pytest.allure.feature("unit")

@@ -36,23 +36,26 @@ async def add_master_data():
         values('testsleep30', '["python3", "../scripts/sleep.py", "30"]')''')
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
+    await conn.execute(''' COMMIT''')
     await conn.close()
-    await asyncio.sleep(14)
+    await asyncio.sleep(4)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' COMMIT''')
     await conn.close()
-    await asyncio.sleep(14)
+    await asyncio.sleep(4)
 
 async def delete_method_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' COMMIT''')
     await conn.close()
-    await asyncio.sleep(14)
+    await asyncio.sleep(4)
 
 
 @pytest.allure.feature("api")
@@ -68,7 +71,7 @@ class TestTask:
         call(["scripts/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
-        time.sleep(30)
+        time.sleep(20)
 
     @classmethod
     def teardown_class(cls):
@@ -140,7 +143,7 @@ class TestTask:
         data = {"type": 3, "name": "test_get_task2a", "process_name": "testsleep30", "repeat": 2}
         schedule_id1 = self._schedule_task(data)
 
-        data = {"type": 3, "name": "test_get_task2b", "process_name": "echo_test", "repeat": 5}
+        data = {"type": 3, "name": "test_get_task2b", "process_name": "echo_test", "repeat": 10}
         schedule_id2 = self._schedule_task(data)
 
         # Allow multiple tasks to be created
@@ -175,7 +178,8 @@ class TestTask:
 
         assert 200 == rr.status_code
         list_tasks = [tasks['process_name'] for tasks in retvall['tasks']]
-        assert list_tasks.count(data['process_name']) == 3
+        # Due to async processing, ascertining exact no. of tasks is not possible
+        assert list_tasks.count(data['process_name']) >= 3
 
 
     async def test_get_task(self):

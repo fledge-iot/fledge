@@ -12,6 +12,8 @@ import requests
 import pytest
 import asyncio
 
+pytestmark = pytest.mark.asyncio
+
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -35,7 +37,7 @@ async def add_master_data():
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
     await conn.close()
-    await asyncio.sleep(4)
+    await asyncio.sleep(14)
 
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -43,16 +45,14 @@ async def delete_master_data():
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
     await conn.close()
-    await asyncio.sleep(4)
+    await asyncio.sleep(14)
 
-async def delete_tasks_data(schedule_id):
-    # Get all the schedules
-    r = requests.delete(BASE_URL + '/schedule/' + schedule_id)
-
+async def delete_method_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
+    await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.close()
-    await asyncio.sleep(4)
+    await asyncio.sleep(14)
 
 
 @pytest.allure.feature("api")
@@ -79,6 +79,12 @@ class TestTask:
         # time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 
+    def setup_method(self):
+        pass
+
+    def teardown_method(self):
+        asyncio.get_event_loop().run_until_complete(delete_method_data())
+
     def _schedule_task(self, data):
         r = requests.post(BASE_URL + '/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
@@ -95,7 +101,6 @@ class TestTask:
     # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
 
-    @pytest.mark.asyncio
     async def test_cancel_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_task_1", "process_name": "testsleep30", "repeat": "3600"}
@@ -129,11 +134,7 @@ class TestTask:
         assert retval['id'] == task_id
         assert retval['state'] == 'CANCELED'
 
-        # Clear the local test data
-        await delete_tasks_data(schedule_id)
 
-
-    @pytest.mark.asyncio
     async def test_get_tasks_latest(self):
         # First create two schedules to get the schedule_id
         data = {"type": 3, "name": "test_get_task2a", "process_name": "testsleep30", "repeat": 2}
@@ -159,12 +160,7 @@ class TestTask:
         assert retval['tasks'][1]['process_name'] == 'testsleep30'
         assert retval['tasks'][0]['process_name'] == 'echo_test'
 
-        # Clear the local test data
-        await delete_tasks_data(schedule_id1)
-        await delete_tasks_data(schedule_id2)
 
-
-    @pytest.mark.asyncio
     async def test_get_tasks(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task3", "process_name": "echo_test", "repeat": 2}
@@ -181,11 +177,7 @@ class TestTask:
         list_tasks = [tasks['process_name'] for tasks in retvall['tasks']]
         assert list_tasks.count(data['process_name']) == 3
 
-        # Clear the local test data
-        await delete_tasks_data(schedule_id)
 
-
-    @pytest.mark.asyncio
     async def test_get_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task4", "process_name": "testsleep30", "repeat": 200}
@@ -205,6 +197,3 @@ class TestTask:
 
         assert 200 == r.status_code
         assert retval['id'] == task_id
-
-        # Clear the local test data
-        await delete_tasks_data(schedule_id)

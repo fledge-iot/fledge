@@ -13,6 +13,9 @@ import asyncio
 import uuid
 from foglamp.services.core.scheduler.scheduler import Schedule
 
+pytestmark = pytest.mark.asyncio
+
+
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -45,7 +48,6 @@ async def delete_master_data():
     await conn.close()
     await asyncio.sleep(14)
 
-# TODO: Figure out how to add this to async test cleanup section
 async def delete_method_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
@@ -78,6 +80,12 @@ class TestScheduler:
         # time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 
+    def setup_method(self):
+        pass
+
+    def teardown_method(self):
+        asyncio.get_event_loop().run_until_complete(delete_method_data())
+
     def _create_schedule(self, data):
         r = requests.post(BASE_URL + '/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
@@ -87,7 +95,6 @@ class TestScheduler:
     # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
 
-    @pytest.mark.asyncio
     async def test_get_scheduled_processes(self):
         await add_master_data()
         r = requests.get(BASE_URL+'/schedule/process')
@@ -98,14 +105,12 @@ class TestScheduler:
         assert 'testsleep30' in retval['processes']
         assert 'echo_test' in retval['processes']
 
-    @pytest.mark.asyncio
     async def test_get_scheduled_process(self):
         r = requests.get(BASE_URL+'/schedule/process/testsleep30')
 
         assert 200 == r.status_code
         assert 'testsleep30' == r.json()
 
-    @pytest.mark.asyncio
     async def test_post_schedule(self):
         await add_master_data()
         data = {"type": 3, "name": "test_post_sch", "process_name": "testsleep30", "repeat": 3600}
@@ -128,9 +133,7 @@ class TestScheduler:
         assert 200 == r.status_code
         retvall = dict(r.json())
         assert retvall['name'] == data['name']
-        await delete_method_data()
 
-    @pytest.mark.asyncio
     async def test_update_schedule(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_update_sch", "process_name": "testsleep30", "repeat": 3600}
@@ -152,9 +155,7 @@ class TestScheduler:
         assert retval['schedule']['repeat'] == 91234
         assert retval['schedule']['name'] == up_data['name']
         assert retval['schedule']['type'] == Schedule.Type(int(up_data['type'])).name
-        await delete_method_data()
 
-    @pytest.mark.asyncio
     async def test_delete_schedule(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_delete_sch", "process_name": "testsleep30", "repeat": 3600}
@@ -174,9 +175,7 @@ class TestScheduler:
         assert 200 == r.status_code
         retvall = dict(r.json())
         assert 'Schedule not found' in retvall['error']['message']
-        await delete_method_data()
 
-    @pytest.mark.asyncio
     async def test_get_schedule(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_sch", "process_name": "testsleep30", "repeat": 3600}
@@ -195,9 +194,7 @@ class TestScheduler:
         assert retval['process_name'] == data['process_name']
         assert retval['repeat'] == 3600
         assert retval['name'] == data['name']
-        await delete_method_data()
 
-    @pytest.mark.asyncio
     async def test_get_schedules(self):
         # First create two schedules to get the schedule_id
         data1 = {"type": 3, "name": "test_get_schA", "process_name": "testsleep30", "repeat": 3600}
@@ -217,9 +214,7 @@ class TestScheduler:
         ids = [schedules['id'] for schedules in retval['schedules']]
         assert schedule_id1 in ids
         assert schedule_id2 in ids
-        await delete_method_data()
 
-    @pytest.mark.asyncio
     async def test_start_schedule(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_start_sch", "process_name": "testsleep30", "repeat": "30"}
@@ -245,4 +240,3 @@ class TestScheduler:
             if tasks['process_name'] == data['process_name']:
                 l_task_state.append(tasks['state'])
         assert 1 == l_task_state.count('RUNNING')
-        await delete_method_data()

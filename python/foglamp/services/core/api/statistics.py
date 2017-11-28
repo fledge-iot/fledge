@@ -105,5 +105,5 @@ async def get_statistics_history(request):
     # Append the last set of records which do not get appended above
     results.append(temp_dict)
 
-    # TODO: find out where from this "interval" will be picked and what will be its role in query?
-    return web.json_response({"interval": 5, 'statistics': results})
+    # TODO: find this "interval" from statistics task schedule
+    return web.json_response({"interval": 15, 'statistics': results})

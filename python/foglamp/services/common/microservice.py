@@ -52,18 +52,15 @@ class FoglampMicroservice(FoglampProcess):
         try:
             self._make_microservice_management_app()
         except Exception:
-            #_LOGGER.exception("Unable to create microservice management app")
             raise
         try:
             loop = asyncio.get_event_loop()
             self._run_microservice_management_app(loop)
         except Exception:
-            #_LOGGER.exception("Unable to run microservice management app")
             raise
         try:
             self.register_service(self._get_service_registration_payload())
         except Exception:
-            #_LOGGER.exception("Unable to register")
             raise
 
     def _make_microservice_management_app(self):
@@ -81,9 +78,6 @@ class FoglampMicroservice(FoglampProcess):
         self._microservice_management_server = loop.run_until_complete(core)
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()
-        #_LOGGER.info('Device - Management API started on http://%s:%s',
-        #             self._microservice_management_host,
-        #             self._microservice_management_port)
 
 
     @classmethod

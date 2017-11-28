@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+"""Common FoglampMicroservice Class"""
 
 import asyncio
 from aiohttp import web
@@ -14,6 +21,9 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 class FoglampMicroservice(FoglampProcess):
+    """ FoglampMicroservice class for all non-core python microservices
+        All microservices will inherit from FoglampMicroservice and implement pure virtual method run()
+    """
     _microservice_management_app = None
     """ web application for microservice management app """
 
@@ -31,8 +41,10 @@ class FoglampMicroservice(FoglampProcess):
     """ id for this microservice """
 
     _type = None
+    """ microservice type """
 
     _protocol = "http"
+    """ communication protocol """
 
     def __init__(self):
         super().__init__()

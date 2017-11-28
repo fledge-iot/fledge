@@ -20,7 +20,7 @@ __version__ = "${VERSION}"
 BASE_URL = 'localhost:8081'
 pytestmark = pytest.mark.asyncio
 
-storage_client = StorageClient("0.0.0.0", core_management_port=46507)
+storage_client = StorageClient("0.0.0.0", core_management_port=46305)
 
 
 # TODO: remove once FOGL-510 is done
@@ -207,3 +207,28 @@ class TestAudit:
         result = json.loads(r)
         assert 0 == result['total_count']
         assert 0 == len(result['audit'])
+
+    # TODO: Also add negative tests for below skip defs
+    @pytest.mark.skip(reason="FOGL-770 - Not implemented yet (FOGL-769)")
+    async def test_post_audit(self):
+        pass
+
+    @pytest.mark.skip(reason="FOGL-770 - Not implemented yet (FOGL-769)")
+    async def test_get_all_notifications(self):
+        pass
+
+    @pytest.mark.skip(reason="FOGL-770 - Not implemented yet (FOGL-769)")
+    async def test_get_notification(self):
+        pass
+
+    @pytest.mark.skip(reason="FOGL-770 - Not implemented yet (FOGL-769)")
+    async def test_post_notification(self):
+        pass
+
+    @pytest.mark.skip(reason="FOGL-770 - Not implemented yet (FOGL-769)")
+    async def test_update_notification(self):
+        pass
+
+    @pytest.mark.skip(reason="FOGL-770 - Not implemented yet (FOGL-769)")
+    async def test_delete_notification(self):
+        pass

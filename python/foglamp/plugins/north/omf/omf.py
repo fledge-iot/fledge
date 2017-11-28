@@ -63,7 +63,7 @@ _CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of the PI Connector to send data to",
         "type": "string",
-        "default": "http://192.168.1.248:8118/ingress/messages"
+        "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages"
     },
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",

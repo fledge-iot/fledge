@@ -526,8 +526,8 @@ class SendingProcess:
             # Temporary code
             if self._module_template != "":
                 raw_data = ""
-            # else:
-            #     raw_data = ""
+            else:
+                raw_data = ""
         except Exception:
             _message = _MESSAGES_LIST["e000000"]
             SendingProcess._logger.error(_message)
@@ -744,7 +744,6 @@ class SendingProcess:
                     self._plugin_load()
                     self._plugin._log_debug_level = _log_debug_level
                     self._plugin._log_performance = _log_performance
-                    # self._plugin._storage = self._storage
                     self._plugin_info = self._plugin.plugin_info()
                     SendingProcess._logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],

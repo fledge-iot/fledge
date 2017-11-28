@@ -1,5 +1,6 @@
+************
 Task Scripts
-============
+************
 
 All scheduled processes taht are started by FogLAMP will be started
 using a script in the tasks directory. This enables FogLAMP's core to

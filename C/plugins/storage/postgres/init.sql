@@ -832,7 +832,8 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'POLL', 'POLL Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } ');
 
-
+INSERT INTO foglamp.configuration ( key, description, value )
+    VALUES ( 'HTTP_SOUTH', 'HTTP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } ');
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;
@@ -878,7 +879,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 insert into foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["services/south"]' );
 -- FogLAMP South Microservice - POLL Plugin template
 insert into foglamp.scheduled_processes ( name, script ) values ( 'POLL', '["services/south"]' );
-
+insert into foglamp.scheduled_processes ( name, script ) values ( 'HTTP_SOUTH', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'purge', '["tasks/purge"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collector', '["tasks/statistics"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
@@ -911,6 +912,12 @@ values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 -- schedule_interval, exclusive)
 -- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'POLL', 1,
 -- '0:0', true);
+
+---- Start the device server HTTP Listener at start-up
+ insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+ schedule_interval, exclusive)
+ values ('a2caca59-1241-478d-925a-79584e7096e0', 'device', 'HTTP_SOUTH', 1,
+ '0:0', true);
 
 -- Run the purge process every 5 minutes
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,

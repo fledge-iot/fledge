@@ -20,8 +20,8 @@ pytestmark = pytest.mark.asyncio
 # Module attributes
 __DB_NAME = "foglamp"
 # Needs foglamp to start,
-# replace 8082 with core_management_port
-BASE_URL = 'http://localhost:8082/foglamp'
+# replace 43325 with core_management_port
+BASE_URL = 'http://localhost:43325/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 
@@ -226,7 +226,7 @@ class TestServicesRegistryApi:
         storage_service_id = retval["id"]
 
         # Create another service
-        data2 = {"type": "Device", "name": "Device Services y", "address": "127.0.0.1", "service_port": 8092, "management_port": 1092, "protocol": "https"}
+        data2 = {"type": "Southbound", "name": "Device Services y", "address": "127.0.0.1", "service_port": 8092, "management_port": 1092, "protocol": "https"}
         r = requests.post(BASE_URL + '/service', data=json.dumps(data2), headers=headers)
         assert 200 == r.status_code
         res = dict(r.json())
@@ -285,7 +285,7 @@ class TestServicesRegistryApi:
         assert data["management_port"] == svc[0]["management_port"]
 
     async def test_get_by_type(self):
-        data = {"type": "Device", "name": "Storage Services A", "address": "127.0.0.1", "service_port": 8091, "management_port": 1091}
+        data = {"type": "Southbound", "name": "Storage Services A", "address": "127.0.0.1", "service_port": 8091, "management_port": 1091}
         r = requests.post(BASE_URL + '/service', data=json.dumps(data), headers=headers)
         assert 200 == r.status_code
 
@@ -303,7 +303,7 @@ class TestServicesRegistryApi:
         assert data["management_port"] == svc[0]["management_port"]
 
     async def test_get_by_name_and_type(self):
-        data0 = {"type": "Device", "name": "D Services", "address": "127.0.0.1", "service_port": 8091, "management_port": 1091}
+        data0 = {"type": "Southbound", "name": "D Services", "address": "127.0.0.1", "service_port": 8091, "management_port": 1091}
         r = requests.post(BASE_URL + '/service', data=json.dumps(data0), headers=headers)
         assert 200 == r.status_code
 

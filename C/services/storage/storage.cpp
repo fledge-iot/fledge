@@ -93,9 +93,9 @@ pid_t pid;
 	close(1);
 	close(2);
 	// redirect fd's 0,1,2 to /dev/null
-	open("/dev/null", O_RDWR);  	// stdin
-	dup(0);  			// stdout
-	dup(0);  			// stderr
+	(void)open("/dev/null", O_RDWR);  	// stdin
+	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
+	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
  	return 0;
 }
 

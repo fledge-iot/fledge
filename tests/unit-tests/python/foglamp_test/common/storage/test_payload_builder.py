@@ -7,7 +7,7 @@ import pytest
 import json
 import os
 import py
-from foglamp.common.storage.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

@@ -13,8 +13,8 @@ import json
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.tasks.purge.purge import Purge
-from foglamp.common.storage.payload_builder import PayloadBuilder
-from foglamp.common.storage.storage import Storage, Readings
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"

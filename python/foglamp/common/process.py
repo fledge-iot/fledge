@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+"""Common FoglampProcess Class"""
+
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from abc import ABC, abstractmethod
 import argparse
@@ -9,19 +17,42 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 class ArgumentParserError(Exception):
+    """ Overwrite default exception to not terminate application """
     pass
 
 class FoglampProcess(ABC):
-    _core_management_host = None
-    _core_management_port = None
-    _name = None
-    _m_client = None
-    _readings_storage = None
-    _storage = None
+    """ FoglampProcess for all non-core python processes.
+	All processes will inherit from FoglampProcess and must implement pure virtual method run()
+    """
 
+    _core_management_host = None
+    """ string containing core's microservice management host """
+
+    _core_management_port = None
+    """ int containing core's microservice management port """
+
+    _name = None
+    """ name of process """
+
+    _m_client = None
+    """ MicroserviceManagementClient instance """
+
+    _readings_storage = None
+    """ foglamp.common.storage_client.storage_client.ReadingsStorageClient """
+
+    _storage = None
+    """ foglamp.common.storage_client.storage_client.StorageClient """
 
     def __init__(self):
+        """
+	    All processes must have these three command line arguments passed:
+		--address [core microservice management host]
+		--port [core microservice management port]
+		--name [process name]
+        """
+        
         try:    
             self._core_management_host = self.get_arg_value("--address")
             self._core_management_port = self.get_arg_value("--port")
@@ -39,10 +70,12 @@ class FoglampProcess(ABC):
         self._readings_storage = ReadingsStorageClient(self._core_management_host, self._core_management_port)
         self._storage = StorageClient(self._core_management_host, self._core_management_port)
 
+    # pure virtual method run() to be implemented by child class
     @abstractmethod
     def run(self):
         pass
 
+    
     def get_arg_value(self, argument_name):
         """ Parses command line arguments for a single argument of name argument_name. Returns the value of the argument specified or None if argument was not specified.
         Keyword Arguments:
@@ -72,8 +105,18 @@ class FoglampProcess(ABC):
             return list(vars(parser_result[0]).values())[0]
 
     def register_service(self, service_registration_payload):
-        self._m_client.register_service(service_registration_payload)
+        """ Register, with core, this process as a microservice.
+        Keyword Arguments:
+        service_registration_payload -- json format dictionary
 
+        Return Values:
+            Argument value (as a string)
+            None (if argument was not passed)
+
+            Known Exceptions:
+		HTTPError 
+        """
+        self._m_client.register_service(service_registration_payload)
 
     class MicroserviceManagementClient(object):
         _management_client_conn = None
@@ -86,20 +129,16 @@ class FoglampProcess(ABC):
             self._management_client_conn.request(method='POST', url='/foglamp/service', body=json.dumps(service_registration_payload))
             r = self._management_client_conn.getresponse()
             if r.status in range(400, 500):
-                # _LOGGER.error("Client error code: %d", r.status)
                 r.raise_for_status()
             if r.status in range(500, 600):
-                # _LOGGER.error("Server error code: %d", r.status)
                 r.raise_for_status()
             res = r.read().decode()
             self._management_client_conn.close()
             response = json.loads(res)
             try:
                 cls._microservice_id = response["id"]
-                # _LOGGER.info('Device - Registered Service %s', response["id"])
             except:
                 pass
-                #_LOGGER.error("Device - Could not register")
 
         def unregister_service(self):
             pass

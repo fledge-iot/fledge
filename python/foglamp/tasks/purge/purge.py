@@ -113,10 +113,14 @@ class Purge(FoglampProcess):
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
         result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-        error_level = logging.INFO
+        """ Default to a warning
+            TODO Make a common audit trail class for inserting itno this log table
+        """
+        error_level = 4
 
         if "message" in result.keys() and "409 Conflict" in result["message"]:
-            error_level = logging.ERROR 
+            """ Message has become a failure """
+            error_level = 1 
         else:
             total_count = result['readings']
             total_rows_removed = result['removed']

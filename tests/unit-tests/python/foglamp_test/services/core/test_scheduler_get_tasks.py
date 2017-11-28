@@ -58,9 +58,11 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
 # TODO: To run this test,
 #       1) Do 'foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
-#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/core/test_scheduler_get_tasks.py
+#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit-tests/python/foglamp_test/services/core/test_scheduler_get_tasks.py
+
+# TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = '0.0.0.0'
-_m_port = 41041
+_m_port = 45004
 scheduler = Scheduler(_address, _m_port)
 
 @pytest.allure.feature("unit")

@@ -888,9 +888,9 @@ insert into foglamp.scheduled_processes ( name, script ) values ( 'statistics to
 insert into foglamp.scheduled_processes (name, script) values ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
 
 -- FogLAMP Backup
-insert into foglamp.scheduled_processes (name, script) values ('backup','["tasks/backup"]' );
+insert into foglamp.scheduled_processes (name, script) values ('backup','["tasks/backup_postgres"]' );
 -- FogLAMP Restore
-insert into foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore"]' );
+insert into foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore_postgres"]' );
 
 
 
@@ -899,6 +899,12 @@ insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)
 values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 '0:0', true);
+
+-- Execute a Backup every 1 hour
+-- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+-- schedule_time, schedule_interval, exclusive)
+-- values ('d1631422-9ec6-11e7-abc4-cec278b6b50a', 'backup', 'backup', 3,
+-- NULL, '01:00:00', true);
 
 -- Start the Poll mode device server at start-up
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,

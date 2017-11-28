@@ -14,8 +14,10 @@ if [ ! -d "${FOGLAMP_ROOT}/python" ]; then
 	exit 1
 fi
 
-# We run the Python code from the python directory
-cd "${FOGLAMP_ROOT}/python"
+# Adds required paths for the execution of the python module
+if [ "${PYTHONPATH}" = "" ]; then
+	export PYTHONPATH="$PYTHONPATH:${FOGLAMP_ROOT}/python"
+fi
 
 # Avoid FogLAMP termination at the FogLAMP stop
 command="python3 -m foglamp.tasks.backup_restore.restore $@"

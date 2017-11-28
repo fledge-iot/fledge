@@ -25,15 +25,15 @@ from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 import logging
 
-import foglamp.tasks.backup_restore.lib as lib
-import foglamp.tasks.backup_restore.exceptions as exceptions
+import foglamp.plugins.storage.postgres.backup_restore.lib as lib
+import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_MODULE_NAME = "foglamp_backup_module"
+_MODULE_NAME = "foglamp_backup_postgres_module"
 
 _MESSAGES_LIST = {
 
@@ -77,7 +77,13 @@ class BackupProcess(FoglampProcess):
         it executes a full warm backup
     """
 
-    _MODULE_NAME = "foglamp_backup"
+    _MODULE_NAME = "foglamp_backup_postgres"
+
+    _DEFAULT_FOGLAMP_ROOT = "/usr/local/foglamp"
+    """ Default value to use for the FOGLAMP_ROOT if the environment $FOGLAMP_ROOT is not defined """
+
+    _BACKUP_FILE_NAME_PREFIX = "foglamp_backup_"
+    """ Prefix used to generate a backup file name """
 
     _MESSAGES_LIST = {
 
@@ -101,10 +107,12 @@ class BackupProcess(FoglampProcess):
         "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
         "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA or FOGLAMP_ROOT are defined.",
         "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
+        "e000014": "the identified backups' path doesn't exists, tried the creation"
+                   "- considering |{0}| - creating backup dir |{1}| - error details |{2}|",
     }
     """ Messages used for Information, Warning and Error notice """
 
-    _CONFIG_FILE = "configuration_cache.json"
+    _CONFIG_FILE = "backup_postgres_configuration_cache.json"
     """ Stores a configuration cache in case the configuration Manager is not available"""
 
     # Configuration retrieved from the Configuration Manager
@@ -127,17 +135,17 @@ class BackupProcess(FoglampProcess):
             "type": "string",
             "default": "foglamp"
         },
-        # FIXME:
-        "backup_dir": {
-            "description": "Directory where the backups will be created.",
+        "backup-dir": {
+            "description": "Directory where backups will be created, "
+                           "it uses FOGLAMP_BACKUP or FOGLAMP_DATA or FOGLAMP_BACKUP if none.",
             "type": "string",
-            "default": "/tmp"
+            "default": "none"
         },
-        # FIXME:
-        "semaphores_dir": {
-            "description": "Directory used to store semaphores for backup/restore synchronization.",
+        "semaphores-dir": {
+            "description": "Directory used to store semaphores for backup/restore synchronization."
+                           "it uses backup-dir if none.",
             "type": "string",
-            "default": "/tmp"
+            "default": "none"
         },
         "retention": {
             "description": "Number of backups to maintain, old ones will be deleted.",
@@ -179,6 +187,9 @@ class BackupProcess(FoglampProcess):
         self._job = lib.Job()
         self._event_loop = asyncio.get_event_loop()
 
+        self._backups_dir = ""
+        self._semaphores_dir = ""
+
         # Creates the objects references used by the library
         lib._logger = self._logger
         lib._storage = self._storage
@@ -197,7 +208,7 @@ class BackupProcess(FoglampProcess):
         # Evaluates the parameters
         execution_time = time.strftime("%Y_%m_%d_%H_%M_%S")
 
-        full_file_name = self._config['backup_dir'] + "/" + "foglamp" + "_" + execution_time
+        full_file_name = self._backups_dir + "/" + self._BACKUP_FILE_NAME_PREFIX + execution_time
         ext = "dump"
 
         _backup_file = "{file}.{ext}".format(file=full_file_name, ext=ext)
@@ -216,22 +227,34 @@ class BackupProcess(FoglampProcess):
 
         self._retrieve_configuration()
 
-        # Checks backups/semaphores directories existences
-        if not os.path.isdir(self._config['backup_dir']):
+        # Identifies backups' directory and checks the existence
+        if self._config['backup-dir'] != "none":
 
-            _message = self._MESSAGES_LIST["e000010"].format(self._config['backup_dir'])
+            self._backups_dir = self._config['backup-dir']
+        else:
+            self._backups_dir = self._identify_backup_dir()
+
+        if not os.path.isdir(self._backups_dir):
+
+            _message = self._MESSAGES_LIST["e000010"].format(self._config['backup-dir'])
             self._logger.error("{0}".format(_message))
 
             raise exceptions.BackupsDirDoesNotExist
 
-        if not os.path.isdir(self._config['semaphores_dir']):
+        # Identifies semaphores' directory and checks the existence
+        if self._config['semaphores-dir'] != "none":
 
-            _message = self._MESSAGES_LIST["e000011"].format(self._config['semaphores_dir'])
+            self._semaphores_dir = self._config['semaphores-dir']
+        else:
+            self._semaphores_dir = self._backups_dir
+            lib.JOB_SEM_FILE_PATH = self._semaphores_dir
+
+        if not os.path.isdir(self._semaphores_dir):
+
+            _message = self._MESSAGES_LIST["e000011"].format(self._config['semaphores-dir'])
             self._logger.error("{0}".format(_message))
 
             raise exceptions.SemaphoresDirDoesNotExist
-        else:
-            lib.JOB_SEM_FILE_PATH = self._config['semaphores_dir']
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()
@@ -506,8 +529,8 @@ class BackupProcess(FoglampProcess):
 
         self._config['port'] = int(_config_from_manager['port']['value'])
         self._config['database'] = _config_from_manager['database']['value']
-        self._config['backup_dir'] = _config_from_manager['backup_dir']['value']
-        self._config['semaphores_dir'] = _config_from_manager['semaphores_dir']['value']
+        self._config['backup-dir'] = _config_from_manager['backup-dir']['value']
+        self._config['semaphores-dir'] = _config_from_manager['semaphores-dir']['value']
         self._config['retention'] = int(_config_from_manager['retention']['value'])
         self._config['max_retry'] = int(_config_from_manager['max_retry']['value'])
         self._config['timeout'] = int(_config_from_manager['timeout']['value'])
@@ -540,6 +563,45 @@ class BackupProcess(FoglampProcess):
         with open(file_full_path, 'w') as file:
             json.dump(self._config_from_manager, file)
 
+    def _identify_backup_dir(self):
+        """ Identifies which directory should be used for the backups
+            evaluating the environment variables FOGLAMP_BACKUP, FOGLAMP_DATA and FOGLAMP_ROOT
+        Args:
+        Returns:
+            _dir_for_backups: directory for storing the backups
+        Raises:
+        """
+
+        if "FOGLAMP_BACKUP" in os.environ:
+            _dir_for_backups = os.getenv("FOGLAMP_BACKUP")
+            _case = "FOGLAMP_BACKUP"
+
+        elif "FOGLAMP_DATA" in os.environ:
+            _dir_for_backups = os.getenv("FOGLAMP_DATA") + "/backup"
+            _case = "FOGLAMP_DATA"
+
+        elif "FOGLAMP_ROOT" in os.environ:
+            _dir_for_backups = os.getenv("FOGLAMP_ROOT") + "/data/backup"
+            _case = "FOGLAMP_ROOT"
+
+        else:
+            _dir_for_backups = self._DEFAULT_FOGLAMP_ROOT + "/data/backup"
+            _case = "_DEFAULT_FOGLAMP_ROOT"
+
+        if not os.path.isdir(_dir_for_backups):
+
+            # The path doesn't exists, tries to create it
+            try:
+                os.makedirs(_dir_for_backups)
+
+            except OSError as _ex:
+                _message = self._MESSAGES_LIST["e000014"].format(_case, _dir_for_backups, _ex)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.InvalidBackupsPath(_message)
+
+        return _dir_for_backups
+
     def _identify_configuration_file_path(self):
         """ Identifies configuration cache file's path,
             either $FOGLAMP_DATA/etc/self._CONFIG_FILE
@@ -556,10 +618,7 @@ class BackupProcess(FoglampProcess):
         elif "FOGLAMP_ROOT" in os.environ:
             _dir = os.getenv("FOGLAMP_ROOT")
         else:
-            _message = self._MESSAGES_LIST["e000012"]
-            self._logger.error("{0}".format(_message))
-
-            raise exceptions.CannotCreateConfigurationCacheFile(_message)
+            _dir = self._DEFAULT_FOGLAMP_ROOT
 
         if os.path.isdir(_dir):
 
@@ -597,7 +656,7 @@ class BackupProcess(FoglampProcess):
                 _message = self._MESSAGES_LIST["e000003"].format(_ex)
                 self._logger.error(_message)
 
-                raise exceptions.ConfigRetrievalError
+                raise exceptions.ConfigRetrievalError(_message)
         else:
             self._update_configuration_file()
 

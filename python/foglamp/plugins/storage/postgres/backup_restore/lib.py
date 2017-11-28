@@ -58,8 +58,8 @@ BACKUP_STATUS_RESTORED = 6
 
 JOB_SEM_FILE_PATH = "/tmp"
 """ Updated by the caller retrieving from the configuration manager """
-JOB_SEM_FILE_BACKUP = "backup.sem"
-JOB_SEM_FILE_RESTORE = "restore.sem"
+JOB_SEM_FILE_BACKUP = ".backup.sem"
+JOB_SEM_FILE_RESTORE = ".restore.sem"
 """" Semaphores information for the handling of the backup/restore synchronization """
 
 _logger = {}

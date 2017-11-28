@@ -51,3 +51,8 @@ class CannotCreateConfigurationCacheFile(Exception):
     """ It is not possible to create the configuration cache file to store information retrieved from the
         configuration manager """
     pass
+
+
+class InvalidBackupsPath(Exception):
+    """ The identified backups' path is not a valid directory """
+    pass

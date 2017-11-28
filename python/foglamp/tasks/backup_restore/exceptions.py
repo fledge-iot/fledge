@@ -45,3 +45,9 @@ class SemaphoresDirDoesNotExist(Exception):
 class DoesNotExist(Exception):
     """ The requested backup id doesn't exist """
     pass
+
+
+class CannotCreateConfigurationCacheFile(Exception):
+    """ It is not possible to create the configuration cache file to store information retrieved from the
+        configuration manager """
+    pass

@@ -9,7 +9,7 @@ The information about executed backups are stored into the Storage Layer.
 
 The parameters for the execution are retrieved from the configuration manager.
 It could work also without the configuration manager,
-retrieving the parameters for the execution from the local file 'configuration.ini'.
+retrieving the parameters for the execution from the local file 'backup_configuration_cache.json'.
 
 """
 
@@ -94,17 +94,17 @@ class BackupProcess(FoglampProcess):
         "e000004": "cannot delete/purge backup file on file system - id |{0}| - file name |{1}| error details |{2}|",
         "e000005": "cannot delete/purge backup information on the storage layer "
                    "- id |{0}| - file name |{1}| error details |{2}|",
-        "e000007": "Backup failed.",
+        "e000007": "backup failed.",
         "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
         "e000009": "cannot retrieve information for the backup id |{0}|",
-        "e000010": "Directory used to store backups doesn't exist - dir |{0}|",
-        "e000011": "Directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
+        "e000010": "directory used to store backups doesn't exist - dir |{0}|",
+        "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
+        "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA or FOGLAMP_ROOT are defined.",
+        "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
 
-    # FIXME: to be changed in $FOGLAMP_DATA/etc/backup_configuration_cache.json -
-    #        or $FOGLAMP_ROOT/etc/backup_configuration_cache.json if $FOGLAMP_DATA does not exists
-    _CONFIG_FILE = "/tmp/configuration_cache.json"
+    _CONFIG_FILE = "configuration_cache.json"
     """ Stores a configuration cache in case the configuration Manager is not available"""
 
     # Configuration retrieved from the Configuration Manager
@@ -520,7 +520,9 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        with open(self._CONFIG_FILE) as file:
+        file_full_path = self._identify_configuration_file_path()
+
+        with open(file_full_path) as file:
             self._config_from_manager = json.load(file)
 
         self._decode_configuration_from_manager(self._config_from_manager)
@@ -533,8 +535,42 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        with open(self._CONFIG_FILE, 'w') as file:
+        file_full_path = self._identify_configuration_file_path()
+
+        with open(file_full_path, 'w') as file:
             json.dump(self._config_from_manager, file)
+
+    def _identify_configuration_file_path(self):
+        """ Identifies configuration cache file's path,
+            either $FOGLAMP_DATA/etc/self._CONFIG_FILE
+            or     $FOGLAMP_ROOT/self._CONFIG_FILE if $FOGLAMP_DATA does not exists
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        if "FOGLAMP_DATA" in os.environ:
+            _dir = os.getenv("FOGLAMP_DATA") + "/etc"
+
+        elif "FOGLAMP_ROOT" in os.environ:
+            _dir = os.getenv("FOGLAMP_ROOT")
+        else:
+            _message = self._MESSAGES_LIST["e000012"]
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.CannotCreateConfigurationCacheFile(_message)
+
+        if os.path.isdir(_dir):
+
+            file_full_path = _dir + "/" + self._CONFIG_FILE
+        else:
+            _message = self._MESSAGES_LIST["e000013"].format(_dir)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.CannotCreateConfigurationCacheFile(_message)
+
+        return file_full_path
 
     def _retrieve_configuration(self):
         """  Retrieves the configuration either from the manager or from a local file.

@@ -769,19 +769,16 @@ INSERT INTO foglamp.configuration ( key, description, value )
 
 -- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'HTTP_TR_3', 'HTTP North Plugin Configuration', ' {
-        "plugin": {
-                "type": "string",
-                "value": "http_translator",
-                "default": "http_translator",
-                "description": "Python module name of the plugin to load"
-        },
-        "translator": {
-                "description": "The name of the translator to use to translate the readings into the output format and send them",
-                "type": "string",
-                "default": "http_translator"
-        }
-} ');
+     VALUES ( 'SEND_PR_1', 'OMF Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SEND_PR_2', 'OMF Statistics Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+
+
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_translator", "default" : "http_translator", "description" : "Python module name of the plugin to load" } } ');
 
 -- STRMN: Streaming
 --        status      : the process is on or off, it is on by default
@@ -838,6 +835,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
             ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
             ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
+            ( 'SENT_3',     'The number of statistics data sent to the http', 0, 0 ),
             ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
@@ -895,6 +893,13 @@ insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
 NULL, '00:00:25', true);
+
+-- Run North HTTP Translator every 15 seconds
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('543a59ce-a9ca-11e7-abc4-cec278b6b50b', 'sending HTTP', 'sending HTTP', 3,
+NULL, '00:00:15', true);
+
 
 -- OMF translator configuration
 INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());

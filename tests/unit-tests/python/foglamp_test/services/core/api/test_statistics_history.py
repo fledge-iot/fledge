@@ -20,6 +20,7 @@ BASE_URL = 'http://localhost:8081/foglamp'
 
 pytestmark = pytest.mark.asyncio
 
+
 async def set_statistics_test_data(val):
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''UPDATE foglamp.statistics SET value = $1, previous_value = $2''', val, 0)
@@ -48,7 +49,7 @@ class TestStatisticsHistory:
         last_count = len(res['statistics']) * 8
 
         # use fixture
-        await set_statistics_test_data(10);
+        await set_statistics_test_data(10)
 
         assert 15 == res['interval']
 
@@ -74,7 +75,7 @@ class TestStatisticsHistory:
         assert 10 == res2['statistics'][-1]['PURGED']
 
         # use fixtures
-        await set_statistics_test_data(0);
+        await set_statistics_test_data(0)
 
     async def test_get_statistics_history_with_limit(self):
         """ Verify return <limit> set of records
@@ -92,8 +93,8 @@ class TestStatisticsHistory:
         assert 2 == len(res['statistics'])
         assert 15 == res['interval']
 
-        previous_time = -1 # make it better
-        is_greater_time = False;
+        previous_time = -1  # make it better
+        is_greater_time = False
 
         # Verify history timestamp is in ascending order
         for r in res['statistics']:
@@ -104,11 +105,11 @@ class TestStatisticsHistory:
 
             # compare history timestamp
             if time >= previous_time:
-                previous_time = time;
+                previous_time = time
                 is_greater_time = True
             else:
                 is_greater_time = False
-                break;
+                break
 
         assert is_greater_time is True
 

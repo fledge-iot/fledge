@@ -75,7 +75,11 @@ Where *basedir* is the base directory into which you cloned the FogLAMP reposito
 Installing FogLAMP
 ==================
 
-Create an installation by executing ``make install``. The installation will be placed in */usr/local/foglamp*, this may be overriden by setting the variable DESTDIR to a location in which you wish to install FogLAMP. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions.
+Create an installation by executing ``make install``. The installation will be placed in */usr/local/foglamp*, this may be overriden by setting the variable DESTDIR in the make command line, to a location in which you wish to install FogLAMP. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions.
+
+To install FogLAMP in the /opt directory use the command:
+::
+   sudo make install DESTDIR=/opt
 
 
 Creating the Database Repository

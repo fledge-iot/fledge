@@ -41,8 +41,8 @@ async def get_statistics(request):
             curl -X GET http://localhost:8081/foglamp/statistics
     """
     payload = PayloadBuilder().SELECT(("key", "description", "value")).ORDER_BY(["key"]).payload()
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('statistics', payload)
+    storage_client = connect.get_storage()
+    results = storage_client.query_tbl_with_payload('statistics', payload)
 
     return web.json_response(results['rows'])
 
@@ -58,7 +58,7 @@ async def get_statistics_history(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/statistics/history?limit=1
     """
-
+    storage_client = connect.get_storage()
     limit = int(request.query.get('limit')) if 'limit' in request.query else 0
     if limit == 0:
         # Return all records
@@ -72,11 +72,13 @@ async def get_statistics_history(request):
         # TODO: FOGL-663 Need support for "subquery" from storage service
         # Remove python side handling date_trunc and use
         # SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts
-        payload = PayloadBuilder().SELECT(("history_ts", "key", "value")) \
-            .LIMIT(limit*8).payload()
+        payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
+        result = storage_client.query_tbl_with_payload("statistics", payload)
+        key_count = result['rows'][0]['count_*']
+        payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).\
+            LIMIT(limit * key_count).payload()
 
-    _storage = connect.get_storage()
-    result_from_storage = _storage.query_tbl_with_payload('statistics_history', payload)
+    result_from_storage = storage_client.query_tbl_with_payload('statistics_history', payload)
 
     result_without_microseconds = []
     for row in result_from_storage['rows']:
@@ -105,5 +107,5 @@ async def get_statistics_history(request):
     # Append the last set of records which do not get appended above
     results.append(temp_dict)
 
-    # TODO: find out where from this "interval" will be picked and what will be its role in query?
+    # TODO:FOGL-777 find out where from this "interval" will be picked and what will be its role in query?
     return web.json_response({"interval": 5, 'statistics': results})

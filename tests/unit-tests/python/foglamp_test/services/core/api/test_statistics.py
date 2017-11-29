@@ -15,7 +15,6 @@ __version__ = "${VERSION}"
 
 __DB_NAME = "foglamp"
 BASE_URL = 'http://localhost:8081/foglamp'
-headers = {"Content-Type": 'application/json'}
 
 pytestmark = pytest.mark.asyncio
 
@@ -118,12 +117,7 @@ class TestStatistics:
         assert 9 == len(res)
 
         # READINGS_X must exists IN keys
-        is_exist = False
-        for r in res:
-            if r['key'] == 'READINGS_X':
-                is_exist = True
-                break
-
-        assert is_exist is True
+        key_entries = [keys["key"] for keys in res]
+        assert "READINGS_X" in key_entries
 
         await delete_statistics_test_data()

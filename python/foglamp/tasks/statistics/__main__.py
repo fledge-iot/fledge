@@ -7,7 +7,9 @@
 
 """Purge process starter"""
 
-from foglamp.tasks.purge.purge import Purge
+import sys
+
+from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common import logger
 
 __author__ = "Terris Linenbach, Vaibhav Singhal"
@@ -16,6 +18,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 if __name__ == '__main__':
-    _logger = logger.setup("Purge")
-    purge_process = Purge()
-    purge_process.run()
+    _logger = logger.setup("StatisticsHistory")
+    statistics_history_process = StatisticsHistory()
+    statistics_history_process.run()

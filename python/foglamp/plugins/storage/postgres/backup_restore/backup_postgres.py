@@ -105,9 +105,10 @@ class BackupProcess(FoglampProcess):
         "e000009": "cannot retrieve information for the backup id |{0}|",
         "e000010": "directory used to store backups doesn't exist - dir |{0}|",
         "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
-        "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA or FOGLAMP_ROOT are defined.",
+        "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA nor FOGLAMP_ROOT are defined.",
         "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
-        "e000014": "the identified path doesn't exists, tried the creation - dir |{0}| - error details |{1}|",
+        "e000014": "the identified path of backups doesn't exists, creation was tried "
+                   "- dir |{0}| - error details |{1}|",
     }
     """ Messages used for Information, Warning and Error notice """
 
@@ -287,7 +288,7 @@ class BackupProcess(FoglampProcess):
 
         self._retrieve_configuration()
 
-        # Identifies backups directory and checks the existence
+        # Identifies the directory of backups and checks its existence
         if self._config['backup-dir'] != "none":
 
             self._backups_dir = self._config['backup-dir']
@@ -296,7 +297,7 @@ class BackupProcess(FoglampProcess):
 
         self._check_create_path(self._backups_dir)
 
-        # Identifies semaphores directory and checks the existence
+        # Identifies the directory for the semaphores and checks its existence
         # Stores semaphores in the _backups_dir if semaphores-dir is not defined
         if self._config['semaphores-dir'] != "none":
 
@@ -615,7 +616,7 @@ class BackupProcess(FoglampProcess):
             json.dump(self._config_from_manager, file)
 
     def _identify_configuration_file_path(self):
-        """ Identifies configuration cache file's path,
+        """ Identifies the path of the configuration cache file,
 
         Args:
         Returns:

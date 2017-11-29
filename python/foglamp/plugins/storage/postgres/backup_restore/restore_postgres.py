@@ -34,7 +34,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_MODULE_NAME = "foglamp_restore_module"
+_MODULE_NAME = "foglamp_restore_postgres_module"
 
 _MESSAGES_LIST = {
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         # FIXME: for debug purpose
         # _logger = logger.setup(_MODULE_NAME)
         _logger = logger.setup(_MODULE_NAME,
-                               destination=logger.CONSOLE,
+                               # destination=logger.CONSOLE,
                                level=logging.DEBUG)
 
         _logger.info(_MESSAGES_LIST["i000001"])
@@ -76,9 +76,6 @@ if __name__ == "__main__":
 
         try:
             exit_value = 1
-
-            # FIXME:
-            _logger.info("RESTORE DBG !!!!!!!!!!!!!!!!!!!!!!!!!!")
 
             _logger.info(_MESSAGES_LIST["i000002"])
             sys.exit(exit_value)

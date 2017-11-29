@@ -56,3 +56,8 @@ class CannotCreateConfigurationCacheFile(Exception):
 class InvalidBackupsPath(Exception):
     """ The identified backups' path is not a valid directory """
     pass
+
+
+class InvalidPath(Exception):
+    """ The identified path is not a valid directory """
+    pass

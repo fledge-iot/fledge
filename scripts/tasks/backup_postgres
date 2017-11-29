@@ -14,11 +14,11 @@ if [ ! -d "${FOGLAMP_ROOT}/python" ]; then
 	exit 1
 fi
 
-# Adds required paths for the execution of the python module
+# Adds required paths for the execution of the python module if not already defined
 if [ "${PYTHONPATH}" = "" ]; then
-	export PYTHONPATH="$PYTHONPATH:${FOGLAMP_ROOT}/python"
-fi
 
+	export PYTHONPATH="${FOGLAMP_ROOT}/python"
+fi
 
 python3 -m foglamp.plugins.storage.postgres.backup_restore.backup_postgres $@
 

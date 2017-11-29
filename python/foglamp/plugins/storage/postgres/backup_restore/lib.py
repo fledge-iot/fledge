@@ -11,7 +11,8 @@ import os
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.storage_client.storage_client import StorageClient
-import foglamp.tasks.backup_restore.exceptions as exceptions
+
+import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

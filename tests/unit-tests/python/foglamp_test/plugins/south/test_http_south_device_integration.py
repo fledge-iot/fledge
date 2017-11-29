@@ -52,7 +52,6 @@ class TestIngestReadings(object):
 
         r = requests.post(BASE_URL, data=data, headers=headers)
         retval = dict(r.json())
-        print(retval)
 
         # Assert the POST request response
         assert 200 == retval['status']

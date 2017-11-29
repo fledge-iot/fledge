@@ -23,3 +23,4 @@ allure-report/
 /python_build
 /services
 
+.cache/

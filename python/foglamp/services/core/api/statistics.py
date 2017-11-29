@@ -107,5 +107,11 @@ async def get_statistics_history(request):
     # Append the last set of records which do not get appended above
     results.append(temp_dict)
 
-    # TODO:FOGL-777 find out where from this "interval" will be picked and what will be its role in query?
-    return web.json_response({"interval": 5, 'statistics': results})
+    # SELECT schedule_interval FROM schedules WHERE process_name='stats collector'
+    payload = PayloadBuilder().SELECT("schedule_interval").WHERE(['process_name', '=', 'stats collector']).payload()
+    result = storage_client.query_tbl_with_payload('schedules', payload)
+    time_str = result['rows'][0]['schedule_interval']
+    ftr = [3600, 60, 1]
+    interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+
+    return web.json_response({"interval": interval_in_secs, 'statistics': results})

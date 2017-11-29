@@ -6,6 +6,7 @@
 
 """Unit test for foglamp.device.http_south"""
 import json
+import asyncpg
 import pytest
 import asyncio
 from unittest import mock
@@ -13,7 +14,6 @@ from unittest.mock import patch
 from aiohttp.test_utils import make_mocked_request
 from aiohttp.streams import StreamReader
 from multidict import CIMultiDict
-
 from foglamp.plugins.south.http_south.http_south import HttpSouthIngest
 from foglamp.plugins.south.coap_listen.coap_listen import Ingest
 
@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 
 
 loop = asyncio.get_event_loop()
-
+__DB_NAME = "foglamp"
 
 def mock_request(data):
     payload = StreamReader(loop=loop)
@@ -41,12 +41,22 @@ def mock_request(data):
                               protocol=protocol, payload=payload, app=app)
     return req
 
+async def delete_test_data():
+    conn = await asyncpg.connect(database=__DB_NAME)
+    await conn.execute('''DELETE from foglamp.readings WHERE asset_code IN ('sensor1', 'sensor2')''')
+    await conn.close()
+    await asyncio.sleep(4)
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("device")
 class TestHttpSouthDeviceUnit(object):
     """Unit tests for foglamp.device.coap.IngestReadings
     """
+
+    @classmethod
+    def teardown_class(cls):
+        asyncio.get_event_loop().run_until_complete(delete_test_data())
 
     async def test_post_sensor_reading_ok(self):
         data =  """{

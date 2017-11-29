@@ -5,7 +5,8 @@
 # FOGLAMP_END
 
 """Integration test for foglamp.device.http_south"""
-
+import asyncio
+import asyncpg
 import requests
 import pytest
 
@@ -15,13 +16,25 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+__DB_NAME = "foglamp"
 BASE_URL = 'http://localhost:6683/sensor-reading'
 headers = {"Content-Type": 'application/json'}
 
+async def delete_test_data():
+    conn = await asyncpg.connect(database=__DB_NAME)
+    await conn.execute('''DELETE from foglamp.readings WHERE asset_code IN ('sensor1', 'sensor2')''')
+    await conn.close()
+    await asyncio.sleep(4)
+
+
 @pytest.allure.story("device")
 class TestIngestReadings(object):
-    """Integration tests for foglamp.device.coap.IngestReadings
-    """
+    """Integration tests for foglamp.device.coap.IngestReadings"""
+
+    @classmethod
+    def teardown_class(cls):
+        asyncio.get_event_loop().run_until_complete(delete_test_data())
 
     def test_post_sensor_reading_ok(self):
         data =  """{
@@ -39,6 +52,7 @@ class TestIngestReadings(object):
 
         r = requests.post(BASE_URL, data=data, headers=headers)
         retval = dict(r.json())
+        print(retval)
 
         # Assert the POST request response
         assert 200 == retval['status']

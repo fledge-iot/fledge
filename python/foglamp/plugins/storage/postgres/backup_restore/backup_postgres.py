@@ -50,34 +50,12 @@ _MESSAGES_LIST = {
 _logger = {}
 
 
-class Backup(object):
-    """ Backup API integration
-
-    # CURRENTLY NOT IMPLEMENTED !!
-    """
-
-    # noinspection PyUnusedLocal
-    def get_backup_list(self, limit, skip, status):
-        """  Retrieves backups information
-
-        Args:
-            limit: maximum number of backups information to retrieve
-            skip: TBD - # FIXME:
-            status: BACKUP_STATUS_UNDEFINED= retrieves the information for all the backups state
-                    or for a specific state only
-        Returns:
-        Raises:
-        """
-
-        pass
-
-
 class BackupProcess(FoglampProcess):
     """ Backups the entire FogLAMP repository into a file in the local filesystem,
         it executes a full warm backup
     """
 
-    _MODULE_NAME = "foglamp_backup_postgres"
+    _MODULE_NAME = "foglamp_backup_process_postgres"
 
     _DEFAULT_FOGLAMP_ROOT = "/usr/local/foglamp"
     """ Default value to use for the FOGLAMP_ROOT if the environment $FOGLAMP_ROOT is not defined """
@@ -97,12 +75,12 @@ class BackupProcess(FoglampProcess):
         "e000002": "cannot retrieve the configuration from the manager, trying retrieving from file "
                    "- error details |{0}|",
         "e000003": "cannot retrieve the configuration from file - error details |{0}|",
-        "e000004": "cannot delete/purge backup file on file system - id |{0}| - file name |{1}| error details |{2}|",
-        "e000005": "cannot delete/purge backup information on the storage layer "
-                   "- id |{0}| - file name |{1}| error details |{2}|",
+        "e000004": "...",
+        "e000005": "...",
+        "e000006": "...",
         "e000007": "backup failed.",
         "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
-        "e000009": "cannot retrieve information for the backup id |{0}|",
+        "e000009": "...",
         "e000010": "directory used to store backups doesn't exist - dir |{0}|",
         "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
         "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA nor FOGLAMP_ROOT are defined.",
@@ -172,7 +150,7 @@ class BackupProcess(FoglampProcess):
             # FIXME:
             # self._logger = logger.setup(self._MODULE_NAME)
             self._logger = logger.setup(self._MODULE_NAME,
-                                        # destination=logger.CONSOLE,
+                                        destination=logger.CONSOLE,
                                         level=logging.DEBUG)
 
         except Exception as _ex:
@@ -180,7 +158,9 @@ class BackupProcess(FoglampProcess):
             _current_time = time.strftime("%Y-%m-%d %H:%M:%S")
     
             print("[FOGLAMP] {0} - ERROR - {1}".format(_current_time, _message), file=sys.stderr)
-            sys.exit(1)            
+            sys.exit(1)
+
+        self._backup = Backup(self._storage)
 
         self._config_from_manager = {}
         self._config = {}
@@ -337,47 +317,17 @@ class BackupProcess(FoglampProcess):
 
         backup_file = self._generate_file_name()
 
-        lib.backup_status_create(backup_file, lib.BACKUP_TYPE_FULL, lib.BACKUP_STATUS_RUNNING)
+        lib.backup_status_create(backup_file, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
         status, exit_code = self._exec_backup(backup_file)
 
         backup_information = lib.get_backup_details_from_file_name(backup_file)
 
         lib.backup_status_update(backup_information['id'], status, exit_code)
 
-        if status != lib.BACKUP_STATUS_SUCCESSFUL:
+        if status != lib.BackupStatus.COMPLETED:
 
             self._logger.error(self._MESSAGES_LIST["e000007"])
             raise exceptions.BackupFailed
-
-    # noinspection PyUnusedLocal
-    def get_backup_list(self, limit, skip, status):
-        """  Retrieves backups information
-
-        Args:
-            limit: maximum number of backups information to retrieve
-            skip: TBD - # FIXME:
-            status: BACKUP_STATUS_UNDEFINED= retrieves the information for all the backups state
-                    or for a specific state only
-        Returns:
-        Raises:
-        """
-
-        if status == lib.BACKUP_STATUS_UNDEFINED:
-            payload = payload_builder.PayloadBuilder() \
-                .LIMIT(limit) \
-                .ORDER_BY(['ts', 'ASC']) \
-                .payload()
-        else:
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['state', '=', status]) \
-                .LIMIT(limit) \
-                .ORDER_BY(['ts', 'ASC']) \
-                .payload()
-
-        backups_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
-        backups_information = backups_from_storage['rows']
-
-        return backups_information
 
     def _purge_old_backups(self):
         """  Deletes old backups in relation at the retention parameter
@@ -387,9 +337,11 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        backups_info = self.get_backup_list(lib.MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE,
+        backups_info = self._backup.get_all_backups_complete(
+                                            lib.MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE,
                                             0,
-                                            lib.BACKUP_STATUS_UNDEFINED)
+                                            None,
+                                            lib.SortOrder.ASC)
 
         # Evaluates which backup should be deleted
         backups_n = len(backups_info)
@@ -408,88 +360,7 @@ class BackupProcess(FoglampProcess):
                 self._logger.debug("{func} - id |{id}| - file_name |{file}|".format(func="_purge_old_backups",
                                                                                     id=backup_id,
                                                                                     file=file_name))
-                self.delete_backup(backup_id)
-
-    def get_backup_details(self, _id):
-        """ Retrieves information for a specific backup
-
-        Args:
-            _id: Backup id to retrieve
-        Returns:
-            backup_information: information related to the requested backup
-        Raises:
-            exceptions.DoesNotExist
-        """
-
-        payload = payload_builder.PayloadBuilder() \
-            .WHERE(['id', '=', _id]) \
-            .payload()
-
-        backup_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
-
-        if backup_from_storage['count'] == 0:
-            raise exceptions.DoesNotExist
-
-        elif backup_from_storage['count'] == 1:
-
-            backup_information = backup_from_storage['rows'][0]
-        else:
-            raise exceptions.NotUniqueBackup
-
-        return backup_information
-
-    def delete_backup(self, _id):
-        """ Deletes a specific backup
-
-        Args:
-            _id: Backup id to delete
-        Returns:
-        Raises:
-        """
-
-        try:
-            backup_information = self.get_backup_details(_id)
-
-            file_name = backup_information['file_name']
-
-            # Deletes backup file from the file system
-            if os.path.exists(file_name):
-
-                try:
-                    os.remove(file_name)
-
-                except Exception as _ex:
-                    _message = self._MESSAGES_LIST["e000004"].format(_id, file_name, _ex)
-                    self._logger.warning(_message)
-
-            # Deletes backup information from the Storage layer
-            # only if it was possible to delete the file from the file system
-            self._delete_backup_information(_id, file_name)
-
-        except exceptions.DoesNotExist:
-            _message = self._MESSAGES_LIST["e000009"].format(_id)
-            self._logger.warning(_message)
-
-    def _delete_backup_information(self, _id, _file_name):
-        """ Deletes backup information from the Storage layer
-
-        Args:
-            _id: Backup id to delete
-            _file_name: file name to delete
-        Returns:
-        Raises:
-        """
-
-        try:
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['id', '=', _id]) \
-                .payload()
-
-            self._storage.delete_from_tbl(lib.STORAGE_TABLE_BACKUPS, payload)
-
-        except Exception as _ex:
-            _message = self._MESSAGES_LIST["e000005"].format(_id, _file_name, _ex)
-            self._logger.warning(_message)
+                self._backup.delete_backup(backup_id)
 
     def _exec_backup(self, _backup_file):
         """ Backups the entire FogLAMP repository into a file in the local file system
@@ -523,9 +394,9 @@ class BackupProcess(FoglampProcess):
                                                  )
 
         if _exit_code == 0:
-            _status = lib.BACKUP_STATUS_SUCCESSFUL
+            _status = lib.BackupStatus.COMPLETED
         else:
-            _status = lib.BACKUP_STATUS_FAILED
+            _status = lib.BackupStatus.FAILED
 
         self._logger.debug("{func} - status |{status}| - exit_code |{exit_code}| "
                            "- cmd |{cmd}|  output |{output}| ".format(
@@ -669,6 +540,243 @@ class BackupProcess(FoglampProcess):
         self.shutdown()
 
 
+
+class Backup(object):
+    """ Provides external functionality/integration for Backup operations
+    """
+
+    _MODULE_NAME = "foglamp_backup_postgres"
+
+    _MESSAGES_LIST = {
+
+        # Information messages
+        "i000001": "Execution started.",
+        "i000002": "Execution completed.",
+
+        # Warning / Error messages
+        "e000000": "general error",
+        "e000001": "cannot delete/purge backup file on file system - id |{0}| - file name |{1}| error details |{2}|",
+        "e000002": "cannot delete/purge backup information on the storage layer "
+                   "- id |{0}| - file name |{1}| error details |{2}|",
+        "e000003": "cannot retrieve information for the backup id |{0}|",
+    }
+    """ Messages used for Information, Warning and Error notice """
+
+    def __init__(self, _storage):
+        self._storage = _storage
+
+        # FIXME:
+        # self._logger = logger.setup(self._MODULE_NAME)
+        self._logger = logger.setup(Backup._MODULE_NAME,
+                                    destination=logger.CONSOLE,
+                                    level=logging.DEBUG)
+
+    def get_all_backups(self,
+                        limit: int,
+                        skip: int,
+                        status: [lib.BackupStatus, None],
+                        sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
+
+        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
+
+        Args:
+            limit: int - limit the number of backups returned to the number given
+            skip: int - skip the number of backups specified before returning backups-
+                  this, in conjunction with the limit option, allows for a paged interface to be built
+            status: lib.BackupStatus - limit the returned backups to those only with the specified status,
+                    None = retrieves information for all the backups
+            sort_order: lib.SortOrder - Defines the order used to present information
+
+        Returns:
+            backups_information: list/dict - Backups information, it is provided for each :
+                id: An identifier for the backup
+                date: The date the backup started
+                status: The status of the backup; one of running, failed, completed
+        Raises:
+        """
+
+        backups_information_complete = self.get_all_backups_complete(limit, skip, status, sort_order)
+
+        backups_information = []
+        for row in backups_information_complete:
+
+            status_decoded = lib.BackupStatus.text[int(row['status'])]
+
+            backups_information.append({'id': row['id'],
+                                        'date': row['ts'],
+                                        'status': status_decoded}
+                                       )
+
+        return backups_information
+
+    def get_all_backups_complete(
+                                self,
+                                limit: int,
+                                skip: int,
+                                status: [lib.BackupStatus, None],
+                                sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
+
+        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
+
+        Args:
+            limit: int - limit the number of backups returned to the number given
+            skip: int - skip the number of backups specified before returning backups-
+                  this, in conjunction with the limit option, allows for a paged interface to be built
+            status: lib.BackupStatus - limit the returned backups to those only with the specified status,
+                    None = retrieves information for all the backups
+            sort_order: lib.SortOrder - Defines the order used to present information
+
+        Returns:
+            backups_information: all the information available related to the requested backups
+        Raises:
+        """
+
+        if status is None:
+            payload = payload_builder.PayloadBuilder() \
+                .LIMIT(limit) \
+                .SKIP(skip) \
+                .ORDER_BY(['ts', sort_order]) \
+                .payload()
+        else:
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['status', '=', status]) \
+                .LIMIT(limit) \
+                .SKIP(skip) \
+                .ORDER_BY(['ts', sort_order]) \
+                .payload()
+
+        backups_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        backups_information = backups_from_storage['rows']
+
+        return backups_information
+
+    def get_backup_details(self, backup_id: int) -> dict:
+        """ Returns the details of a backup
+
+        Args:
+            backup_id: int - the id of the backup to return
+
+        Returns:
+            backup_info: dict - Backup information :
+                id: An identifier for the backup
+                date: The date the backup started
+                status: The status of the backup; one of running, failed, completed
+        Raises:
+            exceptions.DoesNotExist
+
+        """
+
+        backup_information_complete = self.get_backup_details_complete(backup_id)
+
+        status_decoded = lib.BackupStatus.text[int(backup_information_complete['status'])]
+
+        backups_information = {
+                                'id': backup_information_complete['id'],
+                                'date': backup_information_complete['ts'],
+                                'status': status_decoded
+                                }
+
+        return backups_information
+
+    def get_backup_details_complete(self, backup_id: int) -> dict:
+        """ Returns the details of a backup
+
+        Args:
+            backup_id: int - the id of the backup to return
+
+        Returns:
+            backup_information: all the information available related to the requested backup_id
+
+        Raises:
+            exceptions.DoesNotExist
+        """
+
+        payload = payload_builder.PayloadBuilder() \
+            .WHERE(['id', '=', backup_id]) \
+            .payload()
+
+        backup_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        if backup_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+
+        elif backup_from_storage['count'] == 1:
+
+            backup_information = backup_from_storage['rows'][0]
+        else:
+            raise exceptions.NotUniqueBackup
+
+        return backup_information
+
+    def delete_backup(self, backup_id: int):
+        """ Deletes a backup
+
+        Args:
+            backup_id: int - the id of the backup to delete
+
+        Returns:
+        Raises:
+        """
+
+        try:
+            backup_information = self.get_backup_details_complete(backup_id)
+
+            file_name = backup_information['file_name']
+
+            # Deletes backup file from the file system
+            if os.path.exists(file_name):
+
+                try:
+                    os.remove(file_name)
+
+                except Exception as _ex:
+                    _message = self._MESSAGES_LIST["e000001"].format(backup_id, file_name, _ex)
+                    self._logger.warning(_message)
+
+            # Deletes backup information from the Storage layer
+            # only if it was possible to delete the file from the file system
+            self._delete_backup_information(backup_id, file_name)
+
+        except exceptions.DoesNotExist:
+            _message = self._MESSAGES_LIST["e000003"].format(backup_id)
+            self._logger.warning(_message)
+
+    def _delete_backup_information(self, _id, _file_name):
+        """ Deletes backup information from the Storage layer
+
+        Args:
+            _id: Backup id to delete
+            _file_name: file name to delete
+        Returns:
+        Raises:
+        """
+
+        try:
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['id', '=', _id]) \
+                .payload()
+
+            self._storage.delete_from_tbl(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        except Exception as _ex:
+            _message = self._MESSAGES_LIST["e000002"].format(_id, _file_name, _ex)
+            self._logger.warning(_message)
+
+    def create_backup(self):
+        """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
+            the backup will proceed asynchronously.
+
+        Args:
+        Returns:
+            status: str - "failed" or "running"
+        Raises:
+        """
+
+        # FIXME:
+        pass
+
+
 if __name__ == "__main__":
 
     # Initializes the logger
@@ -676,7 +784,7 @@ if __name__ == "__main__":
         # FIXME: for debug purpose
         # _logger = logger.setup(_MODULE_NAME)
         _logger = logger.setup(_MODULE_NAME,
-                               # destination=logger.CONSOLE,
+                               destination=logger.CONSOLE,
                                level=logging.DEBUG)
 
         _logger.info(_MESSAGES_LIST["i000001"])
@@ -690,7 +798,7 @@ if __name__ == "__main__":
 
     # Initializes FoglampProcess and Backup classes - handling the command line parameters
     try:
-        backup = BackupProcess()
+        backup_process = BackupProcess()
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)
@@ -704,11 +812,11 @@ if __name__ == "__main__":
         # noinspection PyProtectedMember
         _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
             module=_MODULE_NAME,
-            name=backup._name,
-            addr=backup._core_management_host,
-            port=backup._core_management_port))
+            name=backup_process._name,
+            addr=backup_process._core_management_host,
+            port=backup_process._core_management_port))
 
-        backup.execute_backup()
+        backup_process.execute_backup()
 
         _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(0)
@@ -717,6 +825,6 @@ if __name__ == "__main__":
         message = _MESSAGES_LIST["e000002"].format(ex)
         _logger.exception(message)
 
-        backup.shutdown()
+        backup_process.shutdown()
         _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)

@@ -51,6 +51,22 @@ _MESSAGES_LIST = {
 _logger = ""
 
 
+class Restore(object):
+    """ Provides external functionality/integration to Restore a Backup
+    """
+
+    def restore_backup(self, backup_id: int):
+        """ Starts an asynchronous restore process to restore the state of FogLAMP.
+
+        Args:
+            backup_id: int - the id of the backup to restore from
+
+        Returns:
+        Raises:
+        """
+        # FIXME:
+
+
 if __name__ == "__main__":
 
     # FIXME:

@@ -741,12 +741,13 @@ CREATE TABLE foglamp.backups (
     file_name  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- Backup file name, expressed as absolute path
     ts         timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Backup creation timestamp
     type       integer           	       NOT NULL,                                                            -- Backup type : 1-Full, 2-Incremental
-    state      integer           	       NOT NULL,                                                            -- Backup status :
+    status     integer           	       NOT NULL,                                                            -- Backup status :
                                                                                                                 --   1-Running
-                                                                                                                --   2-Complete
+                                                                                                                --   2-Completed
                                                                                                                 --   3-Cancelled
                                                                                                                 --   4-Interrupted
-                                                                                                                --   5-Restored backup
+                                                                                                                --   5-Failed
+                                                                                                                --   6-Restored backup
     exit_code    int,                                                                                           -- Process exit status code
     CONSTRAINT backups_pkey PRIMARY KEY (id)
     );

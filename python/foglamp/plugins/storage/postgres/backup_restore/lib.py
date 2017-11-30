@@ -44,18 +44,44 @@ STORAGE_TABLE_BACKUPS = "backups"
 _CMD_TIMEOUT = " timeout --signal=9  "
 """ Every external commands will be launched using timeout to avoid endless executions """
 
-BACKUP_TYPE_FULL = 1
-BACKUP_TYPE_INCREMENTAL = 2
-""" Backup types supported """
 
-BACKUP_STATUS_UNDEFINED = -1
-BACKUP_STATUS_RUNNING = 1
-BACKUP_STATUS_SUCCESSFUL = 2
-BACKUP_STATUS_CANCELLED = 3
-BACKUP_STATUS_INTERRUPTED = 4
-BACKUP_STATUS_FAILED = 5
-BACKUP_STATUS_RESTORED = 6
-"""" Backup status"""
+class BackupType (object):
+    """ Supported backup types """
+
+    FULL = 1
+    INCREMENTAL = 2
+
+
+class SortOrder (object):
+    """ Define the order used to present information"""
+
+    ASC = 'ASC'
+    DESC = 'DESC'
+
+
+class BackupStatus (object):
+    """ Backup status"""
+
+    UNDEFINED = -1
+    RUNNING = 1
+    COMPLETED = 2
+    CANCELLED = 3
+    INTERRUPTED = 4
+    FAILED = 5
+    RESTORED = 6
+    ALL = 999
+
+    text = {
+        UNDEFINED: "undefined",
+        RUNNING: "running",
+        COMPLETED: "completed",
+        CANCELLED: "cancelled",
+        INTERRUPTED: "interrupted",
+        FAILED: "failed",
+        RESTORED: "restored",
+        ALL: "all"
+    }
+
 
 JOB_SEM_FILE_PATH = "/tmp"
 """ Updated by the caller retrieving from the configuration manager """
@@ -204,8 +230,8 @@ def backup_status_create(_file_name, _type, _status):
 
     Args:
         _file_name: file_name used for the backup as a full path
-        _type: backup type {BACKUP_TYPE_FULL|BACKUP_TYPE_INCREMENTAL}
-        _status: backup status, usually BACKUP_STATUS_RUNNING
+        _type: backup type {BackupType.FULL|BackupType.INCREMENTAL}
+        _status: backup status, usually BackupStatus.RUNNING
     Returns:
     Raises:
     Todo:
@@ -217,7 +243,7 @@ def backup_status_create(_file_name, _type, _status):
         .INSERT(file_name=_file_name,
                 ts="now()",
                 type=_type,
-                state=_status,
+                status=_status,
                 exit_code=0) \
         .payload()
 
@@ -229,7 +255,7 @@ def backup_status_update(_id, _status, _exit_code):
 
     Args:
         _id: Backup's Id to update
-        _status: status of the backup {BACKUP_STATUS_SUCCESSFUL|BACKUP_STATUS_RESTORED}
+        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
         _exit_code: exit status of the backup/restore execution
     Returns:
     Raises:
@@ -239,7 +265,7 @@ def backup_status_update(_id, _status, _exit_code):
     _logger.debug("{func} - id |{file}| ".format(func="backup_status_update", file=_id))
 
     payload = payload_builder.PayloadBuilder() \
-        .SET(state=_status,
+        .SET(status=_status,
              ts="now()",
              exit_code=_exit_code) \
         .WHERE(['id', '=', _id]) \

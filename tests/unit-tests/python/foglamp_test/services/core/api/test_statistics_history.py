@@ -6,7 +6,7 @@
 
 import asyncpg
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import pytest
 
@@ -20,11 +20,29 @@ BASE_URL = 'http://localhost:8081/foglamp'
 
 pytestmark = pytest.mark.asyncio
 
+last_count = 0
+
 
 async def set_statistics_test_data(val):
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''UPDATE foglamp.statistics SET value = $1, previous_value = $2''', val, 0)
     await conn.close()
+
+
+async def get_stats_keys_count():
+    conn = await asyncpg.connect(database=__DB_NAME)
+    res = await conn.fetchrow(''' SELECT count(*) FROM statistics ''')
+    await conn.close()
+    return res['count']
+
+
+async def get_stats_collector_schedule_interval():
+    conn = await asyncpg.connect(database=__DB_NAME)
+    res = await conn.fetchrow(''' SELECT schedule_interval FROM schedules WHERE process_name= $1 LIMIT 1 ''',
+                              'stats collector')
+    time_str = res['schedule_interval']
+    await conn.close()
+    return time_str.seconds
 
 
 @pytest.allure.feature("api")
@@ -41,29 +59,36 @@ class TestStatisticsHistory:
         # stop foglamp
         pass
 
+    @pytest.mark.run(order=1)
     async def test_get_statistics_history(self):
-        r = requests.get(BASE_URL + '/statistics/history')
-        res = r.json()
-
-        assert 200 == r.status_code
-        last_count = len(res['statistics']) * 8
-
-        # use fixture
-        await set_statistics_test_data(10)
-
-        assert 15 == res['interval']
-
+        stats_collector_schedule_interval = await get_stats_collector_schedule_interval()
         # Wait for 15 (as per the task schedule) seconds
         # to get 1 more batch of statistics updated value in statistics_history
         # FIXME: we should not wait in actual; but execute the task itself
-        await asyncio.sleep(15)
+        await asyncio.sleep(stats_collector_schedule_interval)
+
+        total_batch_keys = await get_stats_keys_count()
+
+        r = requests.get(BASE_URL + '/statistics/history')
+        res = r.json()
+        assert 200 == r.status_code
+        assert stats_collector_schedule_interval == res['interval']
+
+        global last_count
+        last_count = len(res['statistics']) * total_batch_keys
+
+        # use fixtures
+        await set_statistics_test_data(10)  # for new batch
+        # FIXME: we should not wait in actual; but execute the task itself
+        await asyncio.sleep(stats_collector_schedule_interval)
 
         r2 = requests.get(BASE_URL + '/statistics/history')
         res2 = r2.json()
 
-        updated_count = len(res2['statistics']) * 8
+        updated_count = len(res2['statistics']) * total_batch_keys
 
-        assert last_count + 8 == updated_count
+        assert 1 == len(res2['statistics']) - len(res['statistics'])
+        assert last_count + total_batch_keys == updated_count
 
         assert 10 == res2['statistics'][-1]['BUFFERED']
         assert 10 == res2['statistics'][-1]['DISCARDED']
@@ -74,34 +99,37 @@ class TestStatisticsHistory:
         assert 10 == res2['statistics'][-1]['READINGS']
         assert 10 == res2['statistics'][-1]['PURGED']
 
+        last_count = updated_count
         # use fixtures
         await set_statistics_test_data(0)
 
+    @pytest.mark.run(order=2)
     async def test_get_statistics_history_with_limit(self):
         """ Verify return <limit> set of records
         """
+        stats_collector_schedule_interval = await get_stats_collector_schedule_interval()
+        # Wait for 15 (as per the task schedule) seconds
+        # to get 1 more batch of statistics updated value in statistics_history
+        # FIXME: we should not wait in actual; but execute the task itself
+        await asyncio.sleep(stats_collector_schedule_interval)
+
         r = requests.get(BASE_URL + '/statistics/history?limit=2')
         res = r.json()
         assert 200 == r.status_code
 
-        # Wait for 15 (as per the task schedule) seconds
-        # to get 1 more batch of statistics updated value in statistics_history
-        # FIXME: we should not wait in actual; but execute the task itself
-        await asyncio.sleep(15)
-
         # verify returned record count based on limit
         assert 2 == len(res['statistics'])
-        assert 15 == res['interval']
+        assert stats_collector_schedule_interval == res['interval']
 
         previous_time = -1  # make it better
         is_greater_time = False
 
         # Verify history timestamp is in ascending order
         for r in res['statistics']:
-            date = datetime.strptime(r['history_ts'], "%Y-%m-%d %H:%M:%S")
+            history_ts = datetime.strptime(r['history_ts'], "%Y-%m-%d %H:%M:%S")
 
             # convert time in seconds
-            time = date.hour*60*60 + date.minute*60 + date.second
+            time = history_ts.hour*60*60 + history_ts.minute*60 + history_ts.second
 
             # compare history timestamp
             if time >= previous_time:
@@ -116,12 +144,4 @@ class TestStatisticsHistory:
     async def test_get_statistics_history_limit_with_bad_data(self):
         r = requests.get(BASE_URL + '/statistics/history?limit=x')
         res = r.json()
-        """ should return:
-                400 | Bad request error, for limit parameter
-            returns:
-                "error": {
-                    "message": "[ValueError]invalid literal for int() with base 10: 'x'",
-                    "code": 500
-                }
-        """
         assert 400 == res['error']['code']

@@ -68,5 +68,23 @@ class InvalidReadingsPurgeFlagParameters(BadRequest):
         self.code = 400
         self.message = "Purge flag valid options are retain or purge only"
 
+
+class PurgeOnlyOneOfAgeAndSize(BadRequest):
+    """ 400 - Invalid params for Purge request
+    """
+
+    def __init__(self):
+        self.code = 400
+        self.message = "Purge must specify only one of age or size"
+
+
+class PurgeOneOfAgeAndSize(BadRequest):
+    """ 400 - Invalid params for Purge request
+    """
+
+    def __init__(self):
+        self.code = 400
+        self.message = "Purge must specify one of age or size"
+
 # TODO: add more specific exceptions
 

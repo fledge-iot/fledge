@@ -28,7 +28,7 @@ class RestoreFailed(Exception):
 
 
 class NotUniqueBackup(Exception):
-    """ There are more backups having the same id """
+    """ There are more than one backups having the same backup id """
     pass
 
 

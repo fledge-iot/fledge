@@ -7,6 +7,7 @@
 import subprocess
 import time
 import os
+from enum import IntEnum
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
@@ -19,7 +20,13 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_MODULE_NAME = "foglamp_backup_library"
+_MODULE_NAME = "foglamp_backup_postgres_library"
+
+MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
+"""" Maximum number of backup information to retrieve from the storage layer"""
+
+STORAGE_TABLE_BACKUPS = "backups"
+""" Table name containing the backup information"""
 
 _MESSAGES_LIST = {
 
@@ -35,17 +42,11 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
-"""" Maximum number of backup information to retrieve from the storage layer"""
-
-STORAGE_TABLE_BACKUPS = "backups"
-""" Table name containing the backup information"""
-
 _CMD_TIMEOUT = " timeout --signal=9  "
 """ Every external commands will be launched using timeout to avoid endless executions """
 
 
-class BackupType (object):
+class BackupType (IntEnum):
     """ Supported backup types """
 
     FULL = 1
@@ -53,14 +54,14 @@ class BackupType (object):
 
 
 class SortOrder (object):
-    """ Define the order used to present information"""
+    """ Define the order used to present information """
 
     ASC = 'ASC'
     DESC = 'DESC'
 
 
 class BackupStatus (object):
-    """ Backup status"""
+    """ Backup status """
 
     UNDEFINED = -1
     RUNNING = 1
@@ -84,13 +85,14 @@ class BackupStatus (object):
 
 
 JOB_SEM_FILE_PATH = "/tmp"
-""" Updated by the caller retrieving from the configuration manager """
+""" Updated by the caller to the proper value """
+
 JOB_SEM_FILE_BACKUP = ".backup.sem"
 JOB_SEM_FILE_RESTORE = ".restore.sem"
 """" Semaphores information for the handling of the backup/restore synchronization """
 
-_logger = {}
-_storage = {}
+_logger = None
+_storage = None
 """" Objects references assigned by the caller """
 
 

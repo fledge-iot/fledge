@@ -47,7 +47,251 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_logger = {}
+_logger = None
+
+
+class Backup(object):
+    """ Provides external functionality/integration for Backup operations
+    """
+
+    _MODULE_NAME = "foglamp_backup_postgres"
+
+    _MESSAGES_LIST = {
+
+        # Information messages
+        "i000001": "Execution started.",
+        "i000002": "Execution completed.",
+
+        # Warning / Error messages
+        "e000000": "general error",
+        "e000001": "cannot delete/purge backup file on file system - id |{0}| - file name |{1}| error details |{2}|",
+        "e000002": "cannot delete/purge backup information on the storage layer "
+                   "- id |{0}| - file name |{1}| error details |{2}|",
+        "e000003": "cannot retrieve information for the backup id |{0}|",
+    }
+    """ Messages used for Information, Warning and Error notice """
+
+    def __init__(self, _storage):
+        self._storage = _storage
+
+        # FIXME:
+        # self._logger = logger.setup(self._MODULE_NAME)
+        self._logger = logger.setup(Backup._MODULE_NAME,
+                                    destination=logger.CONSOLE,
+                                    level=logging.DEBUG)
+
+    def get_all_backups(self,
+                        limit: int,
+                        skip: int,
+                        status: [lib.BackupStatus, None],
+                        sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
+
+        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
+
+        Args:
+            limit: int - limit the number of backups returned to the number given
+            skip: int - skip the number of backups specified before returning backups-
+                  this, in conjunction with the limit option, allows for a paged interface to be built
+            status: lib.BackupStatus - limit the returned backups to those only with the specified status,
+                    None = retrieves information for all the backups
+            sort_order: lib.SortOrder - Defines the order used to present information
+
+        Returns:
+            backups_information: list/dict - Backups information, it is provided for each :
+                id: An identifier for the backup
+                date: The date the backup started
+                status: The status of the backup; one of running, failed, completed
+        Raises:
+        """
+
+        backups_information_complete = self.get_all_backups_complete(limit, skip, status, sort_order)
+
+        backups_information = []
+        for row in backups_information_complete:
+
+            status_decoded = lib.BackupStatus.text[int(row['status'])]
+
+            backups_information.append({'id': row['id'],
+                                        'date': row['ts'],
+                                        'status': status_decoded}
+                                       )
+
+        return backups_information
+
+    def get_all_backups_complete(
+                                self,
+                                limit: int,
+                                skip: int,
+                                status: [lib.BackupStatus, None],
+                                sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
+
+        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
+
+        Args:
+            limit: int - limit the number of backups returned to the number given
+            skip: int - skip the number of backups specified before returning backups-
+                  this, in conjunction with the limit option, allows for a paged interface to be built
+            status: lib.BackupStatus - limit the returned backups to those only with the specified status,
+                    None = retrieves information for all the backups
+            sort_order: lib.SortOrder - Defines the order used to present information
+
+        Returns:
+            backups_information: all the information available related to the requested backups
+
+        Raises:
+        """
+
+        if status is None:
+            payload = payload_builder.PayloadBuilder() \
+                .LIMIT(limit) \
+                .SKIP(skip) \
+                .ORDER_BY(['ts', sort_order]) \
+                .payload()
+        else:
+            payload = payload_builder.PayloadBuilder() \
+                .WHERE(['status', '=', status]) \
+                .LIMIT(limit) \
+                .SKIP(skip) \
+                .ORDER_BY(['ts', sort_order]) \
+                .payload()
+
+        backups_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        backups_information = backups_from_storage['rows']
+
+        return backups_information
+
+    def get_backup_details(self, backup_id: int) -> dict:
+        """ Returns the details of a backup
+
+        Args:
+            backup_id: int - the id of the backup to return
+
+        Returns:
+            backup_info: dict - Backup information :
+                id: An identifier for the backup
+                date: The date the backup started
+                status: The status of the backup; one of running, failed, completed
+        Raises:
+            exceptions.DoesNotExist
+            exceptions.NotUniqueBackup
+
+        """
+
+        backup_information_complete = self.get_backup_details_complete(backup_id)
+
+        status_decoded = lib.BackupStatus.text[int(backup_information_complete['status'])]
+
+        backups_information = {
+                                'id': backup_information_complete['id'],
+                                'date': backup_information_complete['ts'],
+                                'status': status_decoded
+                                }
+
+        return backups_information
+
+    def get_backup_details_complete(self, backup_id: int) -> dict:
+        """ Returns the details of a backup
+
+        Args:
+            backup_id: int - the id of the backup to return
+
+        Returns:
+            backup_information: all the information available related to the requested backup_id
+
+        Raises:
+            exceptions.DoesNotExist
+            exceptions.NotUniqueBackup
+        """
+
+        payload = payload_builder.PayloadBuilder() \
+            .WHERE(['id', '=', backup_id]) \
+            .payload()
+
+        backup_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
+
+        if backup_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+
+        elif backup_from_storage['count'] == 1:
+
+            backup_information = backup_from_storage['rows'][0]
+        else:
+            raise exceptions.NotUniqueBackup
+
+        return backup_information
+
+    def delete_backup(self, backup_id: int):
+        """ Deletes a backup
+
+        Args:
+            backup_id: int - the id of the backup to delete
+
+        Returns:
+        Raises:
+        """
+
+        try:
+            backup_information = self.get_backup_details_complete(backup_id)
+
+            file_name = backup_information['file_name']
+
+            # Deletes backup file from the file system
+            if os.path.exists(file_name):
+
+                try:
+                    os.remove(file_name)
+
+                except Exception as _ex:
+                    _message = self._MESSAGES_LIST["e000001"].format(backup_id, file_name, _ex)
+                    self._logger.error(_message)
+
+                    raise
+
+            # Deletes backup information from the Storage layer
+            # only if it was possible to delete the file from the file system
+            try:
+                self._delete_backup_information(backup_id)
+
+            except Exception as _ex:
+                _message = self._MESSAGES_LIST["e000002"].format(backup_id, file_name, _ex)
+                self._logger.error(_message)
+
+                raise
+
+        except exceptions.DoesNotExist:
+            _message = self._MESSAGES_LIST["e000003"].format(backup_id)
+            self._logger.warning(_message)
+
+            raise
+
+    def _delete_backup_information(self, _id):
+        """ Deletes backup information from the Storage layer
+
+        Args:
+            _id: Backup id to delete
+        Returns:
+        Raises:
+        """
+
+        payload = payload_builder.PayloadBuilder() \
+            .WHERE(['id', '=', _id]) \
+            .payload()
+
+        self._storage.delete_from_tbl(lib.STORAGE_TABLE_BACKUPS, payload)
+
+    def create_backup(self):
+        """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
+            the backup will proceed asynchronously.
+
+        Args:
+        Returns:
+            status: str - "failed" or "running"
+        Raises:
+        """
+
+        # FIXME:
+        pass
 
 
 class BackupProcess(FoglampProcess):
@@ -538,243 +782,6 @@ class BackupProcess(FoglampProcess):
         self.init()
         self.run()
         self.shutdown()
-
-
-
-class Backup(object):
-    """ Provides external functionality/integration for Backup operations
-    """
-
-    _MODULE_NAME = "foglamp_backup_postgres"
-
-    _MESSAGES_LIST = {
-
-        # Information messages
-        "i000001": "Execution started.",
-        "i000002": "Execution completed.",
-
-        # Warning / Error messages
-        "e000000": "general error",
-        "e000001": "cannot delete/purge backup file on file system - id |{0}| - file name |{1}| error details |{2}|",
-        "e000002": "cannot delete/purge backup information on the storage layer "
-                   "- id |{0}| - file name |{1}| error details |{2}|",
-        "e000003": "cannot retrieve information for the backup id |{0}|",
-    }
-    """ Messages used for Information, Warning and Error notice """
-
-    def __init__(self, _storage):
-        self._storage = _storage
-
-        # FIXME:
-        # self._logger = logger.setup(self._MODULE_NAME)
-        self._logger = logger.setup(Backup._MODULE_NAME,
-                                    destination=logger.CONSOLE,
-                                    level=logging.DEBUG)
-
-    def get_all_backups(self,
-                        limit: int,
-                        skip: int,
-                        status: [lib.BackupStatus, None],
-                        sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
-
-        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
-
-        Args:
-            limit: int - limit the number of backups returned to the number given
-            skip: int - skip the number of backups specified before returning backups-
-                  this, in conjunction with the limit option, allows for a paged interface to be built
-            status: lib.BackupStatus - limit the returned backups to those only with the specified status,
-                    None = retrieves information for all the backups
-            sort_order: lib.SortOrder - Defines the order used to present information
-
-        Returns:
-            backups_information: list/dict - Backups information, it is provided for each :
-                id: An identifier for the backup
-                date: The date the backup started
-                status: The status of the backup; one of running, failed, completed
-        Raises:
-        """
-
-        backups_information_complete = self.get_all_backups_complete(limit, skip, status, sort_order)
-
-        backups_information = []
-        for row in backups_information_complete:
-
-            status_decoded = lib.BackupStatus.text[int(row['status'])]
-
-            backups_information.append({'id': row['id'],
-                                        'date': row['ts'],
-                                        'status': status_decoded}
-                                       )
-
-        return backups_information
-
-    def get_all_backups_complete(
-                                self,
-                                limit: int,
-                                skip: int,
-                                status: [lib.BackupStatus, None],
-                                sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
-
-        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
-
-        Args:
-            limit: int - limit the number of backups returned to the number given
-            skip: int - skip the number of backups specified before returning backups-
-                  this, in conjunction with the limit option, allows for a paged interface to be built
-            status: lib.BackupStatus - limit the returned backups to those only with the specified status,
-                    None = retrieves information for all the backups
-            sort_order: lib.SortOrder - Defines the order used to present information
-
-        Returns:
-            backups_information: all the information available related to the requested backups
-        Raises:
-        """
-
-        if status is None:
-            payload = payload_builder.PayloadBuilder() \
-                .LIMIT(limit) \
-                .SKIP(skip) \
-                .ORDER_BY(['ts', sort_order]) \
-                .payload()
-        else:
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['status', '=', status]) \
-                .LIMIT(limit) \
-                .SKIP(skip) \
-                .ORDER_BY(['ts', sort_order]) \
-                .payload()
-
-        backups_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
-
-        backups_information = backups_from_storage['rows']
-
-        return backups_information
-
-    def get_backup_details(self, backup_id: int) -> dict:
-        """ Returns the details of a backup
-
-        Args:
-            backup_id: int - the id of the backup to return
-
-        Returns:
-            backup_info: dict - Backup information :
-                id: An identifier for the backup
-                date: The date the backup started
-                status: The status of the backup; one of running, failed, completed
-        Raises:
-            exceptions.DoesNotExist
-
-        """
-
-        backup_information_complete = self.get_backup_details_complete(backup_id)
-
-        status_decoded = lib.BackupStatus.text[int(backup_information_complete['status'])]
-
-        backups_information = {
-                                'id': backup_information_complete['id'],
-                                'date': backup_information_complete['ts'],
-                                'status': status_decoded
-                                }
-
-        return backups_information
-
-    def get_backup_details_complete(self, backup_id: int) -> dict:
-        """ Returns the details of a backup
-
-        Args:
-            backup_id: int - the id of the backup to return
-
-        Returns:
-            backup_information: all the information available related to the requested backup_id
-
-        Raises:
-            exceptions.DoesNotExist
-        """
-
-        payload = payload_builder.PayloadBuilder() \
-            .WHERE(['id', '=', backup_id]) \
-            .payload()
-
-        backup_from_storage = self._storage.query_tbl_with_payload(lib.STORAGE_TABLE_BACKUPS, payload)
-
-        if backup_from_storage['count'] == 0:
-            raise exceptions.DoesNotExist
-
-        elif backup_from_storage['count'] == 1:
-
-            backup_information = backup_from_storage['rows'][0]
-        else:
-            raise exceptions.NotUniqueBackup
-
-        return backup_information
-
-    def delete_backup(self, backup_id: int):
-        """ Deletes a backup
-
-        Args:
-            backup_id: int - the id of the backup to delete
-
-        Returns:
-        Raises:
-        """
-
-        try:
-            backup_information = self.get_backup_details_complete(backup_id)
-
-            file_name = backup_information['file_name']
-
-            # Deletes backup file from the file system
-            if os.path.exists(file_name):
-
-                try:
-                    os.remove(file_name)
-
-                except Exception as _ex:
-                    _message = self._MESSAGES_LIST["e000001"].format(backup_id, file_name, _ex)
-                    self._logger.warning(_message)
-
-            # Deletes backup information from the Storage layer
-            # only if it was possible to delete the file from the file system
-            self._delete_backup_information(backup_id, file_name)
-
-        except exceptions.DoesNotExist:
-            _message = self._MESSAGES_LIST["e000003"].format(backup_id)
-            self._logger.warning(_message)
-
-    def _delete_backup_information(self, _id, _file_name):
-        """ Deletes backup information from the Storage layer
-
-        Args:
-            _id: Backup id to delete
-            _file_name: file name to delete
-        Returns:
-        Raises:
-        """
-
-        try:
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['id', '=', _id]) \
-                .payload()
-
-            self._storage.delete_from_tbl(lib.STORAGE_TABLE_BACKUPS, payload)
-
-        except Exception as _ex:
-            _message = self._MESSAGES_LIST["e000002"].format(_id, _file_name, _ex)
-            self._logger.warning(_message)
-
-    def create_backup(self):
-        """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
-            the backup will proceed asynchronously.
-
-        Args:
-        Returns:
-            status: str - "failed" or "running"
-        Raises:
-        """
-
-        # FIXME:
-        pass
 
 
 if __name__ == "__main__":

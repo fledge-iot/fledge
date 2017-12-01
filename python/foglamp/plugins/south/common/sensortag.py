@@ -5,15 +5,10 @@
 # FOGLAMP_END
 
 """ Template module for 'poll' type plugin """
-import copy
-from datetime import datetime, timezone
-import uuid
 import pexpect
 import sys
 import json
 import time
-import datetime
-from foglamp.services.south import exceptions
 from foglamp.common import logger
 
 

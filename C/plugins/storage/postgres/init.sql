@@ -809,7 +809,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'HTTP_SOUTH', 'HTTP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'SENSORTAG', 'SensorTag Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "sensortag", "default" : "sensortag", "description" : "Python module name of the plugin to load" } } ');
+    VALUES ( 'STAGPOLL', 'SensorTag Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "sensortag_poll", "default" : "sensortag_poll", "description" : "Python module name of the plugin to load" } } ');
 
 -- DELETE data for roles, resources and permissions
 DELETE FROM foglamp.role_resource_permission;
@@ -855,7 +855,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 insert into foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["services/south"]' );
 -- FogLAMP South Microservice - POLL Plugin template
 insert into foglamp.scheduled_processes ( name, script ) values ( 'POLL', '["services/south"]' );
-insert into foglamp.scheduled_processes ( name, script ) values ( 'SENSORTAG', '["services/south"]' );
+insert into foglamp.scheduled_processes ( name, script ) values ( 'STAGPOLL', '["services/south", "--bluetooth_adr", "B0:91:22:EA:79:04"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'HTTP_SOUTH', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'purge', '["tasks/purge"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collector', '["tasks/statistics"]' );
@@ -874,7 +874,7 @@ values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 -- Start the Poll mode device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)
-values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'SENSORTAG', 1,
+values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'STAGPOLL', 1,
 '0:0', true);
 
 -- Start the Poll mode device server at start-up

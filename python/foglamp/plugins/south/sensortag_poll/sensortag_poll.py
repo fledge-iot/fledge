@@ -6,20 +6,11 @@
 
 """ Template module for 'poll' type plugin """
 import copy
-from datetime import datetime, timezone
-import uuid
-import pexpect
-import json
-import time
 import datetime
-import sys
-import asyncio
-from aiohttp import web
+import uuid
+from foglamp.plugins.south.common.sensortag import *
+from foglamp.common.parser import Parser
 from foglamp.services.south import exceptions
-from foglamp.common import logger
-from foglamp.plugins.south.sensortag.sensortag_poll import *
-from foglamp.services.south.ingest import Ingest
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -79,7 +70,7 @@ def plugin_init(config):
     """
     global sensortag_characteristics
 
-    bluetooth_adr = config['bluetooth_adr']
+    bluetooth_adr = Parser.get('--bluetooth_adr')
     tag = SensorTag(bluetooth_adr)
 
     # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
@@ -108,7 +99,7 @@ def plugin_poll(handle):
         DataRetrievalError
     """
 
-    time_stamp = str(datetime.datetime.now(tz=timezone.utc))
+    time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
     data = {
         'asset': 'sensortag',
         'timestamp': time_stamp,
@@ -209,68 +200,6 @@ def plugin_shutdown(handle):
     Raises:
     """
     pass
-
-
-# Pending: complete below class implementation
-# TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
-class SensorTagIngest(object):
-    """Handles incoming sensor readings from HTTP Listener"""
-
-    @staticmethod
-    async def render_post(request):
-        """Store sensortag readings to FogLAMP
-        """
-
-        increment_discarded_counter = False
-
-        # TODO: Decide upon the correct format of message
-        message = {'result': 'success'}
-        code = web.HTTPOk.status_code
-
-        try:
-            if not Ingest.is_available():
-                increment_discarded_counter = True
-                message = {'busy': True}
-            else:
-                payload = await request.json()
-
-                if not isinstance(payload, dict):
-                    raise ValueError('Payload must be a dictionary')
-
-                asset = payload.get('asset')
-                timestamp = payload.get('timestamp')
-                key = payload.get('key')
-
-                # readings and sensor_readings are optional
-                try:
-                    readings = payload.get('readings')
-                except KeyError:
-                    readings = payload.get('sensor_values')  # sensor_values is deprecated
-
-                if not isinstance(readings, dict):
-                    raise ValueError('readings must be a dictionary')
-
-                await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
-        except (ValueError, TypeError) as e:
-            increment_discarded_counter = True
-            code = web.HTTPBadRequest.status_code
-            message = {'error': str(e)}
-            _LOGGER.exception(str(e))
-        except Exception as e:
-            increment_discarded_counter = True
-            code = web.HTTPInternalServerError.status_code
-            message = {'error': str(e)}
-            _LOGGER.exception(str(e))
-
-        if increment_discarded_counter:
-            Ingest.increment_discarded_readings()
-
-        # expect keys in response:
-        # (code = 2xx) result Or busy
-        # (code = 4xx, 5xx) error
-        message['status'] = code
-
-        return web.json_response(message)
 
 
 if __name__ == "__main__":

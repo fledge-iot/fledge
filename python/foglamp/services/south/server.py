@@ -164,7 +164,7 @@ class Server(FoglampMicroservice):
         await Ingest.start(self._core_management_host, self._core_management_port)
 
         while True:
-            data = await self._plugin.plugin_poll(self._plugin_handle)
+            data = self._plugin.plugin_poll(self._plugin_handle)
 
             await Ingest.add_readings(asset=data['asset'],
                                       timestamp=data['timestamp'],

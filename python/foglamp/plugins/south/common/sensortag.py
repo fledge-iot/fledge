@@ -5,6 +5,8 @@
 # FOGLAMP_END
 
 """ Template module for 'poll' type plugin """
+
+
 import pexpect
 import sys
 import json
@@ -17,6 +19,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+_LOGGER = logger.setup(__name__)
 
 characteristics = {
     'temperature': {
@@ -111,8 +115,6 @@ characteristics = {
     }
 }
 
-# TODO: Implement logging
-_LOGGER = logger.setup(__name__)
 
 class SensorTag(object):
     """Handles polling of readings from SensorTag
@@ -121,13 +123,16 @@ class SensorTag(object):
     reading_iterations = 1  # number of iterations to read data from the TAG
 
     def __init__(self, bluetooth_adr):
+        self.bluetooth_adr = bluetooth_adr
         self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
         self.con.expect('\[LE\]>', timeout=600)
-        print("INFO: Preparing to connect. Hold on a second...If nothing happens please press the power button...")
+        print('SensorTag {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
+        _LOGGER.info('SensorTag {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
         self.con.sendline('connect')
         # test for success of connect
         self.con.expect('.*Connection successful.*\[LE\]>')
-        print("INFO: Connection Successful!")
+        print('SensorTag {} connected successfully'.format(bluetooth_adr))
+        _LOGGER.info('SensorTag {} connected successfully'.format(bluetooth_adr))
         self.cb = {}
 
     def get_char_handle(self, uuid):
@@ -142,7 +147,6 @@ class SensorTag(object):
                 self.con.expect('.*handle:.* \r', timeout=3)
                 reading = self.con.after
                 line = reading.decode().split('handle: ')[1]
-                # print(uuid, reading, "\n") #line.split()[0])
                 rval = line.split()[0]
             except Exception as ex:
                 time.sleep(.5)
@@ -151,7 +155,6 @@ class SensorTag(object):
         return rval
 
     def char_write_cmd(self, handle, value):
-        # The 0%x for value is VERY naughty!  Fix this!
         cmd = 'char-write-cmd %s %s' % (handle, value)
         self.con.sendline(cmd)
         # delay for 1 second so that Tag can enable registers
@@ -163,9 +166,9 @@ class SensorTag(object):
 
         self.con.expect('.*descriptor:.* \r')
         reading = self.con.after
-        print("DEBUGGING: Reading from Tag... %s \n" % reading) #print(the outcome as it comes while reading the Tag
         rval = reading.split() #splitting the reading based on the spaces
-        # print("DEBUGGING: rval" + str(rval)+"\n")
+        _LOGGER.info('SensorTag {} DEBUGGING: Reading from Tag... {} \n'.format(self.bluetooth_adr, reading))
+        # _LOGGER.info('SensorTag {} DEBUGGING: rval {}'.format(self.bluetooth_adr, str(rval)))
 
         if sensortype in ['temperature']:
             # The raw data value read from this sensor are two unsigned 16 bit values
@@ -185,11 +188,10 @@ class SensorTag(object):
         else:
             raw_measurement = 0
 
-        print(sensortype, raw_measurement, "\n")
+        _LOGGER.info('SensorTag {} sensortype: {} raw_measurement: {}'.format(self.bluetooth_adr, sensortype, raw_measurement))
         return raw_measurement
 
-    @staticmethod
-    def hexTemp2C(raw_tempr):
+    def hexTemp2C(self, raw_tempr):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
         The raw data value read from this sensor are two unsigned 16 bit values, one for die (ambience) temperature and
@@ -225,14 +227,11 @@ class SensorTag(object):
         ambient_temp_celsius = float(ambient_temp_int) * SCALE_LSB
         ambient_temp_fahrenheit = (ambient_temp_celsius * 1.8) + 32
 
-        print("INFO: object Celsius:    %f" % object_temp_celsius)
-        print("INFO: Ambient Celsius:    %f" % ambient_temp_celsius)
-        print("Fahrenheit: %f" % ambient_temp_fahrenheit)
+        _LOGGER.info('SensorTag {} object Celsius: {} Ambient Celsius: {} Fahrenheit: {}'.format(self.bluetooth_adr, object_temp_celsius, ambient_temp_celsius, ambient_temp_fahrenheit))
 
         return object_temp_celsius, ambient_temp_celsius
 
-    @staticmethod
-    def hexMovement2Mov(raw_movement):
+    def hexMovement2Mov(self, raw_movement):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -302,8 +301,7 @@ class SensorTag(object):
         # To be implemented
         pass
 
-    @staticmethod
-    def hexHum2RelHum(raw_humd):
+    def hexHum2RelHum(self, raw_humd):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -329,12 +327,10 @@ class SensorTag(object):
         raw_humidity = int('0x'+interim_value[6:8]+interim_value[4:6], 16)
         raw_humidity &= -0x0003
         humidity = float((raw_humidity)) / 65536 * 100
-        print("INFO: tempr:    %f" % temperature)
-        print("INFO: humidity:    %f" % humidity)
+        _LOGGER.info('SensorTag {} tempr: {} humidity: {}'.format(self.bluetooth_adr, temperature, humidity))
         return humidity
 
-    @staticmethod
-    def hexPress2Press(raw_pr):
+    def hexPress2Press(self, raw_pr):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -352,11 +348,10 @@ class SensorTag(object):
         interim_value = raw_pr.decode()
         raw_pressure = int('0x'+interim_value[10:12]+interim_value[8:10]+interim_value[6:8], 16)
         pressure = float(raw_pressure) / 100.0
-        print("INFO: pressure:    %f" % pressure)
+        _LOGGER.info('SensorTag {} pressure: {}'.format(self.bluetooth_adr, pressure))
         return pressure
 
-    @staticmethod
-    def hexLum2Lux(raw_lumn):
+    def hexLum2Lux(self, raw_lumn):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -389,5 +384,5 @@ class SensorTag(object):
         exp = 1 if exp == 0 else 2
         exp = exp << (exp -1)
         luminance = (m * (0.01 * exp))
-        print("INFO: luminance:    %f" % luminance)
+        _LOGGER.info('SensorTag {} luminance: {}'.format(self.bluetooth_adr, luminance))
         return luminance

@@ -11,6 +11,7 @@ import uuid
 from foglamp.plugins.south.common.sensortag import *
 from foglamp.common.parser import Parser
 from foglamp.services.south import exceptions
+from foglamp.common import logger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -35,10 +36,12 @@ _DEFAULT_CONFIG = {
     }
 }
 
-# TODO: Implement logging
-_LOGGER = logger.setup(__name__)
+_LOGGER = logger.setup(__name__, level=20)
 
 sensortag_characteristics = characteristics
+char_enable = '01'
+char_disable = '00'
+
 
 def plugin_info():
     """ Returns information about the plugin.
@@ -80,8 +83,21 @@ def plugin_init(config):
             handle = tag.get_char_handle(sensortag_characteristics[char][type]['uuid'])
             sensortag_characteristics[char][type]['handle'] = handle
 
+    # print(json.dumps(sensortag_characteristics))
+
+    # Get temperature
+    tag.char_write_cmd(sensortag_characteristics['temperature']['configuration']['handle'], char_enable)
+    tag.char_write_cmd(sensortag_characteristics['luminance']['configuration']['handle'], char_enable)
+    tag.char_write_cmd(sensortag_characteristics['humidity']['configuration']['handle'], char_enable)
+    tag.char_write_cmd(sensortag_characteristics['pressure']['configuration']['handle'], char_enable)
+    # tag.char_write_cmd(sensortag_characteristics['movement']['configuration']['handle'], char_enable)
+
     data = copy.deepcopy(config)
     data['characteristics'] = sensortag_characteristics
+    data['bluetooth_adr'] = bluetooth_adr
+
+    _LOGGER.info('SensorTag {} Polling initialized'.format(bluetooth_adr))
+
     return data
 
 
@@ -115,49 +131,33 @@ def plugin_poll(handle):
         rel_humidity = None
         bar_pressure = None
         movement = None
-        char_enable = '01'
-        char_disable = '00'
 
         # print(('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))  )
-        print("INFO: [re]starting..")
-
         tag = SensorTag(bluetooth_adr)  # pass the Bluetooth Address
-        # print(json.dumps(handle['characteristics']))
 
         # Get temperature
-        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_enable)
         count = 0
         while count < SensorTag.reading_iterations:
-            object_temp_celsius, ambient_temp_celsius = SensorTag.hexTemp2C(tag.char_read_hnd(
+            object_temp_celsius, ambient_temp_celsius = tag.hexTemp2C(tag.char_read_hnd(
                 handle['characteristics']['temperature']['data']['handle'], "temperature"))
             time.sleep(0.5)  # wait for a while
             count = count + 1
 
         # Get luminance
-        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_enable)
-        lux_luminance = SensorTag.hexLum2Lux(tag.char_read_hnd(
+        lux_luminance = tag.hexLum2Lux(tag.char_read_hnd(
             handle['characteristics']['luminance']['data']['handle'], "luminance"))
 
         # Get humidity
-        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_enable)
-        rel_humidity = SensorTag.hexHum2RelHum(tag.char_read_hnd(
+        rel_humidity = tag.hexHum2RelHum(tag.char_read_hnd(
             handle['characteristics']['humidity']['data']['handle'], "humidity"))
 
         # Get pressure
-        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
-        bar_pressure = SensorTag.hexPress2Press(tag.char_read_hnd(
+        bar_pressure = tag.hexPress2Press(tag.char_read_hnd(
             handle['characteristics']['pressure']['data']['handle'], "pressure"))
 
         # TODO: Implement movement data capture
         # Get movement
-        # tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
-
-        # Disable sensors
-        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
-        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
-        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
-        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
-        tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_disable)
+        # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_enable)
 
         data['readings'] = {
                     'objectTemperature': object_temp_celsius,
@@ -168,8 +168,10 @@ def plugin_poll(handle):
                     'movement': movement
                 }
     except Exception as ex:
+        _LOGGER.exception("SensorTag {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)
 
+    _LOGGER.info("SensorTag {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
 
 
@@ -199,7 +201,16 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    pass
+    bluetooth_adr = handle['bluetooth_adr']
+    tag = SensorTag(bluetooth_adr)  # pass the Bluetooth Address
+
+    # Disable sensors
+    tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
+    tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
+    tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
+    tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
+    # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_disable)
+    _LOGGER.info('SensorTag {} Polling shutdown'.format(bluetooth_adr))
 
 
 if __name__ == "__main__":

@@ -50,40 +50,28 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - *python3-pip*
 - *postgresql*
 
-On Ubuntu based Linux distributions these can be installed with *apt-get*:
+On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
 ::
    apt-get install cmake g++ make
    apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev
    apt-get install python3-pip
    apt-get install postgresql
 
-You may need to use *sudo* to allow *apt-get* to install packages dependent upon our access rights.
+You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
 
 
 Build
 -----
 
-To build FogLAMP simply run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
+To build FogLAMP run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
-Once the *make* has completed set one environment variable to be able to run FogLAMP from the development tree.
-::
-   export FOGLAMP_ROOT=<basedir>/FogLAMP
+**NOTE:** *The GGC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
 
-Where *basedir* is the base directory into which you cloned the FogLAMP repository.
+Once the *make* has completed you can decide to test FogLAMP from your development environment or you can install it. 
 |br| |br|
 
-Installing FogLAMP
-==================
-
-Create an installation by executing ``make install``. The installation will be placed in */usr/local/foglamp*, this may be overriden by setting the variable DESTDIR in the make command line, to a location in which you wish to install FogLAMP. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions.
-
-To install FogLAMP in the /opt directory use the command:
-::
-   sudo make install DESTDIR=/opt
-
-
 Creating the Database Repository
---------------------------------
+================================
 
 This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
 ::
@@ -93,17 +81,47 @@ where *user* is the name of the Linux user that will run FogLAMP.
 
 Last, you must create the FogLAMP database, schema and tables:
 ::
-   sudo -u postgres psql -f <FOGLAMP_ROOT>/plugins/storage/postgres/init.sql
+   sudo -u postgres psql -f <basedir>/FogLAMP/plugins/storage/postgres/init.sql
 
-Replace *FOGLAMP\_ROOT* with the path you have used to install FogLAMP.
+Where *basedir* is the base directory into which you cloned the FogLAMP repository.
 |br| |br|
+
+Testing FogLAMP from Your Development Environment
+=================================================
+
+you can test FogLAMP directly from your Development Environment. All you need to do is to set one environment variable to be able to run FogLAMP from the development tree.
+::
+   export FOGLAMP_ROOT=<basedir>/FogLAMP
+
+Where *basedir* is the base directory into which you cloned the FogLAMP repository.
+
+Finally, start the FogLAMP core daemon:
+::
+   $FOGLAMP_ROOT/scripts/foglamp start
+
+|br|
+
+Installing FogLAMP
+==================
+
+Create an installation by executing ``make install``, then set the *FOGLAMP_ROOT* environment variable specifying the installation path. By default the installation will be placed in */usr/local/foglamp*. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions:
+::
+   sudo make install
+   export $FOGLAMP_ROOT=/usr/local/foglamp
+
+The destination may be overriden by setting the variable *DESTDIR* in the make command line, to a location in which you wish to install FogLAMP. For example, to install FogLAMP in the */opt* directory use the command:
+::
+   sudo make install DESTDIR=/opt
+   export FOGLAMP_ROOT=/opt/usr/local/foglamp
+
+|br|
 
 Executing FogLAMP
 =================
 
 FogLAMP is now ready to start. Use the command:
 ::
-   <FOGLAMP_ROOT>/bin/foglamp start
+   $FOGLAMP_ROOT/bin/foglamp start
 
 To check if FogLAMP is running, simply use *curl* (you may need to install it first):
 ::

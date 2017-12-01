@@ -5,21 +5,14 @@
 # FOGLAMP_END
 
 """ Template module for 'poll' type plugin """
-import struct
+import copy
 from datetime import datetime, timezone
-import random
 import uuid
 import pexpect
 import sys
-import time
 import json
-import select
 import time
-import requests
-import warnings
 import datetime
-import traceback
-import math
 from foglamp.common import logger
 from foglamp.services.south import exceptions
 
@@ -46,6 +39,100 @@ _DEFAULT_CONFIG = {
     }
 }
 
+characteristics = {
+    'temperature': {
+        'data': {
+            'uuid': 'f000aa01-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'notification': {
+            'uuid': '2902',
+            'handle': '0x0000'
+        },
+        'configuration': {
+            'uuid': 'f000aa02-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'period': {
+            'uuid': 'f000aa03-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        }
+    },
+    'movement': {
+        'data': {
+            'uuid': 'f000aa81-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'notification': {
+            'uuid': '2902',
+            'handle': '0x0000'
+        },
+        'configuration': {
+            'uuid': 'f000aa82-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'period': {
+            'uuid': 'f000aa83-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        }
+    },
+    'humidity': {
+        'data': {
+            'uuid': 'f000aa21-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'notification': {
+            'uuid': '2902',
+            'handle': '0x0000'
+        },
+        'configuration': {
+            'uuid': 'f000aa22-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'period': {
+            'uuid': 'f000aa23-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        }
+    },
+    'pressure': {
+        'data': {
+            'uuid': 'f000aa41-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'notification': {
+            'uuid': '2902',
+            'handle': '0x0000'
+        },
+        'configuration': {
+            'uuid': 'f000aa42-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'period': {
+            'uuid': 'f000aa43-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        }
+    },
+    'luminance': {
+        'data': {
+            'uuid': 'f000aa71-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'notification': {
+            'uuid': '2902',
+            'handle': '0x0000'
+        },
+        'configuration': {
+            'uuid': 'f000aa72-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        },
+        'period': {
+            'uuid': 'f000aa73-0451-4000-b000-000000000000',
+            'handle': '0x0000'
+        }
+    }
+}
+
+# TODO: Implement logging
 _LOGGER = logger.setup(__name__)
 
 
@@ -77,10 +164,21 @@ def plugin_init(config):
         handle: JSON object to be used in future calls to the plugin
     Raises:
     """
+    global characteristics
 
-    handle = config
+    bluetooth_adr = config['bluetooth_adr']
+    tag = SensorTag(bluetooth_adr)
 
-    return handle
+    # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
+    # discovery rather than hard-coding the attribute handles.
+    for char in characteristics.keys():
+        for type in ['data', 'configuration', 'period']:
+            handle = tag.get_char_handle(characteristics[char][type]['uuid'])
+            characteristics[char][type]['handle'] = handle
+
+    data = copy.deepcopy(config)
+    data['characteristics'] = characteristics
+    return data
 
 
 def plugin_poll(handle):
@@ -98,6 +196,12 @@ def plugin_poll(handle):
     """
 
     time_stamp = str(datetime.datetime.now(tz=timezone.utc))
+    data = {
+        'asset': 'sensortag',
+        'timestamp': time_stamp,
+        'key': str(uuid.uuid4()),
+        'readings': {}
+    }
 
     try:
         bluetooth_adr = handle['bluetooth_adr']
@@ -106,45 +210,59 @@ def plugin_poll(handle):
         lux_luminance = None
         rel_humidity = None
         bar_pressure = None
+        movement = None
+        char_enable = '01'
+        char_disable = '00'
 
         # print(('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))  )
         print("INFO: [re]starting..")
 
         tag = SensorTag(bluetooth_adr)  # pass the Bluetooth Address
-        # Get temperature
-        tag.char_write_cmd(0x24, 0x01)  # Enable temperature sensor
+        # print(json.dumps(handle['characteristics']))
 
+        # Get temperature
+        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_enable)
         count = 0
         while count < SensorTag.reading_iterations:
-            object_temp_celsius, ambient_temp_celsius = SensorTag.hexTemp2C(tag.char_read_hnd(0x21, "temperature"))
+            object_temp_celsius, ambient_temp_celsius = SensorTag.hexTemp2C(tag.char_read_hnd(
+                handle['characteristics']['temperature']['data']['handle'], "temperature"))
             time.sleep(0.5)  # wait for a while
             count = count + 1
 
         # Get luminance
-        tag.char_write_cmd(0x44, 0x01)
-        lux_luminance = SensorTag.hexLum2Lux(tag.char_read_hnd(0x41, "luminance"))
+        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_enable)
+        lux_luminance = SensorTag.hexLum2Lux(tag.char_read_hnd(
+            handle['characteristics']['luminance']['data']['handle'], "luminance"))
 
         # Get humidity
-        tag.char_write_cmd(0x2C, 0x01)
-        rel_humidity = SensorTag.hexHum2RelHum(tag.char_read_hnd(0x29, "humidity"))
+        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_enable)
+        rel_humidity = SensorTag.hexHum2RelHum(tag.char_read_hnd(
+            handle['characteristics']['humidity']['data']['handle'], "humidity"))
 
         # Get pressure
-        tag.char_write_cmd(0x34, 0x01)
-        bar_pressure = SensorTag.hexPress2Press(tag.char_read_hnd(0x31, "barPressure"))
+        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
+        bar_pressure = SensorTag.hexPress2Press(tag.char_read_hnd(
+            handle['characteristics']['pressure']['data']['handle'], "pressure"))
 
-        data = {
-                'asset':     'sensortag',
-                'timestamp': time_stamp,
-                'key':       str(uuid.uuid4()),
-                'readings':  {
+        # TODO: Implement movement data capture
+        # Get movement
+        # tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
+
+        # Disable sensors
+        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_disable)
+
+        data['readings'] = {
                     'objectTemperature': object_temp_celsius,
                     'ambientTemperature': ambient_temp_celsius,
                     'luminance': lux_luminance,
                     'humidity': rel_humidity,
-                    'pressure': bar_pressure
+                    'pressure': bar_pressure,
+                    'movement': movement
                 }
-        }
-
     except Exception as ex:
         raise exceptions.DataRetrievalError(ex)
 
@@ -177,20 +295,15 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
+    pass
+
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
 class SensorTag(object):
     """Handles polling of readings from SensorTag
         Cloned from https://github.com/OrestisEv/SensorTag-Pi3
     """
-    flag_to_send = False  # Flag to send data to database
     reading_iterations = 1  # number of iterations to read data from the TAG
-
-    # defining variable for sending data to DB
-    API_BASE_URI = "http://tcstestbed.unige.ch/api/"
-    ble_id = "SensTag004"
-    resource_name = "temperature"
-    location = "&pos_x=1&pos_y=5.5&pos_z=1"  # location of my desk
 
     def __init__(self, bluetooth_adr):
         self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
@@ -202,68 +315,63 @@ class SensorTag(object):
         print("INFO: Connection Successful!")
         self.cb = {}
 
+    def get_char_handle(self, uuid):
+        timeout = 3
+        max_time = time.time() + timeout
+        rval = '0x0000'
+        while time.time() < max_time:
+            try:
+                cmd = 'char-read-uuid %s' % uuid
+                self.con.sendline(cmd)
+                # TODO: Devise a better method for all below
+                self.con.expect('.*handle:.* \r', timeout=3)
+                reading = self.con.after
+                line = reading.decode().split('handle: ')[1]
+                # print(uuid, reading, "\n") #line.split()[0])
+                rval = line.split()[0]
+            except Exception as ex:
+                time.sleep(.5)
+            else:
+                break
+        return rval
+
     def char_write_cmd(self, handle, value):
         # The 0%x for value is VERY naughty!  Fix this!
-        cmd = 'char-write-cmd 0x%02x 0%x' % (handle, value)
+        cmd = 'char-write-cmd %s %s' % (handle, value)
         self.con.sendline(cmd)
         # delay for 1 second so that Tag can enable registers
         time.sleep(1)
 
     def char_read_hnd(self, handle, sensortype):
-        self.con.sendline('char-read-hnd 0x%02x' % handle) #send the hex value to the Tag
-        #print('DEBUGGING: char-read-hnd 0x%02x' % handle)
+        # send the hex value to the Tag
+        self.con.sendline('char-read-hnd %s' % handle)
+
         self.con.expect('.*descriptor:.* \r')
         reading = self.con.after
         print("DEBUGGING: Reading from Tag... %s \n" % reading) #print(the outcome as it comes while reading the Tag
         rval = reading.split() #splitting the reading based on the spaces
-        print("DEBUGGING: rval" + str(rval))
+        # print("DEBUGGING: rval" + str(rval)+"\n")
 
         if sensortype in ['temperature']:
             # The raw data value read from this sensor are two unsigned 16 bit values
             raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
         elif sensortype in ['movement']:
-            # TODO:
+            # TODO: Pending implementation
             pass
         elif sensortype in ['humidity']:
             # The raw data value read from this sensor are two unsigned 16 bit values
-            # raw_measurement = rval[-1] + rval[-2]
-            raw_measurement = rval[-1]
-        elif sensortype in ['barPressure']:
+            raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
+        elif sensortype in ['pressure']:
             # The data from the pressure sensor consists of two 24-bit unsigned integers
-            # raw_measurement = rval[-1] + rval[-2] + rval[-3]
-            raw_measurement = rval[-1]
+            raw_measurement = rval[-6] + rval[-5] + rval[-4] + rval[-3] + rval[-2] + rval[-1]
         elif sensortype in ['luminance']:
             # The data from the optical sensor consists of a single 16-bit unsigned integer
-            # raw_measurement = rval[-1] + rval[-2]
-            raw_measurement = rval[-1]
+            raw_measurement = rval[-2] + rval[-1]
         else:
             raw_measurement = 0
 
-        print(raw_measurement)
+        print(sensortype, raw_measurement, "\n")
         return raw_measurement
-
-    # TODO: Work on Notifications
-    # Notification handle = 0x0025 value: 9b ff 54 07
-    def notification_loop(self):
-        while True:
-            try:
-                pnum = self.con.expect('Notification handle = .*? \r', timeout=4)
-            except pexpect.TIMEOUT:
-                print("TIMEOUT exception!")  # was: print("TIMEOUT exception!")
-                break
-            if pnum == 0:
-                after = self.con.after
-                hxstr = after.split()[3:]
-                print("****")
-                handle = int(float.fromhex(hxstr[0]))
-                self.cb[handle]([int(float.fromhex(n)) for n in hxstr[2:]])
-            else:
-                print("TIMEOUT!!")
-        pass
-
-    def register_cb(self, handle, fn):
-        self.cb[handle] = fn;
-        return
 
     @staticmethod
     def hexTemp2C(raw_tempr):
@@ -292,20 +400,21 @@ class SensorTag(object):
         SCALE_LSB = 0.03125
 
         # Choose object temperature (reverse bytes for little endian)
-        raw_IR_temp = int('0x' + raw_temperature[0:2] + raw_temperature[2:4], 16)
-        IR_temp_int = raw_IR_temp >> 2
-        IR_temp_celsius = float(IR_temp_int) * SCALE_LSB
+        raw_object_temp = int('0x' + raw_temperature[2:4] + raw_temperature[0:2], 16)
+        object_temp_int = raw_object_temp >> 2
+        object_temp_celsius = float(object_temp_int) * SCALE_LSB
 
         # Choose ambient temperature (reverse bytes for little endian)
-        raw_ambient_temp = int('0x' + raw_temperature[4:6] + raw_temperature[6:8], 16)
-        ambient_temp_int = raw_ambient_temp >> 2  # Shift right, based on from TI
-        ambient_temp_celsius = float(ambient_temp_int) * SCALE_LSB  # Convert to Celsius based on info from TI
-        ambient_temp_fahrenheit = (ambient_temp_celsius * 1.8) + 32  # Convert to Fahrenheit
+        raw_ambient_temp = int('0x' + raw_temperature[6:8] + raw_temperature[4:6], 16)
+        ambient_temp_int = raw_ambient_temp >> 2
+        ambient_temp_celsius = float(ambient_temp_int) * SCALE_LSB
+        ambient_temp_fahrenheit = (ambient_temp_celsius * 1.8) + 32
 
-        print("INFO: IR Celsius:    %f" % IR_temp_celsius)
+        print("INFO: object Celsius:    %f" % object_temp_celsius)
         print("INFO: Ambient Celsius:    %f" % ambient_temp_celsius)
         print("Fahrenheit: %f" % ambient_temp_fahrenheit)
-        return IR_temp_celsius, ambient_temp_celsius
+
+        return object_temp_celsius, ambient_temp_celsius
 
     @staticmethod
     def hexMovement2Mov(raw_movement):
@@ -400,11 +509,12 @@ class SensorTag(object):
         :return:
         """
         interim_value = raw_humd.decode()
-        # raw_temperature = int('0x'+interim_value[0:2]+interim_value[2:4], 16)
-        # temperature = ((raw_temperature / 65536) * 165) - 40
-        raw_humidity = int('0x'+interim_value[0:2], 16)
-        humidity = float((raw_humidity)) / 65536 * 100  # get the int value from hex and divide as per Dataset.
-        # print("INFO: tempr:    %f" % temperature)
+        raw_temperature = int('0x'+interim_value[2:4]+interim_value[0:2], 16)
+        temperature = ((raw_temperature / 65536) * 165) - 40
+        raw_humidity = int('0x'+interim_value[6:8]+interim_value[4:6], 16)
+        raw_humidity &= -0x0003
+        humidity = float((raw_humidity)) / 65536 * 100
+        print("INFO: tempr:    %f" % temperature)
         print("INFO: humidity:    %f" % humidity)
         return humidity
 
@@ -425,7 +535,7 @@ class SensorTag(object):
         :return:
         """
         interim_value = raw_pr.decode()
-        raw_pressure = int('0x'+interim_value[0:2], 16)
+        raw_pressure = int('0x'+interim_value[10:12]+interim_value[8:10]+interim_value[6:8], 16)
         pressure = float(raw_pressure) / 100.0
         print("INFO: pressure:    %f" % pressure)
         return pressure
@@ -453,56 +563,27 @@ class SensorTag(object):
         :return:
         """
         interim_value = raw_lumn.decode()
-        print(interim_value)
-        raw_luminance = int('0x'+interim_value[0:2]+interim_value[2:4], 16)
+        # Reverse LSB and MSB
+        raw_luminance = int('0x'+interim_value[2:4]+interim_value[0:2], 16)
         m = "0FFF"
         e = "F000"
-        # raw_luminance = int(raw_luminance, 16)
-        m = int(m, 16)  # Assign initial values as per the CC2650 Optical Sensor Dataset
-        exp = int(e, 16)  # Assign initial values as per the CC2650 Optical Sensor Dataset
-        m = (raw_luminance & m)  # as per the CC2650 Optical Sensor Dataset
-        exp = (raw_luminance & exp) >> 12  # as per the CC2650 Optical Sensor Dataset
+        m = int(m, 16)
+        exp = int(e, 16)
+        m = (raw_luminance & m)
+        exp = (raw_luminance & exp) >> 12
         exp = 1 if exp == 0 else 2
         exp = exp << (exp -1)
-        luminance = (m * (0.01 * exp))  # as per the CC2650 Optical Sensor Dataset
+        luminance = (m * (0.01 * exp))
         print("INFO: luminance:    %f" % luminance)
-        return luminance  # returning luminance in lux
-
-    @staticmethod
-    def send_to_DB(data_to_send, type):
-        SensorTag.data_to_send = str(int(data_to_send))  # getting rid of decimals
-        timestamp = ('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))  # get the current date and time
-        if type in ['Ambient']:
-            SensorTag.resource_name = "Ambient Temperature"
-            SensorTag.unit = "celsius"
-        elif type in ['IR']:
-            SensorTag.resource_name = "IR Temperature"
-            SensorTag.unit = "celsius"
-        elif type in ['luminance']:
-            SensorTag.resource_name = "luminance"
-            SensorTag.unit = "lux"
-        elif type in ['humidity']:
-            SensorTag.resource_name = "humidity"
-            SensorTag.unit = "Rel.hum"
-        elif type in ['barPressure']:
-            SensorTag.resource_name = "barPressure"
-            SensorTag.unit = "hPa"
-        try:
-            insert_value_DB = requests.get(SensorTag.API_BASE_URI + "insertValue.php?node_name=" + str(
-                SensorTag.ble_id) + "&resource_name=" + SensorTag.resource_name + "&value=" + data_to_send + "&unit=" + SensorTag.unit + "&timestamp=" + timestamp + SensorTag.location)
-            insert_value_DB.raise_for_status()
-            print(
-                "INFO: Send successfully value: " + str(data_to_send) + ' ' + SensorTag.unit + " to DB with node ID: " + str(
-                    SensorTag.ble_id))
-        # print(insert_value_DB #debugging: see the outcome of the request)
-
-        except:
-            print("Error")
-            warnings.warn("Could not get values from sensor:" + str(SensorTag.ble_id))
-            traceback.print_exc()
-
-        return
+        return luminance
 
 if __name__ == "__main__":
+    # To run: python3 python/foglamp/plugins/south/sensortag/sensortag.py B0:91:22:EA:79:04
+
     bluetooth_adr = sys.argv[1]
-    plugin_poll({'bluetooth_adr': bluetooth_adr})
+    # print(plugin_init({'bluetooth_adr': bluetooth_adr}))
+    print(plugin_poll(plugin_init({'bluetooth_adr': bluetooth_adr})))
+
+    # tag = SensorTag(bluetooth_adr)
+    # handle = tag.get_char_handle(characteristics['temperature']['data']['uuid'])
+    # print(handle)

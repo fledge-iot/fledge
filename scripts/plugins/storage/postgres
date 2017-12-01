@@ -187,14 +187,6 @@ pg_stop() {
 ## PostgreSQL Reset
 pg_reset() {
 
-    if [[ "$MANAGED" = false ]]; then
-        if [[ "$1" == "noisy" ]]; then
-            pg_log "info" "Unable to reset the database. The server is not managed by FogLAMP." "all" "pretty"
-            pg_log "info" "Try to execute the initialization script manually using the psql utility." "outonly" "pretty"
-        fi
-        exit 0
-    fi
-
     if [[ `pg_status silent` -eq 2 ]]; then
        pg_start "$1"
     fi
@@ -366,13 +358,6 @@ case "$2" in
             exit 1
         fi
 
-        # Check if the init.sql file exists
-        INIT_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/init.sql"
-        if [[ ! -e "${INIT_SQL}" ]]; then
-            pg_log "err" "Missing initialization file init.sql." "all" "pretty"
-            exit 1
-        fi
-
         print_output="noisy"
         ;;
     
@@ -397,6 +382,20 @@ case "$2" in
         MANAGED=false
         ;;
 esac
+
+# Check if the init.sql file exists
+# Attempt 1: deployment path
+if [[ -e "$FOGLAMP_ROOT/plugins/storage/postgres/init.sql" ]]; then
+    INIT_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/init.sql"
+else
+    # Attempt 2: development path
+    if [[ -e "$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql" ]]; then
+        INIT_SQL="$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql"
+    else
+        pg_log "err" "Missing initialization file init.sql." "all" "pretty"
+        exit 1
+    fi
+fi
 
 # Main case
 case "$1" in

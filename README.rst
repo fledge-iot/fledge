@@ -77,7 +77,7 @@ This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQ
 ::
    sudo -u postgres createuser -d <user>
 
-where *user* is the name of the Linux user that will run FogLAMP. Please note that the FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
+where *user* is the name of the Linux user that will run FogLAMP. The FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
 
 Last, you must create the FogLAMP database, schema and tables:
 ::

@@ -17,7 +17,7 @@
 ##--------------------------------------------------------------------
 
 set -e
-set -x
+#set -x
 
 #
 # This is the startup script for foglamp
@@ -51,6 +51,8 @@ fi
 #
 foglamp_log() {
 
+    MODULE="foglamp.core"
+
     # Check log severity
     if ! [[ "$1" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
         foglamp_log "err" "Internal error: unrecognized priority: $1" $3
@@ -59,7 +61,7 @@ foglamp_log() {
 
     # Log to syslog
     if [[ "$3" =~ ^(logonly|all)$ ]]; then
-        logger -p local0.$1 -t foglamp.core $2
+        logger -p local0.$1 -t $MODULE $2
     fi
 
     # Log to Stdout
@@ -67,7 +69,7 @@ foglamp_log() {
         if [[ "$4" == "pretty" ]]; then
             echo "$2" >&2
         else
-            echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
         fi
     fi
 
@@ -126,15 +128,13 @@ foglamp_stop() {
     fi
 
     # Kill the python processes
-    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | cut -d" " -f4 | xargs kill -9
-    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | cut -d" " -f3 | xargs kill -9
+    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
 
     # Kill the services processes
-    ps -ef | grep 'services/storage --address' | grep -v 'grep' | cut -d" " -f4 | xargs kill -9
-    ps -ef | grep 'services/storage --address' | grep -v 'grep' | cut -d" " -f3 | xargs kill -9
+    ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
 
     # Kill the shell script processes
-    ps -ef | grep '/bin/sh services' | grep -v 'grep' | cut -d" " -f4 | xargs kill -9
+    ps -ef | grep '/bin/sh services' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
 
     # Start the Storage Plugin for the Configuration, if exists
     # If the script does not exists, it continues (i.e. it is not an error)
@@ -160,8 +160,30 @@ foglamp_status() {
         foglamp_log "info" "The curl command cannot be executed." "outonly" "pretty"
     fi
 
-    result=`curl -s http://localhost:8081/foglamp/ping`
+    result=`curl -s http://localhost:8081/foglamp/ping || true`
     case "$result" in
+        *uptime*)
+            tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
+            foglamp_log "info" "FogLAMP running." "outonly" "pretty"
+            foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
+
+            # Show Services
+            foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
+            foglamp_log "info" "foglamp.services.core" "outonly" "pretty"
+            ps -ef | grep "$FOGLAMP_ROOT//services/storage" | grep -v 'grep' | awk '{print "foglamp.services.storage " $9 " " $10}' || true
+            ps -ef | grep "$FOGLAMP_ROOT//services/south" | grep -v 'grep' | awk '{print "foglamp.services.south " $9 " " $10}' || true
+            ps -ef | grep "$FOGLAMP_ROOT//services/north" | grep -v 'grep' | awk '{print "foglamp.services.north " $9 " " $10}' || true
+            ps -ef | grep -o 'python3 -m foglamp.services.south.*' | grep -o 'foglamp.services.south.*' | grep -v 'foglamp.services.south\.\*' || true
+            ps -ef | grep -o 'python3 -m foglamp.services.north.*' | grep -o 'foglamp.services.north.*' | grep -v 'foglamp.services.north\.\*' || true
+
+            # Show Tasks
+            foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
+            ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
+
+            # Enable exit on error
+            #set -e
+
+            ;;
         *)
             foglamp_log "info" "FogLAMP not running." "outonly" "pretty"
             ;;
@@ -202,6 +224,5 @@ case "$1" in
         echo "${USAGE}"
         exit 1
 esac
-
 
 exit $?

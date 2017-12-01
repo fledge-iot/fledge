@@ -117,6 +117,7 @@ class TestBrowseAssets:
         return grouped_ts
 
     # TODO: Add tests for negative cases. Currently only positive test cases have been added.
+    # Also add tests with skip param
 
     """
     Tests for get asset readings
@@ -410,6 +411,7 @@ class TestBrowseAssets:
         assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_stats_q_sec(self):
         """
         Verify that if more than 20 readings, summary of only last n sec readings for a sensor value are returned when
@@ -446,11 +448,13 @@ class TestBrowseAssets:
         retval = json.loads(r)
 
         assert 1 == len(retval)
+        avg = sum(self.test_data_x_val_list[-2:])/len(self.test_data_x_val_list[-2:])
         # We have 2 records in test data for last 20 min
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-2:])
-        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-2:])/len(self.test_data_x_val_list[-2:])
+        assert retval[sensor_code_1]['average'] == avg
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-2:])
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_stats_q_hrs(self):
         """
         Verify that if more than 20 readings, summary of only last n hrs readings for a sensor value are returned when
@@ -464,12 +468,15 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         assert 1 == len(retval)
+        avg = sum(self.test_data_x_val_list[-3:])/len(self.test_data_x_val_list[-3:])
         # We have 3 records in test data for last 2 hours
         assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-3:])
-        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[-3:])/len(self.test_data_x_val_list[-3:])
+        assert retval[sensor_code_1]['average'] == avg
         assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-3:])
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_stats_q_time_complex(self):
         """
         Verify that if a combination of hrs, min, sec is used, shortest period will apply for sensor reading
@@ -484,6 +491,7 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         assert 1 == len(retval)
         assert retval[sensor_code_1]['min'] == self.test_data_x_val_list[-1]
         assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
@@ -492,6 +500,7 @@ class TestBrowseAssets:
     """
     Tests for time averaged sensor values
     """
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_time_avg(self):
         """
         Verify that series data is grouped by default on seconds
@@ -504,6 +513,7 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         # Find unique set of times grouped by seconds from test data
         grouped_ts_sec = self.group_date_time(unit="second")
 
@@ -514,6 +524,7 @@ class TestBrowseAssets:
         assert retval[-1]["min"] == self.test_data_x_val_list[-1]
         assert retval[-1]["time"] == grouped_ts_sec[-1]
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_time_avg_q_group_sec(self):
         """
         Verify that series data is grouped by seconds
@@ -526,6 +537,7 @@ class TestBrowseAssets:
         r = r.read().decode()
         conn.close()
         retval = json.loads(r)
+
         # Find unique set of times grouped by seconds from test data
         grouped_ts_sec = self.group_date_time(unit="second")
 
@@ -536,6 +548,7 @@ class TestBrowseAssets:
         assert retval[-1]["min"] == self.test_data_x_val_list[-1]
         assert retval[-1]["time"] == grouped_ts_sec[-1]
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_time_avg_q_group_min(self):
         """
         Verify that series data is grouped by minutes
@@ -558,6 +571,7 @@ class TestBrowseAssets:
         assert retval[-1]["min"] == self.test_data_x_val_list[-1]
         assert retval[-1]["time"] == grouped_ts_min[-1]
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_time_avg_q_group_hrs(self):
         """
         Verify that series data is grouped by hours
@@ -605,6 +619,7 @@ class TestBrowseAssets:
         assert retval[-1]["min"] == min(self.test_data_x_val_list[:19])
         assert retval[-1]["time"] == grouped_ts_hrs[0]
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_time_avg_q_time(self):
         """
         Verify that series data is grouped by seconds (default) and time range (last n minutes) is working
@@ -634,6 +649,7 @@ class TestBrowseAssets:
         assert retval[-2]["min"] == self.test_data_x_val_list[-2]
         assert retval[-2]["time"] == grouped_ts[-2]
 
+    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_time_avg_q_group_time_limit(self):
         """
         Verify that if a combination of hrs, min, sec is used, shortest period will apply with specified grouping

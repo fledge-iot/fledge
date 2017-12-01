@@ -24,6 +24,6 @@
 
 set -e
 
-"$FOGLAMP_ROOT/scripts/plugins/storage/postgres" managed
+"$FOGLAMP_ROOT/scripts/plugins/storage/postgres" $1 managed
 exit 0
 

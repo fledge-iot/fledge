@@ -23,7 +23,8 @@
 #
 
 set -e
+set -x
 
-"$FOGLAMP_ROOT/scripts/plugins/storage/postgres"
-exit 0
+"$FOGLAMP_ROOT/scripts/plugins/storage/postgres" $1 unmanaged
+exit $?
 

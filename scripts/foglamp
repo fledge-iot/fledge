@@ -17,11 +17,12 @@
 ##--------------------------------------------------------------------
 
 set -e
+set -x
 
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {help|start}"
+USAGE="Usage: `basename ${0}` {start|stop|status|help}"
 
 
 # Check FOGLAMP_ROOT
@@ -62,7 +63,7 @@ foglamp_log() {
     fi
 
     # Log to Stdout
-    if [[ "$3" =~ ^(outnly|all)$ ]]; then
+    if [[ "$3" =~ ^(outonly|all)$ ]]; then
         if [[ "$4" == "pretty" ]]; then
             echo "$2" >&2
         else
@@ -76,11 +77,28 @@ foglamp_log() {
 ## FogLAMP Start
 foglamp_start() {
 
+    # Check the storage management script
+    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage/storage_data" ]]; then
+        foglamp_log "info" "FogLAMP cannot start." "all" "pretty"
+        foglamp_log "err" "FogLAMP Storage Plugin not found." "all" "pretty"
+        exit 1
+    fi
+
+    # Check the Python environment
     if ! [[ -x "$(command -v python3)" ]]; then
         foglamp_log "err" "Python interpreter not found, FogLAMP cannot start." "all" "pretty"
         exit 1
     fi
 
+    # Start the Storage Plugin for the Configuration, if exists
+    # If the script does not exists, it continues (i.e. it is not an error)
+    if [[ -e "$FOGLAMP_ROOT/scripts/storage/storage_conf" ]]; then
+        "$FOGLAMP_ROOT/scripts/storage/storage_conf" start
+    fi
+
+    # Start the Storage Plugin for the Data
+    "$FOGLAMP_ROOT/scripts/storage/storage_data" start
+    
     PYTHONPATH=${FOGLAMP_ROOT}/python
     export PYTHONPATH
     if [[ -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -94,6 +112,63 @@ foglamp_start() {
 }
 
 
+## FogLAMP Stop
+#
+# We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
+#
+foglamp_stop() {
+
+    # Check the storage management script
+    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage/storage_data" ]]; then
+        foglamp_log "info" "FogLAMP cannot be stopped." "all" "pretty"
+        foglamp_log "err" "FogLAMP Storage Plugin not found." "all" "pretty"
+        exit 1
+    fi
+
+    # Kill the python processes
+    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | cut -d" " -f4 | xargs kill -9
+    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | cut -d" " -f3 | xargs kill -9
+
+    # Kill the services processes
+    ps -ef | grep 'services/storage --address' | grep -v 'grep' | cut -d" " -f4 | xargs kill -9
+    ps -ef | grep 'services/storage --address' | grep -v 'grep' | cut -d" " -f3 | xargs kill -9
+
+    # Kill the shell script processes
+    ps -ef | grep '/bin/sh services' | grep -v 'grep' | cut -d" " -f4 | xargs kill -9
+
+    # Start the Storage Plugin for the Configuration, if exists
+    # If the script does not exists, it continues (i.e. it is not an error)
+    if [[ -e "$FOGLAMP_ROOT/scripts/storage/storage_conf" ]]; then
+        "$FOGLAMP_ROOT/scripts/storage/storage_conf" stop
+    fi
+
+    # Stop the Storage Plugin for the Data
+    "$FOGLAMP_ROOT/scripts/storage/storage_data" stop
+    
+    foglamp_log "info" "FogLAMP stopped." "all" "pretty"
+
+}
+
+
+## FogLAMP status
+#  NOTE: this command works only with the default REST API Port
+foglamp_status() {
+
+    # Check if curl is present
+    if [[ ! `command -v curl` ]]; then
+        foglamp_log "info" "FogLAMP cannot be checked." "outonly" "pretty"
+        foglamp_log "info" "The curl command cannot be executed." "outonly" "pretty"
+    fi
+
+    result=`curl -s http://localhost:8081/foglamp/ping`
+    case "$result" in
+        *)
+            foglamp_log "info" "FogLAMP not running." "outonly" "pretty"
+            ;;
+    esac
+}
+
+
 ## FogLAMP Script Help
 foglamp_help() {
 
@@ -102,6 +177,8 @@ FogLAMP admin script
 The script is used to start FogLAMP
 Arguments:
  start   - Start FogLAMP core (core will start other services).
+ stop    - Stop all FogLAMP services and processes
+ status  - Show the status for the FogLAMP services
  help    - This text"
 
 }
@@ -109,15 +186,21 @@ Arguments:
 
 ### Main Logic ###
 case "$1" in
-  start)
-    foglamp_start
-    ;;
-  help)
-    foglamp_help
-    ;;
-  *)
-    echo "${USAGE}"
-    exit 1
+    start)
+        foglamp_start
+        ;;
+    stop)
+        foglamp_stop
+        ;;
+    status)
+        foglamp_status
+        ;;
+    help)
+        foglamp_help
+        ;;
+    *)
+        echo "${USAGE}"
+        exit 1
 esac
 
 

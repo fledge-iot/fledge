@@ -355,7 +355,7 @@ case "$2" in
 
         # Set FOGLAMP_DATA if it does not exist
         if [ -z ${FOGLAMP_DATA+x} ]; then
-            FOGLAMP_DATA="${HOME/}foglamp"
+            FOGLAMP_DATA="${HOME}/foglamp"
         fi
 
         # Check if $FOGLAMP_DATA exists

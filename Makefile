@@ -12,8 +12,9 @@ PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
+CP     := cp
+CP_A   := cp -a
 CP_DIR := cp -r
-CP := cp
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -48,6 +49,7 @@ BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
 SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
+SCRIPT_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/storage
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
@@ -56,12 +58,13 @@ FOGBENCH_SCRIPT_SRC := scripts/extras/foglamp.fogbench
 FOGLAMP_SCRIPT_SRC := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
-POSTGRES_SCRIPT_SRC := scripts/plugins/storage/postgres
-SOUTH_SCRIPT_SRC := scripts/services/south
-STORAGE_SCRIPT_SRC := scripts/services/storage
-NORTH_SCRIPT_SRC := scripts/tasks/north
-PURGE_SCRIPT_SRC := scripts/tasks/purge
+POSTGRES_SCRIPT_SRC   := scripts/plugins/storage/postgres
+SOUTH_SCRIPT_SRC      := scripts/services/south
+STORAGE_SCRIPT_SRC    := scripts/services/storage
+NORTH_SCRIPT_SRC      := scripts/tasks/north
+PURGE_SCRIPT_SRC      := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC := scripts/tasks/statistics
+STORAGE_DIR_SRC       := scripts/storage
 
 # FOGBENCH 
 FOGBENCH_PYTHON_SRC_DIR := extras/python/fogbench
@@ -151,7 +154,8 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 # install scripts
 scripts_install : $(SCRIPTS_INSTALL_DIR) install_postgres_script \
 	install_south_script install_storage_script install_north_script \
-	install_purge_script install_statistics_script
+	install_purge_script install_statistics_script \
+    install_storage_dir
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -175,10 +179,16 @@ install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
+install_storage_dir : $(SCRIPT_STORAGE_INSTALL_DIR) $(STORAGE_DIR_SRC)
+	$(CP_A) $(STORAGE_DIR_SRC)/storage_* $(SCRIPT_STORAGE_INSTALL_DIR)
+
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(SCRIPT_SERVICES_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
+
+$(SCRIPT_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(SCRIPT_TASKS_INSTALL_DIR) :

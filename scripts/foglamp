@@ -27,7 +27,17 @@ USAGE="Usage: `basename ${0}` {start|stop|status|help}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
+    # Set FOGLAMP_ROOT as the default directory
     FOGLAMP_ROOT="/usr/local/foglamp"
+fi
+
+# Check if the default directory exists
+if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+    foglamp_log "err" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory." "all" "pretty"
+    foglamp_log "info" "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP." "outonly" "pretty"
+    foglamp_log "info" "Specify the base directory for FogLAMP and set the variable with:" "outonly" "pretty"
+    foglamp_log "info" "export FOGLAMP_ROOT=<basedir>" "outonly" "pretty"
+    exit 1
 fi
 
 

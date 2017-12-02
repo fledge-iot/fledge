@@ -17,13 +17,23 @@
 ##--------------------------------------------------------------------
 
 set -e
-#set -x
+set -x
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help} {managed|unmanaged}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
+    # Set FOGLAMP_ROOT as the default directory
     FOGLAMP_ROOT="/usr/local/foglamp"
+fi
+
+# Check if the default directory exists
+if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+    foglamp_log "err" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory." "all" "pretty"
+    foglamp_log "info" "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP." "outonly" "pretty"
+    foglamp_log "info" "Specify the base directory for FogLAMP and set the variable with:" "outonly" "pretty"
+    foglamp_log "info" "export FOGLAMP_ROOT=<basedir>" "outonly" "pretty"
+    exit 1
 fi
 
 
@@ -231,6 +241,13 @@ pg_status() {
     # Check if the database server is managed by FogLAMP
     if [[ "$MANAGED" = true ]]; then
 
+        # Check if the PostgreSQL directory in $FOGLAMP_DATA exists and create it
+        # This is necessary to avoid an error in the PG_CTL command,
+        # when the log is set
+        if ! [[ -d "$PG_DIR" ]]; then
+            mkdir -p "$PG_DIR"
+        fi
+
         # Check if the Data directory exists and create it
         if ! [[ -d "$PG_DATA" ]]; then
             mkdir -p "$PG_DATA"
@@ -336,15 +353,30 @@ case "$2" in
 
         MANAGED=true
 
-        # Set Data dir for PostgreSQL
+        # Set FOGLAMP_DATA if it does not exist
         if [ -z ${FOGLAMP_DATA+x} ]; then
-            FOGLAMP_DATA="$HOME/foglamp"
-            PG_DATA="$FOGLAMP_DATA/storage/postgres/pgsql/data"
-            PG_LOG="$FOGLAMP_DATA/storage/postgres/pgsql/logger"
+            FOGLAMP_DATA="${HOME/}foglamp"
         fi
 
+        # Check if $FOGLAMP_DATA exists
+        if [[ -e ${FOGLAMP_DATA} ]]; then
+
+            # Check if $FOGLAMP_DATA is a directory
+            if [[ ! -d ${FOGLAMP_DATA} ]]; then
+                pg_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
+                exit 1
+            fi
+        else
+            # $FOGLAMP_DATA does not exist: create it
+            mkdir -p ${FOGLAMP_DATA}
+        fi
+
+        PG_DIR="${FOGLAMP_DATA}/storage/postgres/pgsql"
+        PG_DATA="${PG_DIR}/data"
+        PG_LOG="${PG_DIR}/logger"
+
         # Check if pg_ctl is present in the expected path
-        PG_CTL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/usr/bin/pg_ctl"
+        PG_CTL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin/pg_ctl"
         PG_CTL_COMMAND="$PG_CTL -D $PG_DATA -l $PG_LOG"
         if ! [[ -x "${PG_CTL}" ]]; then
             pg_log "err" "PostgreSQL program pg_ctl not found: the database server cannot be managed." "all" "pretty"
@@ -352,7 +384,7 @@ case "$2" in
         fi
 
         # Check if psql is present in the expected path
-        PG_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/usr/bin/psql"
+        PG_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin/psql"
         if ! [[ -x "${PG_SQL}" ]]; then
             pg_log "err" "PostgreSQL program psql not found: the database server cannot be managed." "all" "pretty"
             exit 1

@@ -13,7 +13,6 @@ RM_DIR := rm -r
 RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
 CP     := cp
-CP_A   := cp -a
 CP_DIR := cp -r
 
 ###############################################################################
@@ -155,7 +154,8 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 scripts_install : $(SCRIPTS_INSTALL_DIR) install_postgres_script \
 	install_south_script install_storage_script install_north_script \
 	install_purge_script install_statistics_script \
-    install_storage_dir
+    install_storage_dir \
+    link_storage_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -180,7 +180,10 @@ install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_storage_dir : $(SCRIPT_STORAGE_INSTALL_DIR) $(STORAGE_DIR_SRC)
-	$(CP_A) $(STORAGE_DIR_SRC)/storage_* $(SCRIPT_STORAGE_INSTALL_DIR)
+	$(CP_DIR) $(STORAGE_DIR_SRC)/storage_*managed $(SCRIPT_STORAGE_INSTALL_DIR)
+
+link_storage_script : $(SCRIPT_STORAGE_INSTALL_DIR)
+	$(LN) storage_data_unmanaged $(SCRIPT_STORAGE_INSTALL_DIR)/storage_data
 
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@

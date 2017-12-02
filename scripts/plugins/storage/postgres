@@ -17,7 +17,7 @@
 ##--------------------------------------------------------------------
 
 set -e
-set -x
+#set -x
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help} {managed|unmanaged}"
 

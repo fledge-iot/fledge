@@ -29,6 +29,7 @@ USAGE="Usage: `basename ${0}` {start|stop|status|help}"
 if [ -z ${FOGLAMP_ROOT+x} ]; then
     # Set FOGLAMP_ROOT as the default directory
     FOGLAMP_ROOT="/usr/local/foglamp"
+    export FOGLAMP_ROOT
 fi
 
 # Check if the default directory exists

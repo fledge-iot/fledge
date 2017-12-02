@@ -22,7 +22,7 @@ _DEFAULT_CONFIG = {
     'plugin': {
          'description': 'Python module name of the plugin to load',
          'type': 'string',
-         'default': 'sensortag'
+         'default': 'cc2650poll'
     },
     'pollInterval': {
         'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
@@ -55,7 +55,7 @@ def plugin_info():
     return {
         'name': 'Poll plugin',
         'version': '1.0',
-        'mode': 'poll', ''
+        'mode': 'poll',
         'type': 'device',
         'interface': '1.0',
         'config': _DEFAULT_CONFIG

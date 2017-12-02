@@ -110,7 +110,14 @@ foglamp_start() {
     fi
 
     # Start the Storage Plugin for the Data
+    set +e
     "$FOGLAMP_ROOT/scripts/storage/storage_data" start
+    if [ $? -ne 0 ];then
+        foglamp_log "info" "FogLAMP cannot start" "all" "pretty"
+        foglamp_log "err" "FogLAMP database is not ready." "all" "pretty"
+        exit 1
+    fi
+    set -e
 
     result=`foglamp_status "silent"`
     case "$result" in

@@ -100,16 +100,33 @@ foglamp_start() {
 
     # Start the Storage Plugin for the Data
     "$FOGLAMP_ROOT/scripts/storage/storage_data" start
-    
-    PYTHONPATH=${FOGLAMP_ROOT}/python
-    export PYTHONPATH
-    if [[ -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
-        python3 -m foglamp.services.core > /dev/null 2>&1 & disown
-        foglamp_log "info" "FogLAMP started." "all" "pretty"
-    else
-        foglamp_log "err" "FogLAMP core not found." "all" "pretty"
-        exit 1
-    fi
+
+    result=`foglamp_status "silent"`
+    case "$result" in
+
+        "0")
+            #FogLAMP already running
+            foglamp_log "info" "FogLAMP is already running." "all" "pretty"
+            ;;
+
+        "2")
+            #FogLAMP not running
+            PYTHONPATH=${FOGLAMP_ROOT}/python
+            export PYTHONPATH
+            if [[ -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
+                python3 -m foglamp.services.core > /dev/null 2>&1 & disown
+                foglamp_log "info" "FogLAMP started." "all" "pretty"
+            else
+                foglamp_log "err" "FogLAMP core not found." "all" "pretty"
+                exit 1
+            fi
+            ;;
+
+        *)
+            foglamp_log "err" "Unknown return status." "all"
+            exit 1
+            ;;
+    esac
 
 }
 
@@ -162,30 +179,43 @@ foglamp_status() {
 
     result=`curl -s http://localhost:8081/foglamp/ping || true`
     case "$result" in
+
         *uptime*)
-            tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
-            foglamp_log "info" "FogLAMP running." "outonly" "pretty"
-            foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
+            if [[ "$1" == "silent" ]]; then
+                echo "0"
+            else
+                tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
+                foglamp_log "info" "FogLAMP running." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
 
-            # Show Services
-            foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
-            foglamp_log "info" "foglamp.services.core" "outonly" "pretty"
-            ps -ef | grep "$FOGLAMP_ROOT//services/storage" | grep -v 'grep' | awk '{print "foglamp.services.storage " $9 " " $10}' || true
-            ps -ef | grep "$FOGLAMP_ROOT//services/south" | grep -v 'grep' | awk '{print "foglamp.services.south " $9 " " $10}' || true
-            ps -ef | grep "$FOGLAMP_ROOT//services/north" | grep -v 'grep' | awk '{print "foglamp.services.north " $9 " " $10}' || true
-            ps -ef | grep -o 'python3 -m foglamp.services.south.*' | grep -o 'foglamp.services.south.*' | grep -v 'foglamp.services.south\.\*' || true
-            ps -ef | grep -o 'python3 -m foglamp.services.north.*' | grep -o 'foglamp.services.north.*' | grep -v 'foglamp.services.north\.\*' || true
+                # Show Services
+                foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
+                foglamp_log "info" "foglamp.services.core" "outonly" "pretty"
+                ps -ef | grep "$FOGLAMP_ROOT//services/storage" | grep -v 'grep' | awk '{print "foglamp.services.storage " $9 " " $10}' || true
+                ps -ef | grep "$FOGLAMP_ROOT//services/south" | grep -v 'grep' | awk '{print "foglamp.services.south " $9 " " $10}' || true
+                ps -ef | grep "$FOGLAMP_ROOT//services/north" | grep -v 'grep' | awk '{print "foglamp.services.north " $9 " " $10}' || true
+                ps -ef | grep -o 'python3 -m foglamp.services.south.*' | grep -o 'foglamp.services.south.*' | grep -v 'foglamp.services.south\.\*' || true
+                ps -ef | grep -o 'python3 -m foglamp.services.north.*' | grep -o 'foglamp.services.north.*' | grep -v 'foglamp.services.north\.\*' || true
 
-            # Show Tasks
-            foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
-            ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
-
-            # Enable exit on error
-            #set -e
-
+                # Show Tasks
+                foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
+                ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
+            fi
             ;;
         *)
-            foglamp_log "info" "FogLAMP not running." "outonly" "pretty"
+            if [[ `ps -ef | grep -c 'python3 -m foglamp.services.core'` -gt 1 ]]; then
+                if [[ "$1" == "silent" ]]; then
+                    echo "0"
+                else
+                    foglamp_log "info" "FogLAMP starting." "outonly" "pretty"
+                fi
+            else
+                if [[ "$1" == "silent" ]]; then
+                    echo "2"
+                else
+                    foglamp_log "info" "FogLAMP not running." "outonly" "pretty"
+                fi
+            fi
             ;;
     esac
 }

@@ -377,7 +377,7 @@ case "$2" in
 
         # Check if pg_ctl is present in the expected path
         PG_CTL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin/pg_ctl"
-        PG_CTL_COMMAND="$PG_CTL -D $PG_DATA -l $PG_LOG"
+        PG_CTL_COMMAND="$PG_CTL -w -D $PG_DATA -l $PG_LOG"
         if ! [[ -x "${PG_CTL}" ]]; then
             pg_log "err" "PostgreSQL program pg_ctl not found: the database server cannot be managed." "all" "pretty"
             exit 1

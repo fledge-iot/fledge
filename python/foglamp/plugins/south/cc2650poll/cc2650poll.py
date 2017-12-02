@@ -8,7 +8,7 @@
 import copy
 import datetime
 import uuid
-from foglamp.plugins.south.common.sensortag import *
+from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.common.parser import Parser
 from foglamp.services.south import exceptions
 from foglamp.common import logger
@@ -30,7 +30,7 @@ _DEFAULT_CONFIG = {
         'default': '500'
     },
     'bluetoothAddr': {
-        'description': 'Bluetooth Hexadecimal address of SensorTag device',
+        'description': 'Bluetooth Hexadecimal address of SensorTagCC2650 device',
         'type': 'string',
         'default': 'B0:91:22:EA:79:04'
     }
@@ -74,7 +74,7 @@ def plugin_init(config):
     global sensortag_characteristics
 
     bluetooth_adr = Parser.get('--bluetooth_adr')
-    tag = SensorTag(bluetooth_adr)
+    tag = SensorTagCC2650(bluetooth_adr)
 
     # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
     # discovery rather than hard-coding the attribute handles.
@@ -85,18 +85,11 @@ def plugin_init(config):
 
     # print(json.dumps(sensortag_characteristics))
 
-    # Get temperature
-    tag.char_write_cmd(sensortag_characteristics['temperature']['configuration']['handle'], char_enable)
-    tag.char_write_cmd(sensortag_characteristics['luminance']['configuration']['handle'], char_enable)
-    tag.char_write_cmd(sensortag_characteristics['humidity']['configuration']['handle'], char_enable)
-    tag.char_write_cmd(sensortag_characteristics['pressure']['configuration']['handle'], char_enable)
-    # tag.char_write_cmd(sensortag_characteristics['movement']['configuration']['handle'], char_enable)
-
     data = copy.deepcopy(config)
     data['characteristics'] = sensortag_characteristics
     data['bluetooth_adr'] = bluetooth_adr
 
-    _LOGGER.info('SensorTag {} Polling initialized'.format(bluetooth_adr))
+    _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
     return data
 
@@ -133,11 +126,18 @@ def plugin_poll(handle):
         movement = None
 
         # print(('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))  )
-        tag = SensorTag(bluetooth_adr)  # pass the Bluetooth Address
+        tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
+
+        # Enable sensors
+        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_enable)
+        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_enable)
+        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_enable)
+        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
+        # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_enable)
 
         # Get temperature
         count = 0
-        while count < SensorTag.reading_iterations:
+        while count < SensorTagCC2650.reading_iterations:
             object_temp_celsius, ambient_temp_celsius = tag.hexTemp2C(tag.char_read_hnd(
                 handle['characteristics']['temperature']['data']['handle'], "temperature"))
             time.sleep(0.5)  # wait for a while
@@ -159,6 +159,13 @@ def plugin_poll(handle):
         # Get movement
         # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_enable)
 
+        # Disable sensors
+        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
+        # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_disable)
+
         data['readings'] = {
                     'objectTemperature': object_temp_celsius,
                     'ambientTemperature': ambient_temp_celsius,
@@ -168,10 +175,10 @@ def plugin_poll(handle):
                     'movement': movement
                 }
     except Exception as ex:
-        _LOGGER.exception("SensorTag {} exception: {}".format(bluetooth_adr, str(ex)))
+        _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)
 
-    _LOGGER.info("SensorTag {} reading: {}".format(bluetooth_adr, json.dumps(data)))
+    _LOGGER.info("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
 
 
@@ -202,24 +209,16 @@ def plugin_shutdown(handle):
     Raises:
     """
     bluetooth_adr = handle['bluetooth_adr']
-    tag = SensorTag(bluetooth_adr)  # pass the Bluetooth Address
-
-    # Disable sensors
-    tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
-    # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_disable)
-    _LOGGER.info('SensorTag {} Polling shutdown'.format(bluetooth_adr))
+    _LOGGER.info('SensorTagCC2650 {} Polling shutdown'.format(bluetooth_adr))
 
 
 if __name__ == "__main__":
-    # To run: python3 python/foglamp/plugins/south/sensortag/sensortag.py B0:91:22:EA:79:04
+    # To run: python3 python/foglamp/plugins/south/sensortag/sensortag_cc2650.py B0:91:22:EA:79:04
 
     bluetooth_adr = sys.argv[1]
     # print(plugin_init({'bluetooth_adr': bluetooth_adr}))
     print(plugin_poll(plugin_init({'bluetooth_adr': bluetooth_adr})))
 
-    # tag = SensorTag(bluetooth_adr)
+    # tag = SensorTagCC2650(bluetooth_adr)
     # handle = tag.get_char_handle(characteristics['temperature']['data']['uuid'])
     # print(handle)

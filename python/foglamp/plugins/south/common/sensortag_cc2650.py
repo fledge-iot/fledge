@@ -116,9 +116,9 @@ characteristics = {
 }
 
 
-class SensorTag(object):
-    """Handles polling of readings from SensorTag
-        Cloned from https://github.com/OrestisEv/SensorTag-Pi3
+class SensorTagCC2650(object):
+    """Handles polling of readings from SensorTagCC2650
+        Cloned from https://github.com/OrestisEv/SensorTagCC2650-Pi3
     """
     reading_iterations = 1  # number of iterations to read data from the TAG
 
@@ -126,13 +126,13 @@ class SensorTag(object):
         self.bluetooth_adr = bluetooth_adr
         self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
         self.con.expect('\[LE\]>', timeout=600)
-        print('SensorTag {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
-        _LOGGER.info('SensorTag {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
+        print('SensorTagCC2650 {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
+        _LOGGER.info('SensorTagCC2650 {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
         self.con.sendline('connect')
         # test for success of connect
         self.con.expect('.*Connection successful.*\[LE\]>')
-        print('SensorTag {} connected successfully'.format(bluetooth_adr))
-        _LOGGER.info('SensorTag {} connected successfully'.format(bluetooth_adr))
+        print('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
+        _LOGGER.info('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
         self.cb = {}
 
     def get_char_handle(self, uuid):
@@ -167,8 +167,8 @@ class SensorTag(object):
         self.con.expect('.*descriptor:.* \r')
         reading = self.con.after
         rval = reading.split() #splitting the reading based on the spaces
-        _LOGGER.info('SensorTag {} DEBUGGING: Reading from Tag... {} \n'.format(self.bluetooth_adr, reading))
-        # _LOGGER.info('SensorTag {} DEBUGGING: rval {}'.format(self.bluetooth_adr, str(rval)))
+        _LOGGER.info('SensorTagCC2650 {} DEBUGGING: Reading from Tag... {} \n'.format(self.bluetooth_adr, reading))
+        # _LOGGER.info('SensorTagCC2650 {} DEBUGGING: rval {}'.format(self.bluetooth_adr, str(rval)))
 
         if sensortype in ['temperature']:
             # The raw data value read from this sensor are two unsigned 16 bit values
@@ -188,7 +188,7 @@ class SensorTag(object):
         else:
             raw_measurement = 0
 
-        _LOGGER.info('SensorTag {} sensortype: {} raw_measurement: {}'.format(self.bluetooth_adr, sensortype, raw_measurement))
+        _LOGGER.info('SensorTagCC2650 {} sensortype: {} raw_measurement: {}'.format(self.bluetooth_adr, sensortype, raw_measurement))
         return raw_measurement
 
     def hexTemp2C(self, raw_tempr):
@@ -227,7 +227,7 @@ class SensorTag(object):
         ambient_temp_celsius = float(ambient_temp_int) * SCALE_LSB
         ambient_temp_fahrenheit = (ambient_temp_celsius * 1.8) + 32
 
-        _LOGGER.info('SensorTag {} object Celsius: {} Ambient Celsius: {} Fahrenheit: {}'.format(self.bluetooth_adr, object_temp_celsius, ambient_temp_celsius, ambient_temp_fahrenheit))
+        _LOGGER.info('SensorTagCC2650 {} object Celsius: {} Ambient Celsius: {} Fahrenheit: {}'.format(self.bluetooth_adr, object_temp_celsius, ambient_temp_celsius, ambient_temp_fahrenheit))
 
         return object_temp_celsius, ambient_temp_celsius
 
@@ -288,7 +288,7 @@ class SensorTag(object):
 
         Magnetometer raw data make up bytes 12-17 of the data from the movement service, in the order X, Y, Z axis.
         Data from each axis consists of two bytes, encoded as a signed integer. The conversion is done in the
-        SensorTag firmware so there is no calculation involved apart from changing the integer to a float if required.
+        SensorTagCC2650 firmware so there is no calculation involved apart from changing the integer to a float if required.
         The measurement unit is uT (micro Tesla).
         float sensorMpu9250MagConvert(int16_t data)
         {
@@ -327,7 +327,7 @@ class SensorTag(object):
         raw_humidity = int('0x'+interim_value[6:8]+interim_value[4:6], 16)
         raw_humidity &= -0x0003
         humidity = float((raw_humidity)) / 65536 * 100
-        _LOGGER.info('SensorTag {} tempr: {} humidity: {}'.format(self.bluetooth_adr, temperature, humidity))
+        _LOGGER.info('SensorTagCC2650 {} tempr: {} humidity: {}'.format(self.bluetooth_adr, temperature, humidity))
         return humidity
 
     def hexPress2Press(self, raw_pr):
@@ -348,7 +348,7 @@ class SensorTag(object):
         interim_value = raw_pr.decode()
         raw_pressure = int('0x'+interim_value[10:12]+interim_value[8:10]+interim_value[6:8], 16)
         pressure = float(raw_pressure) / 100.0
-        _LOGGER.info('SensorTag {} pressure: {}'.format(self.bluetooth_adr, pressure))
+        _LOGGER.info('SensorTagCC2650 {} pressure: {}'.format(self.bluetooth_adr, pressure))
         return pressure
 
     def hexLum2Lux(self, raw_lumn):
@@ -384,5 +384,5 @@ class SensorTag(object):
         exp = 1 if exp == 0 else 2
         exp = exp << (exp -1)
         luminance = (m * (0.01 * exp))
-        _LOGGER.info('SensorTag {} luminance: {}'.format(self.bluetooth_adr, luminance))
+        _LOGGER.info('SensorTagCC2650 {} luminance: {}'.format(self.bluetooth_adr, luminance))
         return luminance

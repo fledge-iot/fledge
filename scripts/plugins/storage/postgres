@@ -16,18 +16,20 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
-#set -e
+set -e
+#set -x
 
-USAGE="Usage: `basename ${0}` {help|init|status|reset}"
+USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help} {managed|unmanaged}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
     FOGLAMP_ROOT="/usr/local/foglamp"
 fi
 
-## The Error Message Handler
+
+## The Logging Handler
 #
-# Paramaters: $1 - Priority:
+# Paramaters: $1 - Severity:
 #                  - debug
 #                  - info
 #                  - notice
@@ -36,26 +38,146 @@ fi
 #                  - alert
 #                  - emerg
 #             $2 - Message
-#             $3 - silent (option)
-#                - nice : Do not show the date and priority
+#             $3 - Output:
+#                  - logonly : send the message only to syslog
+#                  - all     : send the message to syslog and stdout
+#                  - outonly " send the message only to stdout
+#             $4 - Format
+#                - pretty : Do not show the date and priority
 #
-pg_err() {
+pg_log() {
 
+    MODULE="foglamp.storage.postgres"
+
+    # Check log severity
     if ! [[ "$1" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
-        pg_err "err" "Internal error: unrecognized priority: $1"
+        pg_log "err" "Internal error: unrecognized priority: $1" $3
         exit 1
     fi
 
-    logger -p local0.$1 -t foglamp.storage.postgres $2
+    # Log to syslog
+    if [[ "$3" =~ ^(logonly|all)$ ]]; then
+        logger -p local0.$1 -t $MODULE $2
+    fi
 
-    case "$3" in
-        silent)
-            ;;
-        nice)
+    # Log to Stdout
+    if [[ "$3" =~ ^(outonly|all)$ ]]; then
+        if [[ "$4" == "pretty" ]]; then
             echo "$2" >&2
+        else
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
+        fi
+    fi
+
+}
+
+
+## PostgreSQL Start
+pg_start() {
+
+    # Check the status of the server
+    result=`pg_status "silent"`
+    case "$result" in
+        "0")
+            # PostgreSQL already running.
+            if [[ "$1" == "noisy" ]]; then
+                pg_log "info" "PostgreSQL is already running." "all" "pretty"
+            else
+                pg_log "info" "PostgreSQL is already running." "logonly" "pretty"
+            fi
             ;;
+
+        "2")
+            if [[ "$MANAGED" = false ]]; then
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "Unable to start PostgreSQL. The server is not managed by FogLAMP." "all" "pretty"
+                fi
+                exit 0
+            fi
+
+            # PostgreSQL not running - starting
+            if [[ "$1" == "noisy" ]]; then
+                pg_log "info" "Starting PostgreSQL..." "all" "pretty"
+            else
+                pg_log "info" "Starting PostgreSQL..." "logonly" "pretty"
+            fi
+            eval $PG_CTL_COMMAND start > /dev/null 2>&1
+
+            check_again=`pg_status "silent"`
+            if [[ "$check_again" -eq "0" ]]; then
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL started." "all" "pretty"
+                else
+                    pg_log "info" "PostgreSQL started." "logonly" "pretty"
+                fi
+            else
+                pg_log "err" "Unable to start PostgreSQL." "all"
+                exit 1
+            fi
+            ;;
+
         *)
-            echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+            pg_log "err" "Unknown database return status." "all"
+            exit 1
+            ;;
+    esac
+
+    # Check if the foglamp database has been created
+    if [[ `$PG_SQL -l | grep -c '^ foglamp'` -ne 1 ]]; then
+        # Create the FogLAMP database
+        pg_reset "$1" "immediate" 
+    fi
+
+}
+
+
+## PostgreSQL Stop
+pg_stop() {
+
+    if [[ "$MANAGED" = false ]]; then
+        if [[ "$1" == "noisy" ]]; then
+            pg_log "info" "Unable to stop PostgreSQL. The server is not managed by FogLAMP." "all" "pretty"
+        else
+            pg_log "info" "Unable to stop PostgreSQL. The server is not managed by FogLAMP." "logonly" "pretty"
+        fi
+        exit 0
+    fi
+
+    # Check the status of the server
+    result=`pg_status "silent"`
+    case "$result" in
+        "0")
+            if [[ "$1" == "noisy" ]]; then
+                pg_log "info" "Stopping PostgreSQL..." "all" "pretty"
+            else
+                pg_log "info" "Stopping PostgreSQL..." "logonly" "pretty"
+            fi
+            eval $PG_CTL_COMMAND stop > /dev/null 2>&1
+
+            check_again=`pg_status "silent"`
+            if [[ "$check_again" -eq "2" ]]; then
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL stopped." "all" "pretty"
+                else
+                    pg_log "info" "PostgreSQL stopped." "logonly" "pretty"
+                fi
+            else
+                pg_log "err" "Unable to stop PostgreSQL." "all"
+                exit 1
+            fi
+            ;;
+
+        "2")
+            if [[ "$1" == "noisy" ]]; then
+                pg_log "info" "PostgreSQL is not running." "all" "pretty"
+            else
+                pg_log "info" "PostgreSQL is not running." "logonly" "pretty"
+            fi
+            ;;
+
+        *)
+            pg_log "err" "Unknown database return status." "all"
+            exit 1
             ;;
     esac
 
@@ -65,61 +187,121 @@ pg_err() {
 ## PostgreSQL Reset
 pg_reset() {
 
-    # Check if the init.sql file exists
-    if [[ ! -e "${FOGLAMP_ROOT}/plugins/storage/postgres/init.sql" ]]; then
-        pg_err "err" "Missing initialization file init.sql - initialization aborted." "nice"
-        exit 1
+    if [[ `pg_status silent` -eq 2 ]]; then
+       pg_start "$1"
     fi
 
-    # Check if the postgres user exists
-    if [[ `grep -c '^postgres:' /etc/passwd` -ne 1 ]]; then
-        pg_err "err" "No valid postgres user found: is PostgreSQL installed?" "nice"
-        exit 3
+    if [[ $2 != "immediate" ]]; then
+        echo "This script will remove all data stored in the server."
+        echo -n "Enter YES if you want to continue: "
+        read continue_reset
+
+        if [ "$continue_reset" != 'YES' ]; then
+            echo "Goodbye."
+            exit 0
+        fi
     fi
 
-    if [[ ! `pg_status` = "PostgreSQL running." ]]; then
-        pg_err "err" "PostgreSQL not running." "nice"
-        exit 3
+    if [[ "$1" == "noisy" ]]; then
+        pg_log "info" "Building the metadata for the FogLAMP Plugin..." "all" "pretty"
+    else
+        pg_log "info" "Building the metadata for the FogLAMP Plugin..." "logonly" "pretty"
     fi
-
-    echo "This script will remove all data stored in the server."
-    echo -n "Enter YES if you want to continue: "
-    read continue_reset
-
-    if [ "$continue_reset" != 'YES' ]; then
-        echo "Goodbye."
-        exit 0
+       
+    eval $PG_SQL -d postgres -q -f $INIT_SQL > /dev/null 2>&1
+    if [[ "$1" == "noisy" ]]; then
+        pg_log "info" "Build complete." "all" "pretty"
+    else
+        pg_log "info" "Build complete." "logonly" "pretty"
     fi
-
-    pg_err "info" "Building the metadata for the FogLAMP Plugin..." "nice"
-    sudo -u postgres psql -q -f "${FOGLAMP_ROOT}/plugins/storage/postgres/init.sql"
-    pg_err "info" "Build complete." "nice"
 
 }
 
 
 ## PostgreSQL Status
+#
+# NOTE: You can call this script with $1 = silent to avoid non output errors
+#
+# Returns:
+#   0 - Server running
+#   1 - Error
+#   2 - Server not running
 pg_status() {
 
-    if ! [[ -x "$(command -v pg_isready)" ]]; then
-        pg_err "info" "Status check cannot be found. Is PostgreSQL installed?" nice
-        pg_err "info" "If PostgreSQL is installed, check if the bin dir is in the PATH." nice
-        exit 1
-    fi
+    # Check if the database server is managed by FogLAMP
+    if [[ "$MANAGED" = true ]]; then
 
-    ret_message=`pg_isready`
+        # Check if the Data directory exists and create it
+        if ! [[ -d "$PG_DATA" ]]; then
+            mkdir -p "$PG_DATA"
+        fi
 
-    case "${ret_message}" in
-        *"no response")
-            echo "PostgreSQL not running."
-            ;;
-        *"accepting connections")
-            echo "PostgreSQL running."
-            ;;
-        *)
-            pg_err "err" "Unknow status return by the PostgreSQL database server."
+        # Check if the cluster files exist and create them
+        if ! [[ -d "$PG_DATA/base" ]]; then
+
+            if [[ "$1" == "noisy" ]]; then
+                pg_log "info" "Initializing PostgreSQL." "all" "pretty"
+            else
+                pg_log "info" "Initializing PostgreSQL." "logonly" "pretty"
+            fi
+            eval $PG_CTL_COMMAND init > /dev/null 2>&1
+
+        fi
+
+        # Check the status command
+        cmd_to_exec="$PG_CTL_COMMAND status"
+        case "$($cmd_to_exec)" in
+            "pg_ctl: no server running")
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL not running." "outonly" "pretty"
+                else
+                    echo "2"
+                fi    
+                ;;
+            "pg_ctl: server is running"*)
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL running." "outonly" "pretty"
+                else
+                    echo "0"
+                fi
+                ;;
+            *)
+                pg_log "err" "Unrecognized PostgreSQL status." "all"
+                exit 1
+                ;;
+        esac
+    
+    else
+
+        # The unmanaged part
+        if ! [[ -x "$(command -v pg_isready)" ]]; then
+            pg_log "info" "Status check cannot be found. Is PostgreSQL installed?" "outonly" "pretty"
+            pg_log "info" "If PostgreSQL is installed, check if the bin dir is in the PATH." "outonly" "pretty"
             exit 1
-    esac
+        fi
+
+        ret_message=`pg_isready`
+        case "${ret_message}" in
+            *"no response")
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL not running." "outonly" "pretty"
+                else
+                    echo "2"
+                fi
+                ;;
+            *"accepting connections")
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL running." "outonly" "pretty"
+                else
+                    echo "0"
+                fi
+                ;;
+            *)
+                pg_log "err" "Unknow status return by the PostgreSQL database server." "all"
+                exit 1
+        esac
+
+    fi
 
 }
 
@@ -131,34 +313,111 @@ pg_help() {
 PostgreSQL Storage Layer plugin init script. 
 The script is used to control the PostgreSQL plugin as database for FogLAMP
 Arguments:
- init    - Initialize the database server
+ start   - Start the database server (when managed)
+           If the server has not been initialized, it also initialize it
+ stop    - Stop the database server (when managed)
+ status  - Check the status of the database server
  reset   - Bring the database server to the original installation.
            This is a synonym of init.
            WARNING: all the data stored in the server will be lost!
- status  - Check the status of the database server
- help    - This text"
+ help    - This text
+
+ managed   - The database server is embedded in FogLAMP
+ unmanaged - The database server is not embedded in FogLAMP"
 
 }
 
 
 ### Main Logic ###
-case "$1" in
-  init)
-    pg_reset
-    ;;
-  reset)
-    pg_reset
-    ;;
-  status)
-    pg_status
-    ;;
-  help)
-    pg_help
-    ;;
-  *)
-    echo "${USAGE}"
-    exit 1
+
+# Settings if the database is managed by FogLAMP
+case "$2" in
+    "managed")
+
+        MANAGED=true
+
+        # Set Data dir for PostgreSQL
+        if [ -z ${FOGLAMP_DATA+x} ]; then
+            FOGLAMP_DATA="$HOME/foglamp"
+            PG_DATA="$FOGLAMP_DATA/storage/postgres/pgsql/data"
+            PG_LOG="$FOGLAMP_DATA/storage/postgres/pgsql/logger"
+        fi
+
+        # Check if pg_ctl is present in the expected path
+        PG_CTL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/usr/bin/pg_ctl"
+        PG_CTL_COMMAND="$PG_CTL -D $PG_DATA -l $PG_LOG"
+        if ! [[ -x "${PG_CTL}" ]]; then
+            pg_log "err" "PostgreSQL program pg_ctl not found: the database server cannot be managed." "all" "pretty"
+            exit 1
+        fi
+
+        # Check if psql is present in the expected path
+        PG_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/pgsql/usr/bin/psql"
+        if ! [[ -x "${PG_SQL}" ]]; then
+            pg_log "err" "PostgreSQL program psql not found: the database server cannot be managed." "all" "pretty"
+            exit 1
+        fi
+
+        print_output="noisy"
+        ;;
+    
+    "unmanaged")
+
+        if ! [[ -x "$(command -v psql)" ]]; then
+            pg_log "info" "The psql command cannot be found. Is PostgreSQL installed?" "outonly" "pretty"
+            pg_log "info" "If PostgreSQL is installed, check if the bin dir is in the PATH." "outonly" "pretty"
+            exit 1
+        else
+            PG_SQL="$(command -v psql)"
+        fi
+
+        # This is an explicit imput, which means that we do not want to send
+        # messages when we start or stop the server
+        print_output="silent"
+        MANAGED=false
+        ;;
+
+    *) 
+        print_output="noisy"
+        MANAGED=false
+        ;;
 esac
 
-exit 0
+# Check if the init.sql file exists
+# Attempt 1: deployment path
+if [[ -e "$FOGLAMP_ROOT/plugins/storage/postgres/init.sql" ]]; then
+    INIT_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/init.sql"
+else
+    # Attempt 2: development path
+    if [[ -e "$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql" ]]; then
+        INIT_SQL="$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql"
+    else
+        pg_log "err" "Missing initialization file init.sql." "all" "pretty"
+        exit 1
+    fi
+fi
+
+# Main case
+case "$1" in
+    start)
+        pg_start "$print_output"
+        ;;
+    stop)
+        pg_stop "$print_output"
+        ;;
+    reset)
+        pg_reset "$print_output"
+        ;;
+    status)
+        pg_status "$print_output"
+        ;;
+    help)
+        pg_help
+        ;;
+    *)
+        echo "${USAGE}"
+        exit 1
+esac
+
+exit $?
 

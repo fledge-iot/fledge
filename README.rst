@@ -75,15 +75,9 @@ Creating the Database Repository
 
 This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
 ::
-   sudo -u postgres createuser <user>
+   sudo -u postgres createuser -d <user>
 
-where *user* is the name of the Linux user that will run FogLAMP.
-
-Last, you must create the FogLAMP database, schema and tables:
-::
-   sudo -u postgres psql -f <basedir>/FogLAMP/plugins/storage/postgres/init.sql
-
-Where *basedir* is the base directory into which you cloned the FogLAMP repository.
+where *user* is the name of the Linux user that will run FogLAMP. The FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
 Testing FogLAMP from Your Development Environment
@@ -123,9 +117,10 @@ FogLAMP is now ready to start. Use the command:
 ::
    $FOGLAMP_ROOT/bin/foglamp start
 
-To check if FogLAMP is running, simply use *curl* (you may need to install it first):
+To check if FogLAMP is running, use the command:
 ::
-   curl http://localhost:8081/foglamp/ping
+   $FOGLAMP_ROOT/bin/foglamp status
 
-The command should return a JSON text with the total uptime in seconds.
+The command returns the status of FogLAMP on the machine it has been executed.
+
 

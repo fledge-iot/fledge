@@ -117,8 +117,7 @@ characteristics = {
 
 
 class SensorTagCC2650(object):
-    """Handles polling of readings from SensorTagCC2650
-        Cloned from https://github.com/OrestisEv/SensorTagCC2650-Pi3
+    """Handles readings from SensorTagCC2650
     """
     reading_iterations = 1  # number of iterations to read data from the TAG
 
@@ -154,22 +153,25 @@ class SensorTagCC2650(object):
                 break
         return rval
 
+    def get_notification_handle(self, data_handle):
+        # TODO: Confirm with product sources that notification handle will always be data_handle + 1
+        return hex(int(data_handle, 16) + 1)
+
     def char_write_cmd(self, handle, value):
-        cmd = 'char-write-cmd %s %s' % (handle, value)
-        self.con.sendline(cmd)
+        self.con.sendline('char-write-cmd %s %s' % (handle, value))
         # delay for 1 second so that Tag can enable registers
         time.sleep(1)
 
     def char_read_hnd(self, handle, sensortype):
-        # send the hex value to the Tag
         self.con.sendline('char-read-hnd %s' % handle)
-
         self.con.expect('.*descriptor:.* \r')
         reading = self.con.after
-        rval = reading.split() #splitting the reading based on the spaces
+        rval = reading.split()
         _LOGGER.info('SensorTagCC2650 {} DEBUGGING: Reading from Tag... {} \n'.format(self.bluetooth_adr, reading))
         # _LOGGER.info('SensorTagCC2650 {} DEBUGGING: rval {}'.format(self.bluetooth_adr, str(rval)))
+        return self.get_raw_measurement(sensortype, rval)
 
+    def get_raw_measurement(self, sensortype, rval):
         if sensortype in ['temperature']:
             # The raw data value read from this sensor are two unsigned 16 bit values
             raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
@@ -187,7 +189,6 @@ class SensorTagCC2650(object):
             raw_measurement = rval[-2] + rval[-1]
         else:
             raw_measurement = 0
-
         _LOGGER.info('SensorTagCC2650 {} sensortype: {} raw_measurement: {}'.format(self.bluetooth_adr, sensortype, raw_measurement))
         return raw_measurement
 

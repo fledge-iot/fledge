@@ -24,6 +24,8 @@
 
 set -e
 
-"$FOGLAMP_ROOT/scripts/plugins/storage/postgres" $1 unmanaged
-exit $?
+source "$FOGLAMP_ROOT/scripts/plugins/storage/postgres" $1 unmanaged
+
+# exit cannot be used because the script is sourced.
+#exit $?
 

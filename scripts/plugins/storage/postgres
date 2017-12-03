@@ -144,52 +144,61 @@ pg_start() {
 ## PostgreSQL Stop
 pg_stop() {
 
+    # Since the script may be called with "source", this condition must be set
+    # and the else must be maintained because exit can't be used
     if [[ "$MANAGED" = false ]]; then
+
+        # UNMANAGED part
+
         if [[ "$1" == "noisy" ]]; then
             pg_log "info" "Unable to stop PostgreSQL. The server is not managed by FogLAMP." "all" "pretty"
         else
             pg_log "info" "Unable to stop PostgreSQL. The server is not managed by FogLAMP." "logonly" "pretty"
         fi
-        exit 0
-    fi
 
-    # Check the status of the server
-    result=`pg_status "silent"`
-    case "$result" in
-        "0")
-            if [[ "$1" == "noisy" ]]; then
-                pg_log "info" "Stopping PostgreSQL..." "all" "pretty"
-            else
-                pg_log "info" "Stopping PostgreSQL..." "logonly" "pretty"
-            fi
-            eval $PG_CTL_COMMAND stop > /dev/null 2>&1
+    else
 
-            check_again=`pg_status "silent"`
-            if [[ "$check_again" -eq "2" ]]; then
+        # MANAGED part
+
+        # Check the status of the server
+        result=`pg_status "silent"`
+        case "$result" in
+            "0")
                 if [[ "$1" == "noisy" ]]; then
-                    pg_log "info" "PostgreSQL stopped." "all" "pretty"
+                    pg_log "info" "Stopping PostgreSQL..." "all" "pretty"
                 else
-                    pg_log "info" "PostgreSQL stopped." "logonly" "pretty"
+                    pg_log "info" "Stopping PostgreSQL..." "logonly" "pretty"
                 fi
-            else
-                pg_log "err" "Unable to stop PostgreSQL." "all"
+                eval $PG_CTL_COMMAND stop > /dev/null 2>&1
+
+                check_again=`pg_status "silent"`
+                if [[ "$check_again" -eq "2" ]]; then
+                    if [[ "$1" == "noisy" ]]; then
+                        pg_log "info" "PostgreSQL stopped." "all" "pretty"
+                    else
+                        pg_log "info" "PostgreSQL stopped." "logonly" "pretty"
+                    fi
+                else
+                    pg_log "err" "Unable to stop PostgreSQL." "all"
+                    exit 1
+                fi
+                ;;
+
+            "2")
+                if [[ "$1" == "noisy" ]]; then
+                    pg_log "info" "PostgreSQL is not running." "all" "pretty"
+                else
+                    pg_log "info" "PostgreSQL is not running." "logonly" "pretty"
+                fi
+                ;;
+
+            *)
+                pg_log "err" "Unknown database return status." "all"
                 exit 1
-            fi
-            ;;
+                ;;
+        esac
 
-        "2")
-            if [[ "$1" == "noisy" ]]; then
-                pg_log "info" "PostgreSQL is not running." "all" "pretty"
-            else
-                pg_log "info" "PostgreSQL is not running." "logonly" "pretty"
-            fi
-            ;;
-
-        *)
-            pg_log "err" "Unknown database return status." "all"
-            exit 1
-            ;;
-    esac
+    fi  # MANAGED true/false
 
 }
 
@@ -208,6 +217,7 @@ pg_reset() {
 
         if [ "$continue_reset" != 'YES' ]; then
             echo "Goodbye."
+            # This is ok because it means that the script is called from command line
             exit 0
         fi
     fi
@@ -353,6 +363,12 @@ case "$2" in
 
         MANAGED=true
 
+        # Set PGHOST if it does not exist
+        if [ -z ${PGHOST+x} ]; then
+            PGHOST="/tmp"
+            export PGHOST
+        fi
+
         # Set FOGLAMP_DATA if it does not exist
         if [ -z ${FOGLAMP_DATA+x} ]; then
             FOGLAMP_DATA="${HOME}/foglamp"
@@ -451,5 +467,6 @@ case "$1" in
         exit 1
 esac
 
-exit $?
+# Exit cannot be used because the script may be "sourced"
+#exit $?
 

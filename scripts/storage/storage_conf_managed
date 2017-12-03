@@ -25,5 +25,6 @@
 
 set -e
 
-exit 0
+# exit cannot be used because the script is sourced.
+#exit $?
 

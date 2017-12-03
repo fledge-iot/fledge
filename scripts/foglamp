@@ -106,18 +106,16 @@ foglamp_start() {
     # Start the Storage Plugin for the Configuration, if exists
     # If the script does not exists, it continues (i.e. it is not an error)
     if [[ -e "$FOGLAMP_ROOT/scripts/storage/storage_conf" ]]; then
-        "$FOGLAMP_ROOT/scripts/storage/storage_conf" start
+        source "$FOGLAMP_ROOT/scripts/storage/storage_conf" start
     fi
 
     # Start the Storage Plugin for the Data
-    set +e
-    "$FOGLAMP_ROOT/scripts/storage/storage_data" start
+    source "$FOGLAMP_ROOT/scripts/storage/storage_data" start
     if [ $? -ne 0 ];then
         foglamp_log "info" "FogLAMP cannot start" "all" "pretty"
         foglamp_log "err" "FogLAMP database is not ready." "all" "pretty"
         exit 1
     fi
-    set -e
 
     result=`foglamp_status "silent"`
     case "$result" in
@@ -174,11 +172,11 @@ foglamp_stop() {
     # Start the Storage Plugin for the Configuration, if exists
     # If the script does not exists, it continues (i.e. it is not an error)
     if [[ -e "$FOGLAMP_ROOT/scripts/storage/storage_conf" ]]; then
-        "$FOGLAMP_ROOT/scripts/storage/storage_conf" stop
+        source "$FOGLAMP_ROOT/scripts/storage/storage_conf" stop
     fi
 
     # Stop the Storage Plugin for the Data
-    "$FOGLAMP_ROOT/scripts/storage/storage_data" stop
+    source "$FOGLAMP_ROOT/scripts/storage/storage_data" stop
     
     foglamp_log "info" "FogLAMP stopped." "all" "pretty"
 

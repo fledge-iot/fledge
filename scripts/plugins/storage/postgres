@@ -409,7 +409,9 @@ case "$2" in
         print_output="noisy"
         ;;
     
-    "unmanaged")
+    *)
+
+        # This case includes UNMANAGED
 
         if ! [[ -x "$(command -v psql)" ]]; then
             pg_log "info" "The psql command cannot be found. Is PostgreSQL installed?" "outonly" "pretty"
@@ -425,10 +427,6 @@ case "$2" in
         MANAGED=false
         ;;
 
-    *) 
-        print_output="noisy"
-        MANAGED=false
-        ;;
 esac
 
 # Check if the init.sql file exists

@@ -49,14 +49,6 @@ PLUGIN_HANDLE plugin_init()
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
 
-	// Start the postgres server if it is not already running
-//	char *home = getenv("FOGLAMP_ROOT");
-//	if (! home)
-//		home = (char *)"/usr/local/foglamp";
-//	char buf[256];
-//	snprintf(buf, sizeof(buf), "%s/scripts/plugins/storage/postgres start", home);
-//	(void)system(buf);	// GCC bug 66425 produces warning
-  
 	manager->growPool(5);
 	return manager;
 }

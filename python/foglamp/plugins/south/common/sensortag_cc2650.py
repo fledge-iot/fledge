@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Template module for 'poll' type plugin """
+""" Common class for TI Sensortag CC2650 for both 'async' type and 'poll' type plugins """
 
 
 import pexpect

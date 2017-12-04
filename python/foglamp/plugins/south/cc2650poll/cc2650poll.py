@@ -4,7 +4,8 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Template module for 'poll' type plugin """
+""" Module for Sensortag CC2650 'poll' type plugin """
+
 import copy
 import datetime
 import uuid
@@ -256,15 +257,3 @@ def plugin_shutdown(handle):
     """
     bluetooth_adr = handle['bluetooth_adr']
     _LOGGER.info('SensorTagCC2650 {} Polling shutdown'.format(bluetooth_adr))
-
-
-if __name__ == "__main__":
-    # To run: python3 python/foglamp/plugins/south/sensortag/sensortag_cc2650.py --bluetooth_adr=B0:91:22:EA:79:04
-
-    bluetooth_adr = sys.argv[1]
-    # print(plugin_init({'bluetooth_adr': bluetooth_adr}))
-    print(plugin_poll(plugin_init({'bluetooth_adr': bluetooth_adr})))
-
-    # tag = SensorTagCC2650(bluetooth_adr)
-    # handle = tag.get_char_handle(characteristics['temperature']['data']['uuid'])
-    # print(handle)

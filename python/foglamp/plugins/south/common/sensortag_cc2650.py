@@ -153,6 +153,7 @@ class SensorTagCC2650(object):
             print('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
             _LOGGER.info('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
         except Exception as ex:
+            # TODO: Investigate why SensorTag goes to sleep often and find a suitable software solution to awake it.
             print('SensorTagCC2650 {} connection failure. ()'.format(bluetooth_adr, str(ex)))
             _LOGGER.exception('SensorTagCC2650 {} connection failure. ()'.format(bluetooth_adr, str(ex)))
 

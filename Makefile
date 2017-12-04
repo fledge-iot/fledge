@@ -23,14 +23,14 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 
 # C BUILD DIRS/FILES
-CMAKE_FILE := $(CURRENT_DIR)/CMakeLists.txt
-CMAKE_BUILD_DIR := cmake_build
-CMAKE_GEN_MAKEFILE := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
-CMAKE_SERVICES_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
-CMAKE_STORAGE_BINARY := $(CMAKE_SERVICES_DIR)/storage/storage
-CMAKE_PLUGINS_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-DEV_SERVICES_DIR := $(CURRENT_DIR)/services
-SYMLINK_PLUGINS_DIR := $(CURRENT_DIR)/plugins
+CMAKE_FILE             := $(CURRENT_DIR)/CMakeLists.txt
+CMAKE_BUILD_DIR        := cmake_build
+CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/storage
+CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
+DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
+SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
 SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/storage
 
 # PYTHON BUILD DIRS/FILES
@@ -49,6 +49,7 @@ PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
 SCRIPTS_INSTALL_DIR=$(INSTALL_DIR)/scripts
 BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
+SCRIPT_COMMON_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/common
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
 SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
@@ -59,6 +60,7 @@ FOGBENCH_SCRIPT_SRC        := scripts/extras/foglamp.fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
+COMMON_SCRIPTS_SRC         := scripts/common
 POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
 SOUTH_SCRIPT_SRC           := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
@@ -160,18 +162,22 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 ###############################################################################
 # install scripts
 scripts_install : $(SCRIPTS_INSTALL_DIR) \
+	install_common_scripts \
 	install_postgres_script \
 	install_south_script \
 	install_storage_service_script \
 	install_north_script \
 	install_purge_script \
 	install_statistics_script \
-    install_storage_script
+	install_storage_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
+install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
+	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
+	
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
 	
@@ -192,6 +198,9 @@ install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
+
+$(SCRIPT_COMMON_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
 
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@

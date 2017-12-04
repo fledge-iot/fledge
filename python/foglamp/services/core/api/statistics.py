@@ -59,24 +59,25 @@ async def get_statistics_history(request):
             curl -X GET http://localhost:8081/foglamp/statistics/history?limit=1
     """
     storage_client = connect.get_storage()
-    limit = int(request.query.get('limit')) if 'limit' in request.query else 0
-    if limit == 0:
-        # Return all records
-        payload = PayloadBuilder().SELECT(("history_ts", "key", "value")) \
-            .payload()
-    else:
-        # Return <limit> set of records
-        # FIXME: Hack straight away multiply the LIMIT by the group count
-        # i.e. there are 8 records per distinct ts, so if limit supplied is 2
-        # then internally, we should calculate LIMIT 16 and so on
-        # TODO: FOGL-663 Need support for "subquery" from storage service
-        # Remove python side handling date_trunc and use
-        # SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts
-        payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
-        result = storage_client.query_tbl_with_payload("statistics", payload)
-        key_count = result['rows'][0]['count_*']
-        payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).\
-            LIMIT(limit * key_count).payload()
+    payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).payload()
+
+    if 'limit' in request.query:
+        if request.query.get('limit').isdigit():
+            limit = int(request.query.get('limit'))
+            # FIXME: Hack straight away multiply the LIMIT by the group count
+            # i.e. there are 8 records per distinct (stats_key), so if limit supplied is 2
+            # then internally, we should calculate LIMIT *8
+            # TODO: FOGL-663 Need support for "subquery" from storage service
+            # Remove python side handling date_trunc and use
+            # SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts
+
+            payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
+            result = storage_client.query_tbl_with_payload("statistics", payload)
+            key_count = result['rows'][0]['count_*']
+
+            payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).LIMIT(limit * key_count).payload()
+        else:
+            raise web.HTTPBadRequest(reason="limit must be an integer")
 
     result_from_storage = storage_client.query_tbl_with_payload('statistics_history', payload)
 

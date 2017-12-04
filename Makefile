@@ -40,6 +40,9 @@ PYTHON_LIB_DIR := $(PYTHON_BUILD_DIR)/lib
 PYTHON_REQUIREMENTS_FILE := $(PYTHON_SRC_DIR)/requirements.txt
 PYTHON_SETUP_FILE := $(PYTHON_SRC_DIR)/setup.py
 
+# DATA AND ETC DIRS/FILES
+DATA_SRC_DIR := data
+
 # INSTALL DIRS
 INSTALL_DIR=$(DESTDIR)/usr/local/foglamp
 PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
@@ -87,8 +90,14 @@ default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
-install : $(INSTALL_DIR) c_install python_install python_requirements \
-	scripts_install bin_install extras_install
+install : $(INSTALL_DIR) \
+	c_install \
+	python_install \
+	python_requirements \
+	scripts_install \
+	bin_install \
+	extras_install \
+	data_install
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################
@@ -224,6 +233,22 @@ $(FOGBENCH_PYTHON_INSTALL_DIR) :
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+###############################################################################
+####################### DATA INSTALL TARGETS ################################
+###############################################################################
+# install data
+data_install : $(DATA_INSTALL_DIR) install_data
+
+install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
+	$(CP_DIR) $(DATA_SRC_DIR) $(INSTALL_DIR)
+ifdef SUDO_USER
+	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
+endif
+
+# create extras install dir
+#$(DATA_INSTALL_DIR) :
+#	$(MKDIR_PATH) $@
 
 ###############################################################################
 ######################## SUPPORTING BUILD/INSTALL TARGETS #####################

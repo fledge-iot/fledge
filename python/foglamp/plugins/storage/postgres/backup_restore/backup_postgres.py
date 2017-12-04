@@ -13,17 +13,19 @@ retrieving the parameters for the execution from the local file 'backup_configur
 
 """
 
-import time
 import sys
-import asyncio
+import time
 import os
 import json
+import asyncio
+import uuid
+
+from foglamp.services.core import server
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
-import logging
 
 import foglamp.plugins.storage.postgres.backup_restore.lib as lib
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
@@ -34,6 +36,13 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _MODULE_NAME = "foglamp_backup_postgres_module"
+
+_LOGGER = logger.setup(_MODULE_NAME)
+
+# to avoid double messages
+_LOGGER.handlers = []
+_LOGGER = logger.setup(_MODULE_NAME)
+
 
 _MESSAGES_LIST = {
 
@@ -47,13 +56,17 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_logger = None
-
 
 class Backup(object):
     """ Provides external functionality/integration for Backup operations
+
+        the constructor expects to receive a reference to a StorageClient object to being able to access
+        the Storage Layer
     """
 
+    _logger = None
+
+    _SCHEDULE_BACKUP_ON_DEMAND = "fac8dae6-d8d1-11e7-9296-cec278b6b50a"
     _MODULE_NAME = "foglamp_backup_postgres"
 
     _MESSAGES_LIST = {
@@ -61,6 +74,7 @@ class Backup(object):
         # Information messages
         "i000001": "Execution started.",
         "i000002": "Execution completed.",
+        "i000003": "On demand backup successfully launched.",
 
         # Warning / Error messages
         "e000000": "general error",
@@ -68,17 +82,15 @@ class Backup(object):
         "e000002": "cannot delete/purge backup information on the storage layer "
                    "- id |{0}| - file name |{1}| error details |{2}|",
         "e000003": "cannot retrieve information for the backup id |{0}|",
+        "e000004": "cannot launch on demand backup - error details |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
 
     def __init__(self, _storage):
         self._storage = _storage
 
-        # FIXME:
-        # self._logger = logger.setup(self._MODULE_NAME)
-        self._logger = logger.setup(Backup._MODULE_NAME,
-                                    destination=logger.CONSOLE,
-                                    level=logging.DEBUG)
+        if not Backup._logger:
+            Backup._logger = _LOGGER
 
     def get_all_backups(self,
                         limit: int,
@@ -94,7 +106,7 @@ class Backup(object):
                   this, in conjunction with the limit option, allows for a paged interface to be built
             status: lib.BackupStatus - limit the returned backups to those only with the specified status,
                     None = retrieves information for all the backups
-            sort_order: lib.SortOrder - Defines the order used to present information
+            sort_order: lib.SortOrder - Defines the order used to present information, DESC by default
 
         Returns:
             backups_information: list/dict - Backups information, it is provided for each :
@@ -133,7 +145,7 @@ class Backup(object):
                   this, in conjunction with the limit option, allows for a paged interface to be built
             status: lib.BackupStatus - limit the returned backups to those only with the specified status,
                     None = retrieves information for all the backups
-            sort_order: lib.SortOrder - Defines the order used to present information
+            sort_order: lib.SortOrder - Defines the order used to present information, DESC by default
 
         Returns:
             backups_information: all the information available related to the requested backups
@@ -244,7 +256,7 @@ class Backup(object):
 
                 except Exception as _ex:
                     _message = self._MESSAGES_LIST["e000001"].format(backup_id, file_name, _ex)
-                    self._logger.error(_message)
+                    Backup._logger.error(_message)
 
                     raise
 
@@ -280,7 +292,7 @@ class Backup(object):
 
         self._storage.delete_from_tbl(lib.STORAGE_TABLE_BACKUPS, payload)
 
-    def create_backup(self):
+    async def create_backup(self):
         """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
             the backup will proceed asynchronously.
 
@@ -290,14 +302,29 @@ class Backup(object):
         Raises:
         """
 
-        # FIXME:
-        pass
+        try:
+            await server.Server.scheduler.queue_task(uuid.UUID(Backup._SCHEDULE_BACKUP_ON_DEMAND))
+
+            _message = self._MESSAGES_LIST["i000003"]
+            Backup._logger.info("{0}".format(_message))
+
+            exit_status = "running"
+
+        except Exception as _ex:
+            _message = self._MESSAGES_LIST["e000004"].format(_ex)
+            Backup._logger.error("{0}".format(_message))
+
+            exit_status = "failed"
+
+        return exit_status
 
 
 class BackupProcess(FoglampProcess):
     """ Backups the entire FogLAMP repository into a file in the local filesystem,
         it executes a full warm backup
     """
+
+    _logger = None
 
     _MODULE_NAME = "foglamp_backup_process_postgres"
 
@@ -391,11 +418,8 @@ class BackupProcess(FoglampProcess):
         super().__init__()
 
         try:
-            # FIXME:
-            # self._logger = logger.setup(self._MODULE_NAME)
-            self._logger = logger.setup(self._MODULE_NAME,
-                                        destination=logger.CONSOLE,
-                                        level=logging.DEBUG)
+            if not self._logger:
+                self._logger = _LOGGER
 
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000001"].format(str(_ex))
@@ -786,22 +810,8 @@ class BackupProcess(FoglampProcess):
 
 if __name__ == "__main__":
 
-    # Initializes the logger
-    try:
-        # FIXME: for debug purpose
-        # _logger = logger.setup(_MODULE_NAME)
-        _logger = logger.setup(_MODULE_NAME,
-                               destination=logger.CONSOLE,
-                               level=logging.DEBUG)
-
-        _logger.info(_MESSAGES_LIST["i000001"])
-
-    except Exception as ex:
-        message = _MESSAGES_LIST["e000001"].format(str(ex))
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-
-        print("[FOGLAMP] {0} - ERROR - {1}".format(current_time, message), file=sys.stderr)
-        sys.exit(1)
+    # Starts
+    _LOGGER.info(_MESSAGES_LIST["i000001"])
 
     # Initializes FoglampProcess and Backup classes - handling the command line parameters
     try:
@@ -809,15 +819,15 @@ if __name__ == "__main__":
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)
-        _logger.exception(message)
+        _LOGGER.exception(message)
 
-        _logger.info(_MESSAGES_LIST["i000002"])
+        _LOGGER.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)
 
     # Executes the backup
     try:
         # noinspection PyProtectedMember
-        _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
+        _LOGGER.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
             module=_MODULE_NAME,
             name=backup_process._name,
             addr=backup_process._core_management_host,
@@ -825,13 +835,13 @@ if __name__ == "__main__":
 
         backup_process.execute_backup()
 
-        _logger.info(_MESSAGES_LIST["i000002"])
+        _LOGGER.info(_MESSAGES_LIST["i000002"])
         sys.exit(0)
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)
-        _logger.exception(message)
+        _LOGGER.exception(message)
 
         backup_process.shutdown()
-        _logger.info(_MESSAGES_LIST["i000002"])
+        _LOGGER.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)

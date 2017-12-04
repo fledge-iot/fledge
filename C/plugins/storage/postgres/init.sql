@@ -690,8 +690,8 @@ CREATE TABLE foglamp.schedules (
   id                uuid                  NOT NULL, -- PK
   process_name      character varying(20) NOT NULL, -- FK process name
   schedule_name     character varying(20) NOT NULL, -- schedule name
-  schedule_type     smallint              NOT NULL, -- 1 = timed, 2 = interval, 3 = manual,
-                                                    -- 4 = startup
+  schedule_type     smallint              NOT NULL, -- 1 = startup,  2 = timed
+                                                    -- 3 = interval, 4 = manual
   schedule_interval interval,                       -- Repeat interval
   schedule_time     time,                           -- Start time
   schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
@@ -895,7 +895,6 @@ insert into foglamp.scheduled_processes (name, script) values ('backup','["tasks
 insert into foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore_postgres"]' );
 
 
-
 -- Start the device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)
@@ -907,6 +906,12 @@ values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 -- schedule_time, schedule_interval, exclusive)
 -- values ('d1631422-9ec6-11e7-abc4-cec278b6b50a', 'backup', 'backup', 3,
 -- NULL, '01:00:00', true);
+
+-- Used to execute an on demand Backup
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
+NULL, '00:00:00', true);
 
 -- Start the Poll mode device server at start-up
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,

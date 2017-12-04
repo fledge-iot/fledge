@@ -50,9 +50,9 @@ Connection::Connection()
 	/* Check to see that the backend connection was successfully made */
 	if (PQstatus(dbConnection) != CONNECTION_OK)
 	{
-		if (time(0) - connectErrorTime > CONNECT_ERROR_THRESHOLD)
+		if (connectErrorTime == 0 || (time(0) - connectErrorTime > CONNECT_ERROR_THRESHOLD))
 		{
-			Logger::getLogger()->error("Failed to connection to the database: %s",
+			Logger::getLogger()->error("Failed to connect to the database: %s",
 				PQerrorMessage(dbConnection));
 			connectErrorTime = time(0);
 		}

@@ -3,6 +3,9 @@
 # IDE
 *.idea
 
+# Data / cache files
+data/etc/storage.json
+
 # Docs
 docs/_build
 docs/__pycache__/

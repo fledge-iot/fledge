@@ -45,8 +45,8 @@ fi
 ##########
 ## INCLUDE SECTION
 ##########
-. $FOGLAMP_ROOT/scripts/common/get_engine_management
-. $FOGLAMP_ROOT/scripts/common/write_log
+. $FOGLAMP_ROOT/scripts/common/get_engine_management.sh
+. $FOGLAMP_ROOT/scripts/common/write_log.sh
 
 
 ## PostgreSQL Start

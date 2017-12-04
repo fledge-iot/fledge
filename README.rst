@@ -103,7 +103,7 @@ Installing FogLAMP
 Create an installation by executing ``make install``, then set the *FOGLAMP_ROOT* environment variable specifying the installation path. By default the installation will be placed in */usr/local/foglamp*. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions:
 ::
    sudo make install
-   export $FOGLAMP_ROOT=/usr/local/foglamp
+   export FOGLAMP_ROOT=/usr/local/foglamp
 
 The destination may be overriden by setting the variable *DESTDIR* in the make command line, to a location in which you wish to install FogLAMP. For example, to install FogLAMP in the */opt* directory use the command:
 ::

@@ -51,25 +51,24 @@ BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
 SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
-SCRIPT_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/storage
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
 # SCRIPTS TO INSTALL IN BIN DIR
-FOGBENCH_SCRIPT_SRC := scripts/extras/foglamp.fogbench
-FOGLAMP_SCRIPT_SRC := scripts/foglamp
+FOGBENCH_SCRIPT_SRC        := scripts/extras/foglamp.fogbench
+FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
-POSTGRES_SCRIPT_SRC   := scripts/plugins/storage/postgres
-SOUTH_SCRIPT_SRC      := scripts/services/south
-STORAGE_SCRIPT_SRC    := scripts/services/storage
-NORTH_SCRIPT_SRC      := scripts/tasks/north
-PURGE_SCRIPT_SRC      := scripts/tasks/purge
-STATISTICS_SCRIPT_SRC := scripts/tasks/statistics
-STORAGE_DIR_SRC       := scripts/storage
+POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
+SOUTH_SCRIPT_SRC           := scripts/services/south
+STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
+STORAGE_SCRIPT_SRC         := scripts/storage
+NORTH_SCRIPT_SRC           := scripts/tasks/north
+PURGE_SCRIPT_SRC           := scripts/tasks/purge
+STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
 
 # FOGBENCH 
-FOGBENCH_PYTHON_SRC_DIR := extras/python/fogbench
+FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
 
 ###############################################################################
 ################################### OTHER VARS ################################
@@ -160,11 +159,14 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 ###################### SCRIPTS INSTALL TARGETS ################################
 ###############################################################################
 # install scripts
-scripts_install : $(SCRIPTS_INSTALL_DIR) install_postgres_script \
-	install_south_script install_storage_script install_north_script \
-	install_purge_script install_statistics_script \
-    install_storage_dir \
-    link_storage_script
+scripts_install : $(SCRIPTS_INSTALL_DIR) \
+	install_postgres_script \
+	install_south_script \
+	install_storage_service_script \
+	install_north_script \
+	install_purge_script \
+	install_statistics_script \
+    install_storage_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -176,8 +178,8 @@ install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIP
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
-install_storage_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
-	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+install_storage_service_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SERVICE_SCRIPT_SRC)
+	$(CP) $(STORAGE_SERVICE_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 	$(CP) $(NORTH_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
@@ -188,11 +190,8 @@ install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
-install_storage_dir : $(SCRIPT_STORAGE_INSTALL_DIR) $(STORAGE_DIR_SRC)
-	$(CP_DIR) $(STORAGE_DIR_SRC)/storage_*managed $(SCRIPT_STORAGE_INSTALL_DIR)
-
-link_storage_script : $(SCRIPT_STORAGE_INSTALL_DIR)
-	$(LN) storage_data_unmanaged $(SCRIPT_STORAGE_INSTALL_DIR)/storage_data
+install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
+	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@

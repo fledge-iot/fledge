@@ -110,9 +110,9 @@ write_log() {
 foglamp_start() {
 
     # Check the storage management script
-    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage/storage_data" ]]; then
+    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
         write_log "info" "FogLAMP cannot start." "all" "pretty"
-        write_log "err" "FogLAMP Storage Plugin not found." "all" "pretty"
+        write_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
         exit 1
     fi
 
@@ -122,19 +122,10 @@ foglamp_start() {
         exit 1
     fi
 
-    # Start the Storage Plugin for the Configuration, if exists
-    # If the script does not exists, it continues (i.e. it is not an error)
-    if [[ -e "$FOGLAMP_ROOT/scripts/storage/storage_conf" ]]; then
-        source "$FOGLAMP_ROOT/scripts/storage/storage_conf" start
-    fi
-
-    # Start the Storage Plugin for the Data
-    source "$FOGLAMP_ROOT/scripts/storage/storage_data" start
-    if [ $? -ne 0 ];then
-        write_log "info" "FogLAMP cannot start" "all" "pretty"
-        write_log "err" "FogLAMP database is not ready." "all" "pretty"
-        exit 1
-    fi
+    # Execute the Storage Plugin Script
+    # NOTE: this script prepares the storage,
+    #       but it does not start the microservice
+    source "$FOGLAMP_ROOT/scripts/storage" start
 
     result=`foglamp_status "silent"`
     case "$result" in
@@ -173,9 +164,9 @@ foglamp_start() {
 foglamp_stop() {
 
     # Check the storage management script
-    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage/storage_data" ]]; then
+    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
         write_log "info" "FogLAMP cannot be stopped." "all" "pretty"
-        write_log "err" "FogLAMP Storage Plugin not found." "all" "pretty"
+        write_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
         exit 1
     fi
 
@@ -188,14 +179,10 @@ foglamp_stop() {
     # Kill the shell script processes
     ps -ef | grep '/bin/sh services' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
 
-    # Start the Storage Plugin for the Configuration, if exists
-    # If the script does not exists, it continues (i.e. it is not an error)
-    if [[ -e "$FOGLAMP_ROOT/scripts/storage/storage_conf" ]]; then
-        source "$FOGLAMP_ROOT/scripts/storage/storage_conf" stop
-    fi
-
-    # Stop the Storage Plugin for the Data
-    source "$FOGLAMP_ROOT/scripts/storage/storage_data" stop
+    # Execute the Storage Plugin script
+    # NOTE: This script does not stop the microservice,
+    #       it deals with the database engine.
+    source "$FOGLAMP_ROOT/scripts/storage" stop
     
     write_log "info" "FogLAMP stopped." "all" "pretty"
 

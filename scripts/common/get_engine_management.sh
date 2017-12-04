@@ -24,12 +24,12 @@
 get_engine_management() {
 
     # Remove new lines and store in a variable
-    json_foglamp=`tr -d '\n' < $1`
+    json_foglamp=`tr -d '\n' < $FOGLAMP_DATA/etc/foglamp.json`
 
     # Remove tabs
     json_foglamp=`echo $json_foglamp | tr -d '\t'`
 
-    middle_grep="\"plugin\" *: *\"${2}\" *, *\"managed\" *:.*"
+    middle_grep="\"plugin\" *: *\"${1}\" *, *\"managed\" *:.*"
     echo `echo $json_foglamp | grep -o "\"storage plugins\" *: *{.*" | grep -o "{.*" | grep -o "$middle_grep" | grep -o -e "true" -e "false"`
 
 }

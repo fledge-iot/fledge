@@ -19,6 +19,7 @@
 set -e
 #set -x
 
+PLUGIN="postgres"
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
 # Check FOGLAMP_ROOT
@@ -399,9 +400,9 @@ case "$engine_management" in
 
     *)
 
-        # Unexpected value from the configuation file
+        # Unexpected value from the configuration file
         write_log "err" "FogLAMP cannot start." "all" "pretty"
-        write_log "err" "Missing plugin information in FogLAMP configuation file foglamp.json" "all" "pretty"
+        write_log "err" "Missing plugin information in FogLAMP configuration file foglamp.json" "all" "pretty"
         exit 1
         ;;
 

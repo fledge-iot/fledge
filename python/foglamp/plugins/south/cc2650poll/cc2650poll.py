@@ -28,19 +28,12 @@ _DEFAULT_CONFIG = {
         'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
         'type': 'integer',
         'default': '500'
-    },
-    'bluetoothAddr': {
-        'description': 'Bluetooth Hexadecimal address of SensorTagCC2650 device',
-        'type': 'string',
-        'default': 'B0:91:22:EA:79:04'
     }
 }
 
 _LOGGER = logger.setup(__name__, level=20)
 
 sensortag_characteristics = characteristics
-char_enable = '01'
-char_disable = '00'
 
 
 def plugin_info():
@@ -133,7 +126,7 @@ def plugin_poll(handle):
         tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_enable)
         tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_enable)
         tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
-        # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_enable)
+        tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
         # Get temperature
         count = 0
@@ -155,16 +148,34 @@ def plugin_poll(handle):
         bar_pressure = tag.hexPress2Press(tag.char_read_hnd(
             handle['characteristics']['pressure']['data']['handle'], "pressure"))
 
-        # TODO: Implement movement data capture
         # Get movement
-        # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_enable)
+        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = tag.hexMovement2Mov(tag.char_read_hnd(
+            handle['characteristics']['movement']['data']['handle'], "movement"))
+        movement = {
+            'gyro': {
+                'x': gyro_x,
+                'y': gyro_y,
+                'z': gyro_z,
+            },
+            'acc': {
+                'x': acc_x,
+                'y': acc_y,
+                'z': acc_z,
+            },
+            'mag': {
+                'x': mag_x,
+                'y': mag_y,
+                'z': mag_z,
+            },
+            'acc_range': acc_range
+        }
 
         # Disable sensors
         tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
         tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
         tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
         tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
-        # tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_disable)
 
         data['readings'] = {
                     'objectTemperature': object_temp_celsius,
@@ -213,7 +224,7 @@ def plugin_shutdown(handle):
 
 
 if __name__ == "__main__":
-    # To run: python3 python/foglamp/plugins/south/sensortag/sensortag_cc2650.py B0:91:22:EA:79:04
+    # To run: python3 python/foglamp/plugins/south/sensortag/sensortag_cc2650.py --bluetooth_adr=B0:91:22:EA:79:04
 
     bluetooth_adr = sys.argv[1]
     # print(plugin_init({'bluetooth_adr': bluetooth_adr}))

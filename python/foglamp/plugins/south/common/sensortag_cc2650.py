@@ -115,6 +115,25 @@ characteristics = {
     }
 }
 
+char_enable = '01'
+char_disable = '00'
+"""
+movement_enable setting
+Bits	Usage
+0	Gyroscope z axis enable
+1	Gyroscope y axis enable
+2	Gyroscope x axis enable
+3	Accelerometer z axis enable
+4	Accelerometer y axis enable
+5	Accelerometer x axis enable
+6	Magnetometer enable (all axes)
+7	Wake-On-Motion Enable
+8:9	Accelerometer range (0=2G, 1=4G, 2=8G, 3=16G)
+10:15	Not used
+"""
+movement_enable = 'FFFF'
+movement_disable = '0000'
+
 
 class SensorTagCC2650(object):
     """Handles readings from SensorTagCC2650
@@ -176,8 +195,12 @@ class SensorTagCC2650(object):
             # The raw data value read from this sensor are two unsigned 16 bit values
             raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
         elif sensortype in ['movement']:
-            # TODO: Pending implementation
-            pass
+            # The raw data value read from this sensor are 18 bytes
+            raw_measurement = rval[-18] + rval[-17] + rval[-16] + rval[-15] + \
+                              rval[-14] + rval[-13] + rval[-12] + rval[-11] + \
+                              rval[-10] + rval[-9] + rval[-8] + rval[-7] + \
+                              rval[-6] + rval[-5] + rval[-4] + rval[-3] + \
+                              rval[-2] + rval[-1]
         elif sensortype in ['humidity']:
             # The raw data value read from this sensor are two unsigned 16 bit values
             raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
@@ -299,8 +322,38 @@ class SensorTagCC2650(object):
         :param raw_movement:
         :return:
         """
-        # To be implemented
-        pass
+        # TODO: Double confirm the formulae, calculations
+        gyro_convert = lambda data: (data * 1.0) / (65536 / 500)
+        acc_convert = lambda rawData, ginfo: (rawData * 1.0) / (32768/ginfo)
+        mag_convert = lambda data: 1.0 * data
+        get_signed_int = lambda x: -(x & 0x8000) | (x & 0x7fff)
+
+        interim_value = raw_movement.decode()
+        raw_gyro_x = get_signed_int(int('0x'+interim_value[1:2]+interim_value[0:1], 16))
+        raw_gyro_y = get_signed_int(int('0x'+interim_value[3:4]+interim_value[2:3], 16))
+        raw_gyro_z = get_signed_int(int('0x'+interim_value[5:6]+interim_value[4:5], 16))
+        raw_acc_x = get_signed_int(int('0x'+interim_value[7:8]+interim_value[6:7], 16))
+        raw_acc_y = get_signed_int(int('0x'+interim_value[9:10]+interim_value[8:9], 16))
+        raw_acc_z = get_signed_int(int('0x'+interim_value[11:12]+interim_value[10:11], 16))
+        raw_mag_x = get_signed_int(int('0x'+interim_value[13:14]+interim_value[12:13], 16))
+        raw_mag_y = get_signed_int(int('0x'+interim_value[15:16]+interim_value[14:15], 16))
+        raw_mag_z = get_signed_int(int('0x'+interim_value[17:18]+interim_value[16:17], 16))
+
+        gyro_x = gyro_convert(raw_gyro_x)
+        gyro_y = gyro_convert(raw_gyro_y)
+        gyro_z = gyro_convert(raw_gyro_z)
+
+        acc_range = int('0x'+movement_enable, 16) | int('0x00c0', 16) >> 6
+        gdata = 16 if acc_range == 3 else 8 if acc_range == 2 else 4 if acc_range == 1 else 2
+        acc_x = acc_convert(raw_acc_x, gdata)
+        acc_y = acc_convert(raw_acc_y, gdata)
+        acc_z = acc_convert(raw_acc_z, gdata)
+
+        mag_x = mag_convert(raw_mag_x)
+        mag_y = mag_convert(raw_mag_y)
+        mag_z = mag_convert(raw_mag_z)
+
+        return gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range
 
     def hexHum2RelHum(self, raw_humd):
         """

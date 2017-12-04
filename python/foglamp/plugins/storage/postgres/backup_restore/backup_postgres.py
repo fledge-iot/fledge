@@ -37,11 +37,11 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "foglamp_backup_postgres_module"
 
-_LOGGER = logger.setup(_MODULE_NAME)
+_LOGGER = logger.setup(_MODULE_NAME , level=20)
 
 # to avoid double messages
 _LOGGER.handlers = []
-_LOGGER = logger.setup(_MODULE_NAME)
+_LOGGER = logger.setup(_MODULE_NAME , level=20)
 
 
 _MESSAGES_LIST = {

@@ -22,9 +22,74 @@
 # is embedded in FogLAMP
 #
 
-set -e
+#set -x
 
-source "$FOGLAMP_ROOT/scripts/plugins/storage/postgres" $1 unmanaged
+
+PLUGIN_TO_USE=""
+
+get_default_storage_plugin() {
+
+    # Remove new lines and store in a variable
+    json_foglamp=`tr -d '\n' < $1`
+
+    # Remove tabs
+    json_foglamp=`echo $json_foglamp | tr -d '\t'`
+
+    echo `echo $json_foglamp | grep -o '"default storage plugin" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
+}
+
+get_plugin_from_storage() {
+
+    # Remove new lines and store in a variable
+    json_storage=`tr -d '\n' < $1`
+
+    # Remove tabs
+    json_storage=`echo $json_storage | tr -d '\t'`
+
+    echo `echo $json_storage | grep -o '"plugin" *: *{.*' | grep -o '{.*' | grep -o '"value" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
+}
+
+
+#############
+## MAIN LOGIC
+#############
+
+# Check if the storage cache file exists
+if [[ -e "$FOGLAMP_DATA/etc/storage.json" ]]; then
+
+    # Extract plugin
+    PLUGIN_TO_USE=`get_plugin_from_storage "$FOGLAMP_DATA/etc/storage.json"`
+
+    # Check if the plugin has been found
+    if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
+        write_log "err" "Missing plugin in FogLAMP storage cache file storage.json" "all" "pretty"
+    fi
+
+fi
+
+if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
+
+    # Extract the default storage plugin from the configuration file
+    PLUGIN_TO_USE=`get_default_storage_plugin "$FOGLAMP_DATA/etc/foglamp.json"`
+    if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
+        write_log "err" "FogLAMP cannot start." "all" "pretty"
+        write_log "err" "Missing default plugin in FogLAMP configuration file foglamp.json" "all" "pretty"
+        exit 1
+    fi
+
+fi
+
+PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE"
+if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
+
+    # Missing storage plugin script
+    write_log "err" "FogLAMP cannot start." "all" "pretty"
+    write_log "err" "Missing Storage Plugin script $PLUGIN_SCRIPT." "all" "pretty"
+    exit 1
+
+fi
+
+source "$PLUGIN_SCRIPT" $1
 
 # exit cannot be used because the script is sourced.
 #exit $?

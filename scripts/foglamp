@@ -32,25 +32,6 @@ if [ -z ${FOGLAMP_ROOT+x} ]; then
     export FOGLAMP_ROOT
 fi
 
-# Set FOGLAMP_DATA if it does not exist
-if [ -z ${FOGLAMP_DATA+x} ]; then
-    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
-    export FOGLAMP_DATA
-fi
-
-# Check if $FOGLAMP_DATA exists
-if [[ -e ${FOGLAMP_DATA} ]]; then
-
-    # Check if $FOGLAMP_DATA is a directory
-    if [[ ! -d ${FOGLAMP_DATA} ]]; then
-        write_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
-        exit 1
-    fi
-else
-    # $FOGLAMP_DATA does not exist: create it
-    mkdir -p ${FOGLAMP_DATA}
-fi
-
 # Check if the default directory exists
 if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
     write_log "err" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory." "all" "pretty"
@@ -58,6 +39,28 @@ if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
     write_log "info" "Specify the base directory for FogLAMP and set the variable with:" "outonly" "pretty"
     write_log "info" "export FOGLAMP_ROOT=<basedir>" "outonly" "pretty"
     exit 1
+fi
+
+# Set FOGLAMP_DATA if it does not exist
+if [ -z ${FOGLAMP_DATA+x} ]; then
+    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
+    export FOGLAMP_DATA
+fi
+
+# Check if $FOGLAMP_DATA exists and is a directory
+if [[ ! -d ${FOGLAMP_DATA} ]]; then
+    write_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
+    exit 1
+fi
+
+# Check if the configuration file exists
+if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
+
+    # Missing configuration file
+    write_log "err" "FogLAMP cannot start." "all" "pretty"
+    write_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
+    exit 1
+
 fi
 
 

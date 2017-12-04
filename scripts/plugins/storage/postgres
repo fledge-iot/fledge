@@ -19,7 +19,7 @@
 set -e
 #set -x
 
-USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help} {managed|unmanaged}"
+USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
@@ -29,75 +29,24 @@ fi
 
 # Check if the default directory exists
 if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
-    write_log "err" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory." "all" "pretty"
-    write_log "info" "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP." "outonly" "pretty"
-    write_log "info" "Specify the base directory for FogLAMP and set the variable with:" "outonly" "pretty"
-    write_log "info" "export FOGLAMP_ROOT=<basedir>" "outonly" "pretty"
+
+    # Here we cannot use the logger because we cannot find the write_log script.
+    # But it is ok, because the script is called with source and if it is called
+    # as standalone script the echo will be captured.
+    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP."
+    echo "Specify the base directory for FogLAMP and set the variable with:"
+    echo "export FOGLAMP_ROOT=<basedir>"
     exit 1
-fi
 
-# Set FOGLAMP_DATA if it does not exist
-if [ -z ${FOGLAMP_DATA+x} ]; then
-    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
-fi
-
-# Check if $FOGLAMP_DATA exists
-if [[ -e ${FOGLAMP_DATA} ]]; then
-
-    # Check if $FOGLAMP_DATA is a directory
-    if [[ ! -d ${FOGLAMP_DATA} ]]; then
-        write_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
-        exit 1
-    fi
-else
-    # $FOGLAMP_DATA does not exist: create it
-    mkdir -p ${FOGLAMP_DATA}
 fi
 
 
-## The Logging Handler
-#
-# Paramaters: $1 - Severity:
-#                  - debug
-#                  - info
-#                  - notice
-#                  - err
-#                  - crit
-#                  - alert
-#                  - emerg
-#             $2 - Message
-#             $3 - Output:
-#                  - logonly : send the message only to syslog
-#                  - all     : send the message to syslog and stdout
-#                  - outonly " send the message only to stdout
-#             $4 - Format
-#                - pretty : Do not show the date and priority
-#
-write_log() {
-
-    MODULE="foglamp.storage.postgres"
-
-    # Check log severity
-    if ! [[ "$1" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
-        write_log "err" "Internal error: unrecognized priority: $1" $3
-        exit 1
-    fi
-
-    # Log to syslog
-    if [[ "$3" =~ ^(logonly|all)$ ]]; then
-        logger -p local0.$1 -t $MODULE $2
-    fi
-
-    # Log to Stdout
-    if [[ "$3" =~ ^(outonly|all)$ ]]; then
-        if [[ "$4" == "pretty" ]]; then
-            echo "$2" >&2
-        else
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
-        fi
-    fi
-
-}
+##########
+## INCLUDE SECTION
+##########
+. $FOGLAMP_ROOT/scripts/common/get_engine_management
+. $FOGLAMP_ROOT/scripts/common/write_log
 
 
 ## PostgreSQL Start
@@ -373,11 +322,32 @@ Arguments:
 }
 
 
+##################
 ### Main Logic ###
+##################
 
+# Set FOGLAMP_DATA if it does not exist
+if [ -z ${FOGLAMP_DATA+x} ]; then
+    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
+fi
+
+# Check if $FOGLAMP_DATA exists
+if [[ ! -d ${FOGLAMP_DATA} ]]; then
+    write_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
+    exit 1
+fi
+
+# Check if the Configuration file exists
+if [[ ! -e ${FOGLAMP_DATA}/etc/foglamp.json ]]; then
+    write_log "err" "Missing FogLAMP configuration file ${FOGLAMP_DATA}/etc/foglamp.json" "all" "pretty"
+    exit 1
+fi
+
+# Extract plugin
+engine_management=`get_engine_management $PLUGIN`
 # Settings if the database is managed by FogLAMP
-case "$2" in
-    "managed")
+case "$engine_management" in
+    "true")
 
         MANAGED=true
 
@@ -409,7 +379,7 @@ case "$2" in
         print_output="noisy"
         ;;
     
-    *)
+    "false")
 
         # This case includes UNMANAGED
 
@@ -425,6 +395,14 @@ case "$2" in
         # messages when we start or stop the server
         print_output="silent"
         MANAGED=false
+        ;;
+
+    *)
+
+        # Unexpected value from the configuation file
+        write_log "err" "FogLAMP cannot start." "all" "pretty"
+        write_log "err" "Missing plugin information in FogLAMP configuation file foglamp.json" "all" "pretty"
+        exit 1
         ;;
 
 esac

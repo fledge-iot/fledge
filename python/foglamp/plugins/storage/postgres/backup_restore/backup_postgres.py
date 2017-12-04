@@ -37,11 +37,11 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "foglamp_backup_postgres_module"
 
-_LOGGER = logger.setup(_MODULE_NAME , level=20)
+_LOGGER = logger.setup(_MODULE_NAME, level=20)
 
-# to avoid double messages
+# to avoid multiple messages
 _LOGGER.handlers = []
-_LOGGER = logger.setup(_MODULE_NAME , level=20)
+_LOGGER = logger.setup(_MODULE_NAME, level=20)
 
 
 _MESSAGES_LIST = {
@@ -308,15 +308,11 @@ class Backup(object):
             _message = self._MESSAGES_LIST["i000003"]
             Backup._logger.info("{0}".format(_message))
 
-            exit_status = "running"
-
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000004"].format(_ex)
             Backup._logger.error("{0}".format(_message))
 
-            exit_status = "failed"
-
-        return exit_status
+            raise exceptions.BackupFailed(_message)
 
 
 class BackupProcess(FoglampProcess):

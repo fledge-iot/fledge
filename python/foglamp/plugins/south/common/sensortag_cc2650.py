@@ -141,17 +141,20 @@ class SensorTagCC2650(object):
     reading_iterations = 1  # number of iterations to read data from the TAG
 
     def __init__(self, bluetooth_adr):
-        self.bluetooth_adr = bluetooth_adr
-        self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
-        self.con.expect('\[LE\]>', timeout=600)
-        print('SensorTagCC2650 {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
-        _LOGGER.info('SensorTagCC2650 {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
-        self.con.sendline('connect')
-        # test for success of connect
-        self.con.expect('.*Connection successful.*\[LE\]>')
-        print('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
-        _LOGGER.info('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
-        self.cb = {}
+        try:
+            self.bluetooth_adr = bluetooth_adr
+            self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
+            self.con.expect('\[LE\]>', timeout=600)
+            print('SensorTagCC2650 {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
+            _LOGGER.info('SensorTagCC2650 {} Preparing to connect. Hold on a second...If nothing happens please press the power button...'.format(bluetooth_adr))
+            self.con.sendline('connect')
+            # test for success of connect
+            self.con.expect('.*Connection successful.*\[LE\]>')
+            print('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
+            _LOGGER.info('SensorTagCC2650 {} connected successfully'.format(bluetooth_adr))
+        except Exception as ex:
+            print('SensorTagCC2650 {} connection failure. ()'.format(bluetooth_adr, str(ex)))
+            _LOGGER.exception('SensorTagCC2650 {} connection failure. ()'.format(bluetooth_adr, str(ex)))
 
     def get_char_handle(self, uuid):
         timeout = 3
@@ -382,7 +385,7 @@ class SensorTagCC2650(object):
         raw_humidity &= -0x0003
         humidity = float((raw_humidity)) / 65536 * 100
         _LOGGER.info('SensorTagCC2650 {} tempr: {} humidity: {}'.format(self.bluetooth_adr, temperature, humidity))
-        return humidity
+        return humidity, temperature
 
     def hexPress2Press(self, raw_pr):
         """

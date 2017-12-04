@@ -8,7 +8,6 @@
 
 import asyncio
 import signal
-
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -142,35 +141,28 @@ class Server(FoglampMicroservice):
             elif plugin_info['mode'] == 'poll':
                 asyncio.ensure_future(self._exec_plugin_poll(config))
 
-        except Exception:
+        except Exception as ex:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
-            print(error)
+            print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
     
     async def _exec_plugin_async(self, config) -> None:
-        """Executes async type plugin  """
-
-        self._plugin.plugin_start(self._plugin_handle)
-
+        """Executes async type plugin
+        """
         await Ingest.start(self._core_management_host, self._core_management_port)
+        self._plugin.plugin_start(self._plugin_handle)
 
     
     async def _exec_plugin_poll(self, config) -> None:
-        """Executes poll type plugin """
-
+        """Executes poll type plugin
+        """
         await Ingest.start(self._core_management_host, self._core_management_port)
-
+        self._plugin_handle['ingest'] = Ingest
         while True:
             data = self._plugin.plugin_poll(self._plugin_handle)
-
-            await Ingest.add_readings(asset=data['asset'],
-                                      timestamp=data['timestamp'],
-                                      key=data['key'],
-                                      readings=data['readings'])
-
             # pollInterval is expressed in milliseconds
             sleep_seconds = int(config['pollInterval']['value']) / 1000.0
             await asyncio.sleep(sleep_seconds)

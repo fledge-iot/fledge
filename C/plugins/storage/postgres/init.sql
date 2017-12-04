@@ -884,7 +884,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 insert into foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["services/south"]' );
 -- FogLAMP South Microservice - POLL Plugin template
 insert into foglamp.scheduled_processes ( name, script ) values ( 'POLL', '["services/south"]' );
-insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650POLL', '["services/south", "--bluetooth_adr", "B0:91:22:EA:79:04"]' );
+insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650POLL', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'HTTP_SOUTH', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'purge', '["tasks/purge"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collector', '["tasks/statistics"]' );

@@ -8,6 +8,9 @@
 import copy
 import datetime
 import uuid
+
+import asyncio
+
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.common.parser import Parser
 from foglamp.services.south import exceptions
@@ -28,6 +31,11 @@ _DEFAULT_CONFIG = {
         'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
         'type': 'integer',
         'default': '500'
+    },
+    'bluetooth_address': {
+        'description': 'Bluetooth MAC address',
+        'type': 'string',
+        'default': 'B0:91:22:EA:79:04'
     }
 }
 
@@ -66,7 +74,7 @@ def plugin_init(config):
     """
     global sensortag_characteristics
 
-    bluetooth_adr = Parser.get('--bluetooth_adr')
+    bluetooth_adr = config['bluetooth_address']['value']
     tag = SensorTagCC2650(bluetooth_adr)
 
     # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
@@ -103,7 +111,7 @@ def plugin_poll(handle):
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
     data = {
-        'asset': 'sensortag',
+        'asset': 'TI sensortag',
         'timestamp': time_stamp,
         'key': str(uuid.uuid4()),
         'readings': {}
@@ -115,6 +123,7 @@ def plugin_poll(handle):
         ambient_temp_celsius = None
         lux_luminance = None
         rel_humidity = None
+        rel_temperature = None
         bar_pressure = None
         movement = None
 
@@ -141,7 +150,7 @@ def plugin_poll(handle):
             handle['characteristics']['luminance']['data']['handle'], "luminance"))
 
         # Get humidity
-        rel_humidity = tag.hexHum2RelHum(tag.char_read_hnd(
+        rel_humidity, rel_temperature = tag.hexHum2RelHum(tag.char_read_hnd(
             handle['characteristics']['humidity']['data']['handle'], "humidity"))
 
         # Get pressure
@@ -177,19 +186,45 @@ def plugin_poll(handle):
         tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
         tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_disable)
 
+        # "values" (and not "readings") denotes that this reading needs to be further broken down to components.
         data['readings'] = {
-                    'objectTemperature': object_temp_celsius,
-                    'ambientTemperature': ambient_temp_celsius,
-                    'luminance': lux_luminance,
-                    'humidity': rel_humidity,
-                    'pressure': bar_pressure,
-                    'movement': movement
-                }
+            'temperature': {
+                "object": object_temp_celsius,
+                'ambient': ambient_temp_celsius
+            },
+            'luxometer': {"lux": lux_luminance},
+            'humidity': {
+                "humidity": rel_humidity,
+                "temperature": rel_temperature
+            },
+            'pressure': {"pressure": bar_pressure},
+            'gyroscope': {
+                "x": gyro_x,
+                "y": gyro_y,
+                "z": gyro_z
+            },
+            'accelerometer': {
+                "x": acc_x,
+                "y": acc_y,
+                "z": acc_z
+            },
+            'magnetomer': {
+                "x": mag_x,
+                "y": mag_y,
+                "z": mag_z
+            }
+        }
+        for reading_key in data['readings']:
+            asyncio.ensure_future(
+                handle['ingest'].add_readings(asset=data['asset'] + '/' + reading_key,
+                                    timestamp=data['timestamp'],
+                                    key=str(uuid.uuid4()),
+                                    readings=data['readings'][reading_key]))
     except Exception as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)
 
-    _LOGGER.info("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
+    # _LOGGER.info("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
 
 

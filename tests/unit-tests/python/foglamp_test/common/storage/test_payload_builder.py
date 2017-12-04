@@ -53,7 +53,9 @@ class TestPayloadBuilderRead:
         (["id", "<", 1.5], _payload("data/payload_conditions3.json")),
         (["id", ">=", 9], _payload("data/payload_conditions4.json")),
         (["id", "<=", 99], _payload("data/payload_conditions5.json")),
-        (["id", "!=", "False"], _payload("data/payload_conditions6.json"))
+        (["id", "!=", "False"], _payload("data/payload_conditions6.json")),
+        (["ts", "newer", 3600], _payload("data/payload_newer_condition.json")),
+        (["ts", "older", 600], _payload("data/payload_older_condition.json"))
 
     ])
     def test_conditions_payload(self, test_input, expected):
@@ -208,7 +210,6 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     def test_expr_payload(self):
-
         res = PayloadBuilder().WHERE(["key", "=", "READINGS"]).EXPR(["value", "+", 10]).payload()
         assert _payload("data/payload_expr1.json") == json.loads(res)
 
@@ -248,6 +249,10 @@ class TestPayloadBuilderRead:
             .payload()
 
         assert _payload("data/payload_complex_select1.json") == json.loads(res)
+
+    def test_aggregate_with_where(self):
+        res = PayloadBuilder().WHERE(["ts", "newer", 60]).AGGREGATE(["count", "*"]).payload()
+        assert _payload("data/payload_aggregate_where.json") == json.loads(res)
 
 
 @pytest.allure.feature("unit")

@@ -33,7 +33,7 @@ _DEFAULT_CONFIG = {
         'type': 'integer',
         'default': '500'
     },
-    'bluetooth_address': {
+    'bluetoothAddress': {
         'description': 'Bluetooth MAC address',
         'type': 'string',
         'default': 'B0:91:22:EA:79:04'
@@ -75,7 +75,7 @@ def plugin_init(config):
     """
     global sensortag_characteristics
 
-    bluetooth_adr = config['bluetooth_address']['value']
+    bluetooth_adr = config['bluetoothAddress']['value']
     tag = SensorTagCC2650(bluetooth_adr)
 
     # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
@@ -141,25 +141,25 @@ def plugin_poll(handle):
         # Get temperature
         count = 0
         while count < SensorTagCC2650.reading_iterations:
-            object_temp_celsius, ambient_temp_celsius = tag.hexTemp2C(tag.char_read_hnd(
+            object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(tag.char_read_hnd(
                 handle['characteristics']['temperature']['data']['handle'], "temperature"))
             time.sleep(0.5)  # wait for a while
             count = count + 1
 
         # Get luminance
-        lux_luminance = tag.hexLum2Lux(tag.char_read_hnd(
+        lux_luminance = tag.hex_lux_to_lux(tag.char_read_hnd(
             handle['characteristics']['luminance']['data']['handle'], "luminance"))
 
         # Get humidity
-        rel_humidity, rel_temperature = tag.hexHum2RelHum(tag.char_read_hnd(
+        rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(tag.char_read_hnd(
             handle['characteristics']['humidity']['data']['handle'], "humidity"))
 
         # Get pressure
-        bar_pressure = tag.hexPress2Press(tag.char_read_hnd(
+        bar_pressure = tag.hex_pressure_to_pressure(tag.char_read_hnd(
             handle['characteristics']['pressure']['data']['handle'], "pressure"))
 
         # Get movement
-        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = tag.hexMovement2Mov(tag.char_read_hnd(
+        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = tag.hex_movement_to_movement(tag.char_read_hnd(
             handle['characteristics']['movement']['data']['handle'], "movement"))
         movement = {
             'gyro': {

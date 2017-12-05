@@ -197,29 +197,30 @@ class SensorTagCC2650(object):
     def get_raw_measurement(self, sensortype, rval):
         if sensortype in ['temperature']:
             # The raw data value read from this sensor are two unsigned 16 bit values
-            raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
+            raw_bytes = rval[-4] + rval[-3] + rval[-2] + rval[-1]
         elif sensortype in ['movement']:
             # The raw data value read from this sensor are 18 bytes
-            raw_measurement = rval[-18] + rval[-17] + rval[-16] + rval[-15] + \
+            raw_bytes = rval[-18] + rval[-17] + rval[-16] + rval[-15] + \
                               rval[-14] + rval[-13] + rval[-12] + rval[-11] + \
                               rval[-10] + rval[-9] + rval[-8] + rval[-7] + \
                               rval[-6] + rval[-5] + rval[-4] + rval[-3] + \
                               rval[-2] + rval[-1]
         elif sensortype in ['humidity']:
             # The raw data value read from this sensor are two unsigned 16 bit values
-            raw_measurement = rval[-4] + rval[-3] + rval[-2] + rval[-1]
+            raw_bytes = rval[-4] + rval[-3] + rval[-2] + rval[-1]
         elif sensortype in ['pressure']:
             # The data from the pressure sensor consists of two 24-bit unsigned integers
-            raw_measurement = rval[-6] + rval[-5] + rval[-4] + rval[-3] + rval[-2] + rval[-1]
+            raw_bytes = rval[-6] + rval[-5] + rval[-4] + rval[-3] + rval[-2] + rval[-1]
         elif sensortype in ['luminance']:
             # The data from the optical sensor consists of a single 16-bit unsigned integer
-            raw_measurement = rval[-2] + rval[-1]
+            raw_bytes = rval[-2] + rval[-1]
         else:
-            raw_measurement = 0
-        _LOGGER.info('SensorTagCC2650 {} sensortype: {} raw_measurement: {}'.format(self.bluetooth_adr, sensortype, raw_measurement))
-        return raw_measurement
+            raw_bytes = 0
+        _LOGGER.info('SensorTagCC2650 {} sensortype: {} raw_bytes: {}'.format(self.bluetooth_adr, sensortype, raw_bytes))
+        return raw_bytes
 
-    def hexTemp2C(self, raw_tempr):
+
+    def hex_temp_to_celsius(self, raw_tempr):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
         The raw data value read from this sensor are two unsigned 16 bit values, one for die (ambience) temperature and
@@ -259,7 +260,8 @@ class SensorTagCC2650(object):
 
         return object_temp_celsius, ambient_temp_celsius
 
-    def hexMovement2Mov(self, raw_movement):
+
+    def hex_movement_to_movement(self, raw_movement):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -328,7 +330,7 @@ class SensorTagCC2650(object):
         """
         # TODO: Double confirm the formulae, calculations
         gyro_convert = lambda data: (data * 1.0) / (65536 / 500)
-        acc_convert = lambda rawData, ginfo: (rawData * 1.0) / (32768/ginfo)
+        acc_convert = lambda raw_data, ginfo: (raw_data * 1.0) / (32768/ginfo)
         mag_convert = lambda data: 1.0 * data
         get_signed_int = lambda x: -(x & 0x8000) | (x & 0x7fff)
 
@@ -359,7 +361,8 @@ class SensorTagCC2650(object):
 
         return gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range
 
-    def hexHum2RelHum(self, raw_humd):
+
+    def hex_humidity_to_rel_humidity(self, raw_humd):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -388,7 +391,8 @@ class SensorTagCC2650(object):
         _LOGGER.info('SensorTagCC2650 {} tempr: {} humidity: {}'.format(self.bluetooth_adr, temperature, humidity))
         return humidity, temperature
 
-    def hexPress2Press(self, raw_pr):
+
+    def hex_pressure_to_pressure(self, raw_pr):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
@@ -409,7 +413,8 @@ class SensorTagCC2650(object):
         _LOGGER.info('SensorTagCC2650 {} pressure: {}'.format(self.bluetooth_adr, pressure))
         return pressure
 
-    def hexLum2Lux(self, raw_lumn):
+
+    def hex_lux_to_lux(self, raw_lumn):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 

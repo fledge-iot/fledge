@@ -5,28 +5,37 @@
 # FOGLAMP_END
 
 """ HTTP Translator """
+
+import aiohttp
+import asyncio
 import json
 
-import requests
-import time
-
-import foglamp.plugins.north.common.common as plugin_common
-import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
+from foglamp.plugins.north.common.common import *
+from foglamp.plugins.north.common.exceptions import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = None
+_LOGGER = logger.setup(__name__)
+
+
+http_translator = None
+config = ""
+
+# Configuration related to HTTP Translator
+_CONFIG_CATEGORY_NAME = "HTTP_TR"
+_CONFIG_CATEGORY_DESCRIPTION = "North Plugin HTTP Translator"
+
 _DEFAULT_CONFIG = {
     'plugin': {
          'description': 'Python module name of the plugin to load',
          'type': 'string',
          'default': 'http_translator'
     },
-    'URL': {
+    'url': {
         'description': 'URI to accept data',
         'type': 'string',
         'default': 'http://localhost:8118/ingress/messages'
@@ -40,7 +49,6 @@ _DEFAULT_CONFIG = {
 
 
 # TODO write to Audit Log
-
 def plugin_info():
     return {
         'name': 'http_translator',
@@ -52,103 +60,106 @@ def plugin_info():
 
 
 def plugin_init(data):
-    # TODO: compare instance fetching via inspect vs as param passing
-    # import inspect
-    # sending_process_instance = inspect.currentframe().f_back.f_locals['self']
-    return {'URL': data['URL']['value'], 'sending_process_instance': data['sending_process_instance']}
+    global http_translator, config
+    http_translator = HttpTranslatorPlugin()
+    config = data
+    return config
+
 
 def plugin_send(data, payload, stream_id):
-    global _logger
-    url = data['URL']
-    sending_process_instance = data['sending_process_instance']
-    _logger = logger.setup(__name__ + "_" + str(stream_id))
-    _logger.debug("{0} - ".format("plugin_init"))
-    return HttpTranslatorPlugin(sending_process_instance).translate_and_send_payload(url, payload, stream_id)
+    return http_translator.send_payloads(payload, stream_id)
+
 
 def plugin_shutdown(data):
-    pass
+    http_translator.shutdown()
 
+
+# TODO: (ASK) North plugin can not be reconfigured? (per callback mechanism)
 def plugin_reconfigure():
     pass
 
 
 class HttpTranslatorPlugin(object):
     """ North HTTP Translator Plugin """
+    def __init__(self):
+        self.event_loop = asyncio.get_event_loop()
+        self.tasks = []
 
-    def __init__(self, sending_process_instance):
-        self._sending_process_instance = sending_process_instance
 
-    def translate_and_send_payload(self, url, payload, stream_id):
+    def shutdown(self):
+        """  Filter and cancel all pending tasks,
+
+        After waiting for a threshold limit i.e. config["wait_to_shutdown"]
+
+        done = sent successfully + got an error + trapped into exception
+        pending =  the requests (tasks) waiting for response Or in queue
+
+        """
+        self.event_loop.run_until_complete(self.cancel_tasks())
+
+
+    async def cancel_tasks(self):
+        # cancel pending tasks
+
+        if len(self.tasks) == 0:
+            return
+
+        done, pending = await asyncio.wait(self.tasks)
+
+        if len(pending):
+            # FIXME: (ASK) wait for some fixed time? or Configurable
+            wait_for = config['shutdown_wait_time']['value']
+            pass
+
+        # cancel any pending tasks, the tuple could be empty so it's safe
+        for pending_task in pending:
+            pending_task.cancel()
+
+
+    def send_payloads(self, payloads, stream_id):
         is_data_sent = False
         new_last_object_id = 0
         num_sent = 0
-        translated_payload = list()
         try:
-            new_last_object_id, num_sent, translated_payload = self._translate(payload, stream_id)
-            is_data_sent = self._send_to_url(url, {"Content-Type": 'application/json'}, translated_payload)
+            new_last_object_id, num_sent = self.event_loop.run_until_complete(self._send_payloads(payloads))
+            is_data_sent = True
         except Exception as ex:
-            _logger.exception("Data could not be sent, %s", str(ex))
-        else:
-            _logger.info("HTTP translation done. Data sent, %s, %d", new_last_object_id, num_sent)
+            _LOGGER.exception("Data could not be sent, %s", str(ex))
+
         return is_data_sent, new_last_object_id, num_sent
 
-    def _translate(self, payload, stream_id):
+
+    async def _send_payloads(self, payloads):
+        """ send a list of block payloads """
         num_count = 0
         last_id = None
-        translated_payload = list()
-        for p in payload:
-            num_count += 1
-            last_id = p['id']
-            q = {"asset_code": p['asset_code'],
-                 "readings": [{
-                     "read_key": p['read_key'],
-                     "user_ts": p['user_ts'],
-                     "reading": p['reading']
-                 }]}
-            translated_payload.append(q)
-        return last_id, num_count, translated_payload
+        async with aiohttp.ClientSession() as session:
+            for p in payloads:
+                num_count += 1
+                last_id = p['id']
+                task = asyncio.ensure_future(self._send(p, session))
+                self.tasks.append(task)  # create list of tasks
 
-    # TODO: Move this method to parent sending process and access here via self._sending_process_instance
-    def _send_to_url(self, url, header, data, max_retry=3, timeout=10):
-        sleep_time = 0.5
-        message_type = 'Data'
-        _message = ""
-        _error = False
-        num_retry = 1
-        msg_header = header
-        data_json = json.dumps(data)
-        _logger.debug("message : |{0}| |{1}| ".format(message_type, data_json))
+            await asyncio.gather(*self.tasks)  # gather task responses
+        return last_id, num_count
 
-        while num_retry < max_retry:
-            _error = False
-            try:
-                response = requests.post(url,
-                                         headers=msg_header,
-                                         data=data_json,
-                                         verify=False,
-                                         timeout=timeout)
-            except Exception as e:
-                _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
-                _error = Exception(_message)
-            else:
-                # Evaluate the HTTP status codes
-                if not str(response.status_code).startswith('2'):
-                    tmp_text = str(response.status_code) + " " + response.text
-                    _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
-                    _error = plugin_exceptions.URLFetchError(_message)
-                    _logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
-                                                                                 response.status_code,
-                                                                                 response.text))
-            if _error:
-                time.sleep(sleep_time)
-                num_retry += 1
-                sleep_time *= 2
-            else:
-                break
 
-        if _error:
-            _logger.warning(_message)
-            raise
+    async def _send(self, payload, session):
+        """ Send the payload, using ClientSession """
+        url = config['url']['value']
+        headers = {'content-type': 'application/json'}
+        p = {"asset_code": payload['asset_code'],
+             "readings": [{
+                            "read_key": payload['read_key'],
+                            "user_ts": payload['user_ts'],
+                            "reading": payload['reading']
+                        }]}
+        async with session.post(url, data=json.dumps(p), headers=headers) as resp:
+            result = await resp.text()
+            status_code = resp.status
+            if status_code in range(400, 500):
+                _LOGGER.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+            if status_code in range(500, 600):
+                _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
 
-        return False if _error else True
-
+            return result

@@ -21,13 +21,13 @@
 ## This script is used to write in the syslog and to echo output to stderr
 ## and stdout
 
-set -e
 #set -x
 
 
 ## The Loggging Handler
 #
-# Paramaters: $1 - Severity:
+# Paramaters: $1 - Module
+#             $2 - Severity:
 #                  - debug
 #                  - info
 #                  - notice
@@ -35,33 +35,31 @@ set -e
 #                  - crit
 #                  - alert
 #                  - emerg
-#             $2 - Message
-#             $3 - Output:
+#             $3 - Message
+#             $4 - Output:
 #                  - logonly : send the message only to syslog
 #                  - all     : send the message to syslog and stdout
 #                  - outonly " send the message only to stdout
-#             $4 - Format
+#             $5 - Format
 #                - pretty : Do not show the date and priority
 #
 write_log() {
 
-    MODULE="foglamp.storage.postgres"
-
     # Check log severity
-    if ! [[ "$1" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
-        write_log "err" "Internal error: unrecognized priority: $1" $3
+    if ! [[ "$2" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
+        write_log $1 "err" "Internal error: unrecognized priority: $2" $3
         exit 1
     fi
 
     # Log to syslog
-    if [[ "$3" =~ ^(logonly|all)$ ]]; then
-        logger -p local0.$1 -t $MODULE $2
+    if [[ "$4" =~ ^(logonly|all)$ ]]; then
+        logger -p local0.$2 -t $1 $3
     fi
 
     # Log to Stdout
-    if [[ "$3" =~ ^(outonly|all)$ ]]; then
-        if [[ "$4" == "pretty" ]]; then
-            echo "$2" >&2
+    if [[ "$4" =~ ^(outonly|all)$ ]]; then
+        if [[ "$5" == "pretty" ]]; then
+            echo "$3" >&2
         else
             echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
         fi

@@ -22,6 +22,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
 
+# TODO: Out of 14 services, only below 5 services have been attended to. Next tasks will take care of at least up/down +
+#       tick and battery level indicator services.
 characteristics = {
     'temperature': {
         'data': {

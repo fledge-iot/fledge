@@ -39,6 +39,7 @@ import json
 from aiohttp import web
 
 from collections import OrderedDict
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 
 
@@ -100,19 +101,18 @@ async def asset(request):
     timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
     d = OrderedDict()
     d['return'] = [timestamp, "reading"]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    _and_where = _where_clause(request)
-    if len(_and_where) > 0:
-        d['where'].update(_and_where)
+    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _and_where = where_clause(request, _where)
+    d.update(_and_where)
 
     # Add the order by and limit clause
-    d['sort'] = {"column": "user_ts", "direction": "desc"}
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
     offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
-
-    d['limit'] = limit
+    _sort_limit_skip_payload = PayloadBuilder(d).ORDER_BY(["user_ts", "desc"]).LIMIT(limit)
     if offset:
-        d['skip'] = offset
+        _sort_limit_skip_payload = PayloadBuilder(d).SKIP(offset)
+
+    d.update(_sort_limit_skip_payload.chain_payload())
 
     payload = json.dumps(d)
     _storage = connect.get_storage()
@@ -151,24 +151,23 @@ async def asset_reading(request):
     timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
     json_property = OrderedDict()
     json_property['json'] = {"column": "reading", "properties": reading}
-    json_property['alias'] = "reading"
+    json_property['alias'] = reading
 
     d = OrderedDict()
     d['return'] = [timestamp, json_property]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-
-    val = _where_clause(request)
-    if val is not None:
-        d['where'].update(val)
+    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _and_where = where_clause(request, _where)
+    d.update(_and_where)
 
     # Add the order by and limit clause
-    d['sort'] = {"column": "user_ts", "direction": "desc"}
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
     offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
+    _sort_limit_skip_payload = PayloadBuilder(d).ORDER_BY(["user_ts", "desc"]).LIMIT(limit)
 
-    d['limit'] = limit
     if offset:
-        d['skip'] = offset
+        _sort_limit_skip_payload = PayloadBuilder(d).SKIP(offset)
+
+    d.update(_sort_limit_skip_payload.chain_payload())
 
     payload = json.dumps(d)
     _storage = connect.get_storage()
@@ -210,11 +209,11 @@ async def asset_summary(request):
 
     d = OrderedDict()
     d['aggregate'] = [min_dict, max_dict, avg_dict]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    _and_where = _where_clause(request)
-    if len(_and_where) > 0:
-        d['where'].update(_and_where)
+    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _and_where = where_clause(request, _where)
+    d.update(_and_where)
 
+    # TODO: FOGL-548 support limit
     payload = json.dumps(d)
     _storage = connect.get_storage()
     results = _storage.query_tbl_with_payload('readings', payload)
@@ -269,16 +268,15 @@ async def asset_averages(request):
     aggregate['aggregate'] = [min_dict, max_dict, avg_dict]
     d = OrderedDict()
     d['aggregate'] = [min_dict, max_dict, avg_dict]
-    d['where'] = {"column": "asset_code", "condition": "=", "value": asset_code}
-    _and_where = _where_clause(request)
-    if len(_and_where) > 0:
-        d['where'].update(_and_where)
+    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _and_where = where_clause(request, _where)
+    d.update(_and_where)
 
     # Add the group by and limit clause
     d['group'] = timestamp
-
     limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    d['limit'] = limit
+    _limit_payload = PayloadBuilder(d).LIMIT(limit)
+    d.update(_limit_payload.chain_payload())
 
     payload = json.dumps(d)
     _storage = connect.get_storage()
@@ -287,17 +285,17 @@ async def asset_averages(request):
     return web.json_response(results['rows'])
 
 
-def _where_clause(request):
-    _and_where = {}
-
+def where_clause(request, where):
+    val = 0
     if 'seconds' in request.query:
         val = int(request.query['seconds'])
-        _and_where = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
     elif 'minutes' in request.query:
         val = int(request.query['minutes']) * 60
-        _and_where = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
     elif 'hours' in request.query:
         val = int(request.query['hours']) * 60 * 60
-        _and_where = {"and": {"column": "user_ts", "condition": "newer", "value": val}}
 
-    return _and_where
+    if val == 0:
+        return where
+
+    payload = PayloadBuilder(where).AND_WHERE(['user_ts', 'newer', val]).chain_payload()
+    return payload

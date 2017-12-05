@@ -572,6 +572,7 @@ void StorageApi::readingPurge(shared_ptr<HttpServer::Response> response, shared_
 {
 SimpleWeb::CaseInsensitiveMultimap query;
 unsigned long age = 0;
+unsigned long size = 0;
 unsigned long lastSent = 0;
 unsigned int  flagsMask = 0;
 string        flags;
@@ -581,15 +582,14 @@ string        flags;
 		query = request->parse_query_string();
 
 		auto search = query.find("age");
-		if (search == query.end())
-		{
-			string payload = "{ \"error\" : \"Missing query parameter age\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-			return;
-		}
-		else
+		if (search != query.end())
 		{
 			age = (unsigned)atol(search->second.c_str());
+		}
+		search = query.find("size");
+		if (search != query.end())
+		{
+			size = (unsigned)atol(search->second.c_str());
 		}
 		search = query.find("sent");
 		if (search == query.end())
@@ -610,15 +610,29 @@ string        flags;
 			// TODO Turn flags into a bitmap
 			if (flags.compare(PURGE_FLAG_RETAIN) == 0)
 			{
-				flagsMask |= 0x0001;
+				flagsMask |= STORAGE_PURGE_RETAIN;
 			}
 			else if (flags.compare(PURGE_FLAG_PURGE) == 0)
 			{
-				flagsMask &= 0xfffe;
+				flagsMask &= (~STORAGE_PURGE_RETAIN);
 			}
 		}
-		char *purged = plugin->readingsPurge(age, flagsMask, lastSent);
 
+		char *purged = NULL;
+		if (age)
+		{
+			purged = plugin->readingsPurge(age, flagsMask, lastSent);
+		}
+		else if (size)
+		{
+			purged = plugin->readingsPurge(age, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+		}
+		else
+		{
+			string payload = "{ \"error\" : \"Must either specify age or size parameter\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			return;
+		}
 		string responsePayload = purged;
 		respond(response, responsePayload);
 	} catch (exception ex) {

@@ -232,12 +232,11 @@ class StorageClient(AbstractStorage):
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("PUT %s: Client error code: %d", put_url, r.status)
-            _LOGGER.error("PUT %s: %s", put_url, jdoc['message'])
-            _LOGGER.error("Request payload: %s", data);
+            _LOGGER.error("Request payload: %s", data)
         if r.status in range(500, 600):
             _LOGGER.error("PUT %s Server error code: %d", put_url, r.status)
         conn.close()
-        return jdoc;
+        return jdoc
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
@@ -471,7 +470,7 @@ class ReadingsStorageClient(StorageClient):
         return json.loads(res, strict=False)
 
     @classmethod
-    def purge(cls, age, sent_id, flag=None):
+    def purge(cls, age=None, sent_id=0, size=None, flag=None):
         """ Purge readings based on the age of the readings
 
         :param age: the maximum age of data to retain, expressed in hours
@@ -491,10 +490,19 @@ class ReadingsStorageClient(StorageClient):
         if flag and flag.lower() not in valid_flags:
             raise InvalidReadingsPurgeFlagParameters
 
+        if age and size:
+            raise PurgeOnlyOneOfAgeAndSize
+
+        if age == None and size == None:
+            raise PurgeOneOfAgeAndSize
+
         # age should be int
         # sent_id should again be int
         try:
-            _age = int(age)
+            if age != None:
+                _age = int(age)
+            if size != None:
+                _size = int(size)
             _sent_id = int(sent_id)
         except TypeError:
             raise
@@ -502,7 +510,10 @@ class ReadingsStorageClient(StorageClient):
         conn = http.client.HTTPConnection(cls._base_url)
         # TODO: need to set http / https based on service protocol
 
-        put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
+        if age:
+            put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
+        if size:
+            put_url = '/storage/reading/purge?size={}&sent={}'.format(_size, _sent_id)
         if flag:
             put_url += "&flags={}".format(flag.lower())
 

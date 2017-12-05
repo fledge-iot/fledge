@@ -22,9 +22,14 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sstream>
+#include <logger.h>
+#include <time.h>
 
 using namespace std;
 using namespace rapidjson;
+
+static time_t connectErrorTime = 0;
+#define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
 /**
  * Create a database connection
@@ -45,7 +50,12 @@ Connection::Connection()
 	/* Check to see that the backend connection was successfully made */
 	if (PQstatus(dbConnection) != CONNECTION_OK)
 	{
-		cerr << "Failed to connect" << endl;
+		if (connectErrorTime == 0 || (time(0) - connectErrorTime > CONNECT_ERROR_THRESHOLD))
+		{
+			Logger::getLogger()->error("Failed to connect to the database: %s",
+				PQerrorMessage(dbConnection));
+			connectErrorTime = time(0);
+		}
 	}
 }
 
@@ -731,6 +741,29 @@ long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
 
+	if (age == 0)
+	{
+		/*
+		 * An age of 0 means remove the oldest hours data.
+		 * So set age based on the data we have and continue.
+		 */
+		SQLBuffer oldest;
+		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from readings;");
+		const char *query = oldest.coalesce();
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_TUPLES_OK)
+		{
+			age = (unsigned long)atol(PQgetvalue(res, 0, 0));
+			PQclear(res);
+		}
+		else
+		{
+ 			raiseError("purge", PQerrorMessage(dbConnection));
+			PQclear(res);
+			return 0;
+		}
+	}
 	if ((flags & 0x01) == 0)
 	{
 		// Get number of unsent rows we are about to remove
@@ -1458,4 +1491,28 @@ char	tmpbuf[512];
 	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
 	va_end(ap);
 	manager->setError(operation, tmpbuf, false);
+}
+
+/**
+ * Return the sie of a given table in bytes
+ */
+long Connection::tableSize(const string& table)
+{
+SQLBuffer buf;
+
+	buf.append("SELECT pg_total_relation_size(relid) FROM pg_catalog.pg_statio_user_tables WHERE relname = '");
+	buf.append(table);
+	buf.append("'");
+	const char *query = buf.coalesce();
+	PGresult *res = PQexec(dbConnection, query);
+	delete[] query;
+	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+	{
+		long tSize = atol(PQgetvalue(res, 0, 0));
+		PQclear(res);
+		return tSize;
+	}
+ 	raiseError("tableSize", PQerrorMessage(dbConnection));
+	PQclear(res);
+	return -1;
 }

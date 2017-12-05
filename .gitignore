@@ -16,8 +16,11 @@ allure/
 allure-report/
 
 # build specific
+/C/plugins/storage/build
+/C/services/storage/build
 /cmake_build
 /plugins
 /python_build
 /services
 
+.cache/

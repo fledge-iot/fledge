@@ -29,8 +29,8 @@ import logging
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common import logger
+from foglamp.common.process import FoglampProcess
 
 
 __author__ = "Ori Shadmon, Vaibhav Singhal"
@@ -39,7 +39,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-class Purge:
+class Purge(FoglampProcess):
 
     _DEFAULT_PURGE_CONFIG = {
         "age": {
@@ -47,6 +47,12 @@ class Purge:
                            "unless retained. (in Hours)",
             "type": "integer",
             "default": "72"
+        },
+        "size": {
+            "description": "Maximium size of data to be retained, the oldest data will be removed to keep below this size," +
+                           "unless retained. (in Hours)",
+            "type": "integer",
+            "default": "1000000"
         },
         "retainUnsent": {
             "description": "Retain data that has not been sent to any historian yet.",
@@ -57,14 +63,12 @@ class Purge:
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
-    def __init__(self, core_mgt_address, core_mgt_port):
-        self._storage = StorageClient(core_mgt_address, core_mgt_port)
-        self._readings = ReadingsStorageClient(core_mgt_address, core_mgt_port)
+    def __init__(self):
+        super().__init__()
         self._logger = logger.setup("Data Purge")
 
     def write_statistics(self, total_purged, unsent_purged):
         loop = asyncio.get_event_loop()
-
         stats = Statistics(self._storage)
         loop.run_until_complete(stats.update('PURGED', total_purged))
         loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
@@ -73,12 +77,10 @@ class Purge:
         """" INSERT into log table values """
         payload = PayloadBuilder().INSERT(code='PURGE', level=level, log=log).payload()
         self._storage.insert_into_tbl("log", payload)
-        if level == 0:
-            self._logger.info("PURGED SUCCESSFULLY: ", log)
-        elif level == 2:
-            self._logger.warning("PURGED REMOVED UNSENT ROWS: ", log)
+        if level == 1:
+            self._logger.error("Purge failed: ", log)
         else:
-            self._logger.error("ROWS FAILED TO REMOVE: ", log)
+            self._logger.info("Purge: ", log)
 
     def set_configuration(self):
         """" set the default configuration for purge
@@ -113,18 +115,39 @@ class Purge:
 
 
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
-        result = self._readings.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
+        if config['age']['value'] != 0:
+            result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-        error_level = logging.INFO
+            """ Default to a warning
+                TODO Make a common audit trail class for inserting itno this log table
+            """
+            error_level = 4
 
-        if "message" in result.keys() and "409 Conflict" in result["message"]:
-            error_level = logging.ERROR 
-        else:
-            total_count = result['readings']
-            total_rows_removed = result['removed']
-            unsent_rows_removed = result['unsentPurged']
-            unsent_retained = result['unsentRetained']
+            if "message" in result.keys() and "409 Conflict" in result["message"]:
+                """ Message has become a failure """
+                error_level = 1 
+            else:
+                total_count = result['readings']
+                total_rows_removed = result['removed']
+                unsent_rows_removed = result['unsentPurged']
+                unsent_retained = result['unsentRetained']
 
+        if config['size']['value'] != 0:
+            result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
+
+            """ Default to a warning
+                TODO Make a common audit trail class for inserting itno this log table
+            """
+            error_level = 4
+
+            if "message" in result.keys() and "409 Conflict" in result["message"]:
+                """ Message has become a failure """
+                error_level = 1 
+            else:
+                total_count += result['readings']
+                total_rows_removed += result['removed']
+                unsent_rows_removed += result['unsentPurged']
+                unsent_retained += result['unsentRetained']
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
@@ -135,7 +158,7 @@ class Purge:
 
         return total_rows_removed, unsent_rows_removed
 
-    def start(self):
+    def run(self):
         """" Starts the purge task
 
             1. Write and read Purge task configuration

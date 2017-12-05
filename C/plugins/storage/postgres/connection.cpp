@@ -648,7 +648,7 @@ int		row = 0;
 
 	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
 
-    if (!doc.HasMember("reeadings"))
+    if (!doc.HasMember("readings"))
     {
  		raiseError("appendReadings", "Payload is missing a readings array");
         return -1;

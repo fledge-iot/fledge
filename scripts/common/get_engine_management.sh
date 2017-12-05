@@ -7,7 +7,7 @@
 ## you may not use this file except in compliance with the License.
 ## You may obtain a copy of the License at
 ##
-##     http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 ##
 ## Unless required by applicable law or agreed to in writing, software
 ## distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,7 +30,7 @@ get_engine_management() {
     json_foglamp=`echo $json_foglamp | tr -d '\t'`
 
     middle_grep="\"plugin\" *: *\"${1}\" *, *\"managed\" *:.*"
-    echo `echo $json_foglamp | grep -o "\"storage plugins\" *: *{.*" | grep -o "{.*" | grep -o "$middle_grep" | grep -o -e "true" -e "false"`
+    echo `echo $json_foglamp | grep -o "\"storage plugins\" *: *{ *\[.*" | grep -o "\[.*" | grep -o "$middle_grep" | grep -o -e "true" -e "false"`
 
 }
 

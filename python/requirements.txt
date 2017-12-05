@@ -1,9 +1,6 @@
 # coap
 aiocoap==0.3
 cbor2==4.0.0
-LinkHeader==0.4.3
-#  - Needed if Python parses iso8601 strings
-#python-dateutil==2.6.1
 
 # deployment
 # packaging enables pip install -e
@@ -13,6 +10,4 @@ packaging==16.8
 aiohttp==2.2.5
 aiohttp_cors==0.5.3
 cchardet==2.1.0
-#httpie==0.9.9
 requests==2.18.4
-PyJWT==1.5.0

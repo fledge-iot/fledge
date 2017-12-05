@@ -17,6 +17,11 @@ class BackupOrRestoreAlreadyRunning(Exception):
     pass
 
 
+class InitializationFailed(Exception):
+    """ Cannot complete the initialization """
+    pass
+
+
 class BackupFailed(Exception):
     """ An error occurred during the backup operation """
     pass
@@ -60,4 +65,9 @@ class InvalidBackupsPath(Exception):
 
 class InvalidPath(Exception):
     """ The identified path is not a valid directory """
+    pass
+
+
+class ArgumentParserError(Exception):
+    """ Invalid command line arguments """
     pass

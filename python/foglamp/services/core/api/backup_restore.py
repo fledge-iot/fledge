@@ -6,6 +6,13 @@
 
 """Backup and Restore Rest API support"""
 
+import logging
+
+from foglamp.common import logger
+
+import foglamp.plugins.storage.postgres.backup_restore.backup_postgres as backup_postgres
+from foglamp.services.core import connect
+
 from aiohttp import web
 # TODO: remove this and call actual class methods
 from unittest.mock import MagicMock
@@ -46,6 +53,29 @@ async def get_backups(request):
         # backup_json = [{"id": b[0], "date": b[1], "status": b[2]}
         #                for b in Backup.get_backup_list(limit=limit, skip=skip, status=status)]
         backup_json = Backup.get_backup_list(limit=limit, skip=skip, status=status)
+
+        # ##  Test #########################################################################################:
+
+        _logger = logger.setup("BACKUP-API-TEST",
+                            destination=logger.SYSLOG,
+                            level=logging.DEBUG)
+
+        _logger.info("get_backups - START 3 ")
+
+        _storage = connect.get_storage()
+        backup = backup_postgres.Backup(_storage)
+        backup_json = backup.get_all_backups(999, 0, None)
+
+        _logger.debug("get_backups - END ")
+
+        _logger.handlers = []
+        _logger.removeHandler(_logger.handle)
+        _logger = None
+
+        del backup
+
+        # ##  ##########################################################+###############################:
+
     except Backup.DoesNotExist:
         raise web.HTTPNotFound(reason='No backups found for queried parameters')
     return web.json_response({"backups": backup_json})
@@ -59,6 +89,31 @@ async def create_backup(request):
     # TODO : Fix after actual implementation
     Backup.create_backup.return_value = "running"
     status = Backup.create_backup()
+
+    # ##  Test #########################################################################################:
+
+    _logger = logger.setup("BACKUP-API-TEST",
+                    destination = logger.SYSLOG,
+                  level = logging.DEBUG)
+
+    _logger.info("=== START ===========================================================================================")
+
+    _storage = connect.get_storage()
+    backup = backup_postgres.Backup(_storage)
+
+    try:
+        await backup.create_backup()
+        status = "running"
+
+    except Exception as _ex:
+        status = "failed"
+
+    _logger.info("==== END ==========================================================================================")
+    _logger.handlers = []
+
+    ###  #########################################################################################:
+
+
     return web.json_response({"status": status})
 
 async def get_backup_details(request):

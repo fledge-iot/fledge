@@ -75,15 +75,9 @@ Creating the Database Repository
 
 This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
 ::
-   sudo -u postgres createuser <user>
+   sudo -u postgres createuser -d <user>
 
-where *user* is the name of the Linux user that will run FogLAMP.
-
-Last, you must create the FogLAMP database, schema and tables:
-::
-   sudo -u postgres psql -f <basedir>/FogLAMP/plugins/storage/postgres/init.sql
-
-Where *basedir* is the base directory into which you cloned the FogLAMP repository.
+where *user* is the name of the Linux user that will run FogLAMP. The FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
 Testing FogLAMP from Your Development Environment
@@ -107,7 +101,7 @@ Installing FogLAMP
 Create an installation by executing ``make install``, then set the *FOGLAMP_ROOT* environment variable specifying the installation path. By default the installation will be placed in */usr/local/foglamp*. You may need to execute ``sudo make install`` to install FogLAMP where the current user does not have permissions:
 ::
    sudo make install
-   export $FOGLAMP_ROOT=/usr/local/foglamp
+   export FOGLAMP_ROOT=/usr/local/foglamp
 
 The destination may be overriden by setting the variable *DESTDIR* in the make command line, to a location in which you wish to install FogLAMP. For example, to install FogLAMP in the */opt* directory use the command:
 ::

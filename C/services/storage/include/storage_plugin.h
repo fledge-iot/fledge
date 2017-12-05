@@ -14,6 +14,9 @@
 #include <plugin_manager.h>
 #include <string>
 
+#define	STORAGE_PURGE_RETAIN	0x0001U
+#define STORAGE_PURGE_SIZE	0x0002U
+
 /**
  * Class that represents a storage plugin.
  *
@@ -39,6 +42,7 @@ public:
 	char		*readingsFetch(unsigned long id, unsigned int blksize);
 	char		*readingsRetrieve(const std::string& payload);
 	char		*readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
+	long		*readingsPurge();
 	void		release(const char *response);
 	PLUGIN_ERROR	*lastError();
 

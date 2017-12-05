@@ -170,7 +170,27 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string 	  results;
 
-	(void)connection->purgeReadings(age, flags, sent, results);
+	// TODO put flags in common header file
+	if (flags & 0x0002)	// Purge by size
+	{
+		/*
+		 * Remove readings an hour at a time until we get below
+		 * the required size or we no longer remove readings
+		 */
+		long tableSize = connection->tableSize(std::string("readings"));
+		while (tableSize > age)
+		{
+			(void)connection->purgeReadings(0, flags, sent, results);
+			long newTableSize = connection->tableSize(std::string("readings"));
+			if (newTableSize == tableSize)
+				break;
+			tableSize = newTableSize;
+		}
+	}
+	else
+	{
+		(void)connection->purgeReadings(age, flags, sent, results);
+	}
 	manager->release(connection);
 	return strdup(results.c_str());
 }

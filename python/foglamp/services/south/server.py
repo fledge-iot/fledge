@@ -164,6 +164,7 @@ class Server(FoglampMicroservice):
         self._plugin_handle['ingest'] = Ingest
         max_retry = 3
         try_count = 1
+        # TODO: CTRL-C does not end it properly
         while True and try_count <= max_retry:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)

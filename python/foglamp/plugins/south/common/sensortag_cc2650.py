@@ -141,7 +141,6 @@ class SensorTagCC2650(object):
     reading_iterations = 1  # number of iterations to read data from the TAG
     is_connected = False
 
-
     def __init__(self, bluetooth_adr):
         try:
             self.bluetooth_adr = bluetooth_adr
@@ -167,7 +166,6 @@ class SensorTagCC2650(object):
             _LOGGER.exception(msg_failure)
             self.is_connected = False
 
-
     def disconnect(self):
         if not self.is_connected:
             _LOGGER.error('SensorTagCC2650 {} not connected'.format(self.bluetooth_adr))
@@ -180,7 +178,6 @@ class SensorTagCC2650(object):
             self.is_connected = False
         except Exception as ex:
             _LOGGER.exception('SensorTagCC2650 {} connection failure. {}'.format(self.bluetooth_adr, str(ex)))
-
 
     def get_char_handle(self, uuid):
         timeout = 3
@@ -202,17 +199,14 @@ class SensorTagCC2650(object):
                 break
         return rval
 
-
     def get_notification_handle(self, data_handle):
         # TODO: Confirm with product sources that notification handle will always be data_handle + 1
         return hex(int(data_handle, 16) + 1)
-
 
     def char_write_cmd(self, handle, value):
         self.con.sendline('char-write-cmd %s %s' % (handle, value))
         # delay for 1 second so that Tag can enable registers
         time.sleep(1)
-
 
     def char_read_hnd(self, handle, sensortype):
         self.con.sendline('char-read-hnd %s' % handle)
@@ -222,7 +216,6 @@ class SensorTagCC2650(object):
         _LOGGER.debug('SensorTagCC2650 {} DEBUGGING: Reading from Tag... {} \n'.format(self.bluetooth_adr, reading))
         # _LOGGER.debug('SensorTagCC2650 {} DEBUGGING: rval {}'.format(self.bluetooth_adr, str(rval)))
         return self.get_raw_measurement(sensortype, rval)
-
 
     def get_raw_measurement(self, sensortype, rval):
         if sensortype in ['temperature']:
@@ -248,7 +241,6 @@ class SensorTagCC2650(object):
             raw_bytes = 0
         _LOGGER.debug('SensorTagCC2650 {} type: {} bytes: {}'.format(self.bluetooth_adr, sensortype, raw_bytes))
         return raw_bytes
-
 
     def hex_temp_to_celsius(self, raw_tempr):
         """
@@ -288,7 +280,6 @@ class SensorTagCC2650(object):
         _LOGGER.debug('SensorTagCC2650 {} object: {} ambient: {}'.format(
             self.bluetooth_adr, object_temp_celsius, ambient_temp_celsius))
         return object_temp_celsius, ambient_temp_celsius
-
 
     def hex_movement_to_movement(self, raw_movement):
         """
@@ -391,7 +382,6 @@ class SensorTagCC2650(object):
             self.bluetooth_adr, gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range))
         return gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range
 
-
     def hex_humidity_to_rel_humidity(self, raw_humd):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
@@ -422,7 +412,6 @@ class SensorTagCC2650(object):
             self.bluetooth_adr, humidity, temperature))
         return humidity, temperature
 
-
     def hex_pressure_to_pressure(self, raw_pr):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
@@ -443,7 +432,6 @@ class SensorTagCC2650(object):
         pressure = float(raw_pressure) / 100.0
         _LOGGER.debug('SensorTagCC2650 {} pressure: {}'.format(self.bluetooth_adr, pressure))
         return pressure
-
 
     def hex_lux_to_lux(self, raw_lumn):
         """

@@ -127,7 +127,7 @@ def plugin_poll(handle):
     try:
         tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
         if not tag.is_connected:
-            raise
+            raise RuntimeError
 
         # Enable sensors
         tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_enable)
@@ -218,7 +218,7 @@ def plugin_poll(handle):
                                                                 timestamp=data['timestamp'],
                                                                 key=str(uuid.uuid4()),
                                                                 readings=data['readings'][reading_key]))
-    except Exception as ex:
+    except (Exception, RuntimeError) as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)
 

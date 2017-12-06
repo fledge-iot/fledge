@@ -58,7 +58,8 @@ class Server(FoglampMicroservice):
     _plugin_handle = None
     """The value that is returned by the plugin_init"""
 
-    
+    _type = "Southbound"
+
     async def _stop(self, loop):
         if self._plugin is not None:
             try:

@@ -71,7 +71,6 @@ class FoglampMicroservice(FoglampProcess):
         # create http protocol factory for handling requests
         self._microservice_management_handler = self._microservice_management_app.make_handler()
 
-    @classmethod
     def _run_microservice_management_app(self, loop):
         # run microservice_management_app
         core = loop.create_server(self._microservice_management_handler, '0.0.0.0', 0)
@@ -80,7 +79,6 @@ class FoglampMicroservice(FoglampProcess):
             self._microservice_management_server.sockets[0].getsockname()
 
 
-    @classmethod
     def _get_service_registration_payload(self):
         service_registration_payload = {
                 "name": self._name,

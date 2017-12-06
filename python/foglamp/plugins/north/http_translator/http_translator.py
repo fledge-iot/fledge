@@ -10,9 +10,9 @@ import aiohttp
 import asyncio
 import json
 
-from foglamp import logger
-from foglamp.configuration_manager import ConfigurationManager
-from foglamp.translators.exceptions import *
+from foglamp.common import logger
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.plugins.north.common.exceptions import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

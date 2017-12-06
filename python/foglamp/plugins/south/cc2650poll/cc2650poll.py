@@ -9,11 +9,9 @@
 import copy
 import datetime
 import uuid
-
+import json
 import asyncio
-
 from foglamp.plugins.south.common.sensortag_cc2650 import *
-from foglamp.common.parser import Parser
 from foglamp.services.south import exceptions
 from foglamp.common import logger
 
@@ -55,7 +53,7 @@ def plugin_info():
     """
 
     return {
-        'name': 'Poll plugin',
+        'name': 'TI SensorTag CC2650 Poll plugin',
         'version': '1.0',
         'mode': 'poll',
         'type': 'device',
@@ -81,9 +79,9 @@ def plugin_init(config):
     # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
     # discovery rather than hard-coding the attribute handles.
     for char in sensortag_characteristics.keys():
-        for type in ['data', 'configuration', 'period']:
-            handle = tag.get_char_handle(sensortag_characteristics[char][type]['uuid'])
-            sensortag_characteristics[char][type]['handle'] = handle
+        for _type in ['data', 'configuration', 'period']:
+            handle = tag.get_char_handle(sensortag_characteristics[char][_type]['uuid'])
+            sensortag_characteristics[char][_type]['handle'] = handle
 
     # print(json.dumps(sensortag_characteristics))
 
@@ -112,24 +110,24 @@ def plugin_poll(handle):
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
     data = {
-        'asset': 'TI sensortag',
+        'asset': 'TI Sensortag CC2650',
         'timestamp': time_stamp,
         'key': str(uuid.uuid4()),
         'readings': {}
     }
+    bluetooth_adr = handle['bluetooth_adr']
+    object_temp_celsius = None
+    ambient_temp_celsius = None
+    lux_luminance = None
+    rel_humidity = None
+    rel_temperature = None
+    bar_pressure = None
+    movement = None
 
     try:
-        bluetooth_adr = handle['bluetooth_adr']
-        object_temp_celsius = None
-        ambient_temp_celsius = None
-        lux_luminance = None
-        rel_humidity = None
-        rel_temperature = None
-        bar_pressure = None
-        movement = None
-
-        # print(('{:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now()))  )
         tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
+        if not tag.is_connected:
+            raise
 
         # Enable sensors
         tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_enable)
@@ -141,26 +139,26 @@ def plugin_poll(handle):
         # Get temperature
         count = 0
         while count < SensorTagCC2650.reading_iterations:
-            object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(tag.char_read_hnd(
-                handle['characteristics']['temperature']['data']['handle'], "temperature"))
+            object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(
+                tag.char_read_hnd(handle['characteristics']['temperature']['data']['handle'], "temperature"))
             time.sleep(0.5)  # wait for a while
             count = count + 1
 
         # Get luminance
-        lux_luminance = tag.hex_lux_to_lux(tag.char_read_hnd(
-            handle['characteristics']['luminance']['data']['handle'], "luminance"))
+        lux_luminance = tag.hex_lux_to_lux(
+            tag.char_read_hnd(handle['characteristics']['luminance']['data']['handle'], "luminance"))
 
         # Get humidity
-        rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(tag.char_read_hnd(
-            handle['characteristics']['humidity']['data']['handle'], "humidity"))
+        rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(
+            tag.char_read_hnd(handle['characteristics']['humidity']['data']['handle'], "humidity"))
 
         # Get pressure
-        bar_pressure = tag.hex_pressure_to_pressure(tag.char_read_hnd(
-            handle['characteristics']['pressure']['data']['handle'], "pressure"))
+        bar_pressure = tag.hex_pressure_to_pressure(
+            tag.char_read_hnd(handle['characteristics']['pressure']['data']['handle'], "pressure"))
 
         # Get movement
-        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = tag.hex_movement_to_movement(tag.char_read_hnd(
-            handle['characteristics']['movement']['data']['handle'], "movement"))
+        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = tag.hex_movement_to_movement(
+            tag.char_read_hnd(handle['characteristics']['movement']['data']['handle'], "movement"))
         movement = {
             'gyro': {
                 'x': gyro_x,
@@ -209,23 +207,22 @@ def plugin_poll(handle):
                 "y": acc_y,
                 "z": acc_z
             },
-            'magnetomer': {
+            'magnetometer': {
                 "x": mag_x,
                 "y": mag_y,
                 "z": mag_z
             }
         }
         for reading_key in data['readings']:
-            asyncio.ensure_future(
-                handle['ingest'].add_readings(asset=data['asset'] + '/' + reading_key,
-                                    timestamp=data['timestamp'],
-                                    key=str(uuid.uuid4()),
-                                    readings=data['readings'][reading_key]))
+            asyncio.ensure_future(handle['ingest'].add_readings(asset=data['asset'] + '/' + reading_key,
+                                                                timestamp=data['timestamp'],
+                                                                key=str(uuid.uuid4()),
+                                                                readings=data['readings'][reading_key]))
     except Exception as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)
 
-    # _LOGGER.info("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
+    _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
 
 
@@ -256,4 +253,6 @@ def plugin_shutdown(handle):
     Raises:
     """
     bluetooth_adr = handle['bluetooth_adr']
-    _LOGGER.info('SensorTagCC2650 {} Polling shutdown'.format(bluetooth_adr))
+    tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
+    tag.disconnect()
+    _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

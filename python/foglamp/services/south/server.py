@@ -161,13 +161,22 @@ class Server(FoglampMicroservice):
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
         self._plugin_handle['ingest'] = Ingest
-        while True:
-            data = self._plugin.plugin_poll(self._plugin_handle)
-            # pollInterval is expressed in milliseconds
-            sleep_seconds = int(config['pollInterval']['value']) / 1000.0
-            await asyncio.sleep(sleep_seconds)
+        max_retry = 3
+        try_count = 1
+        while True and try_count <= max_retry:
+            try:
+                data = self._plugin.plugin_poll(self._plugin_handle)
+                # pollInterval is expressed in milliseconds
+                sleep_seconds = int(config['pollInterval']['value']) / 1000.0
+                await asyncio.sleep(sleep_seconds)
+                # If successful, then set retry count back to 1, meaning that only in case of 3 successive failures, exit.
+                try_count = 1
+            except Exception as ex:
+                try_count += 1
+                _LOGGER.exception('Failed to poll for plugin {}, retry count: '.format(self._name, try_count))
+                await asyncio.sleep(2)
 
-    
+
     def run(self):
         """Starts the South Microservice
 

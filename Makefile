@@ -250,8 +250,14 @@ data_install : $(DATA_INSTALL_DIR) install_data
 
 install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
 	$(CP_DIR) $(DATA_SRC_DIR) $(INSTALL_DIR)
+
+# data and etc directories, should be owned by the user running foglamp
+# If install is executed with sudo and the sudo user is root, the data and etc
+# directories must be set to be owned by the calling user.
 ifdef SUDO_USER
-	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
+    ifeq ($(USER),"root")
+		chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
+    endif
 endif
 
 # create extras install dir

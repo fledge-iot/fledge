@@ -417,7 +417,7 @@ class SensorTagCC2650(object):
         temperature = ((raw_temperature / 65536) * 165) - 40
         raw_humidity = int('0x'+interim_value[6:8]+interim_value[4:6], 16)
         raw_humidity &= -0x0003
-        humidity = float((raw_humidity)) / 65536 * 100
+        humidity = float(raw_humidity) / 65536 * 100
         _LOGGER.debug('SensorTagCC2650 {} humidity: {} temperature: {}'.format(
             self.bluetooth_adr, humidity, temperature))
         return humidity, temperature

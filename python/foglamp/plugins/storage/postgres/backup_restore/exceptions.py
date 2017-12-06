@@ -71,3 +71,13 @@ class InvalidPath(Exception):
 class ArgumentParserError(Exception):
     """ Invalid command line arguments """
     pass
+
+
+class FogLAMPStartError(RuntimeError):
+    """ Unable to start FogLAMP """
+    pass
+
+
+class FogLAMPStopError(RuntimeError):
+    """ Unable to stop FogLAMP """
+    pass

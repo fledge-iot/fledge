@@ -7,11 +7,14 @@
 import subprocess
 import time
 import os
+import asyncio
+import json
 from enum import IntEnum
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.configuration_manager import ConfigurationManager
 
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
 
@@ -252,28 +255,297 @@ def backup_status_create(_file_name, _type, _status):
     _storage.insert_into_tbl(STORAGE_TABLE_BACKUPS, payload)
 
 
-def backup_status_update(_id, _status, _exit_code):
-    """ Updates the status of the backup in the Storage layer
+class BackupRestoreLib(object):
+    """ Library of functionalities for the backup restore operations that requires information/state to be stored """
 
-    Args:
-        _id: Backup's Id to update
-        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
-        _exit_code: exit status of the backup/restore execution
-    Returns:
-    Raises:
-    Todo:
-    """
+    _storage = None
+    _logger = None
+    config = {}
 
-    _logger.debug("{func} - id |{file}| ".format(func="backup_status_update", file=_id))
+    _DEFAULT_FOGLAMP_ROOT = "/usr/local/foglamp"
+    """ Default value to use for the FOGLAMP_ROOT if the environment $FOGLAMP_ROOT is not defined """
 
-    payload = payload_builder.PayloadBuilder() \
-        .SET(status=_status,
-             ts="now()",
-             exit_code=_exit_code) \
-        .WHERE(['id', '=', _id]) \
-        .payload()
+    _BACKUP_FILE_NAME_PREFIX = "foglamp_backup_"
+    """ Prefix used to generate a backup file name """
 
-    _storage.update_tbl(STORAGE_TABLE_BACKUPS, payload)
+    _CONFIG_CACHE_FILE = "backup_postgres_configuration_cache.json"
+    """ Stores a configuration cache in case the configuration Manager is not available"""
+
+    # Configuration retrieved from the Configuration Manager
+    _CONFIG_CATEGORY_NAME = 'BACK_REST'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Configuration for backup and restore operations'
+
+    _CONFIG_DEFAULT = {
+        "host": {
+            "description": "Host server for backup and restore operations.",
+            "type": "string",
+            "default": "localhost"
+        },
+        "port": {
+            "description": "PostgreSQL port for backup and restore operations.",
+            "type": "integer",
+            "default": "5432"
+        },
+        "database": {
+            "description": "Database to manage for backup and restore operations.",
+            "type": "string",
+            "default": "foglamp"
+        },
+        "backup-dir": {
+            "description": "Directory where backups will be created, "
+                           "it uses FOGLAMP_BACKUP or FOGLAMP_DATA or FOGLAMP_BACKUP if none.",
+            "type": "string",
+            "default": "none"
+        },
+        "semaphores-dir": {
+            "description": "Directory used to store semaphores for backup/restore synchronization."
+                           "it uses backup-dir if none.",
+            "type": "string",
+            "default": "none"
+        },
+        "retention": {
+            "description": "Number of backups to maintain, old ones will be deleted.",
+            "type": "integer",
+            "default": "5"
+        },
+        "max_retry": {
+            "description": "Number of retries for the operations.",
+            "type": "integer",
+            "default": "5"
+        },
+        "timeout": {
+            "description": "Timeout in seconds for the execution of the external commands.",
+            "type": "integer",
+            "default": "1200"
+        },
+    }
+
+    _MESSAGES_LIST = {
+
+        # Information messages
+        "i000001": "Execution started.",
+        "i000002": "Execution completed.",
+
+        # Warning / Error messages
+        "e000000": "general error",
+        "e000001": "cannot initialize the logger - error details |{0}|",
+        "e000002": "cannot retrieve the configuration from the manager, trying retrieving from file "
+                   "- error details |{0}|",
+        "e000003": "cannot retrieve the configuration from file - error details |{0}|",
+        "e000004": "...",
+        "e000005": "...",
+        "e000006": "...",
+        "e000007": "backup failed.",
+        "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
+        "e000009": "...",
+        "e000010": "directory used to store backups doesn't exist - dir |{0}|",
+        "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
+        "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA nor FOGLAMP_ROOT are defined.",
+        "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
+        "e000014": "the identified path of backups doesn't exists, creation was tried "
+                   "- dir |{0}| - error details |{1}|",
+    }
+    """ Messages used for Information, Warning and Error notice """
+
+    def __init__(self, _storage, _logger):
+
+        self._storage = _storage
+        self._logger = _logger
+
+        self.config = {}
+
+        self._dir_foglamp_root = ""
+        self._dir_foglamp_data = ""
+        self._dir_foglamp_data_etc = ""
+        self._dir_foglamp_backup = ""
+
+        self._dir_backups = ""
+        self._dir_semaphores = ""
+
+    def retrieve_configuration(self):
+        """  Retrieves the configuration either from the manager or from a local file.
+        the local configuration file is used if the configuration manager is not available
+        and updated with the values retrieved from the manager when feasible.
+
+        Args:
+        Returns:
+        Raises:
+            exceptions.ConfigRetrievalError
+        """
+
+        global JOB_SEM_FILE_PATH
+
+        try:
+            self._retrieve_configuration_from_manager()
+
+        except Exception as _ex:
+            _message = self._MESSAGES_LIST["e000002"].format(_ex)
+            self._logger.warning(_message)
+
+            try:
+                self._retrieve_configuration_from_file()
+
+            except Exception as _ex:
+                _message = self._MESSAGES_LIST["e000003"].format(_ex)
+                self._logger.error(_message)
+
+                raise exceptions.ConfigRetrievalError(_message)
+        else:
+            self._update_configuration_file()
+
+        # Identifies the directory of backups and checks its existence
+        if self.config['backup-dir'] != "none":
+
+            self._dir_backups = self.config['backup-dir']
+        else:
+            self._dir_backups = self._dir_foglamp_backup
+
+        self._check_create_path(self._dir_backups)
+
+        # Identifies the directory for the semaphores and checks its existence
+        # Stores semaphores in the _backups_dir if semaphores-dir is not defined
+        if self.config['semaphores-dir'] != "none":
+
+            self._dir_semaphores = self.config['semaphores-dir']
+        else:
+            self._dir_semaphores = self._dir_backups
+            JOB_SEM_FILE_PATH = self._dir_semaphores
+
+        self._check_create_path(self._dir_semaphores)
+
+    def evaluate_paths(self):
+        """  Evaluates paths in relation to the environment variables
+             FOGLAMP_ROOT, FOGLAMP_DATA and FOGLAMP_BACKUP
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        # Evaluates FOGLAMP_ROOT
+        if "FOGLAMP_ROOT" in os.environ:
+            self._dir_foglamp_root = os.getenv("FOGLAMP_ROOT")
+        else:
+            self._dir_foglamp_root = self._DEFAULT_FOGLAMP_ROOT
+
+        # Evaluates FOGLAMP_DATA
+        if "FOGLAMP_DATA" in os.environ:
+            self._dir_foglamp_data = os.getenv("FOGLAMP_DATA")
+        else:
+            self._dir_foglamp_data = self._dir_foglamp_root + "/data"
+
+        # Evaluates FOGLAMP_BACKUP
+        if "FOGLAMP_BACKUP" in os.environ:
+            self._dir_foglamp_backup = os.getenv("FOGLAMP_BACKUP")
+        else:
+            self._dir_foglamp_backup = self._dir_foglamp_data + "/backup"
+
+        # Evaluates etc directory
+        self._dir_foglamp_data_etc = self._dir_foglamp_data + "/etc"
+
+        self._check_create_path(self._dir_foglamp_backup)
+        self._check_create_path(self._dir_foglamp_data_etc)
+
+    def _check_create_path(self, path):
+        """  Checks path existences and creates it if needed
+        Args:
+        Returns:
+        Raises:
+            exceptions.InvalidBackupsPath
+        """
+
+        # Check the path existence
+        if not os.path.isdir(path):
+
+            # The path doesn't exists, tries to create it
+            try:
+                os.makedirs(path)
+
+            except OSError as _ex:
+                _message = self._MESSAGES_LIST["e000014"].format(path, _ex)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.InvalidPath(_message)
+
+    def _retrieve_configuration_from_manager(self):
+        """" Retrieves the configuration from the configuration manager
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        _event_loop = asyncio.get_event_loop()
+
+        cfg_manager = ConfigurationManager(self._storage)
+
+        _event_loop.run_until_complete(cfg_manager.create_category(
+            self._CONFIG_CATEGORY_NAME,
+            self._CONFIG_DEFAULT,
+            self._CONFIG_CATEGORY_DESCRIPTION))
+        self._config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
+                                                                   (self._CONFIG_CATEGORY_NAME))
+
+        self._decode_configuration_from_manager(self._config_from_manager)
+
+    def _decode_configuration_from_manager(self, _config_from_manager):
+        """" Decodes a json configuration as generated by the configuration manager
+
+        Args:
+            _config_from_manager: Json configuration to decode
+        Returns:
+        Raises:
+        """
+
+        self.config['host'] = _config_from_manager['host']['value']
+
+        self.config['port'] = int(_config_from_manager['port']['value'])
+        self.config['database'] = _config_from_manager['database']['value']
+        self.config['backup-dir'] = _config_from_manager['backup-dir']['value']
+        self.config['semaphores-dir'] = _config_from_manager['semaphores-dir']['value']
+        self.config['retention'] = int(_config_from_manager['retention']['value'])
+        self.config['max_retry'] = int(_config_from_manager['max_retry']['value'])
+        self.config['timeout'] = int(_config_from_manager['timeout']['value'])
+
+    def _retrieve_configuration_from_file(self):
+        """" Retrieves the configuration from the local file
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        file_full_path = self._identify_configuration_file_path()
+
+        with open(file_full_path) as file:
+            self._config_from_manager = json.load(file)
+
+        self._decode_configuration_from_manager(self._config_from_manager)
+
+    def _update_configuration_file(self):
+        """ Updates the configuration file with the values retrieved from tha manager.
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        file_full_path = self._identify_configuration_file_path()
+
+        with open(file_full_path, 'w') as file:
+            json.dump(self._config_from_manager, file)
+
+    def _identify_configuration_file_path(self):
+        """ Identifies the path of the configuration cache file,
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        file_full_path = self._dir_foglamp_data_etc + "/" + self._CONFIG_CACHE_FILE
+
+        return file_full_path
 
 
 class Job:
@@ -409,10 +681,34 @@ class Job:
             os.remove(full_path)
 
 
+def backup_status_update(_id, _status, _exit_code):
+    """ Updates the status of the backup in the Storage layer
+
+    Args:
+        _id: Backup's Id to update
+        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
+        _exit_code: exit status of the backup/restore execution
+    Returns:
+    Raises:
+    Todo:
+    """
+
+    _logger.debug("{func} - id |{file}| ".format(func="backup_status_update", file=_id))
+
+    payload = payload_builder.PayloadBuilder() \
+        .SET(status=_status,
+             ts="now()",
+             exit_code=_exit_code) \
+        .WHERE(['id', '=', _id]) \
+        .payload()
+
+    _storage.update_tbl(STORAGE_TABLE_BACKUPS, payload)
+
+
 if __name__ == "__main__":
 
     message = _MESSAGES_LIST["e000003"]
-    print (message)
+    print(message)
 
     if False:
         # Used to assign the proper objects type without actually executing them

@@ -470,7 +470,7 @@ string  responsePayload;
 	try {
 		payload = request->content.string();
 		int rval = plugin->readingsAppend(payload);
-		if (rval)
+		if (rval != -1)
 		{
 			responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
 			responsePayload += to_string(rval);

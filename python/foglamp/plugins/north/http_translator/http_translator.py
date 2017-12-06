@@ -12,7 +12,6 @@ import json
 
 from foglamp.common import logger
 from foglamp.plugins.north.common.common import *
-from foglamp.plugins.north.common.exceptions import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

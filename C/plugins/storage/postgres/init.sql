@@ -807,7 +807,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
                 "description": "The name of the translator to use to translate the readings into the output format and send them",
                 "type": "string",
                 "default": "http_translator",
-                "value": "http_translator",
+                "value": "http_translator"
         }
 } ');
 

@@ -11,8 +11,7 @@ import asyncio
 import json
 
 from foglamp.common import logger
-from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.plugins.north.common.exceptions import *
+from foglamp.plugins.north.common.common import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -23,7 +22,6 @@ _LOGGER = logger.setup(__name__)
 
 
 http_translator = None
-_storage = ()
 config = ""
 
 # Configuration related to HTTP Translator
@@ -50,49 +48,28 @@ _DEFAULT_CONFIG = {
 
 
 # TODO write to Audit Log
-# As per specs it should be plugin_info
-# def plugin_info():
-
-def plugin_info(stream_dict):
-    global config
-    loop = asyncio.get_event_loop()
-    try:
-        # write (merge) config i.e. create_category
-        config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_dict['stream_id'])
-        cfg_manager = ConfigurationManager(_storage)
-        loop.run_until_complete(cfg_manager.create_category(config_category_name,
-                                                            _DEFAULT_CONFIG,
-                                                            _CONFIG_CATEGORY_DESCRIPTION))
-
-        # read it and use for future stuff in this plugin
-        config = loop.run_until_complete(cfg_manager.get_category_all_items(config_category_name))
-    except Exception as ex:
-        _LOGGER.exception("Can not initialize the plugin, Got configuration error %s", str(ex))
-        raise ConfigurationError(str(ex))
-        # TODO: should sys.exit(1) ?
-    return config
-
-
-def plugin_retrieve_info(stream_id):
+def plugin_info():
     return {
         'name': 'http_translator',
         'version': '1.0.0',
         'type': 'translator',
         'interface': '1.0',
-        'config': plugin_info({"stream_id": stream_id})  # As per specs it expects dict
+        'config': _DEFAULT_CONFIG
     }
 
 
-def plugin_init():
-    global http_translator
+def plugin_init(data):
+    global http_translator, config
     http_translator = HttpTranslatorPlugin()
+    config = data
+    return config
 
 
-def plugin_send(payload, stream_id):
+def plugin_send(data, payload, stream_id):
     return http_translator.send_payloads(payload, stream_id)
 
 
-def plugin_shutdown():
+def plugin_shutdown(data):
     http_translator.shutdown()
 
 
@@ -103,7 +80,6 @@ def plugin_reconfigure():
 
 class HttpTranslatorPlugin(object):
     """ North HTTP Translator Plugin """
-
     def __init__(self):
         self.event_loop = asyncio.get_event_loop()
         self.tasks = []
@@ -153,12 +129,19 @@ class HttpTranslatorPlugin(object):
         num_count = 0
         last_id = None
         async with aiohttp.ClientSession() as session:
-            for p in payloads:
+            payload_to_be_send = list()
+            for payload in payloads:
                 num_count += 1
-                last_id = p['id']
-                task = asyncio.ensure_future(self._send(p, session))
-                self.tasks.append(task)  # create list of tasks
-
+                last_id = payload['id']
+                p = {"asset_code": payload['asset_code'],
+                     "readings": [{
+                         "read_key": payload['read_key'],
+                         "user_ts": payload['user_ts'],
+                         "reading": payload['reading']
+                     }]}
+                payload_to_be_send.append(p)
+            task = asyncio.ensure_future(self._send(payload_to_be_send, session))
+            self.tasks.append(task)  # create list of tasks
             await asyncio.gather(*self.tasks)  # gather task responses
         return last_id, num_count
 
@@ -166,13 +149,7 @@ class HttpTranslatorPlugin(object):
         """ Send the payload, using ClientSession """
         url = config['url']['value']
         headers = {'content-type': 'application/json'}
-        p = {"asset_code": payload['asset_code'],
-             "readings": [{
-                            "read_key": payload['read_key'],
-                            "user_ts": payload['user_ts'],
-                            "reading": payload['reading']
-                        }]}
-        async with session.post(url, data=json.dumps(p), headers=headers) as resp:
+        async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
             result = await resp.text()
             status_code = resp.status
             if status_code in range(400, 500):

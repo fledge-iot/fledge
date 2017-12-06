@@ -12,8 +12,8 @@ PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
+CP     := cp
 CP_DIR := cp -r
-CP := cp
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -23,14 +23,14 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 
 # C BUILD DIRS/FILES
-CMAKE_FILE := $(CURRENT_DIR)/CMakeLists.txt
-CMAKE_BUILD_DIR := cmake_build
-CMAKE_GEN_MAKEFILE := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
-CMAKE_SERVICES_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
-CMAKE_STORAGE_BINARY := $(CMAKE_SERVICES_DIR)/storage/storage
-CMAKE_PLUGINS_DIR := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-DEV_SERVICES_DIR := $(CURRENT_DIR)/services
-SYMLINK_PLUGINS_DIR := $(CURRENT_DIR)/plugins
+CMAKE_FILE             := $(CURRENT_DIR)/CMakeLists.txt
+CMAKE_BUILD_DIR        := cmake_build
+CMAKE_GEN_MAKEFILE     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR     := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_STORAGE_BINARY   := $(CMAKE_SERVICES_DIR)/storage/storage
+CMAKE_PLUGINS_DIR      := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
+DEV_SERVICES_DIR       := $(CURRENT_DIR)/services
+SYMLINK_PLUGINS_DIR    := $(CURRENT_DIR)/plugins
 SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/storage
 
 # PYTHON BUILD DIRS/FILES
@@ -40,31 +40,37 @@ PYTHON_LIB_DIR := $(PYTHON_BUILD_DIR)/lib
 PYTHON_REQUIREMENTS_FILE := $(PYTHON_SRC_DIR)/requirements.txt
 PYTHON_SETUP_FILE := $(PYTHON_SRC_DIR)/setup.py
 
+# DATA AND ETC DIRS/FILES
+DATA_SRC_DIR := data
+
 # INSTALL DIRS
 INSTALL_DIR=$(DESTDIR)/usr/local/foglamp
 PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
 SCRIPTS_INSTALL_DIR=$(INSTALL_DIR)/scripts
 BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
+SCRIPT_COMMON_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/common
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
 SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
 # SCRIPTS TO INSTALL IN BIN DIR
-FOGBENCH_SCRIPT_SRC := scripts/extras/foglamp.fogbench
-FOGLAMP_SCRIPT_SRC := scripts/foglamp
+FOGBENCH_SCRIPT_SRC        := scripts/extras/foglamp.fogbench
+FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
-POSTGRES_SCRIPT_SRC := scripts/plugins/storage/postgres
-SOUTH_SCRIPT_SRC := scripts/services/south
-STORAGE_SCRIPT_SRC := scripts/services/storage
-NORTH_SCRIPT_SRC := scripts/tasks/north
-PURGE_SCRIPT_SRC := scripts/tasks/purge
-STATISTICS_SCRIPT_SRC := scripts/tasks/statistics
+COMMON_SCRIPTS_SRC         := scripts/common
+POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
+SOUTH_SCRIPT_SRC           := scripts/services/south
+STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
+STORAGE_SCRIPT_SRC         := scripts/storage
+NORTH_SCRIPT_SRC           := scripts/tasks/north
+PURGE_SCRIPT_SRC           := scripts/tasks/purge
+STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
 
 # FOGBENCH 
-FOGBENCH_PYTHON_SRC_DIR := extras/python/fogbench
+FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
 
 ###############################################################################
 ################################### OTHER VARS ################################
@@ -85,8 +91,14 @@ default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
-install : $(INSTALL_DIR) c_install python_install python_requirements \
-	scripts_install bin_install extras_install
+install : $(INSTALL_DIR) \
+	c_install \
+	python_install \
+	python_requirements \
+	scripts_install \
+	bin_install \
+	extras_install \
+	data_install
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################
@@ -149,22 +161,31 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 ###################### SCRIPTS INSTALL TARGETS ################################
 ###############################################################################
 # install scripts
-scripts_install : $(SCRIPTS_INSTALL_DIR) install_postgres_script \
-	install_south_script install_storage_script install_north_script \
-	install_purge_script install_statistics_script
+scripts_install : $(SCRIPTS_INSTALL_DIR) \
+	install_common_scripts \
+	install_postgres_script \
+	install_south_script \
+	install_storage_service_script \
+	install_north_script \
+	install_purge_script \
+	install_statistics_script \
+	install_storage_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
+install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
+	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
+	
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
 	
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
-install_storage_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
-	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+install_storage_service_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SERVICE_SCRIPT_SRC)
+	$(CP) $(STORAGE_SERVICE_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
 	$(CP) $(NORTH_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
@@ -175,10 +196,19 @@ install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
+install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
+	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
+
+$(SCRIPT_COMMON_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
+
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(SCRIPT_SERVICES_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
+
+$(SCRIPT_STORAGE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(SCRIPT_TASKS_INSTALL_DIR) :
@@ -211,6 +241,28 @@ $(FOGBENCH_PYTHON_INSTALL_DIR) :
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+###############################################################################
+####################### DATA INSTALL TARGETS ################################
+###############################################################################
+# install data
+data_install : $(DATA_INSTALL_DIR) install_data
+
+install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
+	$(CP_DIR) $(DATA_SRC_DIR) $(INSTALL_DIR)
+
+# data and etc directories, should be owned by the user running foglamp
+# If install is executed with sudo and the sudo user is root, the data and etc
+# directories must be set to be owned by the calling user.
+ifdef SUDO_USER
+    ifeq ($(USER),"root")
+		chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
+    endif
+endif
+
+# create extras install dir
+#$(DATA_INSTALL_DIR) :
+#	$(MKDIR_PATH) $@
 
 ###############################################################################
 ######################## SUPPORTING BUILD/INSTALL TARGETS #####################

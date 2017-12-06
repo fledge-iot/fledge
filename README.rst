@@ -46,6 +46,7 @@ Build Prerequisites
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
 - *cmake*, *g++*, *make*
+- *curl*
 - *libboost-dev*, *libboost-system-dev*, *libboost-thread-dev*, *libpq-dev*
 - *python3-pip*
 - *postgresql*
@@ -53,6 +54,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
 ::
    apt-get install cmake g++ make
+   apt-get install curl
    apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev
    apt-get install python3-pip
    apt-get install postgresql
@@ -117,9 +119,10 @@ FogLAMP is now ready to start. Use the command:
 ::
    $FOGLAMP_ROOT/bin/foglamp start
 
-To check if FogLAMP is running, simply use *curl* (you may need to install it first):
+To check if FogLAMP is running, use the command:
 ::
-   curl http://localhost:8081/foglamp/ping
+   $FOGLAMP_ROOT/bin/foglamp status
 
-The command should return a JSON text with the total uptime in seconds.
+The command returns the status of FogLAMP on the machine it has been executed.
+
 

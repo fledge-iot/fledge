@@ -713,6 +713,7 @@ class SendingProcess:
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
             self._config['sleepInterval'] = int(_config_from_manager['sleepInterval']['value'])
             self._config['translator'] = _config_from_manager['plugin']['value']
+            _config_from_manager['_CONFIG_CATEGORY_NAME'] = config_category_name
             self._config_from_manager = _config_from_manager
         except Exception:
             _message = _MESSAGES_LIST["e000003"]

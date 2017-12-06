@@ -52,7 +52,6 @@ _MESSAGES_LIST = {
     "e000000": "general error.",
 }
 # Configuration related to the OMF Translator
-_CONFIG_CATEGORY_NAME = 'OMF_TR'
 _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
@@ -220,6 +219,7 @@ def plugin_init(data):
     _logger.debug("{0} - ".format("plugin_info"))
 
     # Retrieves the configurations and apply the related conversions
+    _config['_CONFIG_CATEGORY_NAME'] = data['_CONFIG_CATEGORY_NAME']
     _config['URL'] = data['URL']['value']
     _config['producerToken'] = data['producerToken']['value']
     _config['OMFMaxRetry'] = int(data['OMFMaxRetry']['value'])
@@ -271,7 +271,7 @@ def plugin_send(data, raw_data, stream_id):
     global _recreate_omf_objects
 
     is_data_sent = False
-    config_category_name = _CONFIG_CATEGORY_NAME + "_" + str(stream_id)
+    config_category_name = data['_CONFIG_CATEGORY_NAME']
     data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 

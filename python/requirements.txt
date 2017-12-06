@@ -11,3 +11,6 @@ aiohttp==2.2.5
 aiohttp_cors==0.5.3
 cchardet==2.1.0
 requests==2.18.4
+
+# sensortag
+pexpect==4.0.1

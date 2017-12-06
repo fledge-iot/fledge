@@ -8,7 +8,6 @@
 
 import asyncio
 import signal
-
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -143,40 +142,43 @@ class Server(FoglampMicroservice):
             elif plugin_info['mode'] == 'poll':
                 asyncio.ensure_future(self._exec_plugin_poll(config))
 
-        except Exception:
+        except Exception as ex:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
-            print(error)
+            print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
     
     async def _exec_plugin_async(self, config) -> None:
-        """Executes async type plugin  """
-
-        self._plugin.plugin_start(self._plugin_handle)
-
+        """Executes async type plugin
+        """
         await Ingest.start(self._core_management_host, self._core_management_port)
+        self._plugin.plugin_start(self._plugin_handle)
 
     
     async def _exec_plugin_poll(self, config) -> None:
-        """Executes poll type plugin """
-
+        """Executes poll type plugin
+        """
         await Ingest.start(self._core_management_host, self._core_management_port)
+        self._plugin_handle['ingest'] = Ingest
+        max_retry = 3
+        try_count = 1
+        # TODO: CTRL-C does not end it properly
+        while True and try_count <= max_retry:
+            try:
+                data = self._plugin.plugin_poll(self._plugin_handle)
+                # pollInterval is expressed in milliseconds
+                sleep_seconds = int(config['pollInterval']['value']) / 1000.0
+                await asyncio.sleep(sleep_seconds)
+                # If successful, then set retry count back to 1, meaning that only in case of 3 successive failures, exit.
+                try_count = 1
+            except Exception as ex:
+                try_count += 1
+                _LOGGER.exception('Failed to poll for plugin {}, retry count: '.format(self._name, try_count))
+                await asyncio.sleep(2)
 
-        while True:
-            data = await self._plugin.plugin_poll(self._plugin_handle)
 
-            await Ingest.add_readings(asset=data['asset'],
-                                      timestamp=data['timestamp'],
-                                      key=data['key'],
-                                      readings=data['readings'])
-
-            # pollInterval is expressed in milliseconds
-            sleep_seconds = int(config['pollInterval']['value']) / 1000.0
-            await asyncio.sleep(sleep_seconds)
-
-    
     def run(self):
         """Starts the South Microservice
 

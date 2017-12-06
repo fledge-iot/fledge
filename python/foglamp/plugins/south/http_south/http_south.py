@@ -17,7 +17,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__)
+_LOGGER = logger.setup(__name__, level=20)
 
 _CONFIG_CATEGORY_NAME = 'HTTP_SOUTH'
 _CONFIG_CATEGORY_DESCRIPTION = 'South Plugin HTTP Listener'

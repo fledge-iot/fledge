@@ -84,7 +84,6 @@ class HttpTranslatorPlugin(object):
         self.event_loop = asyncio.get_event_loop()
         self.tasks = []
 
-
     def shutdown(self):
         """  Filter and cancel all pending tasks,
 
@@ -95,7 +94,6 @@ class HttpTranslatorPlugin(object):
 
         """
         self.event_loop.run_until_complete(self.cancel_tasks())
-
 
     async def cancel_tasks(self):
         # cancel pending tasks
@@ -114,7 +112,6 @@ class HttpTranslatorPlugin(object):
         for pending_task in pending:
             pending_task.cancel()
 
-
     def send_payloads(self, payloads, stream_id):
         is_data_sent = False
         new_last_object_id = 0
@@ -127,33 +124,32 @@ class HttpTranslatorPlugin(object):
 
         return is_data_sent, new_last_object_id, num_sent
 
-
     async def _send_payloads(self, payloads):
         """ send a list of block payloads """
         num_count = 0
         last_id = None
         async with aiohttp.ClientSession() as session:
-            for p in payloads:
+            payload_to_be_send = list()
+            for payload in payloads:
                 num_count += 1
-                last_id = p['id']
-                task = asyncio.ensure_future(self._send(p, session))
-                self.tasks.append(task)  # create list of tasks
-
+                last_id = payload['id']
+                p = {"asset_code": payload['asset_code'],
+                     "readings": [{
+                         "read_key": payload['read_key'],
+                         "user_ts": payload['user_ts'],
+                         "reading": payload['reading']
+                     }]}
+                payload_to_be_send.append(p)
+            task = asyncio.ensure_future(self._send(payload_to_be_send, session))
+            self.tasks.append(task)  # create list of tasks
             await asyncio.gather(*self.tasks)  # gather task responses
         return last_id, num_count
-
 
     async def _send(self, payload, session):
         """ Send the payload, using ClientSession """
         url = config['url']['value']
         headers = {'content-type': 'application/json'}
-        p = {"asset_code": payload['asset_code'],
-             "readings": [{
-                            "read_key": payload['read_key'],
-                            "user_ts": payload['user_ts'],
-                            "reading": payload['reading']
-                        }]}
-        async with session.post(url, data=json.dumps(p), headers=headers) as resp:
+        async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
             result = await resp.text()
             status_code = resp.status
             if status_code in range(400, 500):

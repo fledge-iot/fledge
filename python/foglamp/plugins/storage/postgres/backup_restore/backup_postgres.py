@@ -37,12 +37,14 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "foglamp_backup_postgres_module"
 
-_LOGGER = logger.setup(_MODULE_NAME, level=20)
+# Log definitions
+_logger = None
 
-# to avoid multiple messages
-_LOGGER.handlers = []
-_LOGGER = logger.setup(_MODULE_NAME, level=20)
+_LOG_LEVEL_DEBUG = 10
+_LOG_LEVEL_INFO = 20
 
+_LOGGER_LEVEL = _LOG_LEVEL_DEBUG
+_LOGGER_DESTINATION = logger.SYSLOG
 
 _MESSAGES_LIST = {
 
@@ -67,7 +69,7 @@ class Backup(object):
     _logger = None
 
     _SCHEDULE_BACKUP_ON_DEMAND = "fac8dae6-d8d1-11e7-9296-cec278b6b50a"
-    _MODULE_NAME = "foglamp_backup_postgres"
+    _MODULE_NAME = "foglamp_backup_postgres_api"
 
     _MESSAGES_LIST = {
 
@@ -90,7 +92,9 @@ class Backup(object):
         self._storage = _storage
 
         if not Backup._logger:
-            Backup._logger = _LOGGER
+            Backup._logger = logger.setup(self._MODULE_NAME,
+                                          destination=_LOGGER_DESTINATION,
+                                          level=_LOGGER_LEVEL)
 
     def get_all_backups(self,
                         limit: int,
@@ -98,7 +102,7 @@ class Backup(object):
                         status: [lib.BackupStatus, None],
                         sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
 
-        """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
+        """ Returns a list of backups sorted in chronological order with the most recent backup first.
 
         Args:
             limit: int - limit the number of backups returned to the number given
@@ -302,6 +306,8 @@ class Backup(object):
         Raises:
         """
 
+        self._logger.debug("{func}".format(func="create_backup"))
+
         try:
             await server.Server.scheduler.queue_task(uuid.UUID(Backup._SCHEDULE_BACKUP_ON_DEMAND))
 
@@ -322,7 +328,20 @@ class BackupProcess(FoglampProcess):
 
     _logger = None
 
-    _MODULE_NAME = "foglamp_backup_process_postgres"
+    # Postgres commands
+    _PG_COMMAND_PG_DUMP = "pg_dump"
+    _PG_COMMAND_PSQL = "psql"
+
+    _PG_COMMANDS_TO_CHECK = {_PG_COMMAND_PG_DUMP: None,
+                             _PG_COMMAND_PSQL: None
+                             }
+    """List of Postgres commands to check/validate if they are available and usable
+       and the actual Postgres commands to use """
+
+    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/pgsql/bin"
+    """Directory for Postgres commands in a managed configuration"""
+
+    _MODULE_NAME = "foglamp_backup_postgres_process"
 
     _DEFAULT_FOGLAMP_ROOT = "/usr/local/foglamp"
     """ Default value to use for the FOGLAMP_ROOT if the environment $FOGLAMP_ROOT is not defined """
@@ -354,6 +373,14 @@ class BackupProcess(FoglampProcess):
         "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
         "e000014": "the identified path of backups doesn't exists, creation was tried "
                    "- dir |{0}| - error details |{1}|",
+        "e000015": "Postgres command is not available neither using the managed nor the unmanaged approach"
+                   " - command |{0}|",
+        "e000016": "Postgres command is not executable - command |{0}|",
+        "e000017": "The execution of the Postgres command using the -V option produce an error"
+                   " - command |{0}| - output |{1}|",
+        "e000018": "It is not possible to read data from Postgres"
+                   " - command |{0}| - exit code |{1}| - output |{2}|",
+
     }
     """ Messages used for Information, Warning and Error notice """
 
@@ -415,8 +442,9 @@ class BackupProcess(FoglampProcess):
 
         try:
             if not self._logger:
-                self._logger = _LOGGER
-
+                self._logger = logger.setup(self._MODULE_NAME,
+                                            destination=_LOGGER_DESTINATION,
+                                            level=_LOGGER_LEVEL)
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000001"].format(str(_ex))
             _current_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -431,13 +459,13 @@ class BackupProcess(FoglampProcess):
         self._job = lib.Job()
         self._event_loop = asyncio.get_event_loop()
 
-        self._foglamp_backup = ""
-        self._foglamp_data = ""
-        self._foglamp_data_etc = ""
-        self._foglamp_root = ""
+        self._dir_foglamp_root = ""
+        self._dir_foglamp_data = ""
+        self._dir_foglamp_data_etc = ""
+        self._dir_foglamp_backup = ""
 
-        self._backups_dir = ""
-        self._semaphores_dir = ""
+        self._dir_backups = ""
+        self._dir_semaphores = ""
 
         # Creates the objects references used by the library
         lib._logger = self._logger
@@ -457,7 +485,7 @@ class BackupProcess(FoglampProcess):
         # Evaluates the parameters
         execution_time = time.strftime("%Y_%m_%d_%H_%M_%S")
 
-        full_file_name = self._backups_dir + "/" + self._BACKUP_FILE_NAME_PREFIX + execution_time
+        full_file_name = self._dir_backups + "/" + self._BACKUP_FILE_NAME_PREFIX + execution_time
         ext = "dump"
 
         _backup_file = "{file}.{ext}".format(file=full_file_name, ext=ext)
@@ -475,27 +503,27 @@ class BackupProcess(FoglampProcess):
 
         # Evaluates FOGLAMP_ROOT
         if "FOGLAMP_ROOT" in os.environ:
-            self._foglamp_root = os.getenv("FOGLAMP_ROOT")
+            self._dir_foglamp_root = os.getenv("FOGLAMP_ROOT")
         else:
-            self._foglamp_root = self._DEFAULT_FOGLAMP_ROOT
+            self._dir_foglamp_root = self._DEFAULT_FOGLAMP_ROOT
 
         # Evaluates FOGLAMP_DATA
         if "FOGLAMP_DATA" in os.environ:
-            self._foglamp_data = os.getenv("FOGLAMP_DATA")
+            self._dir_foglamp_data = os.getenv("FOGLAMP_DATA")
         else:
-            self._foglamp_data = self._foglamp_root + "/data"
+            self._dir_foglamp_data = self._dir_foglamp_root + "/data"
 
         # Evaluates FOGLAMP_BACKUP
         if "FOGLAMP_BACKUP" in os.environ:
-            self._foglamp_backup = os.getenv("FOGLAMP_BACKUP")
+            self._dir_foglamp_backup = os.getenv("FOGLAMP_BACKUP")
         else:
-            self._foglamp_backup = self._foglamp_data + "/backup"
+            self._dir_foglamp_backup = self._dir_foglamp_data + "/backup"
 
         # Evaluates etc directory
-        self._foglamp_data_etc = self._foglamp_data + "/etc"
+        self._dir_foglamp_data_etc = self._dir_foglamp_data + "/etc"
 
-        self._check_create_path(self._foglamp_backup)
-        self._check_create_path(self._foglamp_data_etc)
+        self._check_create_path(self._dir_foglamp_backup)
+        self._check_create_path(self._dir_foglamp_data_etc)
 
     def _check_create_path(self, path):
         """  Checks path existences and creates it if needed
@@ -518,12 +546,160 @@ class BackupProcess(FoglampProcess):
 
                 raise exceptions.InvalidPath(_message)
 
-    def init(self):
-        """  Setups the correct state for the execution of the backup
+    def _check_for_execution(self):
+        """ Executes all the checks to ensure the prerequisites to execute the backup are met
 
         Args:
         Returns:
         Raises:
+        """
+
+        self._check_commands()
+        self._check_db()
+
+    def _check_commands(self):
+        """ Identify and checks the Postgres commands
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        for cmd in self._PG_COMMANDS_TO_CHECK:
+
+            cmd_identified = self._check_command_identification(cmd)
+            self._check_command_test(cmd_identified)
+
+    def _check_command_identification(self, cmd_to_identify):
+        """ Identifies the proper Postgres command to use, 2 possible cases :
+
+        Managed    - checks if the command is available in $FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin
+        Unmanaged  - checks using the path and identify the used command through 'which pg_dump'
+
+        Args:
+            cmd_to_identify: str - command to identify
+
+        Returns:
+            cmd_identified: str - actual identified command to use
+
+        Raises:
+            exceptions.PgCommandUnAvailable
+        """
+
+        # Checks for Managed
+        cmd_managed = "{root}/{path}/{cmd}".format(
+                                                    root=self._dir_foglamp_root,
+                                                    path=self._DIR_MANAGED_FOGLAMP_PG_COMMANDS,
+                                                    cmd=cmd_to_identify)
+
+        if os.path.exists(cmd_managed):
+            cmd_identified = cmd_managed
+
+        else:
+            # Checks for Unmanaged
+            cmd = "which " + cmd_to_identify
+
+            _exit_code, output = lib.exec_wait(_cmd=cmd,
+                                               _output_capture=True,
+                                               _timeout=self._config['timeout']
+                                               )
+
+            self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+                                                                            func="_check_command_identification",
+                                                                            cmd=cmd,
+                                                                            exit_code=_exit_code,
+                                                                            output=output))
+
+            if _exit_code == 0:
+                cmd_identified = lib.cr_strip(output)
+            else:
+                _message = self._MESSAGES_LIST["e000015"].format(cmd)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.PgCommandUnAvailable(_message)
+
+        self._PG_COMMANDS_TO_CHECK[cmd_to_identify] = cmd_identified
+
+        return cmd_identified
+
+    def _check_command_test(self, cmd_to_test):
+        """ Tests if the Postgres command could be successfully launched/used
+
+        Args:
+            cmd_to_test: str -  Command to test
+
+        Returns:
+        Raises:
+            exceptions.PgCommandUnAvailable
+            exceptions.PgCommandNotExecutable
+        """
+
+        if os.access(cmd_to_test, os.X_OK):
+            cmd = cmd_to_test + " -V"
+
+            _exit_code, output = lib.exec_wait(_cmd=cmd,
+                                               _output_capture=True,
+                                               _timeout=self._config['timeout']
+                                               )
+
+            self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+                                                                            func="_check_command_test",
+                                                                            cmd=cmd,
+                                                                            exit_code=_exit_code,
+                                                                            output=output))
+
+            if _exit_code != 0:
+                _message = self._MESSAGES_LIST["e000017"].format(cmd_to_test, output)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.PgCommandUnAvailable(_message)
+
+        else:
+            _message = self._MESSAGES_LIST["e000016"].format(cmd_to_test)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.PgCommandNotExecutable(_message)
+
+    def _check_db(self):
+        """ Checks if the database is working properly reading a sample row from the backups table
+
+        Args:
+        Returns:
+        Raises:
+            exceptions.CannotReadPostgres
+        """
+
+        cmd_psql = self._PG_COMMANDS_TO_CHECK[self._PG_COMMAND_PSQL]
+
+        cmd = '{psql} -t -c "SELECT id FROM {db}.{table} LIMIT 1;"'.format(
+                                                                psql=cmd_psql,
+                                                                db=self._config['database'],
+                                                                table=lib.STORAGE_TABLE_BACKUPS)
+
+        _exit_code, output = lib.exec_wait(_cmd=cmd,
+                                           _output_capture=True,
+                                           _timeout=self._config['timeout']
+                                           )
+
+        self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+                            func="_check_db",
+                            cmd=cmd,
+                            exit_code=_exit_code,
+                            output=lib.cr_strip(output)))
+
+        if _exit_code != 0:
+            _message = self._MESSAGES_LIST["e000018"].format(cmd, _exit_code, output)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.CannotReadPostgres(_message)
+
+    def init(self):
+        """ Setups the correct state for the execution of the backup
+
+        Args:
+        Returns:
+        Raises:
+            exceptions.BackupOrRestoreAlreadyRunning
         """
 
         self._logger.debug("{func}".format(func="init"))
@@ -532,25 +708,7 @@ class BackupProcess(FoglampProcess):
 
         self._retrieve_configuration()
 
-        # Identifies the directory of backups and checks its existence
-        if self._config['backup-dir'] != "none":
-
-            self._backups_dir = self._config['backup-dir']
-        else:
-            self._backups_dir = self._foglamp_backup
-
-        self._check_create_path(self._backups_dir)
-
-        # Identifies the directory for the semaphores and checks its existence
-        # Stores semaphores in the _backups_dir if semaphores-dir is not defined
-        if self._config['semaphores-dir'] != "none":
-
-            self._semaphores_dir = self._config['semaphores-dir']
-        else:
-            self._semaphores_dir = self._backups_dir
-            lib.JOB_SEM_FILE_PATH = self._semaphores_dir
-
-        self._check_create_path(self._semaphores_dir)
+        self._check_for_execution()
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()
@@ -566,7 +724,7 @@ class BackupProcess(FoglampProcess):
 
             raise exceptions.BackupOrRestoreAlreadyRunning
 
-    def run(self):
+    def execute_backup(self):
         """ Executes the backup functionality
 
         Args:
@@ -575,14 +733,15 @@ class BackupProcess(FoglampProcess):
             exceptions.BackupFailed
         """
 
-        self._logger.debug("{func}".format(func="run"))
+        self._logger.debug("{func}".format(func="execute_backup"))
 
         self._purge_old_backups()
 
         backup_file = self._generate_file_name()
 
         lib.backup_status_create(backup_file, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
-        status, exit_code = self._exec_backup(backup_file)
+
+        status, exit_code = self._run_backup_command(backup_file)
 
         backup_information = lib.get_backup_details_from_file_name(backup_file)
 
@@ -626,7 +785,7 @@ class BackupProcess(FoglampProcess):
                                                                                     file=file_name))
                 self._backup.delete_backup(backup_id)
 
-    def _exec_backup(self, _backup_file):
+    def _run_backup_command(self, _backup_file):
         """ Backups the entire FogLAMP repository into a file in the local file system
 
         Args:
@@ -637,19 +796,18 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        self._logger.debug("{func} - file_name |{file}|".format(func="_exec_backup", file=_backup_file))
+        self._logger.debug("{func} - file_name |{file}|".format(func="_run_backup_command",
+                                                                file=_backup_file))
 
         # Prepares the backup command
-        cmd = "pg_dump"
-        cmd += " --serializable-deferrable -Fc  "
-        cmd += " -h {host} -p {port} {db} > {file}".format(
-            host=self._config['host'],
-            port=self._config['port'],
-            db=self._config['database'],
-            file=_backup_file)
+        cmd = "{cmd} {options} {db} > {file}".format(
+                                                cmd=self._PG_COMMANDS_TO_CHECK[self._PG_COMMAND_PG_DUMP],
+                                                options="--serializable-deferrable -Fc",
+                                                db=self._config['database'],
+                                                file=_backup_file
+        )
 
         # Executes the backup waiting for the completion and using a retry mechanism
-        # noinspection PyArgumentEqualDefault
         _exit_code, output = lib.exec_wait_retry(cmd,
                                                  output_capture=True,
                                                  exit_code_ok=0,
@@ -664,7 +822,7 @@ class BackupProcess(FoglampProcess):
 
         self._logger.debug("{func} - status |{status}| - exit_code |{exit_code}| "
                            "- cmd |{cmd}|  output |{output}| ".format(
-                                                                        func="_exec_backup",
+                                                                        func="_run_backup_command",
                                                                         status=_status,
                                                                         exit_code=_exit_code,
                                                                         cmd=cmd,
@@ -758,7 +916,7 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        file_full_path = self._foglamp_data_etc + "/" + self._CONFIG_CACHE_FILE
+        file_full_path = self._dir_foglamp_data_etc + "/" + self._CONFIG_CACHE_FILE
 
         return file_full_path
 
@@ -791,7 +949,27 @@ class BackupProcess(FoglampProcess):
         else:
             self._update_configuration_file()
 
-    def execute_backup(self):
+        # Identifies the directory of backups and checks its existence
+        if self._config['backup-dir'] != "none":
+
+            self._dir_backups = self._config['backup-dir']
+        else:
+            self._dir_backups = self._dir_foglamp_backup
+
+        self._check_create_path(self._dir_backups)
+
+        # Identifies the directory for the semaphores and checks its existence
+        # Stores semaphores in the _backups_dir if semaphores-dir is not defined
+        if self._config['semaphores-dir'] != "none":
+
+            self._dir_semaphores = self._config['semaphores-dir']
+        else:
+            self._dir_semaphores = self._dir_backups
+            lib.JOB_SEM_FILE_PATH = self._dir_semaphores
+
+        self._check_create_path(self._dir_semaphores)
+
+    def run(self):
         """  Creates a new backup
 
         Args:
@@ -800,14 +978,27 @@ class BackupProcess(FoglampProcess):
         """
 
         self.init()
-        self.run()
+        self.execute_backup()
         self.shutdown()
 
 
 if __name__ == "__main__":
 
+    # Initializes the logger
+    try:
+        _logger = logger.setup(_MODULE_NAME,
+                               destination=_LOGGER_DESTINATION,
+                               level=_LOGGER_LEVEL)
+
+    except Exception as ex:
+        message = _MESSAGES_LIST["e000001"].format(str(ex))
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        print("[FOGLAMP] {0} - ERROR - {1}".format(current_time, message), file=sys.stderr)
+        sys.exit(1)
+
     # Starts
-    _LOGGER.info(_MESSAGES_LIST["i000001"])
+    _logger.info(_MESSAGES_LIST["i000001"])
 
     # Initializes FoglampProcess and Backup classes - handling the command line parameters
     try:
@@ -815,29 +1006,28 @@ if __name__ == "__main__":
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)
-        _LOGGER.exception(message)
+        _logger.exception(message)
 
-        _LOGGER.info(_MESSAGES_LIST["i000002"])
+        _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)
 
     # Executes the backup
     try:
-        # noinspection PyProtectedMember
-        _LOGGER.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
+        _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
             module=_MODULE_NAME,
             name=backup_process._name,
             addr=backup_process._core_management_host,
             port=backup_process._core_management_port))
 
-        backup_process.execute_backup()
+        backup_process.run()
 
-        _LOGGER.info(_MESSAGES_LIST["i000002"])
+        _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(0)
 
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)
-        _LOGGER.exception(message)
+        _logger.exception(message)
 
         backup_process.shutdown()
-        _LOGGER.info(_MESSAGES_LIST["i000002"])
+        _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)

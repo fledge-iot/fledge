@@ -80,4 +80,17 @@ class FogLAMPStartError(RuntimeError):
 
 class FogLAMPStopError(RuntimeError):
     """ Unable to stop FogLAMP """
+
+class PgCommandUnAvailable(Exception):
+    """ Postgres command is not available neither using the managed nor the unmanaged approach """
+    pass
+
+
+class PgCommandNotExecutable(Exception):
+    """ Postgres command is not executable """
+    pass
+
+
+class CannotReadPostgres(Exception):
+    """ It is not possible to read data from Postgres """
     pass

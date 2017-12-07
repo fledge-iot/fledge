@@ -17,8 +17,8 @@ if [ ! -d "${FOGLAMP_ROOT}/extras/python" ]; then
 	exit 1
 fi
 
-# We run the Python code from the extras/python directory
-cd "${FOGLAMP_ROOT}/extras/python"
+# Add fogbench code to the PYTHONPATH
+export PYTHONPATH=${FOGLAMP_ROOT}/extras/python:${PYTHONPATH}
 
 python3 -m fogbench $@
 

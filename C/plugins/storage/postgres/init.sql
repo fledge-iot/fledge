@@ -914,10 +914,10 @@ values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 -- NULL, '01:00:00', true);
 
 -- Start the Poll mode device server at start-up
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive)
-values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
-'0:0', true);
+-- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+-- schedule_interval, exclusive)
+-- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
+-- '0:0', true);
 
 -- Start the Poll mode device server at start-up
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -927,10 +927,10 @@ values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
 
 
 ---- Start the device server HTTP Listener at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
- schedule_interval, exclusive)
- values ('a2caca59-1241-478d-925a-79584e7096e0', 'device', 'HTTP_SOUTH', 1,
- '0:0', true);
+-- INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+--  schedule_interval, exclusive)
+--  values ('a2caca59-1241-478d-925a-79584e7096e0', 'device', 'HTTP_SOUTH', 1,
+--  '0:0', true);
 
 -- Run the purge process every 5 minutes
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -951,10 +951,10 @@ values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending proc
 NULL, '00:00:15', true);
 
 -- Run the sending process using HTTP translator every 15 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
-NULL, '00:00:15', true);
+-- INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+-- schedule_time, schedule_interval, exclusive)
+-- values ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
+-- NULL, '00:00:15', true);
 
 -- Run FogLAMP statistics into PI every 25 seconds
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,

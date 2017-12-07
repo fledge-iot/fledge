@@ -26,7 +26,7 @@ MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
 """" Maximum number of backup information to retrieve from the storage layer"""
 
 STORAGE_TABLE_BACKUPS = "backups"
-""" Table name containing the backup information"""
+""" Table name containing the backups information"""
 
 _MESSAGES_LIST = {
 
@@ -192,6 +192,19 @@ def exec_wait_retry(cmd, output_capture=False, exit_code_ok=0, max_retry=3, writ
             loop_continue = False
 
     return _exit_code, _output
+
+
+def cr_strip(text):
+    """
+    Args:
+    Returns:
+    Raises:
+    """
+
+    text = text.replace("\n", "")
+    text = text.replace("\r", "")
+
+    return text
 
 
 def get_backup_details_from_file_name(_file_name):
@@ -412,7 +425,7 @@ class Job:
 if __name__ == "__main__":
 
     message = _MESSAGES_LIST["e000003"]
-    print (message)
+    print(message)
 
     if False:
         # Used to assign the proper objects type without actually executing them

@@ -797,19 +797,16 @@ INSERT INTO foglamp.configuration ( key, description, value )
 
 -- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'HTTP_TR_3', 'HTTP North Plugin Configuration', ' {
-        "plugin": {
-                "type": "string",
-                "value": "http_translator",
-                "default": "http_translator",
-                "description": "Python module name of the plugin to load"
-        },
-        "translator": {
-                "description": "The name of the translator to use to translate the readings into the output format and send them",
-                "type": "string",
-                "default": "http_translator"
-        }
-} ');
+     VALUES ( 'SEND_PR_1', 'OMF Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SEND_PR_2', 'OMF Statistics Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+
+
+-- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_translator", "default" : "http_translator", "description" : "Python module name of the plugin to load" } } ');
 
 -- STRMN: Streaming
 --        status      : the process is on or off, it is on by default
@@ -841,6 +838,11 @@ DELETE FROM foglamp.role_resource_permission;
 DELETE FROM foglamp.roles;
 DELETE FROM foglamp.resources;
 
+INSERT INTO foglamp.configuration ( key, description, value )
+    VALUES ( 'CC2650POLL', 'SensorTagCC2650 Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
+
+-- DELETE data for roles, resources and permissions
+DELETE FROM foglamp.role_resource_permission;
 
 -- Roles
 INSERT INTO foglamp.roles ( id, name, description )
@@ -867,6 +869,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
             ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
             ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
+            ( 'SENT_3',     'The number of readings data sent to the HTTP translator', 0, 0 ),
             ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
@@ -877,26 +880,29 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
 -- FogLAMP South Microservice - CoAP Listener Plugin
-insert into foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["services/south"]' );
 -- FogLAMP South Microservice - POLL Plugin template
 insert into foglamp.scheduled_processes ( name, script ) values ( 'POLL', '["services/south"]' );
+insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650POLL', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'HTTP_SOUTH', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'purge', '["tasks/purge"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collector', '["tasks/statistics"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
+
 -- FogLAMP statistics into PI
-insert into foglamp.scheduled_processes ( name, script ) values ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) values ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+
 -- Send readings via HTTP
-insert into foglamp.scheduled_processes (name, script) values ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
+INSERT INTO foglamp.scheduled_processes (name, script) values ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
 
 -- FogLAMP Backup
-insert into foglamp.scheduled_processes (name, script) values ('backup','["tasks/backup_postgres"]' );
+INSERT INTO foglamp.scheduled_processes (name, script) values ('backup','["tasks/backup_postgres"]' );
 -- FogLAMP Restore
-insert into foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore_postgres"]' );
+INSERT INTO foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore_postgres"]' );
 
 
 -- Start the device server at start-up
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)
 values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
 '0:0', true);
@@ -914,43 +920,63 @@ values ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
 NULL, '00:00:00', true);
 
 -- Start the Poll mode device server at start-up
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive)
+values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
+'0:0', true);
+
+-- Start the Poll mode device server at start-up
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 -- schedule_interval, exclusive)
 -- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'POLL', 1,
 -- '0:0', true);
 
+
 ---- Start the device server HTTP Listener at start-up
- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
  schedule_interval, exclusive)
  values ('a2caca59-1241-478d-925a-79584e7096e0', 'device', 'HTTP_SOUTH', 1,
  '0:0', true);
 
 -- Run the purge process every 5 minutes
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
 NULL, '00:05:00', true);
 
 -- Run the statistics collector every 15 seconds
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
 NULL, '00:00:15', true);
 
 -- Run the sending process every 15 seconds
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
 NULL, '00:00:15', true);
 
+-- Run the sending process using HTTP translator every 15 seconds
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
+NULL, '00:00:15', true);
+
 -- Run FogLAMP statistics into PI every 25 seconds
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
 NULL, '00:00:25', true);
 
+-- Run North HTTP Translator every 15 seconds
+--insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+--schedule_time, schedule_interval, exclusive)
+--values ('543a59ce-a9ca-11e7-abc4-cec278b6b50b', 'sending HTTP', 'sending HTTP', 3,
+--NULL, '00:00:15', true);
+
+
 -- OMF translator configuration
-INSERT INTO foglamp.destinations(id,description, ts)                       VALUES (1,'OMF', now());
+INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());
 INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF translator', 0,now());  
 
 -- FogLAMP statistics into PI configuration

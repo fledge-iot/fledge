@@ -4,3 +4,10 @@ pytest-allure-adaptor==1.7.7
 pytest-asyncio==0.6.0
 pytest-mock==1.6.0
 pytest-cov==2.5.1
+
+# postgreSQL
+aiopg==0.13.0
+SQLAlchemy==1.1.10
+psycopg2==2.7.1
+asyncpg==0.12.0
+

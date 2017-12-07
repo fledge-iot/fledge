@@ -7,6 +7,7 @@ Welcome to FogLAMP's documentation!
 ===================================
 
 .. toctree::
-    introduction
-    foglamp_at_a_glance
+    01_introduction
+    02_foglamp_at_a_glance
+    03_getting_started
 

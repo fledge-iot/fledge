@@ -51,6 +51,6 @@ You may also link tothe new version if you wish
     sudo ln -s /usr/bin/python3 /usr/local/bin/python3
     sudo ln -s /usr/bin/pip3 /usr/local/bin/pip3
 |br|
-Once python3.5 has been isntalled you may follow the instructions
-in the README file to build, isntall and run FogLAMP on Raspberry
+Once python3.5 has been installed you may follow the instructions
+in the README file to build, install and run FogLAMP on Raspberry
 Pi using the Raspbian distribution.

@@ -10,6 +10,14 @@
 .. Links
 .. _FogLAMP project on GitHub: https://github.com/foglamp/FogLAMP/issues
 
+.. Links in new tabs
+.. |FogLAMP Repo| raw:: html
+
+   <a href="https://github.com/foglamp/FogLAMP" target="_blank">https://github.com/foglamp/FogLAMP</a>
+
+.. |GCC Bug| raw:: html
+
+   <a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425" target="_blank">here</a>
 
 .. =============================================
 
@@ -40,8 +48,7 @@ The requirements largely depend on the plugins that run in FogLAMP, but Python a
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a snap package from Snappy. In the section we will refer to our development platform, based on Ubuntu (Server and Desktop) 16.04.5 LTS. Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ.
-
+In this section we will describe how to build FogLAMP on Ubuntu 16.04.3 LTS (Server or Desktop).  Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a snap package from Snappy.
 
 Build Pre-Requisites
 --------------------
@@ -49,113 +56,323 @@ Build Pre-Requisites
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
 - cmake, g++, make
-- libboost-dev, libboost-system-dev, libboost-thread-dev, libpq-dev
+- liboost-dev, liboost-system-dev, liboost-thread-dev, libpq-dev
 - python3-pip
 - postgresql
 
+.. code-block:: console
+
+  $ sudo apt update
+  Get:1 http://security.ubuntu.com/ubuntu xenial-security InRelease [102 kB]
+  ...
+  All packages are up-to-date.
+  $
+  $ sudo apt install cmake g++ make
+  Reading package lists... Done
+  Building dependency tree
+  ...
+  $
+  $ sudo apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev
+  Reading package lists... Done
+  Building dependency tree
+  ...
+  $
+  $ sudo apt-get install python3-pip
+  Reading package lists... Done
+  Building dependency tree
+  ...
+  $
+  $ sudo apt install postgresql
+  Reading package lists... Done
+  Building dependency tree
+  $
+
+
+Setting the PostgreSQL Database
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In this version of FogLAMP the PostgreSQL database is the default storage engine, used by the Storage microservice. Make sure that PostgreSQL is installed and running correctly:
+
+.. code-block:: console
+
+  $ sudo systemctl status postgresql
+  ● postgresql.service - PostgreSQL RDBMS
+     Loaded: loaded (/lib/systemd/system/postgresql.service; enabled; vendor preset: enabled)
+     Active: active (exited) since Fri 2017-12-08 15:56:07 GMT; 15min ago
+   Main PID: 14572 (code=exited, status=0/SUCCESS)
+     CGroup: /system.slice/postgresql.service
+
+  Dec 08 15:56:07 ubuntu systemd[1]: Starting PostgreSQL RDBMS...
+  Dec 08 15:56:07 ubuntu systemd[1]: Started PostgreSQL RDBMS.
+  Dec 08 15:56:11 ubuntu systemd[1]: Started PostgreSQL RDBMS.
+  $
+  $ ps -ef | grep postgres
+  postgres 14806     1  0 15:56 ?        00:00:00 /usr/lib/postgresql/9.5/bin/postgres -D /var/lib/postgresql/9.5/main -c config_file=/etc/postgresql/9.5/main/postgresql.conf
+  postgres 14808 14806  0 15:56 ?        00:00:00 postgres: checkpointer process
+  postgres 14809 14806  0 15:56 ?        00:00:00 postgres: writer process
+  postgres 14810 14806  0 15:56 ?        00:00:00 postgres: wal writer process
+  postgres 14811 14806  0 15:56 ?        00:00:00 postgres: autovacuum launcher process
+  postgres 14812 14806  0 15:56 ?        00:00:00 postgres: stats collector process
+  ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
+  $
+
+When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+
+.. code-block:: console
+
+  $ sudo grep '^local' /etc/postgresql/9.5/main/pg_hba.conf
+  local   all             postgres                                peer
+  local   all             all                                     peer
+  $
+
+The installation procedure also creates a Linux *postgres* user. In order to check if everything is set correctly, execute the *psql* utility as sudo user:
+
+.. code-block:: console
+
+  $ sudo -u postgres psql -l
+                                    List of databases
+     Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+  -----------+----------+----------+-------------+-------------+-----------------------
+   postgres  | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 |
+   template0 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+   template1 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+  (3 rows)
+  $
+
+Encoding and collations may differ, depending on the choices made when you installed your operating system. |br| Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *ubuntu*, type:
+
+.. code-block:: console
+
+  $ sudo -u postgres createuser -d ubuntu
+ 
+The *-d* argument is important because the user will need to create the FogLAMP database.
+
+Finally, you should now be able to see the list of the available databases from your current user:
+
+.. code-block:: console
+
+  $ psql -l
+                                    List of databases
+     Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+  -----------+----------+----------+-------------+-------------+-----------------------
+   postgres  | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 |
+   template0 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+   template1 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+  (3 rows)
+  $
 
 
 Obtaining the Source Code
 -------------------------
 
+FogLAMP is available on GitHub. The link to the repository is |FogLAMP Repo|. In order to clone the code in the repository, type:
 
-FogLAMP can be used in IoT and IIoT infrastructure at Edge and in the Fog.
-It stretches bi-directionally South-North/North-South and it is distributed
-East-West/West-East (see figure below).
+.. code-block:: console
 
-|foglamp_all_round|
+  $ git clone https://github.com/foglamp/FogLAMP.git
+  Cloning into 'FogLAMP'...
+  remote: Counting objects: 15639, done.
+  remote: Compressing objects: 100% (88/88), done.
+  remote: Total 15639 (delta 32), reused 58 (delta 14), pack-reused 15531
+  Receiving objects: 100% (15639/15639), 9.71 MiB | 2.11 MiB/s, done.
+  Resolving deltas: 100% (10486/10486), done.
+  Checking connectivity... done.
+  $
 
-.. note:: In this scenario we refer to “Cloud” as the layer above the Fog. “Fog” is where historians, gateways and middle servers coexist. In practice, the Cloud may also represent internal Enterprise systems, concentrated in regional or global corporate data centers, where larger historians, Big Data and analytical systems reside.
+The code should be now in your home directory. The name of the repository directory is *FogLAMP*:
 
-In practical terms, this means that:
+.. code-block:: console
 
-- Intra-layer communication and data exchange:
-
-  - At the **Edge**, microservices are installed on devices, sensors and actuators. 
-  - In the **Fog**, data is collected and aggregated in gateways and regional servers.
-  - In the **Cloud**, data is distributed and analysed on multiple servers, such as Big Data Systems and Data Historians.
-
-- Inter-layer communication and data exchange:
-
-  - From **Edge to Fog**, data is retrieved from multiple sensors and devices and it is aggregated on resilient and highly available middle servers and gateways, either in traditional Data Historians and in the new edge of Machine Learning systems.
-  - From **Fog to Edge**, configuration information, metadata and other valuable data is transferred to sensors and devices.
-  - From **Fog to Cloud**, the data collected and optionally transformed is transferred to more powerful distributed Cloud and Enterprise systems. 
-  - From **Cloud to Fog**, results of complex analysis and other valuable information are sent to the designated gateways and middle server that will interact with the Edge.
-
-- Intra-layer service distribution:
-
-  - A microservice architecture based on secure communication allows lightweight service distribution and information exchange among **Edge to Edge** devices.
-  - FogLAMP provides high availability, scalability and data distribution among **Fog to Fog** systems. Due to its portability and modularity, FogLAMP can be installed on a large number of intermediate servers and gateways, as application instances, appliances, containers or virtualized environments.
-  - **Cloud to Cloud FogLAMP server** capabilities provide scalability and elasticity in data storage, retrieval and analytics. The data collected at the Edge and Fog, also combined with external data, can be distributed to multiple systems within a Data Center and replicated to multiple Data Centers to guarantee local and faster access.
-
-All these operations are **scheduled, automated** and **executed securely, unattended** and in a **transactional** fashion (i.e. the system can always revert to a previous state in case of failures or unexpected events).
-
-
-FogLAMP Features
-================
-
-In a nutshell, these are main features of FogLAMP:
-
-- Transactional, always on, server platform designed to work unattended and with zero maintenance.
-- Microservice architecture with secured inter-communication:
-
-  - Core System
-  - Storage Layer
-  - South side, sensors and device communication
-  - North side, Cloud and Enterprise communication
-
-- Pluggable modules for:
-
-  - South side: multiple, data and metadata bi-directional communication
-  - North side: multiple, data and metadata bi-directional communication
-  - East/West side: IN/OUT Communicator with external applications
-  - Plus:
-
-    - Data and communication authentication
-    - Data and status monitoring and alerting
-    - Data transformation
-    - Data storage and retrieval
-
-- Small memory and processing footprint. FogLAMP can be installed and executed on inexpensive Edge devices; microservices can be distributed sensors and actuator boards.
-- Resilient and optionally highly available.
-- Discoverable and cluster-based.
-- Based on APIs (RESTful and non-RESTful) to communicate with sensors and other devices, to interact with user applications, to manage the platform and to be integrated with a Cloud or Data Center-based data infrastructure.
-- Hardened with default secure communication that can be optionally relaxed.
+  $ ls -l FogLAMP/
+  total 84
+  drwxrwxr-x 5 ubuntu ubuntu  4096 Dec  8 18:00 C
+  -rw-rw-r-- 1 ubuntu ubuntu   180 Dec  8 18:00 CMakeLists.txt
+  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 data
+  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 docs
+  dtrwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 examples
+  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 extras
+  -rw-rw-r-- 1 ubuntu ubuntu  5869 Dec  8 18:00 Jenkinsfile
+  -rw-rw-r-- 1 ubuntu ubuntu 11342 Dec  8 18:00 LICENSE
+  -rw-rw-r-- 1 ubuntu ubuntu 10654 Dec  8 18:00 Makefile
+  -rw-rw-r-- 1 ubuntu ubuntu  5842 Dec  8 18:00 pr_tester.sh
+  drwxrwxr-x 4 ubuntu ubuntu  4096 Dec  8 18:00 python
+  -rw-rw-r-- 1 ubuntu ubuntu  5916 Dec  8 18:00 README.rst
+  drwxrwxr-x 8 ubuntu ubuntu  4096 Dec  8 18:00 scripts
+  drwxrwxr-x 3 ubuntu ubuntu  4096 Dec  8 18:00 tests
+  $
 
 
-FogLAMP vs Other Software
-=========================
+Building FogLAMP
+----------------
 
-FogLAMP can solve many problems and facilitate the design and implementation of many IoT projects. That said, it is absolutely important that architects and developers have a clear idea of what to expect from FogLAMP and when it is a good fit or when other products may be a better option.
+Now that you have downloaded the code, you are ready to build your first FogLAMP project. Move to the *FogLAMP* project directory, type the ``make`` comand and let the magic happen.
 
-In this section, we compare FogLAMP to some other options. We have clearly prepared this section to the best of our knowledge, we welcome feedback from anybody filing an issue to the `FogLAMP project on GitHub`_.
+.. code-block:: console
 
-
-Open Source Platforms
----------------------
-
-EdgeX Foundry
-^^^^^^^^^^^^^
-
-EdgeX Foundry is a vendor-neutral project launched under the Linux Foundation.  EdgeX and FogLAMP share the same concepts of microservice architecture and plugins, security and hardware agnostic platform, but the objective is significantly different. 
-At a closer look, the two projects are complementary and it is up to the systems and data architects to contemplate one or both projects together. The main objective of EdgeX Foundry is to build a standardized Edge computing infrastructure, whilst FogLAMP is focused on data management in the broadest definition of Fog, i.e. covering several layers from the Edge up to the Cloud. Furthermore, FogLAMP does not strictly provide control over Edge devices: there are indeed options of bi-directionality that can modify the configuration of software running on devices, but the goal is always related to the acquisition of data coming from the Edge, and any control is executed by integrating FogLAMP with external comp nents. Regarding EdgeX, cases focus on the control and operations of Edge devices. For this reason, is it fair to say that an IoT architect may consider to implement data management and acquisition with FogLAMP and integrate FogLAMP data check and analysis via the internal REST API with services provided by EdgeX to control the Edge devices.
-
-In a nutshell, if your objective is to use a comprehensive Edge platform to control your IoT environment, you should consider EdgeX. If you are looking for a platform that can handle data management, collection, storage and forward connected to other systems, you should consider FogLAMP.
-
-
-Kura
-^^^^
-
-Kura is an open source project developed under the IoT initiative in the Eclipse Foundation. It is Java-based and hardware platform agnostic. Plugins and bundles are implemented with `OSGi <https://www.osgi.org/>`_. The objective of Kura is similar to FogLAMP, i.e. data is collected, managed, transformed, analyzed and forwarded. The key difference resides in the choice of the platform and the solution: Kura is entirely Java-based, while FogLAMP, due to the microservice application, is language and platform agnostic.
+  $ cd FogLAMP/
+  $ make
+  mkdir -p cmake_build
+  cd cmake_build ; cmake /home/ubuntu/FogLAMP/
+  -- The C compiler identification is GNU 5.4.0
+  -- The CXX compiler identification is GNU 5.4.0
+  ...
+  Successfully built aiocoap pexpect
+  Installing collected packages: aiocoap, cbor2, six, pyparsing, packaging, async-timeout, multidict, yarl, chardet, aiohttp, typing, aiohttp-cors, cchardet, certifi, idna, urllib3, requests, ptyprocess, pexpect
+  Successfully installed aiocoap aiohttp aiohttp-cors async-timeout cbor2 cchardet certifi chardet-2.3.0 idna multidict packaging pexpect ptyprocess pyparsing requests-2.9.1 six-1.10.0 typing urllib3-1.13.1 yarl
+  $
 
 
-Closed Source Platforms
------------------------
+Depending on the version of Ubuntu or other Linux distribution you are using, you may have found some issues. For example, there is a bug in the GCC compiler that raises a warning under specific circumstances. The output of the build will be something like: 
 
-FogHorn
-^^^^^^^
+.. code-block:: console
 
-The FogHorn platform is focused on Machine Learning applied at the Edge and consequently at controlling Edge devices. It also has its own set of tools and SDK that are used to manage the whole process of collecting and analyzing data, then implementing ML algorithms. The memory footprint for the smallest implementation starts at 256MB of memory and it appears to have no microservice distribution. 
+  /home/ubuntu/FogLAMP/C/services/storage/storage.cpp:97:14: warning: ignoring return value of ‘int dup(int)’, declared with attribute warn_unused_result [-Wunused-result]
+    (void)dup(0);     // stdout GCC bug 66425 produces warning
+                ^
+  /home/ubuntu/FogLAMP/C/services/storage/storage.cpp:98:14: warning: ignoring return value of ‘int dup(int)’, declared with attribute warn_unused_result [-Wunused-result]
+    (void)dup(0);     // stderr GCC bug 66425 produces warning
+                ^
 
-Putting the obvious difference between open and closed source aside, FogHorn and FogLAMP are designed to accomplish similar goals but in a different way. FogHorn is very specialized in handling and using ML algorithms. FogLAMP provides a platform for ML, but it does not implement it: it is up to the user to select their favorite ML library and implementation and integrate it in FogLAMP.
+The bug is documented |GCC Bug|. For our project, you should ignore it.
+
+
+The other issue is related to the version of pip (more specifically pip3), the Python package manager. If you see this warning in the middle of the build output:
+
+.. code-block:: console
+
+  /usr/lib/python3.5/distutils/dist.py:261: UserWarning: Unknown distribution option: 'python_requires'
+    warnings.warn(msg)
+
+...and this output at the end of the build process:
+
+.. code-block:: console
+
+  You are using pip version 8.1.1, however version 9.0.1 is available.
+  You should consider upgrading via the 'pip install --upgrade pip' command.
+
+In this case, what you need to do is to upgrade the pip software for Python 3:
+
+.. code-block:: console
+
+  $ pip3 install --upgrade pip
+  Collecting pip
+    Downloading pip-9.0.1-py2.py3-none-any.whl (1.3MB)
+      100% |████████████████████████████████| 1.3MB 1.1MB/s
+  Installing collected packages: pip
+  Successfully installed pip-9.0.1
+  $
+
+At this point, run the ``make`` command again and the Python warning should disappear.
+
+
+Testing FogLAMP from the Build Environment
+------------------------------------------
+
+If you are eager to test FogLAMP straight away, you can do so! All you need to do is to set the *FOGLAMP_ROOT* environment variable and you are good to go. Stay in the FogLAMP project directory, set the environment variable with the path to the FogLAMP directory and start foglamp with the ``foglamp start`` command:
+
+.. code-block:: console
+
+  $ pwd
+  /home/ubuntu/FogLAMP
+  $ export FOGLAMP_ROOT=/home/ubuntu/FogLAMP
+  $ scripts/foglamp start
+  FogLAMP started.
+  $
+
+
+You can check the status of FogLAMP with the ``foglamp status`` command. For few seconds you may see service starting, then it will show the status of the FogLAMP services and tasks:
+
+.. code-block:: console
+
+  $ scripts/foglamp status
+  FogLAMP starting.
+  $
+  $ scripts/foglamp status
+  FogLAMP running.
+  FogLAMP uptime:  175 seconds.
+  === FogLAMP services:
+  foglamp.services.core
+  foglamp.services.south --port=40417 --address=127.0.0.1 --name=HTTP_SOUTH
+  foglamp.services.south --port=40417 --address=127.0.0.1 --name=COAP
+  foglamp.services.south --port=40417 --address=127.0.0.1 --name=CC2650POLL
+  === FogLAMP tasks:
+  foglamp.tasks.north.sending_process --stream_id 3 --debug_level 1 --port=40417 --address=127.0.0.1 --name=sending HTTP
+  foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=40417 --address=127.0.0.1 --name=sending process
+  foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=40417 --address=127.0.0.1 --name=statistics to pi
+  $
+
+If you are curious to see a proper out from from FogLAMP, you can query the Core microservice using the REST API:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/ping ; echo
+  {"uptime": 308.42881059646606}
+  $
+  $ curl -s http://localhost:8081/foglamp/statistics ; echo
+  [{"key": "BUFFERED", "description": "The number of readings currently in the FogLAMP buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by FogLAMP since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "SENT_3", "description": "The number of readings data sent to the HTTP translator", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
+  $
+
+Congratulations! You have installed and tested FogLAMP! If you want to go extra mile (and make the output of the REST API more readible, download the *jq* JSON processor and pipe the output of the *curl* command to it:
+
+.. code-block:: console
+
+  $ sudo apt install jq
+  ...
+  $
+  $ curl -s http://localhost:8081/foglamp/statistics | jq
+  [
+    {
+      "key": "BUFFERED",
+      "description": "The number of readings currently in the FogLAMP buffer",
+      "value": 0
+    },
+    {
+      "key": "DISCARDED",
+      "description": "The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.",
+      "value": 0
+    },
+    {
+      "key": "PURGED",
+      "description": "The number of readings removed from the buffer by the purge process",
+      "value": 0
+    },
+    {
+      "key": "READINGS",
+      "description": "The number of readings received by FogLAMP since startup",
+      "value": 0
+    },
+    {
+      "key": "SENT_1",
+      "description": "The number of readings sent to the historian",
+      "value": 0
+    },
+    {
+      "key": "SENT_2",
+      "description": "The number of statistics data sent to the historian",
+      "value": 0
+    },
+    {
+      "key": "SENT_3",
+      "description": "The number of readings data sent to the HTTP translator",
+      "value": 0
+    },
+    {
+      "key": "UNSENT",
+      "description": "The number of readings filtered out in the send process",
+      "value": 0
+    },
+    {
+      "key": "UNSNPURGED",
+      "description": "The number of readings that were purged from the buffer before being sent",
+      "value": 0
+    }
+  ]
+  $
+
+As a next step, let's install FogLAMP!
+
 

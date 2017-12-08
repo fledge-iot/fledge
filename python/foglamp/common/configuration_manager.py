@@ -466,9 +466,9 @@ class ConfigurationManager(object):
         One or more category_names may use the same callback when a change is made to the corresponding category_value.
         """
         if category_name is None:
-            raise ValueError('Failed to register interest. category_name cannot be None')
+            raise ValueError('Failed to unregister interest. category_name cannot be None')
         if callback is None:
-            raise ValueError('Failed to register interest. callback cannot be None')
+            raise ValueError('Failed to unregister interest. callback cannot be None')
         if self._registered_interests.get(category_name) is not None:
             if callback in self._registered_interests[category_name]:
                 self._registered_interests[category_name].discard(callback)

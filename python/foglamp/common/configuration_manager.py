@@ -471,9 +471,9 @@ class ConfigurationManager(object):
             raise ValueError('Failed to register interest. callback cannot be None')
         if self._registered_interests.get(category_name) is not None:
             if callback in self._registered_interests[category_name]:
-              self._registered_interests[category_name].discard(callback)
-              if len(self._registered_interests[category_name]) == 0:
-                  del self._registered_interests[category_name]
+                self._registered_interests[category_name].discard(callback)
+                if len(self._registered_interests[category_name]) == 0:
+                    del self._registered_interests[category_name]
 
 # async def _main(storage_client):
 # 

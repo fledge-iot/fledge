@@ -3,14 +3,25 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+
 .. |br| raw:: html
 
    <br />
 
+
+.. Images
 .. |foglamp_security| image:: images/foglamp_security.jpg
 .. |foglamp_architecture| image:: images/foglamp_architecture.jpg
 .. |foglamp_monitoring| image:: images/foglamp_monitoring.jpg
 .. |foglamp_transformation| image:: images/foglamp_transformation.jpg
+
+
+.. Links to open in new tabs:
+.. |Dianomic Website| raw:: html
+
+   <a href="http://www.dianomic.com" target="_blank">Dianomic Website</a>
+
+.. =============================================
 
 
 *******************
@@ -24,7 +35,7 @@ The following diagram shows the architecture of FogLAMP, oriented in a North/Sou
 
 - Components in light green are **plugins**. They can be loaded/unloaded, activated/deactivated, started/stopped and configured. Configuration is automatically added to the management module when a plugin is activated. Several types of plugins can coexist at the same time. 
 - Components in light blue are **microservices**. They can coexist in the same operating environment or they can be distributed on multiple environments.
-- Components in blue are **tasks**. Tasks differ from microservices because they do not register themselves as a “service”. In general, tasks have a limited life, they are launched and when they have completed their operations they die.
+- Components in blue are **tasks**. Tasks differ from microservices because they do not register themselves as a “service”. In general, tasks have a limited life, they are executed then they die.
 - Components in pink are part of the **FogLAMP Core**. They serve as common modules for the platform.
 
 |foglamp_architecture|
@@ -38,10 +49,11 @@ Details of the Architecture
   - High **Availability** of FogLAMP as a cluster platform
   - **Scheduling** of tasks in the platform
   - Centralized **Management** of all the components (microservices, modules, plugins) of the FogLAMP platform.
-  - **Multi-tenancy** for external entities (applications, user sessions, devices) and internal entities (scheduled tasks, running services). Entities are identified as tenants. FogLAMP can serve multiple tenants at the same time. Tenants have access to a defined set of resources (data and operations) that can be shared or exclusive.
+  - **Multi-tenancy** for external entities (applications, user sessions, devices) and internal entities (scheduled tasks, running services). Entities are identified as *tenants*. FogLAMP can serve multiple tenants at the same time. Tenants have access to a defined set of resources (data and operations) that can be shared or exclusive.
   - **Federation** of local and distributed data and metadata for tenants. Tenants may have access to a whole set of data or only part of it.
   - **Provisioning & Updates** for FogLAMP, operated automatically, unattended and securely. Updates can be applied to a running FogLAMP without service disruption and in case of issues they can be reverted. In a cluster installation, updates are performed without downtime.
-  - **Security** applied as plugins, handled centrally as a service for all the components that require secure communication and authentication for data in motion and at rest. |br| The figure below shows where the security plugins can operate. |foglamp_security| |br| |br|
+  - **Security** applied as plugins, handled centrally as a service for all the components that require secure communication and authentication for data in motion and at rest. |br|:w!
+    The figure below shows where the security plugins can operate. |foglamp_security| |br| |br|
   - **Data Transformation**: it is a set of multiple plugins that can be loaded/unloaded, activated/deactivated and scheduled to transform stored data (data at rest), based on functions that are executed as external modules. Transformation plugins can also be used to filter or transform data and metadata received or to be sent (data in motion). |br| The figure below shows where the transformation plugins can operate. |foglamp_transformation| |br| |br|
   - **Monitoring**: it is a set of multiple plugins that can be loaded/unloaded, activated/deactivated and scheduled to monitor:
 
@@ -53,7 +65,7 @@ Details of the Architecture
     The figure below shows where the monitoring plugins can operate. |foglamp_monitoring|
     |br| |br|
 
-  - **Alerting**: it is a set of multiple plugins used as a container for the actions to execute when a particular event occurs. Examples of events are:
+  - **Alerting**: it is a set of multiple plugins executed by tasks when a particular event occurs. Examples of events are:
 
     - Activation/deactivation of a component
     - The threshold of the maximum storage capacity has been reached
@@ -67,7 +79,10 @@ Details of the Architecture
     Alerts may be operations like sending a message to an operator, the interaction with an external system when an internal event occurs or the execution of a user defined function.
     |br| |br|
 
-  - **Applications**: the FogLAMP platform allows the addition of applications written in multiple languages, such as C/C++, Python, JavaScript, Java and many more.
+  - **Applications Modules**: it is a set of multiple plugins, written in multiple languages such as C/C++, Java or Python, executed within microservices that cooperate tightly with the other microservices of the FogLAMP platform. Application modules are different from **external applications** because they interact with Core, Storage and other microservices using the internal API. This API is secured and not exposed outside the FogLAMP platform. External applications interact with FogLAMP via the REST API exposed by the Core microservice. |br| Examples of Application Modules are:
+    - Machine learning libraries and algorithms that require direct communication with the other microservices, capturing and interacting with events and data moving inside the platform.
+    - Analytical algorithms that require a close interaction with the Storage layer in order to provide maximum performance.
+    - Realtime and near-realtime interfaces used to control Edge devices, PLCs and actuators.
     |br| |br|
 
 - **REST API** - Although the REST API is not a separate microservice (it is part of the FogLAMP core), this set of modules provides features for eastbound/westbound communication. The native API provides User and Administration methods, secured by one of the available Security plugins.
@@ -76,7 +91,13 @@ Details of the Architecture
   - A set of IN/OUT Communicator plugins may be used to provide different protocols used by external applications to access the platform. These plugins may also expose non-REST interfaces. Examples of an IN/OUT communicator may be a MySQL connector or a BSON protocol connector.
     |br| |br|
 
-- **Storage Layer** - A microservice that offers storage, either transient or permanent, optionally resilient and/or transactional. The type of storage is pluggable and extendible, i.e. the model can be extended to provide specific features used by other plugins. For example, in installations with a small footprint, a plugin for SQLite may be chosen, whilst in installations with a high number of concurrent requests and larger footprint a plugin for more feature-rich databases may be suitable. In micro installations, for example on Edge devices, an in-memory temporary storage may be the best option. A *pass-through* option can also reduce the latency of data transiting in FogLAMP, especially when the northbound or east/westbound destination is reachable via a stable network. Data and Metadata may be handled in different ways, for example when metadata is persistent and data only transient. |br| |br|
+- **Storage Layer** - A microservice that offers storage, either transient or permanent, optionally resilient and/or transactional. The type of storage is pluggable and extendible, i.e. the model can be extended to provide specific features used by other plugins. For example, in installations with a small footprint, a plugin for SQLite may be chosen, in installations with a high number of concurrent requests and larger footprint a plugin for more feature-rich databases may be suitable. In micro installations, for example on Edge devices, an in-memory temporary storage may be the best option. A *pass-through* option can also reduce the latency of data transiting in FogLAMP, especially when the northbound or east/westbound destination is reachable via a stable network. Data and Metadata may be handled in different ways, for example when metadata is persistent and data only transient. |br| |br|
 - **Northbound microservice** - A microservice that offers bi-directional communication with data and metadata exchange between the platform and larger systems and databases in the Cloud or in data centers. Larger systems may be private and public Cloud data services, proprietary solutions or FogLAMP instances with larger footprint, optionally distributed on multiple servers, geographically or in the data center. |br| |br|
 - **Southbound microservice** - A microservice that offers bi-directional communication with data and metadata exchange between the platform and Edge devices, such as sensors, actuators, PLCs or other FogLAMP installations. Smaller systems may have this service installed on board Edge devices.
+
+
+To Know More About the Archicture
+---------------------------------
+
+You can know more about the FogLAMP architecture downloading this document or by checking the content of the |Dianomic Website|.
 

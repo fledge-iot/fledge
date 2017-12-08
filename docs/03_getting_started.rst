@@ -1,10 +1,17 @@
 .. Getting Started describes how to build and install FogLAMP
 
+.. |br| raw:: html
+
+   <br />
+
 .. Images
 .. |foglamp_all_round| image:: images/foglamp_all_round_solution.jpg
 
 .. Links
 .. _FogLAMP project on GitHub: https://github.com/foglamp/FogLAMP/issues
+
+
+.. =============================================
 
 
 ***************
@@ -17,32 +24,23 @@ Let's get started! In this chapter we will see where to find and how to build, i
 FogLAMP Platforms
 =================
 
-Due to the use of standard libraries, FogLAMP can run on a large number of platforms and operating environments. We have not tested FogLAMP extensively, but we are confident it can run on:
-
-- Any major Linux distribution on Intel or ARM architecture
-- On Windows Server, Embedded or personal edition
-- On Virtual Machines
-- In Docker and LXC containers
-- etc.
-
-The main development and deployment platform for FogLAMP is Linux, more specifically Ubuntu 16.04 and later additions. Our developer use Ubuntu 17.10, but we test FogLAMP on Ubuntu and Ubuntu Core 16.04 as well. 
+Due to the use of standard libraries, FogLAMP can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04 and Ubuntu Core 16.04, but we have installed and tested FogLAMP on other Linux distributions such as CentOS and Raspbian. In addition to the native support, FogLAMP can also run on Virtual Machines, Docker and LXC containers. |br| FogLAMP development Ubuntu 16.04 and later additions.
 
 
 General Requirements
 --------------------
 
-In general, FogLAMP requires this software to be installed on the same environment:
+This version of FogLAMP requires the following software to be installed in the same environment:
 - Python 3.5+
 - PostgreSQL 9.5+
 
-The requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are the two main pre-requisites for this version of FogLAMP.
+The requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
 
 
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a snap package from Snappy.
-In the section we will refer to our development platform, based on Ubuntu 16.04.3 LTS. Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ.
+In this section we will describe how to build FogLAMP. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a snap package from Snappy. In the section we will refer to our development platform, based on Ubuntu (Server and Desktop) 16.04.5 LTS. Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ.
 
 
 Build Pre-Requisites

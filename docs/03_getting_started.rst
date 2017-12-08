@@ -187,7 +187,7 @@ The code should be now in your home directory. The name of the repository direct
 
 .. code-block:: console
 
-  $ ls -l FogLAMP/
+  $ ls -l FogLAMP
   total 84
   drwxrwxr-x 5 ubuntu ubuntu  4096 Dec  8 18:00 C
   -rw-rw-r-- 1 ubuntu ubuntu   180 Dec  8 18:00 CMakeLists.txt
@@ -213,7 +213,7 @@ Now that you have downloaded the code, you are ready to build your first FogLAMP
 
 .. code-block:: console
 
-  $ cd FogLAMP/
+  $ cd FogLAMP
   $ make
   mkdir -p cmake_build
   cd cmake_build ; cmake /home/ubuntu/FogLAMP/

@@ -88,6 +88,7 @@ def plugin_init(config):
     data = copy.deepcopy(config)
     data['characteristics'] = sensortag_characteristics
     data['bluetooth_adr'] = bluetooth_adr
+    data['tag'] = tag
 
     _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
@@ -116,6 +117,7 @@ def plugin_poll(handle):
         'readings': {}
     }
     bluetooth_adr = handle['bluetooth_adr']
+    tag = handle['tag']
     object_temp_celsius = None
     ambient_temp_celsius = None
     lux_luminance = None
@@ -125,7 +127,6 @@ def plugin_poll(handle):
     movement = None
 
     try:
-        tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
         if not tag.is_connected:
             raise RuntimeError
 
@@ -253,6 +254,6 @@ def plugin_shutdown(handle):
     Raises:
     """
     bluetooth_adr = handle['bluetooth_adr']
-    tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
+    tag = handle['tag']
     tag.disconnect()
     _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

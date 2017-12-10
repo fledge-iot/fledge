@@ -447,8 +447,36 @@ class ConfigurationManager(object):
         else:
             self._registered_interests[category_name].add(callback)
 
+    def unregister_interest(self, category_name, callback):
+        """Unregisters an interest in any changes to the category_value associated with category_name
+
+        Keyword Arguments:
+        category_name -- name of the category_name of interest (required)
+        callback -- module with implementation of run(category_name) to be called when change is made to category_value
+
+        Return Values:
+        None
+
+        Side Effects:
+        Unregisters an interest in any changes to the category_value of a given category_name with the associated callback.
+        This interest is maintained in memory only, and not persisted in storage.
+
+        Restrictions and Usage:
+        A particular category_name may have multiple registered interests, aka multiple callbacks associated with a single category_name.
+        One or more category_names may use the same callback when a change is made to the corresponding category_value.
+        """
+        if category_name is None:
+            raise ValueError('Failed to unregister interest. category_name cannot be None')
+        if callback is None:
+            raise ValueError('Failed to unregister interest. callback cannot be None')
+        if self._registered_interests.get(category_name) is not None:
+            if callback in self._registered_interests[category_name]:
+                self._registered_interests[category_name].discard(callback)
+                if len(self._registered_interests[category_name]) == 0:
+                    del self._registered_interests[category_name]
+
 # async def _main(storage_client):
-#
+# 
 #     # lifecycle of a component's configuration
 #     # start component
 #     # 1. create a configuration that does not exist - use all default values
@@ -459,24 +487,24 @@ class ConfigurationManager(object):
 #     # restart component
 #     # 1. create/update a configuration that already exists (merge)
 #     # 2. read the configuration back in (cache locally for reuse)
-#
+# 
 #     """
 #     # content of foglamp.callback.py
 #     # example only - delete before merge to develop
-#
+# 
 #     def run(category_name):
 #         print('callback1 for category_name {}'.format(category_name))
 #     """
-#
+# 
 #     """
 #     # content of foglamp.callback2.py
 #     # example only - delete before merge to develop
-#
+# 
 #     def run(category_name):
 #         print('callback2 for category_name {}'.format(category_name))
 #     """
 #     cf = ConfigurationManager(storage_client)
-#
+# 
 #     sample_json = {
 #         "port": {
 #             "description": "Port to listen on",
@@ -494,53 +522,58 @@ class ConfigurationManager(object):
 #             "type": "X509 certificate"
 #         }
 #     }
-#
+# 
 #     print("test create_category")
 #     # print(sample_json)
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #     #print(sample_json)
-#
+# 
 #     print("test register category")
 #     print(cf._registered_interests)
 #     cf.register_interest('CATEG', 'foglamp.callback')
 #     print(cf._registered_interests)
 #     cf.register_interest('CATEG', 'foglamp.callback2')
 #     print(cf._registered_interests)
-#
+# 
+#     cf.register_interest('CATEG', 'foglamp.callback3')
+#     print(cf._registered_interests)
+#     cf.unregister_interest('CATEG', 'foglamp.callback3')
+#     print(cf._registered_interests)
+# 
 #     print("register interest in None- throw ValueError")
 #     try:
 #         cf.register_interest(None, 'foglamp.callback2')
 #     except ValueError as err:
 #         print(err)
 #     print(cf._registered_interests)
-#
-#
+# 
+# 
 #     print("test get_all_category_names")
 #     names_list = await cf.get_all_category_names()
 #     for row in names_list:
 #         # tuple
 #         print(row)
-#
+# 
 #     print("test get_category_all_items")
 #     json = await cf.get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
-#
+# 
 #     print("test get_category_item")
 #     json = await cf.get_category_item('CATEG', "url")
 #     print(json)
 #     print(type(json))
-#
+# 
 #     print("test get_category_item_value")
 #     string_result = await cf.get_category_item_value_entry('CATEG', "url")
 #     print(string_result)
 #     print(type(string_result))
-#
+# 
 #     print("test create_category - same values - should be ignored")
 #     # print(sample_json)
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #     # print(sample_json)
-#
+# 
 #     sample_json = {
 #         "url": {
 #             "description": "URL to accept data on",
@@ -558,23 +591,23 @@ class ConfigurationManager(object):
 #             "type": "X509 certificate"
 #         }
 #     }
-#
+# 
 #     print("test create_category - same values different order- should be ignored")
 #     print(sample_json)
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #     print(sample_json)
-#
+# 
 #     print("test set_category_item_value_entry")
 #     await cf.set_category_item_value_entry('CATEG', "url", "blablabla")
-#
+# 
 #     print("test set_category_item_value_entry - same value, update should be ignored")
 #     await cf.set_category_item_value_entry('CATEG', "url", "blablabla")
-#
+# 
 #     print("test get_category_item_value")
 #     string_result = await cf.get_category_item_value_entry('CATEG', "url")
 #     print(string_result)
 #     print(type(string_result))
-#
+# 
 #     print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
 #     sample_json = {
 #         "port2": {
@@ -594,12 +627,12 @@ class ConfigurationManager(object):
 #         }
 #     }
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-#
+# 
 #     print("test get_all_items")
 #     json = await cf.get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
-#
+# 
 #     print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
 #     sample_json = {
 #         "port3": {
@@ -619,15 +652,15 @@ class ConfigurationManager(object):
 #         }
 #     }
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
-#
+# 
 #     print("test get_all_items")
 #     json = await cf.get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
-#
+# 
 # if __name__ == '__main__':
 #     import asyncio
 #     loop = asyncio.get_event_loop()
 #     # storage client object
-#     _storage = StorageClient(core_management_host="0.0.0.0", core_management_port=41533, svc=None)
+#     _storage = StorageClient(core_management_host="0.0.0.0", core_management_port=44511, svc=None)
 #     loop.run_until_complete(_main(_storage))

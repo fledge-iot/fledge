@@ -8,8 +8,8 @@
 
 import asyncio
 from aiohttp import web
-import http.client
-import json
+
+
 from foglamp.services.common.microservice_management import routes
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware
@@ -19,6 +19,7 @@ __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
 
 class FoglampMicroservice(FoglampProcess):
     """ FoglampMicroservice class for all non-core python microservices
@@ -37,7 +38,7 @@ class FoglampMicroservice(FoglampProcess):
     _microservice_management_port = None
     """ address for microservice management app """
 
-    _microservice_id = None
+    microservice_id = None
     """ id for this microservice """
 
     _type = None
@@ -59,7 +60,8 @@ class FoglampMicroservice(FoglampProcess):
         except Exception:
             raise
         try:
-            self.register_service(self._get_service_registration_payload())
+            res = self.register_service(self._get_service_registration_payload())
+            self.microservice_id = res["id"]
         except Exception:
             raise
 
@@ -78,7 +80,6 @@ class FoglampMicroservice(FoglampProcess):
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()
 
-
     def _get_service_registration_payload(self):
         service_registration_payload = {
                 "name": self._name,
@@ -89,4 +90,3 @@ class FoglampMicroservice(FoglampProcess):
                 "protocol": self._protocol
             }
         return service_registration_payload
-

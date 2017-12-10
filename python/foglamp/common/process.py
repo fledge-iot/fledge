@@ -124,7 +124,28 @@ class FoglampProcess(ABC):
             Known Exceptions:
                 HTTPError
         """
-        self._m_client.register_service(service_registration_payload)
+
+        return self._m_client.register_service(service_registration_payload)
+
+    def unregister_service(self):
+        """ UnRegister, with core, this process as a microservice.
+        """
+        res = self._m_client.unregister_service(self.microservice_id)
+        return res
+
+    def get_service(self, name=None, _type=None):
+        return self._m_client.get_services(name, _type)
+
+    def register_interest(self):
+        # cat name
+        # callback module
+        # self.__class__._microservice_id
+        raise NotImplementedError
+
+    def deregister_interest(self):
+        # cat name
+        # self.__class__._microservice_id
+        raise NotImplementedError
 
     class MicroserviceManagementClient(object):
         _management_client_conn = None
@@ -144,13 +165,15 @@ class FoglampProcess(ABC):
             self._management_client_conn.close()
             response = json.loads(res)
             try:
-                cls._microservice_id = response["id"]
+                response["id"]
             except KeyError:
-                _logger.exception("Could not register the microservice, From request %s", json.dumps(service_registration_payload))
-                raise
+                error = response["error"]
+                _logger.exception("Could not register the microservice, From request %s, Got error %s", json.dumps(service_registration_payload), error)
             except Exception as ex:
                 _logger.exception("Could not register the microservice, From request %s, Reason: %s", json.dumps(service_registration_payload), str(ex))
                 raise
+
+            return response
 
         def unregister_service(self, microservice_id):
             # unregister with core
@@ -164,14 +187,19 @@ class FoglampProcess(ABC):
             self._management_client_conn.close()
             response = json.loads(res)
             try:
-                assert microservice_id == response["id"]
+                response["id"]
+                # assert microservice_id = response["id"]
                 # assert "Service unregistered" == response["message"]
             except KeyError:
-                _logger.exception("Could not un-register the micro-service having uuid %s", microservice_id)
-                raise
+                error = response["error"]
+                _logger.exception("Could not un-register the micro-service having uuid %s, "
+                                  "Got error: %s", microservice_id, error)
             except Exception as ex:
-                _logger.exception("Could not un-register the micro-service having uuid %s, Reason: %s", microservice_id, str(ex))
+                _logger.exception("Could not un-register the micro-service having uuid %s, "
+                                  "Reason: %s", microservice_id, str(ex))
                 raise
+
+            return response
 
         def register_interest(self):
             pass
@@ -179,7 +207,30 @@ class FoglampProcess(ABC):
         def unregister_interest(self):
             pass
 
-        def get_services(self, name=None, type=None):
-            pass
+        def get_services(self, name=None, _type=None):
+            url = '/foglamp/service'
+            if _type:
+                url = '{}?type={}'.format(url, _type)
+            if name:
+                url = '{}?name={}'.format(url, name)
+            if name and _type:
+                url = '{}?name={}&type={}'.format(url, name, _type)
+            self._management_client_conn.request(method='GET', url=url)
+            r = self._management_client_conn.getresponse()
+            if r.status in range(400, 500):
+                r.raise_for_status()
+            if r.status in range(500, 600):
+                r.raise_for_status()
+            res = r.read().decode()
+            self._management_client_conn.close()
+            response = json.loads(res)
+            try:
+                response["services"]
+            except KeyError:
+                error = response["error"]
+                _logger.exception("Could not find the micro-service for request url %s, Got error: %s", url, error)
+            except Exception as ex:
+                _logger.exception("Could not find the micro-service for request url %s, Reason: %s", url, str(ex))
+                raise
 
-
+            return response

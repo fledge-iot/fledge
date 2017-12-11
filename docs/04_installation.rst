@@ -4,7 +4,7 @@
 
    <br />
 
-.e Images
+.. Images
 
 .. Links
 
@@ -13,6 +13,28 @@
 .. |build foglamp| raw:: html
 
    <a href="03_getting_started.html#building-foglamp" target="_blank">here</a>
+
+.. |snappy| raw:: html
+
+   <a href="https://en.wikipedia.org/wiki/Snappy_(package_manager)" target="_blank">Snappy</a>
+
+.. |snapcraft| raw:: html
+
+   <a href="https://snapcraft.io" target="_blank">snapcraft.io</a>
+
+.. |foglamp-snap issues| raw:: html
+
+   <a href="https://github.com/foglamp/foglamp-snap/issues" target="_blank">GitHub issues database</a>
+
+.. |x86 Package| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.0-alpha_amd64.snap" target="_blank">Snap for Intel x86_64 architecture</a>
+
+.. |ARM Package| raw:: html
+
+   <a href=https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.0-alpha_amd64.snap" target="_blank">Snap for ARM A-8 (64 bit) / Raspberry PI 3</a>
+
+
 
 
 .. =============================================
@@ -74,6 +96,7 @@ Once you have built FogLAMP following the instructions presented |build foglamp|
   $
 
 These are the main steps of the installation:
+
 - Create the */usr/local/foglamp* directory, if it does not exist
 - Build the code that has not been compiled and built yet
 - Create all the necessary destination directories and copy the executables, scripts and configuration files
@@ -141,6 +164,7 @@ Environment Variables
 ---------------------
 
 In order to operate, FogLAMP requires two environment variables:
+
 - **FOGLAMP_ROOT**: the root directory for FogLAMP. The default is */usr/local/foglamp*
 - **FOGLAMP_DATA**: the data directory. The default is *$FOGLAMP_ROOT/data*, hence whichever value *FOGLAMP_ROOT* has plus the *data* sub-directory, or */usr/local/foglamp/data* in case *FOGLAMP_ROOT* is set as default value.
 
@@ -157,4 +181,148 @@ If you have installed FogLAMP in a non-default directory, you must at least set 
 
 Installing the Snap Package
 ===========================
+
+|snappy| is a software deployment and package management system originally designed and built by Canonical. Snappy is now available for many Linux distributions, including Ubuntu, Ubuntu Core, Debian, Fedora, Archlinux, Raspbian, Suse, the Yocto project and many others. The package management is based on snap packages that can be installed in a *transactional* environment, i.e. the packages have a current installation and the system can maintain a given number of previous installations. In case of issues with the new packages, Administrators can easily revert to previous installations.
+
+More information regarding the package manager are available on the |snapcraft| website.
+
+.. note:: The snap package is still experimental, if you find any issue you should report them to the |foglamp-snap issues| for the *foglamp-snap* project.
+
+
+Obtaining the Snap Package
+--------------------------
+
+You can download the package from here:
+
+- |x86 Package|
+- |ARM Package|
+
+
+Once you have downloaded the package, install it using the ``snap install`` command. Note that you may need to install it as superuser (or by using the ``sudo`` command). The current version of FogLAMP must be installed using the *--devmode* argument, since there are currently no security confinments.
+
+.. code-block:: console
+
+  $ sudo snap install --devmode foglamp_0.1_amd64.snap
+  foglamp 1.0-alpha installed 
+  $
+
+Congratulations! This is all you need to do, now FogLAMP is ready to run.
+
+
+Starting FogLAMP from Snap
+--------------------------
+
+You can use the same ``foglamp`` command we discussed in the previous section to start the core microservice of FogLAMP:
+
+
+.. code-block:: console
+
+  $ foglamp start
+  Starting PostgreSQL...
+  PostgreSQL started.
+  Building the metadata for the FogLAMP Plugin...
+  Build complete.
+  FogLAMP started.
+  $
+  $ foglamp status
+  FogLAMP starting.
+  $
+  $ foglamp status
+  FogLAMP running.
+  FogLAMP uptime:  16 seconds.
+  === FogLAMP services:
+  foglamp.services.core
+  foglamp.services.south --port=37829 --address=127.0.0.1 --name=COAP
+  === FogLAMP tasks:
+  foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=37829 --address=127.0.0.1 --name=sending process
+  foglamp.tasks.statistics --port=37829 --address=127.0.0.1 --name=stats collector
+  $
+  $ foglamp stop
+  Stopping PostgreSQL...
+  PostgreSQL stopped.
+  FogLAMP stopped.
+  $
+
+From the output of the *foglamp* command you can notice that now the PostgreSQL database is managed by FogLAMP itself. In fact, the snap package also installs an embedded version of PostgreSQL that should be exclusively used by FogLAMP. 
+
+
+Data Directories with the Snap Package
+-------------------------------------------
+
+Snap is designed to be self-contained and it does not require any user setting, therefore there are no *FOGLAMP_ROOT* or *FOGLAMP_DATA* variables to set. The FogLAMP package is installed in readonly and it is visible by the user in the */snap/foglamp* directory, data is stored in the *snap/foglamp* directory under the user home directory. The data directory also contains the PostgreSQL database.
+
+
+.. code-block:: console
+
+  $ ls -l /snap
+  total 20
+  drwxr-xr-x  5 root root 4096 Dec 11 15:06 ./
+  drwxr-xr-x 23 root root 4096 Dec 11 14:14 ../
+  drwxr-xr-x  2 root root 4096 Dec 11 15:06 bin/
+  drwxr-xr-x  3 root root 4096 Dec 11 14:41 core/
+  drwxr-xr-x  3 root root 4096 Dec 11 15:06 foglamp/
+  $
+  $ ls -l /snap/foglamp
+  total 8
+  drwxr-xr-x 3 root root 4096 Dec 11 15:06 ./
+  drwxr-xr-x 5 root root 4096 Dec 11 15:06 ../
+  lrwxrwxrwx 1 root root    2 Dec 11 15:06 current -> x1/
+  drwxr-xr-x 8 root root  137 Dec 11 15:04 x1/ 
+  $
+  $ ls -l /snap/foglamp/x1
+  total 5
+  drwxr-xr-x  8 root root  137 Dec 11 15:04 ./
+  drwxr-xr-x  3 root root 4096 Dec 11 15:06 ../
+  drwxr-xr-x  2 root root   95 Dec 11 14:16 bin/
+  -rwxr-xr-x  1 root root  378 Dec 11 15:04 command-foglamp.wrapper*
+  drwxr-xr-x 13 root root  279 Dec 11 15:04 etc/
+  drwxr-xr-x  5 root root   71 Nov 21  2016 lib/
+  drwxr-xr-x  3 root root   43 Dec 11 14:16 meta/
+  drwxr-xr-x  7 root root   99 Dec 11 15:04 usr/
+  drwxr-xr-x  4 root root   37 Dec 11 15:04 var/
+  $
+  $  $ ls -l $HOME/snap
+  total 4
+  drwxr-xr-x 4 ubuntu ubuntu 4096 Dec 11 15:07 foglamp
+  $ ls -l /home/ubuntu/snap/foglamp/
+  total 8
+  drwxr-xr-x 4 ubuntu ubuntu 4096 Dec 11 15:07 common
+  lrwxrwxrwx 1 ubuntu ubuntu    2 Dec 11 14:54 current -> x1
+  drwxr-xr-x 2 ubuntu ubuntu 4096 Dec 11 15:07 x1
+  $ ls -l /home/ubuntu/snap/foglamp/common/
+  total 8
+  drwxr-xr-x 2 ubuntu ubuntu 4096 Dec 11 15:07 etc
+  drwxrwxr-x 3 ubuntu ubuntu 4096 Dec 11 15:07 storage
+  $ ls -l /home/ubuntu/snap/foglamp/common/storage/postgres/pgsql/
+  total 8
+  drwx------ 19 ubuntu ubuntu 4096 Dec 11 15:07 data
+  -rw-------  1 ubuntu ubuntu  506 Dec 11 15:17 logger
+  $ ls -l /home/ubuntu/snap/foglamp/common/storage/postgres/pgsql/data/
+  total 120
+  drwx------ 6 ubuntu ubuntu  4096 Dec 11 15:07 base
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:08 global
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_clog
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_commit_ts
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_dynshmem
+  -rw------- 1 ubuntu ubuntu  4462 Dec 11 15:07 pg_hba.conf
+  -rw------- 1 ubuntu ubuntu  1636 Dec 11 15:07 pg_ident.conf
+  drwx------ 4 ubuntu ubuntu  4096 Dec 11 15:07 pg_logical
+  drwx------ 4 ubuntu ubuntu  4096 Dec 11 15:07 pg_multixact
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_notify
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_replslot
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_serial
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_snapshots
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_stat
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:18 pg_stat_tmp
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_subtrans
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_tblspc
+  drwx------ 2 ubuntu ubuntu  4096 Dec 11 15:07 pg_twophase
+  -rw------- 1 ubuntu ubuntu     4 Dec 11 15:07 PG_VERSION
+  drwx------ 3 ubuntu ubuntu  4096 Dec 11 15:07 pg_xlog
+  -rw------- 1 ubuntu ubuntu    88 Dec 11 15:07 postgresql.auto.conf
+  -rw------- 1 ubuntu ubuntu 21344 Dec 11 15:07 postgresql.conf
+  -rw------- 1 ubuntu ubuntu   121 Dec 11 15:07 postmaster.opts
+  -rw------- 1 ubuntu ubuntu   117 Dec 11 15:07 postmaster.pid
+  $
+
 

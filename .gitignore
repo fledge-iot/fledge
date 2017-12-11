@@ -1,5 +1,8 @@
 .DS_Store
 
+# vi
+*.swp
+
 # IDE
 *.idea
 

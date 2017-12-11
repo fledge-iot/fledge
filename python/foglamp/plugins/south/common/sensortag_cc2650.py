@@ -6,8 +6,8 @@
 
 """ Common class for TI Sensortag CC2650 for both 'async' type and 'poll' type plugins """
 
-
 import pexpect
+from pexpect import ExceptionPexpect, EOF, TIMEOUT
 import time
 from foglamp.common import logger
 
@@ -112,9 +112,26 @@ characteristics = {
             'uuid': 'f000aa73-0451-4000-b000-000000000000',
             'handle': '0x0000'
         }
-    }
+    },
+}
+battery =  {
+    'data': {
+        'uuid': '00002a19-0000-1000-8000-00805f9b34fb',
+        'handle': '0x001e'
+    },
+}
+keypress =  {
+    'data': {
+        'uuid': '0000ffe1-0000-1000-8000-00805f9b34fb',
+        'handle': '0x004c'
+    },
+    'notification': {
+        'uuid': '2902',
+        'handle': '0x0000'
+    },
 }
 
+import bluepy
 char_enable = '01'
 char_disable = '00'
 """
@@ -146,7 +163,7 @@ class SensorTagCC2650(object):
             self.bluetooth_adr = bluetooth_adr
 
             self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
-            self.con.expect('\[LE\]>', timeout=600)
+            self.con.expect('\[LE\]>', timeout=10)
 
             msg_debug = 'SensorTagCC2650 {} Connecting... If nothing happens, please press the power button.'.\
                         format(self.bluetooth_adr)
@@ -154,17 +171,18 @@ class SensorTagCC2650(object):
             _LOGGER.debug(msg_debug)
 
             self.con.sendline('connect')
-            self.con.expect('.*Connection successful.*\[LE\]>')
+            self.con.expect('.*Connection successful.*\[LE\]>', timeout=10)
+            self.is_connected = True
             msg_success = 'SensorTagCC2650 {} connected successfully'.format(self.bluetooth_adr)
             print(msg_success)
             _LOGGER.debug(msg_success)
-            self.is_connected = True
-        except Exception as ex:
+        except (ExceptionPexpect, EOF, TIMEOUT, Exception) as ex:
+            self.is_connected = False
+            self.con.sendline('quit')
             # TODO: Investigate why SensorTag goes to sleep often and find a suitable software solution to awake it.
-            msg_failure = 'SensorTagCC2650 {} connection failure. {}'.format(self.bluetooth_adr, str(ex))
+            msg_failure = 'SensorTagCC2650 {} connection failure.'.format(self.bluetooth_adr)
             print(msg_failure)
             _LOGGER.exception(msg_failure)
-            self.is_connected = False
 
     def disconnect(self):
         if not self.is_connected:
@@ -237,6 +255,8 @@ class SensorTagCC2650(object):
         elif sensortype in ['luminance']:
             # The data from the optical sensor consists of a single 16-bit unsigned integer
             raw_bytes = rval[-2] + rval[-1]
+        elif sensortype in ['battery']:
+            raw_bytes = rval[-1]
         else:
             raw_bytes = 0
         _LOGGER.debug('SensorTagCC2650 {} type: {} bytes: {}'.format(self.bluetooth_adr, sensortype, raw_bytes))
@@ -352,18 +372,49 @@ class SensorTagCC2650(object):
         gyro_convert = lambda data: (data * 1.0) / (65536 / 500)
         acc_convert = lambda raw_data, ginfo: (raw_data * 1.0) / (32768/ginfo)
         mag_convert = lambda data: 1.0 * data
-        get_signed_int = lambda x: -(x & 0x8000) | (x & 0x7fff)
+        def get_signed_int(a, b):
+            """
+            Signed binary int to decimal conversion
+            To convert a signed binary int to a decimal number, use the following algorithm. We illustrate the
+            algorithm on two four-bit examples: 1110 and 0101.
 
+            If the leftmost bit is a 1, the number is negative. Do the following... (1110 starts with a 1. It's negative.)
+                1. Flip all the bits in the number. (1110 becomes 0001.)
+                2. Add 1 to the number. (0001 + 1 = 0010.)
+                3. Convert the result to base 10 and report its negation. (00102 is 210. The answer is -2.)
+            If the leftmost bit is a 0, the number is positive or zero. Convert the number from base 2 to base 10 and report the result. (0101 starts with a 0. 01012 is 510. The answer is 5.)
+
+            :param a: First byte
+            :param b: Second byte
+            :return:
+            """
+            a1 = bin(a)[2:].zfill(8)
+            b1 = bin(b)[2:].zfill(8)
+            if a1.startswith('1'):
+                a2 = ''.join('1' if x == '0' else '0' for x in a1)
+                b2 = ''.join('1' if x == '0' else '0' for x in b1)
+                c = a2 + b2
+                d = int(c, 2) + 1
+                e = d * -1
+            else:
+                e = int(a1 + b1, 2)
+            return e
+
+        """
+            From SensorTag data is received as: GyroX[0:7], GyroX[8:15], GyroY[0:7], GyroY[8:15], GyroZ[0:7],
+            GyroZ[8:15], AccX[0:7], AccX[8:15], AccY[0:7], AccY[8:15], AccZ[0:7], AccZ[8:15], MagX[0:7], MagX[8:15],
+            MagY[0:7], MagY[8:15], MagZ[0:7], MagZ[8:15]
+        """
         interim_value = raw_movement.decode()
-        raw_gyro_x = get_signed_int(int('0x'+interim_value[1:2]+interim_value[0:1], 16))
-        raw_gyro_y = get_signed_int(int('0x'+interim_value[3:4]+interim_value[2:3], 16))
-        raw_gyro_z = get_signed_int(int('0x'+interim_value[5:6]+interim_value[4:5], 16))
-        raw_acc_x = get_signed_int(int('0x'+interim_value[7:8]+interim_value[6:7], 16))
-        raw_acc_y = get_signed_int(int('0x'+interim_value[9:10]+interim_value[8:9], 16))
-        raw_acc_z = get_signed_int(int('0x'+interim_value[11:12]+interim_value[10:11], 16))
-        raw_mag_x = get_signed_int(int('0x'+interim_value[13:14]+interim_value[12:13], 16))
-        raw_mag_y = get_signed_int(int('0x'+interim_value[15:16]+interim_value[14:15], 16))
-        raw_mag_z = get_signed_int(int('0x'+interim_value[17:18]+interim_value[16:17], 16))
+        raw_gyro_x = get_signed_int(int('0x'+interim_value[2:4], 16), int('0x'+interim_value[0:2], 16))
+        raw_gyro_y = get_signed_int(int('0x'+interim_value[6:8], 16), int('0x'+interim_value[4:6], 16))
+        raw_gyro_z = get_signed_int(int('0x'+interim_value[10:12], 16), int('0x'+interim_value[8:10], 16))
+        raw_acc_x = get_signed_int(int('0x'+interim_value[14:16], 16), int('0x'+interim_value[12:14], 16))
+        raw_acc_y = get_signed_int(int('0x'+interim_value[18:20], 16), int('0x'+interim_value[16:18], 16))
+        raw_acc_z = get_signed_int(int('0x'+interim_value[22:24], 16), int('0x'+interim_value[20:22], 16))
+        raw_mag_x = get_signed_int(int('0x'+interim_value[26:28], 16), int('0x'+interim_value[24:26], 16))
+        raw_mag_y = get_signed_int(int('0x'+interim_value[30:32], 16), int('0x'+interim_value[28:30], 16))
+        raw_mag_z = get_signed_int(int('0x'+interim_value[34:36], 16), int('0x'+interim_value[32:34], 16))
 
         gyro_x = gyro_convert(raw_gyro_x)
         gyro_y = gyro_convert(raw_gyro_y)
@@ -468,3 +519,9 @@ class SensorTagCC2650(object):
         luminance = (m * (0.01 * exp))
         _LOGGER.debug('SensorTagCC2650 {} luminance: {}'.format(self.bluetooth_adr, luminance))
         return luminance
+
+    def get_battery_level(self, raw_battery_level):
+        return int('0x'+raw_battery_level.decode(), 16)
+
+    def get_keypress_state(self, raw_keypress_state):
+        pass

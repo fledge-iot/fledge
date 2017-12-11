@@ -22,6 +22,8 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "foglamp_backup_postgres_library"
 
+FOGLAMP_CFG_FILE = "/etc/foglamp.json"
+
 MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
 """" Maximum number of backup information to retrieve from the storage layer"""
 

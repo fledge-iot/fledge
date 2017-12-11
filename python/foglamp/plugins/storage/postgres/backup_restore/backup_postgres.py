@@ -13,6 +13,7 @@ retrieving the parameters for the execution from the local file 'backup_configur
 
 """
 
+# noinspection PyUnresolvedReferences
 import sys
 import time
 import os
@@ -43,8 +44,8 @@ _logger = None
 _LOG_LEVEL_DEBUG = 10
 _LOG_LEVEL_INFO = 20
 
-_LOGGER_LEVEL = _LOG_LEVEL_INFO
-_LOGGER_DESTINATION = logger.SYSLOG
+_LOGGER_LEVEL = _LOG_LEVEL_DEBUG
+_LOGGER_DESTINATION = logger.CONSOLE
 
 _MESSAGES_LIST = {
 
@@ -338,7 +339,7 @@ class BackupProcess(FoglampProcess):
     """List of Postgres commands to check/validate if they are available and usable
        and the actual Postgres commands to use """
 
-    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/pgsql/bin"
+    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/plsql/bin"
     """Directory for Postgres commands in a managed configuration"""
 
     _MODULE_NAME = "foglamp_backup_postgres_process"
@@ -373,13 +374,15 @@ class BackupProcess(FoglampProcess):
         "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
         "e000014": "the identified path of backups doesn't exists, creation was tried "
                    "- dir |{0}| - error details |{1}|",
-        "e000015": "Postgres command is not available neither using the managed nor the unmanaged approach"
+        "e000015": "The command is not available neither using the unmanaged approach"
                    " - command |{0}|",
         "e000016": "Postgres command is not executable - command |{0}|",
         "e000017": "The execution of the Postgres command using the -V option produce an error"
                    " - command |{0}| - output |{1}|",
         "e000018": "It is not possible to read data from Postgres"
                    " - command |{0}| - exit code |{1}| - output |{2}|",
+        "e000019": "The command is not available using the managed approach"
+                   " - command |{0}|",
 
     }
     """ Messages used for Information, Warning and Error notice """
@@ -404,6 +407,11 @@ class BackupProcess(FoglampProcess):
         },
         "database": {
             "description": "Database to manage for backup and restore operations.",
+            "type": "string",
+            "default": "foglamp"
+        },
+        "schema": {
+            "description": "Schema for backup and restore operations.",
             "type": "string",
             "default": "foglamp"
         },
@@ -570,11 +578,36 @@ class BackupProcess(FoglampProcess):
             cmd_identified = self._check_command_identification(cmd)
             self._check_command_test(cmd_identified)
 
+    def _is_plugin_managed(self, plugin_to_identify):
+        """ Identifies the type of plugin, Managed or not, looking at the foglamp.json configuration file
+
+        Args:
+            plugin_to_identify: str - plugin to evaluate if it is managed or not
+        Returns:
+            type: boolean - True if it is a managed plugin
+        Raises:
+        """
+
+        plugin_type = False
+
+        file_full_path = self._dir_foglamp_data + lib.FOGLAMP_CFG_FILE
+
+        with open(file_full_path) as file:
+            cfg_file = json.load(file)
+
+        plugins = cfg_file["storage plugins"]
+
+        for plugin in plugins:
+            if plugin["plugin"] == plugin_to_identify:
+                plugin_type = plugin["managed"]
+
+        return plugin_type
+
     def _check_command_identification(self, cmd_to_identify):
         """ Identifies the proper Postgres command to use, 2 possible cases :
 
-        Managed    - checks if the command is available in $FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin
-        Unmanaged  - checks using the path and identify the used command through 'which pg_dump'
+        Managed    - command is available in $FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin
+        Unmanaged  - checks using the path and it identifies the used command through 'command -v'
 
         Args:
             cmd_to_identify: str - command to identify
@@ -586,22 +619,31 @@ class BackupProcess(FoglampProcess):
             exceptions.PgCommandUnAvailable
         """
 
-        # Checks for Managed
-        cmd_managed = "{root}/{path}/{cmd}".format(
-                                                    root=self._dir_foglamp_root,
-                                                    path=self._DIR_MANAGED_FOGLAMP_PG_COMMANDS,
-                                                    cmd=cmd_to_identify)
+        is_managed = self._is_plugin_managed("postgres")
 
-        if os.path.exists(cmd_managed):
-            cmd_identified = cmd_managed
+        if is_managed:
+            # Checks for Managed
+            cmd_managed = "{root}/{path}/{cmd}".format(
+                                                        root=self._dir_foglamp_root,
+                                                        path=self._DIR_MANAGED_FOGLAMP_PG_COMMANDS,
+                                                        cmd=cmd_to_identify)
 
+            if os.path.exists(cmd_managed):
+                cmd_identified = cmd_managed
+            else:
+                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.PgCommandUnAvailable(_message)
         else:
             # Checks for Unmanaged
-            cmd = "which " + cmd_to_identify
+            cmd = "command -v " + cmd_to_identify
 
+            # The timeout command can't be used with 'command'
+            # noinspection PyArgumentEqualDefault
             _exit_code, output = lib.exec_wait(_cmd=cmd,
                                                _output_capture=True,
-                                               _timeout=self._config['timeout']
+                                               _timeout=0
                                                )
 
             self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
@@ -634,6 +676,7 @@ class BackupProcess(FoglampProcess):
             exceptions.PgCommandNotExecutable
         """
 
+        # noinspection PyUnresolvedReferences
         if os.access(cmd_to_test, os.X_OK):
             cmd = cmd_to_test + " -V"
 
@@ -671,9 +714,10 @@ class BackupProcess(FoglampProcess):
 
         cmd_psql = self._PG_COMMANDS_TO_CHECK[self._PG_COMMAND_PSQL]
 
-        cmd = '{psql} -t -c "SELECT id FROM {db}.{table} LIMIT 1;"'.format(
+        cmd = '{psql} -d {db} -t -c "SELECT id FROM {schema}.{table} LIMIT 1;"'.format(
                                                                 psql=cmd_psql,
                                                                 db=self._config['database'],
+                                                                schema=self._config['schema'],
                                                                 table=lib.STORAGE_TABLE_BACKUPS)
 
         _exit_code, output = lib.exec_wait(_cmd=cmd,
@@ -808,6 +852,7 @@ class BackupProcess(FoglampProcess):
         )
 
         # Executes the backup waiting for the completion and using a retry mechanism
+        # noinspection PyArgumentEqualDefault
         _exit_code, output = lib.exec_wait_retry(cmd,
                                                  output_capture=True,
                                                  exit_code_ok=0,
@@ -874,6 +919,7 @@ class BackupProcess(FoglampProcess):
 
         self._config['port'] = int(_config_from_manager['port']['value'])
         self._config['database'] = _config_from_manager['database']['value']
+        self._config['schema'] = _config_from_manager['schema']['value']
         self._config['backup-dir'] = _config_from_manager['backup-dir']['value']
         self._config['semaphores-dir'] = _config_from_manager['semaphores-dir']['value']
         self._config['retention'] = int(_config_from_manager['retention']['value'])
@@ -1013,6 +1059,7 @@ if __name__ == "__main__":
 
     # Executes the backup
     try:
+        # noinspection PyProtectedMember
         _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
             module=_MODULE_NAME,
             name=backup_process._name,

@@ -10,6 +10,8 @@ import os
 import asyncio
 import json
 from enum import IntEnum
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
@@ -23,13 +25,22 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_MODULE_NAME = "foglamp_backup_postgres_library"
+FOGLAMP_CFG_FILE = "/etc/foglamp.json"
 
 MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
 """" Maximum number of backup information to retrieve from the storage layer"""
 
 STORAGE_TABLE_BACKUPS = "backups"
 """ Table name containing the backups information"""
+
+JOB_SEM_FILE_PATH = "/tmp"
+""" Updated by the caller to the proper value """
+
+JOB_SEM_FILE_BACKUP = ".backup.sem"
+JOB_SEM_FILE_RESTORE = ".restore.sem"
+"""" Semaphores information for the handling of the backup/restore synchronization """
+
+_MODULE_NAME = "foglamp_backup_postgres_library"
 
 _MESSAGES_LIST = {
 
@@ -47,6 +58,10 @@ _MESSAGES_LIST = {
 
 _CMD_TIMEOUT = " timeout --signal=9  "
 """ Every external commands will be launched using timeout to avoid endless executions """
+
+_logger = None
+_storage = None
+"""" Objects references assigned by the caller """
 
 
 class BackupType (IntEnum):
@@ -85,18 +100,6 @@ class BackupStatus (object):
         RESTORED: "restored",
         ALL: "all"
     }
-
-
-JOB_SEM_FILE_PATH = "/tmp"
-""" Updated by the caller to the proper value """
-
-JOB_SEM_FILE_BACKUP = ".backup.sem"
-JOB_SEM_FILE_RESTORE = ".restore.sem"
-"""" Semaphores information for the handling of the backup/restore synchronization """
-
-_logger = None
-_storage = None
-"""" Objects references assigned by the caller """
 
 
 def exec_wait(_cmd, _output_capture=False, _timeout=0):
@@ -243,7 +246,7 @@ def get_backup_details_from_file_name(_file_name):
     return backup_information
 
 
-def backup_status_create(_file_name, _type, _status):
+def sl_backup_status_create(_file_name, _type, _status):
     """ Logs the creation of the backup in the Storage layer
 
     Args:
@@ -252,10 +255,9 @@ def backup_status_create(_file_name, _type, _status):
         _status: backup status, usually BackupStatus.RUNNING
     Returns:
     Raises:
-    Todo:
     """
 
-    _logger.debug("{func} - file name |{file}| ".format(func="backup_status_create", file=_file_name))
+    _logger.debug("{func} - file name |{file}| ".format(func="sl_backup_status_create", file=_file_name))
 
     payload = payload_builder.PayloadBuilder() \
         .INSERT(file_name=_file_name,
@@ -268,12 +270,37 @@ def backup_status_create(_file_name, _type, _status):
     _storage.insert_into_tbl(STORAGE_TABLE_BACKUPS, payload)
 
 
+def sl_backup_status_update(_id, _status, _exit_code):
+    """ Updates the status of the backup using the Storage layer
+
+    Args:
+        _id: Backup's Id to update
+        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
+        _exit_code: exit status of the backup/restore execution
+    Returns:
+    Raises:
+    """
+
+    _logger.debug("{func} - id |{file}| ".format(func="sl_backup_status_update", file=_id))
+
+    payload = payload_builder.PayloadBuilder() \
+        .SET(status=_status,
+             ts="now()",
+             exit_code=_exit_code) \
+        .WHERE(['id', '=', _id]) \
+        .payload()
+
+    _storage.update_tbl(STORAGE_TABLE_BACKUPS, payload)
+
+
 class BackupRestoreLib(object):
     """ Library of functionalities for the backup restore operations that requires information/state to be stored """
 
     _storage = None
     _logger = None
     config = {}
+
+    _DB_CONNECTION_STRING = "dbname='{db}'"
 
     _DEFAULT_FOGLAMP_ROOT = "/usr/local/foglamp"
     """ Default value to use for the FOGLAMP_ROOT if the environment $FOGLAMP_ROOT is not defined """
@@ -304,6 +331,11 @@ class BackupRestoreLib(object):
             "type": "string",
             "default": "foglamp"
         },
+        "schema": {
+            "description": "Schema for backup and restore operations.",
+            "type": "string",
+            "default": "foglamp"
+        },
         "backup-dir": {
             "description": "Directory where backups will be created, "
                            "it uses FOGLAMP_BACKUP or FOGLAMP_DATA or FOGLAMP_BACKUP if none.",
@@ -330,6 +362,16 @@ class BackupRestoreLib(object):
             "description": "Timeout in seconds for the execution of the external commands.",
             "type": "integer",
             "default": "1200"
+        },
+        "restart-max-retries": {
+            "description": "Maximum number of retries at the restart of Foglamp to ensure it is started.",
+            "type": "integer",
+            "default": "10"
+        },
+        "restart-sleep": {
+            "description": "Sleep time between each status check at the restart of Foglamp to ensure it is started.",
+            "type": "integer",
+            "default": "5"
         },
     }
 
@@ -367,13 +409,113 @@ class BackupRestoreLib(object):
 
         self.config = {}
 
-        self._dir_foglamp_root = ""
-        self._dir_foglamp_data = ""
-        self._dir_foglamp_data_etc = ""
-        self._dir_foglamp_backup = ""
+        self.dir_foglamp_root = ""
+        self.dir_foglamp_data = ""
+        self.dir_foglamp_data_etc = ""
+        self.dir_foglamp_backup = ""
 
-        self._dir_backups = ""
-        self._dir_semaphores = ""
+        self.dir_backups = ""
+        self.dir_semaphores = ""
+
+    def get_backup_details(self, backup_id: int) -> dict:
+        """ Returns the details of a backup
+
+        Args:
+            backup_id: int - the id of the backup to return
+
+        Returns:
+            backup_information: all the information available related to the requested backup_id
+
+        Raises:
+            exceptions.DoesNotExist
+            exceptions.NotUniqueBackup
+        """
+
+        payload = payload_builder.PayloadBuilder() \
+            .WHERE(['id', '=', backup_id]) \
+            .payload()
+
+        backup_from_storage = self._storage.query_tbl_with_payload(STORAGE_TABLE_BACKUPS, payload)
+
+        if backup_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+
+        elif backup_from_storage['count'] == 1:
+
+            backup_information = backup_from_storage['rows'][0]
+        else:
+            raise exceptions.NotUniqueBackup
+
+        return backup_information
+
+    def storage_retrieve(self, sql_cmd):
+        """  Executes a sql command against the Storage layer that retrieves data
+
+        Args:
+        Returns:
+            raw_data:list - Python list containing the rows retrieved from the Storage layer
+        Raises:
+        """
+
+        _logger.debug("{func} - sql cmd |{cmd}| ".format(func="storage_retrieve",
+                                                         cmd=sql_cmd))
+
+        db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
+
+        _pg_conn = psycopg2.connect(db_connection_string, cursor_factory=RealDictCursor)
+
+        _pg_cur = _pg_conn.cursor()
+
+        _pg_cur.execute(sql_cmd)
+        raw_data = _pg_cur.fetchall()
+        _pg_conn.close()
+
+        return raw_data
+
+    def storage_update(self, sql_cmd):
+        """Executes a sql command against the Storage layer that updates data
+
+        Args:
+            sql_cmd: sql command to execute
+        Returns:
+        Raises:
+        Todo:
+        """
+
+        _logger.debug("{func} - sql cmd |{cmd}| ".format(
+                                                            func="storage_update",
+                                                            cmd=sql_cmd))
+
+        db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
+
+        _pg_conn = psycopg2.connect(db_connection_string)
+        _pg_cur = _pg_conn.cursor()
+
+        _pg_cur.execute(sql_cmd)
+        _pg_conn.commit()
+        _pg_conn.close()
+
+    def backup_status_update(self, backup_id, status):
+        """ Updates the status of the backup in the Storage layer
+
+        Args:
+            backup_id: int -
+            status: BackupStatus -
+        Returns:
+        Raises:
+        Todo:
+        """
+
+        _logger.debug("{0} - file name |{1}| ".format("func", backup_id))
+
+        sql_cmd = """
+
+            UPDATE foglamp.backups SET  status={status} WHERE id='{id}';
+
+            """.format(status=status,
+                       id=backup_id, )
+
+        self.storage_update(sql_cmd)
 
     def retrieve_configuration(self):
         """  Retrieves the configuration either from the manager or from a local file.
@@ -409,22 +551,22 @@ class BackupRestoreLib(object):
         # Identifies the directory of backups and checks its existence
         if self.config['backup-dir'] != "none":
 
-            self._dir_backups = self.config['backup-dir']
+            self.dir_backups = self.config['backup-dir']
         else:
-            self._dir_backups = self._dir_foglamp_backup
+            self.dir_backups = self.dir_foglamp_backup
 
-        self._check_create_path(self._dir_backups)
+        self._check_create_path(self.dir_backups)
 
         # Identifies the directory for the semaphores and checks its existence
         # Stores semaphores in the _backups_dir if semaphores-dir is not defined
         if self.config['semaphores-dir'] != "none":
 
-            self._dir_semaphores = self.config['semaphores-dir']
+            self.dir_semaphores = self.config['semaphores-dir']
         else:
-            self._dir_semaphores = self._dir_backups
-            JOB_SEM_FILE_PATH = self._dir_semaphores
+            self.dir_semaphores = self.dir_backups
+            JOB_SEM_FILE_PATH = self.dir_semaphores
 
-        self._check_create_path(self._dir_semaphores)
+        self._check_create_path(self.dir_semaphores)
 
     def evaluate_paths(self):
         """  Evaluates paths in relation to the environment variables
@@ -437,27 +579,27 @@ class BackupRestoreLib(object):
 
         # Evaluates FOGLAMP_ROOT
         if "FOGLAMP_ROOT" in os.environ:
-            self._dir_foglamp_root = os.getenv("FOGLAMP_ROOT")
+            self.dir_foglamp_root = os.getenv("FOGLAMP_ROOT")
         else:
-            self._dir_foglamp_root = self._DEFAULT_FOGLAMP_ROOT
+            self.dir_foglamp_root = self._DEFAULT_FOGLAMP_ROOT
 
         # Evaluates FOGLAMP_DATA
         if "FOGLAMP_DATA" in os.environ:
-            self._dir_foglamp_data = os.getenv("FOGLAMP_DATA")
+            self.dir_foglamp_data = os.getenv("FOGLAMP_DATA")
         else:
-            self._dir_foglamp_data = self._dir_foglamp_root + "/data"
+            self.dir_foglamp_data = self.dir_foglamp_root + "/data"
 
         # Evaluates FOGLAMP_BACKUP
         if "FOGLAMP_BACKUP" in os.environ:
-            self._dir_foglamp_backup = os.getenv("FOGLAMP_BACKUP")
+            self.dir_foglamp_backup = os.getenv("FOGLAMP_BACKUP")
         else:
-            self._dir_foglamp_backup = self._dir_foglamp_data + "/backup"
+            self.dir_foglamp_backup = self.dir_foglamp_data + "/backup"
 
         # Evaluates etc directory
-        self._dir_foglamp_data_etc = self._dir_foglamp_data + "/etc"
+        self.dir_foglamp_data_etc = self.dir_foglamp_data + "/etc"
 
-        self._check_create_path(self._dir_foglamp_backup)
-        self._check_create_path(self._dir_foglamp_data_etc)
+        self._check_create_path(self.dir_foglamp_backup)
+        self._check_create_path(self.dir_foglamp_data_etc)
 
     def _check_create_path(self, path):
         """  Checks path existences and creates it if needed
@@ -520,6 +662,9 @@ class BackupRestoreLib(object):
         self.config['max_retry'] = int(_config_from_manager['max_retry']['value'])
         self.config['timeout'] = int(_config_from_manager['timeout']['value'])
 
+        self.config['restart-max-retries'] = int(_config_from_manager['restart-max-retries']['value'])
+        self.config['restart-sleep'] = int(_config_from_manager['restart-sleep']['value'])
+
     def _retrieve_configuration_from_file(self):
         """" Retrieves the configuration from the local file
 
@@ -556,7 +701,7 @@ class BackupRestoreLib(object):
         Raises:
         """
 
-        file_full_path = self._dir_foglamp_data_etc + "/" + self._CONFIG_CACHE_FILE
+        file_full_path = self.dir_foglamp_data_etc + "/" + self._CONFIG_CACHE_FILE
 
         return file_full_path
 
@@ -692,30 +837,6 @@ class Job:
 
         if os.path.exists(full_path):
             os.remove(full_path)
-
-
-def backup_status_update(_id, _status, _exit_code):
-    """ Updates the status of the backup in the Storage layer
-
-    Args:
-        _id: Backup's Id to update
-        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
-        _exit_code: exit status of the backup/restore execution
-    Returns:
-    Raises:
-    Todo:
-    """
-
-    _logger.debug("{func} - id |{file}| ".format(func="backup_status_update", file=_id))
-
-    payload = payload_builder.PayloadBuilder() \
-        .SET(status=_status,
-             ts="now()",
-             exit_code=_exit_code) \
-        .WHERE(['id', '=', _id]) \
-        .payload()
-
-    _storage.update_tbl(STORAGE_TABLE_BACKUPS, payload)
 
 
 if __name__ == "__main__":

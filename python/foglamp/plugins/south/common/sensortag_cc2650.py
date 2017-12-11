@@ -131,7 +131,6 @@ keypress =  {
     },
 }
 
-import bluepy
 char_enable = '01'
 char_disable = '00'
 """

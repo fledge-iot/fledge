@@ -45,5 +45,3 @@ def get_instance(name, host, port):
     # print(sys.argv)
     fs = FooServer()
     return fs
-
-

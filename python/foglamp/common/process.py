@@ -130,8 +130,7 @@ class FoglampProcess(ABC):
     def unregister_service(self):
         """ UnRegister, with core, this process as a microservice.
         """
-        res = self._m_client.unregister_service(self.microservice_id)
-        return res
+        return self._m_client.unregister_service(self.microservice_id)
 
     def get_service(self, name=None, _type=None):
         return self._m_client.get_services(name, _type)
@@ -139,12 +138,12 @@ class FoglampProcess(ABC):
     def register_interest(self):
         # cat name
         # callback module
-        # self.__class__._microservice_id
+        # self.microservice_id
         raise NotImplementedError
 
     def deregister_interest(self):
         # cat name
-        # self.__class__._microservice_id
+        # self.microservice_id
         raise NotImplementedError
 
     class MicroserviceManagementClient(object):
@@ -202,9 +201,15 @@ class FoglampProcess(ABC):
             return response
 
         def register_interest(self):
+            # TODO
+            # check with python/foglamp/services/common/microservice_management/service_registry/service_registry.py
+            # And routing problem
             pass
 
         def unregister_interest(self):
+            # TODO
+            # check with python/foglamp/services/common/microservice_management/service_registry/service_registry.py
+            # And routing problem
             pass
 
         def get_services(self, name=None, _type=None):

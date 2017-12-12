@@ -1,11 +1,18 @@
 .DS_Store
 
+# vi
+*.swp
+
 # IDE
 *.idea
+
+# Data / cache files
+data/etc/storage.json
 
 # Docs
 docs/_build
 docs/__pycache__/
+docs/.cache/
 
 # Compiled Object files
 *.pyc
@@ -13,3 +20,13 @@ docs/__pycache__/
 # Allure
 allure/
 allure-report/
+
+# build specific
+/C/plugins/storage/build
+/C/services/storage/build
+/cmake_build
+/plugins
+/python_build
+/services
+
+.cache/

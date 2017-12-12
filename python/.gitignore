@@ -1,0 +1,55 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.cache/
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# Config env file
+foglamp-env.yaml
+
+# install info file (used to uninstall)
+install-info.txt
+
+# lint check
+pylint_*.log
+
+# tox
+.tox
+
+# Pytest coverage
+.coverage
+htmlcov/
+coverage.xml

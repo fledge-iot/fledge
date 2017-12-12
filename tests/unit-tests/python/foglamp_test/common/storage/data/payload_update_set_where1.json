@@ -1,0 +1,11 @@
+{
+  "table": "test_tbl",
+  "values": {
+    "value": "test_update"
+  },
+  "where": {
+    "column": "name",
+    "condition": "=",
+    "value": "test"
+  }
+}

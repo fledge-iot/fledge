@@ -1,0 +1,251 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2017 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+set -e
+#set -x
+
+#
+# This is the startup script for foglamp
+#
+USAGE="Usage: `basename ${0}` {start|stop|status|help}"
+
+# Check FOGLAMP_ROOT
+if [ -z ${FOGLAMP_ROOT+x} ]; then
+    # Set FOGLAMP_ROOT as the default directory
+    FOGLAMP_ROOT="/usr/local/foglamp"
+    export FOGLAMP_ROOT
+fi
+
+# Check if the default directory exists
+if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+    logger -p local0.err -t "foglamp.script.foglamp" "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
+    echo "FogLAMP cannot be executed: ${FOGLAMP_ROOT} is not a valid directory."
+    echo "Create the enviroment variable FOGLAMP_ROOT before using FogLAMP."
+    echo "Specify the base directory for FogLAMP and set the variable with:"
+    echo "export FOGLAMP_ROOT=<basedir>"
+    exit 1
+fi
+
+
+##########
+## INCLUDE SECTION
+##########
+. $FOGLAMP_ROOT/scripts/common/write_log.sh
+
+
+## Logger wrapper
+foglamp_log() {
+    write_log "foglamp.script.foglamp" "$1" "$2" "$3" "$4"
+}
+
+
+## FogLAMP Start
+foglamp_start() {
+
+    # Check the storage management script
+    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
+        foglamp_log "info" "FogLAMP cannot start." "all" "pretty"
+        foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
+        exit 1
+    fi
+
+    # Check the Python environment
+    if ! [[ -x "$(command -v python3)" ]]; then
+        foglamp_log "err" "Python interpreter not found, FogLAMP cannot start." "all" "pretty"
+        exit 1
+    fi
+
+    # Execute the Storage Plugin Script
+    # NOTE: this script prepares the storage,
+    #       but it does not start the microservice
+    source "$FOGLAMP_ROOT/scripts/storage" start
+
+    result=`foglamp_status "silent"`
+    case "$result" in
+
+        "0")
+            #FogLAMP already running
+            foglamp_log "info" "FogLAMP is already running." "all" "pretty"
+            ;;
+
+        "2")
+            #FogLAMP not running
+            PYTHONPATH=${FOGLAMP_ROOT}/python
+            export PYTHONPATH
+            if [[ -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
+                python3 -m foglamp.services.core > /dev/null 2>&1 & disown
+                foglamp_log "info" "FogLAMP started." "all" "pretty"
+            else
+                foglamp_log "err" "FogLAMP core not found." "all" "pretty"
+                exit 1
+            fi
+            ;;
+
+        *)
+            foglamp_log "err" "Unknown return status." "all"
+            exit 1
+            ;;
+    esac
+
+}
+
+
+## FogLAMP Stop
+#
+# We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
+#
+foglamp_stop() {
+
+    # Check the storage management script
+    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
+        foglamp_log "info" "FogLAMP cannot be stopped." "all" "pretty"
+        foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
+        exit 1
+    fi
+
+    # Kill the python processes
+    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+
+    # Kill the services processes
+    ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+
+    # Kill the shell script processes
+    ps -ef | grep '/bin/sh services' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+
+    # Execute the Storage Plugin script
+    # NOTE: This script does not stop the microservice,
+    #       it deals with the database engine.
+    source "$FOGLAMP_ROOT/scripts/storage" stop
+    
+    foglamp_log "info" "FogLAMP stopped." "all" "pretty"
+
+}
+
+
+## FogLAMP status
+#  NOTE: this command works only with the default REST API Port
+foglamp_status() {
+
+    # Check if curl is present
+    if [[ ! `command -v curl` ]]; then
+        foglamp_log "info" "FogLAMP cannot be checked." "outonly" "pretty"
+        foglamp_log "info" "The curl command cannot be executed." "outonly" "pretty"
+    fi
+
+    result=`curl -s http://localhost:8081/foglamp/ping || true`
+    case "$result" in
+
+        *uptime*)
+            if [[ "$1" == "silent" ]]; then
+                echo "0"
+            else
+                tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
+                foglamp_log "info" "FogLAMP running." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
+
+                # Show Services
+                foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
+                foglamp_log "info" "foglamp.services.core" "outonly" "pretty"
+                ps -ef | grep "$FOGLAMP_ROOT//services/storage" | grep -v 'grep' | awk '{print "foglamp.services.storage " $9 " " $10}' || true
+                ps -ef | grep "$FOGLAMP_ROOT//services/south" | grep -v 'grep' | awk '{print "foglamp.services.south " $9 " " $10}' || true
+                ps -ef | grep "$FOGLAMP_ROOT//services/north" | grep -v 'grep' | awk '{print "foglamp.services.north " $9 " " $10}' || true
+                ps -ef | grep -o 'python3 -m foglamp.services.south.*' | grep -o 'foglamp.services.south.*' | grep -v 'foglamp.services.south\.\*' || true
+                ps -ef | grep -o 'python3 -m foglamp.services.north.*' | grep -o 'foglamp.services.north.*' | grep -v 'foglamp.services.north\.\*' || true
+
+                # Show Tasks
+                foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
+                ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
+            fi
+            ;;
+        *)
+            if [[ `ps -ef | grep -c 'python3 -m foglamp.services.core'` -gt 1 ]]; then
+                if [[ "$1" == "silent" ]]; then
+                    echo "0"
+                else
+                    foglamp_log "info" "FogLAMP starting." "outonly" "pretty"
+                fi
+            else
+                if [[ "$1" == "silent" ]]; then
+                    echo "2"
+                else
+                    foglamp_log "info" "FogLAMP not running." "outonly" "pretty"
+                fi
+            fi
+            ;;
+    esac
+}
+
+
+## FogLAMP Script Help
+foglamp_help() {
+
+    echo "${USAGE}
+FogLAMP admin script
+The script is used to start FogLAMP
+Arguments:
+ start   - Start FogLAMP core (core will start other services).
+ stop    - Stop all FogLAMP services and processes
+ status  - Show the status for the FogLAMP services
+ help    - This text"
+
+}
+
+
+### Main Logic ###
+
+# Set FOGLAMP_DATA if it does not exist
+if [ -z ${FOGLAMP_DATA+x} ]; then
+    FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
+    export FOGLAMP_DATA
+fi
+
+# Check if $FOGLAMP_DATA exists and is a directory
+if [[ ! -d ${FOGLAMP_DATA} ]]; then
+    foglamp_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
+    exit 1
+fi
+
+# Check if the configuration file exists
+if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
+
+    # Missing configuration file
+    foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
+    foglamp_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
+    exit 1
+
+fi
+
+case "$1" in
+    start)
+        foglamp_start
+        ;;
+    stop)
+        foglamp_stop
+        ;;
+    status)
+        foglamp_status
+        ;;
+    help)
+        foglamp_help
+        ;;
+    *)
+        echo "${USAGE}"
+        exit 1
+esac
+
+exit $?

@@ -1,0 +1,24 @@
+#!/bin/sh
+# Run FogLAMP fogbench
+# execution sample :
+# "${FOGLAMP_ROOT}/scripts/extras/foglamp.fogbench" -t "${FOGLAMP_ROOT}/extras/python/fogbench/templates/fogbench_sensor_coap.template.json" -H localhost -P 5683  -O 100
+
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+	logger "FogLAMP home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}/extras/python" ]; then
+	logger "FogLAMP home directory is missing the Extras installation"
+	exit 1
+fi
+
+# Add fogbench code to the PYTHONPATH
+export PYTHONPATH=${FOGLAMP_ROOT}/extras/python:${PYTHONPATH}
+
+python3 -m fogbench $@
+

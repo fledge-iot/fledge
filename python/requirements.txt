@@ -1,0 +1,16 @@
+# coap
+aiocoap==0.3
+cbor2==4.0.0
+
+# deployment
+# packaging enables pip install -e
+packaging==16.8
+
+# rest
+aiohttp==2.2.5
+aiohttp_cors==0.5.3
+cchardet==2.1.0
+requests==2.18.4
+
+# sensortag
+pexpect==4.0.1

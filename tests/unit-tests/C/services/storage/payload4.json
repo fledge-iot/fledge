@@ -1,0 +1,14 @@
+{
+	"values" : {
+		"log" : {
+			"module" : "user",
+			"message" : "Testing JSON insert",
+			"severity" : 10
+			}
+		},
+	"condition" : {
+		"column" : "code",
+		"condition" : "=",
+		"value" : "LOGGN"
+		}
+}

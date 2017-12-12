@@ -151,7 +151,7 @@ class Restore(object):
             _message = self._MESSAGES_LIST["e000001"].format(_ex)
             Restore._logger.error("{0}".format(_message))
 
-            raise exceptions.BackupFailed(_message)
+            raise exceptions.RestoreFailed(_message)
 
 
 class RestoreProcess(FoglampProcess):

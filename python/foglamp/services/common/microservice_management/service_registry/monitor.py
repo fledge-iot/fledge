@@ -14,7 +14,6 @@ import json
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.common.microservice_management.service_registry.instance import Service
-from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import connect
 
 __author__ = "Ashwin Gopalakrishnan"
@@ -27,9 +26,10 @@ class Monitor(object):
     _DEFAULT_SLEEP_INTERVAL = 5
     """The time (in seconds) to sleep between health checks"""
     _DEFAULT_PING_TIMEOUT = 1
-    """Timeout for a response from any given microservice"""
+    """Timeout for a response from any given micro-service"""
 
     _logger = None  # type: logging.Logger
+
     def __init__(self):
         """Constructor"""
 
@@ -90,8 +90,9 @@ class Monitor(object):
         self._sleep_interval = int(config['sleep_interval']['value'])
         self._ping_timeout = int(config['ping_timeout']['value'])
 
-
     async def start(self):
         await self._read_config()
         self._monitor_loop_task = asyncio.ensure_future(self._monitor_loop())
 
+    async def stop(self):
+        self._monitor_loop_task.cancel()

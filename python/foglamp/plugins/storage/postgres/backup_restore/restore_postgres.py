@@ -20,10 +20,9 @@ Usage:
     The latest backup will be restored if no options is used.
 
 Execution samples :
-
-restore_postgres --backup-id=29
-restore_postgres --file=/tmp/foglamp_backup_2017_12_04_13_57_37.dump
-restore_postgres
+    restore_postgres --backup-id=29
+    restore_postgres --file=/tmp/foglamp_backup_2017_12_04_13_57_37.dump
+    restore_postgres
 
 Exit code :
     0    = OK
@@ -32,11 +31,9 @@ Exit code :
 """
 
 import time
-# noinspection PyUnresolvedReferences
 import sys
 import os
 import signal
-import asyncio
 import uuid
 
 from foglamp.services.core import server
@@ -80,7 +77,7 @@ _LOG_LEVEL_INFO = 20
 _LOGGER_LEVEL = _LOG_LEVEL_DEBUG
 # _LOGGER_DESTINATION = logger.CONSOLE
 # _LOGGER_DESTINATION = logger.SYSLOG
-_LOGGER_DESTINATION = logger.SYSLOG
+_LOGGER_DESTINATION = logger.CONSOLE
 
 
 def _signal_handler(_signo,  _stack_frame):
@@ -484,9 +481,10 @@ class RestoreProcess(FoglampProcess):
                                                                     file=backup_file))
 
         # Prepares the restore command
-        # FIXME:
+        pg_cmd = self._restore_lib.PG_COMMANDS[self._restore_lib.PG_COMMAND_RESTORE]
+
         cmd = "{cmd} {options} -d {db}  {file}".format(
-                                                cmd="pg_restore",
+                                                cmd=pg_cmd,
                                                 options="--verbose --clean --no-acl --no-owner",
                                                 db=self._restore_lib.config['database'],
                                                 file=backup_file
@@ -552,9 +550,10 @@ class RestoreProcess(FoglampProcess):
 
         backup_id, file_name = self._identifies_backup_to_restore()
 
-        self._logger.debug("{func} - backup to restore |{id}| - |{file}| ".format(func="execute_restore",
-                                                                                   id=backup_id,
-                                                                                   file=file_name))
+        self._logger.debug("{func} - backup to restore |{id}| - |{file}| ".format(
+                                                                                func="execute_restore",
+                                                                                id=backup_id,
+                                                                                file=file_name))
 
         # Stops FogLamp if it is running
         if self._foglamp_status() == self.FogLampStatus.RUNNING:
@@ -598,6 +597,8 @@ class RestoreProcess(FoglampProcess):
         self._restore_lib.evaluate_paths()
 
         self._restore_lib.retrieve_configuration()
+
+        self._restore_lib.restore_check_for_execution()
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()
@@ -684,13 +685,9 @@ if __name__ == "__main__":
         # a) SIGINT: Keyboard interrupt
         # b) SIGTERM: kill or system shutdown
         # c) SIGHUP: Controlling shell exiting
-        # noinspection PyUnresolvedReferences
         signal.signal(signal.SIGINT, _signal_handler)
-        # noinspection PyUnresolvedReferences
         signal.signal(signal.SIGTERM, _signal_handler)
-        # noinspection PyUnresolvedReferences
         signal.signal(signal.SIGHUP, _signal_handler)
-        # noinspection PyUnresolvedReferences
         signal.signal(signal.SIGALRM, _signal_handler)
 
         # noinspection PyProtectedMember

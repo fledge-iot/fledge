@@ -13,7 +13,6 @@ retrieving the parameters for the execution from the local file 'backup_configur
 
 """
 
-# noinspection PyUnresolvedReferences
 import sys
 import time
 import os
@@ -679,7 +678,6 @@ class BackupProcess(FoglampProcess):
             exceptions.PgCommandNotExecutable
         """
 
-        # noinspection PyUnresolvedReferences
         if os.access(cmd_to_test, os.X_OK):
             cmd = cmd_to_test + " -V"
 

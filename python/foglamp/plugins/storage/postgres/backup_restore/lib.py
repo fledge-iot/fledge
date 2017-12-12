@@ -141,6 +141,12 @@ def exec_wait(_cmd, _output_capture=False, _timeout=0):
         output_step1 = process.stdout.read()
         _output = output_step1.decode("utf-8")
 
+    _logger.debug("{func} - Executed command - cmd |{cmd}| - exit_code |{exit_code}| - output |{output}| ".format(
+                                    func="exec_wait",
+                                    cmd=_cmd,
+                                    exit_code=_exit_code,
+                                    output=_output))
+
     return _exit_code, _output
 
 
@@ -303,6 +309,21 @@ class BackupRestoreLib(object):
     _logger = None
     config = {}
 
+    # Postgres commands
+    PG_COMMAND_DUMP = "pg_dump"
+    PG_COMMAND_RESTORE = "pg_restore"
+    PG_COMMAND_PSQL = "psql"
+
+    PG_COMMANDS = {PG_COMMAND_DUMP: None,
+                   PG_COMMAND_RESTORE: None,
+                   PG_COMMAND_PSQL: None
+                   }
+    """List of Postgres commands to check/validate if they are available and usable
+       and the actual Postgres commands to use """
+
+    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/plsql/bin"
+    """Directory for Postgres commands in a managed configuration"""
+
     _DB_CONNECTION_STRING = "dbname='{db}'"
 
     _DEFAULT_FOGLAMP_ROOT = "/usr/local/foglamp"
@@ -372,7 +393,8 @@ class BackupRestoreLib(object):
             "default": "10"
         },
         "restart-sleep": {
-            "description": "Sleep time between each status check at the restart of Foglamp to ensure it is started.",
+            "description": "Sleep time between each check of the status at the restart of Foglamp "
+                           "to ensure it is started successfully.",
             "type": "integer",
             "default": "5"
         },
@@ -419,6 +441,155 @@ class BackupRestoreLib(object):
 
         self.dir_backups = ""
         self.dir_semaphores = ""
+
+    def restore_check_for_execution(self):
+        """ Executes all the checks to ensure the prerequisites to execute the backup are met
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        self._check_commands()
+
+    def _check_commands(self):
+        """ Identify and checks the Postgres commands
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        for cmd in self.PG_COMMANDS:
+
+            cmd_identified = self._check_command_identification(cmd)
+            self._check_command_test(cmd_identified)
+
+    def _check_command_identification(self, cmd_to_identify):
+        """ Identifies the proper Postgres command to use, 2 possible cases :
+
+        Managed    - command is available in $FOGLAMP_ROOT/plugins/storage/postgres/pgsql/bin
+        Unmanaged  - checks using the path and it identifies the used command through 'command -v'
+
+        Args:
+            cmd_to_identify: str - command to identify
+
+        Returns:
+            cmd_identified: str - actual identified command to use
+
+        Raises:
+            exceptions.PgCommandUnAvailable
+        """
+
+        is_managed = self._is_plugin_managed("postgres")
+
+        if is_managed:
+            # Checks for Managed
+            cmd_managed = "{root}/{path}/{cmd}".format(
+                                                        root=self.dir_foglamp_root,
+                                                        path=self._DIR_MANAGED_FOGLAMP_PG_COMMANDS,
+                                                        cmd=cmd_to_identify)
+
+            if os.path.exists(cmd_managed):
+                cmd_identified = cmd_managed
+            else:
+                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.PgCommandUnAvailable(_message)
+        else:
+            # Checks for Unmanaged
+            cmd = "command -v " + cmd_to_identify
+
+            # The timeout command can't be used with 'command'
+            # noinspection PyArgumentEqualDefault
+            _exit_code, output = exec_wait(
+                                            _cmd=cmd,
+                                            _output_capture=True,
+                                            _timeout=0
+                                            )
+
+            self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+                                                                            func="_check_command_identification",
+                                                                            cmd=cmd,
+                                                                            exit_code=_exit_code,
+                                                                            output=output))
+
+            if _exit_code == 0:
+                cmd_identified = cr_strip(output)
+            else:
+                _message = self._MESSAGES_LIST["e000015"].format(cmd)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.PgCommandUnAvailable(_message)
+
+        self.PG_COMMANDS[cmd_to_identify] = cmd_identified
+
+        return cmd_identified
+
+    def _is_plugin_managed(self, plugin_to_identify):
+        """ Identifies the type of plugin, Managed or not, looking at the foglamp.json configuration file
+
+        Args:
+            plugin_to_identify: str - plugin to evaluate if it is managed or not
+        Returns:
+            type: boolean - True if it is a managed plugin
+        Raises:
+        """
+
+        plugin_type = False
+
+        file_full_path = self.dir_foglamp_data + FOGLAMP_CFG_FILE
+
+        with open(file_full_path) as file:
+            cfg_file = json.load(file)
+
+        plugins = cfg_file["storage plugins"]
+
+        for plugin in plugins:
+            if plugin["plugin"] == plugin_to_identify:
+                plugin_type = plugin["managed"]
+
+        return plugin_type
+
+    def _check_command_test(self, cmd_to_test):
+        """ Tests if the Postgres command could be successfully launched/used
+
+        Args:
+            cmd_to_test: str -  Command to test
+
+        Returns:
+        Raises:
+            exceptions.PgCommandUnAvailable
+            exceptions.PgCommandNotExecutable
+        """
+
+        if os.access(cmd_to_test, os.X_OK):
+            cmd = cmd_to_test + " -V"
+
+            _exit_code, output = exec_wait(
+                                            _cmd=cmd,
+                                            _output_capture=True,
+                                            _timeout=self.config['timeout']
+                                            )
+
+            self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+                                                                            func="_check_command_test",
+                                                                            cmd=cmd,
+                                                                            exit_code=_exit_code,
+                                                                            output=output))
+
+            if _exit_code != 0:
+                _message = self._MESSAGES_LIST["e000017"].format(cmd_to_test, output)
+                self._logger.error("{0}".format(_message))
+
+                raise exceptions.PgCommandUnAvailable(_message)
+
+        else:
+            _message = self._MESSAGES_LIST["e000016"].format(cmd_to_test)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.PgCommandNotExecutable(_message)
 
     def get_backup_details(self, backup_id: int) -> dict:
         """ Returns the details of a backup
@@ -507,7 +678,8 @@ class BackupRestoreLib(object):
         Raises:
         """
 
-        _logger.debug("{0} - file name |{1}| ".format("func", backup_id))
+        _logger.debug("{func} - backup id |{id}| ".format(func="backup_status_update",
+                                                          id=backup_id))
 
         sql_cmd = """
 

@@ -13,6 +13,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
+from aiohttp import web
 
 
 __author__ = "Terris Linenbach"
@@ -199,3 +200,11 @@ class Server(FoglampMicroservice):
 
         asyncio.ensure_future(self._start(loop))
         loop.run_forever()
+
+    async def shutdown(self, request):
+        print("shutdown south")
+        return web.json_response({"south":"shutdown"})
+
+    async def notify(self, request):
+        print("notify south")
+        return web.json_response({"south":"notify"})

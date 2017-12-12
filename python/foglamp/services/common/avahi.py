@@ -66,3 +66,47 @@ DBUS_INTERFACE_HOST_NAME_RESOLVER = DBUS_NAME + ".HostNameResolver"
 DBUS_INTERFACE_SERVICE_RESOLVER = DBUS_NAME + ".ServiceResolver"
 DBUS_INTERFACE_RECORD_BROWSER = DBUS_NAME + ".RecordBrowser"
 
+def byte_array_to_string(s):
+    r = ""
+    
+    for c in s:
+        
+        if c >= 32 and c < 127:
+            r += "%c" % c
+        else:
+            r += "."
+
+    return r
+
+def txt_array_to_string_array(t):
+    l = []
+
+    for s in t:
+        l.append(byte_array_to_string(s))
+
+    return l
+
+
+def string_to_byte_array(s):
+    r = []
+
+    for c in s:
+        r.append(dbus.Byte(ord(c)))
+
+    return r
+
+def string_array_to_txt_array(t):
+    l = []
+
+    for s in t:
+        l.append(string_to_byte_array(s))
+
+    return l
+
+def dict_to_txt_array(txt_dict):
+    l = []
+
+    for k,v in txt_dict.items():
+        l.append(string_to_byte_array("%s=%s" % (k,v)))
+
+    return l

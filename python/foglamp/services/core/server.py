@@ -137,6 +137,7 @@ class Server:
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
+            _logger.info('Announce management API service')
             cls.management_announcer = ServiceAnnouncer('FogLAMP-Core', '_foglamp_core._tcp', cls.core_management_port,
                                                     ['The FogLAMP Core REST API'])
 

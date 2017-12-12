@@ -6,7 +6,7 @@
 
 """Common FoglampMicroservice Class"""
 
-import avahi
+import foglamp.services.common.avahi as avahi
 import dbus
 
 __author__ = "Mark Riddoch"

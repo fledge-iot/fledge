@@ -235,7 +235,7 @@ def plugin_poll(handle):
 
     _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
-
+import bluepy
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the

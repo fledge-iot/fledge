@@ -18,7 +18,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-_LOGGER = logger.setup(__name__)
+_LOGGER = logger.setup(__name__, level=20)
 
 # TODO: Out of 14 services, only below 5 services have been attended to. Next tasks will take care of at least up/down +
 #       tick and battery level indicator services. Also, implement a ping method.
@@ -147,7 +147,7 @@ Bits	Usage
 8:9	Accelerometer range (0=2G, 1=4G, 2=8G, 3=16G)
 10:15	Not used
 """
-movement_enable = 'FFFF'
+movement_enable = 'FF80'
 movement_disable = '0000'
 
 
@@ -294,7 +294,9 @@ class SensorTagCC2650(object):
         # Choose ambient temperature (reverse bytes for little endian)
         raw_ambient_temp = int('0x' + raw_temperature[6:8] + raw_temperature[4:6], 16)
         ambient_temp_int = raw_ambient_temp >> 2
-        ambient_temp_celsius = float(ambient_temp_int) * SCALE_LSB
+        ambient_temp_float = float(ambient_temp_int)
+        ambient_temp_celsius = ambient_temp_float * SCALE_LSB
+
         ambient_temp_fahrenheit = (ambient_temp_celsius * 1.8) + 32
         _LOGGER.debug('SensorTagCC2650 {} object: {} ambient: {}'.format(
             self.bluetooth_adr, object_temp_celsius, ambient_temp_celsius))
@@ -368,9 +370,19 @@ class SensorTagCC2650(object):
         :return:
         """
         # TODO: Double confirm the formulae, calculations
-        gyro_convert = lambda data: (data * 1.0) / (65536 / 500)
-        acc_convert = lambda raw_data, ginfo: (raw_data * 1.0) / (32768/ginfo)
-        mag_convert = lambda data: 1.0 * data
+        def gyro_convert(data):
+            scale = 500.0 / 65536.0
+            return float(data) * scale
+
+        def acc_convert(data, ginfo):
+            scale = ginfo / 32768.0
+            return float(data) * scale
+
+        def mag_convert(data):
+            # Reference: MPU-9250 register map v1.4
+            scale = 4912.0 / 32760
+            return float(data) * scale
+
         def get_signed_int(a, b):
             """
             Signed binary int to decimal conversion
@@ -419,8 +431,8 @@ class SensorTagCC2650(object):
         gyro_y = gyro_convert(raw_gyro_y)
         gyro_z = gyro_convert(raw_gyro_z)
 
-        acc_range = int('0x'+movement_enable, 16) | int('0x00c0', 16) >> 6
-        gdata = 16 if acc_range == 3 else 8 if acc_range == 2 else 4 if acc_range == 1 else 2
+        acc_range = int('0xFF80', 16) >> 6 & 3
+        gdata = 16.0 if acc_range == 3 else 8.0 if acc_range == 2.0 else 4.0 if acc_range == 1 else 2.0
         acc_x = acc_convert(raw_acc_x, gdata)
         acc_y = acc_convert(raw_acc_y, gdata)
         acc_z = acc_convert(raw_acc_z, gdata)
@@ -454,10 +466,10 @@ class SensorTagCC2650(object):
         """
         interim_value = raw_humd.decode()
         raw_temperature = int('0x'+interim_value[2:4]+interim_value[0:2], 16)
-        temperature = ((raw_temperature / 65536) * 165) - 40
+        temperature = (float(raw_temperature) / 65536) * 165 - 40
         raw_humidity = int('0x'+interim_value[6:8]+interim_value[4:6], 16)
-        raw_humidity &= -0x0003
-        humidity = float(raw_humidity) / 65536 * 100
+        raw_humidity &= ~0x0003
+        humidity = (float(raw_humidity) / 65536) * 100
         _LOGGER.debug('SensorTagCC2650 {} humidity: {} temperature: {}'.format(
             self.bluetooth_adr, humidity, temperature))
         return humidity, temperature
@@ -478,6 +490,8 @@ class SensorTagCC2650(object):
         :return:
         """
         interim_value = raw_pr.decode()
+        raw_temperature = int('0x'+interim_value[4:6]+interim_value[2:4]+interim_value[0:2], 16)
+        temperature = float(raw_temperature) / 100.0
         raw_pressure = int('0x'+interim_value[10:12]+interim_value[8:10]+interim_value[6:8], 16)
         pressure = float(raw_pressure) / 100.0
         _LOGGER.debug('SensorTagCC2650 {} pressure: {}'.format(self.bluetooth_adr, pressure))
@@ -487,8 +501,8 @@ class SensorTagCC2650(object):
         """
         Conversion method at http://processors.wiki.ti.com/index.php/CC2650_SensorTag_User's_Guide#Gatt_Server
 
-        The data from the optical sensor consists of a single 16-bit unsigned integer. Conversion to l
-        ight intensity (LUX) is shown below.
+        The data from the optical sensor consists of a single 16-bit unsigned integer. Conversion to light
+        intensity (LUX) is shown below.
         float sensorOpt3001Convert(uint16_t rawData)
         {
             uint16_t e, m;
@@ -507,14 +521,9 @@ class SensorTagCC2650(object):
         interim_value = raw_lumn.decode()
         # Reverse LSB and MSB
         raw_luminance = int('0x'+interim_value[2:4]+interim_value[0:2], 16)
-        m = "0FFF"
-        e = "F000"
-        m = int(m, 16)
-        exp = int(e, 16)
-        m = (raw_luminance & m)
-        exp = (raw_luminance & exp) >> 12
-        exp = 1 if exp == 0 else 2
-        exp = exp << (exp - 1)
+        m = (raw_luminance & 0x0FFF)
+        exp = (raw_luminance & 0x0FFF) >> 12
+        exp = 1 if exp == 0 else (2 << (exp - 1))
         luminance = (m * (0.01 * exp))
         _LOGGER.debug('SensorTagCC2650 {} luminance: {}'.format(self.bluetooth_adr, luminance))
         return luminance

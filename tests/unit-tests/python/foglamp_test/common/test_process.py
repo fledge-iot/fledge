@@ -18,7 +18,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "33676"
+core_port = "34153"
 
 
 @pytest.allure.feature("common")
@@ -43,7 +43,7 @@ class TestMicroserviceManagementClient:
 
         res = fs.find_services(_type='Southbound')
         found = res["services"]
-        assert 4 == len(found)
+        assert 2 == len(found)
 
     def test_get_service(self):
         res = fs.find_services()
@@ -66,7 +66,7 @@ class TestMicroserviceManagementClient:
 
         res = fs.find_services(_type='Southbound')
         found = res["services"]
-        assert 3 == len(found)
+        assert 1 == len(found)
 
     @pytest.mark.skip(reason="Not implemented")
     def test_register_interest_in_category(self):

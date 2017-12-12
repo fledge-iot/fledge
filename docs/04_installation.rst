@@ -32,7 +32,7 @@
 
 .. |ARM Package| raw:: html
 
-   <a href=https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.0-alpha_amd64.snap" target="_blank">Snap for ARM A-8 (64 bit) / Raspberry PI 3</a>
+   <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.0-alpha_armhf.snap" target="_blank">Snap for ARM (armhf - ARM hard float) / Raspberry PI 2 & 3</a>
 
 
 
@@ -199,6 +199,8 @@ You can download the package from here:
 
 
 Once you have downloaded the package, install it using the ``snap install`` command. Note that you may need to install it as superuser (or by using the ``sudo`` command). The current version of FogLAMP must be installed using the *--devmode* argument, since there are currently no security confinments.
+
+For example, if you are installing FogLAMP on an Intel x86/64 machine, you can type:
 
 .. code-block:: console
 

@@ -35,6 +35,11 @@ _DEFAULT_CONFIG = {
         'description': 'Bluetooth MAC address',
         'type': 'string',
         'default': 'B0:91:22:EA:79:04'
+    },
+    'connectionTimeout': {
+        'description': 'BLE Device timeout value in seconds',
+        'type': 'integer',
+        'default': '10'
     }
 }
 
@@ -75,7 +80,8 @@ def plugin_init(config):
     data = copy.deepcopy(config)
 
     bluetooth_adr = config['bluetoothAddress']['value']
-    tag = SensorTagCC2650(bluetooth_adr)
+    timeout = config['connectionTimeout']['value']
+    tag = SensorTagCC2650(bluetooth_adr, timeout)
 
     data['is_connected'] = tag.is_connected
     if data['is_connected'] is True:

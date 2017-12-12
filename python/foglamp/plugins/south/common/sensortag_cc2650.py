@@ -114,13 +114,13 @@ characteristics = {
         }
     },
 }
-battery =  {
+battery = {
     'data': {
         'uuid': '00002a19-0000-1000-8000-00805f9b34fb',
         'handle': '0x001e'
     },
 }
-keypress =  {
+keypress = {
     'data': {
         'uuid': '0000ffe1-0000-1000-8000-00805f9b34fb',
         'handle': '0x004c'
@@ -157,12 +157,12 @@ class SensorTagCC2650(object):
     reading_iterations = 1  # number of iterations to read data from the TAG
     is_connected = False
 
-    def __init__(self, bluetooth_adr):
+    def __init__(self, bluetooth_adr, timeout):
         try:
             self.bluetooth_adr = bluetooth_adr
 
             self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
-            self.con.expect('\[LE\]>', timeout=10)
+            self.con.expect('\[LE\]>', timeout=int(timeout))
 
             msg_debug = 'SensorTagCC2650 {} Connecting... If nothing happens, please press the power button.'.\
                         format(self.bluetooth_adr)
@@ -170,7 +170,7 @@ class SensorTagCC2650(object):
             _LOGGER.debug(msg_debug)
 
             self.con.sendline('connect')
-            self.con.expect('.*Connection successful.*\[LE\]>', timeout=10)
+            self.con.expect('.*Connection successful.*\[LE\]>', timeout=int(timeout))
             self.is_connected = True
             msg_success = 'SensorTagCC2650 {} connected successfully'.format(self.bluetooth_adr)
             print(msg_success)
@@ -179,7 +179,7 @@ class SensorTagCC2650(object):
             self.is_connected = False
             self.con.sendline('quit')
             # TODO: Investigate why SensorTag goes to sleep often and find a suitable software solution to awake it.
-            msg_failure = 'SensorTagCC2650 {} connection failure.'.format(self.bluetooth_adr)
+            msg_failure = 'SensorTagCC2650 {} connection failure. Timeout={} seconds.'.format(self.bluetooth_adr, timeout)
             print(msg_failure)
             _LOGGER.exception(msg_failure)
 

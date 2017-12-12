@@ -25,6 +25,9 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+SCHEDULE_RESTORE_ON_DEMAND = "8d4d3ca0-de80-11e7-80c1-9a214cf093ae"
+
 FOGLAMP_CFG_FILE = "/etc/foglamp.json"
 
 MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
@@ -479,7 +482,6 @@ class BackupRestoreLib(object):
             sql_cmd: sql command to execute
         Returns:
         Raises:
-        Todo:
         """
 
         _logger.debug("{func} - sql cmd |{cmd}| ".format(
@@ -503,7 +505,6 @@ class BackupRestoreLib(object):
             status: BackupStatus -
         Returns:
         Raises:
-        Todo:
         """
 
         _logger.debug("{0} - file name |{1}| ".format("func", backup_id))

@@ -36,7 +36,10 @@ import time
 import sys
 import os
 import signal
+import asyncio
+import uuid
 
+from foglamp.services.core import server
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 
@@ -75,7 +78,9 @@ _LOG_LEVEL_INFO = 20
 # _LOGGER_LEVEL = _LOG_LEVEL_INFO
 # _LOGGER_DESTINATION = logger.SYSLOG
 _LOGGER_LEVEL = _LOG_LEVEL_DEBUG
-_LOGGER_DESTINATION = logger.CONSOLE
+# _LOGGER_DESTINATION = logger.CONSOLE
+# _LOGGER_DESTINATION = logger.SYSLOG
+_LOGGER_DESTINATION = logger.SYSLOG
 
 
 def _signal_handler(_signo,  _stack_frame):
@@ -101,6 +106,18 @@ class Restore(object):
 
     _logger = None
 
+    _MESSAGES_LIST = {
+
+        # Information messages
+        "i000000": "general information",
+        "i000001": "On demand restore successfully launched.",
+
+        # Warning / Error messages
+        "e000000": "general error",
+        "e000001": "cannot launch on demand restore - error details |{0}|",
+    }
+    """ Messages used for Information, Warning and Error notice """
+
     def __init__(self, _storage):
         self._storage = _storage
 
@@ -110,7 +127,7 @@ class Restore(object):
                                             destination=_LOGGER_DESTINATION,
                                             level=_LOGGER_LEVEL)
 
-    def restore_backup(self, backup_id: int):
+    async def restore_backup(self, backup_id: int):
         """ Starts an asynchronous restore process to restore the state of FogLAMP.
 
         Args:
@@ -119,7 +136,22 @@ class Restore(object):
         Returns:
         Raises:
         """
-        # FIXME:
+
+        self._logger.debug("{func} - backup id |{backup_id}|".format(
+                                                                    func="restore_backup",
+                                                                    backup_id=backup_id))
+
+        try:
+            await server.Server.scheduler.queue_task(uuid.UUID(lib.SCHEDULE_RESTORE_ON_DEMAND))
+
+            _message = self._MESSAGES_LIST["i000001"]
+            Restore._logger.info("{0}".format(_message))
+
+        except Exception as _ex:
+            _message = self._MESSAGES_LIST["e000001"].format(_ex)
+            Restore._logger.error("{0}".format(_message))
+
+            raise exceptions.BackupFailed(_message)
 
 
 class RestoreProcess(FoglampProcess):
@@ -516,11 +548,19 @@ class RestoreProcess(FoglampProcess):
         Raises:
         """
 
+        self._logger.debug("{func}".format(func="execute_restore"))
+
         backup_id, file_name = self._identifies_backup_to_restore()
+
+        self._logger.debug("{func} - backup to restore |{id}| - |{file}| ".format(func="execute_restore",
+                                                                                   id=backup_id,
+                                                                                   file=file_name))
 
         # Stops FogLamp if it is running
         if self._foglamp_status() == self.FogLampStatus.RUNNING:
             self._foglamp_stop()
+
+        self._logger.debug("{func} - FogLamp is down".format(func="execute_restore"))
 
         # Executes the restore and then starts Foglamp
         try:
@@ -559,19 +599,18 @@ class RestoreProcess(FoglampProcess):
 
         self._restore_lib.retrieve_configuration()
 
-        # FIXME:
         # Checks for backup/restore synchronization
-        # pid = self._job.is_running()
-        # if pid == 0:
-        #
-        #     # no job is running
-        #     pid = os.getpid()
-        #     self._job.set_as_running(lib.JOB_SEM_FILE_RESTORE, pid)
-        # else:
-        #     _message = self._MESSAGES_LIST["e000009"].format(pid)
-        #     self._logger.warning("{0}".format(_message))
-        #
-        #     raise exceptions.BackupOrRestoreAlreadyRunning
+        pid = self._job.is_running()
+        if pid == 0:
+
+            # no job is running
+            pid = os.getpid()
+            self._job.set_as_running(lib.JOB_SEM_FILE_RESTORE, pid)
+        else:
+            _message = self._MESSAGES_LIST["e000009"].format(pid)
+            self._logger.warning("{0}".format(_message))
+
+            raise exceptions.BackupOrRestoreAlreadyRunning
 
     def shutdown(self):
         """"Sets the correct state to terminate the execution

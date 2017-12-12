@@ -919,6 +919,12 @@ schedule_time, schedule_interval, exclusive)
 values ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
 NULL, '00:00:00', true);
 
+-- Used to execute an on demand Restore
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive)
+values ('8d4d3ca0-de80-11e7-80c1-9a214cf093ae', 'restore on demand', 'restore', 4,
+NULL, '00:00:00', true);
+
 -- Start the Poll mode device server at start-up
 insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)

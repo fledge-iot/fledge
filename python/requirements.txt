@@ -7,9 +7,9 @@ cbor2==4.0.0
 packaging==16.8
 
 # rest
-aiohttp==2.2.5
+aiohttp==2.3.6
 aiohttp_cors==0.5.3
-cchardet==2.1.0
+cchardet==2.1.1
 requests==2.18.4
 
 # sensortag

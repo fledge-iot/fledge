@@ -14,3 +14,6 @@ requests==2.18.4
 
 # sensortag
 pexpect==4.0.1
+
+# service discovery
+dbus-python

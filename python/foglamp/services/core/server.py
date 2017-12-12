@@ -22,6 +22,7 @@ from foglamp.common.web import middleware
 from foglamp.services.common.microservice_management.service_registry.instance import Service
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.common.microservice_management.service_registry.monitor import Monitor
+from foglamp.services.common.service_announcer import ServiceAnnouncer
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -46,6 +47,15 @@ class Server:
 
     service_monitor = None
     """ foglamp.microservice_management.service_registry.Monitor """
+
+    admin_announcer = None
+    """ The Announcer for the Admin API """
+
+    user_announcer = None
+    """ The Announcer for the Admin API """
+
+    management_announcer = None
+    """ The Announcer for the management API """
 
     _host = '0.0.0.0'
     core_management_port = 0
@@ -127,6 +137,9 @@ class Server:
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
+            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core', '_foglamp_core._tcp', cls.core_management_port,
+                                                    ['The FogLAMP Core REST API'])
+
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
             # start scheduler
@@ -142,6 +155,9 @@ class Server:
             address, service_server_port = service_server.sockets[0].getsockname()
             _logger.info('Rest Server started on http://%s:%s', address, service_server_port)
 
+            cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
+            cls.user_announcer = ServiceAnnouncer('FogLAMP', '_foglamp_app._tcp', service_server_port,
+                                              ['The FogLAMP Application  REST API'])
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request

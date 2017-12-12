@@ -56,7 +56,7 @@ SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
 # SCRIPTS TO INSTALL IN BIN DIR
-FOGBENCH_SCRIPT_SRC        := scripts/extras/foglamp.fogbench
+FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR

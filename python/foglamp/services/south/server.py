@@ -205,6 +205,6 @@ class Server(FoglampMicroservice):
         print("shutdown south")
         return web.json_response({"south":"shutdown"})
 
-    async def notify(self, request):
-        print("notify south")
-        return web.json_response({"south":"notify"})
+    async def change(self, request):
+        print("change south")
+        return web.json_response({"south":"change"})

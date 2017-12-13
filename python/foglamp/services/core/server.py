@@ -13,15 +13,16 @@ import subprocess
 import sys
 import http.client
 import json
+import time
 from aiohttp import web
 
 from foglamp.common import logger
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.common.microservice_management import routes as management_routes
 from foglamp.common.web import middleware
-from foglamp.services.common.microservice_management.service_registry.instance import Service
+from foglamp.services.core.service_registry.service_registry import Service
 from foglamp.services.core.scheduler.scheduler import Scheduler
-from foglamp.services.common.microservice_management.service_registry.monitor import Monitor
+from foglamp.services.core.service_registry.monitor import Monitor
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -53,6 +54,9 @@ class Server:
     # TODO: FOGL-655 Get Admin API port from configuration option
     rest_service_port = 8081
 
+    
+    __start_time = time.time()
+
     @staticmethod
     def _make_app():
         """Creates the REST server
@@ -63,14 +67,14 @@ class Server:
         admin_routes.setup(app)
         return app
 
-    @staticmethod
-    def _make_core_app():
+    @classmethod
+    def _make_core_app(cls):
         """Creates the Service management REST server Core a.k.a. service registry
 
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        management_routes.setup(app, is_core=True)
+        management_routes.setup(app, cls)
         return app
 
     @classmethod
@@ -238,6 +242,157 @@ class Server:
             except TimeoutError:
                 _logger.exception('Unable to stop the scheduler')
                 return
+
+    @classmethod
+    async def ping(cls, request):
+        """ health check
+
+        """
+        since_started = time.time() - __start_time
+        return web.json_response({'uptime': since_started})
+
+    @classmethod
+    async def register(cls, request):
+        """ Register a service
+
+        :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
+                "management_port": 1090, "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
+        service_port is optional
+        """
+
+        try:
+            data = await request.json()
+
+            service_name = data.get('name', None)
+            service_type = data.get('type', None)
+            service_address = data.get('address', None)
+            service_port = data.get('service_port', None)
+            service_management_port = data.get('management_port', None)
+            service_protocol = data.get('protocol', 'http')
+
+            if not (service_name.strip() or service_type.strip() or service_address.strip()
+                    or service_management_port.strip() or not service_management_port.isdigit()):
+                raise web.HTTPBadRequest(reason='One or more values for type/name/address/management port missing')
+
+            if service_port != None:
+                if not (isinstance(service_port, int)):
+                    raise web.HTTPBadRequest(reason="Service's service port can be a positive integer only")
+
+            if not isinstance(service_management_port, int):
+                raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
+
+            try:
+                registered_service_id = Service.Instances.register(service_name, service_type, service_address,
+                                                                   service_port, service_management_port, service_protocol)
+            except Service.AlreadyExistsWithTheSameName:
+                raise web.HTTPBadRequest(reason='A Service with the same name already exists')
+            except Service.AlreadyExistsWithTheSameAddressAndPort:
+                raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
+                                                'service port: {}'.format(service_address, service_port))
+            except Service.AlreadyExistsWithTheSameAddressAndManagementPort:
+                raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
+                                                'management port: {}'.format(service_address, service_management_port))
+
+            if not registered_service_id:
+                raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
+
+            _response = {
+                'id': registered_service_id,
+                'message': "Service registered successfully"
+            }
+
+            return web.json_response(_response)
+
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+
+
+    @classmethod
+    async def unregister(cls, request):
+        """ Deregister a service
+
+        :Example: curl -X DELETE  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
+        """
+
+        try:
+            service_id = request.match_info.get('service_id', None)
+
+            if not service_id:
+                raise web.HTTPBadRequest(reason='Service id is required')
+
+            try:
+                Service.Instances.get(idx=service_id)
+            except Service.DoesNotExist:
+                raise web.HTTPBadRequest(reason='Service with {} does not exist'.format(service_id))
+
+            Service.Instances.unregister(service_id)
+
+            _resp = {'id': str(service_id), 'message': 'Service unregistered'}
+
+            return web.json_response(_resp)
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+
+
+    @classmethod
+    async def get_service(cls, request):
+        """ Returns a list of all services or of the selected service
+
+        :Example: curl -X GET  http://localhost:8082/foglamp/service
+        :Example: curl -X GET  http://localhost:8082/foglamp/service?name=X&type=Storage
+        """
+        service_name = request.query['name'] if 'name' in request.query else None
+        service_type = request.query['type'] if 'type' in request.query else None
+
+        try:
+            if not service_name and not service_type:
+                services_list = Service.Instances.all()
+            elif service_name and not service_type:
+                services_list = Service.Instances.get(name=service_name)
+            elif not service_name and service_type:
+                services_list = Service.Instances.get(s_type=service_type)
+            else:
+                services_list = Service.Instances.filter_by_name_and_type(
+                        name=service_name, s_type=service_type
+                    )
+        except Service.DoesNotExist as ex:
+            raise web.HTTPBadRequest(reason="Invalid service name and/or type provided" + str(ex))
+
+        services = []
+        for service in services_list:
+            svc = dict()
+            svc["id"] = service._id
+            svc["name"] = service._name
+            svc["type"] = service._type
+            svc["address"] = service._address
+            svc["management_port"] = service._management_port
+            svc["protocol"] = service._protocol
+            svc["status"] =  service._status
+            if service._port:
+                svc["service_port"] = service._port
+            services.append(svc)
+
+        return web.json_response({"services": services})
+
+
+    @classmethod
+    async def shutdown(cls, request):
+        pass
+
+
+    @classmethod
+    async def register_interest(cls, request):
+        pass
+
+
+    @classmethod
+    async def unregister_interest(cls, request):
+        pass
+
+
+    @classmethod
+    async def change(cls, request):
+        pass
 
 
 def main():

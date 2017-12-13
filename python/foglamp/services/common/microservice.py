@@ -10,6 +10,7 @@ import asyncio
 from aiohttp import web
 import http.client
 import json
+from foglamp.services.common.microservice_management import routes
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware
 from abc import abstractmethod
@@ -67,7 +68,7 @@ class FoglampMicroservice(FoglampProcess):
         # create web server application
         self._microservice_management_app = web.Application(middlewares=[middleware.error_middleware])
         # register supported urls
-        self._setup_microservice_management_routes()
+        routes.setup(self._microservice_management_app, self)
         # create http protocol factory for handling requests
         self._microservice_management_handler = self._microservice_management_app.make_handler()
 
@@ -90,40 +91,12 @@ class FoglampMicroservice(FoglampProcess):
             }
         return service_registration_payload
 
-    def _setup_microservice_management_routes(self):
-        # Basic api common to all microservices
-        self._microservice_management_app.router.add_route('GET', '/foglamp/service/ping', self.ping)
-        # TODO: shutdown
-        self._microservice_management_app.router.add_route('POST', '/foglamp/service/shutdown', self.shutdown)
-        # TODO: notify_change
-        self._microservice_management_app.router.add_route('POST', '/foglamp/change', self.notify)
-    
-        # enable cors support
-        self._enable_cors()
-    
-    def _enable_cors(self):
-        """ implements Cross Origin Resource Sharing (CORS) support """
-        import aiohttp_cors
-    
-        # Configure default CORS settings.
-        cors = aiohttp_cors.setup(self._microservice_management_app, defaults={
-            "*": aiohttp_cors.ResourceOptions(
-                allow_credentials=True,
-                expose_headers="*",
-                allow_headers="*",
-            )
-        })
-    
-        # Configure CORS on all routes.
-        for route in list(self._microservice_management_app.router.routes()):
-            cors.add(route)
-
     @abstractmethod
     async def shutdown(self):
         pass
 
     @abstractmethod
-    async def notify(self):
+    async def change(self):
         pass
 
     async def ping(self, request):
@@ -133,3 +106,17 @@ class FoglampMicroservice(FoglampProcess):
         since_started = time.time() - self._start_time
         return web.json_response({'uptime': since_started})
 
+    async def register(self, request):
+        pass
+
+    async def unregister(self, request):
+        pass
+
+    async def get_service(self, request):
+        pass
+
+    async def register_interest(self, request):
+        pass
+
+    async def unregister_interest(self, request):
+        pass

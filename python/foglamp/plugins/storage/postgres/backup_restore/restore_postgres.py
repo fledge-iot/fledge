@@ -77,22 +77,7 @@ _LOG_LEVEL_INFO = 20
 _LOGGER_LEVEL = _LOG_LEVEL_DEBUG
 # _LOGGER_DESTINATION = logger.CONSOLE
 # _LOGGER_DESTINATION = logger.SYSLOG
-_LOGGER_DESTINATION = logger.CONSOLE
-
-
-def _signal_handler(_signo,  _stack_frame):
-    """ Handles signals to avoid restore termination doing FogLAMP stop
-
-    Args:
-    Returns:
-    Raises:
-    """
-
-    short_stack_frame = str(_stack_frame)[:100]
-    _logger.debug("{func} - signal |{signo}| - info |{ssf}| ".format(
-                                                                    func="_signal_handler",
-                                                                    signo=_signo,
-                                                                    ssf=short_stack_frame))
+_LOGGER_DESTINATION = logger.SYSLOG
 
 
 class Restore(object):
@@ -126,6 +111,8 @@ class Restore(object):
 
     async def restore_backup(self, backup_id: int):
         """ Starts an asynchronous restore process to restore the state of FogLAMP.
+
+        Important Note : The current version restores the latest backup
 
         Args:
             backup_id: int - the id of the backup to restore from
@@ -198,6 +185,21 @@ class RestoreProcess(FoglampProcess):
         "e000012": "cannot restore the backup, the selected backup doesn't exists - backup file name |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
+
+    @staticmethod
+    def _signal_handler(_signo, _stack_frame):
+        """ Handles signals to avoid restore termination doing FogLAMP stop
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        short_stack_frame = str(_stack_frame)[:100]
+        _logger.debug("{func} - signal |{signo}| - info |{ssf}| ".format(
+            func="_signal_handler",
+            signo=_signo,
+            ssf=short_stack_frame))
 
     def __init__(self):
 
@@ -592,6 +594,14 @@ class RestoreProcess(FoglampProcess):
         Raises:
         """
 
+        # Setups signals handlers, to avoid the termination of the restore
+        # a) SIGINT: Keyboard interrupt
+        # b) SIGTERM: kill or system shutdown
+        # c) SIGHUP: Controlling shell exiting
+        signal.signal(signal.SIGINT, RestoreProcess._signal_handler)
+        signal.signal(signal.SIGTERM, RestoreProcess._signal_handler)
+        signal.signal(signal.SIGHUP, RestoreProcess._signal_handler)
+
         self._logger.debug("{func}".format(func="init"))
 
         self._restore_lib.evaluate_paths()
@@ -681,15 +691,6 @@ if __name__ == "__main__":
 
     # Executes the Restore
     try:
-        # Setup signals handlers, to avoid the termination of the restore
-        # a) SIGINT: Keyboard interrupt
-        # b) SIGTERM: kill or system shutdown
-        # c) SIGHUP: Controlling shell exiting
-        signal.signal(signal.SIGINT, _signal_handler)
-        signal.signal(signal.SIGTERM, _signal_handler)
-        signal.signal(signal.SIGHUP, _signal_handler)
-        signal.signal(signal.SIGALRM, _signal_handler)
-
         # noinspection PyProtectedMember
         _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}| "
                       "- file |{file}| - backup_id |{backup_id}| ".format(

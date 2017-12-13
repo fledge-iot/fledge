@@ -26,11 +26,6 @@ _DEFAULT_CONFIG = {
          'type': 'string',
          'default': 'cc2650poll'
     },
-    'pollInterval': {
-        'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
-        'type': 'integer',
-        'default': '500'
-    },
     'bluetoothAddress': {
         'description': 'Bluetooth MAC address',
         'type': 'string',

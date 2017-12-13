@@ -101,7 +101,7 @@ def plugin_init(config):
         data['characteristics'] = sensortag_characteristics
         data['bluetooth_adr'] = bluetooth_adr
         data['tag'] = tag
-        _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
+        _LOGGER.info('SensorTagCC2650 {} Async fetching initialized'.format(bluetooth_adr))
 
     return data
 
@@ -144,7 +144,7 @@ def plugin_start(handle):
                 raise RuntimeError
 
             # Enable notification
-            for notification_handle in data['notification_handles']:
+            for notification_handle in handle['notification_handles']:
                 tag.char_write_cmd(notification_handle, notification_enable)
 
             # Enable sensors
@@ -155,6 +155,8 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
             # TODO: How to implement CTRL-C or terminate process?
+            debug_cnt = 50
+            cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
                 try:
@@ -166,7 +168,13 @@ def plugin_start(handle):
                 if pnum == 0:
                     after = tag.con.after
                     hxstr = after.split()[3:]
-                    print("****", hxstr)
+
+                    if debug_cnt > 0:
+                        if cnt >= debug_cnt:
+                            break
+                        cnt += 1
+                        print(cnt, "****", hxstr)
+
                     # Get temperature
                     if int(handle['characteristics']['temperature']['data']['handle'], 16) == int(hxstr[0].decode(), 16):
                         object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(
@@ -261,6 +269,7 @@ def plugin_start(handle):
                                                                 readings=data['readings'])
 
                     # Get battery
+                    # TODO: Investigate why no battery input in async mode?
                     if int(battery['data']['handle'], 16) == int(hxstr[0].decode(), 16):
                         battery_level = tag.get_battery_level(
                             tag.char_read_hnd(battery['data']['handle'], "battery"))
@@ -274,6 +283,7 @@ def plugin_start(handle):
                         }
 
                     # Get keypress
+                    # TODO: Investigate why no keypress input?
                     if int(keypress['data']['handle'], 16) == int(hxstr[0].decode(), 16):
                         keypress_state = tag.get_keypress_state(
                             tag.char_read_hnd(keypress['data']['handle'], "keypress"))
@@ -288,6 +298,7 @@ def plugin_start(handle):
 
                     # Common add_readings for all keys other than movement
                     if int(handle['characteristics']['movement']['data']['handle'], 16) != int(hxstr[0].decode(), 16):
+                        print("Writing", handle['ingest'])
                         await handle['ingest'].add_readings(asset=data['asset'],
                                                             timestamp=data['timestamp'],
                                                             key=data['key'],

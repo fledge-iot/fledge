@@ -28,10 +28,6 @@ characteristics = {
             'uuid': 'f000aa01-0451-4000-b000-000000000000',
             'handle': '0x0000'
         },
-        'notification': {
-            'uuid': '2902',
-            'handle': '0x0000'
-        },
         'configuration': {
             'uuid': 'f000aa02-0451-4000-b000-000000000000',
             'handle': '0x0000'
@@ -44,10 +40,6 @@ characteristics = {
     'movement': {
         'data': {
             'uuid': 'f000aa81-0451-4000-b000-000000000000',
-            'handle': '0x0000'
-        },
-        'notification': {
-            'uuid': '2902',
             'handle': '0x0000'
         },
         'configuration': {
@@ -64,10 +56,6 @@ characteristics = {
             'uuid': 'f000aa21-0451-4000-b000-000000000000',
             'handle': '0x0000'
         },
-        'notification': {
-            'uuid': '2902',
-            'handle': '0x0000'
-        },
         'configuration': {
             'uuid': 'f000aa22-0451-4000-b000-000000000000',
             'handle': '0x0000'
@@ -82,10 +70,6 @@ characteristics = {
             'uuid': 'f000aa41-0451-4000-b000-000000000000',
             'handle': '0x0000'
         },
-        'notification': {
-            'uuid': '2902',
-            'handle': '0x0000'
-        },
         'configuration': {
             'uuid': 'f000aa42-0451-4000-b000-000000000000',
             'handle': '0x0000'
@@ -98,10 +82,6 @@ characteristics = {
     'luminance': {
         'data': {
             'uuid': 'f000aa71-0451-4000-b000-000000000000',
-            'handle': '0x0000'
-        },
-        'notification': {
-            'uuid': '2902',
             'handle': '0x0000'
         },
         'configuration': {
@@ -124,10 +104,6 @@ keypress = {
     'data': {
         'uuid': '0000ffe1-0000-1000-8000-00805f9b34fb',
         'handle': '0x004c'
-    },
-    'notification': {
-        'uuid': '2902',
-        'handle': '0x0000'
     },
 }
 
@@ -223,7 +199,8 @@ class SensorTagCC2650(object):
         try:
             cmd = 'char-read-uuid %s' % notification_uuid
             self.con.sendline(cmd)
-            self.con.expect('.*{}.* \r'.format(cmd), timeout=10)
+            time.sleep(5)
+            self.con.expect('.*{}.* \r'.format(cmd))
             reading = self.con.after
             lines = reading.decode()
             print(lines)

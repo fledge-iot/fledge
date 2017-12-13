@@ -7,6 +7,7 @@
 import subprocess
 import time
 import os
+from enum import IntEnum
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
@@ -19,7 +20,15 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_MODULE_NAME = "foglamp_backup_library"
+_MODULE_NAME = "foglamp_backup_postgres_library"
+
+FOGLAMP_CFG_FILE = "/etc/foglamp.json"
+
+MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
+"""" Maximum number of backup information to retrieve from the storage layer"""
+
+STORAGE_TABLE_BACKUPS = "backups"
+""" Table name containing the backups information"""
 
 _MESSAGES_LIST = {
 
@@ -35,36 +44,57 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
-"""" Maximum number of backup information to retrieve from the storage layer"""
-
-STORAGE_TABLE_BACKUPS = "backups"
-""" Table name containing the backup information"""
-
 _CMD_TIMEOUT = " timeout --signal=9  "
 """ Every external commands will be launched using timeout to avoid endless executions """
 
-BACKUP_TYPE_FULL = 1
-BACKUP_TYPE_INCREMENTAL = 2
-""" Backup types supported """
 
-BACKUP_STATUS_UNDEFINED = -1
-BACKUP_STATUS_RUNNING = 1
-BACKUP_STATUS_SUCCESSFUL = 2
-BACKUP_STATUS_CANCELLED = 3
-BACKUP_STATUS_INTERRUPTED = 4
-BACKUP_STATUS_FAILED = 5
-BACKUP_STATUS_RESTORED = 6
-"""" Backup status"""
+class BackupType (IntEnum):
+    """ Supported backup types """
+
+    FULL = 1
+    INCREMENTAL = 2
+
+
+class SortOrder (object):
+    """ Define the order used to present information """
+
+    ASC = 'ASC'
+    DESC = 'DESC'
+
+
+class BackupStatus (object):
+    """ Backup status """
+
+    UNDEFINED = -1
+    RUNNING = 1
+    COMPLETED = 2
+    CANCELLED = 3
+    INTERRUPTED = 4
+    FAILED = 5
+    RESTORED = 6
+    ALL = 999
+
+    text = {
+        UNDEFINED: "undefined",
+        RUNNING: "running",
+        COMPLETED: "completed",
+        CANCELLED: "cancelled",
+        INTERRUPTED: "interrupted",
+        FAILED: "failed",
+        RESTORED: "restored",
+        ALL: "all"
+    }
+
 
 JOB_SEM_FILE_PATH = "/tmp"
-""" Updated by the caller retrieving from the configuration manager """
+""" Updated by the caller to the proper value """
+
 JOB_SEM_FILE_BACKUP = ".backup.sem"
 JOB_SEM_FILE_RESTORE = ".restore.sem"
 """" Semaphores information for the handling of the backup/restore synchronization """
 
-_logger = {}
-_storage = {}
+_logger = None
+_storage = None
 """" Objects references assigned by the caller """
 
 
@@ -166,6 +196,19 @@ def exec_wait_retry(cmd, output_capture=False, exit_code_ok=0, max_retry=3, writ
     return _exit_code, _output
 
 
+def cr_strip(text):
+    """
+    Args:
+    Returns:
+    Raises:
+    """
+
+    text = text.replace("\n", "")
+    text = text.replace("\r", "")
+
+    return text
+
+
 def get_backup_details_from_file_name(_file_name):
     """ Retrieves backup information from file name
 
@@ -204,8 +247,8 @@ def backup_status_create(_file_name, _type, _status):
 
     Args:
         _file_name: file_name used for the backup as a full path
-        _type: backup type {BACKUP_TYPE_FULL|BACKUP_TYPE_INCREMENTAL}
-        _status: backup status, usually BACKUP_STATUS_RUNNING
+        _type: backup type {BackupType.FULL|BackupType.INCREMENTAL}
+        _status: backup status, usually BackupStatus.RUNNING
     Returns:
     Raises:
     Todo:
@@ -217,7 +260,7 @@ def backup_status_create(_file_name, _type, _status):
         .INSERT(file_name=_file_name,
                 ts="now()",
                 type=_type,
-                state=_status,
+                status=_status,
                 exit_code=0) \
         .payload()
 
@@ -229,7 +272,7 @@ def backup_status_update(_id, _status, _exit_code):
 
     Args:
         _id: Backup's Id to update
-        _status: status of the backup {BACKUP_STATUS_SUCCESSFUL|BACKUP_STATUS_RESTORED}
+        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
         _exit_code: exit status of the backup/restore execution
     Returns:
     Raises:
@@ -239,7 +282,7 @@ def backup_status_update(_id, _status, _exit_code):
     _logger.debug("{func} - id |{file}| ".format(func="backup_status_update", file=_id))
 
     payload = payload_builder.PayloadBuilder() \
-        .SET(state=_status,
+        .SET(status=_status,
              ts="now()",
              exit_code=_exit_code) \
         .WHERE(['id', '=', _id]) \
@@ -384,7 +427,7 @@ class Job:
 if __name__ == "__main__":
 
     message = _MESSAGES_LIST["e000003"]
-    print (message)
+    print(message)
 
     if False:
         # Used to assign the proper objects type without actually executing them

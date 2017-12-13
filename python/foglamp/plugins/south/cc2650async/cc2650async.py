@@ -97,6 +97,7 @@ def plugin_init(config):
         battery['data']['handle'] = handle
         sensortag_characteristics['battery'] = battery
 
+        data['notification_handles'] = tag.get_notification_handles()
         data['characteristics'] = sensortag_characteristics
         data['bluetooth_adr'] = bluetooth_adr
         data['tag'] = tag
@@ -143,16 +144,8 @@ def plugin_start(handle):
                 raise RuntimeError
 
             # Enable notification
-            tag.char_write_cmd(tag.get_notification_handle(
-                handle['characteristics']['temperature']['data']['handle']), notf_enable)
-            tag.char_write_cmd(tag.get_notification_handle(
-                handle['characteristics']['luminance']['data']['handle']), notf_enable)
-            tag.char_write_cmd(tag.get_notification_handle(
-                handle['characteristics']['humidity']['data']['handle']), notf_enable)
-            tag.char_write_cmd(tag.get_notification_handle(
-                handle['characteristics']['pressure']['data']['handle']), notf_enable)
-            tag.char_write_cmd(tag.get_notification_handle(
-                handle['characteristics']['movement']['data']['handle']), notf_enable)
+            for notification_handle in data['notification_handles']:
+                tag.char_write_cmd(notification_handle, notification_enable)
 
             # Enable sensors
             tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_enable)
@@ -348,16 +341,8 @@ def plugin_shutdown(handle):
     tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_disable)
 
     # Disable notification
-    tag.char_write_cmd(tag.get_notification_handle(
-        handle['characteristics']['temperature']['configuration']['handle']), notf_disable)
-    tag.char_write_cmd(tag.get_notification_handle(
-        handle['characteristics']['luminance']['configuration']['handle']), notf_disable)
-    tag.char_write_cmd(tag.get_notification_handle(
-        handle['characteristics']['humidity']['configuration']['handle']), notf_disable)
-    tag.char_write_cmd(tag.get_notification_handle(
-        handle['characteristics']['pressure']['configuration']['handle']), notf_disable)
-    tag.char_write_cmd(tag.get_notification_handle(
-        handle['characteristics']['movement']['configuration']['handle']), notf_enable)
+    for notification_handle in handle['notification_handles']:
+        tag.char_write_cmd(notification_handle, notification_disable)
 
     tag.disconnect()
     _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

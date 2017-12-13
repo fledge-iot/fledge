@@ -150,7 +150,7 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
             # TODO: How to implement CTRL-C or terminate process?
-            debug_cnt = 50
+            debug_cnt = 50 # 0 when not debugging
             cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))

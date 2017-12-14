@@ -75,9 +75,14 @@ class Server:
 
     @classmethod
     async def _start_service_monitor(cls):
-        """Starts the microservice monitor"""
+        """Starts the micro-service monitor"""
         cls.service_monitor = Monitor()
         await cls.service_monitor.start()
+
+    @classmethod
+    async def stop_service_monitor(cls):
+        """Stops the micro-service monitor"""
+        await cls.service_monitor.stop()
 
     @classmethod
     async def _start_scheduler(cls):
@@ -158,6 +163,9 @@ class Server:
                 # TODO: FOGL-653 shutdown implementation
                 # stop the scheduler
                 loop.run_until_complete(cls._stop_scheduler())
+
+                # stop monitor
+                loop.run_until_complete(cls.stop_service_monitor())
 
                 # stop the REST api (exposed on service port)
                 service_server.close()
@@ -257,6 +265,7 @@ def main():
             Server().start()
         elif command == 'stop':
             Server().stop_storage()
+            Server().stop_service_monitor()
             # scheduler has signal binding
         else:
             raise ValueError("Unknown argument: {}".format(sys.argv[1]))

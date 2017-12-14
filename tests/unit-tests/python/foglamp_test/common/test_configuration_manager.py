@@ -30,13 +30,13 @@ _configuration_tbl = sa.Table(
     sa.Column('ts', sa.types.TIMESTAMP)
 )
 
-_storage = StorageClient(core_management_host='0.0.0.0', core_management_port=43395, svc=None)
+_storage = StorageClient(core_management_host='0.0.0.0', core_management_port=43411, svc=None)
 cf_mgr = None
 
 
 async def delete_from_configuration():
     """ Remove initial data from configuration table """
-    sql = sa.text("DELETE FROM configuration WHERE key IN {}".format(_KEYS))
+    sql = sa.text("DELETE FROM foglamp.configuration WHERE key IN {}".format(_KEYS))
     async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
         async with engine.acquire() as conn:
             await conn.execute(sql)
@@ -150,7 +150,7 @@ class TestConfigurationManager:
                                   category_value=data[category_name]['category_value'],
                                   keep_original_items=True)
 
-        sql = sa.text("SELECT * FROM configuration WHERE key IN {}".format(_KEYS))
+        sql = sa.text("SELECT * FROM foglamp.configuration WHERE key IN {}".format(_KEYS))
         async with aiopg.sa.create_engine(_CONNECTION_STRING) as engine:
             async with engine.acquire() as conn:
                 result = await conn.execute(sql)
@@ -581,3 +581,64 @@ class TestConfigurationManager:
             self.cf_mgr.register_interest(category_name='integer', callback=None)
         assert "ValueError: Failed to register interest. callback cannot be None" in (
             str(error_exec))
+
+    async def test_unregister_interest_0_callback(self):
+        """ Test that when unregister_interest is called and name/callback combo does not 
+            exist, nothing happens
+
+        :assert:
+           for (category_name='boolean', callback='tests.callback')
+           the value for _register_interests['boolean'] is {'tests.callback'}
+        """
+        self.cf_mgr.unregister_interest(category_name='boolean', callback='tests.callback')
+        assert len(self.cf_mgr._registered_interests) == 0
+       
+    async def test_unregister_interest_1_callback(self):
+        """ Test that when unregister_interest is called and only one callback exists for 
+            the name, _registered_interests removes the dictionary item for that name
+
+        :assert:
+           for (category_name='boolean', callback='tests.callback')
+           the value for _register_interests['boolean'] is {'tests.callback'}
+        """
+        self.cf_mgr.register_interest(category_name='boolean', callback='tests.callback')
+        self.cf_mgr.unregister_interest(category_name='boolean', callback='tests.callback')
+        assert len(self.cf_mgr._registered_interests) == 0
+
+    async def test_unregister_interest_2_callback(self):
+        """ Test that when unregister_interest is called and only one callback exists for 
+            the name, _registered_interests removes only the single callback from the list
+
+        :assert:
+           for (category_name='boolean', callback='tests.callback')
+           the value for _register_interests['boolean'] is {'tests.callback'}
+        """
+        self.cf_mgr.register_interest(category_name='boolean', callback='tests.callback')
+        self.cf_mgr.register_interest(category_name='boolean', callback='tests.callback2')
+        self.cf_mgr.unregister_interest(category_name='boolean', callback='tests.callback')
+        assert list(self.cf_mgr._registered_interests.keys())[0] == 'boolean'
+        assert self.cf_mgr._registered_interests['boolean'] == {'tests.callback2'}
+
+
+    async def test_unregister_interest_category_name_none_error(self):
+        """ Test that error gets returned when category_name is None
+
+        :assert:
+            Assert error message when category_name is None
+        """
+        with pytest.raises(ValueError) as error_exec:
+            self.cf_mgr.unregister_interest(category_name=None, callback='foglamp.callback')
+        assert "ValueError: Failed to unregister interest. category_name cannot be None" in (
+            str(error_exec))
+
+    async def test_unregister_interest_callback_none_error(self):
+        """ Test that error gets returned when callback is None
+
+           :assert:
+               Assert error message when callback is None
+        """
+        with pytest.raises(ValueError) as error_exec:
+            self.cf_mgr.unregister_interest(category_name='integer', callback=None)
+        assert "ValueError: Failed to unregister interest. callback cannot be None" in (
+            str(error_exec))
+

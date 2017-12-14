@@ -1,4 +1,10 @@
+
+# vi
+*.swp
+
+# MacOS Finder
 .DS_Store
+._.DS_Store
 
 # IDE
 *.idea

@@ -56,9 +56,8 @@ class TestStatistics:
         # curl -X GET http://localhost:8081/foglamp/statistics
         r = requests.get(BASE_URL+'/statistics')
         res = r.json()
-
         assert 200 == r.status_code
-        assert 8 == len(res)
+        assert 9 == len(res)
 
         # sorted by key
         assert res[0]['key'] == 'BUFFERED'
@@ -85,13 +84,17 @@ class TestStatistics:
         assert res[5]['value'] == 0
         assert len(res[5]['description']) > 0
 
-        assert res[6]['key'] == 'UNSENT'
+        assert res[6]['key'] == 'SENT_3'
         assert res[6]['value'] == 0
         assert len(res[6]['description']) > 0
 
-        assert res[7]['key'] == 'UNSNPURGED'
+        assert res[7]['key'] == 'UNSENT'
         assert res[7]['value'] == 0
         assert len(res[7]['description']) > 0
+
+        assert res[8]['key'] == 'UNSNPURGED'
+        assert res[8]['value'] == 0
+        assert len(res[8]['description']) > 0
 
     async def test_get_updated_statistics(self):
         await update_statistics(3)
@@ -100,7 +103,7 @@ class TestStatistics:
         res = r.json()
 
         assert 200 == r.status_code
-        assert 8 == len(res)
+        assert 9 == len(res)
 
         assert res[3]['key'] == 'READINGS'
         assert res[3]['value'] == 3
@@ -114,7 +117,7 @@ class TestStatistics:
         res = r.json()
 
         assert 200 == r.status_code
-        assert 9 == len(res)
+        assert 10 == len(res)
 
         # READINGS_X must exists IN keys
         key_entries = [keys["key"] for keys in res]

@@ -55,7 +55,7 @@ class Server:
     rest_service_port = 8081
 
     
-    __start_time = time.time()
+    _start_time = time.time()
 
     @staticmethod
     def _make_app():
@@ -248,7 +248,7 @@ class Server:
         """ health check
 
         """
-        since_started = time.time() - __start_time
+        since_started = time.time() - cls._start_time
         return web.json_response({'uptime': since_started})
 
     @classmethod

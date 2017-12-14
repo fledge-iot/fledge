@@ -9,6 +9,10 @@ Temperature, Presssure, Humidity and Motion Sensors.
 To connect, the sensor needs to be on in discoverable mode and its MAC
 address properly recorded in the Configuration.
 
+For a single SensorTag CC2650 device, use only one mode - either poll or
+async, at a time. For this you will need to remove the relevant schedule from
+schedules table.
+
 The polling is done at fixed intervals which is configurable via "pollInterval"
 configuration item.
 

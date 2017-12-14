@@ -49,6 +49,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - *curl*
 - *libboost-dev*, *libboost-system-dev*, *libboost-thread-dev*, *libpq-dev*
 - *python3-pip*
+- *python-dbus*
 - *postgresql*
 
 On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
@@ -57,6 +58,7 @@ On Ubuntu-based Linux distributions the packages can be installed with *apt-get*
    apt-get install curl
    apt-get install libboost-dev libboost-system-dev libboost-thread-dev libpq-dev
    apt-get install python3-pip
+   apt-get install python-dbus
    apt-get install postgresql
 
 You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.

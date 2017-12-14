@@ -24,7 +24,7 @@ from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
-from foglamp.services.core.service_registry.service_registry import Service
+from foglamp.services.core.service_registry.service_registry import *
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -718,13 +718,13 @@ class Scheduler(object):
             try:
                 # TODO: FOGL-510 - Prepare foglamp testing environment
                 if _ENV != 'TEST':
-                    found_services = Service.Instances.get(name="FogLAMP Storage")
+                    found_services = ServiceRegistry.get(name="FogLAMP Storage")
                     storage_service = found_services[0]
 
                 self._storage = StorageClient(self._core_management_host, self._core_management_port, svc=storage_service)
                 # print("Storage Service: ", type(self._storage))
 
-            except (Service.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+            except (DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 # print(_ENV, self._core_management_host, self._core_management_port, str(ex))
                 await asyncio.sleep(5)
         # **************

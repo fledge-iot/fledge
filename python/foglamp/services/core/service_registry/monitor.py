@@ -13,7 +13,7 @@ import json
 
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.services.core.service_registry.service_registry import Service
+from foglamp.services.core.service_registry.service_registry import *
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import connect
 
@@ -50,7 +50,7 @@ class Monitor(object):
         """Main loop for the scheduler"""
         # check health of all microservices every N seconds
         while True:
-            for service in Service.Instances.all():
+            for service in ServiceRegistry.all():
                 url = "{}://{}:{}/foglamp/service/ping".format(service._protocol, service._address, service._management_port)
                 async with aiohttp.ClientSession() as session:
                     try:

@@ -20,7 +20,7 @@ from foglamp.common import logger
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.common.microservice_management import routes as management_routes
 from foglamp.common.web import middleware
-from foglamp.services.core.service_registry.service_registry import Service
+from foglamp.services.core.service_registry.service_registry import *
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 
@@ -190,7 +190,7 @@ class Server:
 
     @classmethod
     def _register_core(cls, host, mgt_port, service_port):
-        core_service_id = Service.Instances.register(name="FogLAMP Core", s_type="Core", address=host,
+        core_service_id = ServiceRegistry.register(name="FogLAMP Core", s_type="Core", address=host,
                                                      port=service_port, management_port=mgt_port)
 
         return core_service_id
@@ -209,7 +209,7 @@ class Server:
         # TODO: FOGL-653 shutdown implementation
         # remove me, and allow this call in service registry API
 
-        found_services = Service.Instances.get(name="FogLAMP Storage")
+        found_services = ServiceRegistry.get(name="FogLAMP Storage")
         svc = found_services[0]
         if svc is None:
             return
@@ -282,14 +282,14 @@ class Server:
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
             try:
-                registered_service_id = Service.Instances.register(service_name, service_type, service_address,
+                registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                    service_port, service_management_port, service_protocol)
-            except Service.AlreadyExistsWithTheSameName:
+            except AlreadyExistsWithTheSameName:
                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
-            except Service.AlreadyExistsWithTheSameAddressAndPort:
+            except AlreadyExistsWithTheSameAddressAndPort:
                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
                                                 'service port: {}'.format(service_address, service_port))
-            except Service.AlreadyExistsWithTheSameAddressAndManagementPort:
+            except AlreadyExistsWithTheSameAddressAndManagementPort:
                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
                                                 'management port: {}'.format(service_address, service_management_port))
 
@@ -321,11 +321,11 @@ class Server:
                 raise web.HTTPBadRequest(reason='Service id is required')
 
             try:
-                Service.Instances.get(idx=service_id)
-            except Service.DoesNotExist:
+                ServiceRegistry.get(idx=service_id)
+            except DoesNotExist:
                 raise web.HTTPBadRequest(reason='Service with {} does not exist'.format(service_id))
 
-            Service.Instances.unregister(service_id)
+            ServiceRegistry.unregister(service_id)
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 
@@ -346,16 +346,16 @@ class Server:
 
         try:
             if not service_name and not service_type:
-                services_list = Service.Instances.all()
+                services_list = ServiceRegistry.all()
             elif service_name and not service_type:
-                services_list = Service.Instances.get(name=service_name)
+                services_list = ServiceRegistry.get(name=service_name)
             elif not service_name and service_type:
-                services_list = Service.Instances.get(s_type=service_type)
+                services_list = ServiceRegistry.get(s_type=service_type)
             else:
-                services_list = Service.Instances.filter_by_name_and_type(
+                services_list = ServiceRegistry.filter_by_name_and_type(
                         name=service_name, s_type=service_type
                     )
-        except Service.DoesNotExist as ex:
+        except DoesNotExist as ex:
             raise web.HTTPBadRequest(reason="Invalid service name and/or type provided" + str(ex))
 
         services = []

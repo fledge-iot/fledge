@@ -345,10 +345,10 @@ def plugin_shutdown(handle):
     Raises:
     """
     # Find all running tasks:
-    pending = asyncio.Task.all_tasks()
+    pending_tasks = asyncio.Task.all_tasks()
 
     # Wait until tasks done:
-    asyncio.ensure_future(asyncio.wait(*pending, timeout=handle['shutdownThreshold']))
+    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']))
 
     bluetooth_adr = handle['bluetooth_adr']
     tag = handle['tag']

@@ -57,7 +57,7 @@ _MESSAGES_LIST = {
     "i000002": "Execution completed.",
 
     # Warning / Error messages
-    "e000001": "cannot start the logger - error details |{0}|",
+    "e000001": "cannot initialize the logger - error details |{0}|",
     "e000002": "an error occurred during the restore operation - error details |{0}|",
     "e000003": "invalid command line arguments - error details |{0}|",
     "e000004": "cannot complete the initialization - error details |{0}|",
@@ -71,12 +71,7 @@ _logger = None
 _LOG_LEVEL_DEBUG = 10
 _LOG_LEVEL_INFO = 20
 
-# FIXME:
-# _LOGGER_LEVEL = _LOG_LEVEL_INFO
-# _LOGGER_DESTINATION = logger.SYSLOG
-_LOGGER_LEVEL = _LOG_LEVEL_DEBUG
-# _LOGGER_DESTINATION = logger.CONSOLE
-# _LOGGER_DESTINATION = logger.SYSLOG
+_LOGGER_LEVEL = _LOG_LEVEL_INFO
 _LOGGER_DESTINATION = logger.SYSLOG
 
 
@@ -86,7 +81,7 @@ class Restore(object):
 
     _MODULE_NAME = "foglamp_restore_postgres_api"
 
-    _logger = None
+    SCHEDULE_RESTORE_ON_DEMAND = "8d4d3ca0-de80-11e7-80c1-9a214cf093ae"
 
     _MESSAGES_LIST = {
 
@@ -99,6 +94,8 @@ class Restore(object):
         "e000001": "cannot launch on demand restore - error details |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
+
+    _logger = None
 
     def __init__(self, _storage):
         self._storage = _storage
@@ -126,7 +123,7 @@ class Restore(object):
                                                                     backup_id=backup_id))
 
         try:
-            await server.Server.scheduler.queue_task(uuid.UUID(lib.SCHEDULE_RESTORE_ON_DEMAND))
+            await server.Server.scheduler.queue_task(uuid.UUID(Restore.SCHEDULE_RESTORE_ON_DEMAND))
 
             _message = self._MESSAGES_LIST["i000001"]
             Restore._logger.info("{0}".format(_message))
@@ -143,21 +140,6 @@ class RestoreProcess(FoglampProcess):
     """
 
     _MODULE_NAME = "foglamp_restore_postgres_process"
-
-    _logger = None
-
-    _backup_id = None
-    """ Used to store the optional command line parameter value """
-
-    _file_name = None
-    """ Used to store the optional command line parameter value """
-
-    class FogLampStatus(object):
-        """ FogLamp possible status """
-
-        NOT_DEFINED = 0
-        STOPPED = 1
-        RUNNING = 2
 
     _FOGLAMP_CMD = "scripts/foglamp {0}"
     """ Command for managing FogLAMP, stop/start/status """
@@ -186,6 +168,21 @@ class RestoreProcess(FoglampProcess):
     }
     """ Messages used for Information, Warning and Error notice """
 
+    _logger = None
+
+    _backup_id = None
+    """ Used to store the optional command line parameter value """
+
+    _file_name = None
+    """ Used to store the optional command line parameter value """
+
+    class FogLampStatus(object):
+        """ FogLamp - possible status """
+
+        NOT_DEFINED = 0
+        STOPPED = 1
+        RUNNING = 2
+
     @staticmethod
     def _signal_handler(_signo, _stack_frame):
         """ Handles signals to avoid restore termination doing FogLAMP stop
@@ -209,10 +206,11 @@ class RestoreProcess(FoglampProcess):
             self._logger = logger.setup(self._MODULE_NAME,
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
+
+        # Handled Restore command line parameters
         try:
             self._backup_id = super().get_arg_value("--backup-id")
             self._file_name = super().get_arg_value("--file")
-
         except Exception as _ex:
 
             _message = _MESSAGES_LIST["e000003"].format(_ex)
@@ -220,7 +218,6 @@ class RestoreProcess(FoglampProcess):
 
             raise exceptions.ArgumentParserError(_message)
 
-        self._restore = Restore(self._storage)
         self._restore_lib = lib.BackupRestoreLib(self._storage, self._logger)
 
         self._job = lib.Job()
@@ -228,6 +225,64 @@ class RestoreProcess(FoglampProcess):
         # Creates the objects references used by the library
         lib._logger = self._logger
         lib._storage = self._storage
+
+    def _identifies_backup_to_restore(self):
+        """Identifies the backup to restore either
+        - latest backup
+        - or a specific backup_id
+        - or a specific file_name
+
+        Args:
+        Returns:
+        Raises:
+            FileNotFoundError
+        """
+
+        backup_id = None
+        file_name = None
+
+        # Case - last backup
+        if self._backup_id is None and \
+           self._file_name is None:
+
+            backup_id,  file_name = self._identify_last_backup()
+
+        # Case - backup-id
+        elif self._backup_id is not None:
+
+            try:
+                backup_info = self._restore_lib.sl_get_backup_details(self._backup_id)
+                backup_id = backup_info["id"]
+                file_name = backup_info["file_name"]
+
+            except exceptions.DoesNotExist:
+                _message = self._MESSAGES_LIST["e000011"].format(self._backup_id)
+                _logger.error(_message)
+
+                raise exceptions.DoesNotExist(_message)
+
+        # Case - file-name
+        elif self._file_name is not None:
+
+            try:
+                backup_info = self._restore_lib.sl_get_backup_details_from_file_name(self._file_name)
+                backup_id = backup_info["id"]
+                file_name = backup_info["file_name"]
+
+            except exceptions.DoesNotExist:
+                _message = self._MESSAGES_LIST["e000012"].format(self._file_name)
+                _logger.error(_message)
+
+                raise exceptions.DoesNotExist(_message)
+
+        if not os.path.exists(file_name):
+
+            _message = self._MESSAGES_LIST["e000004"].format(file_name)
+            _logger.error(_message)
+
+            raise FileNotFoundError(_message)
+
+        return backup_id, file_name
 
     def _identify_last_backup(self):
         """ Identifies latest executed backup either successfully executed (COMPLETED) or already RESTORED
@@ -261,64 +316,6 @@ class RestoreProcess(FoglampProcess):
 
         return _backup_id, _file_name
 
-    def _identifies_backup_to_restore(self):
-        """Identifies the backup to restore either
-        - latest backup
-        - or a specific backup_id
-        - or a specific file_name
-
-        Args:
-        Returns:
-        Raises:
-            FileNotFoundError
-        """
-
-        backup_id = None
-        file_name = None
-
-        # Case - last backup
-        if self._backup_id is None and \
-           self._file_name is None:
-
-            backup_id,  file_name = self._identify_last_backup()
-
-        # Case - backup-id
-        elif self._backup_id is not None:
-
-            try:
-                backup_info = self._restore_lib.get_backup_details(self._backup_id)
-                backup_id = backup_info["id"]
-                file_name = backup_info["file_name"]
-
-            except exceptions.DoesNotExist:
-                _message = self._MESSAGES_LIST["e000011"].format(self._backup_id)
-                _logger.error(_message)
-
-                raise exceptions.DoesNotExist(_message)
-
-        # Case - file-name
-        elif self._file_name is not None:
-
-            try:
-                backup_info = lib.get_backup_details_from_file_name(self._file_name)
-                backup_id = backup_info["id"]
-                file_name = backup_info["file_name"]
-
-            except exceptions.DoesNotExist:
-                _message = self._MESSAGES_LIST["e000012"].format(self._file_name)
-                _logger.error(_message)
-
-                raise exceptions.DoesNotExist(_message)
-
-        if not os.path.exists(file_name):
-
-            _message = self._MESSAGES_LIST["e000004"].format(file_name)
-            _logger.error(_message)
-
-            raise FileNotFoundError(_message)
-
-        return backup_id, file_name
-
     def _foglamp_stop(self):
         """ Stops FogLAMP before for the execution of the backup, doing a cold backup
 
@@ -346,8 +343,7 @@ class RestoreProcess(FoglampProcess):
                     cmd=cmd,
                     output=output))
 
-        # FIXME: the check for status 123 is a temporary workaround as the stop is raising an error every time
-        if status == 0 or status == 123:
+        if status == 0:
 
             # Checks to ensure the FogLamp status
             if self._foglamp_status() != self.FogLampStatus.STOPPED:
@@ -608,7 +604,7 @@ class RestoreProcess(FoglampProcess):
 
         self._restore_lib.retrieve_configuration()
 
-        self._restore_lib.restore_check_for_execution()
+        self._restore_lib.check_for_execution_restore()
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()
@@ -616,7 +612,7 @@ class RestoreProcess(FoglampProcess):
 
             # no job is running
             pid = os.getpid()
-            self._job.set_as_running(lib.JOB_SEM_FILE_RESTORE, pid)
+            self._job.set_as_running(self._restore_lib.JOB_SEM_FILE_RESTORE, pid)
         else:
             _message = self._MESSAGES_LIST["e000009"].format(pid)
             self._logger.warning("{0}".format(_message))
@@ -633,10 +629,10 @@ class RestoreProcess(FoglampProcess):
 
         self._logger.debug("{func}".format(func="shutdown"))
 
-        self._job.set_as_completed(lib.JOB_SEM_FILE_RESTORE)
+        self._job.set_as_completed(self._restore_lib.JOB_SEM_FILE_RESTORE)
 
     def run(self):
-        """Restores a backup
+        """ Restores a backup
 
         Args:
         Returns:

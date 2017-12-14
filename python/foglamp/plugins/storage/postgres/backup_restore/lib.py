@@ -25,24 +25,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-SCHEDULE_RESTORE_ON_DEMAND = "8d4d3ca0-de80-11e7-80c1-9a214cf093ae"
-
-FOGLAMP_CFG_FILE = "/etc/foglamp.json"
-
-MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
-"""" Maximum number of backup information to retrieve from the storage layer"""
-
-STORAGE_TABLE_BACKUPS = "backups"
-""" Table name containing the backups information"""
-
-JOB_SEM_FILE_PATH = "/tmp"
-""" Updated by the caller to the proper value """
-
-JOB_SEM_FILE_BACKUP = ".backup.sem"
-JOB_SEM_FILE_RESTORE = ".restore.sem"
-"""" Semaphores information for the handling of the backup/restore synchronization """
-
 _MODULE_NAME = "foglamp_backup_postgres_library"
 
 _MESSAGES_LIST = {
@@ -65,44 +47,6 @@ _CMD_TIMEOUT = " timeout --signal=9  "
 _logger = None
 _storage = None
 """" Objects references assigned by the caller """
-
-
-class BackupType (IntEnum):
-    """ Supported backup types """
-
-    FULL = 1
-    INCREMENTAL = 2
-
-
-class SortOrder (object):
-    """ Define the order used to present information """
-
-    ASC = 'ASC'
-    DESC = 'DESC'
-
-
-class BackupStatus (object):
-    """ Backup status """
-
-    UNDEFINED = -1
-    RUNNING = 1
-    COMPLETED = 2
-    CANCELLED = 3
-    INTERRUPTED = 4
-    FAILED = 5
-    RESTORED = 6
-    ALL = 999
-
-    text = {
-        UNDEFINED: "undefined",
-        RUNNING: "running",
-        COMPLETED: "completed",
-        CANCELLED: "cancelled",
-        INTERRUPTED: "interrupted",
-        FAILED: "failed",
-        RESTORED: "restored",
-        ALL: "all"
-    }
 
 
 def exec_wait(_cmd, _output_capture=False, _timeout=0):
@@ -222,92 +166,61 @@ def cr_strip(text):
     return text
 
 
-def get_backup_details_from_file_name(_file_name):
-    """ Retrieves backup information from file name
+class BackupType (IntEnum):
+    """ Supported backup types """
 
-    Args:
-        _file_name: file name to search in the Storage layer
-
-    Returns:
-        backup_information: Backup information related to the file name
-
-    Raises:
-        exceptions.DoesNotExist
-        exceptions.NotUniqueBackup
-    """
-
-    payload = payload_builder.PayloadBuilder() \
-        .WHERE(['file_name', '=', _file_name]) \
-        .payload()
-
-    backups_from_storage = _storage.query_tbl_with_payload(STORAGE_TABLE_BACKUPS, payload)
-
-    if backups_from_storage['count'] == 1:
-
-        backup_information = backups_from_storage['rows'][0]
-
-    elif backups_from_storage['count'] == 0:
-        raise exceptions.DoesNotExist
-
-    else:
-        raise exceptions.NotUniqueBackup
-
-    return backup_information
+    FULL = 1
+    INCREMENTAL = 2
 
 
-def sl_backup_status_create(_file_name, _type, _status):
-    """ Logs the creation of the backup in the Storage layer
+class SortOrder (object):
+    """ Define the order used to present information """
 
-    Args:
-        _file_name: file_name used for the backup as a full path
-        _type: backup type {BackupType.FULL|BackupType.INCREMENTAL}
-        _status: backup status, usually BackupStatus.RUNNING
-    Returns:
-    Raises:
-    """
-
-    _logger.debug("{func} - file name |{file}| ".format(func="sl_backup_status_create", file=_file_name))
-
-    payload = payload_builder.PayloadBuilder() \
-        .INSERT(file_name=_file_name,
-                ts="now()",
-                type=_type,
-                status=_status,
-                exit_code=0) \
-        .payload()
-
-    _storage.insert_into_tbl(STORAGE_TABLE_BACKUPS, payload)
+    ASC = 'ASC'
+    DESC = 'DESC'
 
 
-def sl_backup_status_update(_id, _status, _exit_code):
-    """ Updates the status of the backup using the Storage layer
+class BackupStatus (object):
+    """ Backup status """
 
-    Args:
-        _id: Backup's Id to update
-        _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
-        _exit_code: exit status of the backup/restore execution
-    Returns:
-    Raises:
-    """
+    UNDEFINED = -1
+    RUNNING = 1
+    COMPLETED = 2
+    CANCELLED = 3
+    INTERRUPTED = 4
+    FAILED = 5
+    RESTORED = 6
+    ALL = 999
 
-    _logger.debug("{func} - id |{file}| ".format(func="sl_backup_status_update", file=_id))
-
-    payload = payload_builder.PayloadBuilder() \
-        .SET(status=_status,
-             ts="now()",
-             exit_code=_exit_code) \
-        .WHERE(['id', '=', _id]) \
-        .payload()
-
-    _storage.update_tbl(STORAGE_TABLE_BACKUPS, payload)
+    text = {
+        UNDEFINED: "undefined",
+        RUNNING: "running",
+        COMPLETED: "completed",
+        CANCELLED: "cancelled",
+        INTERRUPTED: "interrupted",
+        FAILED: "failed",
+        RESTORED: "restored",
+        ALL: "all"
+    }
 
 
 class BackupRestoreLib(object):
     """ Library of functionalities for the backup restore operations that requires information/state to be stored """
 
-    _storage = None
-    _logger = None
-    config = {}
+    FOGLAMP_CFG_FILE = "/etc/foglamp.json"
+
+    MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
+    """" Maximum number of backup information to retrieve from the storage layer"""
+
+    STORAGE_TABLE_BACKUPS = "backups"
+    """ Table name containing the backups information"""
+
+    JOB_SEM_FILE_PATH = "/tmp"
+    """ Updated by the caller to the proper value """
+
+    JOB_SEM_FILE_BACKUP = ".backup.sem"
+    JOB_SEM_FILE_RESTORE = ".restore.sem"
+    """" Semaphores information for the handling of the backup/restore synchronization """
 
     # Postgres commands
     PG_COMMAND_DUMP = "pg_dump"
@@ -320,6 +233,33 @@ class BackupRestoreLib(object):
                    }
     """List of Postgres commands to check/validate if they are available and usable
        and the actual Postgres commands to use """
+
+    _MESSAGES_LIST = {
+
+        # Information messages
+        "i000001": "Execution started.",
+        "i000002": "Execution completed.",
+
+        # Warning / Error messages
+        "e000000": "general error",
+        "e000001": "cannot initialize the logger - error details |{0}|",
+        "e000002": "cannot retrieve the configuration from the manager, trying retrieving from file "
+                   "- error details |{0}|",
+        "e000003": "cannot retrieve the configuration from file - error details |{0}|",
+        "e000004": "...",
+        "e000005": "...",
+        "e000006": "...",
+        "e000007": "backup failed.",
+        "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
+        "e000009": "...",
+        "e000010": "directory used to store backups doesn't exist - dir |{0}|",
+        "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
+        "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA nor FOGLAMP_ROOT are defined.",
+        "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
+        "e000014": "the identified path of backups doesn't exists, creation was tried "
+                   "- dir |{0}| - error details |{1}|",
+    }
+    """ Messages used for Information, Warning and Error notice """
 
     _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/plsql/bin"
     """Directory for Postgres commands in a managed configuration"""
@@ -400,32 +340,10 @@ class BackupRestoreLib(object):
         },
     }
 
-    _MESSAGES_LIST = {
+    config = {}
 
-        # Information messages
-        "i000001": "Execution started.",
-        "i000002": "Execution completed.",
-
-        # Warning / Error messages
-        "e000000": "general error",
-        "e000001": "cannot initialize the logger - error details |{0}|",
-        "e000002": "cannot retrieve the configuration from the manager, trying retrieving from file "
-                   "- error details |{0}|",
-        "e000003": "cannot retrieve the configuration from file - error details |{0}|",
-        "e000004": "...",
-        "e000005": "...",
-        "e000006": "...",
-        "e000007": "backup failed.",
-        "e000008": "cannot execute the backup, either a backup or a restore is already running - pid |{0}|",
-        "e000009": "...",
-        "e000010": "directory used to store backups doesn't exist - dir |{0}|",
-        "e000011": "directory used to store semaphores for backup/restore synchronization doesn't exist - dir |{0}|",
-        "e000012": "cannot create the configuration cache file, neither FOGLAMP_DATA nor FOGLAMP_ROOT are defined.",
-        "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
-        "e000014": "the identified path of backups doesn't exists, creation was tried "
-                   "- dir |{0}| - error details |{1}|",
-    }
-    """ Messages used for Information, Warning and Error notice """
+    _storage = None
+    _logger = None
 
     def __init__(self, _storage, _logger):
 
@@ -434,15 +352,92 @@ class BackupRestoreLib(object):
 
         self.config = {}
 
+        # FogLAMP directories
         self.dir_foglamp_root = ""
         self.dir_foglamp_data = ""
         self.dir_foglamp_data_etc = ""
         self.dir_foglamp_backup = ""
-
         self.dir_backups = ""
         self.dir_semaphores = ""
 
-    def restore_check_for_execution(self):
+    def sl_backup_status_create(self, _file_name, _type, _status):
+        """ Logs the creation of the backup in the Storage layer
+
+        Args:
+            _file_name: file_name used for the backup as a full path
+            _type: backup type {BackupType.FULL|BackupType.INCREMENTAL}
+            _status: backup status, usually BackupStatus.RUNNING
+        Returns:
+        Raises:
+        """
+
+        _logger.debug("{func} - file name |{file}| ".format(func="sl_backup_status_create", file=_file_name))
+
+        payload = payload_builder.PayloadBuilder() \
+            .INSERT(file_name=_file_name,
+                    ts="now()",
+                    type=_type,
+                    status=_status,
+                    exit_code=0) \
+            .payload()
+
+        self._storage.insert_into_tbl(self.STORAGE_TABLE_BACKUPS, payload)
+
+    def sl_backup_status_update(self, _id, _status, _exit_code):
+        """ Updates the status of the backup using the Storage layer
+
+        Args:
+            _id: Backup's Id to update
+            _status: status of the backup {BackupStatus.SUCCESSFUL|BackupStatus.RESTORED}
+            _exit_code: exit status of the backup/restore execution
+        Returns:
+        Raises:
+        """
+
+        _logger.debug("{func} - id |{file}| ".format(func="sl_backup_status_update", file=_id))
+
+        payload = payload_builder.PayloadBuilder() \
+            .SET(status=_status,
+                 ts="now()",
+                 exit_code=_exit_code) \
+            .WHERE(['id', '=', _id]) \
+            .payload()
+
+        self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload)
+
+    def sl_get_backup_details_from_file_name(self, _file_name):
+        """ Retrieves backup information from file name
+
+        Args:
+            _file_name: file name to search in the Storage layer
+
+        Returns:
+            backup_information: Backup information related to the file name
+
+        Raises:
+            exceptions.DoesNotExist
+            exceptions.NotUniqueBackup
+        """
+
+        payload = payload_builder.PayloadBuilder() \
+            .WHERE(['file_name', '=', _file_name]) \
+            .payload()
+
+        backups_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+
+        if backups_from_storage['count'] == 1:
+
+            backup_information = backups_from_storage['rows'][0]
+
+        elif backups_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+
+        else:
+            raise exceptions.NotUniqueBackup
+
+        return backup_information
+
+    def check_for_execution_restore(self):
         """ Executes all the checks to ensure the prerequisites to execute the backup are met
 
         Args:
@@ -451,6 +446,52 @@ class BackupRestoreLib(object):
         """
 
         self._check_commands()
+
+    def check_for_execution_backup(self):
+        """ Executes all the checks to ensure the prerequisites to execute the backup are met
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        self._check_commands()
+        self._check_db()
+
+    def _check_db(self):
+        """ Checks if the database is working properly reading a sample row from the backups table
+
+        Args:
+        Returns:
+        Raises:
+            exceptions.CannotReadPostgres
+        """
+
+        cmd_psql = self.PG_COMMANDS[self.PG_COMMAND_PSQL]
+
+        cmd = '{psql} -d {db} -t -c "SELECT id FROM {schema}.{table} LIMIT 1;"'.format(
+                                                                psql=cmd_psql,
+                                                                db=self.config['database'],
+                                                                schema=self.config['schema'],
+                                                                table=self.STORAGE_TABLE_BACKUPS)
+
+        _exit_code, output = exec_wait(
+                                        _cmd=cmd,
+                                        _output_capture=True,
+                                        _timeout=self.config['timeout']
+                                        )
+
+        self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+                            func="_check_db",
+                            cmd=cmd,
+                            exit_code=_exit_code,
+                            output=cr_strip(output)))
+
+        if _exit_code != 0:
+            _message = self._MESSAGES_LIST["e000018"].format(cmd, _exit_code, output)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.CannotReadPostgres(_message)
 
     def _check_commands(self):
         """ Identify and checks the Postgres commands
@@ -539,7 +580,7 @@ class BackupRestoreLib(object):
 
         plugin_type = False
 
-        file_full_path = self.dir_foglamp_data + FOGLAMP_CFG_FILE
+        file_full_path = self.dir_foglamp_data + self.FOGLAMP_CFG_FILE
 
         with open(file_full_path) as file:
             cfg_file = json.load(file)
@@ -591,7 +632,7 @@ class BackupRestoreLib(object):
 
             raise exceptions.PgCommandNotExecutable(_message)
 
-    def get_backup_details(self, backup_id: int) -> dict:
+    def sl_get_backup_details(self, backup_id: int) -> dict:
         """ Returns the details of a backup
 
         Args:
@@ -609,7 +650,7 @@ class BackupRestoreLib(object):
             .WHERE(['id', '=', backup_id]) \
             .payload()
 
-        backup_from_storage = self._storage.query_tbl_with_payload(STORAGE_TABLE_BACKUPS, payload)
+        backup_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
 
         if backup_from_storage['count'] == 0:
             raise exceptions.DoesNotExist
@@ -829,6 +870,7 @@ class BackupRestoreLib(object):
 
         self.config['port'] = int(_config_from_manager['port']['value'])
         self.config['database'] = _config_from_manager['database']['value']
+        self.config['schema'] = _config_from_manager['schema']['value']
         self.config['backup-dir'] = _config_from_manager['backup-dir']['value']
         self.config['semaphores-dir'] = _config_from_manager['semaphores-dir']['value']
         self.config['retention'] = int(_config_from_manager['retention']['value'])
@@ -960,12 +1002,12 @@ class Job:
         _logger.debug("{func}".format(func="is_running"))
 
         # Checks if a backup process is still running
-        full_path_backup = JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_BACKUP
+        full_path_backup = JOB_SEM_FILE_PATH + "/" + BackupRestoreLib.JOB_SEM_FILE_BACKUP
         pid = cls._check_semaphore_file(full_path_backup)
 
         # Checks if a restore process is still running
         if pid == 0:
-            full_path_restore = JOB_SEM_FILE_PATH + "/" + JOB_SEM_FILE_RESTORE
+            full_path_restore = JOB_SEM_FILE_PATH + "/" + BackupRestoreLib.JOB_SEM_FILE_RESTORE
             pid = cls._check_semaphore_file(full_path_restore)
 
         return pid

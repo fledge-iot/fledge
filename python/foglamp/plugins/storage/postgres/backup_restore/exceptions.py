@@ -17,6 +17,11 @@ class BackupOrRestoreAlreadyRunning(Exception):
     pass
 
 
+class InitializationFailed(Exception):
+    """ Cannot complete the initialization """
+    pass
+
+
 class BackupFailed(Exception):
     """ An error occurred during the backup operation """
     pass
@@ -28,7 +33,7 @@ class RestoreFailed(Exception):
 
 
 class NotUniqueBackup(Exception):
-    """ There are more backups having the same id """
+    """ There are more than one backups having the same backup id """
     pass
 
 
@@ -60,4 +65,43 @@ class InvalidBackupsPath(Exception):
 
 class InvalidPath(Exception):
     """ The identified path is not a valid directory """
+    pass
+
+
+class ArgumentParserError(Exception):
+    """ Invalid command line arguments """
+    pass
+
+
+class FogLAMPStartError(RuntimeError):
+    """ Unable to start FogLAMP """
+    pass
+
+
+class FogLAMPStopError(RuntimeError):
+    """ Unable to stop FogLAMP """
+
+
+class PgCommandUnAvailable(Exception):
+    """ Postgres command is not available neither using the managed nor the unmanaged approach """
+    pass
+
+
+class PgCommandNotExecutable(Exception):
+    """ Postgres command is not executable """
+    pass
+
+
+class CannotReadPostgres(Exception):
+    """ It is not possible to read data from Postgres """
+    pass
+
+
+class NoBackupAvailableError(RuntimeError):
+    """ No backup in the proper state is available """
+    pass
+
+
+class FileNameError(RuntimeError):
+    """ Impossible to identify an unique backup to restore """
     pass

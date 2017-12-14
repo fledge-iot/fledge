@@ -203,16 +203,16 @@ class SensorTagCC2650(object):
             self.con.expect('.*{}.* \r'.format(cmd))
             reading = self.con.after
             lines = reading.decode()
-            print(lines)
-            _LOGGER.info('SensorTagCC2650 {} notification handles {}'.format(', '.join(lines)))
             i = 0
             while i != -1:
                 i = lines.find('handle: 0x', i + 1)
                 if i != -1:
                     notification_handles.append(lines[i + 8:i + 14])
                     i += 1
+            _LOGGER.info('SensorTagCC2650 {} notification handles {}'.format(
+                self.bluetooth_adr, ', '.join(notification_handles)))
         except Exception as ex:
-            _LOGGER.exception('SensorTagCC2650 {} retrying fetching characteristics...'.format(self.bluetooth_adr))
+            _LOGGER.exception('SensorTagCC2650 {} retrying notification handles...'.format(self.bluetooth_adr))
             time.sleep(.5)
         return notification_handles
 

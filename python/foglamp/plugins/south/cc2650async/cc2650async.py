@@ -163,15 +163,13 @@ def plugin_start(handle):
                 try:
                     pattern_index = tag.con.expect('Notification handle = .*? \r', timeout=4)
                 except pexpect.TIMEOUT:
-                    print(pattern_index)
                     _LOGGER.error("SensorTagCC2650 {} async timeout")
                     print("TIMEOUT exception!")
                     break
 
-                after = tag.con.after
-
                 # If succesfull, then pattern_index should appear at col 0
                 if pattern_index == 0:
+                    after = tag.con.after
                     hxstr = after.split()[3:]
 
                     # Used only for debugging. debug_cnt should be set to 0 in production
@@ -304,13 +302,11 @@ def plugin_start(handle):
 
                     # Common add_readings for all keys other than movement
                     if int(handle['characteristics']['movement']['data']['handle'], 16) != int(hxstr[0].decode(), 16):
-                        print("Writing", handle['ingest'])
                         await handle['ingest'].add_readings(asset=data['asset'],
                                                             timestamp=data['timestamp'],
                                                             key=data['key'],
                                                             readings=data['readings'])
                 else:
-                    print(pattern_index, after)
                     _LOGGER.error("SensorTagCC2650 {} async timeout")
                     print("TIMEOUT!!")
         except (Exception, RuntimeError) as ex:

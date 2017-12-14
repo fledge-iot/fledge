@@ -831,7 +831,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'POLL', 'POLL Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650POLL', 'SensorTagCC2650 Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
+    VALUES ( 'CC2650POLL', 'SensorTagCC2650 Poll Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650ASYN', 'SensorTagCC2650 Async Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } ');

@@ -22,7 +22,7 @@ __version__ = "${VERSION}"
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Python module name of the plugin to load',
+         'description': 'Sensortag CC2650 poll type plugin',
          'type': 'string',
          'default': 'cc2650poll'
     },
@@ -38,6 +38,11 @@ _DEFAULT_CONFIG = {
     },
     'connectionTimeout': {
         'description': 'BLE Device timeout value in seconds',
+        'type': 'integer',
+        'default': '10'
+    },
+    'shutdownThreshold': {
+        'description': 'Time in seconds allowed for shutdown to complete the pending tasks',
         'type': 'integer',
         'default': '10'
     }
@@ -269,6 +274,12 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
+    # Find all running tasks:
+    pending = asyncio.Task.all_tasks()
+
+    # Wait until tasks done:
+    asyncio.ensure_future(asyncio.wait(*pending, timeout=handle['shutdownThreshold']))
+
     bluetooth_adr = handle['bluetooth_adr']
     tag = handle['tag']
     tag.disconnect()

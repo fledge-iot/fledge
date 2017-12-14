@@ -11,6 +11,7 @@ import datetime
 import uuid
 import json
 import asyncio
+
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
@@ -22,7 +23,7 @@ __version__ = "${VERSION}"
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Python module name of the plugin to load',
+         'description': 'Sensortag CC2650 async type plugin',
          'type': 'string',
          'default': 'cc2650poll'
     },
@@ -33,6 +34,11 @@ _DEFAULT_CONFIG = {
     },
     'connectionTimeout': {
         'description': 'BLE Device timeout value in seconds',
+        'type': 'integer',
+        'default': '10'
+    },
+    'shutdownThreshold': {
+        'description': 'Time in seconds allowed for shutdown to complete the pending tasks',
         'type': 'integer',
         'default': '10'
     }
@@ -76,8 +82,8 @@ def plugin_init(config):
 
     bluetooth_adr = config['bluetoothAddress']['value']
     timeout = config['connectionTimeout']['value']
-    tag = SensorTagCC2650(bluetooth_adr, timeout)
 
+    tag = SensorTagCC2650(bluetooth_adr, timeout)
     data['is_connected'] = tag.is_connected
     if data['is_connected'] is True:
         # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
@@ -150,20 +156,25 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
             # TODO: How to implement CTRL-C or terminate process?
-            debug_cnt = 50 # 0 when not debugging
+            debug_cnt = 50 # Used only for debugging. debug_cnt should be set to 0 in production
             cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
                 try:
-                    pnum = tag.con.expect('Notification handle = .*? \r', timeout=4)
+                    pattern_index = tag.con.expect('Notification handle = .*? \r', timeout=4)
                 except pexpect.TIMEOUT:
+                    print(pattern_index)
+                    _LOGGER.error("SensorTagCC2650 {} async timeout")
                     print("TIMEOUT exception!")
                     break
 
-                if pnum == 0:
-                    after = tag.con.after
+                after = tag.con.after
+
+                # If succesfull, then pattern_index should appear at col 0
+                if pattern_index == 0:
                     hxstr = after.split()[3:]
 
+                    # Used only for debugging. debug_cnt should be set to 0 in production
                     if debug_cnt > 0:
                         if cnt >= debug_cnt:
                             break
@@ -264,7 +275,7 @@ def plugin_start(handle):
                                                                 readings=data['readings'])
 
                     # Get battery
-                    # TODO: Investigate why no battery input in async mode?
+                    # FIXME: Investigate why no battery input in async mode?
                     if int(battery['data']['handle'], 16) == int(hxstr[0].decode(), 16):
                         battery_level = tag.get_battery_level(
                             tag.char_read_hnd(battery['data']['handle'], "battery"))
@@ -278,7 +289,7 @@ def plugin_start(handle):
                         }
 
                     # Get keypress
-                    # TODO: Investigate why no keypress input?
+                    # FIXME: Investigate why no keypress input?
                     if int(keypress['data']['handle'], 16) == int(hxstr[0].decode(), 16):
                         keypress_state = tag.get_keypress_state(
                             tag.char_read_hnd(keypress['data']['handle'], "keypress"))
@@ -299,6 +310,8 @@ def plugin_start(handle):
                                                             key=data['key'],
                                                             readings=data['readings'])
                 else:
+                    print(pattern_index, after)
+                    _LOGGER.error("SensorTagCC2650 {} async timeout")
                     print("TIMEOUT!!")
         except (Exception, RuntimeError) as ex:
             _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
@@ -322,7 +335,6 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-
     new_handle = {}
 
     return new_handle
@@ -336,6 +348,12 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
+    # Find all running tasks:
+    pending = asyncio.Task.all_tasks()
+
+    # Wait until tasks done:
+    asyncio.ensure_future(asyncio.wait(*pending, timeout=handle['shutdownThreshold']))
+
     bluetooth_adr = handle['bluetooth_adr']
     tag = handle['tag']
 

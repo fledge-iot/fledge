@@ -204,6 +204,7 @@ class SensorTagCC2650(object):
             reading = self.con.after
             lines = reading.decode()
             print(lines)
+            _LOGGER.info('SensorTagCC2650 {} notification handles {}'.format(', '.join(lines)))
             i = 0
             while i != -1:
                 i = lines.find('handle: 0x', i + 1)

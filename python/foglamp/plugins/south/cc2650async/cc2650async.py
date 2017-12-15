@@ -100,7 +100,6 @@ def plugin_init(config):
 
         data['notification_handles'] = tag.get_notification_handles()
         data['characteristics'] = sensortag_characteristics
-        data['bluetooth_address'] = bluetooth_adr
         data['tag'] = tag
         _LOGGER.info('SensorTagCC2650 {} Async fetching initialized'.format(bluetooth_adr))
 
@@ -128,7 +127,7 @@ def plugin_start(handle):
             'key': str(uuid.uuid4()),
             'readings': {}
         }
-        bluetooth_adr = handle['bluetooth_address']
+        bluetooth_adr = handle['bluetoothAddress']['value']
         tag = handle['tag']
         object_temp_celsius = None
         ambient_temp_celsius = None
@@ -322,7 +321,6 @@ def plugin_start(handle):
         _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
 
     asyncio.ensure_future(save_data())
-    return handle
 
 
 def plugin_reconfigure(handle, new_config):
@@ -354,9 +352,9 @@ def plugin_shutdown(handle):
     pending_tasks = asyncio.Task.all_tasks()
 
     # Wait until tasks done:
-    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']))
+    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
 
-    bluetooth_adr = handle['bluetooth_address']
+    bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
 
     # Disable sensors

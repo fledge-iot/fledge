@@ -103,7 +103,6 @@ def plugin_init(config):
         sensortag_characteristics['battery'] = battery
 
         data['characteristics'] = sensortag_characteristics
-        data['bluetooth_address'] = bluetooth_adr
         data['tag'] = tag
         _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
@@ -131,7 +130,7 @@ def plugin_poll(handle):
         'key': str(uuid.uuid4()),
         'readings': {}
     }
-    bluetooth_adr = handle['bluetooth_address']
+    bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
     object_temp_celsius = None
     ambient_temp_celsius = None
@@ -278,9 +277,9 @@ def plugin_shutdown(handle):
     pending_tasks = asyncio.Task.all_tasks()
 
     # Wait until tasks done:
-    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']))
+    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
 
-    bluetooth_adr = handle['bluetooth_address']
+    bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
     tag.disconnect()
     _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

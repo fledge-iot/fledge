@@ -25,8 +25,5 @@ precise, before shutting down. It waits for a fixed time, configured via
 
 Known issues:
 =============
-1. If device is wrongly addressed or is not switched on when FogLAMP server is started,
-then the behaviour of this plugin is unpredictable.
-
-2. Since the plugin runs in a separate process and its shutdown is controlled by the
+Since the plugin runs in a separate process and its shutdown is controlled by the
 central FogLAMP server, pressing CTRL-C does not terminate the process properly.

@@ -831,6 +831,12 @@ INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'POLL', 'POLL Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
+    VALUES ( 'CC2650POLL', 'SensorTagCC2650 Poll Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
+
+INSERT INTO foglamp.configuration ( key, description, value )
+    VALUES ( 'CC2650ASYN', 'SensorTagCC2650 Async Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } ');
+
+INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'HTTP_SOUTH', 'HTTP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } ');
 
 -- DELETE data for roles, resources and permissions
@@ -838,16 +844,9 @@ DELETE FROM foglamp.role_resource_permission;
 DELETE FROM foglamp.roles;
 DELETE FROM foglamp.resources;
 
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650POLL', 'SensorTagCC2650 Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
-
--- DELETE data for roles, resources and permissions
-DELETE FROM foglamp.role_resource_permission;
-
 -- Roles
 INSERT INTO foglamp.roles ( id, name, description )
      VALUES ( 1, 'Power User', 'A user with special privileges' );
-
 
 -- Resources
 INSERT INTO foglamp.resources ( id, code, description )
@@ -884,6 +883,7 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["ser
 -- FogLAMP South Microservice - POLL Plugin template
 insert into foglamp.scheduled_processes ( name, script ) values ( 'POLL', '["services/south"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650POLL', '["services/south"]');
+insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650ASYN', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'HTTP_SOUTH', '["services/south"]');
 insert into foglamp.scheduled_processes ( name, script ) values ( 'purge', '["tasks/purge"]' );
 insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collector', '["tasks/statistics"]' );
@@ -920,10 +920,16 @@ values ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
 NULL, '00:00:00', true);
 
 -- Start the Poll mode device server at start-up
--- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
--- schedule_interval, exclusive)
--- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
--- '0:0', true);
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive)
+values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
+'0:0', true);
+
+-- Start the async mode CC2650 Sensortag at start-up
+--insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+--schedule_interval, exclusive)
+--values ('716a16ea-c736-490b-86d5-10204585ca8c', 'device', 'CC2650ASYN', 1,
+--'0:0', true);
 
 -- Start the Poll mode device server at start-up
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
@@ -967,13 +973,6 @@ INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
 NULL, '00:00:25', true);
-
--- Run North HTTP Translator every 15 seconds
---insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
---schedule_time, schedule_interval, exclusive)
---values ('543a59ce-a9ca-11e7-abc4-cec278b6b50b', 'sending HTTP', 'sending HTTP', 3,
---NULL, '00:00:15', true);
-
 
 -- OMF translator configuration
 INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());

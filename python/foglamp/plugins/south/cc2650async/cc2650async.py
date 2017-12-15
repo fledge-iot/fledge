@@ -157,7 +157,7 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
             # TODO: How to implement CTRL-C or terminate process?
-            debug_cnt = 50  # Used only for debugging. debug_cnt should be set to 0 in production.
+            debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
             cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
@@ -173,12 +173,16 @@ def plugin_start(handle):
                     after = tag.con.after
                     hex_string = after.split()[3:]
 
+                    cnt += 1
                     # Used only for debugging. debug_cnt should be set to 0 in production
                     if debug_cnt > 0:
                         if cnt >= debug_cnt:
                             break
-                        cnt += 1
                         print(cnt, "****", hex_string)
+
+                    # Allow some breathing time for event loop to finish the background tasks.
+                    if cnt % 50 == 0:
+                        await asyncio.sleep(.5)
 
                     # Get temperature
                     if int(handle['characteristics']['temperature']['data']['handle'], 16) == \

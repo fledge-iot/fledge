@@ -16,7 +16,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-store = StorageClient("0.0.0.0", core_management_port=37251)
+store = StorageClient("0.0.0.0", core_management_port=37631)
 
 
 # TODO: remove once FOGL-510 is done
@@ -32,8 +32,7 @@ def create_init_data():
     file_path = py.path.local(_dir).join('/foglamp_test_storage_init.sql')
     os.system("psql < {} > /dev/null 2>&1".format(file_path))
     yield
-    os.system("psql < `locate foglamp_ddl.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
-    os.system("psql < `locate foglamp_init_data.sql | grep 'FogLAMP/src/sql'` > /dev/null 2>&1")
+    os.system("psql < `locate init.sql | grep 'FogLAMP/C/plugins/storage/postgres'` > /dev/null 2>&1")
 
 
 @pytest.allure.feature("api")
@@ -170,7 +169,6 @@ class TestStorageRead:
     def test_multiple_aggregate(self):
         payload = PayloadBuilder().AGGREGATE(["min", "value"], ["max", "value"], ["avg", "value"]).payload()
         result = store.query_tbl_with_payload("statistics", payload)
-        print(result)
         assert len(result["rows"]) == 1
         assert result["count"] == 1
         assert result["rows"][0]["min_value"] == 10

@@ -674,7 +674,7 @@ int		row = 0;
 		row++;
 		sql.append('\'');
 		sql.append((*itr)["asset_code"].GetString());
-        // Python code is passing the strign None when here is no read_key in the payload
+        // Python code is passing the string None when here is no read_key in the payload
         if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
         {
     		sql.append("', \'");
@@ -685,7 +685,6 @@ int		row = 0;
         {
             // No "read_key" in this reading, insert NULL
             sql.append("', NULL, '");
-			Logger::getLogger()->error("Appending reading with NULL read_key");
         }
 		StringBuffer buffer;
 		Writer<StringBuffer> writer(buffer);

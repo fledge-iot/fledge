@@ -185,7 +185,7 @@ def plugin_start(handle):
                         object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(
                                                                     tag.get_raw_measurement("temperature", hex_string))
                         data = {
-                            'asset': 'TI Sensortag CC2650/temperature',
+                            'asset': 'temperature',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -201,7 +201,7 @@ def plugin_start(handle):
                             int(hex_string[0].decode(), 16):
                         lux_luminance = tag.hex_lux_to_lux(tag.get_raw_measurement("luminance", hex_string))
                         data = {
-                            'asset': 'TI Sensortag CC2650/luxometer',
+                            'asset': 'luxometer',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -215,7 +215,7 @@ def plugin_start(handle):
                         rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(
                                                         tag.get_raw_measurement("humidity", hex_string))
                         data = {
-                            'asset': 'TI Sensortag CC2650/humidity',
+                            'asset': 'humidity',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -231,7 +231,7 @@ def plugin_start(handle):
                             int(hex_string[0].decode(), 16):
                         bar_pressure = tag.hex_pressure_to_pressure(tag.get_raw_measurement("pressure", hex_string))
                         data = {
-                            'asset': 'TI Sensortag CC2650/pressure',
+                            'asset': 'pressure',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -265,14 +265,14 @@ def plugin_start(handle):
                         # Dedicated add_readings for movement
                         for reading_key in movement:
                             data = {
-                                'asset': 'TI Sensortag CC2650/'+reading_key,
+                                'asset': reading_key,
                                 'timestamp': time_stamp,
                                 'key': str(uuid.uuid4()),
                                 'readings': {
                                     reading_key: movement[reading_key],
                                 }
                             }
-                            await handle['ingest'].add_readings(asset=data['asset'],
+                            await handle['ingest'].add_readings(asset='TI Sensortag CC2650/'+data['asset'],
                                                                 timestamp=data['timestamp'],
                                                                 key=data['key'],
                                                                 readings=data['readings'])
@@ -283,7 +283,7 @@ def plugin_start(handle):
                         battery_level = tag.get_battery_level(
                             tag.char_read_hnd(battery['data']['handle'], "battery"))
                         data = {
-                            'asset': 'TI Sensortag CC2650/battery',
+                            'asset': 'battery',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -297,7 +297,7 @@ def plugin_start(handle):
                         keypress_state = tag.get_keypress_state(
                             tag.char_read_hnd(keypress['data']['handle'], "keypress"))
                         data = {
-                            'asset': 'TI Sensortag CC2650/keypress',
+                            'asset': 'keypress',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -308,7 +308,7 @@ def plugin_start(handle):
                     # Common add_readings for all keys other than movement
                     if int(handle['characteristics']['movement']['data']['handle'], 16) != \
                             int(hex_string[0].decode(), 16):
-                        await handle['ingest'].add_readings(asset=data['asset'],
+                        await handle['ingest'].add_readings(asset='TI Sensortag CC2650/'+data['asset'],
                                                             timestamp=data['timestamp'],
                                                             key=data['key'],
                                                             readings=data['readings'])

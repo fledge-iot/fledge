@@ -168,7 +168,9 @@ def plugin_start(handle):
                     print("TIMEOUT exception!")
                     break
 
-                # If succesfull, then pattern_index should appear at col 0
+                # expect, if succesfull, will return the index of the pattern "Notification handle = " which ideally
+                # should appear at col 0. If not, then pexpect.TIMEOUT will be raised. Also, this choice of pattern
+                # will help in splitting at line#176.
                 if pattern_index == 0:
                     after = tag.con.after
                     hex_string = after.split()[3:]

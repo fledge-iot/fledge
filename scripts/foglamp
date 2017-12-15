@@ -119,13 +119,25 @@ foglamp_stop() {
     fi
 
     # Kill the python processes
-    ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+    list_to_kill=`ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | grep -v 'backup_restore' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
 
     # Kill the services processes
-    ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+    list_to_kill=`ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
 
     # Kill the shell script processes
-    ps -ef | grep '/bin/sh services' | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+    list_to_kill=`ps -ef | grep '/bin/sh services' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
 
     # Execute the Storage Plugin script
     # NOTE: This script does not stop the microservice,

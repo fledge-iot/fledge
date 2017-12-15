@@ -100,7 +100,7 @@ def plugin_init(config):
 
         data['notification_handles'] = tag.get_notification_handles()
         data['characteristics'] = sensortag_characteristics
-        data['bluetooth_adr'] = bluetooth_adr
+        data['bluetooth_address'] = bluetooth_adr
         data['tag'] = tag
         _LOGGER.info('SensorTagCC2650 {} Async fetching initialized'.format(bluetooth_adr))
 
@@ -128,7 +128,7 @@ def plugin_start(handle):
             'key': str(uuid.uuid4()),
             'readings': {}
         }
-        bluetooth_adr = handle['bluetooth_adr']
+        bluetooth_adr = handle['bluetooth_address']
         tag = handle['tag']
         object_temp_celsius = None
         ambient_temp_celsius = None
@@ -156,7 +156,7 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
             # TODO: How to implement CTRL-C or terminate process?
-            debug_cnt = 50 # Used only for debugging. debug_cnt should be set to 0 in production
+            debug_cnt = 50  # Used only for debugging. debug_cnt should be set to 0 in production.
             cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
@@ -170,21 +170,22 @@ def plugin_start(handle):
                 # If succesfull, then pattern_index should appear at col 0
                 if pattern_index == 0:
                     after = tag.con.after
-                    hxstr = after.split()[3:]
+                    hex_string = after.split()[3:]
 
                     # Used only for debugging. debug_cnt should be set to 0 in production
                     if debug_cnt > 0:
                         if cnt >= debug_cnt:
                             break
                         cnt += 1
-                        print(cnt, "****", hxstr)
+                        print(cnt, "****", hex_string)
 
                     # Get temperature
-                    if int(handle['characteristics']['temperature']['data']['handle'], 16) == int(hxstr[0].decode(), 16):
+                    if int(handle['characteristics']['temperature']['data']['handle'], 16) == \
+                            int(hex_string[0].decode(), 16):
                         object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(
-                                                                    tag.get_raw_measurement("temperature", hxstr))
+                                                                    tag.get_raw_measurement("temperature", hex_string))
                         data = {
-                            'asset': 'TI sensortag/temperature',
+                            'asset': 'TI Sensortag CC2650/temperature',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -196,10 +197,11 @@ def plugin_start(handle):
                         }
 
                     # Get luminance
-                    if int(handle['characteristics']['luminance']['data']['handle'], 16) == int(hxstr[0].decode(), 16):
-                        lux_luminance = tag.hex_lux_to_lux(tag.get_raw_measurement("luminance", hxstr))
+                    if int(handle['characteristics']['luminance']['data']['handle'], 16) == \
+                            int(hex_string[0].decode(), 16):
+                        lux_luminance = tag.hex_lux_to_lux(tag.get_raw_measurement("luminance", hex_string))
                         data = {
-                            'asset': 'TI sensortag/luxometer',
+                            'asset': 'TI Sensortag CC2650/luxometer',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -208,11 +210,12 @@ def plugin_start(handle):
                         }
 
                     # Get humidity
-                    if int(handle['characteristics']['humidity']['data']['handle'], 16) == int(hxstr[0].decode(), 16):
+                    if int(handle['characteristics']['humidity']['data']['handle'], 16) == \
+                            int(hex_string[0].decode(), 16):
                         rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(
-                                                        tag.get_raw_measurement("humidity", hxstr))
+                                                        tag.get_raw_measurement("humidity", hex_string))
                         data = {
-                            'asset': 'TI sensortag/humidity',
+                            'asset': 'TI Sensortag CC2650/humidity',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -224,10 +227,11 @@ def plugin_start(handle):
                         }
 
                     # Get pressure
-                    if int(handle['characteristics']['pressure']['data']['handle'], 16) == int(hxstr[0].decode(), 16):
-                        bar_pressure = tag.hex_pressure_to_pressure(tag.get_raw_measurement("pressure", hxstr))
+                    if int(handle['characteristics']['pressure']['data']['handle'], 16) == \
+                            int(hex_string[0].decode(), 16):
+                        bar_pressure = tag.hex_pressure_to_pressure(tag.get_raw_measurement("pressure", hex_string))
                         data = {
-                            'asset': 'TI sensortag/pressure',
+                            'asset': 'TI Sensortag CC2650/pressure',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -236,9 +240,10 @@ def plugin_start(handle):
                         }
 
                     # Get movement
-                    if int(handle['characteristics']['movement']['data']['handle'], 16) == int(hxstr[0].decode(), 16):
-                        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, \
-                        mag_x, mag_y, mag_z, acc_range = tag.hex_movement_to_movement(tag.char_read_hnd(
+                    if int(handle['characteristics']['movement']['data']['handle'], 16) == \
+                            int(hex_string[0].decode(), 16):
+                        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = \
+                            tag.hex_movement_to_movement(tag.char_read_hnd(
                                                 handle['characteristics']['movement']['data']['handle'], "movement"))
                         movement = {
                             'gyroscope': {
@@ -260,7 +265,7 @@ def plugin_start(handle):
                         # Dedicated add_readings for movement
                         for reading_key in movement:
                             data = {
-                                'asset': 'TI sensortag/'+reading_key,
+                                'asset': 'TI Sensortag CC2650/'+reading_key,
                                 'timestamp': time_stamp,
                                 'key': str(uuid.uuid4()),
                                 'readings': {
@@ -274,11 +279,11 @@ def plugin_start(handle):
 
                     # Get battery
                     # FIXME: Investigate why no battery input in async mode?
-                    if int(battery['data']['handle'], 16) == int(hxstr[0].decode(), 16):
+                    if int(battery['data']['handle'], 16) == int(hex_string[0].decode(), 16):
                         battery_level = tag.get_battery_level(
                             tag.char_read_hnd(battery['data']['handle'], "battery"))
                         data = {
-                            'asset': 'TI sensortag/battery',
+                            'asset': 'TI Sensortag CC2650/battery',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -288,11 +293,11 @@ def plugin_start(handle):
 
                     # Get keypress
                     # FIXME: Investigate why no keypress input?
-                    if int(keypress['data']['handle'], 16) == int(hxstr[0].decode(), 16):
+                    if int(keypress['data']['handle'], 16) == int(hex_string[0].decode(), 16):
                         keypress_state = tag.get_keypress_state(
                             tag.char_read_hnd(keypress['data']['handle'], "keypress"))
                         data = {
-                            'asset': 'TI sensortag/keypress',
+                            'asset': 'TI Sensortag CC2650/keypress',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
@@ -301,7 +306,8 @@ def plugin_start(handle):
                         }
 
                     # Common add_readings for all keys other than movement
-                    if int(handle['characteristics']['movement']['data']['handle'], 16) != int(hxstr[0].decode(), 16):
+                    if int(handle['characteristics']['movement']['data']['handle'], 16) != \
+                            int(hex_string[0].decode(), 16):
                         await handle['ingest'].add_readings(asset=data['asset'],
                                                             timestamp=data['timestamp'],
                                                             key=data['key'],
@@ -350,7 +356,7 @@ def plugin_shutdown(handle):
     # Wait until tasks done:
     asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']))
 
-    bluetooth_adr = handle['bluetooth_adr']
+    bluetooth_adr = handle['bluetooth_address']
     tag = handle['tag']
 
     # Disable sensors

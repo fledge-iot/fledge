@@ -11,7 +11,7 @@ from enum import IntEnum
 
 from foglamp.services.core import connect
 from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
-import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
+from foglamp.plugins.storage.postgres.backup_restore import exceptions
 
 # TODO: remove this and call actual class methods
 from unittest.mock import MagicMock

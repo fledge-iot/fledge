@@ -122,6 +122,8 @@ def plugin_poll(handle):
     Raises:
         DataRetrievalError
     """
+    if 'tag' not in handle:
+        return {}
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
     data = {
@@ -279,7 +281,8 @@ def plugin_shutdown(handle):
     # Wait until tasks done:
     asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
 
-    bluetooth_adr = handle['bluetoothAddress']['value']
-    tag = handle['tag']
-    tag.disconnect()
-    _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+    if 'tag' in handle:
+        bluetooth_adr = handle['bluetoothAddress']['value']
+        tag = handle['tag']
+        tag.disconnect()
+        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

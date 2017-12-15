@@ -120,6 +120,8 @@ def plugin_start(handle):
         TimeoutError
     """
     async def save_data():
+        if 'tag' not in handle:
+            return
         time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
         data = {
             'asset': 'TI Sensortag CC2650',
@@ -271,7 +273,7 @@ def plugin_start(handle):
                                     reading_key: movement[reading_key],
                                 }
                             }
-                            await handle['ingest'].add_readings(asset='TI Sensortag CC2650/'+data['asset'],
+                            await handle['ingest'].add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                                                 timestamp=data['timestamp'],
                                                                 key=data['key'],
                                                                 readings=data['readings'])
@@ -307,7 +309,7 @@ def plugin_start(handle):
                     # Common add_readings for all keys other than movement
                     if int(handle['characteristics']['movement']['data']['handle'], 16) != \
                             int(hex_string[0].decode(), 16):
-                        await handle['ingest'].add_readings(asset='TI Sensortag CC2650/'+data['asset'],
+                        await handle['ingest'].add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                                             timestamp=data['timestamp'],
                                                             key=data['key'],
                                                             readings=data['readings'])
@@ -354,19 +356,20 @@ def plugin_shutdown(handle):
     # Wait until tasks done:
     asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
 
-    bluetooth_adr = handle['bluetoothAddress']['value']
-    tag = handle['tag']
+    if 'tag' in handle:
+        bluetooth_adr = handle['bluetoothAddress']['value']
+        tag = handle['tag']
 
-    # Disable sensors
-    tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
-    tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_disable)
+        # Disable sensors
+        tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['humidity']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_disable)
+        tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_disable)
 
-    # Disable notification
-    for notification_handle in handle['notification_handles']:
-        tag.char_write_cmd(notification_handle, notification_disable)
+        # Disable notification
+        for notification_handle in handle['notification_handles']:
+            tag.char_write_cmd(notification_handle, notification_disable)
 
-    tag.disconnect()
-    _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+        tag.disconnect()
+        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

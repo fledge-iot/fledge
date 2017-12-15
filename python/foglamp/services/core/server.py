@@ -17,12 +17,14 @@ import time
 from aiohttp import web
 
 from foglamp.common import logger
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.web import middleware
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.common.microservice_management import routes as management_routes
-from foglamp.common.web import middleware
 from foglamp.services.core.service_registry.service_registry import *
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
+from foglamp.services.core import connect
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -56,6 +58,10 @@ class Server:
 
     
     _start_time = time.time()
+
+    _storage = None
+
+    _configuration_manager = None
 
     @staticmethod
     def _make_app():
@@ -133,6 +139,10 @@ class Server:
 
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
+
+            cls._storage = connect.get_storage()
+            cls._configuration_manager = ConfigurationManager(cls._storage)
+
             # start scheduler
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration

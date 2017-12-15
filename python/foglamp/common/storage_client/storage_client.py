@@ -17,7 +17,7 @@ import http.client
 import json
 
 from foglamp.common import logger
-from foglamp.common.service import Service
+from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.utils import Utils
 

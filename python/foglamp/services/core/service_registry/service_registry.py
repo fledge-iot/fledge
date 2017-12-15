@@ -9,7 +9,7 @@
 import uuid
 from enum import IntEnum
 from foglamp.common import logger
-from foglamp.common.service import Service
+from foglamp.common.service_record import ServiceRecord
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -71,7 +71,7 @@ class ServiceRegistry:
             raise NonNumericPortError
 
         service_id = str(uuid.uuid4())
-        registered_service = Service(service_id, name, s_type, protocol, address, port, management_port)
+        registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
         return service_id

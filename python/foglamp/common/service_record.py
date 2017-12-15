@@ -7,7 +7,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-class Service(object):
+class ServiceRecord(object):
 
     class Type(IntEnum):
         """Enumeration for Service Types"""

@@ -222,6 +222,9 @@ class RestoreProcess(FoglampProcess):
 
         self._job = lib.Job()
 
+        self._force_restore = True
+        """ Restore a backup doesn't exist in the backups table """
+
         # Creates the objects references used by the library
         lib._logger = self._logger
         lib._storage = self._storage
@@ -270,10 +273,14 @@ class RestoreProcess(FoglampProcess):
                 file_name = backup_info["file_name"]
 
             except exceptions.DoesNotExist:
-                _message = self._MESSAGES_LIST["e000012"].format(self._file_name)
-                _logger.error(_message)
+                if self._force_restore:
+                    file_name = self._file_name
 
-                raise exceptions.DoesNotExist(_message)
+                else:
+                    _message = self._MESSAGES_LIST["e000012"].format(self._file_name)
+                    _logger.error(_message)
+
+                    raise exceptions.DoesNotExist(_message)
 
         if not os.path.exists(file_name):
 
@@ -315,6 +322,39 @@ class RestoreProcess(FoglampProcess):
             raise exceptions.FileNameError
 
         return _backup_id, _file_name
+
+    def get_backup_details_from_file_name(self, _file_name):
+        """ Retrieves backup information from file name
+
+        Args:
+            _file_name: file name to search in the Storage layer
+
+        Returns:
+            backup_information: Backup information related to the file name
+
+        Raises:
+            exceptions.NoBackupAvailableError
+            exceptions.FileNameError
+        """
+
+        self._logger.debug("{func} ".format(func="get_backup_details_from_file_name"))
+
+        sql_cmd = """
+            SELECT * FROM foglamp.backups WHERE file_name='{file}'
+        """.format(file=_file_name)
+
+        data = self._restore_lib.storage_retrieve(sql_cmd)
+
+        if len(data) == 0:
+            raise exceptions.NoBackupAvailableError
+
+        elif len(data) == 1:
+            backup_information = data[0]
+
+        else:
+            raise exceptions.FileNameError
+
+        return backup_information
 
     def _foglamp_stop(self):
         """ Stops FogLAMP before for the execution of the backup, doing a cold backup
@@ -562,6 +602,11 @@ class RestoreProcess(FoglampProcess):
         # Executes the restore and then starts Foglamp
         try:
             self._run_restore_command(file_name)
+
+            if self._force_restore:
+                # Retrieve the backup-id after the restore operation
+                backup_info = self.get_backup_details_from_file_name(file_name)
+                backup_id = backup_info["id"]
 
             # Updates the backup as restored
             self._restore_lib.backup_status_update(backup_id, lib.BackupStatus.RESTORED)

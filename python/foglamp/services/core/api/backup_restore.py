@@ -23,6 +23,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+__DEFAULT_LIMIT = 20
+__DEFAULT_OFFSET = 0
 
 _help = """
     -----------------------------------------------------------------------------------
@@ -50,14 +52,18 @@ async def get_backups(request):
     :Example: curl -X GET http://localhost:8081/foglamp/backup
     :Example: curl -X GET http://localhost:8081/foglamp/backup?limit=2&skip=1&status=completed
     """
-    backup = Backup(connect.get_storage())
     try:
-        limit = int(request.query['limit']) if 'limit' in request.query else None
-        skip = int(request.query['skip']) if 'skip' in request.query else None
-        status = request.query['status'] if 'status' in request.query else None
-        backup_json = backup.get_all_backups(limit=limit, skip=skip, status=Status[status].value)
-    except exceptions.DoesNotExist:
-        raise web.HTTPNotFound(reason='No backups found for queried parameters')
+        backup = Backup(connect.get_storage())
+        limit = int(request.query['limit']) if 'limit' in request.query else __DEFAULT_LIMIT
+        skip = int(request.query['skip']) if 'skip' in request.query else __DEFAULT_OFFSET
+        status = Status[request.query['status'].lower()].value if 'status' in request.query else None
+        backup_json = backup.get_all_backups(limit=limit, skip=skip, status=status)
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except KeyError as ex:
+        raise web.HTTPBadRequest(reason="{} not a valid status".format(ex))
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
     return web.json_response({"backups": backup_json})
 
 async def create_backup(request):
@@ -66,8 +72,11 @@ async def create_backup(request):
 
     :Example: curl -X POST http://localhost:8081/foglamp/backup
     """
-    backup = Backup(connect.get_storage())
-    status = await backup.create_backup()
+    try:
+        backup = Backup(connect.get_storage())
+        status = await backup.create_backup()
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
     return web.json_response({"status": status})
 
 async def get_backup_details(request):
@@ -77,18 +86,16 @@ async def get_backup_details(request):
     :Example: curl -X GET http://localhost:8081/foglamp/backup/1
     """
     backup_id = request.match_info.get('backup_id', None)
-    backup = Backup(connect.get_storage())
     if not backup_id:
         raise web.HTTPBadRequest(reason='Backup id is required')
-    else:
-        try:
-            backup_id = int(backup_id)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Invalid backup id')
     try:
-        _resp = backup.get_backup_details(backup_id)
-        _resp["id"] = backup_id
-        return web.json_response(_resp)
+        backup_id = int(backup_id)
+        backup = Backup(connect.get_storage())
+        resp = backup.get_backup_details(backup_id)
+        resp["id"] = backup_id
+        return web.json_response(resp)
+    except ValueError:
+        raise web.HTTPBadRequest(reason='Invalid backup id')
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
 
@@ -100,19 +107,19 @@ async def delete_backup(request):
     :Example: curl -X DELETE http://localhost:8081/foglamp/backup/1
     """
     backup_id = request.match_info.get('backup_id', None)
-    backup = Backup(connect.get_storage())
     if not backup_id:
         raise web.HTTPBadRequest(reason='Backup id is required')
-    else:
-        try:
-            backup_id = int(backup_id)
-        except ValueError:
-            raise web.HTTPBadRequest(reason='Invalid backup id')
-        try:
-            backup.delete_backup(backup_id)
-            return web.json_response({'message': "Backup deleted successfully"})
-        except exceptions.DoesNotExist:
-            raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
+    try:
+        backup_id = int(backup_id)
+        backup = Backup(connect.get_storage())
+        backup.delete_backup(backup_id)
+        return web.json_response({'message': "Backup deleted successfully"})
+    except ValueError:
+        raise web.HTTPBadRequest(reason='Invalid backup id')
+    except exceptions.DoesNotExist:
+        raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
 
 async def restore_backup(request):
     """

@@ -11,6 +11,17 @@ It could work also without the Configuration Manager
 retrieving the parameters for the execution from the local file 'restore_configuration_cache.json'.
 The local file is used as a cache of information retrieved from the Configuration Manager.
 
+The restore operation executes the following macro steps :
+
+    - stops FogLAMP
+    - executes the restore
+    - starts FogLAMP again
+
+so it needs also to interact with Postgres directly using psycopg2 and executing SQL commands
+because at the restart of FogLAMP the reference to the Storage Layer, previously obtained through
+the FoglampProcess class, will be no more valid.
+
+
 Usage:
     --backup-id                     Restore a specific backup retrieving the related information from the
                                     Storage Layer.
@@ -20,9 +31,12 @@ Usage:
     The latest backup will be restored if no options is used.
 
 Execution samples :
-    restore_postgres --backup-id=29
-    restore_postgres --file=/tmp/foglamp_backup_2017_12_04_13_57_37.dump
-    restore_postgres
+    restore_postgres --backup-id=29 --port=${adm_port} --address=127.0.0.1 --name=restore
+    restore_postgres --file=/tmp/foglamp_backup_2017_12_04_13_57_37.dump \
+                     --port=${adm_port} --address=127.0.0.1 --name=restore
+    restore_postgres --port=${adm_port} --address=127.0.0.1 --name=restore
+
+    Note : ${adm_port} should correspond to the Management API port of the core.
 
 Exit code :
     0    = OK

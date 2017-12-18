@@ -6,6 +6,8 @@
 
 .. Images
 .. |postman_ping| image:: images/postman_ping.jpg
+.. |win_server_waiting| image:: images/05_win_server_waiting.jpg
+.. |pi_loaded| image:: images/05_pi_loaded.jpg
 
 .. Links
 
@@ -17,7 +19,19 @@
 
 .. |postman| raw:: html
 
-   <a href="https://www.getpostman.com/" target="_blank">Postman</a>
+   <a href="https://www.getpostman.com" target="_blank">Postman</a>
+
+.. |here OSIsoft| raw:: html
+
+   <a href="https://www.osisoft.com/" target="_blank">here</a>
+
+.. |here OMF| raw:: html
+
+   <a href="http://omf-docs.readthedocs.io" target="_blank">here</a>
+
+.. |here PI| raw:: html
+
+   <a href="https://www.osisoft.com/pi-system" target="_blank">here</a>
 
 
 .. =============================================
@@ -93,6 +107,7 @@ This is a short list of the methods available to the administrators.  A more det
 - **ping** provides the uptime of the FogLAMP Core microservice
 - **statistics** provides a set of statistics of the FogLAMP platform, such as data collected, sent, purged, rejected etc.
 - **asset** provides a list of asset that have readings buffered in FogLAMP.
+- **categories** provides a list of the configuration of the modules and components in FogLAMP.
 
 
 Useful Tools
@@ -128,8 +143,8 @@ If you are using Postman, select the *GET* method and type ``http://localhost:80
 This is the first message you may receive from FogLAMP!
 
 
-Hello from the Southern Emisphere of the FogLAMP World
-------------------------------------------------------
+Hello from the Southern Hemisphere of the FogLAMP World
+=======================================================
 
 Let's now try something more exciting. The primary job of FogLAMP is to collect data from the Edge (we call it *South*), buffer it in our storage engine and then we send the data to Cloud historians and Enterprise Servers (we call them *North*). We also offer information to local or networked applications, something we call *East* or *West*.
 |br| |br|
@@ -137,7 +152,7 @@ In order to insert data you may need a sensor or a device that generates data. I
 
 
 fogbench: a Brief Intro
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 FogLAMP comes with a little but pretty handy tool called **fogbench**. The tools is written in Python and it uses the same libraries of other modules of FogLAMP, therefore no extra libraries are needed. With *fogbench* you can do many things, like inserting data stored in files, running benchmarks to understand how FogLAMP performs in a given environment, or test an end-to-end installation.
 
@@ -244,7 +259,7 @@ In the array, each element simulates a message from a sensor, with a name, a set
 
 
 Data Coming from South
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 Now you should have all the information necessary to test the CoAP South microservice. From the command line, type:
 
@@ -313,7 +328,7 @@ Here we have inserted the same set of data 100 times, therefore the total number
 
 
 Checking What's Inside FogLAMP
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+==============================
 
 We can check if FogLAMP has now stored what we have inserted from the South microservice by using the *asset* API. From curl or Postman, use this URL:
 
@@ -330,7 +345,7 @@ The output of the asset entry point provides a list of assets buffered in FogLAM
 
 
 Feeding East/West Applications
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 Let's suppose that we are interested in the data collected for one of the assets listed in the previous query, for example *TI sensorTag/temperature*. The *asset* entry point can be used to retrieve the data points for individual assets by simply adding the code of the asset to the URI:
 
@@ -383,5 +398,148 @@ We have beautified the JSON output for you, so it is more readable.
 .. note:: When you select a specific element in the reading, the timestamp and the element are presented in the opposite order compared to the previous example. This is a known issue that will be fixed in the next version.
 
 
+Sending Greetings to the Northern Hemisphere
+============================================
+
+The next and last step is to send data to North, which means that we can take all of some of the data we buffer in FogLAMP and we can send it to a historian or a database using a North task or microservice.
+
+
+The OMF Translator
+------------------
+
+FogLAMP comes with a North plugin called *OMF Translator*. OMF is the OSIsoft Message Format, which is the message format accepted by the PI Connector Relay OMF. The PI Connector Relay OMF is provided by OSIsoft and it is used to feed the OSIsoft PI System.
+
+- Information regarding OSIsoft are available |here OSIsoft|
+- Information regarding OMF are available |here OMF|
+- Information regarding the OSIsoft PI System are available |here PI|
+
+*OMF Translator* is schedules as a North task that is executed every 30 seconds (the time may vary, we set it to 30 seconds to facilitate the testing.
+
+
+Preparing the PI System
+-----------------------
+
+In order to test the North task and plugin, first you need to setup the PI system. Here we assume you are already familiar with PI and you have a Windows server with PI installed, up and running. The minimum installation must include the PI System and the PI Connector Relay OMF. Once you have checked that everything is installed and works correctly, you should collect the IP addess of the Windows system.
+
+
+Setting the OMF Translator Plugin
+---------------------------------
+
+FogLAMP uses the same *OMF Translator* plugin to send two streams of data: the data coming from the South modules and buffered in FogLAMP and the statistics generated and collected from FogLAMP. In the current installation, these two streams refer to the categories and streams *OMF_TR_1* (South data) and *OMF_TR_2* (FogLAMP Statistics).
+
+If you are curious to see which categories are available in FogLAMP, simply type:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/categories ; echo
+  { "categories": [ { "description": "Log Partitioning",                       "key": "LOGPART"   },
+                    { "description": "Sensors and Device Interface",           "key": "SENSORS"   },
+                    { "description": "HTTP North Plugin Configuration",        "key": "HTTP_TR_3" },
+                    { "description": "Streaming",                              "key": "STREAMING" },
+                    { "description": "System Purge",                           "key": "SYPURGE"   },
+                    { "description": "POLL Plugin Configuration",              "key": "POLL"      },
+                    { "description": "Scheduler configuration",                "key": "SCHEDULER" },
+                    { "description": "Service Monitor configuration",          "key": "SMNTR"     },
+                    { "description": "Configuration of OMF types",             "key": "OMF_TYPES" },
+                    { "description": "Configuration of the Sending Process",   "key": "SEND_PR_1" },
+                    { "description": "Device server configuration",            "key": "DEVICE"    },
+                    { "description": "COAP Device",                            "key": "COAP"      },
+                    { "description": "Configuration of the Sending Process",   "key": "SEND_PR_2" },
+                    { "description": "HTTP_SOUTH Device",                      "key": "HTTP_SOUTH"},
+                    { "description": "Configuration of OMF Translator plugin", "key": "OMF_TR_1"  },
+                    { "description": "Purge the readings table",               "key": "PURGE_READ"},
+                    { "description": "Configuration of OMF Translator plugin", "key": "OMF_TR_2"  } 
+                  ]
+  }
+  $
+
+The configuration for the OMF Translator used in the two streams mentioned above are:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/category/OMF_TR_1 ; echo
+  { "OMFMaxRetry": { "value": "5",
+                     "default": "5",
+                     "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+                     "type": "integer" },
+    "producerToken": { "value": "omf_translator_0001",
+                       "default": "omf_translator_0001",
+                       "description": "The producer token that represents this FogLAMP stream",
+                       "type": "string" },
+    "OMFRetrySleepTime": { "value": "1",
+                           "default": "1",
+                           "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+                           "type": "integer" },
+    "StaticData": { "value": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
+                    "default": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
+                    "description": "Static data to include in each sensor reading sent to OMF.",
+                    "type": "JSON" },
+    "URL": { "value": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
+             "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
+             "description": "The URL of the PI Connector to send data to",
+             "type": "string" },
+    "OMFHttpTimeout": { "value": "30",
+                        "default": "30",
+                        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+                        "type": "integer" }
+  }
+  $
+  $ curl -s http://localhost:8081/foglamp/category/OMF_TR_2 ; echo
+  { "OMFMaxRetry": { "value": "5",
+                     "default": "5",
+                     "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+                     "type": "integer" },
+    "producerToken": { "value": "omf_translator_0001",
+                       "default": "omf_translator_0001",
+                       "description": "The producer token that represents this FogLAMP stream",
+                       "type": "string" },
+    "OMFRetrySleepTime": { "value": "1",
+                           "default": "1",
+                           "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+                           "type": "integer" },
+    "StaticData": { "value": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
+                    "default": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
+                    "description": "Static data to include in each sensor reading sent to OMF.",
+                    "type": "JSON" },
+    "URL": { "value": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
+             "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
+             "description": "The URL of the PI Connector to send data to",
+             "type": "string" },
+    "OMFHttpTimeout": { "value": "30",
+                        "default": "30",
+                        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+                        "type": "integer" }
+  }
+  $
+
+What we need to do now is to change the IP address in the URL of *OMF_TR_1* and *OMF_TR_2* with the IP address of the Windows Server running the PI Connector Relay. Supposing the Windows IP address is *192.168.56.101*, we can use curl for this:
+
+.. code-block:: console
+
+  $ curl -H 'Content-Type: application/json' -X PUT -d '{ "value": "http://192.168.56.101:8118/ingress/messages" }' http://localhost:8081/foglamp/category/OMF_TR_1/URL;echo
+  {"value": "http://192.168.56.101:8118/ingress/messages", "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages", "description": "The URL of the PI Connector to send data to", "type": "string"}
+  $
+  $ curl -H 'Content-Type: application/json' -X PUT -d '{ "value": "http://192.168.56.101:8118/ingress/messages" }' http://localhost:8081/foglamp/category/OMF_TR_2/URL;echo
+  {"value": "http://192.168.56.101:8118/ingress/messages", "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages", "description": "The URL of the PI Connector to send data to", "type": "string"}
+  $
+
+By using the PUT method, FogLAMP replies with the new value of the entry. You can note that the *value* element is the only one that can be changed in *URL* (the other elements are factory settings).
+
+Now we are ready to send data North, to the PI System.
+
+
+Sending Data to the PI System
+-----------------------------
+
+The last bit to accomplish is to start the PI Connector Relay OMF on the Windows Server. The output may look like this screenshot, where you can see the Connector Relay debug window on the left and teh PI Data Explorer on the right.
+
+|win_server_waiting|
+
+Wait a few seconds ...et voilà! Readings and statistics are in the PI System:
+
+|pi_loaded|
+
+
+Congratulations! You have experienced an end-to-end test of FogLAMP, from South with sensor data through FogLAMP and East/West applications and finally to North towards Historians.
 
 

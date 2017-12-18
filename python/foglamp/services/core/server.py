@@ -19,9 +19,12 @@ from aiohttp import web
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.web import middleware
+from foglamp.common.storage_client.exceptions import *
+from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.common.microservice_management import routes as management_routes
-from foglamp.services.core.service_registry.service_registry import *
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.core import connect
@@ -36,7 +39,7 @@ _logger = logger.setup(__name__, level=20)
 # FOGLAMP_ROOT env variable
 _FOGLAMP_ROOT= os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
-
+_ENV = os.getenv('FOGLAMP_ENV', 'DEV')
 
 class Server:
     """ FOGLamp core server.
@@ -59,7 +62,7 @@ class Server:
     
     _start_time = time.time()
 
-    _storage = None
+    _storage_client = None
 
     _configuration_manager = None
 
@@ -114,6 +117,19 @@ class Server:
         loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
 
     @classmethod
+    async def _get_storage_client(cls):
+        storage_service = None
+        while storage_service is None and cls._storage_client is None:
+            try:
+                if _ENV != 'TEST':
+                    found_services = ServiceRegistry.get(name="FogLAMP Storage")
+                    storage_service = found_services[0]
+                print("{} {}".format(address, cls.core_management_port))
+                cls._storage_client = StorageClient(address, cls.core_management_port, svc=storage_service)
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                await asyncio.sleep(5)
+
+    @classmethod
     def _start_app(cls, loop, app, host, port):
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -139,9 +155,12 @@ class Server:
 
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
+            
+            # get storage client
+            loop.run_until_complete(cls._get_storage_client())
 
-            cls._storage = connect.get_storage()
-            cls._configuration_manager = ConfigurationManager(cls._storage)
+            # get configuration manager 
+            cls._configuration_manager = ConfigurationManager(cls._storage_client)
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -294,12 +313,12 @@ class Server:
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                    service_port, service_management_port, service_protocol)
-            except AlreadyExistsWithTheSameName:
+            except service_registry_exceptions.AlreadyExistsWithTheSameName:
                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
-            except AlreadyExistsWithTheSameAddressAndPort:
+            except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
                                                 'service port: {}'.format(service_address, service_port))
-            except AlreadyExistsWithTheSameAddressAndManagementPort:
+            except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndManagementPort:
                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
                                                 'management port: {}'.format(service_address, service_management_port))
 
@@ -332,7 +351,7 @@ class Server:
 
             try:
                 ServiceRegistry.get(idx=service_id)
-            except DoesNotExist:
+            except service_registry_exceptions.DoesNotExist:
                 raise web.HTTPBadRequest(reason='Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
@@ -365,7 +384,7 @@ class Server:
                 services_list = ServiceRegistry.filter_by_name_and_type(
                         name=service_name, s_type=service_type
                     )
-        except DoesNotExist as ex:
+        except service_registry_exceptions.DoesNotExist as ex:
             raise web.HTTPBadRequest(reason="Invalid service name and/or type provided" + str(ex))
 
         services = []
@@ -389,10 +408,47 @@ class Server:
     async def shutdown(cls, request):
         pass
 
-
     @classmethod
     async def register_interest(cls, request):
         pass
+#         """ Register an interest in a configuration category
+# 
+#         :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' 
+#                   -X POST http://localhost:8082/foglamp/interest
+#         """
+# 
+#         try:
+#             data = await request.json()
+#             category_name = data.get('category', None)
+#             microservice_uuid = data.get('service', None)
+# 
+#             if not (category_name.strip() or microservice_uuid.strip()):
+#                 raise web.HTTPBadRequest(reason='One or more values of category_name, service missing')
+# 
+#             try:
+#                 registered_interest_id = InterestRegistry.register(category_name, microservice_uuid)
+#             except service_registry_exceptions.AlreadyExistsWithTheSameName:
+#                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
+#             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
+#                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
+#                                                 'service port: {}'.format(service_address, service_port))
+#             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndManagementPort:
+#                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
+#                                                 'management port: {}'.format(service_address, service_management_port))
+# 
+#             if not registered_service_id:
+#                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
+# 
+#             _response = {
+#                 'id': registered_service_id,
+#                 'message': "Service registered successfully"
+#             }
+# 
+#             return web.json_response(_response)
+# 
+#         except ValueError as ex:
+#             raise web.HTTPNotFound(reason=str(ex))
+
 
 
     @classmethod

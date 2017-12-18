@@ -10,6 +10,7 @@ import uuid
 from enum import IntEnum
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
+from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -17,21 +18,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-class DoesNotExist(Exception):
-    pass
-
-class AlreadyExistsWithTheSameName(Exception):
-    pass
-
-class AlreadyExistsWithTheSameAddressAndPort(Exception):
-    pass
-
-class AlreadyExistsWithTheSameAddressAndManagementPort(Exception):
-    pass
-
-class NonNumericPortError(TypeError):
-    # TypeError('Service port can be a positive integer only')
-    pass
 
 class ServiceRegistry:
 
@@ -54,21 +40,21 @@ class ServiceRegistry:
 
         try:
             cls.get(name=name)
-        except DoesNotExist:
+        except service_registry_exceptions.DoesNotExist:
             pass
         else:
-            raise AlreadyExistsWithTheSameName
+            raise service_registry_exceptions.AlreadyExistsWithTheSameName
 
         if port != None and cls.check_address_and_port(address, port):
-            raise AlreadyExistsWithTheSameAddressAndPort
+            raise service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort
 
         if cls.check_address_and_mgt_port(address, management_port):
-            raise AlreadyExistsWithTheSameAddressAndManagementPort
+            raise service_registry_exceptions.AlreadyExistsWithTheSameAddressAndManagementPort
 
         if port != None and (not isinstance(port, int)):
-            raise NonNumericPortError
+            raise service_registry_exceptions.NonNumericPortError
         if not isinstance(management_port, int):
-            raise NonNumericPortError
+            raise service_registry_exceptions.NonNumericPortError
 
         service_id = str(uuid.uuid4())
         registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
@@ -105,7 +91,7 @@ class ServiceRegistry:
     def get(cls, idx=None, name=None, s_type=None):
         services = cls.filter(_id=idx, _name=name, _type=s_type)
         if len(services) == 0:
-            raise DoesNotExist
+            raise service_registry_exceptions.DoesNotExist
         return services
 
     @classmethod
@@ -133,5 +119,5 @@ class ServiceRegistry:
         # ugly hack! <Make filter to support AND | OR>
         services = [s for s in cls._registry if getattr(s, "_name") == name and getattr(s, "_type") == s_type]
         if len(services) == 0:
-            raise DoesNotExist
+            raise service_registry_exceptions.DoesNotExist
         return services

@@ -25,7 +25,7 @@ class ServiceRecord(object):
     def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
         self._name = s_name
-        self._type = self.valid_type(s_type)  # check with Service.Type, if not a valid type raise error
+        self._type = self.valid_type(s_type)  # check with ServiceRecord.Type, if not a valid type raise error
         self._protocol = s_protocol
         self._address = s_address
         self._port = None
@@ -45,7 +45,7 @@ class ServiceRecord(object):
         return self.__repr__()
 
     def valid_type(self, s_type):
-        if s_type not in Service.Type.__members__:
-            raise Service.InvalidServiceType
+        if s_type not in ServiceRecord.Type.__members__:
+            raise ServiceRecord.InvalidServiceType
         return s_type
 

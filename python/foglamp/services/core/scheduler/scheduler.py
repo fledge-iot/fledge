@@ -8,6 +8,7 @@
 
 import asyncio
 import collections
+import traceback
 import datetime
 import logging
 import math
@@ -24,7 +25,8 @@ from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
-from foglamp.services.core.service_registry.service_registry import *
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -724,7 +726,8 @@ class Scheduler(object):
                 self._storage = StorageClient(self._core_management_host, self._core_management_port, svc=storage_service)
                 # print("Storage Service: ", type(self._storage))
 
-            except (DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                # traceback.print_exc()
                 # print(_ENV, self._core_management_host, self._core_management_port, str(ex))
                 await asyncio.sleep(5)
         # **************

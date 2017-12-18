@@ -75,7 +75,7 @@ class StorageClient(AbstractStorage):
 
     @service.setter
     def service(self, svc):
-        if not isinstance(svc, Service):
+        if not isinstance(svc, ServiceRecord):
             w_msg = 'Storage should be a valid FogLAMP micro-service instance'
             _LOGGER.warning(w_msg)
             raise InvalidServiceInstance
@@ -134,7 +134,7 @@ class StorageClient(AbstractStorage):
         svc = self._get_storage_service(host=core_management_host, port=core_management_port)
         if len(svc) == 0:
             raise InvalidServiceInstance
-        self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
+        self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
                                m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
         # found_services = Service.Instances.get(name="FogLAMP Storage")
         # svc = found_services[0]

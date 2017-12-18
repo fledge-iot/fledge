@@ -116,7 +116,7 @@ In this version of FogLAMP the PostgreSQL database is the default storage engine
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 9.5 is the version available for Ubuntu 16.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -141,11 +141,11 @@ The installation procedure also creates a Linux *postgres* user. In order to che
   (3 rows)
   $
 
-Encoding and collations may differ, depending on the choices made when you installed your operating system. |br| Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *ubuntu*, type:
+Encoding and collations may differ, depending on the choices made when you installed your operating system. |br| Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *<foglamp_user>*, type:
 
 .. code-block:: console
 
-  $ sudo -u postgres createuser -d ubuntu
+  $ sudo -u postgres createuser -d <foglamp_user>
  
 The *-d* argument is important because the user will need to create the FogLAMP database.
 
@@ -416,6 +416,19 @@ Congratulations! You have installed and tested FogLAMP! If you want to go extra 
   ]
   $
 
-As a next step, let's install FogLAMP!
 
+Now I Want to Stop FogLAMP!
+---------------------------
+
+Easy, you have learnt ``foglamp start`` and ``foglamp status``, simply type ``foglamp stop``:
+
+
+.. code-block:: console
+
+  $ scripts/foglamp stop
+  FogLAMP stopped.
+  $
+
+|br| |br| 
+As a next step, let's install FogLAMP!
 

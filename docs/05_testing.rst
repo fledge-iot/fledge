@@ -90,8 +90,9 @@ The FogLAMP REST API
 First of all, we need to familiarize with the FogLAMP REST API. The API provides a set of methods used to monitor and administer the status of FogLAMP. Users and developers can also use the API to interact with external applications.
 
 This is a short list of the methods available to the administrators.  A more detailed list will be available soon:
-- **ping** - provides the uptime of the FogLAMP Core microservice
-- **statistics** - provides a set of statistics of the FogLAMP platform, such as data collected, sent, purged, rejected etc.
+- **ping** provides the uptime of the FogLAMP Core microservice
+- **statistics** provides a set of statistics of the FogLAMP platform, such as data collected, sent, purged, rejected etc.
+- **asset** provides a list of asset that have readings buffered in FogLAMP.
 
 
 Useful Tools
@@ -309,5 +310,78 @@ If you want to stress FogLAMP a bit, you may insert the same data sample several
   $
 
 Here we have inserted the same set of data 100 times, therefore the total number of Bytes inserted is 288,000. The performance and insertion rates varies with each iteration and *fogbench* presents the minimum, maximum and average values.
+
+
+Checking What's Inside FogLAMP
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We can check if FogLAMP has now stored what we have inserted from the South microservice by using the *asset* API. From curl or Postman, use this URL:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/asset ; echo
+  [{"asset_code": "switch", "count": 11}, {"asset_code": "TI sensorTag/temperature", "count": 11}, {"asset_code": "TI sensorTag/humidity", "count": 11}, {"asset_code": "TI sensorTag/luxometer", "count": 11}, {"asset_code": "TI sensorTag/accelerometer", "count": 11}, {"asset_code": "wall clock", "count": 11}, {"asset_code": "TI sensorTag/magnetometer", "count": 11}, {"asset_code": "mouse", "count": 11}, {"asset_code": "TI sensorTag/pressure", "count": 11}, {"asset_code": "TI sensorTag/gyroscope", "count": 11}]
+  $
+
+The output of the asset entry point provides a list of assets buffered in FogLAMP and the count of elements stored. The output is a JSON array with two elements:
+
+- **asset_code** : the name of the sensor or device that provides the data
+- **count** : the number of occurrences of the asset in the buffer
+
+
+Feeding East/West Applications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Let's suppose that we are interested in the data collected for one of the assets listed in the previous query, for example *TI sensorTag/temperature*. The *asset* entry point can be used to retrieve the data points for individual assets by simply adding the code of the asset to the URI:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/asset/TI%20sensorTag%2Ftemperature ; echo
+  [{"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7}}] 
+  $
+
+The JSON output may be more readable here:
+
+.. code-block:: json
+
+  [ { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
+    { "timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7} } ] 
+
+The JSON structure depends on the sensor and the plugin used to capture the data. In this case, the values shown are:
+
+- **timestamp** : the timestamp generated by the sensors. In this case, since we have inserted 10 times the same value and one time a new value using *fogbench*, the result is 10 timestamps with the same value and one timestamp with a different value.
+- **reading** : a JSON structure that is the set of data points provided by the sensor. In this case:
+  - **ambient** : the ambient temperature in Celsius
+  - **object** : the object temperature in Celsius. Again, the values are repeated 10 times, due to the iteration executed by *fogbench*, plus an isolated element, so there are 11 readings in total. Also, it is very unlikely that in a real sensor the ambient and the object temperature differ so much, but here we are using a random number generator.
+
+
+You can dig even more in the data and extract only a subset of the reading. Fog example, you can select the ambient temperature and limit to the last 5 readings:
+
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/asset/TI%20sensorTag%2Ftemperature/ambient?limit=5 ; echo
+  [ { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
+    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" }
+    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
+    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
+    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" } ]
+  $
+
+
+We have beautified the JSON output for you, so it is more readable.
+
+.. note:: When you select a specific element in the reading, the timestamp and the element are presented in the opposite order compared to the previous example. This is a known issue that will be fixed in the next version.
+
+
 
 

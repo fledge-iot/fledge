@@ -105,3 +105,8 @@ class NoBackupAvailableError(RuntimeError):
 class FileNameError(RuntimeError):
     """ Impossible to identify an unique backup to restore """
     pass
+
+
+class InvalidFogLAMPEnvironment(RuntimeError):
+    """ it is not possible to determine the running environment neither Deployment nor Development """
+    pass

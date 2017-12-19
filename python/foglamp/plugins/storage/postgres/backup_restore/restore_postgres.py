@@ -64,6 +64,9 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "foglamp_restore_postgres_module"
 
+# _FOGLAMP_ENVIRONMENT = "deploy"
+_FOGLAMP_ENVIRONMENT = "dev"
+
 _MESSAGES_LIST = {
 
     # Information messages
@@ -129,6 +132,7 @@ class Restore(object):
             backup_id: int - the id of the backup to restore from
 
         Returns:
+            status: str - {"running"|"failed"}
         Raises:
         """
 
@@ -158,7 +162,10 @@ class RestoreProcess(FoglampProcess):
 
     _MODULE_NAME = "foglamp_restore_postgres_process"
 
-    _FOGLAMP_CMD = "scripts/foglamp {0}"
+    if _FOGLAMP_ENVIRONMENT == "dev":
+        _FOGLAMP_CMD = "scripts/foglamp {0}"
+    else:
+        _FOGLAMP_CMD = "bin/foglamp {0}"
     """ Command for managing FogLAMP, stop/start/status """
 
     _MESSAGES_LIST = {

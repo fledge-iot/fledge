@@ -223,6 +223,7 @@ class Backup(object):
 
         Args:
         Returns:
+            status: str - {"running"|"failed"}
         Raises:
         """
 

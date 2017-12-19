@@ -15,17 +15,13 @@ class InterestRegistry(InterestRegistrySingleton):
         InterestRegistrySingleton.__init__(self)
         self._configuration_manager = configuration_manager
     
-    def filter(self, **kwargs):
-        # OR based filter
+    def and_filter(self, **kwargs):
         interest_records = None
-#        for k, v in kwargs.items():
-#            if v:
-#                interest_records = [s for s in self._registered_interests if getattr(s, k, None) == v]
         interest_records = [s for s in self._registered_interests if all(getattr(s, k, None) == v for k, v in kwargs.items() if v is not None)]
         return interest_records
 
     def get(self, registration_id=None, category_name=None, microservice_uuid=None):
-        interest_records = self.filter(_registration_id=registration_id, _category_name=category_name, _microservice_uuid=microservice_uuid)
+        interest_records = self.and_filter(_registration_id=registration_id, _category_name=category_name, _microservice_uuid=microservice_uuid)
         if len(interest_records) == 0:
             raise interest_registry_exceptions.DoesNotExist
         return interest_records

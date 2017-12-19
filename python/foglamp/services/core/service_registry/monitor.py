@@ -13,7 +13,7 @@ import json
 
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.services.core.service_registry.service_registry import *
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import connect
 

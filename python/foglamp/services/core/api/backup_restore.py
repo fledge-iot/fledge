@@ -47,8 +47,7 @@ class Status(IntEnum):
 
 
 async def get_backups(request):
-    """
-    Returns a list of all backups
+    """ Returns a list of all backups
 
     :Example: curl -X GET http://localhost:8081/foglamp/backup
     :Example: curl -X GET http://localhost:8081/foglamp/backup?limit=2&skip=1&status=completed
@@ -59,24 +58,26 @@ async def get_backups(request):
         skip = int(request.query['skip']) if 'skip' in request.query else __DEFAULT_OFFSET
         status = Status[request.query['status'].upper()].value if 'status' in request.query else None
         backup_json = backup.get_all_backups(limit=limit, skip=skip, status=status)
+
+        res = []
+        for row in backup_json:
+            r = OrderedDict()
+            r["id"] = row["id"]
+            r["date"] = row["ts"]
+            r["status"] = _get_status(int(row["status"]))
+            res.append(r)
+
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except KeyError as ex:
         raise web.HTTPBadRequest(reason="{} not a valid status".format(ex))
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
-    res = []
-    for row in backup_json:
-        r = OrderedDict()
-        r["id"] = row["id"]
-        r["date"] = row["ts"]
-        r["status"] = Status(int(row["status"])).name if int(row["status"]) in range(1, 6) else "UNKNOWN"
-        res.append(r)
+
     return web.json_response({"backups": res})
 
 async def create_backup(request):
-    """
-    Creates a backup
+    """ Creates a backup
 
     :Example: curl -X POST http://localhost:8081/foglamp/backup
     """
@@ -85,11 +86,11 @@ async def create_backup(request):
         status = await backup.create_backup()
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
+
     return web.json_response({"status": status})
 
 async def get_backup_details(request):
-    """
-    Returns the details of a backup
+    """ Returns the details of a backup
 
     :Example: curl -X GET http://localhost:8081/foglamp/backup/1
     """
@@ -100,19 +101,24 @@ async def get_backup_details(request):
         backup_id = int(backup_id)
         backup = Backup(connect.get_storage())
         backup_json = backup.get_backup_details(backup_id)
-        # return web.json_response(resp)
+
+        resp = {"status": _get_status(int(backup_json["status"])),
+                'id': backup_json["id"],
+                'date': backup_json["ts"]
+                }
+
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
-    return web.json_response({"status": Status(int(backup_json["status"])).name
-                              if int(backup_json["status"]) in range(1, 6) else "UNKNOWN",
-                              'id': backup_json["id"], 'date': backup_json["ts"]})
+    except Exception as ex:
+        raise web.HTTPException(reason=(str(ex)))
+
+    return web.json_response(resp)
 
 
 async def delete_backup(request):
-    """
-    Delete a backup
+    """ Delete a backup
 
     :Example: curl -X DELETE http://localhost:8081/foglamp/backup/1
     """
@@ -131,6 +137,13 @@ async def delete_backup(request):
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
 
+
+def _get_status(status_code):
+    if status_code not in range(1, 6):
+        return "UNKNOWN"
+    return Status(status_code).name
+
+# TODO: FOGL-861
 async def restore_backup(request):
     """
     Restore from a backup

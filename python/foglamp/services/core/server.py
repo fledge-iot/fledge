@@ -15,6 +15,7 @@ import http.client
 import json
 import time
 from aiohttp import web
+import traceback
 
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -25,6 +26,8 @@ from foglamp.services.core import routes as admin_routes
 from foglamp.services.common.microservice_management import routes as management_routes
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
+from foglamp.services.core.interest_registry import exceptions as interest_registry_exceptions
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.core import connect
@@ -65,6 +68,8 @@ class Server:
     _storage_client = None
 
     _configuration_manager = None
+
+    _interest_registry = None
 
     @staticmethod
     def _make_app():
@@ -124,10 +129,11 @@ class Server:
                 if _ENV != 'TEST':
                     found_services = ServiceRegistry.get(name="FogLAMP Storage")
                     storage_service = found_services[0]
-                print("{} {}".format(address, cls.core_management_port))
-                cls._storage_client = StorageClient(address, cls.core_management_port, svc=storage_service)
+                cls._storage_client = StorageClient(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
+        cls._configuration_manager = ConfigurationManager(cls._storage_client)
+        cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
     @classmethod
     def _start_app(cls, loop, app, host, port):
@@ -160,7 +166,6 @@ class Server:
             loop.run_until_complete(cls._get_storage_client())
 
             # get configuration manager 
-            cls._configuration_manager = ConfigurationManager(cls._storage_client)
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -410,50 +415,65 @@ class Server:
 
     @classmethod
     async def register_interest(cls, request):
-        pass
-#         """ Register an interest in a configuration category
-# 
-#         :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' 
-#                   -X POST http://localhost:8082/foglamp/interest
-#         """
-# 
-#         try:
-#             data = await request.json()
-#             category_name = data.get('category', None)
-#             microservice_uuid = data.get('service', None)
-# 
-#             if not (category_name.strip() or microservice_uuid.strip()):
-#                 raise web.HTTPBadRequest(reason='One or more values of category_name, service missing')
-# 
-#             try:
-#                 registered_interest_id = InterestRegistry.register(category_name, microservice_uuid)
-#             except service_registry_exceptions.AlreadyExistsWithTheSameName:
-#                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
-#             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
-#                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
-#                                                 'service port: {}'.format(service_address, service_port))
-#             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndManagementPort:
-#                 raise web.HTTPBadRequest(reason='A Service is already registered on the same address: {} and '
-#                                                 'management port: {}'.format(service_address, service_management_port))
-# 
-#             if not registered_service_id:
-#                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
-# 
-#             _response = {
-#                 'id': registered_service_id,
-#                 'message': "Service registered successfully"
-#             }
-# 
-#             return web.json_response(_response)
-# 
-#         except ValueError as ex:
-#             raise web.HTTPNotFound(reason=str(ex))
+        """ Register an interest in a configuration category
+
+        :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' 
+                  -X POST http://localhost:8082/foglamp/interest
+        """
+
+        try:
+            data = await request.json()
+            category_name = data.get('category', None)
+            microservice_uuid = data.get('service', None)
+
+            if not (category_name.strip() or microservice_uuid.strip()):
+                raise web.HTTPBadRequest(reason='One or more values of category_name, service missing')
+
+            try:
+                registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
+            except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
+                raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
+
+            if not registered_interest_id:
+                raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+
+            _response = {
+                'id': registered_interest_id,
+                'message': "Interest registered successfully"
+            }
+
+            return web.json_response(_response)
+
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
 
 
 
     @classmethod
     async def unregister_interest(cls, request):
-        pass
+        """ Unregister an interest
+
+        :Example: curl -X DELETE  http://localhost:8082/foglamp/interest/dc9bfc01-066a-4cc0-b068-9c35486db87f
+        """
+
+        try:
+            interest_registration_id = request.match_info.get('registration_id', None)
+
+            if not service_id:
+                raise web.HTTPBadRequest(reason='Registration id is required')
+
+            try:
+                InterestRegistry.get(idx=registration_id)
+            except interest_registry_exceptions.DoesNotExist:
+                raise web.HTTPBadRequest(reason='InterestRecord with registration_id {} does not exist'.format(registration_id))
+
+            InterestRegistry.unregister(registration_id)
+
+            _resp = {'id': str(registration_id), 'message': 'Interest unregistered'}
+
+            return web.json_response(_resp)
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
 
 
     @classmethod

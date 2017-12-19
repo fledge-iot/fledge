@@ -25,7 +25,12 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
 
-class ConfigurationManager(object):
+class ConfigurationManagerSingleton(object):
+    _shared_state = {}
+    def __init__(self):
+        self.__dict__ = self._shared_state
+
+class ConfigurationManager(ConfigurationManagerSingleton):
     """ Configuration Manager
 
     General naming convention:
@@ -51,12 +56,14 @@ class ConfigurationManager(object):
                     value_val - string (dynamic)
     """
 
-    def __init__(self, storage):
-        if not isinstance(storage, StorageClient):
-            raise TypeError('Must be a valid Storage object')
-
-        self._storage = storage
-        self._registered_interests = {}
+    _storage = None
+    _registered_interests = {}
+    def __init__(self, storage=None):
+        ConfigurationManagerSingleton.__init__(self)
+        if self._storage is None:
+            if not isinstance(storage, StorageClient):
+                raise TypeError('Must be a valid Storage object')
+            self._storage = storage
 
     def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)

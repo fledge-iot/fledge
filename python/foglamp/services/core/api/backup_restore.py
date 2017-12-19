@@ -8,6 +8,7 @@
 
 from aiohttp import web
 from enum import IntEnum
+from collections import OrderedDict
 
 from foglamp.services.core import connect
 from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
@@ -37,12 +38,12 @@ _help = """
 
 class Status(IntEnum):
     """Enumeration for backup.status"""
-    running = 1
-    completed = 2
-    cancelled = 3
-    interrupted = 4
-    failed = 5
-    restored = 6
+    RUNNING = 1
+    COMPLETED = 2
+    CANCELLED = 3
+    INTERRUPTED = 4
+    FAILED = 5
+    RESTORED = 6
 
 
 async def get_backups(request):
@@ -56,7 +57,7 @@ async def get_backups(request):
         backup = Backup(connect.get_storage())
         limit = int(request.query['limit']) if 'limit' in request.query else __DEFAULT_LIMIT
         skip = int(request.query['skip']) if 'skip' in request.query else __DEFAULT_OFFSET
-        status = Status[request.query['status'].lower()].value if 'status' in request.query else None
+        status = Status[request.query['status'].upper()].value if 'status' in request.query else None
         backup_json = backup.get_all_backups(limit=limit, skip=skip, status=status)
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
@@ -64,7 +65,14 @@ async def get_backups(request):
         raise web.HTTPBadRequest(reason="{} not a valid status".format(ex))
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
-    return web.json_response({"backups": backup_json})
+    res = []
+    for row in backup_json:
+        r = OrderedDict()
+        r["id"] = row["id"]
+        r["date"] = row["ts"]
+        r["status"] = Status(int(row["status"])).name if int(row["status"]) in range(1, 6) else "UNKNOWN"
+        res.append(r)
+    return web.json_response({"backups": res})
 
 async def create_backup(request):
     """
@@ -91,13 +99,15 @@ async def get_backup_details(request):
     try:
         backup_id = int(backup_id)
         backup = Backup(connect.get_storage())
-        resp = backup.get_backup_details(backup_id)
-        resp["id"] = backup_id
-        return web.json_response(resp)
+        backup_json = backup.get_backup_details(backup_id)
+        # return web.json_response(resp)
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
+    return web.json_response({"status": Status(int(backup_json["status"])).name
+                              if int(backup_json["status"]) in range(1, 6) else "UNKNOWN",
+                              'id': backup_json["id"], 'date': backup_json["ts"]})
 
 
 async def delete_backup(request):

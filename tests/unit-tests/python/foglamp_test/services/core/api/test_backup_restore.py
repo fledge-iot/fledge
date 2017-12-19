@@ -3,41 +3,46 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-import random
-import json
 
+import json
 import asyncpg
 import http.client
 import pytest
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+
+from foglamp.services.core.api.backup_restore import Status
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+# TODO : Use storage layer
 # Module attributes
 __DB_NAME = "foglamp"
-BASE_URL = 'localhost:8082'
+BASE_URL = 'localhost:8081'
 headers = {"Content-Type": 'application/json'}
 
 pytestmark = pytest.mark.asyncio
 
-test_data = [{'filename': 'file1', 'ts': datetime.now(), 'type': 0, 'status': 0},
-             {'filename': 'file2', 'ts': datetime.now(), 'type': 0, 'status': -1},
-             {'filename': 'file1', 'ts': datetime.now(), 'type': 1, 'status': -2}]
+test_data = [{'filename': 'file1', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 1},
+             {'filename': 'file2', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2},
+             {'filename': 'file3', 'ts': datetime.now(tz=timezone.utc), 'type': 1, 'status': 5},
+             {'filename': 'file4', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2}]
 test_data_ids = []
+
 
 async def add_master_data():
     """Inserts master data into backup table and returns the ids of inserted items"""
     global test_data_ids
     conn = await asyncpg.connect(database=__DB_NAME)
     for item in test_data:
-        await conn.execute("""INSERT INTO foglamp.backup(file_name,ts,type,status)
+        await conn.execute("""INSERT INTO foglamp.backups(file_name,ts,type,status)
                                    VALUES($1, $2, $3, $4);""", item['filename'], item['ts'], item['type'], item['status'])
-        res = await conn.fetchval('''SELECT id from foglamp.backup WHERE file_name IN ($1)''', item['filename'])
-        test_data_ids.append({item['filename']: res})
+        res = await conn.fetchval('''SELECT id from foglamp.backups WHERE file_name IN ($1)''', item['filename'])
+        # test_data.append({item['filename']: res})
+        item.update({"id": res})
     await conn.close()
 
 
@@ -49,20 +54,18 @@ async def delete_master_data():
     await conn.execute('''DELETE from foglamp.backup WHERE file_name IN ($1)''', [el['filename'] for el in test_data])
     await conn.close()
 
-async def setup_module(module):
+
+def setup_module(module):
     """
-    Delete the created files from backup directory
+    Create backup files in db, directory (if required)
     """
-    # FIXME after actual implementation
-    # asyncio.get_event_loop().run_until_complete(add_master_data())
-    pass
+    asyncio.get_event_loop().run_until_complete(add_master_data())
 
 async def teardown_module(module):
     """
-    Delete the created files from backup directory
+    Delete the created files from backup db, directory (if created)
     """
-    # FIXME after actual implementation
-    # asyncio.get_event_loop().run_until_complete(delete_master_data())
+    asyncio.get_event_loop().run_until_complete(delete_master_data())
     pass
 
 
@@ -70,27 +73,22 @@ async def teardown_module(module):
 @pytest.allure.story("backup")
 class TestBackup:
 
-    # FIXME : Change in output based on actual implementation
-    @pytest.mark.skip(reason="FOGL-529,FOGL-531")
-    @pytest.mark.parametrize("request_params, response_code, output", [
-        ('', 200, 'expected_output_1'),
-        ('?limit=invalid', 200, 'expected_output_2'),
-        ('?limit=1', 200, 'expected_output_3'),
-        ('?skip=invalid', 200, 'expected_output_4'),
-        ('?skip=1', 200, 'expected_output_5'),
-        ('?limit=2&skip=1', 200, 'expected_output_6'),
-        ('?status=invalid', 200, 'expected_output_7'),
-        ('?status=complete', 200, 'expected_output_8'),
-        ('?limit=2&skip=1&status=complete', 200, 'expected_output_9'),
+    @pytest.mark.parametrize("request_params, response_code, exp_length, exp_output", [
+        ('', 200, 4, test_data),
+        ('?limit=1', 200, 1, [test_data[3]]),
+        ('?skip=3', 200, 1, [test_data[0]]),
+        ('?limit=2&skip=1', 200, 2, test_data[1:]),
+        ('?status=failed', 200, 1, [test_data[2]]),
+        ('?limit=2&skip=1&status=completed', 200, 1, [test_data[1]]),
     ])
-    async def test_get_backups(self, request_params, response_code, output):
+    async def test_get_backups_positive_cases(self, request_params, response_code, exp_length, exp_output):
         """
         Test to get all backups, where:
         1. No request parameter is passed
-        2. valid/invalid limit is specified
-        3. valid/invalid skip is specified
+        2. valid limit is specified
+        3. valid skip is specified
         4. valid limit and skip is specified
-        5. valid/invalid status is specified
+        5. valid status is specified
         6. valid limit, skip and status is specified
         There can be multiple records in return, test asserts if test data is present in return or not
         """
@@ -100,29 +98,84 @@ class TestBackup:
         assert response_code == r.status
         r = r.read().decode()
         retval = json.loads(r)
-        assert output == retval
+        response_length = len(retval['backups'])
+        assert exp_length == response_length
+        count = 0
+        for i in range(response_length):
+            count += 1
+            assert retval['backups'][i]['id'] == exp_output[exp_length - count]['id']
+            assert retval['backups'][i]['status'] == Status(exp_output[exp_length - count]["status"]).name
+            assert retval['backups'][i]['date'] is not None
         conn.close()
 
-    @pytest.mark.skip(reason="FOGL-529,FOGL-531")
-    @pytest.mark.parametrize("request_params, response_code, output", [
-        ('/invalid', 200, {'error': {'code': 400, 'message': 'Limit can be a positive integer only'}}),
-        ('/{}'.format(test_data_ids[0]['file1']), 200, {"date": '2017-08-30 04:05:10.382', "status": "running"}),
+    @pytest.mark.parametrize("request_params, response_code, output_code, output_message", [
+        ('?limit=invalid', 200, 400, "invalid literal for int() with base 10: 'invalid'"),
+        ('?skip=invalid', 200, 400, "invalid literal for int() with base 10: 'invalid'"),
+        ('?status=invalid', 200, 400, "'INVALID' not a valid status"),
     ])
-    async def test_get_backup_details(self, request_params, response_code, output):
+    async def test_get_backups_negative(self, request_params, response_code, output_code, output_message):
+        """
+        Test to get all backups, where:
+        1. invalid limit is specified
+        2. invalid skip is specified
+        3. invalid status is specified
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/backup{}'.format(request_params))
+        r = conn.getresponse()
+        assert response_code == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert output_code == retval['error']['code']
+        assert output_message == retval['error']['message']
+        conn.close()
+
+    @pytest.mark.parametrize("request_params, response_code, output", [
+        (test_data[0], 200, test_data[0])
+    ])
+    async def test_get_backup_details_positive(self, request_params, response_code, output):
+        """
+        Test to get details of backup, where:
+        1. Valid backup id is specified as query parameter
+        """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/backup/{}'.format(request_params["id"]))
+        r = conn.getresponse()
+        assert response_code == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert output['id'] == retval['id']
+        assert Status(output['status']).name == retval['status']
+        assert retval['date'] is not None
+        conn.close()
+
+    @pytest.mark.parametrize("request_params, response_code, output_code, output_message", [
+        ('invalid', 200, 400, "Invalid backup id"),
+        ('-1', 200, 404, "Backup with -1 does not exist")
+    ])
+    async def test_get_backup_details_negative(self, request_params, response_code, output_code, output_message):
         """
         Test to get details of backup, where:
         1. Invalid backup id is specified as query parameter
-        2. Valid backup id is specified as query parameter
         """
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/backup/{}'.format(request_params))
+        r = conn.getresponse()
+        assert response_code == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert output_code == retval['error']['code']
+        assert output_message == retval['error']['message']
+        conn.close()
 
-    @pytest.mark.skip(reason="FOGL-529,FOGL-531")
+    # TODO: Create mocks for this
     async def test_create_backup(self):
         """
         Test checks the api call to create a backup, Use mocks and do not backup as backup is a time consuming process
         """
         pass
 
-    @pytest.mark.skip(reason="FOGL-529,FOGL-531")
+    # TODO: Create mocks for this
     async def test_delete_backup(self):
         """
         Test checks the api call to delete a backup, Use Mocks and test data files as point of removal, do not delete
@@ -132,11 +185,12 @@ class TestBackup:
         """
         pass
 
+
 @pytest.allure.feature("api")
 @pytest.allure.story("restore")
 class TestRestore:
 
-    @pytest.mark.skip(reason="FOGL-529,FOGL-531")
+    @pytest.mark.skip(reason="FOGL-861")
     async def test_restore(self):
         """
         Test checks the api call to restore a backup, Use mocks and do not restore as it is a time consuming process

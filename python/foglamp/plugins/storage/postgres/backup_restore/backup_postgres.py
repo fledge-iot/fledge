@@ -233,12 +233,15 @@ class Backup(object):
 
             _message = self._MESSAGES_LIST["i000003"]
             Backup._logger.info("{0}".format(_message))
+            status = "running"
 
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000004"].format(_ex)
             Backup._logger.error("{0}".format(_message))
 
-            raise exceptions.BackupFailed(_message)
+            status = "failed"
+
+        return status
 
 
 class BackupProcess(FoglampProcess):

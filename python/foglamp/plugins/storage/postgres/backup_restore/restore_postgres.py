@@ -141,12 +141,15 @@ class Restore(object):
 
             _message = self._MESSAGES_LIST["i000001"]
             Restore._logger.info("{0}".format(_message))
+            status = "running"
 
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000001"].format(_ex)
             Restore._logger.error("{0}".format(_message))
 
-            raise exceptions.RestoreFailed(_message)
+            status = "failed"
+
+        return status
 
 
 class RestoreProcess(FoglampProcess):

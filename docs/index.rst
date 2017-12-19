@@ -11,4 +11,5 @@ Welcome to FogLAMP's documentation!
     02_foglamp_at_a_glance
     03_getting_started
     04_installation
+    05_testing
 

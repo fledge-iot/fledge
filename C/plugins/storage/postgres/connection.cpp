@@ -256,7 +256,7 @@ int		col = 0;
 			else
 			{
 				values.append('\'');
-				values.append(str);
+				values.append(escape(str));
 				values.append('\'');
 			}
 		}
@@ -270,7 +270,7 @@ int		col = 0;
 			Writer<StringBuffer> writer(buffer);
 			itr->value.Accept(writer);
 			values.append('\'');
-			values.append(buffer.GetString());
+			values.append(escape(buffer.GetString()));
 			values.append('\'');
 		}
 		col++;
@@ -341,7 +341,7 @@ int		col = 0;
 					else
 					{
 						sql.append('\'');
-						sql.append(str);
+						sql.append(escape(str));
 						sql.append('\'');
 					}
 				}
@@ -355,7 +355,7 @@ int		col = 0;
 					Writer<StringBuffer> writer(buffer);
 					itr->value.Accept(writer);
 					sql.append('\'');
-					sql.append(buffer.GetString());
+					sql.append(escape(buffer.GetString()));
 					sql.append('\'');
 				}
 				col++;
@@ -674,9 +674,18 @@ int		row = 0;
 		row++;
 		sql.append('\'');
 		sql.append((*itr)["asset_code"].GetString());
-		sql.append("', \'");
-		sql.append((*itr)["read_key"].GetString());
-		sql.append("', \'");
+        // Python code is passing the string None when here is no read_key in the payload
+        if (itr->HasMember("read_key") && strcmp((*itr)["read_key"].GetString(), "None") != 0)
+        {
+    		sql.append("', \'");
+    		sql.append((*itr)["read_key"].GetString());
+    		sql.append("', \'");
+        }
+        else
+        {
+            // No "read_key" in this reading, insert NULL
+            sql.append("', NULL, '");
+        }
 		StringBuffer buffer;
 		Writer<StringBuffer> writer(buffer);
 		(*itr)["reading"].Accept(writer);
@@ -693,7 +702,7 @@ int		row = 0;
 		else
 		{
 			sql.append('\'');
-			sql.append(str);
+			sql.append(escape(str));
 			sql.append('\'');
 		}
 
@@ -1495,6 +1504,7 @@ char	tmpbuf[512];
 	va_start(ap, reason);
 	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
 	va_end(ap);
+	Logger::getLogger()->error("PostgreSQL storage plugin raising error: %s", tmpbuf);
 	manager->setError(operation, tmpbuf, false);
 }
 
@@ -1520,4 +1530,76 @@ SQLBuffer buf;
  	raiseError("tableSize", PQerrorMessage(dbConnection));
 	PQclear(res);
 	return -1;
+}
+
+
+const char *Connection::escape(const char *str)
+{
+static char *lastStr = NULL;
+const char    *p1;
+char *p2;
+
+    if (strchr(str, '\'') == NULL)
+    {
+        return str;
+    }
+
+    if (lastStr !=  NULL)
+    {
+        free(lastStr);
+    }
+    lastStr = (char *)malloc(strlen(str) * 2);
+
+    p1 = str;
+    p2 = lastStr;
+    while (*p1)
+    {
+        if (*p1 == '\'')
+        {
+            *p2++ = '\'';
+            *p2++ = '\'';
+            p1++;
+        }
+        else
+        {
+            *p2++ = *p1++;
+        }
+    }
+    *p2 = 0;
+    return lastStr;
+}
+
+const string Connection::escape(const string& str)
+{
+char    *buffer;
+const char    *p1;
+char  *p2;
+string  newString;
+
+    if (str.find_first_of('\'') == string::npos)
+    {
+        return str;
+    }
+
+    buffer = (char *)malloc(str.length() * 2);
+
+    p1 = str.c_str();
+    p2 = buffer;
+    while (*p1)
+    {
+        if (*p1 == '\'')
+        {
+            *p2++ = '\'';
+            *p2++ = '\'';
+            p1++;
+        }
+        else
+        {
+            *p2++ = *p1++;
+        }
+    }
+    *p2 = 0;
+    newString = string(buffer);
+    free(buffer);
+    return newString;
 }

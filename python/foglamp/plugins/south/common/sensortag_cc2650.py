@@ -28,10 +28,6 @@ characteristics = {
             'uuid': 'f000aa01-0451-4000-b000-000000000000',
             'handle': '0x0000'
         },
-        'notification': {
-            'uuid': '2902',
-            'handle': '0x0000'
-        },
         'configuration': {
             'uuid': 'f000aa02-0451-4000-b000-000000000000',
             'handle': '0x0000'
@@ -44,10 +40,6 @@ characteristics = {
     'movement': {
         'data': {
             'uuid': 'f000aa81-0451-4000-b000-000000000000',
-            'handle': '0x0000'
-        },
-        'notification': {
-            'uuid': '2902',
             'handle': '0x0000'
         },
         'configuration': {
@@ -64,10 +56,6 @@ characteristics = {
             'uuid': 'f000aa21-0451-4000-b000-000000000000',
             'handle': '0x0000'
         },
-        'notification': {
-            'uuid': '2902',
-            'handle': '0x0000'
-        },
         'configuration': {
             'uuid': 'f000aa22-0451-4000-b000-000000000000',
             'handle': '0x0000'
@@ -82,10 +70,6 @@ characteristics = {
             'uuid': 'f000aa41-0451-4000-b000-000000000000',
             'handle': '0x0000'
         },
-        'notification': {
-            'uuid': '2902',
-            'handle': '0x0000'
-        },
         'configuration': {
             'uuid': 'f000aa42-0451-4000-b000-000000000000',
             'handle': '0x0000'
@@ -98,10 +82,6 @@ characteristics = {
     'luminance': {
         'data': {
             'uuid': 'f000aa71-0451-4000-b000-000000000000',
-            'handle': '0x0000'
-        },
-        'notification': {
-            'uuid': '2902',
             'handle': '0x0000'
         },
         'configuration': {
@@ -125,10 +105,6 @@ keypress = {
         'uuid': '0000ffe1-0000-1000-8000-00805f9b34fb',
         'handle': '0x004c'
     },
-    'notification': {
-        'uuid': '2902',
-        'handle': '0x0000'
-    },
 }
 
 char_enable = '01'
@@ -149,7 +125,9 @@ Bits	Usage
 """
 movement_enable = 'FF80'
 movement_disable = '0000'
-
+notification_uuid = '0x2902'
+notification_enable = '0100'
+notification_disable = '0000'
 
 class SensorTagCC2650(object):
     """Handles readings from SensorTagCC2650
@@ -216,9 +194,27 @@ class SensorTagCC2650(object):
                 break
         return rval
 
-    def get_notification_handle(self, data_handle):
-        # TODO: Confirm with product sources that notification handle will always be data_handle + 1
-        return hex(int(data_handle, 16) + 1)
+    def get_notification_handles(self):
+        notification_handles = list()
+        try:
+            cmd = 'char-read-uuid %s' % notification_uuid
+            self.con.sendline(cmd)
+            time.sleep(5)
+            self.con.expect('.*{}.* \r'.format(cmd))
+            reading = self.con.after
+            lines = reading.decode()
+            i = 0
+            while i != -1:
+                i = lines.find('handle: 0x', i + 1)
+                if i != -1:
+                    notification_handles.append(lines[i + 8:i + 14])
+                    i += 1
+            _LOGGER.info('SensorTagCC2650 {} notification handles {}'.format(
+                self.bluetooth_adr, ', '.join(notification_handles)))
+        except Exception as ex:
+            _LOGGER.exception('SensorTagCC2650 {} retrying notification handles...'.format(self.bluetooth_adr))
+            time.sleep(.5)
+        return notification_handles
 
     def char_write_cmd(self, handle, value):
         self.con.sendline('char-write-cmd %s %s' % (handle, value))
@@ -531,5 +527,6 @@ class SensorTagCC2650(object):
     def get_battery_level(self, raw_battery_level):
         return int('0x'+raw_battery_level.decode(), 16)
 
+    # TODO: Complete this method
     def get_keypress_state(self, raw_keypress_state):
         pass

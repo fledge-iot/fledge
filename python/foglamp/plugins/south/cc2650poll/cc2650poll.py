@@ -22,7 +22,7 @@ __version__ = "${VERSION}"
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Python module name of the plugin to load',
+         'description': 'Sensortag CC2650 poll type plugin',
          'type': 'string',
          'default': 'cc2650poll'
     },
@@ -38,6 +38,11 @@ _DEFAULT_CONFIG = {
     },
     'connectionTimeout': {
         'description': 'BLE Device timeout value in seconds',
+        'type': 'integer',
+        'default': '10'
+    },
+    'shutdownThreshold': {
+        'description': 'Time in seconds allowed for shutdown to complete the pending tasks',
         'type': 'integer',
         'default': '10'
     }
@@ -98,7 +103,6 @@ def plugin_init(config):
         sensortag_characteristics['battery'] = battery
 
         data['characteristics'] = sensortag_characteristics
-        data['bluetooth_adr'] = bluetooth_adr
         data['tag'] = tag
         _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
@@ -118,6 +122,8 @@ def plugin_poll(handle):
     Raises:
         DataRetrievalError
     """
+    if 'tag' not in handle:
+        return {}
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
     data = {
@@ -126,7 +132,7 @@ def plugin_poll(handle):
         'key': str(uuid.uuid4()),
         'readings': {}
     }
-    bluetooth_adr = handle['bluetooth_adr']
+    bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
     object_temp_celsius = None
     ambient_temp_celsius = None
@@ -269,7 +275,14 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    bluetooth_adr = handle['bluetooth_adr']
-    tag = handle['tag']
-    tag.disconnect()
-    _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+    # Find all running tasks:
+    pending_tasks = asyncio.Task.all_tasks()
+
+    # Wait until tasks done:
+    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
+
+    if 'tag' in handle:
+        bluetooth_adr = handle['bluetoothAddress']['value']
+        tag = handle['tag']
+        tag.disconnect()
+        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

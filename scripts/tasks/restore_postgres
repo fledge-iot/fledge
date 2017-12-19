@@ -24,3 +24,4 @@ fi
 # Avoid FogLAMP termination at the FogLAMP stop
 command="python3 -m foglamp.plugins.storage.postgres.backup_restore.restore_postgres $@"
 nohup $command </dev/null >/dev/null 2>&1 &
+

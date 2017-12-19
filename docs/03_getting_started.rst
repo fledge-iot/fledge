@@ -213,7 +213,7 @@ The git repository created on your local machine, creates several branches. More
 
 - The **master** branch is the latest, stable version. You should use this branch if you are interested in using FogLAMP with the latest features and fixes.
 - The **develop** branch is the current working branch used by our developers. The branch contains the lastest version and features, but it may be unstable and there may be issues in the code. You may consider to use this branch if you are curious to see one of the latest features we are working on, but you should not use this branch in production.
-- The branches with versions **majorID.minorID**, such as *1.0-alpha* or *1.4*, contain the code of that specific version. You may use one of these branches if you need to check the code used in those versions.
+- The branches with versions **majorID.minorID**, such as *1.0* or *1.4*, contain the code of that specific version. You may use one of these branches if you need to check the code used in those versions.
 - The branches with name **FOGL-XXXX**, where 'XXXX' is a sequence number, are working branches used by developers and contributors to add features, fix issues, modify and release code and documentation of FogLAMP. Those branches are free for you to see and learn from the work of the contributors.
  
 Note that the default branch is *develop*.
@@ -227,7 +227,7 @@ Once you have cloned the FogLAMP project, in order to check the branches availab
   $ cd FogLAMP
   $ git branch --all
   * develop
-  remotes/origin/0.1-alpha
+  remotes/origin/1.0
   ...
   remotes/origin/FOGL-822
   remotes/origin/FOGL-823

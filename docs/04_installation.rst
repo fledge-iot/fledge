@@ -204,8 +204,8 @@ For example, if you are installing FogLAMP on an Intel x86/64 machine, you can t
 
 .. code-block:: console
 
-  $ sudo snap install --devmode foglamp_0.1_amd64.snap
-  foglamp 1.0-alpha installed 
+  $ sudo snap install --devmode foglamp_1.0_amd64.snap
+  foglamp 1.0 installed 
   $
 
 Congratulations! This is all you need to do, now FogLAMP is ready to run.

@@ -355,7 +355,7 @@ Let's suppose that we are interested in the data collected for one of the assets
   [{"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7}}] 
   $
 
-The JSON output may be more readable here:
+Let's see the JSON output on a more readable format:
 
 .. code-block:: json
 
@@ -425,101 +425,103 @@ In order to test the North task and plugin, first you need to setup the PI syste
 Setting the OMF Translator Plugin
 ---------------------------------
 
-FogLAMP uses the same *OMF Translator* plugin to send two streams of data: the data coming from the South modules and buffered in FogLAMP and the statistics generated and collected from FogLAMP. In the current installation, these two streams refer to the categories and streams *OMF_TR_1* (South data) and *OMF_TR_2* (FogLAMP Statistics).
+FogLAMP uses the same *OMF Translator* plugin to send two streams of data: the data coming from the South modules and buffered in FogLAMP and the statistics generated and collected from FogLAMP. In the current installation, these two streams refer to the categories and streams *SEND_PR_1* (South data) and *SEND_PR_2* (FogLAMP Statistics).
+
+.. note:: In this version, only the South data can be sent to the PI System.
 
 If you are curious to see which categories are available in FogLAMP, simply type:
 
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/categories ; echo
-  { "categories": [ { "description": "Log Partitioning",                       "key": "LOGPART"   },
-                    { "description": "Sensors and Device Interface",           "key": "SENSORS"   },
-                    { "description": "HTTP North Plugin Configuration",        "key": "HTTP_TR_3" },
-                    { "description": "Streaming",                              "key": "STREAMING" },
-                    { "description": "System Purge",                           "key": "SYPURGE"   },
-                    { "description": "POLL Plugin Configuration",              "key": "POLL"      },
-                    { "description": "Scheduler configuration",                "key": "SCHEDULER" },
-                    { "description": "Service Monitor configuration",          "key": "SMNTR"     },
-                    { "description": "Configuration of OMF types",             "key": "OMF_TYPES" },
-                    { "description": "Configuration of the Sending Process",   "key": "SEND_PR_1" },
-                    { "description": "Device server configuration",            "key": "DEVICE"    },
-                    { "description": "COAP Device",                            "key": "COAP"      },
-                    { "description": "Configuration of the Sending Process",   "key": "SEND_PR_2" },
-                    { "description": "HTTP_SOUTH Device",                      "key": "HTTP_SOUTH"},
-                    { "description": "Configuration of OMF Translator plugin", "key": "OMF_TR_1"  },
-                    { "description": "Purge the readings table",               "key": "PURGE_READ"},
-                    { "description": "Configuration of OMF Translator plugin", "key": "OMF_TR_2"  } 
+  { "categories": [ { "description": "Log Partitioning",                     "key": "LOGPART" },
+                    { "description": "Sensors and Device Interface",         "key": "SENSORS" },
+                    { "description": "HTTP North Plugin Configuration",      "key": "SEND_PR_3" },
+                    { "description": "Streaming",                            "key": "STREAMING" },
+                    { "description": "System Purge",                         "key": "SYPURGE" },
+                    { "description": "POLL Plugin Configuration",            "key": "POLL" },
+                    { "description": "HTTP South Plugin Configuration",      "key": "HTTP_SOUTH" },
+                    { "description": "SensorTagCC2650 Plugin Configuration", "key": "CC2650POLL" },
+                    { "description": "Scheduler configuration",              "key": "SCHEDULER" },
+                    { "description": "Service Monitor configuration",        "key": "SMNTR" },
+                    { "description": "COAP Device",                          "key": "COAP" },
+                    { "description": "Device server configuration",          "key": "DEVICE" },
+                    { "description": "Configuration of OMF types",           "key": "OMF_TYPES" },
+                    { "description": "Configuration of the Sending Process", "key": "SEND_PR_1" },
+                    { "description": "Purge the readings table",             "key": "PURGE_READ" },
+                    { "description": "Configuration of the Sending Process", "key": "SEND_PR_2" } 
                   ]
   }
   $
 
-The configuration for the OMF Translator used in the two streams mentioned above are:
+The configuration for the OMF Translator used to stream the South data is:
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/category/OMF_TR_1 ; echo
-  { "OMFMaxRetry": { "value": "5",
-                     "default": "5",
-                     "description": "Max number of retries for the communication with the OMF PI Connector Relay",
-                     "type": "integer" },
-    "producerToken": { "value": "omf_translator_0001",
-                       "default": "omf_translator_0001",
-                       "description": "The producer token that represents this FogLAMP stream",
-                       "type": "string" },
-    "OMFRetrySleepTime": { "value": "1",
+  $ curl -s http://localhost:8081/foglamp/category/SEND_PR_1 ; echo
+  { "plugin":            { "description": "Python module name of the plugin to load",
+                           "type": "string",
+                           "default": "omf",
+                           "value": "omf" },
+    "OMFMaxRetry":       { "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+                           "type": "integer",
+                           "default": "5",
+                           "value": "5" },
+    "stream_id":         { "description": "Stream ID",
+                           "type": "integer",
                            "default": "1",
-                           "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
-                           "type": "integer" },
-    "StaticData": { "value": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
-                    "default": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
-                    "description": "Static data to include in each sensor reading sent to OMF.",
-                    "type": "JSON" },
-    "URL": { "value": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
-             "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
-             "description": "The URL of the PI Connector to send data to",
-             "type": "string" },
-    "OMFHttpTimeout": { "value": "30",
-                        "default": "30",
-                        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
-                        "type": "integer" }
-  }
-  $
-  $ curl -s http://localhost:8081/foglamp/category/OMF_TR_2 ; echo
-  { "OMFMaxRetry": { "value": "5",
-                     "default": "5",
-                     "description": "Max number of retries for the communication with the OMF PI Connector Relay",
-                     "type": "integer" },
-    "producerToken": { "value": "omf_translator_0001",
-                       "default": "omf_translator_0001",
-                       "description": "The producer token that represents this FogLAMP stream",
-                       "type": "string" },
-    "OMFRetrySleepTime": { "value": "1",
+                           "value": "1" },
+    "blockSize":         { "description": "The size of a block of readings to send in each transmission.",
+                           "type": "integer",
+                           "default": "5000",
+                           "value": "5000" },
+    "sleepInterval":     { "description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
+                           "type": "integer",
+                           "default": "5",
+                           "value": "5" },
+    "translator":        { "description": "The name of the translator to use to translate the readings into the output format and send them",
+                           "type": "string",
+                           "default": "omf",
+                           "value": "omf" },
+    "URL":               { "description": "The URL of the PI Connector to send data to",
+                           "type": "string",
+                           "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
+                           "value": "http://WIN-4M7ODKB0RH2:8118/ingress/messages" },
+    "OMFHttpTimeout":    { "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+                           "type": "integer",
+                           "default": "30",
+                           "value": "30" },
+    "producerToken":     { "description": "The producer token that represents this FogLAMP stream",
+                           "type": "string",
+                           "default": "omf_translator_0001",
+                           "value": "omf_translator_0001" },
+    "source":            { "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+                           "type": "string",
+                           "default": "readings",
+                           "value": "readings" },
+    "duration":          { "description": "How long the sending process should run (in seconds) before stopping.",
+                           "type": "integer",
+                           "default": "60",
+                           "value": "60" },
+    "OMFRetrySleepTime": { "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+                           "type": "integer",
                            "default": "1",
-                           "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
-                           "type": "integer" },
-    "StaticData": { "value": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
-                    "default": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
-                    "description": "Static data to include in each sensor reading sent to OMF.",
-                    "type": "JSON" },
-    "URL": { "value": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
-             "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
-             "description": "The URL of the PI Connector to send data to",
-             "type": "string" },
-    "OMFHttpTimeout": { "value": "30",
-                        "default": "30",
-                        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
-                        "type": "integer" }
+                           "value": "1" },
+    "StaticData":        { "description": "Static data to include in each sensor reading sent to OMF.",
+                           "type": "JSON",
+                           "default": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
+                           "value": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}" },
+    "enable":            { "description": "A switch that can be used to enable or disable execution of the sending process.",
+                           "type": "boolean", "default": "True",
+                           "value": "True" }
   }
   $
 
-What we need to do now is to change the IP address in the URL of *OMF_TR_1* and *OMF_TR_2* with the IP address of the Windows Server running the PI Connector Relay. Supposing the Windows IP address is *192.168.56.101*, we can use curl for this:
+What we need to do now is to change the IP address in the URL of *SEND_PR_1* with the IP address of the Windows Server running the PI Connector Relay. Supposing the Windows IP address is *192.168.56.101*, we can use curl for this:
 
 .. code-block:: console
 
-  $ curl -H 'Content-Type: application/json' -X PUT -d '{ "value": "http://192.168.56.101:8118/ingress/messages" }' http://localhost:8081/foglamp/category/OMF_TR_1/URL;echo
-  {"value": "http://192.168.56.101:8118/ingress/messages", "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages", "description": "The URL of the PI Connector to send data to", "type": "string"}
-  $
-  $ curl -H 'Content-Type: application/json' -X PUT -d '{ "value": "http://192.168.56.101:8118/ingress/messages" }' http://localhost:8081/foglamp/category/OMF_TR_2/URL;echo
+  $ curl -H 'Content-Type: application/json' -X PUT -d '{ "value": "http://192.168.56.101:8118/ingress/messages" }' http://localhost:8081/foglamp/category/SEND_PR_1/URL;echo
   {"value": "http://192.168.56.101:8118/ingress/messages", "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages", "description": "The URL of the PI Connector to send data to", "type": "string"}
   $
 

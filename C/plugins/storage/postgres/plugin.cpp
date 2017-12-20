@@ -15,6 +15,7 @@
 #include <strings.h>
 #include "libpq-fe.h"
 #include <string>
+#include <logger.h>
 
 /**
  * The Postgres plugin interface
@@ -138,7 +139,7 @@ std::string	  resultSet;
 }
 
 /**
- * Retrieve soem readings from the readings buffer
+ * Retrieve some readings from the readings buffer
  */
 char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)
 {
@@ -175,7 +176,12 @@ std::string 	  results;
 			(void)connection->purgeReadings(0, flags, sent, results);
 			long newTableSize = connection->tableSize(std::string("readings"));
 			if (newTableSize == tableSize)
+            {
+                // We didn't remove any readings, so stop here
+                Logger::getLogger()->error("Failed to reach target readings size %ld during purge operation",
+                        age);
 				break;
+            }
 			tableSize = newTableSize;
 		}
 	}

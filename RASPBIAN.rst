@@ -7,10 +7,18 @@ Building and using FogLAMP on Raspbian
 **************************************
 
 FogLAMP requires the use of Python 3.5 in order to support the
-asynchronous IO mechanisms used by FogLAMP. The Raspberry Pi Raspbian
-distribution supports Python 3.4 as the latest version of Python.
+asynchronous IO mechanisms used by FogLAMP. Earlier Raspberry Pi Raspbian
+distributions support Python 3.4 as the latest version of Python.
 In order to build and run FogLAMP on Raspbian the version of Python
-must be updated manually.
+must be updated manually if your distribution has an older version.
+
+Check your Python version by running the command
+::
+    python3 --version
+|br|
+
+If your version is less than 3.5 then follow the instructions below to update
+your Python version.
 
 Install and update the build tools required for Python to be built
 ::

@@ -15,6 +15,7 @@ import asyncio
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
+from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -279,7 +280,7 @@ def plugin_start(handle):
                                     reading_key: movement[reading_key],
                                 }
                             }
-                            await handle['ingest'].add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
+                            await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                                                 timestamp=data['timestamp'],
                                                                 key=data['key'],
                                                                 readings=data['readings'])
@@ -315,7 +316,7 @@ def plugin_start(handle):
                     # Common add_readings for all keys other than movement
                     if int(handle['characteristics']['movement']['data']['handle'], 16) != \
                             int(hex_string[0].decode(), 16):
-                        await handle['ingest'].add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
+                        await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                                             timestamp=data['timestamp'],
                                                             key=data['key'],
                                                             readings=data['readings'])

@@ -26,10 +26,10 @@ headers = {"Content-Type": 'application/json'}
 
 pytestmark = pytest.mark.asyncio
 
-test_data = [{'filename': 'file1', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 1},
-             {'filename': 'file2', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2},
-             {'filename': 'file3', 'ts': datetime.now(tz=timezone.utc), 'type': 1, 'status': 5},
-             {'filename': 'file4', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2}]
+test_data = [{'filename': 'test_file1', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 1},
+             {'filename': 'test_file2', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2},
+             {'filename': 'test_file3', 'ts': datetime.now(tz=timezone.utc), 'type': 1, 'status': 5},
+             {'filename': 'test_file4', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2}]
 test_data_ids = []
 
 
@@ -51,7 +51,7 @@ async def delete_master_data():
     Delete test data records from backup table
     """
     conn = await asyncpg.connect(database=__DB_NAME)
-    await conn.execute('''DELETE from foglamp.backup WHERE file_name IN ($1)''', [el['filename'] for el in test_data])
+    await conn.execute('''DELETE from foglamp.backups WHERE file_name LIKE ($1)''', 'test_%')
     await conn.close()
 
 
@@ -61,7 +61,8 @@ def setup_module(module):
     """
     asyncio.get_event_loop().run_until_complete(add_master_data())
 
-async def teardown_module(module):
+
+def teardown_module(module):
     """
     Delete the created files from backup db, directory (if created)
     """
@@ -169,6 +170,7 @@ class TestBackup:
         conn.close()
 
     # TODO: Create mocks for this
+    @pytest.mark.skip(reason="FOGL-865")
     async def test_create_backup(self):
         """
         Test checks the api call to create a backup, Use mocks and do not backup as backup is a time consuming process
@@ -176,6 +178,7 @@ class TestBackup:
         pass
 
     # TODO: Create mocks for this
+    @pytest.mark.skip(reason="FOGL-865")
     async def test_delete_backup(self):
         """
         Test checks the api call to delete a backup, Use Mocks and test data files as point of removal, do not delete

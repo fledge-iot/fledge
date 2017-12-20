@@ -625,7 +625,7 @@ string        flags;
 		}
 		else if (size)
 		{
-			purged = plugin->readingsPurge(age, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+			purged = plugin->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
 		}
 		else
 		{

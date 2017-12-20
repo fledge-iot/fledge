@@ -305,8 +305,8 @@ class Scheduler(object):
             process = await asyncio.create_subprocess_exec(*args_to_exec, cwd=_SCRIPTS_DIR)
         except EnvironmentError:
             self._logger.exception(
-                "Unable to start schedule '%s' process '%s'\n%s".format(
-                    schedule.name, schedule.process_name, args_to_exec))
+                "Unable to start schedule '%s' process '%s'\n%s",
+                    schedule.name, schedule.process_name, args_to_exec)
             raise
 
         task_id = uuid.uuid4()

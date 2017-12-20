@@ -33,11 +33,9 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__, level=20)
 
 # FOGLAMP_ROOT env variable
+_FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
-
-# TODO: FOGL-780
-_CERTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/certs')
 
 
 class Server:
@@ -161,19 +159,24 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             service_app = cls._make_app()
-            # ssl context
-            # put this in if block? is SSL_ENABLED or something..
-            ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 
-            assert os.path.isfile(_CERTS_DIR + '/server.cert')
-            assert os.path.isfile(_CERTS_DIR + '/server.key')
-            # use pem file?
-            ssl_ctx.load_cert_chain(_CERTS_DIR + '/server.cert', _CERTS_DIR + '/server.key')
+            # TODO: fetch from some config; database? OH!
+            IS_SSL_ENABLED = True
+
+            # ssl context
+            ssl_ctx = None
+            if IS_SSL_ENABLED:
+                # ensure TLS 1.2 and SHA-256
+                # handle expiry?
+                ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                cert, key = cls.get_certificates()
+                _logger.info('Loading certificates %s and key %s', cert, key)
+                ssl_ctx.load_cert_chain(cert, key)
 
             service_server, service_server_handler = cls._start_app(loop, service_app,
                                                                     host, cls.rest_service_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
-            _logger.info('Rest Server started on http://%s:%s', address, service_server_port)
+            _logger.info('Admin API Server started on http://%s:%s', address, service_server_port)
 
             cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
             cls.user_announcer = ServiceAnnouncer('FogLAMP', '_foglamp_app._tcp', service_server_port,
@@ -278,6 +281,28 @@ class Server:
             except TimeoutError:
                 _logger.exception('Unable to stop the scheduler')
                 return
+
+    @staticmethod
+    def get_certificates():
+        # TODO: FOGL-780
+        if _FOGLAMP_DATA:
+            certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
+        else:
+            certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/etc/certs')
+
+        """ Generated using
+            $ openssl version
+            OpenSSL 1.0.2g  1 Mar 2016
+        """
+        # use pem file?
+        # file name will be WHAT? *using server for now*
+        cert = certs_dir + '/server.cert'
+        key = certs_dir + '/server.key'
+        # remove these asserts and put in try-except block with logging
+        assert os.path.isfile(cert)
+        assert os.path.isfile(key)
+
+        return cert, key
 
 
 def main():

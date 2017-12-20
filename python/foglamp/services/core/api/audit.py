@@ -30,6 +30,7 @@ _help = """
 
 class Severity(IntEnum):
     """ Enumeration for log.severity """
+    # TODO: FOGL-701
     FATAL = 1
     ERROR = 2
     WARNING = 3
@@ -103,7 +104,6 @@ async def get_audit_entries(request):
         for row in results['rows']:
             r = dict()
             r["details"] = row["log"]
-            # TODO: FOGL-695 fix PURGE logging level
             severity_level = int(row["level"])
             r["severity"] = Severity(severity_level).name if severity_level in range(1, 5) else "UNKNOWN"
             r["source"] = row["code"]
@@ -111,7 +111,7 @@ async def get_audit_entries(request):
 
             res.append(r)
 
-        return web.json_response({'audit': res, 'total_count': total_count})
+        return web.json_response({'audit': res, 'totalCount': total_count})
 
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
@@ -132,7 +132,7 @@ async def get_audit_log_codes(request):
     storage_client = connect.get_storage()
     result = storage_client.query_tbl('log_codes')
 
-    return web.json_response({'log_code': result['rows']})
+    return web.json_response({'logCode': result['rows']})
 
 
 async def get_audit_log_severity(request):
@@ -152,4 +152,4 @@ async def get_audit_log_severity(request):
         data = {'index': _severity.value, 'name': _severity.name}
         results.append(data)
 
-    return web.json_response({"log_severity": results})
+    return web.json_response({"logSeverity": results})

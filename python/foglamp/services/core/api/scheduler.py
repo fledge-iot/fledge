@@ -68,7 +68,7 @@ async def get_scheduled_process(request):
     if not scheduled_process_name:
         raise web.HTTPBadRequest(reason='No Scheduled Process Name given')
 
-    payload = PayloadBuilder().SELECT(("name")).WHERE(["name", "=", scheduled_process_name]).payload()
+    payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", scheduled_process_name]).payload()
     _storage = connect.get_storage()
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
 
@@ -178,7 +178,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Schedule name and Process name cannot be empty.')
 
     # Raise error if scheduled_process name is wrong
-    payload = PayloadBuilder().SELECT(("name")).WHERE(["name", "=", _schedule.get('schedule_process_name')]).payload()
+    payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", _schedule.get('schedule_process_name')]).payload()
     _storage = connect.get_storage()
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
 
@@ -244,10 +244,10 @@ async def get_schedules(request):
         schedules.append({
             'id': str(sch.schedule_id),
             'name': sch.name,
-            'process_name': sch.process_name,
+            'processName': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
-            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0 ,
+            'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
             'day': sch.day,
             'exclusive': sch.exclusive
         })
@@ -278,7 +278,7 @@ async def get_schedule(request):
         schedule = {
             'id': str(sch.schedule_id),
             'name': sch.name,
-            'process_name': sch.process_name,
+            'processName': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
             'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
@@ -344,7 +344,7 @@ async def post_schedule(request):
         schedule = {
             'id': str(sch.schedule_id),
             'name': sch.name,
-            'process_name': sch.process_name,
+            'processName': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
             'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
@@ -358,8 +358,7 @@ async def post_schedule(request):
 
 
 async def update_schedule(request):
-    """
-    Update a schedule in schedules table
+    """ Update a schedule in schedules table
 
     :Example: curl -d '{"type": 4, "name": "sleep30 updated", "process_name": "sleep30", "repeat": "15"}'  -X PUT  http://localhost:8082/foglamp/schedule/84fe4ea1-df9c-4c87-bb78-cab2e7d5d2cc
     """
@@ -401,7 +400,7 @@ async def update_schedule(request):
         schedule = {
             'id': str(sch.schedule_id),
             'name': sch.name,
-            'process_name': sch.process_name,
+            'processName': sch.process_name,
             'type': Schedule.Type(int(sch.schedule_type)).name,
             'repeat': sch.repeat.total_seconds() if sch.repeat else 0,
             'time': (sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
@@ -438,6 +437,7 @@ async def delete_schedule(request):
     except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
+
 async def get_schedule_type(request):
     """
     Args:
@@ -454,7 +454,7 @@ async def get_schedule_type(request):
         data = {'index': _type.value, 'name': _type.name}
         results.append(data)
 
-    return web.json_response({'schedule_type': results})
+    return web.json_response({'scheduleType': results})
 
 
 #################################
@@ -484,11 +484,11 @@ async def get_task(request):
 
         task = {
             'id': str(tsk.task_id),
-            'process_name': tsk.process_name,
+            'processName': tsk.process_name,
             'state': Task.State(int(tsk.state)).name,
-            'start_time': str(tsk.start_time),
-            'end_time': str(tsk.end_time),
-            'exit_code': tsk.exit_code,
+            'startTime': str(tsk.start_time),
+            'endTime': str(tsk.end_time),
+            'exitCode': tsk.exit_code,
             'reason': tsk.reason
         }
 
@@ -546,12 +546,12 @@ async def get_tasks(request):
         for task in tasks:
             new_tasks.append(
                 {'id': str(task.task_id),
-                     'process_name': task.process_name,
-                     'state': Task.State(int(task.state)).name,
-                     'start_time': str(task.start_time),
-                     'end_time': str(task.end_time),
-                     'exit_code': task.exit_code,
-                     'reason': task.reason
+                 'processName': task.process_name,
+                 'state': Task.State(int(task.state)).name,
+                 'startTime': str(task.start_time),
+                 'endTime': str(task.end_time),
+                 'exitCode': task.exit_code,
+                 'reason': task.reason
                  }
             )
 
@@ -595,11 +595,11 @@ async def get_tasks_latest(request):
         for task in tasks:
             new_tasks.append(
                 {'id': str(task['id']),
-                 'process_name': task['process_name'],
+                 'processName': task['process_name'],
                  'state': [t.name for t in list(Task.State)][int(task['state']) - 1],
-                 'start_time': str(task['start_time']),
-                 'end_time': str(task['end_time']),
-                 'exit_code': task['exit_code'],
+                 'startTime': str(task['start_time']),
+                 'endTime': str(task['end_time']),
+                 'exitCode': task['exit_code'],
                  'reason': task['reason'],
                  'pid': task['pid']
                  }
@@ -651,4 +651,4 @@ async def get_task_state(request):
         data = {'index': _state.value, 'name': _state.name}
         results.append(data)
 
-    return web.json_response({'task_state': results})
+    return web.json_response({'taskState': results})

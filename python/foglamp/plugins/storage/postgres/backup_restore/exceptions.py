@@ -108,5 +108,6 @@ class FileNameError(RuntimeError):
 
 
 class InvalidFogLAMPEnvironment(RuntimeError):
-    """ it is not possible to determine the running environment neither Deployment nor Development """
+    """ It is not possible to determine the environment in which the code is running
+    neither Deployment nor Development """
     pass

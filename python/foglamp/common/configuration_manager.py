@@ -65,7 +65,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
 
-    def _run_callbacks(self, category_name):
+    async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
         if callbacks is not None:
             for callback in callbacks:
@@ -76,7 +76,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Unable to import callback module %s for category_name %s', callback, category_name)
                     raise
                 try:
-                    cb.run(category_name)
+                    await cb.run(category_name)
                 except AttributeError:
                     _logger.exception(
                         'Unable to run %s.run(category_name) for category_name %s', callback, category_name)
@@ -319,7 +319,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 category_name, item_name, new_value_entry)
             raise
         try:
-            self._run_callbacks(category_name)
+            await self._run_callbacks(category_name)
         except:
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)
@@ -415,7 +415,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 category_name, category_description, category_val_prepared)
             raise
         try:
-            self._run_callbacks(category_name)
+            await self._run_callbacks(category_name)
         except:
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)

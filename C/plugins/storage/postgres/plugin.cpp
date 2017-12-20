@@ -14,8 +14,16 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "libpq-fe.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include <sstream>
+#include <iostream>
 #include <string>
 #include <logger.h>
+
+using namespace std;
+using namespace rapidjson;
 
 /**
  * The Postgres plugin interface
@@ -166,6 +174,10 @@ std::string 	  results;
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
+		unsigned long deletedRows = 0;
+		unsigned long unsentPurged = 0;
+		unsigned long unsentRetained = 0;
+		unsigned long readings = 0;
 		/*
 		 * Remove readings an hour at a time until we get below
 		 * the required size or we no longer remove readings
@@ -174,16 +186,38 @@ std::string 	  results;
 		while (tableSize > age)
 		{
 			(void)connection->purgeReadings(0, flags, sent, results);
+
+			// Parse the JSON response and track number for succesive calls
+			Document doc;
+			doc.Parse(results.c_str());
+			if (doc.HasMember("removed"))
+				deletedRows += doc["removed"].GetInt();
+			if (doc.HasMember("unsentPurged"))
+				unsentPurged += doc["unsentPurged"].GetInt();
+			if (doc.HasMember("unsentRetained"))
+				unsentRetained += doc["unsentRetained"].GetInt();
+			if (doc.HasMember("readings"))
+				readings = doc["readings"].GetInt();
 			long newTableSize = connection->tableSize(std::string("readings"));
 			if (newTableSize == tableSize)
-            {
-                // We didn't remove any readings, so stop here
-                Logger::getLogger()->error("Failed to reach target readings size %ld during purge operation",
-                        age);
+			{
+				// We didn't remove any readings, so stop here
+				Logger::getLogger()->error("Failed to reach target readings size %ld during purge operation",
+					age);
 				break;
-            }
+			}
 			tableSize = newTableSize;
 		}
+
+		// Create the aggregate JSON response
+	        ostringstream convert;
+
+		convert << "{ \"removed\" : " << deletedRows << ", ";
+        	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+		convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+		convert << " \"readings\" : " << readings << " }";
+
+		results = convert.str();
 	}
 	else
 	{

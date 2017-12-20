@@ -13,6 +13,7 @@ import subprocess
 import sys
 import http.client
 import json
+import ssl
 from aiohttp import web
 
 from foglamp.common import logger
@@ -32,8 +33,11 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__, level=20)
 
 # FOGLAMP_ROOT env variable
-_FOGLAMP_ROOT= os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
-_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+
+# TODO: FOGL-780
+_CERTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/certs')
 
 
 class Server:
@@ -119,12 +123,12 @@ class Server:
         loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
 
     @classmethod
-    def _start_app(cls, loop, app, host, port):
+    def _start_app(cls, loop, app, host, port, ssl_ctx=None):
         if loop is None:
             loop = asyncio.get_event_loop()
 
         handler = app.make_handler()
-        coro = loop.create_server(handler, host, port)
+        coro = loop.create_server(handler, host, port, ssl=ssl_ctx)
         # added coroutine
         server = loop.run_until_complete(coro)
         return server, handler
@@ -157,7 +161,17 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             service_app = cls._make_app()
-            service_server, service_server_handler = cls._start_app(loop, service_app, host, cls.rest_service_port)
+            # ssl context
+            # put this in if block? is SSL_ENABLED or something..
+            ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+
+            assert os.path.isfile(_CERTS_DIR + '/server.cert')
+            assert os.path.isfile(_CERTS_DIR + '/server.key')
+            # use pem file?
+            ssl_ctx.load_cert_chain(_CERTS_DIR + '/server.cert', _CERTS_DIR + '/server.key')
+
+            service_server, service_server_handler = cls._start_app(loop, service_app,
+                                                                    host, cls.rest_service_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
             _logger.info('Rest Server started on http://%s:%s', address, service_server_port)
 
@@ -167,6 +181,7 @@ class Server:
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
+            # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, cls.rest_service_port)
             print("(Press CTRL+C to quit)")
 

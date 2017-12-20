@@ -13,7 +13,10 @@ _LOGGER = logger.setup(__name__)
 async def run(category_name):
     cfg_mgr = ConfigurationManager()
     interest_registry = InterestRegistry(cfg_mgr)
-    interest_records = interest_registry.and_filter(_category_name=category_name)
+    try:
+        interest_records = interest_registry.get(category_name=category_name)
+    except interest_registry_exceptions.DoesNotExist:
+        return
     category_value = await cfg_mgr.get_category_all_items(category_name)
     payload = {"category" : category_name, "items" : category_value}
     headers = {'content-type': 'application/json'}

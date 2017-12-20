@@ -457,19 +457,19 @@ class Server:
         """
 
         try:
-            interest_registration_id = request.match_info.get('registration_id', None)
+            interest_registration_id = request.match_info.get('interest_id', None)
 
-            if not service_id:
+            if not interest_registration_id:
                 raise web.HTTPBadRequest(reason='Registration id is required')
 
             try:
-                InterestRegistry.get(idx=registration_id)
+                cls._interest_registry.get(registration_id=interest_registration_id)
             except interest_registry_exceptions.DoesNotExist:
-                raise web.HTTPBadRequest(reason='InterestRecord with registration_id {} does not exist'.format(registration_id))
+                raise web.HTTPBadRequest(reason='InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
 
-            InterestRegistry.unregister(registration_id)
+            cls._interest_registry.unregister(interest_registration_id)
 
-            _resp = {'id': str(registration_id), 'message': 'Interest unregistered'}
+            _resp = {'id': str(interest_registration_id), 'message': 'Interest unregistered'}
 
             return web.json_response(_resp)
         except ValueError as ex:

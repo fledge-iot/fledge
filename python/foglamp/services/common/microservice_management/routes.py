@@ -21,7 +21,7 @@ def setup(app, obj):
     app.router.add_route('GET', '/foglamp/service', obj.get_service)
     # Interest Registration
     app.router.add_route('POST', '/foglamp/service/interest', obj.register_interest)
-    app.router.add_route('DELETE', '/foglamp/service/interest/{service_id}', obj.unregister_interest)
+    app.router.add_route('DELETE', '/foglamp/service/interest/{interest_id}', obj.unregister_interest)
 
     # enable cors support
     enable_cors(app)

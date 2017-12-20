@@ -2,7 +2,7 @@ import uuid
 from foglamp.common import logger
 from foglamp.services.core.interest_registry.interest_record import InterestRecord
 from foglamp.services.core.interest_registry import exceptions as interest_registry_exceptions
-
+_LOGGER = logger.setup(__name__)
 _NOTIFY_CHANGE_CALLBACK = "foglamp.services.core.interest_registry.change_callback"
 class InterestRegistrySingleton(object):
     _shared_state = {}
@@ -47,22 +47,10 @@ class InterestRegistry(InterestRegistrySingleton):
         self._registered_interests.append(registered_interest)
         return registration_id
 
-    def unregister(self, category_name, callback):
-        pass
-        """Unregisters an interest in any changes to the category_value associated with category_name
+    def unregister(self, registration_id):
+        registered_interests = self.get(registration_id=registration_id)
+        self._registered_interests.remove(registered_interests[0])
+        _LOGGER.info("Unregistered interest with id {}".format(str(registered_interests[0])))
+        return registration_id
 
-        Keyword Arguments:
-        category_name -- name of the category_name of interest (required)
-        callback -- module with implementation of run(category_name) to be called when change is made to category_value
 
-        Return Values:
-        None
-
-        Side Effects:
-        Unregisters an interest in any changes to the category_value of a given category_name with the associated callback.
-        This interest is maintained in memory only, and not persisted in storage.
-
-        Restrictions and Usage:
-        A particular category_name may have multiple registered interests, aka multiple callbacks associated with a single category_name.
-        One or more category_names may use the same callback when a change is made to the corresponding category_value.
-        """

@@ -10,6 +10,8 @@ import copy
 import datetime
 import json
 import asyncio
+import uuid
+
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
@@ -125,7 +127,7 @@ def plugin_poll(handle):
         raise RuntimeError
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
-    data = {}
+    data = list()
     bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
     object_temp_celsius = None
@@ -231,11 +233,14 @@ def plugin_poll(handle):
             'battery': {"percentage": battery_level},
         }
 
-        data = {
-            'asset': 'TI Sensortag CC2650/',
-            'timestamp': time_stamp,
-            'readings': readings
-        }
+        for reading_key in readings.keys():
+            data.append({
+                'asset': 'TI Sensortag CC2650/' + reading_key,
+                'timestamp': time_stamp,
+                'key': str(uuid.uuid4()),
+                'readings': readings[reading_key]
+            })
+
     except (Exception, RuntimeError) as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)

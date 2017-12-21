@@ -169,16 +169,24 @@ class Server(FoglampMicroservice):
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
                 if len(data) > 0:
-                    for reading_key in data['readings']:
-                        asyncio.ensure_future(Ingest.add_readings(asset=data['asset'] + reading_key,
+                    if isinstance(data, list):
+                        for reading in data:
+                            asyncio.ensure_future(Ingest.add_readings(asset=reading['asset'],
+                                                                        timestamp=reading['timestamp'],
+                                                                        key=reading['key'],
+                                                                        readings=reading['readings']))
+                    elif isinstance(data, dict):
+                        asyncio.ensure_future(Ingest.add_readings(asset=data['asset'],
                                                                   timestamp=data['timestamp'],
-                                                                  key=str(uuid.uuid4()),
-                                                                  readings=data['readings'][reading_key]))
+                                                                  key=data['key'],
+                                                                  readings=data['readings']))
                 # pollInterval is expressed in milliseconds
                 sleep_seconds = int(config['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)
                 # If successful, then set retry count back to 1, meaning that only in case of 3 successive failures, exit.
                 try_count = 1
+            except KeyError as ex:
+                _LOGGER.exception('Keyerror plugin {} : {}'.format(self._name, str(ex)))
             except Exception as ex:
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))

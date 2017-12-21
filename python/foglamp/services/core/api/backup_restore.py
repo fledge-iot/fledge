@@ -159,10 +159,13 @@ def _get_status(status_code):
 async def restore_backup(request):
     """
     Restore from a backup
-
     :Example: curl -X PUT http://localhost:8081/foglamp/backup/1/restore
     """
+
+    raise web.HTTPNotImplemented(reason='restore backup method is not implemented yet.')
+
     backup_id = request.match_info.get('backup_id', None)
+
     if not backup_id:
         raise web.HTTPBadRequest(reason='Backup id is required')
 
@@ -172,9 +175,6 @@ async def restore_backup(request):
         # restore = Restore(connect.get_storage())
         # status = restore.restore_backup(backup_id)
         # return web.json_response({'status': status})
-        resp = {"code": web.HTTPNotImplemented.status_code,
-                'message': "Method not implemented"}
-        return web.json_response(resp)
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')
     except exceptions.DoesNotExist:

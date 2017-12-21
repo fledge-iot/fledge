@@ -32,8 +32,9 @@ async def ping(request):
             {'uptime': 32892} Time in seconds since FogLAMP started
 
     :Example:
-            curl -X GET http://localhost:8082/foglamp/ping
+            curl -X GET http://localhost:8081/foglamp/ping
     """
     since_started = time.time() - __start_time
 
+    # TODO: FOGL-790 - ping method should return more data
     return web.json_response({'uptime': since_started})

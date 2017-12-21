@@ -31,6 +31,7 @@ from foglamp.services.core.interest_registry import exceptions as interest_regis
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.core import connect
+from foglamp.services.common.service_announcer import ServiceAnnouncer
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -55,6 +56,15 @@ class Server:
 
     service_monitor = None
     """ foglamp.microservice_management.service_registry.Monitor """
+
+    admin_announcer = None
+    """ The Announcer for the Admin API """
+
+    user_announcer = None
+    """ The Announcer for the Admin API """
+
+    management_announcer = None
+    """ The Announcer for the management API """
 
     _host = '0.0.0.0'
     core_management_port = 0
@@ -93,9 +103,14 @@ class Server:
 
     @classmethod
     async def _start_service_monitor(cls):
-        """Starts the microservice monitor"""
+        """Starts the micro-service monitor"""
         cls.service_monitor = Monitor()
         await cls.service_monitor.start()
+
+    @classmethod
+    async def stop_service_monitor(cls):
+        """Stops the micro-service monitor"""
+        await cls.service_monitor.stop()
 
     @classmethod
     async def _start_scheduler(cls):
@@ -159,6 +174,10 @@ class Server:
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
+            _logger.info('Announce management API service')
+            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core', '_foglamp_core._tcp', cls.core_management_port,
+                                                    ['The FogLAMP Core REST API'])
+
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
             
@@ -180,6 +199,9 @@ class Server:
             address, service_server_port = service_server.sockets[0].getsockname()
             _logger.info('Rest Server started on http://%s:%s', address, service_server_port)
 
+            cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
+            cls.user_announcer = ServiceAnnouncer('FogLAMP', '_foglamp_app._tcp', service_server_port,
+                                              ['The FogLAMP Application  REST API'])
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
@@ -196,6 +218,9 @@ class Server:
                 # TODO: FOGL-653 shutdown implementation
                 # stop the scheduler
                 loop.run_until_complete(cls._stop_scheduler())
+
+                # stop monitor
+                loop.run_until_complete(cls.stop_service_monitor())
 
                 # stop the REST api (exposed on service port)
                 service_server.close()
@@ -308,7 +333,7 @@ class Server:
                     or service_management_port.strip() or not service_management_port.isdigit()):
                 raise web.HTTPBadRequest(reason='One or more values for type/name/address/management port missing')
 
-            if service_port != None:
+            if service_port is not None:
                 if not (isinstance(service_port, int)):
                     raise web.HTTPBadRequest(reason="Service's service port can be a positive integer only")
 
@@ -498,6 +523,7 @@ def main():
             Server().start()
         elif command == 'stop':
             Server().stop_storage()
+            Server().stop_service_monitor()
             # scheduler has signal binding
         else:
             raise ValueError("Unknown argument: {}".format(sys.argv[1]))

@@ -30,7 +30,7 @@ get_engine_management() {
     json_foglamp=`echo $json_foglamp | tr -d '\t'`
 
     middle_grep="\"plugin\" *: *\"${1}\" *, *\"managed\" *:.*"
-    echo `echo $json_foglamp | grep -o "\"storage plugins\" *: *{ *\[.*" | grep -o "\[.*" | grep -o "$middle_grep" | grep -o -e "true" -e "false"`
+    echo `echo $json_foglamp | grep -o "\"storage plugins\" *: *\[ *{.*" | grep -o "$middle_grep" | grep -o -e "true" -e "false"`
 
 }
 

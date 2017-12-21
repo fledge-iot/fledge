@@ -11,6 +11,7 @@ import json
 
 import aiocoap.resource
 import cbor2
+import logging
 
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
@@ -70,6 +71,9 @@ def plugin_init(config):
     """
     handle = config
 
+    _LOGGER.setLevel(logging.INFO)
+    """ We want to see informational output from this plugin """
+
     return handle
 
 
@@ -85,6 +89,8 @@ def plugin_start(handle):
 
     uri = handle['uri']['value']
     port = handle['port']['value']
+
+    _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
 
     root = aiocoap.resource.Site()
 

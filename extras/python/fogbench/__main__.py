@@ -30,16 +30,12 @@ fogbench
 
  Example:
 
-     $ cd benchmarks
-     $ python -m fogbench
-
-     or
-
-     $ python -m benchmarks.fogbench
+     $ cd $FOGLAMP_ROOT/bin
+     $ ./fogbench
 
  Help:
 
-     $ python -m fogbench -h
+     $ ./fogbench -h
 
  .. todo::
 
@@ -86,13 +82,8 @@ _num_iterated = 0
 # _logger = logger.setup(__name__)
 
 
-# TODO: move stuff to fogbench.py
-
 def read_templates():
     templates = []
-
-    # TODO: collect all the template json files
-    # and pass to parse_template_and_prepare_json
 
     return templates
 
@@ -161,7 +152,7 @@ def _prepare_sensor_reading(data, supported_format_types):
 
 
 def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
-    # TODO: Create class and move global variables to __init__
+
     global _start_time
     global _end_time
     global _tot_msgs_transferred
@@ -177,12 +168,12 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
     loop = asyncio.get_event_loop()
 
     while _iterations > 0:
-        # TODO: Fix key for next iteration
 
         # Pre-calculate the messages and size
         msg_transferred_itr = 0  # Messages transferred in every iteration
         byte_transferred_itr = 0  # Bytes transferred in every iteration
-        for r in readings_list:
+        for idx, r in enumerate(readings_list):
+            readings_list[idx]["key"] = str(uuid.uuid4())
             msg_transferred_itr += 1
             byte_transferred_itr += sys.getsizeof(r)
 
@@ -198,7 +189,6 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0):
         if _iterations != 0:
             # print(u"Iteration {} completed, waiting for {} seconds".format(_iterations, _interval))
             time.sleep(_interval)
-            # TODO: For next iteration, add interval to payload timestamp
 
     if not _keep:
         os.remove(_file)
@@ -301,7 +291,7 @@ arg_stats_type = '{0}'.format(namespace.statistics) if namespace.statistics else
 arg_host = '{0}'.format(namespace.host) if namespace.host else 'localhost'
 arg_port = int(namespace.port) if namespace.port else 5683
 
-sample_file = os.path.join(os.path.dirname(__file__), "foglamp_running_sample.{}".format(os.getpid()))
+sample_file = os.path.join( "/tmp", "foglamp_running_sample.{}".format(os.getpid()) )
 parse_template_and_prepare_json(_template_file=infile, _write_to_file=sample_file, _occurrences=arg_occurrences)
 read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations, _interval=arg_interval)  # and send to coap
 get_statistics(_stats_type=arg_stats_type, _out_file=statistics_file)

@@ -11,7 +11,7 @@ import requests
 import pytest
 import asyncio
 import uuid
-from foglamp.services.core.scheduler.scheduler import Schedule
+from foglamp.services.core.scheduler.scheduler import Schedule, _SCRIPTS_DIR
 
 pytestmark = pytest.mark.asyncio
 
@@ -26,7 +26,6 @@ __DB_NAME = "foglamp"
 BASE_URL = 'http://localhost:8081/foglamp'
 headers = {"Content-Type": 'application/json'}
 
-pytestmark = pytest.mark.asyncio
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -41,6 +40,7 @@ async def add_master_data():
     await conn.close()
     await asyncio.sleep(14)
 
+
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
@@ -49,6 +49,7 @@ async def delete_master_data():
     await conn.execute(''' COMMIT''')
     await conn.close()
     await asyncio.sleep(14)
+
 
 async def delete_method_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -69,7 +70,7 @@ class TestScheduler:
         # Starting foglamp from within test is mandatory, otherwise test scheduled_processes are not added to the
         # server if started externally.
         from subprocess import call
-        call(["scripts/foglamp", "start"])
+        call([_SCRIPTS_DIR + "/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
         time.sleep(30)
@@ -95,7 +96,8 @@ class TestScheduler:
         schedule_id = retval['schedule']['id']
         return schedule_id
 
-    # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
+    # TODO: Add tests for negative cases.
+    # There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
 
     async def test_get_scheduled_processes(self):
@@ -127,7 +129,7 @@ class TestScheduler:
         assert retval['schedule']['type'] == Schedule.Type(int(data['type'])).name
         assert retval['schedule']['time'] == 0
         assert retval['schedule']['day'] is None
-        assert retval['schedule']['process_name'] == data['process_name']
+        assert retval['schedule']['processName'] == data['process_name']
         assert retval['schedule']['repeat'] == 3600
         assert retval['schedule']['name'] == data['name']
 
@@ -152,7 +154,7 @@ class TestScheduler:
         assert retval['schedule']['exclusive'] is True
         assert retval['schedule']['time'] == 0
         assert retval['schedule']['day'] is None
-        assert retval['schedule']['process_name'] == data['process_name']
+        assert retval['schedule']['processName'] == data['process_name']
 
         # Below values are changed
         assert retval['schedule']['repeat'] == 91234
@@ -194,7 +196,7 @@ class TestScheduler:
         assert retval['type'] == Schedule.Type(int(data['type'])).name
         assert retval['time'] == 0
         assert retval['day'] is None
-        assert retval['process_name'] == data['process_name']
+        assert retval['processName'] == data['process_name']
         assert retval['repeat'] == 3600
         assert retval['name'] == data['name']
 
@@ -240,6 +242,6 @@ class TestScheduler:
 
         l_task_state = []
         for tasks in retval['tasks']:
-            if tasks['process_name'] == data['process_name']:
+            if tasks['processName'] == data['process_name']:
                 l_task_state.append(tasks['state'])
         assert 1 == l_task_state.count('RUNNING')

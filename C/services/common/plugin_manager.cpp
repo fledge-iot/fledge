@@ -85,7 +85,7 @@ char          buf[128];
     {
       // Log error, incorrect plugin type
       logger->error("Plugin %s is not of the expected type %s, it is of type %s.\n",
-        name, type.c_str(), info->type);
+        name.c_str(), type.c_str(), info->type);
       dlclose(hndl);
       return NULL;
     }

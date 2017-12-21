@@ -14,6 +14,7 @@ import asyncio
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
+from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -22,7 +23,7 @@ __version__ = "${VERSION}"
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Python module name of the plugin to load',
+         'description': 'Sensortag CC2650 poll type plugin',
          'type': 'string',
          'default': 'cc2650poll'
     },
@@ -35,6 +36,16 @@ _DEFAULT_CONFIG = {
         'description': 'Bluetooth MAC address',
         'type': 'string',
         'default': 'B0:91:22:EA:79:04'
+    },
+    'connectionTimeout': {
+        'description': 'BLE Device timeout value in seconds',
+        'type': 'integer',
+        'default': '10'
+    },
+    'shutdownThreshold': {
+        'description': 'Time in seconds allowed for shutdown to complete the pending tasks',
+        'type': 'integer',
+        'default': '10'
     }
 }
 
@@ -72,24 +83,29 @@ def plugin_init(config):
     Raises:
     """
     global sensortag_characteristics
+    data = copy.deepcopy(config)
 
     bluetooth_adr = config['bluetoothAddress']['value']
-    tag = SensorTagCC2650(bluetooth_adr)
+    timeout = config['connectionTimeout']['value']
+    tag = SensorTagCC2650(bluetooth_adr, timeout)
 
-    # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
-    # discovery rather than hard-coding the attribute handles.
-    for char in sensortag_characteristics.keys():
-        for _type in ['data', 'configuration', 'period']:
-            handle = tag.get_char_handle(sensortag_characteristics[char][_type]['uuid'])
-            sensortag_characteristics[char][_type]['handle'] = handle
+    data['is_connected'] = tag.is_connected
+    if data['is_connected'] is True:
+        # The GATT table can change for different firmware revisions, so it is important to do a proper characteristic
+        # discovery rather than hard-coding the attribute handles.
+        for char in sensortag_characteristics.keys():
+            for _type in ['data', 'configuration', 'period']:
+                handle = tag.get_char_handle(sensortag_characteristics[char][_type]['uuid'])
+                sensortag_characteristics[char][_type]['handle'] = handle
 
-    # print(json.dumps(sensortag_characteristics))
+        # Get Battery handle
+        handle = tag.get_char_handle(battery['data']['uuid'])
+        battery['data']['handle'] = handle
+        sensortag_characteristics['battery'] = battery
 
-    data = copy.deepcopy(config)
-    data['characteristics'] = sensortag_characteristics
-    data['bluetooth_adr'] = bluetooth_adr
-
-    _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
+        data['characteristics'] = sensortag_characteristics
+        data['tag'] = tag
+        _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
     return data
 
@@ -107,6 +123,8 @@ def plugin_poll(handle):
     Raises:
         DataRetrievalError
     """
+    if 'tag' not in handle:
+        return {}
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
     data = {
@@ -115,7 +133,8 @@ def plugin_poll(handle):
         'key': str(uuid.uuid4()),
         'readings': {}
     }
-    bluetooth_adr = handle['bluetooth_adr']
+    bluetooth_adr = handle['bluetoothAddress']['value']
+    tag = handle['tag']
     object_temp_celsius = None
     ambient_temp_celsius = None
     lux_luminance = None
@@ -123,9 +142,10 @@ def plugin_poll(handle):
     rel_temperature = None
     bar_pressure = None
     movement = None
+    battery_level = None
+    keypress_state = None
 
     try:
-        tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
         if not tag.is_connected:
             raise RuntimeError
 
@@ -178,6 +198,9 @@ def plugin_poll(handle):
             'acc_range': acc_range
         }
 
+        battery_level = tag.get_battery_level(
+            tag.char_read_hnd(handle['characteristics']['battery']['data']['handle'], "battery"))
+
         # Disable sensors
         tag.char_write_cmd(handle['characteristics']['temperature']['configuration']['handle'], char_disable)
         tag.char_write_cmd(handle['characteristics']['luminance']['configuration']['handle'], char_disable)
@@ -211,10 +234,11 @@ def plugin_poll(handle):
                 "x": mag_x,
                 "y": mag_y,
                 "z": mag_z
-            }
+            },
+            'battery': {"percentage": battery_level},
         }
         for reading_key in data['readings']:
-            asyncio.ensure_future(handle['ingest'].add_readings(asset=data['asset'] + '/' + reading_key,
+            asyncio.ensure_future(Ingest.add_readings(asset=data['asset'] + '/' + reading_key,
                                                                 timestamp=data['timestamp'],
                                                                 key=str(uuid.uuid4()),
                                                                 readings=data['readings'][reading_key]))
@@ -252,7 +276,14 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    bluetooth_adr = handle['bluetooth_adr']
-    tag = SensorTagCC2650(bluetooth_adr)  # pass the Bluetooth Address
-    tag.disconnect()
-    _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+    # Find all running tasks:
+    pending_tasks = asyncio.Task.all_tasks()
+
+    # Wait until tasks done:
+    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
+
+    if 'tag' in handle:
+        bluetooth_adr = handle['bluetoothAddress']['value']
+        tag = handle['tag']
+        tag.disconnect()
+        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))

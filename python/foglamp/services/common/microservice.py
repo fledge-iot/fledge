@@ -21,6 +21,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 class FoglampMicroservice(FoglampProcess):
     """ FoglampMicroservice class for all non-core python microservices
         All microservices will inherit from FoglampMicroservice and implement pure virtual method run()
@@ -60,7 +61,8 @@ class FoglampMicroservice(FoglampProcess):
         except Exception:
             raise
         try:
-            self.register_service(self._get_service_registration_payload())
+            res = self.register_service(self._get_service_registration_payload())
+            self._microservice_id = res["id"]
         except Exception:
             raise
 
@@ -78,7 +80,6 @@ class FoglampMicroservice(FoglampProcess):
         self._microservice_management_server = loop.run_until_complete(core)
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()
-
 
     def _get_service_registration_payload(self):
         service_registration_payload = {

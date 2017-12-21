@@ -10,10 +10,10 @@ import pytest
 import random
 import uuid
 import json
+import sys
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.tasks.purge.purge import Purge
-from . import foo
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 
@@ -28,15 +28,16 @@ __version__ = "${VERSION}"
 class TestPurge:
 
     # TODO: FOGL-510 Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
-    _name = "Foo"
-    _core_management_port = 44067
+    _name = "PurgeTask"
+    _core_management_port = 33925
     _core_management_host = "localhost"
 
     _storage_client = StorageClient("localhost", _core_management_port)
     _readings = ReadingsStorageClient("localhost", _core_management_port)
 
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
-    fs = foo.get_instance(_name, _core_management_host, _core_management_port)
+    sys.argv = ['./purge', '--name={}'.format(_name), '--address={}'.format(_core_management_host),
+                '--port={}'.format(_core_management_port)]
 
     @classmethod
     @pytest.fixture(autouse=True)

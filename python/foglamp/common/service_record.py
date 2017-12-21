@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+"""Service Record Class"""
+
 from enum import IntEnum
 from foglamp.common import logger
 
@@ -6,8 +14,10 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 class ServiceRecord(object):
+    """Used to information regarding a registered microservice.
+    """
+
 
     class Type(IntEnum):
         """Enumeration for Service Types"""

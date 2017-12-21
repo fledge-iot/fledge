@@ -8,7 +8,6 @@
 
 import asyncio
 import collections
-import traceback
 import datetime
 import logging
 import math

@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Services Instances Registry module"""
+"""Services Registry class"""
 
 import uuid
 from enum import IntEnum

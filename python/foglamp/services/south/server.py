@@ -200,9 +200,13 @@ class Server(FoglampMicroservice):
         loop.run_forever()
 
     async def shutdown(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
         print("shutdown south")
         return web.json_response({"south":"shutdown"})
 
     async def change(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
         print("change south")
         return web.json_response({"south":"change"})

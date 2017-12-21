@@ -15,7 +15,6 @@ import http.client
 import json
 import time
 from aiohttp import web
-import traceback
 
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -67,19 +66,26 @@ class Server:
     """ The Announcer for the management API """
 
     _host = '0.0.0.0'
+    """ Host IP of core """
+
     core_management_port = 0
+    """ Microservice management port of core """
 
     # TODO: FOGL-655 Get Admin API port from configuration option
     rest_service_port = 8081
+    """ Admin service port of core """
 
-    
     _start_time = time.time()
+    """ Start time of core process """
 
     _storage_client = None
+    """ Storage client to storage service """
 
     _configuration_manager = None
+    """ Instance of configuration manager (singleton) """
 
     _interest_registry = None
+    """ Instance of interest registry (singleton) """
 
     @staticmethod
     def _make_app():
@@ -147,6 +153,7 @@ class Server:
                 cls._storage_client = StorageClient(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
+        # obtain configuration manager and interest registry
         cls._configuration_manager = ConfigurationManager(cls._storage_client)
         cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
@@ -183,8 +190,6 @@ class Server:
             
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
-
-            # get configuration manager 
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -368,7 +373,7 @@ class Server:
 
     @classmethod
     async def unregister(cls, request):
-        """ Deregister a service
+        """ Unregister a service
 
         :Example: curl -X DELETE  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
         """
@@ -442,8 +447,7 @@ class Server:
     async def register_interest(cls, request):
         """ Register an interest in a configuration category
 
-        :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' 
-                  -X POST http://localhost:8082/foglamp/interest
+        :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' -X POST http://localhost:8082/foglamp/interest
         """
 
         try:

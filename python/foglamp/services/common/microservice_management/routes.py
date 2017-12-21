@@ -10,7 +10,13 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+
 def setup(app, obj):
+    """ Common method to setup the microservice management api.
+    Args:
+        obj (an instance, or a class, with the implementation of the needed methods for each route below)
+    """
+    
     # Basic api common to all microservices
     app.router.add_route('GET', '/foglamp/service/ping', obj.ping)
     app.router.add_route('POST', '/foglamp/service/shutdown', obj.shutdown)

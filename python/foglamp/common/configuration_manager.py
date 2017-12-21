@@ -26,6 +26,10 @@ _logger = logger.setup(__name__)
 _valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
 
 class ConfigurationManagerSingleton(object):
+    """ ConfigurationManagerSingleton
+    
+    Used to make ConfigurationManager a singleton via shared state
+    """
     _shared_state = {}
     def __init__(self):
         self.__dict__ = self._shared_state
@@ -427,7 +431,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         Keyword Arguments:
         category_name -- name of the category_name of interest (required)
-        callback -- module with implementation of run(category_name) to be called when change is made to category_value
+        callback -- module with implementation of async method run(category_name) to be called when change is made to category_value
 
         Return Values:
         None
@@ -459,7 +463,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         Keyword Arguments:
         category_name -- name of the category_name of interest (required)
-        callback -- module with implementation of run(category_name) to be called when change is made to category_value
+        callback -- module with implementation of async method run(category_name) to be called when change is made to category_value
 
         Return Values:
         None

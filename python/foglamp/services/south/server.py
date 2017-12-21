@@ -8,6 +8,8 @@
 
 import asyncio
 import signal
+import uuid
+
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -163,9 +165,15 @@ class Server(FoglampMicroservice):
         await Ingest.start(self._core_management_host, self._core_management_port)
         max_retry = 3
         try_count = 1
-        while True and self._plugin_handle['is_connected'] is True and try_count <= max_retry:
+        while True and try_count <= max_retry:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
+                if len(data) > 0:
+                    for reading_key in data['readings']:
+                        asyncio.ensure_future(Ingest.add_readings(asset=data['asset'] + reading_key,
+                                                                  timestamp=data['timestamp'],
+                                                                  key=str(uuid.uuid4()),
+                                                                  readings=data['readings'][reading_key]))
                 # pollInterval is expressed in milliseconds
                 sleep_seconds = int(config['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)
@@ -173,7 +181,7 @@ class Server(FoglampMicroservice):
                 try_count = 1
             except Exception as ex:
                 try_count += 1
-                _LOGGER.exception('Failed to poll for plugin {}, retry count: '.format(self._name, try_count))
+                _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
 
 

@@ -14,6 +14,7 @@ import asyncio
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
+from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -237,7 +238,7 @@ def plugin_poll(handle):
             'battery': {"percentage": battery_level},
         }
         for reading_key in data['readings']:
-            asyncio.ensure_future(handle['ingest'].add_readings(asset=data['asset'] + '/' + reading_key,
+            asyncio.ensure_future(Ingest.add_readings(asset=data['asset'] + '/' + reading_key,
                                                                 timestamp=data['timestamp'],
                                                                 key=str(uuid.uuid4()),
                                                                 readings=data['readings'][reading_key]))

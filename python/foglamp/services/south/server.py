@@ -154,7 +154,6 @@ class Server(FoglampMicroservice):
         """Executes async type plugin
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
-        self._plugin_handle['ingest'] = Ingest
         self._plugin.plugin_start(self._plugin_handle)
 
     
@@ -162,7 +161,6 @@ class Server(FoglampMicroservice):
         """Executes poll type plugin
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
-        self._plugin_handle['ingest'] = Ingest
         max_retry = 3
         try_count = 1
         while True and self._plugin_handle['is_connected'] is True and try_count <= max_retry:

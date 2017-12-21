@@ -68,6 +68,9 @@ STORAGE_SCRIPT_SRC         := scripts/storage
 NORTH_SCRIPT_SRC           := scripts/tasks/north
 PURGE_SCRIPT_SRC           := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
+BACKUP_POSTGRES            := scripts/tasks/backup_postgres
+RESTORE_POSTGRES           := scripts/tasks/restore_postgres
+
 
 # FOGBENCH 
 FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
@@ -169,7 +172,9 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_north_script \
 	install_purge_script \
 	install_statistics_script \
-	install_storage_script
+	install_storage_script \
+	install_backup_postgres_script \
+	install_restore_postgres_script \
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -195,6 +200,12 @@ install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_backup_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(BACKUP_POSTGRES)
+	$(CP) $(BACKUP_POSTGRES) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_restore_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_POSTGRES)
+	$(CP) $(RESTORE_POSTGRES) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)

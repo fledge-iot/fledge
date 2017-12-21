@@ -11,6 +11,7 @@ import asyncpg
 import requests
 import pytest
 import asyncio
+from foglamp.services.core.scheduler.scheduler import _SCRIPTS_DIR
 
 pytestmark = pytest.mark.asyncio
 
@@ -25,7 +26,6 @@ __DB_NAME = "foglamp"
 BASE_URL = 'http://localhost:8081/foglamp'
 headers = {"Content-Type": 'application/json'}
 
-pytestmark = pytest.mark.asyncio
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -40,6 +40,7 @@ async def add_master_data():
     await conn.close()
     await asyncio.sleep(4)
 
+
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
@@ -48,6 +49,7 @@ async def delete_master_data():
     await conn.execute(''' COMMIT''')
     await conn.close()
     await asyncio.sleep(4)
+
 
 async def delete_method_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -68,7 +70,7 @@ class TestTask:
         # Starting foglamp from within test is mandatory, otherwise test scheduled_processes are not added to the
         # server if started externally.
         from subprocess import call
-        call(["scripts/foglamp", "start"])
+        call([_SCRIPTS_DIR + "/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
         time.sleep(20)
@@ -100,10 +102,9 @@ class TestTask:
         assert retval['message'] == "Schedule started successfully"
         return schedule_id
 
-
-    # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
+    # TODO: Add tests for negative cases.
+    # There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
-
     async def test_cancel_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_task_1", "process_name": "testsleep30", "repeat": "3600"}
@@ -118,7 +119,7 @@ class TestTask:
         task_id = retval['tasks'][0]['id']
         assert 1 == len(retval['tasks'])
         assert retval['tasks'][0]['state'] == 'RUNNING'
-        assert retval['tasks'][0]['process_name'] == 'testsleep30'
+        assert retval['tasks'][0]['processName'] == 'testsleep30'
 
         # Now cancel the runnung task
         r = requests.put(BASE_URL+'/task/cancel/' + task_id)
@@ -136,7 +137,6 @@ class TestTask:
         assert 200 == r.status_code
         assert retval['id'] == task_id
         assert retval['state'] == 'CANCELED'
-
 
     async def test_get_tasks_latest(self):
         # First create two schedules to get the schedule_id
@@ -160,9 +160,8 @@ class TestTask:
 
         assert 200 == r.status_code
         assert 2 == len(retval['tasks'])
-        assert retval['tasks'][1]['process_name'] == 'testsleep30'
-        assert retval['tasks'][0]['process_name'] == 'echo_test'
-
+        assert retval['tasks'][1]['processName'] == 'testsleep30'
+        assert retval['tasks'][0]['processName'] == 'echo_test'
 
     async def test_get_tasks(self):
         # First create a schedule to get the schedule_id
@@ -177,10 +176,9 @@ class TestTask:
         retvall = dict(rr.json())
 
         assert 200 == rr.status_code
-        list_tasks = [tasks['process_name'] for tasks in retvall['tasks']]
+        list_tasks = [tasks['processName'] for tasks in retvall['tasks']]
         # Due to async processing, ascertining exact no. of tasks is not possible
         assert list_tasks.count(data['process_name']) >= 3
-
 
     async def test_get_task(self):
         # First create a schedule to get the schedule_id

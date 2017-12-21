@@ -4,7 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import time
 import json
 
 import asyncpg
@@ -160,7 +159,8 @@ class TestConfigMgr:
         json_data = json.dumps(test_data_item_value)
         print("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
 
-        # TODO: FOGL-481: Returns 500 error, Bug? Endpoint not defined for adding (merging) a new config item to existing config?
+        # TODO: FOGL-481: Returns 500 error, Bug?
+        # Endpoint not defined for adding (merging) a new config item to existing config?
         conn.request("PUT", '/foglamp/category/{}/{}'.format(test_data['key'], test_data_item), json_data)
         r = conn.getresponse()
         assert 200 == r.status

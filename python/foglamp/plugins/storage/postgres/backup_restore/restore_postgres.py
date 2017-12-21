@@ -129,6 +129,7 @@ class Restore(object):
             backup_id: int - the id of the backup to restore from
 
         Returns:
+            status: str - {"running"|"failed"}
         Raises:
         """
 
@@ -158,7 +159,15 @@ class RestoreProcess(FoglampProcess):
 
     _MODULE_NAME = "foglamp_restore_postgres_process"
 
-    _FOGLAMP_CMD = "scripts/foglamp {0}"
+    _FOGLAMP_ENVIRONMENT_DEV = "dev"
+    _FOGLAMP_ENVIRONMENT_DEPLOY = "deploy"
+
+    _FOGLAMP_CMD_PATH_DEV = "scripts/foglamp"
+    _FOGLAMP_CMD_PATH_DEPLOY = "bin/foglamp"
+
+    # The init method will evaluate the running environment setting the variables accordingly
+    _foglamp_environment = _FOGLAMP_ENVIRONMENT_DEV
+    _foglamp_cmd = _FOGLAMP_CMD_PATH_DEV + " {0}"
     """ Command for managing FogLAMP, stop/start/status """
 
     _MESSAGES_LIST = {
@@ -182,6 +191,9 @@ class RestoreProcess(FoglampProcess):
         "e000010": "cannot retrieve the FogLamp status - error details |{0}|",
         "e000011": "cannot restore the backup, the selected backup doesn't exists - backup id |{0}|",
         "e000012": "cannot restore the backup, the selected backup doesn't exists - backup file name |{0}|",
+        "e000013": "cannot proceed the execution, "
+                   "It is not possible to determine the environment in which the code is running"
+                   " neither Deployment nor Development",
     }
     """ Messages used for Information, Warning and Error notice """
 
@@ -386,7 +398,7 @@ class RestoreProcess(FoglampProcess):
 
         cmd = "{path}/{cmd}".format(
             path=self._restore_lib.dir_foglamp_root,
-            cmd=self._FOGLAMP_CMD.format("stop")
+            cmd=self._foglamp_cmd.format("stop")
         )
 
         # Stops FogLamp
@@ -485,7 +497,7 @@ class RestoreProcess(FoglampProcess):
 
                 cmd = "{path}/{cmd}".format(
                             path=self._restore_lib.dir_foglamp_root,
-                            cmd=self._FOGLAMP_CMD.format("status")
+                            cmd=self._foglamp_cmd.format("status")
                 )
 
                 cmd_status, output = lib.exec_wait(cmd, True, _timeout=self._restore_lib.config['timeout'])
@@ -571,7 +583,7 @@ class RestoreProcess(FoglampProcess):
 
         cmd = "{path}/{cmd}".format(
                                     path=self._restore_lib.dir_foglamp_root,
-                                    cmd=self._FOGLAMP_CMD.format("start")
+                                    cmd=self._foglamp_cmd.format("start")
         )
 
         exit_code, output = lib.exec_wait_retry(
@@ -644,6 +656,84 @@ class RestoreProcess(FoglampProcess):
                 self._logger.error(_message)
                 raise
 
+    def check_command(self, cmd_to_identify):
+        """"Evaluates if the command is available or not
+
+          Args:
+          Returns:
+              cmd_available: boolean
+          Raises:
+          """
+
+        cmd = "command -v " + cmd_to_identify
+
+        # The timeout command can't be used with 'command'
+        # noinspection PyArgumentEqualDefault
+        _exit_code, output = lib.exec_wait(
+            _cmd=cmd,
+            _output_capture=True,
+            _timeout=0
+        )
+
+        self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+            func="check_command",
+            cmd=cmd,
+            exit_code=_exit_code,
+            output=output))
+
+        if _exit_code == 0:
+            cmd_available = True
+        else:
+            cmd_available = False
+
+        return cmd_available
+
+    def evaluate_foglamp_env(self):
+        """"Evaluates if the code is running either in Development or in Deploy environment
+
+        Args:
+        Returns:
+            env: str - {_FOGLAMP_CMD_PATH_DEPLOY|_FOGLAMP_CMD_PATH_DEV}
+        Raises:
+            exceptions.InvalidFogLAMPEnvironment
+        """
+
+        cmd = self._restore_lib.dir_foglamp_root + "/" + self._FOGLAMP_CMD_PATH_DEPLOY
+
+        if self.check_command(cmd):
+            env = self._FOGLAMP_ENVIRONMENT_DEPLOY
+        else:
+
+            cmd = self._restore_lib.dir_foglamp_root + "/" + self._FOGLAMP_CMD_PATH_DEV
+            if self.check_command(cmd):
+
+                env = self._FOGLAMP_ENVIRONMENT_DEV
+            else:
+                _message = self._MESSAGES_LIST["e000013"]
+                self._logger.error(_message)
+
+                raise exceptions.InvalidFogLAMPEnvironment
+
+        return env
+
+    def set_foglamp_env(self):
+        """"Sets a proper configuration in relation to the environment in which the code is running
+        either Development or Deploy
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        self._foglamp_environment = self.evaluate_foglamp_env()
+
+        # Configures in relation to the environment is use
+        if self._foglamp_environment == self._FOGLAMP_ENVIRONMENT_DEPLOY:
+
+            self._foglamp_cmd = self._FOGLAMP_CMD_PATH_DEPLOY + " {0}"
+        else:
+            self._foglamp_cmd = self._FOGLAMP_CMD_PATH_DEV + " {0}"
+
     def init(self):
         """"Setups the correct state for the execution of the restore
 
@@ -663,6 +753,8 @@ class RestoreProcess(FoglampProcess):
         self._logger.debug("{func}".format(func="init"))
 
         self._restore_lib.evaluate_paths()
+
+        self.set_foglamp_env()
 
         self._restore_lib.retrieve_configuration()
 

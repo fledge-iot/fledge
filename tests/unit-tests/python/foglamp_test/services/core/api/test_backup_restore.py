@@ -30,16 +30,14 @@ test_data = [{'filename': 'test_file1', 'ts': datetime.now(tz=timezone.utc), 'ty
              {'filename': 'test_file2', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2},
              {'filename': 'test_file3', 'ts': datetime.now(tz=timezone.utc), 'type': 1, 'status': 5},
              {'filename': 'test_file4', 'ts': datetime.now(tz=timezone.utc), 'type': 0, 'status': 2}]
-test_data_ids = []
 
 
 async def add_master_data():
     """Inserts master data into backup table and returns the ids of inserted items"""
-    global test_data_ids
     conn = await asyncpg.connect(database=__DB_NAME)
     for item in test_data:
         await conn.execute("""INSERT INTO foglamp.backups(file_name,ts,type,status)
-                                   VALUES($1, $2, $3, $4);""", item['filename'], item['ts'], item['type'], item['status'])
+        VALUES($1, $2, $3, $4);""", item['filename'], item['ts'], item['type'], item['status'])
         res = await conn.fetchval('''SELECT id from foglamp.backups WHERE file_name IN ($1)''', item['filename'])
         # test_data.append({item['filename']: res})
         item.update({"id": res})
@@ -67,7 +65,6 @@ def teardown_module(module):
     Delete the created files from backup db, directory (if created)
     """
     asyncio.get_event_loop().run_until_complete(delete_master_data())
-    pass
 
 
 @pytest.allure.feature("api")
@@ -110,8 +107,8 @@ class TestBackup:
         conn.close()
 
     @pytest.mark.parametrize("request_params, response_code, output_code, output_message", [
-        ('?limit=invalid', 200, 400, "invalid literal for int() with base 10: 'invalid'"),
-        ('?skip=invalid', 200, 400, "invalid literal for int() with base 10: 'invalid'"),
+        ('?limit=invalid', 200, 400, "limit must be an integer"),
+        ('?skip=invalid', 200, 400, "skip must be an integer"),
         ('?status=invalid', 200, 400, "'INVALID' not a valid status"),
     ])
     async def test_get_backups_negative(self, request_params, response_code, output_code, output_message):

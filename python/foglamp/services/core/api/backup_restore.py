@@ -162,7 +162,7 @@ async def restore_backup(request):
     :Example: curl -X PUT http://localhost:8081/foglamp/backup/1/restore
     """
 
-    raise web.HTTPNotImplemented(reason='restore backup method is not implemented yet.')
+    raise web.HTTPNotImplemented(reason='Restore backup method is not implemented yet.')
 
     backup_id = request.match_info.get('backup_id', None)
 

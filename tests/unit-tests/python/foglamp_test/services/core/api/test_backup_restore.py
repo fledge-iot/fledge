@@ -79,7 +79,7 @@ class TestBackup:
         ('?status=failed', 200, 1, [test_data[2]]),
         ('?limit=2&skip=1&status=completed', 200, 1, [test_data[1]]),
     ])
-    async def test_get_backups_positive_cases(self, request_params, response_code, exp_length, exp_output):
+    async def test_get_backups_valid(self, request_params, response_code, exp_length, exp_output):
         """
         Test to get all backups, where:
         1. No request parameter is passed
@@ -101,8 +101,8 @@ class TestBackup:
         count = 0
         for i in range(response_length):
             count += 1
-            assert retval['backups'][i]['id'] == exp_output[exp_length - count]['id']
-            assert retval['backups'][i]['status'] == Status(exp_output[exp_length - count]["status"]).name
+            assert exp_output[exp_length - count]['id'] == retval['backups'][i]['id']
+            assert Status(exp_output[exp_length - count]["status"]).name == retval['backups'][i]['status']
             assert retval['backups'][i]['date'] is not None
         conn.close()
 
@@ -111,7 +111,7 @@ class TestBackup:
         ('?skip=invalid', 200, 400, "skip must be an integer"),
         ('?status=invalid', 200, 400, "'INVALID' not a valid status"),
     ])
-    async def test_get_backups_negative(self, request_params, response_code, output_code, output_message):
+    async def test_get_backups_invalid(self, request_params, response_code, output_code, output_message):
         """
         Test to get all backups, where:
         1. invalid limit is specified
@@ -131,7 +131,7 @@ class TestBackup:
     @pytest.mark.parametrize("request_params, response_code, output", [
         (test_data[0], 200, test_data[0])
     ])
-    async def test_get_backup_details_positive(self, request_params, response_code, output):
+    async def test_get_backup_details_valid(self, request_params, response_code, output):
         """
         Test to get details of backup, where:
         1. Valid backup id is specified as query parameter
@@ -151,7 +151,7 @@ class TestBackup:
         ('invalid', 200, 400, "Invalid backup id"),
         ('-1', 200, 404, "Backup with -1 does not exist")
     ])
-    async def test_get_backup_details_negative(self, request_params, response_code, output_code, output_message):
+    async def test_get_backup_details_invalid(self, request_params, response_code, output_code, output_message):
         """
         Test to get details of backup, where:
         1. Invalid backup id is specified as query parameter

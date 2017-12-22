@@ -42,7 +42,6 @@ _logger = logger.setup(__name__, level=20)
 # FOGLAMP_ROOT env variable
 _FOGLAMP_ROOT= os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
-_ENV = os.getenv('FOGLAMP_ENV', 'DEV')
 
 class Server:
     """ FOGLamp core server.
@@ -147,15 +146,11 @@ class Server:
         storage_service = None
         while storage_service is None and cls._storage_client is None:
             try:
-                if _ENV != 'TEST':
-                    found_services = ServiceRegistry.get(name="FogLAMP Storage")
-                    storage_service = found_services[0]
+                found_services = ServiceRegistry.get(name="FogLAMP Storage")
+                storage_service = found_services[0]
                 cls._storage_client = StorageClient(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
-        # obtain configuration manager and interest registry
-        cls._configuration_manager = ConfigurationManager(cls._storage_client)
-        cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
     @classmethod
     def _start_app(cls, loop, app, host, port):
@@ -190,6 +185,10 @@ class Server:
             
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
+            
+            # obtain configuration manager and interest registry
+            cls._configuration_manager = ConfigurationManager(cls._storage_client)
+            cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
             # start scheduler
             # see scheduler.py start def FIXME

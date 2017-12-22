@@ -43,8 +43,6 @@ class ServiceRecord(object):
             self._port = int(s_port)
         self._management_port = int(m_port)
         self._status = 0
-        # TODO: MUST
-        # well, reserve the self PORT?
 
     def __repr__(self):
         template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \

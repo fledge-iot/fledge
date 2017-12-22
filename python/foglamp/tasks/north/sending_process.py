@@ -23,8 +23,6 @@ import importlib
 import logging
 import datetime
 
-import requests
-
 from foglamp.common.parser import Parser
 from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common import logger

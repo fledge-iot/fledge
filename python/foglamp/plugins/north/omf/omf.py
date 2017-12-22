@@ -9,6 +9,7 @@ It is loaded by the send process (see The FogLAMP Sending Process) and runs in t
 to send the reading data to a PI Server (or Connector) using the OSIsoft OMF format.
 PICROMF = PI Connector Relay OMF"""
 
+from datetime import datetime
 import copy
 import ast
 import resource
@@ -17,6 +18,7 @@ import time
 import json
 import requests
 import logging
+import urllib3
 import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
@@ -62,7 +64,7 @@ _CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of the PI Connector to send data to",
         "type": "string",
-        "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages"
+        "default": "https://WIN-4M7ODKB0RH2:5460/ingress/messages"
     },
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
@@ -251,6 +253,10 @@ def plugin_init(data):
     except Exception as ex:
         _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)
+
+    # Avoids the warning message - InsecureRequestWarning
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     return _config
 
 @_performance_log
@@ -690,7 +696,12 @@ class OmfTranslatorPlugin(object):
         try:
             row_id = row['id']
             asset_code = row['asset_code']
-            timestamp = row['user_ts']
+            timestamp_raw = row['user_ts']
+
+            # Converts Date/time to a proper ISO format - Z is the zone designator for the zero UTC offset
+            step1 = datetime.datetime.strptime(timestamp_raw, '%Y-%m-%d %H:%M:%S.%f+00')
+            timestamp = step1.isoformat() + 'Z'
+
             sensor_data = row['reading']
             if _log_debug_level == 3:
                 _logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "

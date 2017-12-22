@@ -8,13 +8,13 @@
 
 import copy
 import datetime
-import uuid
 import json
 import asyncio
+import uuid
+
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
-from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -124,15 +124,10 @@ def plugin_poll(handle):
         DataRetrievalError
     """
     if 'tag' not in handle:
-        return {}
+        raise RuntimeError
 
     time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
-    data = {
-        'asset': 'TI Sensortag CC2650',
-        'timestamp': time_stamp,
-        'key': str(uuid.uuid4()),
-        'readings': {}
-    }
+    data = list()
     bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
     object_temp_celsius = None
@@ -209,7 +204,7 @@ def plugin_poll(handle):
         tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_disable)
 
         # "values" (and not "readings") denotes that this reading needs to be further broken down to components.
-        data['readings'] = {
+        readings = {
             'temperature': {
                 "object": object_temp_celsius,
                 'ambient': ambient_temp_celsius
@@ -237,11 +232,15 @@ def plugin_poll(handle):
             },
             'battery': {"percentage": battery_level},
         }
-        for reading_key in data['readings']:
-            asyncio.ensure_future(Ingest.add_readings(asset=data['asset'] + '/' + reading_key,
-                                                                timestamp=data['timestamp'],
-                                                                key=str(uuid.uuid4()),
-                                                                readings=data['readings'][reading_key]))
+
+        for reading_key in readings.keys():
+            data.append({
+                'asset': 'TI Sensortag CC2650/' + reading_key,
+                'timestamp': time_stamp,
+                'key': str(uuid.uuid4()),
+                'readings': readings[reading_key]
+            })
+
     except (Exception, RuntimeError) as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)

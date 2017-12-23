@@ -67,7 +67,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt install cmake g++ make
+  $ sudo apt install cmake g++ make git
   Reading package lists... Done
   Building dependency tree
   ...
@@ -301,7 +301,7 @@ In this case, what you need to do is to upgrade the pip software for Python 3:
 
 .. code-block:: console
 
-  $ pip3 install --upgrade pip
+  $ sudo pip3 install --upgrade pip
   Collecting pip
     Downloading pip-9.0.1-py2.py3-none-any.whl (1.3MB)
       100% |████████████████████████████████| 1.3MB 1.1MB/s

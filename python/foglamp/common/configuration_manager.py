@@ -25,7 +25,16 @@ _logger = logger.setup(__name__)
 # MAKE UPPER_CASE
 _valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
 
-class ConfigurationManager(object):
+class ConfigurationManagerSingleton(object):
+    """ ConfigurationManagerSingleton
+    
+    Used to make ConfigurationManager a singleton via shared state
+    """
+    _shared_state = {}
+    def __init__(self):
+        self.__dict__ = self._shared_state
+
+class ConfigurationManager(ConfigurationManagerSingleton):
     """ Configuration Manager
 
     General naming convention:
@@ -51,14 +60,16 @@ class ConfigurationManager(object):
                     value_val - string (dynamic)
     """
 
-    def __init__(self, storage):
-        if not isinstance(storage, StorageClient):
-            raise TypeError('Must be a valid Storage object')
+    _storage = None
+    _registered_interests = {}
+    def __init__(self, storage=None):
+        ConfigurationManagerSingleton.__init__(self)
+        if self._storage is None:
+            if not isinstance(storage, StorageClient):
+                raise TypeError('Must be a valid Storage object')
+            self._storage = storage
 
-        self._storage = storage
-        self._registered_interests = {}
-
-    def _run_callbacks(self, category_name):
+    async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
         if callbacks is not None:
             for callback in callbacks:
@@ -69,7 +80,7 @@ class ConfigurationManager(object):
                         'Unable to import callback module %s for category_name %s', callback, category_name)
                     raise
                 try:
-                    cb.run(category_name)
+                    await cb.run(category_name)
                 except AttributeError:
                     _logger.exception(
                         'Unable to run %s.run(category_name) for category_name %s', callback, category_name)
@@ -312,7 +323,7 @@ class ConfigurationManager(object):
                 category_name, item_name, new_value_entry)
             raise
         try:
-            self._run_callbacks(category_name)
+            await self._run_callbacks(category_name)
         except:
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)
@@ -408,7 +419,7 @@ class ConfigurationManager(object):
                 category_name, category_description, category_val_prepared)
             raise
         try:
-            self._run_callbacks(category_name)
+            await self._run_callbacks(category_name)
         except:
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)
@@ -420,7 +431,7 @@ class ConfigurationManager(object):
 
         Keyword Arguments:
         category_name -- name of the category_name of interest (required)
-        callback -- module with implementation of run(category_name) to be called when change is made to category_value
+        callback -- module with implementation of async method run(category_name) to be called when change is made to category_value
 
         Return Values:
         None
@@ -452,7 +463,7 @@ class ConfigurationManager(object):
 
         Keyword Arguments:
         category_name -- name of the category_name of interest (required)
-        callback -- module with implementation of run(category_name) to be called when change is made to category_value
+        callback -- module with implementation of async method run(category_name) to be called when change is made to category_value
 
         Return Values:
         None

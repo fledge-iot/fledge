@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 import argparse
 import http.client
 import json
+import time
 
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.common import logger
@@ -51,6 +52,9 @@ class FoglampProcess(ABC):
 
     _storage = None
     """ foglamp.common.storage_client.storage_client.StorageClient """
+    
+    _start_time = None
+    """ time at which this python process started """
 
     def __init__(self):
         """ All processes must have these three command line arguments passed:
@@ -60,6 +64,8 @@ class FoglampProcess(ABC):
         --name [process name]
         """
         
+        self._start_time = time.time()
+
         try:    
             self._core_management_host = self.get_arg_value("--address")
             self._core_management_port = self.get_arg_value("--port")

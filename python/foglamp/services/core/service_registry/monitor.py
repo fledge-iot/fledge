@@ -13,7 +13,8 @@ import logging
 
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.services.common.microservice_management.service_registry.instance import Service
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import connect
 
 __author__ = "Ashwin Gopalakrishnan"
@@ -47,8 +48,8 @@ class Monitor(object):
         """Main loop for the scheduler"""
         # check health of all micro-services every N seconds
         while True:
-            for service in Service.Instances.all():
-                url = "{}://{}:{}/foglamp/service/ping".format(service._protocol, service._address, service._management_port)
+            for service_record in ServiceRegistry.all():
+                url = "{}://{}:{}/foglamp/service/ping".format(service_record._protocol, service_record._address, service_record._management_port)
                 async with aiohttp.ClientSession() as session:
                     try:
                         async with session.get(url, timeout=self._ping_timeout) as resp:
@@ -57,11 +58,11 @@ class Monitor(object):
                             if res["uptime"] is None:
                                 raise ValueError('Improper Response')
                     except:
-                        service._status = 0
-                        Service.Instances.unregister(service._id)
-                        self._logger.info("Unregistered the failed micro-service %s", service.__repr__())
+                        service_record._status = 0
+                        ServiceRegistry.unregister(service_record._id)
+                        self._logger.info("Unregistered the failed micro-service %s", service_record.__repr__())
                     else:
-                        service._status = 1
+                        service_record._status = 1
             await asyncio.ensure_future(asyncio.sleep(self._sleep_interval))
 
     async def _read_config(self):

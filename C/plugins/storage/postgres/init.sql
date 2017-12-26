@@ -238,7 +238,7 @@ CREATE TABLE foglamp.asset_types (
         CONSTRAINT asset_types_pkey PRIMARY KEY (id) );
 
 COMMENT ON TABLE foglamp.asset_types IS
-'Type of asset (for example device, sensor etc.)';
+'Type of asset (for example south, sensor etc.)';
 
 
 -- Assets table
@@ -252,7 +252,7 @@ CREATE TABLE foglamp.assets (
        type_id      integer                     NOT NULL,                                                            -- FK for the type of asset
        address      inet                        NOT NULL DEFAULT '0.0.0.0'::inet,                                    -- An IPv4 or IPv6 address, if needed. Default means "any address"
        status_id    integer                     NOT NULL,                                                            -- Status of the asset, FK to the asset_status table
-       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the devices or data to the cloud
+       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the souths or data to the cloud
        has_readings boolean                     NOT NULL DEFAULT false,                                              -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
        ts           timestamp(6) with time zone NOT NULL DEFAULT now(),
          CONSTRAINT assets_pkey PRIMARY KEY (id),
@@ -351,7 +351,7 @@ CREATE TABLE foglamp.asset_message_status (
         CONSTRAINT asset_message_status_pkey PRIMARY KEY (id) );
 
 COMMENT ON TABLE foglamp.asset_message_status IS
-'Status of the messages to send to a device';
+'Status of the messages to send to a south';
 
 
 -- Asset Messages table
@@ -372,7 +372,7 @@ CREATE TABLE foglamp.asset_messages (
                ON DELETE NO ACTION );
 
 COMMENT ON TABLE foglamp.asset_messages IS
-'Messages directed to the devices.';
+'Messages directed to the souths.';
 
 CREATE INDEX fki_asset_messages_fk1
     ON foglamp.asset_messages USING btree (asset_id);
@@ -383,7 +383,7 @@ CREATE INDEX fki_asset_messages_fk2
 
 -- Readings table
 -- This tables contains the readings for assets.
--- An asset can be a device with multiple sensor, a single sensor,
+-- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to FogLAMP
 CREATE TABLE foglamp.readings (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
@@ -396,7 +396,7 @@ CREATE TABLE foglamp.readings (
     CONSTRAINT readings_pkey PRIMARY KEY (id) );
 
 COMMENT ON TABLE foglamp.readings IS
-'Readings from sensors and devices.';
+'Readings from sensors and souths.';
 
 CREATE INDEX fki_readings_fk1
     ON foglamp.readings USING btree (asset_code);
@@ -787,26 +787,26 @@ DELETE FROM foglamp.configuration;
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'LOGPART', 'Log Partitioning', '{ "unit" : "day" }' );
 
--- SENSR: Sensors and devices
+-- SENSR: Sensors and south devices
 --        status      : the process is on or off, it is on by default
 --        time window : the time window when the process is active, always active by default (it means every second)
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SENSORS',
-              'Sensors and Device Interface',
+              'Sensors and South Interface',
               '{ "category" : "CoAP", "configuration" : { "port" : { "description" : "Port to listen on", "default" : "5432", "value" : "5432", "type" : "integer" }, "url" : { "description" : "URL to accept data on", "default" : "sensor/reading-values", "value" : "sensor/reading-values", "type" : "string" }, "certificate" : { "description" : "X509 certificate used to identify ingress interface", "value" : "47676565", "type" : "x509 certificate" } } }' );
 
--- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_1', 'OMF Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_1', 'OMF North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
 
--- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_2', 'OMF Statistics Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_2', 'OMF North Statistics Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
 
 
--- HTTP translator configuration, translator key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_translator", "default" : "http_translator", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } ');
 
 -- STRMN: Streaming
 --        status      : the process is on or off, it is on by default
@@ -823,18 +823,18 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- COAP: South Microservice - CoAP Listener Plugin
 --        plugin: python module to load dynamically
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'COAP', 'CoAP Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'COAP', 'CoAP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } ');
 
 -- POLL: South Microservice - POLL Plugin template
 --        plugin: python module to load dynamically
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'POLL', 'POLL Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'POLL', 'POLL South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650POLL', 'SensorTagCC2650 Poll Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
+    VALUES ( 'CC2650POLL', 'SensorTagCC2650 South Poll Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650ASYN', 'SensorTagCC2650 Async Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } ');
+    VALUES ( 'CC2650ASYN', 'SensorTagCC2650 South Async Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } ');
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'HTTP_SOUTH', 'HTTP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } ');
@@ -868,7 +868,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
             ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
             ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
-            ( 'SENT_3',     'The number of readings data sent to the HTTP translator', 0, 0 ),
+            ( 'SENT_3',     'The number of readings data sent to the HTTP north', 0, 0 ),
             ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
@@ -900,13 +900,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) values ('backup','["tasks
 -- FogLAMP Restore
 INSERT INTO foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore_postgres"]' );
 
-
--- Start the device server at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive)
-values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'device', 'COAP', 1,
-'0:0', true);
-
 -- Execute a Backup every 1 hour
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 -- schedule_time, schedule_interval, exclusive)
@@ -925,29 +918,35 @@ schedule_time, schedule_interval, exclusive)
 values ('8d4d3ca0-de80-11e7-80c1-9a214cf093ae', 'restore on demand', 'restore', 4,
 NULL, '00:00:00', true);
 
--- Start the Poll mode device server at start-up
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+-- Start the south server at start-up
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_interval, exclusive)
-values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'CC2650POLL', 1,
+values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'south', 'COAP', 1,
 '0:0', true);
 
--- Start the async mode CC2650 Sensortag at start-up
+-- Start the Poll mode south server at start-up
+insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive)
+values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'south', 'CC2650POLL', 1,
+'0:0', true);
+
+-- Start the South async mode CC2650 Sensortag at start-up
 --insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 --schedule_interval, exclusive)
---values ('716a16ea-c736-490b-86d5-10204585ca8c', 'device', 'CC2650ASYN', 1,
+--values ('716a16ea-c736-490b-86d5-10204585ca8c', 'south', 'CC2650ASYN', 1,
 --'0:0', true);
 
--- Start the Poll mode device server at start-up
+-- Start the South Poll mode south server at start-up
 -- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
 -- schedule_interval, exclusive)
--- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'device', 'POLL', 1,
+-- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'south', 'POLL', 1,
 -- '0:0', true);
 
 
----- Start the device server HTTP Listener at start-up
+---- Start the South HTTP Listener at start-up
 -- INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 --  schedule_interval, exclusive)
---  values ('a2caca59-1241-478d-925a-79584e7096e0', 'device', 'HTTP_SOUTH', 1,
+--  values ('a2caca59-1241-478d-925a-79584e7096e0', 'south', 'HTTP_SOUTH', 1,
 --  '0:0', true);
 
 -- Run the purge process every 5 minutes
@@ -962,13 +961,13 @@ schedule_time, schedule_interval, exclusive)
 values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
 NULL, '00:00:15', true);
 
--- Run the sending process every 15 seconds
+-- Run the North sending process every 15 seconds
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive)
 values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
 NULL, '00:00:15', true);
 
--- Run the sending process using HTTP translator every 15 seconds
+-- Run the North sending process using HTTP north every 15 seconds
 -- INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 -- schedule_time, schedule_interval, exclusive)
 -- values ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
@@ -980,13 +979,13 @@ schedule_time, schedule_interval, exclusive)
 values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
 NULL, '00:00:25', true);
 
--- OMF translator configuration
+-- OMF north configuration
 INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF translator', 0,now());  
+INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF north', 0,now());
 
 -- FogLAMP statistics into PI configuration
 INSERT INTO foglamp.streams (id,destination_id,description, last_object,ts ) VALUES (2,1,'FogLAMP statistics into PI', 0,now());
 
--- HTTP translator configuration
+-- HTTP north configuration
 INSERT INTO foglamp.destinations(id,description, ts) VALUES (2,'HTTP_TR', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (3,2,'HTTP translator', 0,now());
+INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (3,2,'HTTP north', 0,now());

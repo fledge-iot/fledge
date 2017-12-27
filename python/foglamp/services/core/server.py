@@ -75,6 +75,10 @@ class Server:
     core_management_port = 0
     """ Microservice management port of core """
 
+    rest_server_port = 0
+
+    is_rest_server_tls_enabled = False
+
     _REST_API_DEFAULT_CONFIG = {
         'port': {
             'description': 'REST API service port',
@@ -136,17 +140,14 @@ class Server:
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
-                port = config['port']['value']
+                cls.rest_server_port = config['port']['value']
             except KeyError:
                 _logger.error("error in retrieving port info")
                 raise
             try:
-                is_tls_enabled = config['isTlsEnabled']['value']
-                is_tls_enabled = False if is_tls_enabled == 'false' else True
+                cls.is_rest_server_tls_enabled = False if config['isTlsEnabled']['value'] == 'false' else True
             except KeyError:
-                is_tls_enabled = True
-
-            return port, is_tls_enabled
+                cls.is_rest_server_tls_enabled = True
 
         except Exception as ex:
             _logger.exception(str(ex))
@@ -266,11 +267,12 @@ class Server:
 
             service_app = cls._make_app()
 
-            rest_service_port, is_tls_enabled = loop.run_until_complete(cls.rest_api_config())
+            loop.run_until_complete(cls.rest_api_config())
+            # print(cls.is_rest_server_tls_enabled, cls.rest_server_port)
 
             # ssl context
             ssl_ctx = None
-            if is_tls_enabled:
+            if cls.is_rest_server_tls_enabled:
                 # ensure TLS 1.2 and SHA-256
                 # handle expiry?
                 ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -279,9 +281,9 @@ class Server:
                 ssl_ctx.load_cert_chain(cert, key)
 
             service_server, service_server_handler = cls._start_app(loop, service_app,
-                                                                    host, rest_service_port, ssl_ctx=ssl_ctx)
+                                                                    host, cls.rest_server_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
-            _logger.info('Admin API Server started on %s://%s:%s', 'https' if is_tls_enabled else 'http',
+            _logger.info('Admin API Server started on %s://%s:%s', 'https' if cls.is_rest_server_tls_enabled else 'http',
                          address, service_server_port)
 
             cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
@@ -291,7 +293,7 @@ class Server:
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
-            cls._register_core(host, cls.core_management_port, rest_service_port)
+            cls._register_core(host, cls.core_management_port, service_server_port)
             print("(Press CTRL+C to quit)")
 
             try:

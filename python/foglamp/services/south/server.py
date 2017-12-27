@@ -15,6 +15,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
+from aiohttp import web
 
 
 __author__ = "Terris Linenbach"
@@ -213,3 +214,15 @@ class Server(FoglampMicroservice):
 
         asyncio.ensure_future(self._start(loop))
         loop.run_forever()
+
+    async def shutdown(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
+        print("shutdown south")
+        return web.json_response({"south":"shutdown"})
+
+    async def change(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
+        print("change south")
+        return web.json_response({"south":"change"})

@@ -32,7 +32,6 @@ from foglamp.services.core.interest_registry.interest_registry import InterestRe
 from foglamp.services.core.interest_registry import exceptions as interest_registry_exceptions
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
-from foglamp.services.core import connect
 from foglamp.services.common.service_announcer import ServiceAnnouncer
 
 
@@ -282,7 +281,8 @@ class Server:
             service_server, service_server_handler = cls._start_app(loop, service_app,
                                                                     host, rest_service_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
-            _logger.info('Admin API Server started on http://%s:%s', address, service_server_port)
+            _logger.info('Admin API Server started on %s://%s:%s', 'https' if is_tls_enabled else 'http',
+                         address, service_server_port)
 
             cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
             cls.user_announcer = ServiceAnnouncer('FogLAMP', '_foglamp_app._tcp', service_server_port,

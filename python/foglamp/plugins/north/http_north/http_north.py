@@ -79,7 +79,8 @@ def plugin_reconfigure():
 
 
 class HttpNorthPlugin(object):
-    """ North HTTP North Plugin """
+    """ North HTTP Plugin """
+
     def __init__(self):
         self.event_loop = asyncio.get_event_loop()
         self.tasks = []

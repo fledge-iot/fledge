@@ -252,7 +252,7 @@ CREATE TABLE foglamp.assets (
        type_id      integer                     NOT NULL,                                                            -- FK for the type of asset
        address      inet                        NOT NULL DEFAULT '0.0.0.0'::inet,                                    -- An IPv4 or IPv6 address, if needed. Default means "any address"
        status_id    integer                     NOT NULL,                                                            -- Status of the asset, FK to the asset_status table
-       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the souths or data to the cloud
+       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the south devices or data to the cloud
        has_readings boolean                     NOT NULL DEFAULT false,                                              -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
        ts           timestamp(6) with time zone NOT NULL DEFAULT now(),
          CONSTRAINT assets_pkey PRIMARY KEY (id),
@@ -372,7 +372,7 @@ CREATE TABLE foglamp.asset_messages (
                ON DELETE NO ACTION );
 
 COMMENT ON TABLE foglamp.asset_messages IS
-'Messages directed to the souths.';
+'Messages directed to the south devices.';
 
 CREATE INDEX fki_asset_messages_fk1
     ON foglamp.asset_messages USING btree (asset_id);
@@ -396,7 +396,7 @@ CREATE TABLE foglamp.readings (
     CONSTRAINT readings_pkey PRIMARY KEY (id) );
 
 COMMENT ON TABLE foglamp.readings IS
-'Readings from sensors and souths.';
+'Readings from sensors and south devices.';
 
 CREATE INDEX fki_readings_fk1
     ON foglamp.readings USING btree (asset_code);

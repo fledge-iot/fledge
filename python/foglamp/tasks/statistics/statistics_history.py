@@ -5,7 +5,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Statistics history task fetch information from the statistics table, compute de`lta and
+""" Statistics history task fetch information from the statistics table, compute delta and
 stores the delta value (statistics.value - statistics.previous_value) in the statistics_history table
 """
 

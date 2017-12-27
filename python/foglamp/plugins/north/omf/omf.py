@@ -281,18 +281,18 @@ def plugin_send(data, raw_data, stream_id):
     data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
-    omf_tranlator = OmfNorthPlugin(data['sending_process_instance'])
+    omf_north = OmfNorthPlugin(data['sending_process_instance'])
 
     try:
-        is_data_available, new_position, num_sent = omf_tranlator._transform_in_memory_data(data_to_send, raw_data)
+        is_data_available, new_position, num_sent = omf_north._transform_in_memory_data(data_to_send, raw_data)
         if is_data_available:
-            omf_tranlator._create_omf_objects(raw_data, config_category_name, type_id)
+            omf_north._create_omf_objects(raw_data, config_category_name, type_id)
             try:
-                omf_tranlator._send_in_memory_data_to_picromf("Data", data_to_send)
+                omf_north._send_in_memory_data_to_picromf("Data", data_to_send)
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
-                    omf_tranlator._deleted_omf_types_already_created(config_category_name, type_id)
+                    omf_north._deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
                     _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
                 raise ex

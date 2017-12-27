@@ -17,13 +17,18 @@ import ssl
 from aiohttp import web
 
 from foglamp.common import logger
-from foglamp.services.core import routes as admin_routes
-from foglamp.services.common.microservice_management import routes as management_routes
 from foglamp.common.web import middleware
-from foglamp.services.common.microservice_management.service_registry.instance import Service
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.storage_client.storage_client import StorageClient
+
+from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.scheduler.scheduler import Scheduler
+
+from foglamp.services.common.microservice_management import routes as management_routes
+from foglamp.services.common.microservice_management.service_registry.instance import Service
 from foglamp.services.common.microservice_management.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
+
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -62,8 +67,49 @@ class Server:
     _host = '0.0.0.0'
     core_management_port = 0
 
-    # TODO: FOGL-655 Get Admin API port from configuration option
-    rest_service_port = 8081
+    _REST_API_DEFAULT_CONFIG = {
+        'port': {
+            'description': 'REST API service port',
+            'type': 'integer',
+            'default': '8081'
+        },
+        'isTlsEnabled': {
+            'description': 'if True run on https',
+            'type': 'boolean',
+            'default': 'true'
+        }
+    }
+
+    @classmethod
+    async def rest_api_config(cls, storage_client):
+        """
+
+        :return: port and TLS enabled info
+        """
+        try:
+            config = cls._REST_API_DEFAULT_CONFIG
+            category = 'rest_api'
+
+            cfg_manager = ConfigurationManager(storage_client)
+            await cfg_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
+            config = await cfg_manager.get_category_all_items(category)
+
+            try:
+                port = config['port']['value']
+            except KeyError:
+                _logger.error("error in retrieving port info")
+                raise
+            try:
+                is_tls_enabled = config['isTlsEnabled']['value']
+                is_tls_enabled = False if is_tls_enabled == 'false' else True
+            except KeyError:
+                is_tls_enabled = True
+
+            return port, is_tls_enabled
+
+        except Exception as ex:
+            _logger.exception(str(ex))
+            raise
 
     @staticmethod
     def _make_app():
@@ -160,12 +206,13 @@ class Server:
 
             service_app = cls._make_app()
 
-            # TODO: fetch from some config; database? OH!
-            IS_SSL_ENABLED = True
+            storage_client = StorageClient(address, cls.core_management_port)
+
+            rest_service_port, is_tls_enabled = loop.run_until_complete(cls.rest_api_config(storage_client))
 
             # ssl context
             ssl_ctx = None
-            if IS_SSL_ENABLED:
+            if is_tls_enabled:
                 # ensure TLS 1.2 and SHA-256
                 # handle expiry?
                 ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -174,7 +221,7 @@ class Server:
                 ssl_ctx.load_cert_chain(cert, key)
 
             service_server, service_server_handler = cls._start_app(loop, service_app,
-                                                                    host, cls.rest_service_port, ssl_ctx=ssl_ctx)
+                                                                    host, rest_service_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
             _logger.info('Admin API Server started on http://%s:%s', address, service_server_port)
 
@@ -185,7 +232,7 @@ class Server:
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
-            cls._register_core(host, cls.core_management_port, cls.rest_service_port)
+            cls._register_core(host, cls.core_management_port, rest_service_port)
             print("(Press CTRL+C to quit)")
 
             try:

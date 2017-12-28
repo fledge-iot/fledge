@@ -112,9 +112,49 @@ class Server:
         else:
             certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/etc/certs')
 
-        """ Generated using
-            $ openssl version
-            OpenSSL 1.0.2g  1 Mar 2016
+        """ Generated using      
+                $ openssl version
+                OpenSSL 1.0.2g  1 Mar 2016
+                 
+        The openssl library is required to generate your own certificate. Run the following command in your local environment to see if you already have openssl installed installed.
+        
+        $ which openssl
+        /usr/bin/openssl
+        
+        If the which command does not return a path then you will need to install openssl yourself:
+        
+        $ apt-get install openssl
+        
+        Generate private key and certificate signing request:
+        
+        A private key and certificate signing request are required to create an SSL certificate.
+        When the openssl req command asks for a “challenge password”, just press return, leaving the password empty. 
+        This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke 
+        their certificate. Since this is a self-signed certificate, there’s no way to revoke it via CRL(Certificate Revocation List).
+        
+        $ openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
+        ...
+        $ openssl rsa -passin pass:x -in server.pass.key -out server.key
+        writing RSA key
+        $ rm server.pass.key
+        $ openssl req -new -key server.key -out server.csr
+        ...
+        Country Name (2 letter code) [AU]:US
+        State or Province Name (full name) [Some-State]:California
+        ...
+        A challenge password []:
+        ...
+       
+        Generate SSL certificate:
+       
+        The self-signed SSL certificate is generated from the server.key private key and server.csr files.
+        
+        $ openssl x509 -req -sha256 -days 365 -in server.csr -signkey server.key -out server.cert
+        
+        The server.cert file is the certificate suitable for use along with the server.key private key.
+        
+        Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/etc/certs or /usr/local/foglamp/etc/certs
+        
         """
         # use pem file?
         # file name will be WHAT? *using server for now*

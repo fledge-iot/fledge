@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Integration test for foglamp.device.http_south"""
+"""Integration test for foglamp.south.http_south"""
 import asyncio
 import asyncpg
 import requests
@@ -27,10 +27,11 @@ async def delete_test_data():
     await conn.close()
     await asyncio.sleep(4)
 
+# TODO: Fix all below failing tests after FOGL-858 is fixed
 
-@pytest.allure.story("device")
-class TestIngestReadings(object):
-    """Integration tests for foglamp.device.coap.IngestReadings"""
+@pytest.allure.story("south")
+class TestHttpSouthDeviceIntegration(object):
+    """Integration tests for foglamp.south.coap.IngestReadings"""
 
     @classmethod
     def teardown_class(cls):

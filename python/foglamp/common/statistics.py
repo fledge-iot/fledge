@@ -54,7 +54,7 @@ class Statistics(object):
             raise
 
     async def add_update(self, sensor_stat_dict):
-        """ ADD and UPDATE the value column only of a statistics row based on key
+        """UPDATE the value column of a statistics based on key, if key is not present, ADD the new key
 
         Args:
             sensor_stat_dict: Dictionary containing the key value of Asset name and value increment
@@ -63,28 +63,27 @@ class Statistics(object):
             None
         """
         for key, value_increment in sensor_stat_dict.items():
+            # Try updating the statistics value for given key
             try:
-                payload = PayloadBuilder().INSERT(key=key,
-                                                  description="The number of readings received by "
-                                                              "FogLAMP since startup for sensor {}".format(key),
-                                                  value=0, previous_value=0).payload()
-                result = self._storage.insert_into_tbl("statistics", payload)
-                if result['response'] == "inserted":
-                    payload = PayloadBuilder() \
-                        .WHERE(["key", "=", key]) \
-                        .EXPR(["value", "+", value_increment]) \
-                        .payload()
-                    self._storage.update_tbl("statistics", payload)
-            except KeyError:
                 payload = PayloadBuilder() \
                     .WHERE(["key", "=", key]) \
                     .EXPR(["value", "+", value_increment]) \
                     .payload()
-                self._storage.update_tbl("statistics", payload)
-            except:
+                result = self._storage.update_tbl("statistics", payload)
+                if result["response"] != "updated":
+                    raise KeyError
+            # If key was not present, add the key and with value = value_increment
+            except KeyError:
+                print("Inside error block")
+                payload = PayloadBuilder().INSERT(key=key,
+                                                  description="The number of readings received by "
+                                                              "FogLAMP since startup for sensor {}".format(key),
+                                                  value=value_increment, previous_value=0).payload()
+                self._storage.insert_into_tbl("statistics", payload)
+            except Exception as ex:
                 _logger.exception(
-                    'Unable to update statistics value based on statistics_key %s and value_increment %s'
-                    , key, value_increment)
+                    'Unable to update statistics value based on statistics_key %s and value_increment %s, error %s'
+                    , key, value_increment, str(ex))
                 raise
 
 # TODO: FOGL-484 Move below commented code to tests directory

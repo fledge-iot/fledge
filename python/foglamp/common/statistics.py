@@ -74,10 +74,8 @@ class Statistics(object):
                     raise KeyError
             # If key was not present, add the key and with value = value_increment
             except KeyError:
-                print("Inside error block")
-                payload = PayloadBuilder().INSERT(key=key,
-                                                  description="The number of readings received by "
-                                                              "FogLAMP since startup for sensor {}".format(key),
+                desc_txt = "The number of readings received by FogLAMP since startup for sensor {}".format(key)
+                payload = PayloadBuilder().INSERT(key=key, description=desc_txt,
                                                   value=value_increment, previous_value=0).payload()
                 self._storage.insert_into_tbl("statistics", payload)
             except Exception as ex:

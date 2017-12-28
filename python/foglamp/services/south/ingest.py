@@ -463,8 +463,8 @@ class Ingest(object):
             try:
                 await stats.add_update(cls._sensor_stats)
                 cls._sensor_stats = {}
-            except Exception:  # TODO catch real exception
-                _LOGGER.exception('An error occurred while writing sensor statistics')
+            except Exception as ex:
+                _LOGGER.exception('An error occurred while writing sensor statistics, error: %s', str(ex))
 
         _LOGGER.info('Device statistics writer stopped')
 

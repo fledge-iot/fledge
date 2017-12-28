@@ -53,6 +53,39 @@ class Statistics(object):
                 , key, value_increment)
             raise
 
+    async def add_update(self, sensor_stat_dict):
+        """ ADD and UPDATE the value column only of a statistics row based on key
+
+        Args:
+            sensor_stat_dict: Dictionary containing the key value of Asset name and value increment
+
+        Returns:
+            None
+        """
+        for key, value_increment in sensor_stat_dict.items():
+            try:
+                payload = PayloadBuilder().INSERT(key=key,
+                                                  description="The number of readings received by "
+                                                              "FogLAMP since startup for sensor {}".format(key),
+                                                  value=0, previous_value=0).payload()
+                result = self._storage.insert_into_tbl("statistics", payload)
+                if result['response'] == "inserted":
+                    payload = PayloadBuilder() \
+                        .WHERE(["key", "=", key]) \
+                        .EXPR(["value", "+", value_increment]) \
+                        .payload()
+                    self._storage.update_tbl("statistics", payload)
+            except KeyError:
+                payload = PayloadBuilder() \
+                    .WHERE(["key", "=", key]) \
+                    .EXPR(["value", "+", value_increment]) \
+                    .payload()
+                self._storage.update_tbl("statistics", payload)
+            except:
+                _logger.exception(
+                    'Unable to update statistics value based on statistics_key %s and value_increment %s'
+                    , key, value_increment)
+                raise
 
 # TODO: FOGL-484 Move below commented code to tests directory
 # async def _main():

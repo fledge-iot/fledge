@@ -475,7 +475,7 @@ CREATE TABLE foglamp.configuration_changes (
 -- Statistics table
 -- The table is used to keep track of the statistics for FogLAMP
 CREATE TABLE foglamp.statistics (
-       key         character(10)               NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
+       key         character(50)               NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
        description character varying(255)      NOT NULL,                              -- Description, in plan text
        value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
        previous_value       bigint             NOT NULL DEFAULT 0,                    -- Integer value, the prev stat to be updated by metrics collector
@@ -489,7 +489,7 @@ CREATE TABLE foglamp.statistics (
 -- The table is updated at startup
 CREATE TABLE foglamp.statistics_history (
        id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass), 
-       key         character(10)               NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
+       key         character(50)               NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
        history_ts  timestamp(6) with time zone NOT NULL,                                                      -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change

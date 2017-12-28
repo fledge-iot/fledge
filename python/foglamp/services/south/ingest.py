@@ -52,6 +52,9 @@ class Ingest(object):
     _discarded_readings_stats = 0  # type: int
     """Number of readings rejected before statistics were written to storage"""
 
+    _sensor_stats = {}  # type: dict
+    """Number of sensor readings accepted before statistics were written to storage"""
+
     _write_statistics_task = None  # type: asyncio.Task
     """asyncio task for :meth:`_write_statistics`"""
 
@@ -457,6 +460,12 @@ class Ingest(object):
                 cls._discarded_readings_stats += readings
                 _LOGGER.exception('An error occurred while writing discarded statistics')
 
+            try:
+                await stats.add_update(cls._sensor_stats)
+                cls._sensor_stats = {}
+            except Exception:  # TODO catch real exception
+                _LOGGER.exception('An error occurred while writing sensor statistics')
+
         _LOGGER.info('Device statistics writer stopped')
 
     @classmethod
@@ -559,6 +568,12 @@ class Ingest(object):
             await cls._readings_lists_not_full.wait()
             if cls._stop:
                 raise RuntimeError('The device server is stopping')
+
+        # Increment the count of received readings to be used for statistics update
+        if asset in cls._sensor_stats:
+            cls._sensor_stats[asset.upper()] += 1
+        else:
+            cls._sensor_stats[asset.upper()] = 1
 
         list_index = cls._current_readings_list_index
         readings_list = cls._readings_lists[list_index]

@@ -83,17 +83,41 @@ foglamp_start() {
             foglamp_log "info" "FogLAMP is already running." "all" "pretty"
             ;;
 
+        "1")
+            #FogLAMP already running - starting
+            foglamp_log "info" "FogLAMP is already starting." "all" "pretty"
+            ;;
+
         "2")
             #FogLAMP not running
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
-            if [[ -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
-                python3 -m foglamp.services.core > /dev/null 2>&1 & disown
-                foglamp_log "info" "FogLAMP started." "all" "pretty"
-            else
+            if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
                 foglamp_log "err" "FogLAMP core not found." "all" "pretty"
                 exit 1
             fi
+
+            python3 -m foglamp.services.core > /dev/null 2> "$FOGLAMP_DATA/core.err" & disown
+
+            attempts=30
+            while [ $attempts -gt 0 ]; do
+		sleep 1
+                new_attempt=`foglamp_status "silent"`
+		case "$new_attempt" in
+		    "0")
+		        foglamp_log "info" "FogLAMP started." "all" "pretty"
+		        let attempts=0
+		        ;;
+		    "1")
+	                let attempts=attempts-1
+			;;
+		    "2")
+                        foglamp_log "err" "FogLAMP canot start." "all" "pretty"
+                        foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
+                        exit 1
+			;;
+	        esac
+            done
             ;;
 
         *)
@@ -151,6 +175,12 @@ foglamp_stop() {
 
 ## FogLAMP status
 #  NOTE: this command works only with the default REST API Port
+#
+# Echo Output:
+# 0 - FogLAMP core is running
+# 1 - FogLAMP core is starting
+# 2 - FogLAMP core is not running
+#
 foglamp_status() {
 
     # Check if curl is present
@@ -187,7 +217,7 @@ foglamp_status() {
         *)
             if [[ `ps -ef | grep -c 'python3 -m foglamp.services.core'` -gt 1 ]]; then
                 if [[ "$1" == "silent" ]]; then
-                    echo "0"
+                    echo "1"
                 else
                     foglamp_log "info" "FogLAMP starting." "outonly" "pretty"
                 fi

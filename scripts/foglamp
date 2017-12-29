@@ -90,6 +90,7 @@ foglamp_start() {
 
         "2")
             #FogLAMP not running
+	    echo -n "Starting FogLAMP."
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
             if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -99,17 +100,19 @@ foglamp_start() {
 
             python3 -m foglamp.services.core > /dev/null 2> "$FOGLAMP_DATA/core.err" & disown
 
-            attempts=30
+            attempts=60
             while [ $attempts -gt 0 ]; do
 		sleep 1
                 new_attempt=`foglamp_status "silent"`
 		case "$new_attempt" in
 		    "0")
+			echo
 		        foglamp_log "info" "FogLAMP started." "all" "pretty"
 		        let attempts=0
 		        ;;
 		    "1")
 	                let attempts=attempts-1
+			echo -n "."
 			;;
 		    "2")
                         foglamp_log "err" "FogLAMP canot start." "all" "pretty"

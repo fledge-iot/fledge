@@ -4,7 +4,7 @@
 
 # MacOS Finder
 .DS_Store
-._.DS_Store
+._*
 
 # IDE
 *.idea

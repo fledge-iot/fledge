@@ -26,7 +26,7 @@ _DEFAULT_CONFIG = {
          'default': 'poll_template'
     },
     'pollInterval': {
-        'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
+        'description': 'The interval between poll calls to the South device poll routine expressed in milliseconds.',
         'type': 'integer',
         'default': '500'
     }
@@ -49,7 +49,7 @@ def plugin_info():
         'name': 'Poll plugin',
         'version': '1.0',
         'mode': 'poll', ''
-        'type': 'device',
+        'type': 'south',
         'interface': '1.0',
         'config': _DEFAULT_CONFIG
     }
@@ -59,7 +59,7 @@ def plugin_init(config):
     """ Initialise the plugin.
 
     Args:
-        config: JSON configuration document for the device configuration category
+        config: JSON configuration document for the South device configuration category
     Returns:
         handle: JSON object to be used in future calls to the plugin
     Raises:
@@ -70,7 +70,7 @@ def plugin_init(config):
     return handle
 
 
-async def plugin_poll(handle):
+def plugin_poll(handle):
     """ Extracts data from the sensor and returns it in a JSON document as a Python dict.
 
     Available for poll mode only.
@@ -102,7 +102,7 @@ async def plugin_poll(handle):
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the device service.
+        operation of the South device service.
         The new configuration category should be passed.
 
     Args:
@@ -119,7 +119,7 @@ def plugin_reconfigure(handle, new_config):
 
 
 def plugin_shutdown(handle):
-    """ Shutdowns the plugin doing required cleanup, to be called prior to the device service being shut down.
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
     Args:
         handle: handle returned by the plugin initialisation call

@@ -1,16 +1,22 @@
-# coap
-aiocoap==0.3
-cbor2==4.0.0
 
-# deployment
-# packaging enables pip install -e
+# PostreSQL Storage Plugin
+psycopg2==2.7.1
+
+
+# Deployment
+# Packaging enables pip install -e
 packaging==16.8
 
-# rest
+# Common - REST interface
 aiohttp==2.3.6
 aiohttp_cors==0.5.3
 cchardet==2.1.1
 requests==2.18.4
 
-# sensortag
+# CoAP South Microservice Plugin
+aiocoap==0.3
+cbor2==4.0.0
+
+# TI SensorTag Microservice Plugin
 pexpect==4.0.1
+

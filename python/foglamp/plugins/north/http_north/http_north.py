@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" HTTP Translator """
+""" HTTP North """
 
 import aiohttp
 import asyncio
@@ -21,18 +21,18 @@ __version__ = "${VERSION}"
 _LOGGER = logger.setup(__name__)
 
 
-http_translator = None
+http_north = None
 config = ""
 
-# Configuration related to HTTP Translator
+# Configuration related to HTTP North
 _CONFIG_CATEGORY_NAME = "HTTP_TR"
-_CONFIG_CATEGORY_DESCRIPTION = "North Plugin HTTP Translator"
+_CONFIG_CATEGORY_DESCRIPTION = "HTTP North Plugin"
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Python module name of the plugin to load',
+         'description': 'HTTP North Plugin',
          'type': 'string',
-         'default': 'http_translator'
+         'default': 'http_north'
     },
     'url': {
         'description': 'URI to accept data',
@@ -50,27 +50,27 @@ _DEFAULT_CONFIG = {
 # TODO write to Audit Log
 def plugin_info():
     return {
-        'name': 'http_translator',
+        'name': 'http_north',
         'version': '1.0.0',
-        'type': 'translator',
+        'type': 'north',
         'interface': '1.0',
         'config': _DEFAULT_CONFIG
     }
 
 
 def plugin_init(data):
-    global http_translator, config
-    http_translator = HttpTranslatorPlugin()
+    global http_north, config
+    http_north = HttpNorthPlugin()
     config = data
     return config
 
 
 def plugin_send(data, payload, stream_id):
-    return http_translator.send_payloads(payload, stream_id)
+    return http_north.send_payloads(payload, stream_id)
 
 
 def plugin_shutdown(data):
-    http_translator.shutdown()
+    http_north.shutdown()
 
 
 # TODO: (ASK) North plugin can not be reconfigured? (per callback mechanism)
@@ -78,8 +78,9 @@ def plugin_reconfigure():
     pass
 
 
-class HttpTranslatorPlugin(object):
-    """ North HTTP Translator Plugin """
+class HttpNorthPlugin(object):
+    """ North HTTP Plugin """
+
     def __init__(self):
         self.event_loop = asyncio.get_event_loop()
         self.tasks = []

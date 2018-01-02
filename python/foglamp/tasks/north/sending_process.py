@@ -8,7 +8,7 @@
 """ The sending process is run according to a schedule in order to send reading data
 to the historian, e.g. the PI system.
 It’s role is to implement the rules as to what needs to be sent and when,
-extract the data from the storage subsystem and stream it to the translator
+extract the data from the storage subsystem and stream it to the north
 for sending to the external system.
 The sending process does not implement the protocol used to send the data,
 that is devolved to the translation plugin in order to allow for flexibility
@@ -62,7 +62,7 @@ _MESSAGES_LIST = {
     "e000012": "cannot connect to the DB Layer - error details |{0}|",
     "e000013": "cannot validate the stream id - error details |{0}|",
     "e000014": "multiple streams having same id are defined - stream id |{0}|",
-    "e000015": "the selected plugin is not a valid translator - plug in type/name |{0} / {1}|",
+    "e000015": "the selected plugin is not a valid north plug in type/name |{0} / {1}|",
     "e000016": "invalid stream id, it is not defined - stream id |{0}|",
     "e000017": "cannot handle command line parameters - error details |{0}|",
     "e000018": "cannot initialize the plugin |{0}|",
@@ -231,11 +231,11 @@ class SendingProcess:
 
     _logger = None  # type: logging.Logger
 
-    # Filesystem path where the translators reside
-    _TRANSLATOR_PATH = "foglamp.plugins.north."
+    # Filesystem path where the norths reside
+    _NORTH_PATH = "foglamp.plugins.north."
 
     # Define the type of the plugin managed by the Sending Process
-    _PLUGIN_TYPE = "translator"
+    _PLUGIN_TYPE = "north"
 
     # Types of sources for the data blocks
     _DATA_SOURCE_READINGS = "readings"
@@ -275,8 +275,8 @@ class SendingProcess:
             "type": "integer",
             "default": "5"
         },
-        "translator": {
-            "description": "The name of the translator to use to translate the readings "
+        "north": {
+            "description": "The name of the north to use to translate the readings "
                            "into the output format and send them",
             "type": "string",
             "default": "omf"
@@ -309,11 +309,11 @@ class SendingProcess:
             'source': self._CONFIG_DEFAULT['source']['default'],
             'blockSize': int(self._CONFIG_DEFAULT['blockSize']['default']),
             'sleepInterval': int(self._CONFIG_DEFAULT['sleepInterval']['default']),
-            'translator': self._CONFIG_DEFAULT['translator']['default'],
+            'north': self._CONFIG_DEFAULT['north']['default'],
         }
         self._config_from_manager = ""
         # Plugin handling - loading an empty plugin
-        self._module_template = self._TRANSLATOR_PATH + "empty." + "empty"
+        self._module_template = self._NORTH_PATH + "empty." + "empty"
         self._plugin = importlib.import_module(self._module_template)
         self._plugin_info = {
             'name': "",
@@ -371,24 +371,24 @@ class SendingProcess:
             raise e
         return stream_id_valid
 
-    def _is_translator_valid(self):
-        """ Checks if the translator has adequate characteristics to be used for sending of the data
+    def _is_north_valid(self):
+        """ Checks if the north has adequate characteristics to be used for sending of the data
         Args:
         Returns:
-            translator_ok: True if the translator is a proper one
+            north_ok: True if the north is a proper one
         Raises:
         Todo:
         """
-        translator_ok = False
+        north_ok = False
         try:
             if self._plugin_info['type'] == self._PLUGIN_TYPE and \
-               self._plugin_info['name'] != "Empty translator":
-                translator_ok = True
+               self._plugin_info['name'] != "Empty north":
+                north_ok = True
         except Exception:
             _message = _MESSAGES_LIST["e000000"]
             SendingProcess._logger.error(_message)
             raise
-        return translator_ok
+        return north_ok
 
     def _load_data_into_memory(self, last_object_id):
         """ Identifies the data source requested and call the appropriate handler
@@ -661,7 +661,7 @@ class SendingProcess:
         Raises:
         Todo:
         """
-        module_to_import = self._TRANSLATOR_PATH + self._config['translator'] + "." + self._config['translator']
+        module_to_import = self._NORTH_PATH + self._config['north'] + "." + self._config['north']
         try:
             self._plugin = __import__(module_to_import, fromlist=[''])
         except ImportError:
@@ -710,7 +710,7 @@ class SendingProcess:
             self._config['source'] = _config_from_manager['source']['value']
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
             self._config['sleepInterval'] = int(_config_from_manager['sleepInterval']['value'])
-            self._config['translator'] = _config_from_manager['plugin']['value']
+            self._config['north'] = _config_from_manager['plugin']['value']
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = config_category_name
             self._config_from_manager = _config_from_manager
         except Exception:
@@ -747,7 +747,7 @@ class SendingProcess:
                     SendingProcess._logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],
                                                             self._plugin_info['version']))
-                    if self._is_translator_valid():
+                    if self._is_north_valid():
                         try:
                             # config from plugin
                             self._retrieve_configuration(stream_id, cat_config=self._plugin_info['config'], cat_keep_original=True)

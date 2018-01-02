@@ -23,7 +23,7 @@ _CONFIG_CATEGORY_NAME = 'HTTP_SOUTH'
 _CONFIG_CATEGORY_DESCRIPTION = 'South Plugin HTTP Listener'
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'http_south_device',
+         'description': 'South Plugin HTTP Listener',
          'type': 'string',
          'default': 'http_south'
     },
@@ -46,8 +46,14 @@ _DEFAULT_CONFIG = {
 
 
 def plugin_info():
-    return {'name': 'http_south', 'version': '1.0', 'mode': 'async', 'type': 'device',
-            'interface': '1.0', 'config': _DEFAULT_CONFIG}
+    return {
+            'name': 'http_south',
+            'version': '1.0',
+            'mode': 'async',
+            'type': 'south',
+            'interface': '1.0',
+            'config': _DEFAULT_CONFIG
+    }
 
 
 def plugin_init(config):

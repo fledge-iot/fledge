@@ -13,6 +13,7 @@ import subprocess
 import sys
 import http.client
 import json
+import ssl
 import time
 from aiohttp import web
 
@@ -21,16 +22,18 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.storage_client import StorageClient
+
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.common.microservice_management import routes as management_routes
+
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 from foglamp.services.core.interest_registry import exceptions as interest_registry_exceptions
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
-from foglamp.services.core import connect
 from foglamp.services.common.service_announcer import ServiceAnnouncer
+
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,8 +43,10 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__, level=20)
 
 # FOGLAMP_ROOT env variable
-_FOGLAMP_ROOT= os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
-_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+_FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
+_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
+_SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+
 
 class Server:
     """ FOGLamp core server.
@@ -70,9 +75,35 @@ class Server:
     core_management_port = 0
     """ Microservice management port of core """
 
-    # TODO: FOGL-655 Get Admin API port from configuration option
-    rest_service_port = 8081
-    """ Admin service port of core """
+    rest_server_port = 0
+    """ FogLAMP REST API port """
+
+    is_rest_server_http_enabled = False
+    """ a Flag to decide to enable FogLAMP REST API on HTTP on restart"""
+
+    _REST_API_DEFAULT_CONFIG = {
+        'httpPort': {
+            'description': 'The port to accept HTTP connections on',
+            'type': 'integer',
+            'default': '8081'
+        },
+        'httpsPort': {
+            'description': 'The port to accept HTTPS connections on',
+            'type': 'integer',
+            'default': '1995'
+        },
+        'enableHttp': {
+            'description': 'Enable or disable the connection via HTTP',
+            'type': 'boolean',
+            'default': 'false'
+        },
+        'authProviders': {
+            'description': 'A JSON object which is an array of authentication providers to use '
+                           'for the interface',
+            'type': 'JSON',
+            'default': '{"providers": ["username", "ldap"] }'
+        }
+    }
 
     _start_time = time.time()
     """ Start time of core process """
@@ -85,6 +116,102 @@ class Server:
 
     _interest_registry = None
     """ Instance of interest registry (singleton) """
+
+    @staticmethod
+    def get_certificates():
+        # TODO: FOGL-780
+        if _FOGLAMP_DATA:
+            certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
+        else:
+            certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/etc/certs')
+
+        """ Generated using      
+                $ openssl version
+                OpenSSL 1.0.2g  1 Mar 2016
+                 
+        The openssl library is required to generate your own certificate. Run the following command in your local environment to see if you already have openssl installed installed.
+        
+        $ which openssl
+        /usr/bin/openssl
+        
+        If the which command does not return a path then you will need to install openssl yourself:
+        
+        $ apt-get install openssl
+        
+        Generate private key and certificate signing request:
+        
+        A private key and certificate signing request are required to create an SSL certificate.
+        When the openssl req command asks for a “challenge password”, just press return, leaving the password empty. 
+        This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke 
+        their certificate. Since this is a self-signed certificate, there’s no way to revoke it via CRL(Certificate Revocation List).
+        
+        $ openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
+        ...
+        $ openssl rsa -passin pass:x -in server.pass.key -out server.key
+        writing RSA key
+        $ rm server.pass.key
+        $ openssl req -new -key server.key -out server.csr
+        ...
+        Country Name (2 letter code) [AU]:US
+        State or Province Name (full name) [Some-State]:California
+        ...
+        A challenge password []:
+        ...
+       
+        Generate SSL certificate:
+       
+        The self-signed SSL certificate is generated from the server.key private key and server.csr files.
+        
+        $ openssl x509 -req -sha256 -days 365 -in server.csr -signkey server.key -out server.cert
+        
+        The server.cert file is the certificate suitable for use along with the server.key private key.
+        
+        Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/etc/certs or /usr/local/foglamp/etc/certs
+        
+        """
+        # use pem file?
+        # file name will be WHAT? *using server for now*
+        cert = certs_dir + '/server.cert'
+        key = certs_dir + '/server.key'
+        # remove these asserts and put in try-except block with logging
+        assert os.path.isfile(cert)
+        assert os.path.isfile(key)
+
+        return cert, key
+
+    @classmethod
+    async def rest_api_config(cls):
+        """
+
+        :return: port and TLS enabled info
+        """
+        try:
+            config = cls._REST_API_DEFAULT_CONFIG
+            category = 'rest_api'
+
+            await cls._configuration_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
+            config = await cls._configuration_manager.get_category_all_items(category)
+
+            try:
+                cls.is_rest_server_http_enabled = False if config['enableHttp']['value'] == 'false' else True
+            except KeyError:
+                cls.is_rest_server_http_enabled = False
+
+            try:
+                port_from_config = config['httpPort']['value'] if cls.is_rest_server_http_enabled \
+                    else config['httpsPort']['value']
+                cls.rest_server_port = int(port_from_config)
+            except KeyError:
+                _logger.error("error in retrieving port info")
+                raise
+            except ValueError:
+                _logger.error("error in parsing port value, received %s with type %s",
+                              port_from_config, type(port_from_config))
+                raise
+
+        except Exception as ex:
+            _logger.exception(str(ex))
+            raise
 
     @staticmethod
     def _make_app():
@@ -153,12 +280,12 @@ class Server:
                 await asyncio.sleep(5)
 
     @classmethod
-    def _start_app(cls, loop, app, host, port):
+    def _start_app(cls, loop, app, host, port, ssl_ctx=None):
         if loop is None:
             loop = asyncio.get_event_loop()
 
         handler = app.make_handler()
-        coro = loop.create_server(handler, host, port)
+        coro = loop.create_server(handler, host, port, ssl=ssl_ctx)
         # added coroutine
         server = loop.run_until_complete(coro)
         return server, handler
@@ -199,9 +326,25 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             service_app = cls._make_app()
-            service_server, service_server_handler = cls._start_app(loop, service_app, host, cls.rest_service_port)
+
+            loop.run_until_complete(cls.rest_api_config())
+            # print(cls.is_rest_server_tls_enabled, cls.rest_server_port)
+
+            # ssl context
+            ssl_ctx = None
+            if not cls.is_rest_server_http_enabled:
+                # ensure TLS 1.2 and SHA-256
+                # handle expiry?
+                ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                cert, key = cls.get_certificates()
+                _logger.info('Loading certificates %s and key %s', cert, key)
+                ssl_ctx.load_cert_chain(cert, key)
+
+            service_server, service_server_handler = cls._start_app(loop, service_app,
+                                                                    host, cls.rest_server_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
-            _logger.info('Rest Server started on http://%s:%s', address, service_server_port)
+            _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
+                         address, service_server_port)
 
             cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
             cls.user_announcer = ServiceAnnouncer('FogLAMP', '_foglamp_app._tcp', service_server_port,
@@ -209,7 +352,8 @@ class Server:
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
-            cls._register_core(host, cls.core_management_port, cls.rest_service_port)
+            # TODO: if ssl then register with protocol https
+            cls._register_core(host, cls.core_management_port, service_server_port)
             print("(Press CTRL+C to quit)")
 
             try:
@@ -369,7 +513,6 @@ class Server:
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
 
-
     @classmethod
     async def unregister(cls, request):
         """ Unregister a service
@@ -395,7 +538,6 @@ class Server:
             return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
-
 
     @classmethod
     async def get_service(cls, request):
@@ -437,7 +579,6 @@ class Server:
 
         return web.json_response({"services": services})
 
-
     @classmethod
     async def shutdown(cls, request):
         pass
@@ -475,8 +616,6 @@ class Server:
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
 
-
-
     @classmethod
     async def unregister_interest(cls, request):
         """ Unregister an interest
@@ -502,7 +641,6 @@ class Server:
             return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
-
 
     @classmethod
     async def change(cls, request):

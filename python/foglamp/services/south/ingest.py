@@ -119,10 +119,10 @@ class Ingest(object):
 
     @classmethod
     async def _read_config(cls):
-        """Creates default values for the DEVICE configuration category and then reads all
+        """Creates default values for the South configuration category and then reads all
         values for this category
         """
-        category = 'DEVICE'
+        category = 'South'
 
         default_config = {
              "write_statistics_frequency_seconds": {
@@ -170,7 +170,7 @@ class Ingest(object):
         # Create configuration category and any new keys within it
         cfg_manager = ConfigurationManager(cls.storage)
         await cfg_manager.create_category(category, default_config,
-                                                    'Device server configuration')
+                                                    'South server configuration')
 
         # Read configuration
         config = await cfg_manager.get_category_all_items(category)
@@ -422,7 +422,7 @@ class Ingest(object):
     @classmethod
     async def _write_statistics(cls):
         """Periodically commits collected readings statistics"""
-        _LOGGER.info('Device statistics writer started')
+        _LOGGER.info('South statistics writer started')
 
         stats = Statistics(cls.storage)
 
@@ -466,7 +466,7 @@ class Ingest(object):
             except Exception as ex:
                 _LOGGER.exception('An error occurred while writing sensor statistics, error: %s', str(ex))
 
-        _LOGGER.info('Device statistics writer stopped')
+        _LOGGER.info('South statistics writer stopped')
 
     @classmethod
     def is_available(cls) -> bool:
@@ -516,10 +516,10 @@ class Ingest(object):
                 An invalid value was provided
         """
         if cls._stop:
-            raise RuntimeError('The device server is stopping')
+            raise RuntimeError('The South server is stopping')
 
         if not cls._started:
-            raise RuntimeError('The device server was not started')
+            raise RuntimeError('The South server was not started')
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
         try:
@@ -567,7 +567,7 @@ class Ingest(object):
             cls._readings_lists_not_full.clear()
             await cls._readings_lists_not_full.wait()
             if cls._stop:
-                raise RuntimeError('The device server is stopping')
+                raise RuntimeError('The South server is stopping')
 
         # Increment the count of received readings to be used for statistics update
         if asset.upper() in cls._sensor_stats:

@@ -211,7 +211,15 @@ SQLBuffer	sql;
 		PQclear(res);
 		return true;
 	}
- 	raiseError("retrieve", PQerrorMessage(dbConnection));
+	char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+	if (!strcmp(SQLState, "22P02"))	// Conversion error
+	{
+ 		raiseError("retrieve", "Unable to convert data to the required type");
+	}
+	else
+	{
+ 		raiseError("retrieve", PQerrorMessage(dbConnection));
+	}
 	PQclear(res);
 	return false;
 }

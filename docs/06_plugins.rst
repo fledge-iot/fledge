@@ -144,7 +144,7 @@ A typical Python implementation of this would simply return a fixed dictionary o
           'name': 'DHT11 GPIO',
           'version': '1.0',
           'mode': 'poll',
-          'type': 'device',
+          'type': 'south',
           'interface': '1.0',
           'config': _DEFAULT_CONFIG
       }
@@ -440,7 +440,7 @@ This is the code for the plugin:
           'name':      'DHT11 GPIO',
           'version':   '1.0',
           'mode':      'poll',
-          'type':      'device',
+          'type':      'south',
           'interface': '1.0',
           'config':    _DEFAULT_CONFIG
       }

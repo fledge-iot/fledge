@@ -115,7 +115,7 @@ foglamp_start() {
 			echo -n "."
 			;;
 		    "2")
-                        foglamp_log "err" "FogLAMP canot start." "all" "pretty"
+                        foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
                         foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
                         exit 1
 			;;

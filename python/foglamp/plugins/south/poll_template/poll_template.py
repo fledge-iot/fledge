@@ -70,7 +70,7 @@ def plugin_init(config):
     return handle
 
 
-async def plugin_poll(handle):
+def plugin_poll(handle):
     """ Extracts data from the sensor and returns it in a JSON document as a Python dict.
 
     Available for poll mode only.

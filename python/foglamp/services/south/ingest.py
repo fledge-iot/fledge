@@ -570,7 +570,7 @@ class Ingest(object):
                 raise RuntimeError('The device server is stopping')
 
         # Increment the count of received readings to be used for statistics update
-        if asset in cls._sensor_stats:
+        if asset.upper() in cls._sensor_stats:
             cls._sensor_stats[asset.upper()] += 1
         else:
             cls._sensor_stats[asset.upper()] = 1

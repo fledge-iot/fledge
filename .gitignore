@@ -32,4 +32,7 @@ allure-report/
 /python_build
 /services
 
+# Error Logs
+*.err
+
 .cache/

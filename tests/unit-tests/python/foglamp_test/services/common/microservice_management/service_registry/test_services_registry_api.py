@@ -21,7 +21,7 @@ pytestmark = pytest.mark.asyncio
 __DB_NAME = "foglamp"
 # Needs foglamp to start,
 # replace 43325 with core_management_port
-BASE_URL = 'http://localhost:43325/foglamp'
+BASE_URL = 'http://localhost:32966/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 
@@ -226,11 +226,11 @@ class TestServicesRegistryApi:
         storage_service_id = retval["id"]
 
         # Create another service
-        data2 = {"type": "Southbound", "name": "Device Services y", "address": "127.0.0.1", "service_port": 8092, "management_port": 1092, "protocol": "https"}
+        data2 = {"type": "Southbound", "name": "South Services y", "address": "127.0.0.1", "service_port": 8092, "management_port": 1092, "protocol": "https"}
         r = requests.post(BASE_URL + '/service', data=json.dumps(data2), headers=headers)
         assert 200 == r.status_code
         res = dict(r.json())
-        device_service_id = res["id"]
+        south_service_id = res["id"]
 
         # data1 and data2 also ensure diff |address AND port, including mgt port| combinations work!
         l = requests.get(BASE_URL + '/service')
@@ -244,7 +244,7 @@ class TestServicesRegistryApi:
         for s in svc:
             if s["id"] == storage_service_id:
                 data1_svc = s
-            if s["id"] == device_service_id:
+            if s["id"] == south_service_id:
                 data2_svc = s
 
         assert data1_svc is not None

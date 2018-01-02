@@ -128,8 +128,8 @@ class Server(FoglampMicroservice):
 
             # TODO: Register for config changes
 
-            # Ensures the plugin type is the correct one - 'device'
-            if plugin_info['type'] != 'device':
+            # Ensures the plugin type is the correct one - 'south'
+            if plugin_info['type'] != 'south':
 
                 message = self._MESSAGES_LIST['e000001'].format(self._name, plugin_info['type'])
                 _LOGGER.error(message)

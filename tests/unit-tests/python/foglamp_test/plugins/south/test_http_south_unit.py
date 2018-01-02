@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Unit test for foglamp.device.http_south"""
+"""Unit test for foglamp.south.http_south"""
 import json
 import asyncpg
 import pytest
@@ -42,9 +42,9 @@ def mock_request(data):
     return req
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("device")
+@pytest.allure.story("south")
 class TestHttpSouthDeviceUnit(object):
-    """Unit tests for foglamp.device.coap.IngestReadings
+    """Unit tests for foglamp.south.coap.IngestReadings
     """
 
     async def test_post_sensor_reading_ok(self):

@@ -54,7 +54,7 @@ def plugin_info():
     return {'name': 'CoAP Server',
             'version': '1.0',
             'mode': 'async',
-            'type': 'device',
+            'type': 'south',
             'interface': '1.0',
             'config': _DEFAULT_CONFIG
             }
@@ -64,7 +64,7 @@ def plugin_init(config):
     """ Registers CoAP handler to accept sensor readings
 
     Args:
-        config: JSON configuration document for the device configuration category
+        config: JSON configuration document for the South device configuration category
     Returns:
         handle: JSON object to be used in future calls to the plugin
     Raises:
@@ -78,8 +78,8 @@ def plugin_init(config):
 
 
 def plugin_start(handle):
-    """ Starts the device ingress process.
-        Used only for device plugins that support async IO.
+    """ Starts the South device ingress process.
+        Used only for South device plugins that support async IO.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -104,7 +104,7 @@ def plugin_start(handle):
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the device service.
+        operation of the South device service.
         The new configuration category should be passed.
 
     Args:
@@ -121,7 +121,7 @@ def plugin_reconfigure(handle, new_config):
 
 
 def plugin_shutdown(handle):
-    """ Shutdowns the plugin doing required cleanup, to be called prior to the device service being shut down.
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
     Args:
         handle: handle returned by the plugin initialisation call

@@ -42,8 +42,9 @@ This version of FogLAMP requires the following software to be installed in the s
 
 - Python 3.5+
 - PostgreSQL 9.5+
+- Bluez 5.37+
 
-If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. Other requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
+Bluez is the official Bluetooth stack and we have added plugins that are set on by default and use *gatttool* and other components of *bluez*. In the future we will make this package optional, but for the moment you should install it even if you do not intend to use any Bluetooth device. |br| If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. Other requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
 
 
 Building FogLAMP
@@ -60,6 +61,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - liboost-dev, liboost-system-dev, liboost-thread-dev, libpq-dev
 - python3-pip
 - postgresql
+- bluez
 
 .. code-block:: console
 
@@ -84,6 +86,12 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   $
   $ sudo apt install postgresql
+  Reading package lists... Done
+  Building dependency tree
+  $
+  ...
+  $
+  $ sudo apt install bluez
   Reading package lists... Done
   Building dependency tree
   $

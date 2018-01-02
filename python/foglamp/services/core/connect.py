@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 
-from foglamp.services.common.microservice_management.service_registry.service_registry import Service
+from foglamp.services.core.service_registry.service_registry import *
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.common import logger
 
@@ -23,7 +23,7 @@ _logger = logger.setup(__name__)
 def get_storage():
     """ Storage Object """
     try:
-        services = Service.Instances.get(name="FogLAMP Storage")
+        services = ServiceRegistry.get(name="FogLAMP Storage")
         storage_svc = services[0]
         _storage = StorageClient(core_management_host=None, core_management_port=None, svc=storage_svc)
         # _logger.info(type(_storage))

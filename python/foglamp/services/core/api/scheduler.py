@@ -484,8 +484,8 @@ async def get_task(request):
 
         task = {
             'id': str(tsk.task_id),
-            'processName': tsk.process_name,
-            'state': Task.State(int(tsk.state)).name,
+            'name': tsk.process_name,
+            'state': Task.State(int(tsk.state)).name.capitalize(),
             'startTime': str(tsk.start_time),
             'endTime': str(tsk.end_time),
             'exitCode': tsk.exit_code,
@@ -546,8 +546,8 @@ async def get_tasks(request):
         for task in tasks:
             new_tasks.append(
                 {'id': str(task.task_id),
-                 'processName': task.process_name,
-                 'state': Task.State(int(task.state)).name,
+                 'name': task.process_name,
+                 'state': Task.State(int(task.state)).name.capitalize(),
                  'startTime': str(task.start_time),
                  'endTime': str(task.end_time),
                  'exitCode': task.exit_code,
@@ -595,8 +595,8 @@ async def get_tasks_latest(request):
         for task in tasks:
             new_tasks.append(
                 {'id': str(task['id']),
-                 'processName': task['process_name'],
-                 'state': [t.name for t in list(Task.State)][int(task['state']) - 1],
+                 'name': task['process_name'],
+                 'state': [t.name.capitalize() for t in list(Task.State)][int(task['state']) - 1],
                  'startTime': str(task['start_time']),
                  'endTime': str(task['end_time']),
                  'exitCode': task['exit_code'],
@@ -648,7 +648,7 @@ async def get_task_state(request):
 
     results = []
     for _state in Task.State:
-        data = {'index': _state.value, 'name': _state.name}
+        data = {'index': _state.value, 'name': _state.name.capitalize()}
         results.append(data)
 
     return web.json_response({'taskState': results})

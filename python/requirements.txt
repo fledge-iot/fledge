@@ -20,3 +20,5 @@ cbor2==4.0.0
 # TI SensorTag Microservice Plugin
 pexpect==4.0.1
 
+# Transformation of data
+jq==0.1.6

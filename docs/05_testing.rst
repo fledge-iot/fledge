@@ -5,9 +5,15 @@
    <br />
 
 .. Images
-.. |postman_ping| image:: images/postman_ping.jpg
-.. |win_server_waiting| image:: images/05_win_server_waiting.jpg
-.. |pi_loaded| image:: images/05_pi_loaded.jpg
+
+.. |postman_ping| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/05_postman_ping.jpg
+   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/05_postman_ping.jpg
+
+.. |win_server_waiting| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/05_win_server_waiting.jpg
+   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/05_win_server_waiting.jpg
+
+.. |pi_loaded| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/05_pi_loaded.jpg
+   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/05_pi_loaded.jpg
 
 .. Links
 

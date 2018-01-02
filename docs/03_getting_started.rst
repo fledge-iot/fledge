@@ -39,10 +39,11 @@ General Requirements
 --------------------
 
 This version of FogLAMP requires the following software to be installed in the same environment:
+
 - Python 3.5+
 - PostgreSQL 9.5+
 
-The requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
+If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. Other requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
 
 
 Building FogLAMP
@@ -55,7 +56,7 @@ Build Pre-Requisites
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
-- cmake, g++, make
+- git, cmake, g++, make
 - liboost-dev, liboost-system-dev, liboost-thread-dev, libpq-dev
 - python3-pip
 - postgresql
@@ -67,7 +68,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt install cmake g++ make
+  $ sudo apt install git cmake g++ make
   Reading package lists... Done
   Building dependency tree
   ...
@@ -348,7 +349,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=40417 --address=127.0.0.1 --name=statistics to pi
   $
 
-If you are curious to see a proper out from from FogLAMP, you can query the Core microservice using the REST API:
+If you are curious to see a proper output from FogLAMP, you can query the Core microservice using the REST API:
 
 .. code-block:: console
 

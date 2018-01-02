@@ -95,7 +95,7 @@ class Server:
         'enableHttp': {
             'description': 'Enable or disable the connection via HTTP',
             'type': 'boolean',
-            'default': 'false'
+            'default': 'true'
         },
         'authProviders': {
             'description': 'A JSON object which is an array of authentication providers to use '

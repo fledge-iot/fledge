@@ -76,19 +76,32 @@ class Server:
     """ Microservice management port of core """
 
     rest_server_port = 0
+    """ FogLAMP REST API port """
 
-    is_rest_server_tls_enabled = False
+    is_rest_server_http_enabled = False
+    """ a Flag to decide to enable FogLAMP REST API on HTTP on restart"""
 
     _REST_API_DEFAULT_CONFIG = {
-        'port': {
-            'description': 'REST API service port',
+        'httpPort': {
+            'description': 'The port to accept HTTP connections on',
             'type': 'integer',
             'default': '8081'
         },
-        'isTlsEnabled': {
-            'description': 'if True run on https',
+        'httpsPort': {
+            'description': 'The port to accept HTTPS connections on',
+            'type': 'integer',
+            'default': '1995'
+        },
+        'enableHttp': {
+            'description': 'Enable or disable the connection via HTTP',
             'type': 'boolean',
-            'default': 'true'
+            'default': 'false'
+        },
+        'authProviders': {
+            'description': 'A JSON object which is an array of authentication providers to use '
+                           'for the interface',
+            'type': 'JSON',
+            'default': '{"providers": ["username", "ldap"] }'
         }
     }
 
@@ -180,14 +193,21 @@ class Server:
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
-                cls.rest_server_port = config['port']['value']
+                cls.is_rest_server_http_enabled = False if config['enableHttp']['value'] == 'false' else True
+            except KeyError:
+                cls.is_rest_server_http_enabled = False
+
+            try:
+                port_from_config = config['httpPort']['value'] if cls.is_rest_server_http_enabled \
+                    else config['httpsPort']['value']
+                cls.rest_server_port = int(port_from_config)
             except KeyError:
                 _logger.error("error in retrieving port info")
                 raise
-            try:
-                cls.is_rest_server_tls_enabled = False if config['isTlsEnabled']['value'] == 'false' else True
-            except KeyError:
-                cls.is_rest_server_tls_enabled = True
+            except ValueError:
+                _logger.error("error in parsing port value, received %s with type %s",
+                              port_from_config, type(port_from_config))
+                raise
 
         except Exception as ex:
             _logger.exception(str(ex))
@@ -312,7 +332,7 @@ class Server:
 
             # ssl context
             ssl_ctx = None
-            if cls.is_rest_server_tls_enabled:
+            if not cls.is_rest_server_http_enabled:
                 # ensure TLS 1.2 and SHA-256
                 # handle expiry?
                 ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -323,7 +343,7 @@ class Server:
             service_server, service_server_handler = cls._start_app(loop, service_app,
                                                                     host, cls.rest_server_port, ssl_ctx=ssl_ctx)
             address, service_server_port = service_server.sockets[0].getsockname()
-            _logger.info('Admin API Server started on %s://%s:%s', 'https' if cls.is_rest_server_tls_enabled else 'http',
+            _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
                          address, service_server_port)
 
             cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])

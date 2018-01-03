@@ -21,4 +21,4 @@ cbor2==4.0.0
 pexpect==4.0.1
 
 # Transformation of data
-jq==0.1.6
+pyjq==2.1.0

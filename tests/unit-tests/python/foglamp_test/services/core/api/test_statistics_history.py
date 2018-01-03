@@ -6,7 +6,7 @@
 
 import asyncpg
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 import pytest
 
@@ -142,7 +142,11 @@ class TestStatisticsHistory:
 
         assert is_greater_time is True
 
-    async def test_get_statistics_history_limit_with_bad_data(self):
-        r = requests.get(BASE_URL + '/statistics/history?limit=x')
-        res = r.json()
-        assert 400 == res['error']['code']
+    @pytest.mark.parametrize("request_params, response_code, response_message", [
+        ('?limit=invalid', 400, "Limit must be a positive integer"),
+        ('?limit=-1', 400, "Limit must be a positive integer")
+    ])
+    async def test_get_statistics_history_limit_with_bad_data(self, request_params, response_code, response_message):
+        r = requests.get(BASE_URL + '/statistics/history{}'.format(request_params))
+        assert response_code == r.status_code
+        assert response_message == r.reason

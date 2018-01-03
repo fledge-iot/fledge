@@ -1,0 +1,89 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2017 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+
+# @date: 2018-01-02
+#
+# Bash Script to create a new self-signed SSL Certificate
+#
+# USAGE: this command will ask for the certificate name and number in days it will expire
+# $ chmod +x selfssl
+# $ ./selfssl
+#
+# OPTIONAL: run the command
+# $ ./selfssl foglamp 365
+
+# Create a certificate key.
+# Create the certificate signing request (CSR) which contains details such as the domain name and address details.
+# Sign the certificate
+# Install the certificate and key in the application.
+
+
+
+# Default directory to place the Certificate
+
+# SSL_DIR="${FOGLAMP_ROOT}/etc/certs"
+
+SSL_NAME=$1
+SSL_EXPIRATION_DAYS=$2
+
+# Change to your company details
+country=US
+state=California
+# locality=
+organization=OSIsoft
+# organizational_unit=
+common_name=FogLAMP
+email=info@dianomic.com
+
+
+# add fail_if_error and log
+
+if [ -z $1 ]; then
+  printf "Enter the SSL Certificate Name:"
+  read SSL_NAME
+fi
+
+if [ -z $2 ]; then
+  printf "How many days the Certificate will be valid:"
+  read SSL_EXPIRATION_DAYS
+fi
+
+echo "Creating a new Certificate ..."
+
+# Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
+SUBJ="/C=$country/ST=$state/O=$organization/CN=$common_name/emailAddress=$email"
+
+openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
+openssl rsa -passin pass:x -in server.pass.key -out $SSL_NAME.key
+rm server.pass.key
+openssl req -new -key $SSL_NAME.key -subj $SUBJ -out $SSL_NAME.csr
+openssl x509 -req -sha256 -days $SSL_EXPIRATION_DAYS -in $SSL_NAME.csr -signkey $SSL_NAME.key -out $SSL_NAME.cert
+
+
+# The server.cert file is the certificate suitable for use along with the server.key private key.
+# Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/etc/certs or /usr/local/foglamp/etc/certs
+# Make directory to place SSL Certificate if it doesn't exists
+
+#if [[ ! -d $SSL_DIR ]]; then
+#  sudo mkdir -p $SSL_DIR
+#fi
+
+# Place SSL Certificate within defined path
+#sudo mv $SSL_NAME.key $SSL_DIR/$SSL_NAME.key
+#sudo mv $SSL_NAME.cert $SSL_DIR/$SSL_NAME.cert

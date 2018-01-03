@@ -8,11 +8,14 @@
 
 import asyncio
 import signal
+import uuid
+
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
+from aiohttp import web
 
 
 __author__ = "Terris Linenbach"
@@ -125,8 +128,8 @@ class Server(FoglampMicroservice):
 
             # TODO: Register for config changes
 
-            # Ensures the plugin type is the correct one - 'device'
-            if plugin_info['type'] != 'device':
+            # Ensures the plugin type is the correct one - 'south'
+            if plugin_info['type'] != 'south':
 
                 message = self._MESSAGES_LIST['e000001'].format(self._name, plugin_info['type'])
                 _LOGGER.error(message)
@@ -161,21 +164,33 @@ class Server(FoglampMicroservice):
         """Executes poll type plugin
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
-        self._plugin_handle['ingest'] = Ingest
         max_retry = 3
         try_count = 1
-        # TODO: CTRL-C does not end it properly
         while True and try_count <= max_retry:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
+                if len(data) > 0:
+                    if isinstance(data, list):
+                        for reading in data:
+                            asyncio.ensure_future(Ingest.add_readings(asset=reading['asset'],
+                                                                        timestamp=reading['timestamp'],
+                                                                        key=reading['key'],
+                                                                        readings=reading['readings']))
+                    elif isinstance(data, dict):
+                        asyncio.ensure_future(Ingest.add_readings(asset=data['asset'],
+                                                                  timestamp=data['timestamp'],
+                                                                  key=data['key'],
+                                                                  readings=data['readings']))
                 # pollInterval is expressed in milliseconds
                 sleep_seconds = int(config['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)
                 # If successful, then set retry count back to 1, meaning that only in case of 3 successive failures, exit.
                 try_count = 1
+            except KeyError as ex:
+                _LOGGER.exception('Keyerror plugin {} : {}'.format(self._name, str(ex)))
             except Exception as ex:
                 try_count += 1
-                _LOGGER.exception('Failed to poll for plugin {}, retry count: '.format(self._name, try_count))
+                _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
 
 
@@ -199,3 +214,15 @@ class Server(FoglampMicroservice):
 
         asyncio.ensure_future(self._start(loop))
         loop.run_forever()
+
+    async def shutdown(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
+        print("shutdown south")
+        return web.json_response({"south":"shutdown"})
+
+    async def change(self, request):
+        """implementation of abstract method form foglamp.common.microservice.
+        """
+        print("change south")
+        return web.json_response({"south":"change"})

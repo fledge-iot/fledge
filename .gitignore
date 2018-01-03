@@ -4,7 +4,7 @@
 
 # MacOS Finder
 .DS_Store
-._.DS_Store
+._*
 
 # IDE
 *.idea
@@ -31,5 +31,8 @@ allure-report/
 /plugins
 /python_build
 /services
+
+# Error Logs
+*.err
 
 .cache/

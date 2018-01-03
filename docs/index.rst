@@ -12,4 +12,6 @@ Welcome to FogLAMP's documentation!
     03_getting_started
     04_installation
     05_testing
+    06_plugins
+    91_version_history
 

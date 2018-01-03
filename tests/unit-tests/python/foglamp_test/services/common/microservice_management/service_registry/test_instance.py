@@ -7,7 +7,9 @@
 import uuid
 import pytest
 
-from foglamp.services.common.microservice_management.service_registry.instance import Service
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry as Service
+from foglamp.services.core.service_registry.exceptions import *
+from foglamp.common.service_record import ServiceRecord
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -22,70 +24,70 @@ pytestmark = pytest.mark.asyncio
 class TestInstance:
 
     def setup_method(self):
-        Service.Instances._registry = []
+        Service._registry = []
 
     def teardown_method(self):
-        Service.Instances._registry = []
+        Service._registry = []
 
     async def test_register(self):
-        idx = Service.Instances.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
+        idx = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
         assert str(uuid.UUID(idx, version=4)) == idx
 
     async def test_duplicate_name_registration(self):
-        idx1 = Service.Instances.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
+        idx1 = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
         assert str(uuid.UUID(idx1, version=4)) == idx1
-        with pytest.raises(Service.AlreadyExistsWithTheSameName) as excinfo:
-            Service.Instances.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
+        with pytest.raises(AlreadyExistsWithTheSameName) as excinfo:
+            Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
         assert str(excinfo).endswith('AlreadyExistsWithTheSameName')
 
     async def test_duplicate_address_port_registration(self):
-        idx1 = Service.Instances.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
+        idx1 = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
         assert str(uuid.UUID(idx1, version=4)) == idx1
-        with pytest.raises(Service.AlreadyExistsWithTheSameAddressAndPort) as excinfo:
-            Service.Instances.register("StorageService2", "Storage", "127.0.0.1", 9999, 1998)
+        with pytest.raises(AlreadyExistsWithTheSameAddressAndPort) as excinfo:
+            Service.register("StorageService2", "Storage", "127.0.0.1", 9999, 1998)
         assert str(excinfo).endswith('AlreadyExistsWithTheSameAddressAndPort')
 
     async def test_duplicate_address_and_mgt_port_registration(self):
-        idx1 = Service.Instances.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
+        idx1 = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
         assert str(uuid.UUID(idx1, version=4)) == idx1
-        with pytest.raises(Service.AlreadyExistsWithTheSameAddressAndManagementPort) as excinfo:
-            Service.Instances.register("StorageService2", "Storage", "127.0.0.1", 9998, 1999)
+        with pytest.raises(AlreadyExistsWithTheSameAddressAndManagementPort) as excinfo:
+            Service.register("StorageService2", "Storage", "127.0.0.1", 9998, 1999)
         assert str(excinfo).endswith('AlreadyExistsWithTheSameAddressAndManagementPort')
 
     async def test_register_wrong_type(self):
-        with pytest.raises(Service.InvalidServiceType) as excinfo:
-            Service.Instances.register("StorageService1", "WrongType", "127.0.0.1", 9999, 1999)
+        with pytest.raises(ServiceRecord.InvalidServiceType) as excinfo:
+            Service.register("StorageService1", "WrongType", "127.0.0.1", 9999, 1999)
         assert str(excinfo).endswith('InvalidServiceType')
 
     async def test_register_invalid_port(self):
-        with pytest.raises(Service.NonNumericPortError) as excinfo:
-            Service.Instances.register("StorageService2", "Storage", "127.0.0.1", "808a", 1999)
+        with pytest.raises(NonNumericPortError) as excinfo:
+            Service.register("StorageService2", "Storage", "127.0.0.1", "808a", 1999)
         assert str(excinfo).endswith('NonNumericPortError')
 
     async def test_register_invalid_mgt_port(self):
-        with pytest.raises(Service.NonNumericPortError) as excinfo:
-            Service.Instances.register("StorageService2", "Core", "127.0.0.1", 8888, "199a")
+        with pytest.raises(NonNumericPortError) as excinfo:
+            Service.register("StorageService2", "Core", "127.0.0.1", 8888, "199a")
         assert str(excinfo).endswith('NonNumericPortError')
 
     async def test_unregister(self):
         # register a service
-        idx = Service.Instances.register("StorageService2", "Storage", "127.0.0.1", 8888, 1888)
+        idx = Service.register("StorageService2", "Storage", "127.0.0.1", 8888, 1888)
         assert str(uuid.UUID(idx, version=4)) == idx
 
         # deregister the same
-        t = Service.Instances.unregister(idx)
+        t = Service.unregister(idx)
         assert idx == t
 
-        with pytest.raises(Service.DoesNotExist) as excinfo:
-            Service.Instances.get(idx)
+        with pytest.raises(DoesNotExist) as excinfo:
+            Service.get(idx)
         assert str(excinfo).endswith('DoesNotExist')
 
     async def test_get(self):
-        s = Service.Instances.register("StorageService", "Storage", "localhost", 8881, 1888)
-        c = Service.Instances.register("CoreService", "Core", "localhost", 7771, 1777)
-        d = Service.Instances.register("DeviceService", "Southbound", "127.0.0.1", 9991, 1999, "https")
+        s = Service.register("StorageService", "Storage", "localhost", 8881, 1888)
+        c = Service.register("CoreService", "Core", "localhost", 7771, 1777)
+        d = Service.register("SouthService", "Southbound", "127.0.0.1", 9991, 1999, "https")
 
-        l = Service.Instances.get()
+        l = Service.get()
         assert 3 == len(l)
 
         assert s == l[0]._id
@@ -107,7 +109,7 @@ class TestInstance:
         assert "http" == l[1]._protocol
 
         assert d == l[2]._id
-        assert "DeviceService" == l[2]._name
+        assert "SouthService" == l[2]._name
         assert "Southbound" == l[2]._type
         assert "127.0.0.1" == l[2]._address
         assert 9991 == int(l[2]._port)
@@ -115,7 +117,7 @@ class TestInstance:
         assert "https" == l[2]._protocol
 
     async def test_get_fail(self):
-        with pytest.raises(Service.DoesNotExist) as excinfo:
-            Service.Instances.register("StorageService", "Storage", "127.0.0.1", 8888, 9999)
-            Service.Instances.get('incorrect_id')
+        with pytest.raises(DoesNotExist) as excinfo:
+            Service.register("StorageService", "Storage", "127.0.0.1", 8888, 9999)
+            Service.get('incorrect_id')
         assert str(excinfo).endswith('DoesNotExist')

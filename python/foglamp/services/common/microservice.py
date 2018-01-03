@@ -13,12 +13,14 @@ import json
 from foglamp.services.common.microservice_management import routes
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware
-
+from abc import abstractmethod
+import time
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
 
 class FoglampMicroservice(FoglampProcess):
     """ FoglampMicroservice class for all non-core python microservices
@@ -59,7 +61,8 @@ class FoglampMicroservice(FoglampProcess):
         except Exception:
             raise
         try:
-            self.register_service(self._get_service_registration_payload())
+            res = self.register_service(self._get_service_registration_payload())
+            self._microservice_id = res["id"]
         except Exception:
             raise
 
@@ -67,7 +70,7 @@ class FoglampMicroservice(FoglampProcess):
         # create web server application
         self._microservice_management_app = web.Application(middlewares=[middleware.error_middleware])
         # register supported urls
-        routes.setup(self._microservice_management_app)
+        routes.setup(self._microservice_management_app, self)
         # create http protocol factory for handling requests
         self._microservice_management_handler = self._microservice_management_app.make_handler()
 
@@ -77,7 +80,6 @@ class FoglampMicroservice(FoglampProcess):
         self._microservice_management_server = loop.run_until_complete(core)
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()
-
 
     def _get_service_registration_payload(self):
         service_registration_payload = {
@@ -90,3 +92,32 @@ class FoglampMicroservice(FoglampProcess):
             }
         return service_registration_payload
 
+    @abstractmethod
+    async def shutdown(self):
+        pass
+
+    @abstractmethod
+    async def change(self):
+        pass
+
+    async def ping(self, request):
+        """ health check
+    
+        """
+        since_started = time.time() - self._start_time
+        return web.json_response({'uptime': since_started})
+
+    async def register(self, request):
+        pass
+
+    async def unregister(self, request):
+        pass
+
+    async def get_service(self, request):
+        pass
+
+    async def register_interest(self, request):
+        pass
+
+    async def unregister_interest(self, request):
+        pass

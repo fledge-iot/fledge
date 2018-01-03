@@ -17,7 +17,7 @@ import http.client
 import json
 
 from foglamp.common import logger
-from foglamp.services.common.microservice_management.service_registry.service_registry import Service
+from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.utils import Utils
 
@@ -75,7 +75,7 @@ class StorageClient(AbstractStorage):
 
     @service.setter
     def service(self, svc):
-        if not isinstance(svc, Service):
+        if not isinstance(svc, ServiceRecord):
             w_msg = 'Storage should be a valid FogLAMP micro-service instance'
             _LOGGER.warning(w_msg)
             raise InvalidServiceInstance
@@ -134,7 +134,7 @@ class StorageClient(AbstractStorage):
         svc = self._get_storage_service(host=core_management_host, port=core_management_port)
         if len(svc) == 0:
             raise InvalidServiceInstance
-        self.service = Service(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
+        self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
                                m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
         # found_services = Service.Instances.get(name="FogLAMP Storage")
         # svc = found_services[0]
@@ -493,15 +493,15 @@ class ReadingsStorageClient(StorageClient):
         if age and size:
             raise PurgeOnlyOneOfAgeAndSize
 
-        if age == None and size == None:
+        if age is None and size is None:
             raise PurgeOneOfAgeAndSize
 
         # age should be int
         # sent_id should again be int
         try:
-            if age != None:
+            if age is not None:
                 _age = int(age)
-            if size != None:
+            if size is not None:
                 _size = int(size)
             _sent_id = int(sent_id)
         except TypeError:

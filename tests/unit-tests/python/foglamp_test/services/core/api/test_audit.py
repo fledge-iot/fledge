@@ -20,28 +20,32 @@ __version__ = "${VERSION}"
 BASE_URL = 'localhost:8081'
 pytestmark = pytest.mark.asyncio
 
-storage_client = StorageClient("0.0.0.0", core_management_port=46305)
+storage_client = StorageClient("0.0.0.0", core_management_port=44645)
 
 
 # TODO: remove once FOGL-510 is done
 @pytest.fixture()
 def create_init_data():
-    log = '{"end_time": "2017-07-31 13:52:31", "start_time": "2017-07-31 13:52:31", "rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
+    log = '{"end_time": "2017-07-31 13:52:31", "start_time": "2017-07-31 13:52:31", ' \
+          '"rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
     payload = PayloadBuilder().INSERT(id='1001', code="PURGE", level='2',
                                       log=log, ts='2017-07-31 13:52:31.290372+05:30').payload()
     storage_client.insert_into_tbl("log", payload)
 
-    log = '{"end_time": "2017-07-31 13:53:31", "start_time": "2017-07-31 13:53:31", "rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
+    log = '{"end_time": "2017-07-31 13:53:31", "start_time": "2017-07-31 13:53:31", ' \
+          '"rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
     payload = PayloadBuilder().INSERT(id='1002', code="PURGE", level='4',
                                       log=log, ts='2017-07-31 13:53:31.300745+05:30').payload()
     storage_client.insert_into_tbl("log", payload)
 
-    log = '{"end_time": "2017-07-31 13:54:31", "start_time": "2017-07-31 13:54:31", "rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
+    log = '{"end_time": "2017-07-31 13:54:31", "start_time": "2017-07-31 13:54:31", ' \
+          '"rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
     payload = PayloadBuilder().INSERT(id='1003', code="PURGE", level='2',
                                       log=log, ts='2017-07-31 13:54:31.305959+05:30').payload()
     storage_client.insert_into_tbl("log", payload)
 
-    log = '{"end_time": "2017-07-31 13:55:31", "start_time": "2017-07-31 13:55:31", "rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
+    log = '{"end_time": "2017-07-31 13:55:31", "start_time": "2017-07-31 13:55:31", ' \
+          '"rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
     payload = PayloadBuilder().INSERT(id='1004', code="PURGE", level='2',
                                       log=log, ts='2017-07-31 13:55:31.306996+05:30').payload()
     storage_client.insert_into_tbl("log", payload)
@@ -51,7 +55,8 @@ def create_init_data():
                                       log=log, ts='2017-07-31 14:05:54.128704+05:30').payload()
     storage_client.insert_into_tbl("log", payload)
 
-    log = '{"end_time": "2017-07-31 14:15:54", "start_time": "2017-07-31 14:15:54", "rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
+    log = '{"end_time": "2017-07-31 14:15:54", "start_time": "2017-07-31 14:15:54", ' \
+          '"rows_removed": 0, "rows_remaining": 0, "unsent_rows_removed": 0, "total_failed_to_remove": 0}'
     payload = PayloadBuilder().INSERT(id='1006', code="SYPRG", level='1',
                                       log=log, ts='2017-07-31 14:15:54.131013+05:30').payload()
     storage_client.insert_into_tbl("log", payload)
@@ -64,7 +69,6 @@ def create_init_data():
 @pytest.allure.story("audit")
 class TestAudit:
 
-    # TODO: FOGL-701
     async def test_get_severity(self):
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/audit/severity')
@@ -73,7 +77,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        log_severity = result['log_severity']
+        log_severity = result['logSeverity']
 
         # verify the severity count
         assert 4 == len(log_severity)
@@ -101,7 +105,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        log_codes = [key['code'] for key in result['log_code']]
+        log_codes = [key['code'] for key in result['logCode']]
 
         # verify the default log_codes which are defined in init.sql
         assert 4 == len(log_codes)
@@ -121,7 +125,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 6 == result['total_count']
+        assert 6 == result['totalCount']
         assert 6 == len(result['audit'])
 
     @pytest.mark.usefixtures('create_init_data')
@@ -133,7 +137,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 6 == result['total_count']
+        assert 6 == result['totalCount']
         assert 5 == len(result['audit'])
 
     @pytest.mark.usefixtures('create_init_data')
@@ -145,7 +149,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 4 == result['total_count']
+        assert 4 == result['totalCount']
         assert 4 == len(result['audit'])
 
     @pytest.mark.usefixtures('create_init_data')
@@ -157,7 +161,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 3 == result['total_count']
+        assert 3 == result['totalCount']
         assert 3 == len(result['audit'])
 
     @pytest.mark.usefixtures('create_init_data')
@@ -169,7 +173,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 3 == result['total_count']
+        assert 3 == result['totalCount']
         assert 1 == len(result['audit'])
 
     @pytest.mark.usefixtures('create_init_data')
@@ -181,7 +185,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 1 == result['total_count']
+        assert 1 == result['totalCount']
         assert 0 == len(result['audit'])
 
     @pytest.mark.usefixtures('create_init_data')
@@ -193,7 +197,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        # TODO: FOGL-711
+        # TODO: FOGL-858
         assert "[KeyError]'BLA'" in result['error']['message']
 
     @pytest.mark.usefixtures('create_init_data')
@@ -205,7 +209,7 @@ class TestAudit:
         r = r.read().decode()
         conn.close()
         result = json.loads(r)
-        assert 0 == result['total_count']
+        assert 0 == result['totalCount']
         assert 0 == len(result['audit'])
 
     # TODO: Also add negative tests for below skip defs

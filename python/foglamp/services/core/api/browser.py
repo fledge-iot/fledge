@@ -73,7 +73,6 @@ async def asset_counts(request):
 
     # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
     # PayloadBuilder().AGGREGATE(["count", "*"]).GROUP_BY('asset_code')
-
     aggregate = {"operation": "count", "column": "*", "alias": "count"}
     d = OrderedDict()
     d['aggregate'] = aggregate
@@ -83,7 +82,10 @@ async def asset_counts(request):
     _storage = connect.get_storage()
     results = _storage.query_tbl_with_payload('readings', payload)
 
-    return web.json_response(results['rows'])
+    if 'rows' in results:
+        return web.json_response(results['rows'])
+    else:
+        raise web.HTTPBadRequest(reason=results['message'])
 
 
 async def asset(request):
@@ -118,7 +120,10 @@ async def asset(request):
     _storage = connect.get_storage()
     results = _storage.query_tbl_with_payload('readings', payload)
 
-    return web.json_response(results['rows'])
+    if 'rows' in results:
+        return web.json_response(results['rows'])
+    else:
+        raise web.HTTPBadRequest(reason=results['message'])
 
 
 async def asset_reading(request):
@@ -173,7 +178,10 @@ async def asset_reading(request):
     _storage = connect.get_storage()
     results = _storage.query_tbl_with_payload('readings', payload)
 
-    return web.json_response(results['rows'])
+    if 'rows' in results:
+        return web.json_response(results['rows'])
+    else:
+        raise web.HTTPBadRequest(reason=results['message'])
 
 
 async def asset_summary(request):
@@ -213,12 +221,14 @@ async def asset_summary(request):
     _and_where = where_clause(request, _where)
     d.update(_and_where)
 
-    # TODO: FOGL-548 support limit
     payload = json.dumps(d)
     _storage = connect.get_storage()
     results = _storage.query_tbl_with_payload('readings', payload)
 
-    return web.json_response({reading: results['rows']})
+    if 'rows' not in results:
+        raise web.HTTPBadRequest(reason=results['message'])
+    else:
+        return web.json_response({reading: results['rows']})
 
 
 async def asset_averages(request):
@@ -282,7 +292,10 @@ async def asset_averages(request):
     _storage = connect.get_storage()
     results = _storage.query_tbl_with_payload('readings', payload)
 
-    return web.json_response(results['rows'])
+    if 'rows' in results:
+        return web.json_response(results['rows'])
+    else:
+        raise web.HTTPBadRequest(reason=results['message'])
 
 
 def where_clause(request, where):

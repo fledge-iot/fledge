@@ -39,10 +39,12 @@ General Requirements
 --------------------
 
 This version of FogLAMP requires the following software to be installed in the same environment:
+
 - Python 3.5+
 - PostgreSQL 9.5+
+- Bluez 5.37+
 
-The requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
+Bluez is the official Bluetooth stack and we have added plugins that are set on by default and use *gatttool* and other components of *bluez*. In the future we will make this package optional, but for the moment you should install it even if you do not intend to use any Bluetooth device. |br| If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. Other requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
 
 
 Building FogLAMP
@@ -55,10 +57,11 @@ Build Pre-Requisites
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
-- cmake, g++, make
+- git, cmake, g++, make
 - liboost-dev, liboost-system-dev, liboost-thread-dev, libpq-dev
 - python3-pip
 - postgresql
+- bluez
 
 .. code-block:: console
 
@@ -67,7 +70,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt install cmake g++ make
+  $ sudo apt install git cmake g++ make
   Reading package lists... Done
   Building dependency tree
   ...
@@ -83,6 +86,12 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   $
   $ sudo apt install postgresql
+  Reading package lists... Done
+  Building dependency tree
+  $
+  ...
+  $
+  $ sudo apt install bluez
   Reading package lists... Done
   Building dependency tree
   $
@@ -301,7 +310,7 @@ In this case, what you need to do is to upgrade the pip software for Python 3:
 
 .. code-block:: console
 
-  $ pip3 install --upgrade pip
+  $ sudo pip3 install --upgrade pip
   Collecting pip
     Downloading pip-9.0.1-py2.py3-none-any.whl (1.3MB)
       100% |████████████████████████████████| 1.3MB 1.1MB/s
@@ -348,7 +357,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=40417 --address=127.0.0.1 --name=statistics to pi
   $
 
-If you are curious to see a proper out from from FogLAMP, you can query the Core microservice using the REST API:
+If you are curious to see a proper output from FogLAMP, you can query the Core microservice using the REST API:
 
 .. code-block:: console
 

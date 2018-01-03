@@ -11,6 +11,7 @@ import asyncpg
 import requests
 import pytest
 import asyncio
+from foglamp.services.core.scheduler.scheduler import _SCRIPTS_DIR
 
 pytestmark = pytest.mark.asyncio
 
@@ -25,7 +26,6 @@ __DB_NAME = "foglamp"
 BASE_URL = 'http://localhost:8081/foglamp'
 headers = {"Content-Type": 'application/json'}
 
-pytestmark = pytest.mark.asyncio
 
 async def add_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -40,6 +40,7 @@ async def add_master_data():
     await conn.close()
     await asyncio.sleep(4)
 
+
 async def delete_master_data():
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
@@ -48,6 +49,7 @@ async def delete_master_data():
     await conn.execute(''' COMMIT''')
     await conn.close()
     await asyncio.sleep(4)
+
 
 async def delete_method_data():
     conn = await asyncpg.connect(database=__DB_NAME)
@@ -68,7 +70,7 @@ class TestTask:
         # Starting foglamp from within test is mandatory, otherwise test scheduled_processes are not added to the
         # server if started externally.
         from subprocess import call
-        call(["scripts/foglamp", "start"])
+        call([_SCRIPTS_DIR + "/foglamp", "start"])
         # TODO: Due to lengthy start up, now tests need a better way to start foglamp or poll some
         #       external process to check if foglamp has started.
         time.sleep(20)
@@ -100,14 +102,13 @@ class TestTask:
         assert retval['message'] == "Schedule started successfully"
         return schedule_id
 
-
-    # TODO: Add tests for negative cases. There would be around 4 neagtive test cases for most of the schedule+task methods.
+    # TODO: Add tests for negative cases.
+    # There would be around 4 neagtive test cases for most of the schedule+task methods.
     # Currently only positive test cases have been added.
-
     async def test_cancel_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_task_1", "process_name": "testsleep30", "repeat": "3600"}
-        schedule_id = self._schedule_task(data)
+        self._schedule_task(data)
 
         # Allow sufficient time for task record to be created
         await asyncio.sleep(4)
@@ -117,8 +118,8 @@ class TestTask:
         retval = dict(r.json())
         task_id = retval['tasks'][0]['id']
         assert 1 == len(retval['tasks'])
-        assert retval['tasks'][0]['state'] == 'RUNNING'
-        assert retval['tasks'][0]['process_name'] == 'testsleep30'
+        assert retval['tasks'][0]['state'] == 'Running'
+        assert retval['tasks'][0]['name'] == 'testsleep30'
 
         # Now cancel the runnung task
         r = requests.put(BASE_URL+'/task/cancel/' + task_id)
@@ -135,16 +136,15 @@ class TestTask:
 
         assert 200 == r.status_code
         assert retval['id'] == task_id
-        assert retval['state'] == 'CANCELED'
-
+        assert retval['state'] == 'Canceled'
 
     async def test_get_tasks_latest(self):
         # First create two schedules to get the schedule_id
         data = {"type": 3, "name": "test_get_task2a", "process_name": "testsleep30", "repeat": 2}
-        schedule_id1 = self._schedule_task(data)
+        self._schedule_task(data)
 
         data = {"type": 3, "name": "test_get_task2b", "process_name": "echo_test", "repeat": 10}
-        schedule_id2 = self._schedule_task(data)
+        self._schedule_task(data)
 
         # Allow multiple tasks to be created
         await asyncio.sleep(4)
@@ -160,14 +160,13 @@ class TestTask:
 
         assert 200 == r.status_code
         assert 2 == len(retval['tasks'])
-        assert retval['tasks'][1]['process_name'] == 'testsleep30'
-        assert retval['tasks'][0]['process_name'] == 'echo_test'
-
+        assert retval['tasks'][1]['name'] == 'testsleep30'
+        assert retval['tasks'][0]['name'] == 'echo_test'
 
     async def test_get_tasks(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task3", "process_name": "echo_test", "repeat": 2}
-        schedule_id = self._schedule_task(data)
+        self._schedule_task(data)
 
         # Allow multiple task records to be created
         await asyncio.sleep(4)
@@ -177,15 +176,14 @@ class TestTask:
         retvall = dict(rr.json())
 
         assert 200 == rr.status_code
-        list_tasks = [tasks['process_name'] for tasks in retvall['tasks']]
+        list_tasks = [tasks['name'] for tasks in retvall['tasks']]
         # Due to async processing, ascertining exact no. of tasks is not possible
         assert list_tasks.count(data['process_name']) >= 3
-
 
     async def test_get_task(self):
         # First create a schedule to get the schedule_id
         data = {"type": 3, "name": "test_get_task4", "process_name": "testsleep30", "repeat": 200}
-        schedule_id = self._schedule_task(data)
+        self._schedule_task(data)
 
         # Allow sufficient time for task record to be created
         await asyncio.sleep(4)
@@ -201,3 +199,26 @@ class TestTask:
 
         assert 200 == r.status_code
         assert retval['id'] == task_id
+
+    async def test_get_state(self):
+        r = requests.get(BASE_URL + '/task/state')
+        retval = dict(r.json())
+        task_state = retval['taskState']
+
+        # verify the task state count
+        assert 4 == len(task_state)
+
+        # verify the name and value of task state
+        for i in range(len(task_state)):
+            if task_state[i]['index'] == 1:
+                assert 1 == task_state[i]['index']
+                assert 'Running' == task_state[i]['name']
+            elif task_state[i]['index'] == 2:
+                assert 2 == task_state[i]['index']
+                assert 'Complete' == task_state[i]['name']
+            elif task_state[i]['index'] == 3:
+                assert 3 == task_state[i]['index']
+                assert 'Canceled' == task_state[i]['name']
+            elif task_state[i]['index'] == 4:
+                assert 4 == task_state[i]['index']
+                assert 'Interrupted' == task_state[i]['name']

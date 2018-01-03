@@ -4,11 +4,12 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" The OMF translator is a plugin output formatter for the FogLAMP appliance.
+""" The OMF North is a plugin output formatter for the FogLAMP appliance.
 It is loaded by the send process (see The FogLAMP Sending Process) and runs in the context of the send process,
 to send the reading data to a PI Server (or Connector) using the OSIsoft OMF format.
 PICROMF = PI Connector Relay OMF"""
 
+from datetime import datetime
 import copy
 import ast
 import resource
@@ -17,6 +18,7 @@ import time
 import json
 import requests
 import logging
+import urllib3
 import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
@@ -30,7 +32,7 @@ __version__ = "${VERSION}"
 
 
 _LOGGER = logger.setup(__name__)
-_MODULE_NAME = "omf_translator"
+_MODULE_NAME = "omf_north"
 # _storage = ()
 # Defines what and the level of details for logging
 _log_debug_level = 0
@@ -51,23 +53,23 @@ _MESSAGES_LIST = {
     # Warning / Error messages
     "e000000": "general error.",
 }
-# Configuration related to the OMF Translator
-_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF Translator plugin'
+# Configuration related to the OMF North
+_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF North plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
-        'description': 'Python module name of the plugin to load',
+        'description': 'OMF North Plugin',
         'type': 'string',
         'default': 'omf'
     },
     "URL": {
         "description": "The URL of the PI Connector to send data to",
         "type": "string",
-        "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages"
+        "default": "https://WIN-4M7ODKB0RH2:5460/ingress/messages"
     },
     "producerToken": {
         "description": "The producer token that represents this FogLAMP stream",
         "type": "string",
-        "default": "omf_translator_0001"
+        "default": "omf_north_0001"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for the communication with the OMF PI Connector Relay",
@@ -187,9 +189,9 @@ def _performance_log(func):
 
 def plugin_info():
     return {
-        'name': "OMF Translator",
+        'name': "OMF North",
         'version': "1.0.0",
-        'type': "translator",
+        'type': "north",
         'interface': "1.0",
         'config': _CONFIG_DEFAULT_OMF
     }
@@ -251,6 +253,10 @@ def plugin_init(data):
     except Exception as ex:
         _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)
+
+    # Avoids the warning message - InsecureRequestWarning
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     return _config
 
 @_performance_log
@@ -275,18 +281,18 @@ def plugin_send(data, raw_data, stream_id):
     data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
-    omf_tranlator = OmfTranslatorPlugin(data['sending_process_instance'])
+    omf_north = OmfNorthPlugin(data['sending_process_instance'])
 
     try:
-        is_data_available, new_position, num_sent = omf_tranlator._transform_in_memory_data(data_to_send, raw_data)
+        is_data_available, new_position, num_sent = omf_north._transform_in_memory_data(data_to_send, raw_data)
         if is_data_available:
-            omf_tranlator._create_omf_objects(raw_data, config_category_name, type_id)
+            omf_north._create_omf_objects(raw_data, config_category_name, type_id)
             try:
-                omf_tranlator._send_in_memory_data_to_picromf("Data", data_to_send)
+                omf_north._send_in_memory_data_to_picromf("Data", data_to_send)
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
-                    omf_tranlator._deleted_omf_types_already_created(config_category_name, type_id)
+                    omf_north._deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
                     _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
                 raise ex
@@ -313,8 +319,8 @@ def plugin_reconfigure():
     pass
 
 
-class OmfTranslatorPlugin(object):
-    """ North OMF Translator Plugin """
+class OmfNorthPlugin(object):
+    """ North OMF North Plugin """
 
     def __init__(self, sending_process_instance):
         self._sending_process_instance = sending_process_instance
@@ -690,7 +696,12 @@ class OmfTranslatorPlugin(object):
         try:
             row_id = row['id']
             asset_code = row['asset_code']
-            timestamp = row['user_ts']
+            timestamp_raw = row['user_ts']
+
+            # Converts Date/time to a proper ISO format - Z is the zone designator for the zero UTC offset
+            step1 = datetime.datetime.strptime(timestamp_raw, '%Y-%m-%d %H:%M:%S.%f+00')
+            timestamp = step1.isoformat() + 'Z'
+
             sensor_data = row['reading']
             if _log_debug_level == 3:
                 _logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "

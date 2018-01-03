@@ -37,5 +37,7 @@ class Connection {
 		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&);
 		char		*trim(char *str);
+		const char	*escape(const char *);
+		const std::string	escape(const std::string&);
 };
 #endif

@@ -697,6 +697,7 @@ CREATE TABLE foglamp.schedules (
   schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
   exclusive         boolean not null default true,  -- true = Only one task can run
                                                     -- at any given time
+  enabled           boolean not null default false, -- false = A given schedule is disabled by default
   CONSTRAINT schedules_pkey PRIMARY KEY (id),
   CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
   REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
@@ -879,105 +880,104 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
 -- FogLAMP South Microservice - CoAP Listener Plugin
-INSERT INTO foglamp.scheduled_processes ( name, script ) values ( 'COAP', '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'COAP', '["services/south"]' );
 -- FogLAMP South Microservice - POLL Plugin template
-insert into foglamp.scheduled_processes ( name, script ) values ( 'POLL', '["services/south"]' );
-insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650POLL', '["services/south"]');
-insert into foglamp.scheduled_processes ( name, script ) values ( 'CC2650ASYN', '["services/south"]');
-insert into foglamp.scheduled_processes ( name, script ) values ( 'HTTP_SOUTH', '["services/south"]');
-insert into foglamp.scheduled_processes ( name, script ) values ( 'purge', '["tasks/purge"]' );
-insert into foglamp.scheduled_processes ( name, script ) values ( 'stats collector', '["tasks/statistics"]' );
-insert into foglamp.scheduled_processes ( name, script ) values ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'POLL', '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]');
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]');
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]');
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge', '["tasks/purge"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'stats collector', '["tasks/statistics"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
 
 -- FogLAMP statistics into PI
-INSERT INTO foglamp.scheduled_processes ( name, script ) values ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
 
 -- Send readings via HTTP
-INSERT INTO foglamp.scheduled_processes (name, script) values ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
 
 -- FogLAMP Backup
-INSERT INTO foglamp.scheduled_processes (name, script) values ('backup','["tasks/backup_postgres"]' );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup','["tasks/backup_postgres"]' );
 -- FogLAMP Restore
-INSERT INTO foglamp.scheduled_processes (name, script) values ('restore','["tasks/restore_postgres"]' );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore','["tasks/restore_postgres"]' );
 
 -- Execute a Backup every 1 hour
--- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
--- schedule_time, schedule_interval, exclusive)
--- values ('d1631422-9ec6-11e7-abc4-cec278b6b50a', 'backup', 'backup', 3,
--- NULL, '01:00:00', true);
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('d1631422-9ec6-11e7-abc4-cec278b6b50a', 'backup', 'backup', 3,
+NULL, '01:00:00', true, false);
 
 -- Used to execute an on demand Backup
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
-NULL, '00:00:00', true);
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
+NULL, '00:00:00', true, true);
 
 -- Used to execute an on demand Restore
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('8d4d3ca0-de80-11e7-80c1-9a214cf093ae', 'restore on demand', 'restore', 4,
-NULL, '00:00:00', true);
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('8d4d3ca0-de80-11e7-80c1-9a214cf093ae', 'restore on demand', 'restore', 4,
+NULL, '00:00:00', true, true);
 
 -- Start the south server at start-up
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive)
-values ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'south', 'COAP', 1,
-'0:0', true);
+schedule_interval, exclusive, enabled)
+VALUES ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'south', 'COAP', 1,
+'0:0', true, true);
 
 -- Start the Poll mode south server at start-up
-insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive)
-values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'south', 'CC2650POLL', 1,
-'0:0', true);
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive, enabled)
+VALUES ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'south', 'CC2650POLL', 1,
+'0:0', true, true);
 
--- Start the South async mode CC2650 Sensortag at start-up
---insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
---schedule_interval, exclusive)
---values ('716a16ea-c736-490b-86d5-10204585ca8c', 'south', 'CC2650ASYN', 1,
---'0:0', true);
+-- Start the async mode CC2650 Sensortag at start-up
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive, enabled)
+VALUES ('716a16ea-c736-490b-86d5-10204585ca8c', 'south', 'CC2650ASYN', 1,
+'0:0', true, false);
 
--- Start the South Poll mode south server at start-up
--- insert into foglamp.schedules(id, schedule_name, process_name, schedule_type,
--- schedule_interval, exclusive)
--- values ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'south', 'POLL', 1,
--- '0:0', true);
+-- Start the Poll mode south server at start-up
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive, enabled)
+VALUES ('543a59ce-a9ca-11e7-abc4-cec278b6b50b', 'south', 'POLL', 1,
+'0:0', true, false);
 
-
----- Start the South HTTP Listener at start-up
--- INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
---  schedule_interval, exclusive)
---  values ('a2caca59-1241-478d-925a-79584e7096e0', 'south', 'HTTP_SOUTH', 1,
---  '0:0', true);
+---- Start the south server HTTP Listener at start-up
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_interval, exclusive, enabled)
+VALUES ('a2caca59-1241-478d-925a-79584e7096e0', 'south', 'HTTP_SOUTH', 1,
+'0:0', true, false);
 
 -- Run the purge process every 5 minutes
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
-NULL, '00:05:00', true);
-
--- Run the statistics collector every 15 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
-NULL, '00:00:15', true);
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
+NULL, '00:05:00', true, true);
 
 -- Run the North sending process every 15 seconds
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
-NULL, '00:00:15', true);
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
+NULL, '00:00:15', true, true);
 
--- Run the North sending process using HTTP north every 15 seconds
--- INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
--- schedule_time, schedule_interval, exclusive)
--- values ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
--- NULL, '00:00:15', true);
+-- Run the statistics collector every 15 seconds
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
+NULL, '00:00:15', true, true);
 
 -- Run FogLAMP statistics into PI every 25 seconds
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive)
-values ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
-NULL, '00:00:25', true);
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
+NULL, '00:00:25', true, true);
+
+-- Run the sending process using HTTP North translator every 15 seconds
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
+NULL, '00:00:15', true, false);
 
 -- OMF north configuration
 INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());

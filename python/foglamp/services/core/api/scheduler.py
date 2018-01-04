@@ -326,7 +326,7 @@ async def enable_schedule(request):
         schedule = {
             'scheduleId': schedule_id,
             'status': status,
-            'reason': reason
+            'message': reason
         }
 
         return web.json_response(schedule)
@@ -357,7 +357,7 @@ async def disable_schedule(request):
         schedule = {
             'scheduleId': schedule_id,
             'status': status,
-            'reason': reason
+            'message': reason
         }
 
         return web.json_response(schedule)

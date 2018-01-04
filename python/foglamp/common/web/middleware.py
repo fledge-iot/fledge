@@ -23,12 +23,8 @@ async def error_middleware(app, handler):
 
         try:
             response = await handler(request)
-            if response.status == 404:
-                return handle_api_exception({"code": response.status, "message": response.message}, ex.__class__.__name__, if_trace)
             return response
-        except (web.HTTPNotFound, web.HTTPBadRequest) as ex:
-            return handle_api_exception({"code": ex.status_code, "message": ex.reason}, ex.__class__.__name__, if_trace)
-        except web.HTTPException as ex:
+        except (web.HTTPException, web.HTTPBadRequest, web.HTTPNotFound) as ex:
             raise
         # Below Exception must come last as it is the super class of all exceptions
         except Exception as ex:

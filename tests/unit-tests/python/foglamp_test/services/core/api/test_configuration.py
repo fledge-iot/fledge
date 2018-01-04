@@ -19,7 +19,6 @@ __version__ = "${VERSION}"
 # Module attributes
 __DB_NAME = "foglamp"
 BASE_URL = 'localhost:8081'
-headers = {"Content-Type": 'application/json'}
 
 test_data = {'key': 'TESTAPI', 'description': 'RESTAPI Test Config',
              'value': {'item1': {'description': 'desc', 'type': 'string', 'default': 'def', 'value': 'def'}}}
@@ -68,7 +67,7 @@ class TestConfigMgr:
 
     async def test_get_categories(self):
         conn = http.client.HTTPConnection(BASE_URL)
-        conn.request("GET", '/foglamp/categories')
+        conn.request("GET", '/foglamp/category')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -86,6 +85,23 @@ class TestConfigMgr:
         conn.close()
         retval = json.loads(r)
         assert test_data['value'] == retval
+
+    async def test_get_invalid_category(self):
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/category/{}'.format("invalid"))
+        r = conn.getresponse()
+        conn.close()
+        assert 404 == r.status
+        assert "No such Category found for invalid" == r.reason
+
+    @pytest.mark.skip(reason="FOGL-901")
+    async def test_get_invalid_category_item(self):
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/category/{}/{}'.format(test_data['key'], "invalid"))
+        r = conn.getresponse()
+        conn.close()
+        assert 404 == r.status
+        assert "No Category item found" == r.reason
 
     async def test_get_category_item(self):
         conn = http.client.HTTPConnection(BASE_URL)
@@ -178,11 +194,6 @@ class TestConfigMgr:
         json_data = json.dumps(body)
         conn.request("PUT", '/foglamp/category/{}/{}'.format('key', 'value'), json_data)
         r = conn.getresponse()
-
-        assert 200 == r.status
-        s = r.read().decode()
-        retval = json.loads(s)
-
-        assert 400 == retval['error']['code']
-        assert 'Missing required value for value' == retval['error']['message']
         conn.close()
+        assert 400 == r.status
+

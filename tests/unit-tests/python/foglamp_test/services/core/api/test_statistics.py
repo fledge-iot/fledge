@@ -56,8 +56,8 @@ class TestStatistics:
         # curl -X GET http://localhost:8081/foglamp/statistics
         r = requests.get(BASE_URL+'/statistics')
         res = r.json()
-        assert 200 == r.status_code
-        assert 9 == len(res)
+        assert r.status_code == 200
+        assert len(res) == 9
 
         # sorted by key
         assert res[0]['key'] == 'BUFFERED'
@@ -102,8 +102,8 @@ class TestStatistics:
         r = requests.get(BASE_URL + '/statistics')
         res = r.json()
 
-        assert 200 == r.status_code
-        assert 9 == len(res)
+        assert r.status_code == 200
+        assert len(res) == 9
 
         assert res[3]['key'] == 'READINGS'
         assert res[3]['value'] == 3
@@ -116,8 +116,8 @@ class TestStatistics:
         r = requests.get(BASE_URL + '/statistics')
         res = r.json()
 
-        assert 200 == r.status_code
-        assert 10 == len(res)
+        assert r.status_code == 200
+        assert len(res) == 10
 
         # READINGS_X must exists IN keys
         key_entries = [keys["key"] for keys in res]

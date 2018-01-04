@@ -30,7 +30,7 @@ _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = '0.0.0.0'
-_m_port = 41644
+_m_port = 46000
 
 
 @pytest.allure.feature("unit")
@@ -670,7 +670,7 @@ class TestScheduler:
         assert schedules[0].enabled is False
 
         # Enable Schedule
-        retval = await scheduler.enable_schedule(interval_schedule.schedule_id)
+        retval, reason = await scheduler.enable_schedule(interval_schedule.schedule_id)
         assert retval
 
         # Confirm enabled changed
@@ -728,7 +728,7 @@ class TestScheduler:
         assert task
 
         # Disable Schedule
-        retval = await scheduler.disable_schedule(interval_schedule.schedule_id)
+        retval, reason = await scheduler.disable_schedule(interval_schedule.schedule_id)
         assert retval
 
         # Confirm enabled changed

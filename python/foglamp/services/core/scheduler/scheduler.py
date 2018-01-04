@@ -1090,10 +1090,11 @@ class Scheduler(object):
             schedule = await self.get_schedule(schedule_id)
         except KeyError:
             self._logger.info("No such Schedule %s", schedule_id)
-            return False
+            return False, "No such Schedule"
 
+        task_id = None
+        task_process = None
         try:
-            task_id = None
             for key in list(self._task_processes.keys()):
                 if self._task_processes[key].schedule.id == schedule_id:
                     task_id = key
@@ -1103,12 +1104,11 @@ class Scheduler(object):
             task_process = self._task_processes[task_id]
         except KeyError:
             self._logger.info("No Task running for Schedule %s", schedule_id)
-            return False
 
         schedule = task_process.schedule
         if schedule.enabled is False:
             self._logger.info("Schedule %s already disabled", schedule_id)
-            return True
+            return True, "Schedule {} already disabled".format(schedule_id)
 
         # TODO: FOGL-356 track the last time TERM was sent to each task
         task_process.cancel_requested = time.time()
@@ -1116,20 +1116,21 @@ class Scheduler(object):
         # Terminate process
         del self._schedules[schedule.id]
         try:
-            # KNOWN ISSUE: Does not work well with microservices e.g. COAP etc
-            # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
-            task_process.process.terminate()
-            task_future = task_process.future
-            if schedule.type == Schedule.Type.STARTUP and task_future.cancel() is True:
-                await self._wait_for_task_completion(task_process)
-            self._logger.info(
-                "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",
-                schedule.name,
-                schedule.id,
-                schedule.process_name,
-                task_id,
-                task_process.process.pid,
-                self._process_scripts[schedule.process_name])
+            if task_id is not None:
+                # KNOWN ISSUE: Does not work well with microservices e.g. COAP etc
+                # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
+                task_process.process.terminate()
+                task_future = task_process.future
+                if schedule.type == Schedule.Type.STARTUP and task_future.cancel() is True:
+                    await self._wait_for_task_completion(task_process)
+                self._logger.info(
+                    "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",
+                    schedule.name,
+                    schedule.id,
+                    schedule.process_name,
+                    task_id,
+                    task_process.process.pid,
+                    self._process_scripts[schedule.process_name])
         except ProcessLookupError:
             pass  # Process has terminated
 
@@ -1163,7 +1164,7 @@ class Scheduler(object):
             raise RuntimeError('Update failed: %s', update_payload)
         await asyncio.sleep(1)
 
-        return True
+        return True, "Schedule successfully disabled"
 
     async def enable_schedule(self, schedule_id):
         """
@@ -1176,11 +1177,11 @@ class Scheduler(object):
             schedule = await self.get_schedule(schedule_id)
         except KeyError:
             self._logger.info("No such Schedule %s", schedule_id)
-            return False
+            return False, "No such Schedule"
 
         if schedule.enabled is True:
             self._logger.info("Schedule %s already enabled", schedule_id)
-            return True
+            return True, "Schedule is already enabled"
 
         # Enable Schedule
         # We need to recreate the _ScheduleRow for just one change - enabled = True. This is required as _ScheduleRow
@@ -1237,7 +1238,7 @@ class Scheduler(object):
             schedule.schedule_id,
             schedule.process_name)
 
-        return True
+        return True, "Schedule successfully enabled"
 
     async def queue_task(self, schedule_id: uuid.UUID) -> None:
         """Requests a task to be started for a schedule
@@ -1328,7 +1329,7 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        query_payload = PayloadBuilder().WHERE(["id", "=", task_id]).payload()
+        query_payload = PayloadBuilder().WHERE(["id", "=", str(task_id)]).payload()
 
         try:
             self._logger.debug('Database command: %s', query_payload)

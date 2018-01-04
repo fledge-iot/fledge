@@ -321,11 +321,12 @@ async def enable_schedule(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
-        status = await server.Server.scheduler.enable_schedule(uuid.UUID(schedule_id))
+        status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(schedule_id))
 
         schedule = {
             'scheduleId': schedule_id,
-            'status': status
+            'status': status,
+            'reason': reason
         }
 
         return web.json_response(schedule)
@@ -351,11 +352,12 @@ async def disable_schedule(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
-        status = await server.Server.scheduler.disable_schedule(uuid.UUID(schedule_id))
+        status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(schedule_id))
 
         schedule = {
             'scheduleId': schedule_id,
-            'status': status
+            'status': status,
+            'reason': reason
         }
 
         return web.json_response(schedule)

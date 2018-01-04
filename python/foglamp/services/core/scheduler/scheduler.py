@@ -1092,6 +1092,28 @@ class Scheduler(object):
             self._logger.info("No such Schedule %s", schedule_id)
             return False, "No such Schedule"
 
+        if schedule.enabled is False:
+            self._logger.info("Schedule %s already disabled", schedule_id)
+            return True, "Schedule {} already disabled".format(schedule_id)
+
+        # Disable Schedule
+        # We need to recreate the _ScheduleRow for just one change - enabled = False. This is required as _ScheduleRow
+        # is of named tuple type which does not allow updation.
+        repeat_seconds = None
+        if schedule.repeat is not None:
+            repeat_seconds = schedule.repeat.total_seconds()
+        schedule_row = self._ScheduleRow(
+            id=schedule.schedule_id,
+            name=schedule.name,
+            type=schedule.schedule_type,
+            time=schedule.time,
+            day=schedule.day,
+            repeat=schedule.repeat,
+            repeat_seconds=repeat_seconds,
+            exclusive=schedule.exclusive,
+            enabled=False,
+            process_name=schedule.process_name)
+
         task_id = None
         task_process = None
         try:
@@ -1105,18 +1127,16 @@ class Scheduler(object):
         except KeyError:
             self._logger.info("No Task running for Schedule %s", schedule_id)
 
-        schedule = task_process.schedule
-        if schedule.enabled is False:
-            self._logger.info("Schedule %s already disabled", schedule_id)
-            return True, "Schedule {} already disabled".format(schedule_id)
+        # If a task is running for the schedule, then terminate the process
+        if task_id is not None:
+            schedule = task_process.schedule
 
-        # TODO: FOGL-356 track the last time TERM was sent to each task
-        task_process.cancel_requested = time.time()
+            # TODO: FOGL-356 track the last time TERM was sent to each task
+            task_process.cancel_requested = time.time()
 
-        # Terminate process
-        del self._schedules[schedule.id]
-        try:
-            if task_id is not None:
+            # Terminate process
+            del self._schedules[schedule.id]
+            try:
                 # KNOWN ISSUE: Does not work well with microservices e.g. COAP etc
                 # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
                 task_process.process.terminate()
@@ -1131,30 +1151,16 @@ class Scheduler(object):
                     task_id,
                     task_process.process.pid,
                     self._process_scripts[schedule.process_name])
-        except ProcessLookupError:
-            pass  # Process has terminated
+            except ProcessLookupError:
+                pass  # Process has terminated
 
-        # Disable Schedule
-        # We need to recreate the _ScheduleRow for just one change - enabled = False. This is required as _ScheduleRow
-        # is of named tuple type which does not allow updation.
-        schedule_row = self._ScheduleRow(
-            id=schedule.id,
-            name=schedule.name,
-            type=schedule.type,
-            time=schedule.time,
-            day=schedule.day,
-            repeat=schedule.repeat,
-            repeat_seconds=schedule.repeat_seconds,
-            exclusive=schedule.exclusive,
-            enabled=False,
-            process_name=schedule.process_name)
-
-        self._schedules[schedule.id] = schedule_row
+        # All ok, now update the schedule in memory
+        self._schedules[schedule_id] = schedule_row
 
         # Update database
         update_payload = PayloadBuilder() \
             .SET(enabled='f') \
-            .WHERE(['id', '=', str(schedule.id)]) \
+            .WHERE(['id', '=', str(schedule_id)]) \
             .payload()
         try:
             self._logger.debug('Database command: %s', update_payload)

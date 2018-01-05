@@ -61,7 +61,7 @@ class FoglampMicroservice(FoglampProcess):
         except Exception:
             raise
         try:
-            res = self.register_service(self._get_service_registration_payload())
+            res = self.register_service_with_core(self._get_service_registration_payload())
             self._microservice_id = res["id"]
         except Exception:
             raise
@@ -108,16 +108,16 @@ class FoglampMicroservice(FoglampProcess):
         return web.json_response({'uptime': since_started})
 
     async def register(self, request):
-        pass
+        raise web.HTTPBadRequest(reason='Service registration requests are handled by core microservice, not by {} microservice'.format(self._name))
 
     async def unregister(self, request):
-        pass
+        raise web.HTTPBadRequest(reason='Service registration requests are handled by core microservice, not by {} microservice'.format(self._name))
 
     async def get_service(self, request):
-        pass
+        raise web.HTTPBadRequest(reason='Service registration requests are handled by core microservice, not by {} microservice'.format(self._name))
 
     async def register_interest(self, request):
-        pass
+        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))
 
     async def unregister_interest(self, request):
-        pass
+        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))

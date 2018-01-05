@@ -20,7 +20,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "39796"
+core_port = "45809"
 
 
 @pytest.allure.feature("common")
@@ -64,6 +64,12 @@ class TestMicroservice:
 
         assert True is is_found
 
+    def test_register_unregister_interest_in_category(self):
+        res1 = fs._core_microservice_management_client.register_interest("blah1", fs._microservice_id)
+        assert res1["id"] is not None
+        res2 = fs._core_microservice_management_client.unregister_interest(res1["id"])
+        assert res2["id"] == res1["id"]
+
     @pytest.mark.run('last')
     def test_shutdown_and_unregister(self):
         response = fs.shutdown()
@@ -72,13 +78,5 @@ class TestMicroservice:
         with pytest.raises(exceptions.MicroserviceManagementClientError) as exc_info:
             fs._core_microservice_management_client.get_services(name='Foo')
         exception_raised = exc_info.value
-        assert exception_raised.reason == 'Invalid service name and/or type provided'
-        assert exception_raised.status == 404
-
-    @pytest.mark.skip(reason="Not implemented")
-    def test_register_interest_in_category(self):
-        pass
-
-    @pytest.mark.skip(reason="Not implemented")
-    def test_unregister_interest_in_category(self):
-        pass
+        assert 'Invalid service name and/or type provided' == exception_raised.reason
+        assert 404 == exception_raised.status

@@ -21,7 +21,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "39796"
+core_port = "36793"
 
 
 @pytest.allure.feature("core")
@@ -51,8 +51,10 @@ class TestMonitoring:
         # wait for 1s + monitor.py' _DEFAULT_SLEEP_INTERVAL + attempts*sleep
         time.sleep(1+5+15)  # fix me as per attempts and sleep total
 
+        # NO PING?
+
         with pytest.raises(exceptions.MicroserviceManagementClientError) as exc_info:
             fs._core_microservice_management_client.get_services(name='Foo')
         exception_raised = exc_info.value
-        assert exception_raised.reason == 'Invalid service name and/or type provided'
-        assert exception_raised.status == 404
+        assert 'Invalid service name and/or type provided' == exception_raised.reason
+        assert 404 == exception_raised.status

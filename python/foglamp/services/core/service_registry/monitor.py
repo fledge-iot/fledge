@@ -46,15 +46,18 @@ class Monitor(object):
     async def _monitor_loop(self):
         """Main loop for the scheduler"""
         # check health of all micro-services every N seconds
+        _MAX_ATTEMPTS = 5
+        """Number of max attempts for finding a heartbeat of service"""
+
         while True:
             for service_record in ServiceRegistry.all():
                 attempt_count = 1
-                """Number of current attempt to ping url and max is 5"""
-                
+                """Number of current attempt to ping url"""
+
                 url = "{}://{}:{}/foglamp/service/ping".format(service_record._protocol, service_record._address,
                                                                service_record._management_port)
                 async with aiohttp.ClientSession() as session:
-                    while attempt_count < 4:
+                    while attempt_count < _MAX_ATTEMPTS + 1:
                         # self._logger.info("Attempting service %s with try count %d", url, attempt_count)
                         try:
                             async with session.get(url, timeout=self._ping_timeout) as resp:
@@ -62,16 +65,15 @@ class Monitor(object):
                                 res = json.loads(text)
                                 if res["uptime"] is None:
                                     raise ValueError('Improper Response')
-                                # print(attempt_count, url, res)
                                 break
                         # TODO: Fix too broad exception clause
                         except:
                             attempt_count += 1
                             await asyncio.sleep(1.5)
-                    if attempt_count >= 5:
+                    if attempt_count > _MAX_ATTEMPTS:
                         service_record._status = 0
                         ServiceRegistry.unregister(service_record._id)
-                        self._logger.error("Unregistered the failed micro-service %s", service_record.__repr__())
+                        self._logger.info("Unregistered the failed micro-service %s", service_record.__repr__())
                     else:
                         service_record._status = 1
 

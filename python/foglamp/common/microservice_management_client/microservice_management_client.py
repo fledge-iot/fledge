@@ -5,6 +5,7 @@ from foglamp.common.microservice_management_client import exceptions as client_e
 
 _logger = logger.setup(__name__)
 
+
 class MicroserviceManagementClient(object):
     _management_client_conn = None
 
@@ -15,11 +16,11 @@ class MicroserviceManagementClient(object):
         self._management_client_conn.request(method='POST', url='/foglamp/service', body=json.dumps(service_registration_payload))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
-            _logger.error("Client error code: %d", r.status)
-            raise client_exceptions.MicroserviceManagementClientError
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
         if r.status in range(500, 600):
-            _logger.error("Client error code: %d", r.status)
-            raise client_exceptions.MicroserviceManagementClientError
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
         res = r.read().decode()
         self._management_client_conn.close()
         response = json.loads(res)
@@ -38,11 +39,11 @@ class MicroserviceManagementClient(object):
         self._management_client_conn.request(method='DELETE', url='/foglamp/service/{}'.format(microservice_id))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
-            _logger.error("Client error code: %d", r.status)
-            raise client_exceptions.MicroserviceManagementClientError
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
         if r.status in range(500, 600):
-            _logger.error("Client error code: %d", r.status)
-            raise client_exceptions.MicroserviceManagementClientError
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
         res = r.read().decode()
         self._management_client_conn.close()
         response = json.loads(res)
@@ -76,11 +77,11 @@ class MicroserviceManagementClient(object):
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
-            _logger.error("Client error code: %d", r.status)
-            raise client_exceptions.MicroserviceManagementClientError
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
         if r.status in range(500, 600):
-            _logger.error("Client error code: %d", r.status)
-            raise client_exceptions.MicroserviceManagementClientError
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
         res = r.read().decode()
         self._management_client_conn.close()
         response = json.loads(res)

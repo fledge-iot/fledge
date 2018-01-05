@@ -529,7 +529,7 @@ class Server:
             try:
                 ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
-                raise web.HTTPBadRequest(reason='Service with {} does not exist'.format(service_id))
+                raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
 
@@ -561,7 +561,7 @@ class Server:
                         name=service_name, s_type=service_type
                     )
         except service_registry_exceptions.DoesNotExist as ex:
-            raise web.HTTPBadRequest(reason="Invalid service name and/or type provided" + str(ex))
+            raise web.HTTPNotFound(reason="Invalid service name and/or type provided" + str(ex))
 
         services = []
         for service in services_list:

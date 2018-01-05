@@ -22,9 +22,9 @@ core_host = "localhost"
 core_port = "37061"
 
 
-@pytest.allure.feature("common")
-@pytest.allure.story("process")
-class TestMicroservice:
+@pytest.allure.feature("core")
+@pytest.allure.story("monitor")
+class TestMonitoring:
 
     def setup_method(self, method):
         pass

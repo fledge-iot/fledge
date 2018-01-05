@@ -36,7 +36,7 @@ async def get_categories(request):
             the list of known categories in the configuration database
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/categories
+            curl -X GET http://localhost:8081/foglamp/category
     """
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())

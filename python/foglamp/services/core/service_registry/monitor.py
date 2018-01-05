@@ -14,7 +14,6 @@ import logging
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
-from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core import connect
 
 __author__ = "Ashwin Gopalakrishnan"
@@ -49,21 +48,34 @@ class Monitor(object):
         # check health of all micro-services every N seconds
         while True:
             for service_record in ServiceRegistry.all():
-                url = "{}://{}:{}/foglamp/service/ping".format(service_record._protocol, service_record._address, service_record._management_port)
+                attempt_count = 1
+                """Number of current attempt to ping url and max is 5"""
+                
+                url = "{}://{}:{}/foglamp/service/ping".format(service_record._protocol, service_record._address,
+                                                               service_record._management_port)
                 async with aiohttp.ClientSession() as session:
-                    try:
-                        async with session.get(url, timeout=self._ping_timeout) as resp:
-                            text = await resp.text()
-                            res = json.loads(text)
-                            if res["uptime"] is None:
-                                raise ValueError('Improper Response')
-                    except:
+                    while attempt_count < 4:
+                        # self._logger.info("Attempting service %s with try count %d", url, attempt_count)
+                        try:
+                            async with session.get(url, timeout=self._ping_timeout) as resp:
+                                text = await resp.text()
+                                res = json.loads(text)
+                                if res["uptime"] is None:
+                                    raise ValueError('Improper Response')
+                                # print(attempt_count, url, res)
+                                break
+                        # TODO: Fix too broad exception clause
+                        except:
+                            attempt_count += 1
+                            await asyncio.sleep(1.5)
+                    if attempt_count >= 5:
                         service_record._status = 0
                         ServiceRegistry.unregister(service_record._id)
-                        self._logger.info("Unregistered the failed micro-service %s", service_record.__repr__())
+                        self._logger.error("Unregistered the failed micro-service %s", service_record.__repr__())
                     else:
                         service_record._status = 1
-            await asyncio.ensure_future(asyncio.sleep(self._sleep_interval))
+
+            await asyncio.sleep(self._sleep_interval)
 
     async def _read_config(self):
         """Reads configuration"""

@@ -5,8 +5,8 @@
 # FOGLAMP_END
 
 import pytest
-from . import foo
 
+from . import foo
 from foglamp.common.microservice_management_client import exceptions
 
 __author__ = "Praveen Garg"
@@ -20,7 +20,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "41832"
+core_port = "39796"
 
 
 @pytest.allure.feature("common")

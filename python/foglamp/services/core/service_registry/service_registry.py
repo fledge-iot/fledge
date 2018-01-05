@@ -7,7 +7,6 @@
 """Services Registry class"""
 
 import uuid
-from enum import IntEnum
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
@@ -16,7 +15,6 @@ __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
 
 
 class ServiceRegistry:
@@ -45,13 +43,13 @@ class ServiceRegistry:
         else:
             raise service_registry_exceptions.AlreadyExistsWithTheSameName
 
-        if port != None and cls.check_address_and_port(address, port):
+        if port is not None and cls.check_address_and_port(address, port):
             raise service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort
 
         if cls.check_address_and_mgt_port(address, management_port):
             raise service_registry_exceptions.AlreadyExistsWithTheSameAddressAndManagementPort
 
-        if port != None and (not isinstance(port, int)):
+        if port is not None and (not isinstance(port, int)):
             raise service_registry_exceptions.NonNumericPortError
         if not isinstance(management_port, int):
             raise service_registry_exceptions.NonNumericPortError

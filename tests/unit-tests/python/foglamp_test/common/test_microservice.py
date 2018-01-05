@@ -20,7 +20,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "45809"
+core_port = "37062"
 
 
 @pytest.allure.feature("common")

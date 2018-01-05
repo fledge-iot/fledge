@@ -16,9 +16,10 @@ class FooServer(FoglampMicroservice):
     def run(self):
         pass
 
-    def change(self):
+    def change(self, request):
         pass
 
+    # def shutdown(self, request):
     def shutdown(self):
         # I have nothing to clean
         return self._core_microservice_management_client.unregister_service(self._microservice_id)

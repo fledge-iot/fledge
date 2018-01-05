@@ -770,7 +770,7 @@ long numReadings = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from readings;");
+		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from foglamp.readings;");
 		const char *query = oldest.coalesce();
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;

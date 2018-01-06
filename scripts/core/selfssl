@@ -43,7 +43,19 @@ if [ -z $2 ]; then
     exit 1
 fi
 
-# Default directory to place the Certificate
+if ! [ -x "$(type -P openssl)" ]; then
+  echo "ERROR: script requires openssl"
+  echo "For Debian and friends, get it with 'apt-get install openssl'"
+  exit 1
+fi
+
+
+# TODO: add fail_if_error and log
+
+# TODO: check openssl version
+
+
+# Check ENV VARS and decide the directory to place the certificates
 
 if [ ! -z ${FOGLAMP_DATA+x} ]; then
     SSL_LOCATION="${FOGLAMP_DATA}"
@@ -57,7 +69,7 @@ fi
 
 if [[ ! -d "${SSL_LOCATION}" ]]; then
     # write to log?
-    echo "We could not find the directory to put SSL certificates."
+    echo "Could not find the directory ${SSL_LOCATION} to put SSL certificates."
     exit 1
 fi
 
@@ -65,10 +77,8 @@ fi
 . $FOGLAMP_ROOT/scripts/common/write_log.sh
 
 if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
-    echo "We could not find the write_log script."
+    echo "Could not find the write_log script."
 fi
-
-# Log SSL_LOCATION and make sure it allows to create file in it
 
 SSL_NAME=$1
 SSL_EXPIRATION_DAYS=$2
@@ -81,14 +91,6 @@ organization=OSIsoft
 # organizational_unit=
 common_name=FogLAMP
 email=info@dianomic.com
-
-
-# TODO: add fail_if_error and log
-
-# TODO: check openssl installed? if no then install
-
-# TODO: check openssl version
-
 
 echo "Creating a new Certificate ..."
 
@@ -104,14 +106,14 @@ openssl x509 -req -sha256 -days ${SSL_EXPIRATION_DAYS} -in ${SSL_NAME}.csr -sign
 
 # The ${SSL_NAME}.cert file is the certificate suitable for use along with the ${SSL_NAME}.key private key.
 # Put these in ${FOGLAMP_DATA}/etc/certs, ${FOGLAMP_ROOT}/etc/certs or /usr/local/foglamp/etc/certs
-# Make directory to place SSL Certificate, if it doesn't exists
+# Make directory to place SSL Certificate, if it doesn't exist
 
-if [[ -d $SSL_LOCATION ]]; then
-  mkdir -p ${SSL_LOCATION}/etc/certs
-  SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
-else
-  echo "No valid location defined to put SSL certificates"
-  write_log "No valid location defined to put SSL certificates"
+mkdir -p ${SSL_LOCATION}/etc/certs
+SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
+
+if [[ ! -d "${SSL_CERTS_PATH}" ]]; then
+  echo "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}"
+  write_log "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}"
 fi
 
 # Move SSL Certificate to defined path

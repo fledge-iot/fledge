@@ -92,12 +92,19 @@ class FoglampMicroservice(FoglampProcess):
             }
         return service_registration_payload
 
+    async def shutdown(self, request=None):
+        await self.stop()
+        self.unregister_service_with_core(self._microservice_id)
+        return web.json_response({"message":
+            "Successfully shutdown microservice id {} at url http://{}:{}/foglamp/service/shutdown".format(
+            self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
+
     @abstractmethod
-    async def shutdown(self):
+    async def stop(self, request=None):
         pass
 
     @abstractmethod
-    async def change(self):
+    async def change(self, request=None):
         pass
 
     async def ping(self, request):

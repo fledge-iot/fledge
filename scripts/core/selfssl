@@ -22,10 +22,6 @@
 # Bash Script to create a new self-signed SSL Certificate
 #
 # USAGE: this command will ask for the certificate name and number in days it will expire
-# $ chmod +x selfssl
-# $ ./selfssl
-#
-# OPTIONAL: run the command
 # $ ./selfssl foglamp 365
 
 # Create a certificate key.
@@ -33,11 +29,46 @@
 # Sign the certificate
 # Install the certificate and key in the application.
 
+USAGE="Usage: ./`basename ${0}` CERTIFICATE_NAME EXPIRATION_DAYS"
 
+if [ -z $1 ]; then
+    # write to log?
+    echo ${USAGE}
+    exit 1
+fi
+
+if [ -z $2 ]; then
+    # write to log?
+    echo ${USAGE}
+    exit 1
+fi
 
 # Default directory to place the Certificate
 
-# SSL_DIR="${FOGLAMP_ROOT}/etc/certs"
+if [ ! -z ${FOGLAMP_DATA+x} ]; then
+    SSL_LOCATION="${FOGLAMP_DATA}"
+else
+    if [ ! -z ${FOGLAMP_ROOT+x} ]; then
+        SSL_LOCATION="${FOGLAMP_ROOT}"
+    else
+        SSL_LOCATION="/usr/local/foglamp"
+    fi
+fi
+
+if [[ ! -d "${SSL_LOCATION}" ]]; then
+    # write to log?
+    echo "We could not find the directory to put SSL certificates."
+    exit 1
+fi
+
+# include logger script
+. $FOGLAMP_ROOT/scripts/common/write_log.sh
+
+if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+    echo "We could not find the write_log script."
+fi
+
+# Log SSL_LOCATION and make sure it allows to create file in it
 
 SSL_NAME=$1
 SSL_EXPIRATION_DAYS=$2
@@ -52,17 +83,12 @@ common_name=FogLAMP
 email=info@dianomic.com
 
 
-# add fail_if_error and log
+# TODO: add fail_if_error and log
 
-if [ -z $1 ]; then
-  printf "Enter the SSL Certificate Name:"
-  read SSL_NAME
-fi
+# TODO: check openssl installed? if no then install
 
-if [ -z $2 ]; then
-  printf "How many days the Certificate will be valid:"
-  read SSL_EXPIRATION_DAYS
-fi
+# TODO: check openssl version
+
 
 echo "Creating a new Certificate ..."
 
@@ -70,20 +96,28 @@ echo "Creating a new Certificate ..."
 SUBJ="/C=$country/ST=$state/O=$organization/CN=$common_name/emailAddress=$email"
 
 openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
-openssl rsa -passin pass:x -in server.pass.key -out $SSL_NAME.key
+openssl rsa -passin pass:x -in server.pass.key -out ${SSL_NAME}.key
 rm server.pass.key
-openssl req -new -key $SSL_NAME.key -subj $SUBJ -out $SSL_NAME.csr
-openssl x509 -req -sha256 -days $SSL_EXPIRATION_DAYS -in $SSL_NAME.csr -signkey $SSL_NAME.key -out $SSL_NAME.cert
+openssl req -new -key ${SSL_NAME}.key -subj ${SUBJ} -out ${SSL_NAME}.csr
+openssl x509 -req -sha256 -days ${SSL_EXPIRATION_DAYS} -in ${SSL_NAME}.csr -signkey ${SSL_NAME}.key -out ${SSL_NAME}.cert
 
 
-# The server.cert file is the certificate suitable for use along with the server.key private key.
-# Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/etc/certs or /usr/local/foglamp/etc/certs
-# Make directory to place SSL Certificate if it doesn't exists
+# The ${SSL_NAME}.cert file is the certificate suitable for use along with the ${SSL_NAME}.key private key.
+# Put these in ${FOGLAMP_DATA}/etc/certs, ${FOGLAMP_ROOT}/etc/certs or /usr/local/foglamp/etc/certs
+# Make directory to place SSL Certificate, if it doesn't exists
 
-#if [[ ! -d $SSL_DIR ]]; then
-#  sudo mkdir -p $SSL_DIR
-#fi
+if [[ -d $SSL_LOCATION ]]; then
+  mkdir -p ${SSL_LOCATION}/etc/certs
+  SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
+else
+  echo "No valid location defined to put SSL certificates"
+  write_log "No valid location defined to put SSL certificates"
+fi
 
-# Place SSL Certificate within defined path
-#sudo mv $SSL_NAME.key $SSL_DIR/$SSL_NAME.key
-#sudo mv $SSL_NAME.cert $SSL_DIR/$SSL_NAME.cert
+# Move SSL Certificate to defined path
+mv ${SSL_NAME}.key ${SSL_CERTS_PATH}/${SSL_NAME}.key
+mv ${SSL_NAME}.cert ${SSL_CERTS_PATH}/${SSL_NAME}.cert
+# what about CSR
+
+echo "Certificates created successfully, and placed in ${SSL_CERTS_PATH}"
+write_log "Certificates created successfully, and placed in ${SSL_CERTS_PATH}"

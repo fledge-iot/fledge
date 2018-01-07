@@ -1142,7 +1142,7 @@ class Scheduler(object):
                 # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
                 task_process.process.terminate()
                 task_future = task_process.future
-                if schedule.type == Schedule.Type.STARTUP and task_future.cancel() is True:
+                if schedule.type != Schedule.Type.STARTUP and task_future.cancel() is True:
                     await self._wait_for_task_completion(task_process)
                 self._logger.info(
                     "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",

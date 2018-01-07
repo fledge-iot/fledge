@@ -181,12 +181,12 @@ class Server(FoglampMicroservice):
         for signal_name in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
                 signal_name,
-                lambda: asyncio.ensure_future(self.stop()))
+                lambda: asyncio.ensure_future(self._stop(loop)))
 
         asyncio.ensure_future(self._start(loop))
         loop.run_forever()
 
-    async def _stop(self):
+    async def _stop(self, loop):
         if self._plugin is not None:
             try:
                 self._plugin.plugin_shutdown(self._plugin_handle)
@@ -202,18 +202,23 @@ class Server(FoglampMicroservice):
             _LOGGER.exception('Unable to stop the Ingest server')
             return
 
-        # Stop all pending asyncio tasks
-        for task in asyncio.Task.all_tasks():
-            task.cancel()
+        # Finish all pending asyncio tasks
+        pending = asyncio.Task.all_tasks()
+        asyncio.gather(*pending)
 
-    async def stop(self, request=None):
+        loop.stop()
+
+    async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        await self._stop()
-        asyncio.get_event_loop().stop()
         _LOGGER.info('Stopping South Service PLugin {}'.format(self._name))
+        await self._stop(asyncio.get_event_loop())
+        self.unregister_service_with_core(self._microservice_id)
+        return web.json_response({"message":
+            "Successfully shutdown microservice id {} at url http://{}:{}/foglamp/service/shutdown".format(
+            self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
 
-    async def change(self, request=None):
+    async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
         print("change south")

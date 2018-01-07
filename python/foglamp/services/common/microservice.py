@@ -8,8 +8,6 @@
 
 import asyncio
 from aiohttp import web
-import http.client
-import json
 from foglamp.services.common.microservice_management import routes
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware
@@ -92,19 +90,12 @@ class FoglampMicroservice(FoglampProcess):
             }
         return service_registration_payload
 
-    async def shutdown(self, request=None):
-        await self.stop()
-        self.unregister_service_with_core(self._microservice_id)
-        return web.json_response({"message":
-            "Successfully shutdown microservice id {} at url http://{}:{}/foglamp/service/shutdown".format(
-            self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
-
     @abstractmethod
-    async def stop(self, request=None):
+    async def shutdown(self, request):
         pass
 
     @abstractmethod
-    async def change(self, request=None):
+    async def change(self, request):
         pass
 
     async def ping(self, request):

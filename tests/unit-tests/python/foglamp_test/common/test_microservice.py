@@ -20,7 +20,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "37062"
+core_port = "34134"
 
 
 @pytest.allure.feature("common")
@@ -78,5 +78,5 @@ class TestMicroservice:
         with pytest.raises(exceptions.MicroserviceManagementClientError) as exc_info:
             fs._core_microservice_management_client.get_services(name='Foo')
         exception_raised = exc_info.value
-        assert 'Invalid service name and/or type provided' == exception_raised.reason
         assert 404 == exception_raised.status
+        assert 'Service with name Foos does not exist' == exception_raised.reason

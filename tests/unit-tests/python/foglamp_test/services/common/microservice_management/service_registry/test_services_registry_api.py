@@ -20,8 +20,8 @@ pytestmark = pytest.mark.asyncio
 # Module attributes
 __DB_NAME = "foglamp"
 # Needs foglamp to start,
-# replace 39051 with core_management_port
-BASE_URL = 'http://localhost:39051/foglamp'
+# replace 37935 with core_management_port
+BASE_URL = 'http://localhost:37935/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 
@@ -303,7 +303,7 @@ class TestServicesRegistryApi:
         l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data1["name"]))
 
         assert 404 == l.status_code
-        assert "Invalid service name and/or type provided" == l.reason
+        assert "Service with name {} and type {} does not exist".format(data1["name"], data0["type"]) == l.reason
 
         l = requests.get(BASE_URL + '/service?type={}&name={}'.format(data0["type"], data0["name"]))
         assert 200 == l.status_code

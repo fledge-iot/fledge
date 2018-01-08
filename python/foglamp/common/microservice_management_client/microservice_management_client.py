@@ -47,7 +47,7 @@ class MicroserviceManagementClient(object):
         try:
             response["id"]
         except (KeyError, Exception) as ex:
-            _logger.exception("Could not un-register the micro-service having uuid %s, Reason: %s",
+            _logger.exception("Could not unregister the micro-service having uuid %s, Reason: %s",
                               microservice_id, str(ex))
             raise
 

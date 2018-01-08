@@ -79,4 +79,4 @@ class TestMicroservice:
             fs._core_microservice_management_client.get_services(name='Foo')
         exception_raised = exc_info.value
         assert 404 == exception_raised.status
-        assert 'Service with name Foos does not exist' == exception_raised.reason
+        assert 'Service with name Foo does not exist' == exception_raised.reason

@@ -137,8 +137,8 @@ class TestScheduler:
         # Assert schedule is really created in DB
         r = requests.get(BASE_URL + '/schedule/' + retval['schedule']['id'])
         assert 200 == r.status_code
-        retvall = dict(r.json())
-        assert retvall['name'] == data['name']
+        retval = dict(r.json())
+        assert retval['name'] == data['name']
 
     async def test_update_schedule(self):
         # First create a schedule to get the schedule_id
@@ -178,9 +178,8 @@ class TestScheduler:
 
         # Assert schedule is really deleted from DB
         r = requests.get(BASE_URL + '/schedule/' + schedule_id)
-        assert 200 == r.status_code
-        retvall = dict(r.json())
-        assert 'Schedule not found' in retvall['error']['message']
+        assert 404 == r.status_code
+        assert 'Schedule not found: {}'.format(schedule_id) == r.reason
 
     async def test_get_schedule(self):
         # First create a schedule to get the schedule_id
@@ -244,7 +243,7 @@ class TestScheduler:
 
         l_task_state = []
         for tasks in retval['tasks']:
-            if tasks['processName'] == data['process_name']:
+            if tasks['name'] == data['process_name']:
                 l_task_state.append(tasks['state'])
         assert 1 == l_task_state.count('RUNNING')
 
@@ -284,4 +283,3 @@ class TestScheduler:
 
         assert retval['scheduleId'] == schedule_id
         assert retval['status'] is True
-

@@ -1523,7 +1523,7 @@ bool Connection::returnJson(const Value& json, SQLBuffer& sql, SQLBuffer& jsonCo
 			sql.append('\'');
 			sql.append(itr->GetString());
 			sql.append('\'');
-			jsonConstraint.append(jsonFields.GetString());
+			jsonConstraint.append(itr->GetString());
 		}
 		jsonConstraint.append(" ? '");
 		jsonConstraint.append(prev);

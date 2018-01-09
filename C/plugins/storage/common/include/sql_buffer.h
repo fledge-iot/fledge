@@ -36,6 +36,7 @@ class SQLBuffer {
                 SQLBuffer();
                 ~SQLBuffer();
 
+		bool			isEmpty() { return buffers.empty() || (buffers.size() == 1 && buffers.front()->offset == 0); }
 		void			append(const char);
 		void			append(const char *);
 		void			append(const int);

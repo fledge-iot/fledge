@@ -15,7 +15,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET             | /foglamp/categories                                       |
+    | GET             | /foglamp/category                                         |
     | GET             | /foglamp/category/{category_name}                         |
     | GET PUT         | /foglamp/category/{category_name}/{config_item}           |
     | DELETE          | /foglamp/category/{category_name}/{config_item}/value     |
@@ -36,7 +36,7 @@ async def get_categories(request):
             the list of known categories in the configuration database
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/categories
+            curl -X GET http://localhost:8081/foglamp/category
     """
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
@@ -60,14 +60,14 @@ async def get_category(request):
     category_name = request.match_info.get('category_name', None)
 
     if not category_name:
-        raise web.HTTPBadRequest(reason="Category Name is required")
+        raise web.HTTPBadRequest(reason="Category name is required")
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
     category = await cf_mgr.get_category_all_items(category_name)
 
     if category is None:
-        raise web.HTTPNotFound(reason="No such Category Found for {}".format(category_name))
+        raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
 
     return web.json_response(category)
 
@@ -87,14 +87,14 @@ async def get_category_item(request):
     config_item = request.match_info.get('config_item', None)
 
     if not category_name or not config_item:
-        raise web.HTTPBadRequest(reason="Both Category Name and Config items are required")
+        raise web.HTTPBadRequest(reason="Both Category name and Config items are required")
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
 
     if category_item is None:
-        raise web.HTTPNotFound(reason="No Category Item Found")
+        raise web.HTTPNotFound(reason="No Category item found")
 
     return web.json_response(category_item)
 
@@ -154,7 +154,7 @@ async def delete_configuration_item_value(request):
     config_item = request.match_info.get('config_item', None)
 
     if not category_name or not config_item:
-        raise web.HTTPBadRequest(reason="Both Category Name and Config items are required")
+        raise web.HTTPBadRequest(reason="Both Category name and Config items are required")
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())

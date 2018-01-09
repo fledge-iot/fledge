@@ -37,12 +37,13 @@ class Schedule(object):
         MANUAL = 4
 
     """Schedule base class"""
-    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'repeat', 'schedule_type']
+    __slots__ = ['schedule_id', 'name', 'process_name', 'exclusive', 'enabled', 'repeat', 'schedule_type']
 
     def __init__(self, schedule_type: Type):
         self.schedule_id = None  # type: uuid.UUID
         self.name = None  # type: str
         self.exclusive = True
+        self.enabled = False
         self.repeat = None  # type: datetime.timedelta
         self.process_name = None  # type: str
         self.schedule_type = schedule_type  # type: Schedule.Type

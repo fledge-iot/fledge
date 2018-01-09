@@ -34,8 +34,8 @@ class Connection {
 		void		mapResultSet(PGresult *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
-		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&);
-		bool		returnJson(const rapidjson::Value&, SQLBuffer&);
+		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
+		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
 		const char	*escape(const char *);
 		const std::string	escape(const std::string&);

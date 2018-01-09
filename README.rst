@@ -52,6 +52,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - *python-dbus*
 - *postgresql*
 - *autoconf*, *automake*, *build-essential*, *libtool*, *python-dev*
+- *bluez*
 
 On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
 ::
@@ -62,6 +63,7 @@ On Ubuntu-based Linux distributions the packages can be installed with *apt-get*
    apt-get install python-dbus
    apt-get install postgresql
    apt-get install autoconf automake build-essential libtool python-dev
+   apt-get install bluez
 
 You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
 

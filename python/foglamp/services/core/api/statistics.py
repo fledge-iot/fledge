@@ -61,9 +61,11 @@ async def get_statistics_history(request):
     storage_client = connect.get_storage()
     payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).payload()
 
-    if 'limit' in request.query:
-        if request.query.get('limit').isdigit():
-            limit = int(request.query.get('limit'))
+    if 'limit' in request.query and request.query['limit'] != '':
+        try:
+            limit = int(request.query['limit'])
+            if limit < 0:
+                raise ValueError
             # FIXME: Hack straight away multiply the LIMIT by the group count
             # i.e. there are 8 records per distinct (stats_key), so if limit supplied is 2
             # then internally, we should calculate LIMIT *8
@@ -76,8 +78,9 @@ async def get_statistics_history(request):
             key_count = result['rows'][0]['count_*']
 
             payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).LIMIT(limit * key_count).payload()
-        else:
-            raise web.HTTPBadRequest(reason="limit must be an integer")
+
+        except ValueError:
+            raise web.HTTPBadRequest(reason="Limit must be a positive integer")
 
     result_from_storage = storage_client.query_tbl_with_payload('statistics_history', payload)
 
@@ -111,8 +114,11 @@ async def get_statistics_history(request):
     # SELECT schedule_interval FROM schedules WHERE process_name='stats collector'
     payload = PayloadBuilder().SELECT("schedule_interval").WHERE(['process_name', '=', 'stats collector']).payload()
     result = storage_client.query_tbl_with_payload('schedules', payload)
-    time_str = result['rows'][0]['schedule_interval']
-    ftr = [3600, 60, 1]
-    interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+    if len(result['rows']) > 0:
+        time_str = result['rows'][0]['schedule_interval']
+        ftr = [3600, 60, 1]
+        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+    else:
+        raise web.HTTPBadRequest(reason="No stats collector schedule found")
 
     return web.json_response({"interval": interval_in_secs, 'statistics': results})

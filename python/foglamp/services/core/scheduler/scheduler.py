@@ -61,12 +61,12 @@ class Scheduler(object):
     # TODO: Document the fields
     _ScheduleRow = collections.namedtuple('ScheduleRow', ['id', 'name', 'type', 'time', 'day',
                                                           'repeat', 'repeat_seconds', 'exclusive',
-                                                          'process_name'])
+                                                          'enabled', 'process_name'])
     """Represents a row in the schedules table"""
 
     class _TaskProcess(object):
         """Tracks a running task with some flags"""
-        __slots__ = ['task_id', 'process', 'cancel_requested', 'schedule', 'start_time']
+        __slots__ = ['task_id', 'process', 'cancel_requested', 'schedule', 'start_time', 'future']
 
         def __init__(self):
             self.task_id = None  # type: uuid.UUID
@@ -76,6 +76,7 @@ class Scheduler(object):
             self.schedule = None  # Schedule._ScheduleRow
             self.start_time = None  # type: int
             """Epoch time when the task was started"""
+            self.future = None
 
     # TODO: Methods that accept a schedule and look in _schedule_executions
     # should accept schedule_execution instead. Add reference to schedule
@@ -315,6 +316,7 @@ class Scheduler(object):
         task_process.schedule = schedule
         task_process.task_id = task_id
 
+        # All tasks including STARTUP tasks go into both self._task_processes and self._schedule_executions
         self._task_processes[task_id] = task_process
         self._schedule_executions[schedule.id].task_processes[task_id] = task_process
 
@@ -341,7 +343,44 @@ class Scheduler(object):
                 self._logger.exception('Insert failed: %s', insert_payload)
                 # The process has started. Regardless of this error it must be waited on.
 
-        asyncio.ensure_future(self._wait_for_task_completion(task_process))
+        self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
+
+    async def purge_tasks(self):
+        """Deletes rows from the tasks table"""
+        if self._paused:
+            return
+
+        if not self._ready:
+            raise NotReadyError()
+
+        delete_payload = PayloadBuilder() \
+            .WHERE(["state", "!=", int(Task.State.RUNNING)]) \
+            .AND_WHERE(["start_time", "<", str(datetime.datetime.now() - self._max_completed_task_age)]) \
+            .LIMIT(self._DELETE_TASKS_LIMIT) \
+            .payload()
+        try:
+            self._logger.debug('Database command: %s', delete_payload)
+            while not self._paused:
+                res = self._storage.delete_from_tbl("tasks", delete_payload)
+                # TODO: Uncomment below when delete count becomes available in storage layer
+                # if res.get("count") < self._DELETE_TASKS_LIMIT:
+                break
+        except Exception:
+            self._logger.exception('Delete failed: %s', delete_payload)
+            raise
+        finally:
+            self._purge_tasks_task = None
+
+        self._last_task_purge_time = time.time()
+
+    def _check_purge_tasks(self):
+        """Schedules :meth:`_purge_tasks` to run if sufficient time has elapsed
+        since it last ran
+        """
+
+        if self._purge_tasks_task is None and (self._last_task_purge_time is None or (
+                    time.time() - self._last_task_purge_time) >= self._PURGE_TASKS_FREQUENCY_SECONDS):
+            self._purge_tasks_task = asyncio.ensure_future(self.purge_tasks())
 
     async def _check_schedules(self):
         """Starts tasks according to schedules based on the current time"""
@@ -360,6 +399,9 @@ class Scheduler(object):
                 # The schedule has been deleted
                 if not schedule_execution.task_processes:
                     del self._schedule_executions[schedule_id]
+                continue
+
+            if schedule.enabled is False:
                 continue
 
             if schedule.exclusive and schedule_execution.task_processes:
@@ -497,6 +539,9 @@ class Scheduler(object):
         For exclusive schedules, this method is called after the task
         has completed.
         """
+        if schedule.enabled is False:
+            return
+
         schedule_execution = self._schedule_executions[schedule.id]
         advance_seconds = schedule.repeat_seconds
 
@@ -551,6 +596,9 @@ class Scheduler(object):
                 when to schedule tasks
 
         """
+        if schedule.enabled is False:
+            return
+
         if schedule.type == Schedule.Type.MANUAL:
             return
 
@@ -629,6 +677,7 @@ class Scheduler(object):
                     repeat=interval,
                     repeat_seconds=repeat_seconds,
                     exclusive=True if row.get('exclusive') == 't' else False,
+                    enabled=True if row.get('enabled') == 't' else False,
                     process_name=row.get('process_name'))
 
                 self._schedules[schedule_id] = schedule
@@ -866,6 +915,7 @@ class Scheduler(object):
 
         schedule.schedule_id = schedule_id
         schedule.exclusive = schedule_row.exclusive
+        schedule.enabled = schedule_row.enabled
         schedule.name = schedule_row.name
         schedule.process_name = schedule_row.process_name
         schedule.repeat = schedule_row.repeat
@@ -966,6 +1016,7 @@ class Scheduler(object):
                      schedule_day=day if day else 0,
                      schedule_time=str(schedule_time) if schedule_time else '00:00:00',
                      exclusive='t' if schedule.exclusive else 'f',
+                     enabled='t' if schedule.enabled else 'f',
                      process_name=schedule.process_name) \
                 .WHERE(['id', '=', str(schedule.schedule_id)]) \
                 .payload()
@@ -987,6 +1038,7 @@ class Scheduler(object):
                         schedule_day=day if day else 0,
                         schedule_time=str(schedule_time) if schedule_time else '00:00:00',
                         exclusive='t' if schedule.exclusive else 'f',
+                        enabled='t' if schedule.enabled else 'f',
                         process_name=schedule.process_name) \
                 .payload()
             try:
@@ -1009,6 +1061,7 @@ class Scheduler(object):
             repeat=schedule.repeat,
             repeat_seconds=repeat_seconds,
             exclusive=schedule.exclusive,
+            enabled=schedule.enabled,
             process_name=schedule.process_name)
 
         self._schedules[schedule.schedule_id] = schedule_row
@@ -1023,6 +1076,175 @@ class Scheduler(object):
             now = self.current_time if self.current_time else time.time()
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
+
+    async def disable_schedule(self, schedule_id):
+        """
+        Find running Schedule, Terminate running process, Disable Schedule, Update database
+
+        Args: schedule_id:
+        Returns:
+        """
+        # Find running task for the schedule.
+        # self._task_processes contains ALL tasks including STARTUP tasks.
+        try:
+            schedule = await self.get_schedule(schedule_id)
+        except KeyError:
+            self._logger.info("No such Schedule %s", schedule_id)
+            return False, "No such Schedule"
+
+        if schedule.enabled is False:
+            self._logger.info("Schedule %s already disabled", schedule_id)
+            return True, "Schedule {} already disabled".format(schedule_id)
+
+        # Disable Schedule
+        # We need to recreate the _ScheduleRow for just one change - enabled = False. This is required as _ScheduleRow
+        # is of named tuple type which does not allow updation.
+        repeat_seconds = None
+        if schedule.repeat is not None:
+            repeat_seconds = schedule.repeat.total_seconds()
+        schedule_row = self._ScheduleRow(
+            id=schedule.schedule_id,
+            name=schedule.name,
+            type=schedule.schedule_type,
+            time=schedule.time,
+            day=schedule.day,
+            repeat=schedule.repeat,
+            repeat_seconds=repeat_seconds,
+            exclusive=schedule.exclusive,
+            enabled=False,
+            process_name=schedule.process_name)
+
+        task_id = None
+        task_process = None
+        try:
+            for key in list(self._task_processes.keys()):
+                if self._task_processes[key].schedule.id == schedule_id:
+                    task_id = key
+                    break
+            if task_id is None:
+                raise KeyError
+            task_process = self._task_processes[task_id]
+        except KeyError:
+            self._logger.info("No Task running for Schedule %s", schedule_id)
+
+        # If a task is running for the schedule, then terminate the process
+        if task_id is not None:
+            schedule = task_process.schedule
+
+            # TODO: FOGL-356 track the last time TERM was sent to each task
+            task_process.cancel_requested = time.time()
+
+            # Terminate process
+            del self._schedules[schedule.id]
+            try:
+                # KNOWN ISSUE: Does not work well with microservices e.g. COAP etc
+                # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
+                task_process.process.terminate()
+                task_future = task_process.future
+                if schedule.type == Schedule.Type.STARTUP and task_future.cancel() is True:
+                    await self._wait_for_task_completion(task_process)
+                self._logger.info(
+                    "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",
+                    schedule.name,
+                    schedule.id,
+                    schedule.process_name,
+                    task_id,
+                    task_process.process.pid,
+                    self._process_scripts[schedule.process_name])
+            except ProcessLookupError:
+                pass  # Process has terminated
+
+        # All ok, now update the schedule in memory
+        self._schedules[schedule_id] = schedule_row
+
+        # Update database
+        update_payload = PayloadBuilder() \
+            .SET(enabled='f') \
+            .WHERE(['id', '=', str(schedule_id)]) \
+            .payload()
+        try:
+            self._logger.debug('Database command: %s', update_payload)
+            res = self._storage.update_tbl("schedules", update_payload)
+        except Exception:
+            self._logger.exception('Update failed: %s', update_payload)
+            raise RuntimeError('Update failed: %s', update_payload)
+        await asyncio.sleep(1)
+
+        return True, "Schedule successfully disabled"
+
+    async def enable_schedule(self, schedule_id):
+        """
+        Get Schedule, Enable Schedule, Update database, Start Schedule
+
+        Args: schedule_id:
+        Returns:
+        """
+        try:
+            schedule = await self.get_schedule(schedule_id)
+        except KeyError:
+            self._logger.info("No such Schedule %s", schedule_id)
+            return False, "No such Schedule"
+
+        if schedule.enabled is True:
+            self._logger.info("Schedule %s already enabled", schedule_id)
+            return True, "Schedule is already enabled"
+
+        # Enable Schedule
+        # We need to recreate the _ScheduleRow for just one change - enabled = True. This is required as _ScheduleRow
+        # is of named tuple type which does not allow updation.
+        if isinstance(schedule, TimedSchedule):
+            schedule_time = schedule.time
+            if schedule_time is not None and not isinstance(schedule_time, datetime.time):
+                raise ValueError('time must be of type datetime.time')
+            day = schedule.day
+            # TODO Remove this check when the database has constraint
+            if day is not None and (day < 1 or day > 7):
+                raise ValueError('day must be between 1 and 7')
+        else:
+            day = None
+            schedule_time = None
+
+        repeat_seconds = None
+        if schedule.repeat is not None:
+            repeat_seconds = schedule.repeat.total_seconds()
+
+        schedule_row = self._ScheduleRow(
+            id=schedule.schedule_id,
+            name=schedule.name,
+            type=schedule.schedule_type,
+            time=schedule_time,
+            day=day,
+            repeat=schedule.repeat,
+            repeat_seconds=repeat_seconds,
+            exclusive=schedule.exclusive,
+            enabled=True,
+            process_name=schedule.process_name)
+
+        del self._schedules[schedule.schedule_id]
+        self._schedules[schedule.schedule_id] = schedule_row
+
+        # Update database
+        update_payload = PayloadBuilder() \
+            .SET(enabled='t') \
+            .WHERE(['id', '=', str(schedule.schedule_id)]) \
+            .payload()
+        try:
+            self._logger.debug('Database command: %s', update_payload)
+            res = self._storage.update_tbl("schedules", update_payload)
+        except Exception:
+            self._logger.exception('Update failed: %s', update_payload)
+            raise RuntimeError('Update failed: %s', update_payload)
+        await asyncio.sleep(1)
+
+        # Start schedule
+        await self.queue_task(schedule_id)
+        self._logger.info(
+            "Enabled Schedule '%s/%s' process '%s'\n",
+            schedule.name,
+            schedule.schedule_id,
+            schedule.process_name)
+
+        return True, "Schedule successfully enabled"
 
     async def queue_task(self, schedule_id: uuid.UUID) -> None:
         """Requests a task to be started for a schedule
@@ -1113,7 +1335,7 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        query_payload = PayloadBuilder().WHERE(["id", "=", task_id]).payload()
+        query_payload = PayloadBuilder().WHERE(["id", "=", str(task_id)]).payload()
 
         try:
             self._logger.debug('Database command: %s', query_payload)
@@ -1221,41 +1443,3 @@ class Scheduler(object):
             task_process.process.terminate()
         except ProcessLookupError:
             pass  # Process has terminated
-
-    def _check_purge_tasks(self):
-        """Schedules :meth:`_purge_tasks` to run if sufficient time has elapsed
-        since it last ran
-        """
-
-        if self._purge_tasks_task is None and (self._last_task_purge_time is None or (
-                    time.time() - self._last_task_purge_time) >= self._PURGE_TASKS_FREQUENCY_SECONDS):
-            self._purge_tasks_task = asyncio.ensure_future(self.purge_tasks())
-
-    async def purge_tasks(self):
-        """Deletes rows from the tasks table"""
-        if self._paused:
-            return
-
-        if not self._ready:
-            raise NotReadyError()
-
-        delete_payload = PayloadBuilder() \
-            .WHERE(["state", "!=", int(Task.State.RUNNING)]) \
-            .AND_WHERE(["start_time", "<", str(datetime.datetime.now() - self._max_completed_task_age)]) \
-            .LIMIT(self._DELETE_TASKS_LIMIT) \
-            .payload()
-        try:
-            self._logger.debug('Database command: %s', delete_payload)
-            while not self._paused:
-                res = self._storage.delete_from_tbl("tasks", delete_payload)
-                # TODO: Uncomment below when delete count becomes available in storage layer
-                # if res.get("count") < self._DELETE_TASKS_LIMIT:
-                break
-        except Exception:
-            self._logger.exception('Delete failed: %s', delete_payload)
-            raise
-        finally:
-            self._purge_tasks_task = None
-
-        self._last_task_purge_time = time.time()
-

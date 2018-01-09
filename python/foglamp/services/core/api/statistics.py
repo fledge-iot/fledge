@@ -119,6 +119,6 @@ async def get_statistics_history(request):
         ftr = [3600, 60, 1]
         interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
     else:
-        raise web.HTTPBadRequest(reason="No schedules")
+        raise web.HTTPBadRequest(reason="No stats collector schedule found")
 
     return web.json_response({"interval": interval_in_secs, 'statistics': results})

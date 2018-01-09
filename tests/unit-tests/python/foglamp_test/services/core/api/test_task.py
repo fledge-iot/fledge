@@ -173,10 +173,10 @@ class TestTask:
 
         # Verify that 3 Tasks with given process_name are created in 4 seconds
         rr = requests.get(BASE_URL+'/task')
-        retvall = dict(rr.json())
+        retval = dict(rr.json())
 
         assert 200 == rr.status_code
-        list_tasks = [tasks['name'] for tasks in retvall['tasks']]
+        list_tasks = [tasks['name'] for tasks in retval['tasks']]
         # Due to async processing, ascertining exact no. of tasks is not possible
         assert list_tasks.count(data['process_name']) >= 3
 
@@ -205,6 +205,8 @@ class TestTask:
         retval = dict(r.json())
         task_state = retval['taskState']
 
+        assert 200 == r.status_code
+
         # verify the task state count
         assert 4 == len(task_state)
 
@@ -222,3 +224,15 @@ class TestTask:
             elif task_state[i]['index'] == 4:
                 assert 4 == task_state[i]['index']
                 assert 'Interrupted' == task_state[i]['name']
+
+    @pytest.mark.parametrize("request_params, response_code, response_message", [
+        ('/task?limit=0', 404, 'No Tasks found'),
+        ('/task?name=12', 404, 'No Tasks found'),
+        ('/task?state=blah', 400, "This state value 'BLAH' not permitted."),
+        ('/task/4e5ea20b-6685-4f44-ab9f-b307ca226e6c', 404, 'Task not found: 4e5ea20b-6685-4f44-ab9f-b307ca226e6c'),
+        ('/task/blah', 404, 'Invalid Task ID blah')
+    ])
+    async def test_params_with_bad_data(self, request_params, response_code, response_message):
+        r = requests.get(BASE_URL + request_params)
+        assert response_code == r.status_code
+        assert response_message == r.reason

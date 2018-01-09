@@ -16,28 +16,13 @@ class FooServer(FoglampMicroservice):
     def run(self):
         pass
 
-    def unregister(self):
-        res = self.unregister_service()
-        try:
-            sid = res["id"]
-            # log service with <sid> unregistered
-        except KeyError:
-            error = res["error"]
-            # log the error
-        except Exception as ex:
-            reason = str(ex)
-        return res
+    def change(self, request):
+        pass
 
-    def find_services(self, name=None, _type=None):
-        res = self.get_service(name, _type)
-        try:
-            services = res["services"]
-        except KeyError:
-            error = res["error"]
-            # log the error
-        except Exception as ex:
-            reason = str(ex)
-        return res
+    # def shutdown(self, request):
+    def shutdown(self):
+        # I have nothing to clean
+        return self._core_microservice_management_client.unregister_service(self._microservice_id)
 
 
 def get_instance(name, host, port):

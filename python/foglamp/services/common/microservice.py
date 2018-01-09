@@ -8,6 +8,7 @@
 
 import asyncio
 from aiohttp import web
+
 from foglamp.services.common.microservice_management import routes
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware

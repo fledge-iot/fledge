@@ -12,5 +12,8 @@ __version__ = "${VERSION}"
 
 
 class MicroserviceManagementClientError(Exception):
-        pass
+
+        def __init__(self, status=None, reason=None):
+                self.status = status
+                self.reason = reason
 

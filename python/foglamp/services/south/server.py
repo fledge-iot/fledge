@@ -184,6 +184,8 @@ class Server(FoglampMicroservice):
                 lambda: asyncio.ensure_future(self._stop(loop)))
 
         asyncio.ensure_future(self._start(loop))
+
+        # This activates the microservice server instance
         loop.run_forever()
 
     async def _stop(self, loop):
@@ -206,12 +208,13 @@ class Server(FoglampMicroservice):
         pending = asyncio.Task.all_tasks()
         asyncio.gather(*pending)
 
+        # This deactivates the microservice server instance but with graceful shutdown
         loop.stop()
 
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        _LOGGER.info('Stopping South Service PLugin {}'.format(self._name))
+        _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
         await self._stop(asyncio.get_event_loop())
         self.unregister_service_with_core(self._microservice_id)
         return web.json_response({"message":

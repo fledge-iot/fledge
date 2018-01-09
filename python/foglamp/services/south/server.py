@@ -185,7 +185,7 @@ class Server(FoglampMicroservice):
 
         asyncio.ensure_future(self._start(loop))
 
-        # This activates the microservice server instance
+        # This activates event loop and starts fetching events to the microservice server instance
         loop.run_forever()
 
     async def _stop(self, loop):
@@ -208,7 +208,7 @@ class Server(FoglampMicroservice):
         pending = asyncio.Task.all_tasks()
         asyncio.gather(*pending)
 
-        # This deactivates the microservice server instance but with graceful shutdown
+        # This deactivates event loop and helps aiohttp microservice server instance in graceful shutdown
         loop.stop()
 
     async def shutdown(self, request):

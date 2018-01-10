@@ -117,6 +117,9 @@ class Server:
     _interest_registry = None
     """ Instance of interest registry (singleton) """
 
+    service_app, service_server, service_server_handler = None, None, None
+    core_app, core_server, core_server_handler = None, None, None
+
     @staticmethod
     def get_certificates():
         # TODO: FOGL-780
@@ -145,9 +148,9 @@ class Server:
         This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke 
         their certificate. Since this is a self-signed certificate, there’s no way to revoke it via CRL(Certificate Revocation List).
         
-        $ openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
+        $ openssl genrsa -des3 -passout pass:rand0m -out server.pass.key 2048
         ...
-        $ openssl rsa -passin pass:x -in server.pass.key -out server.key
+        $ openssl rsa -passin pass:rand0m -in server.pass.key -out server.key
         writing RSA key
         $ rm server.pass.key
         $ openssl req -new -key server.key -out server.csr
@@ -257,7 +260,7 @@ class Server:
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
-            subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
+            subprocess.call(cmd_with_args, cwd=_FOGLAMP_ROOT)
         except Exception as ex:
             _logger.exception(str(ex))
 
@@ -297,9 +300,9 @@ class Server:
         try:
             host = cls._host
 
-            core_app = cls._make_core_app()
-            core_server, core_server_handler = cls._start_app(loop, core_app, host, 0)
-            address, cls.core_management_port = core_server.sockets[0].getsockname()
+            cls.core_app = cls._make_core_app()
+            cls.core_server, cls.core_server_handler = cls._start_app(loop, cls.core_app, host, 0)
+            address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
@@ -325,10 +328,9 @@ class Server:
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
-            service_app = cls._make_app()
+            cls.service_app = cls._make_app()
 
             loop.run_until_complete(cls.rest_api_config())
-            # print(cls.is_rest_server_tls_enabled, cls.rest_server_port)
 
             # ssl context
             ssl_ctx = None
@@ -340,9 +342,9 @@ class Server:
                 _logger.info('Loading certificates %s and key %s', cert, key)
                 ssl_ctx.load_cert_chain(cert, key)
 
-            service_server, service_server_handler = cls._start_app(loop, service_app,
+            cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app,
                                                                     host, cls.rest_server_port, ssl_ctx=ssl_ctx)
-            address, service_server_port = service_server.sockets[0].getsockname()
+            address, service_server_port = cls.service_server.sockets[0].getsockname()
             _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
                          address, service_server_port)
 
@@ -355,39 +357,13 @@ class Server:
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
             print("(Press CTRL+C to quit)")
-
             try:
                 loop.run_forever()
             except KeyboardInterrupt:
                 pass
             finally:
-                # graceful-shutdown
-                # http://aiohttp.readthedocs.io/en/stable/web.html
-                # TODO: FOGL-653 shutdown implementation
-                # stop the scheduler
-                loop.run_until_complete(cls._stop_scheduler())
-
-                # stop monitor
-                loop.run_until_complete(cls.stop_service_monitor())
-
-                # stop the REST api (exposed on service port)
-                service_server.close()
-                loop.run_until_complete(service_server.wait_closed())
-                loop.run_until_complete(service_app.shutdown())
-                loop.run_until_complete(service_server_handler.shutdown(60.0))
-                loop.run_until_complete(service_app.cleanup())
-
-                # stop storage
-                cls.stop_storage()
-
-                # stop core management api
-                core_server.close()
-                loop.run_until_complete(core_server.wait_closed())
-                loop.run_until_complete(core_app.shutdown())
-                loop.run_until_complete(core_server_handler.shutdown(60.0))
-                loop.run_until_complete(core_app.cleanup())
-
-                loop.close()
+                cls.stop(loop)
+            loop.close()
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -404,25 +380,82 @@ class Server:
 
     @classmethod
     def start(cls):
-        """Starts the server"""
+        """Starts FogLAMP"""
 
         loop = asyncio.get_event_loop()
         cls._start_core(loop=loop)
 
     @classmethod
+    async def _stop(cls, loop):
+        """Stops FogLAMP"""
+
+        # stop the scheduler
+        await cls._stop_scheduler()
+
+        # stop monitor
+        await cls.stop_service_monitor()
+
+        # stop storage
+        cls.stop_storage()
+        # move after stop rest server
+
+        # stop the REST api (exposed on service port)
+        cls.stop_rest_server(loop)
+
+        # stop core management api
+        cls.stop_core_server(loop)
+
+        loop.stop()
+
+    @classmethod
+    def stop(cls, loop=None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        loop.run_until_complete(cls._stop(loop))
+
+    @classmethod
+    def stop_rest_server(cls, loop):
+        cls.service_server.close()
+        loop.run_until_complete(cls.service_server.wait_closed())
+        loop.run_until_complete(cls.service_app.shutdown())
+        loop.run_until_complete(cls.service_server_handler.shutdown(60.0))
+        loop.run_until_complete(cls.service_app.cleanup())
+
+    @classmethod
+    def stop_core_server(cls, loop):
+        cls.core_server.close()
+        loop.run_until_complete(cls.core_server.wait_closed())
+        loop.run_until_complete(cls.core_app.shutdown())
+        loop.run_until_complete(cls.core_server_handler.shutdown(60.0))
+        loop.run_until_complete(cls.core_app.cleanup())
+
+    @classmethod
     def stop_storage(cls):
-        """ stop Storage service """
+        """Stops Storage service """
 
-        # TODO: FOGL-653 shutdown implementation
-        # remove me, and allow this call in service registry API
+        # Or just do?!
+        # cmd_with_args = ['./services/storage', 'stop']
+        # subprocess.call(cmd_with_args, cwd=_FOGLAMP_ROOT)
 
-        found_services = ServiceRegistry.get(name="FogLAMP Storage")
+        try:
+            found_services = ServiceRegistry.get(name="FogLAMP Storage")
+        except service_registry_exceptions.DoesNotExist as ex:
+            raise
+
         svc = found_services[0]
         if svc is None:
             return
+        res = cls._shutdown_microservice(svc)
 
+        try:
+           msg = res['message']
+        except KeyError:
+            raise
+
+    @classmethod
+    def _shutdown_microservice(cls, svc):
         management_api_url = '{}:{}'.format(svc._address, svc._management_port)
-
+        _logger.info("Shutting down the %s service %s ...", svc._type, svc._name)
         conn = http.client.HTTPConnection(management_api_url)
         # TODO: need to set http / https based on service protocol
 
@@ -432,9 +465,9 @@ class Server:
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _logger.error("Client error code: %d", r.status)
+            _logger.error("Client error code: %d, reason: %s", r.status, r.reason)
         if r.status in range(500, 600):
-            _logger.error("Server error code: %d", r.status)
+            _logger.error("Server error code: %d, reason: %s", r.status, r.reason)
 
         res = r.read().decode()
         conn.close()
@@ -442,18 +475,16 @@ class Server:
 
     @classmethod
     async def _stop_scheduler(cls):
-        if cls.scheduler:
-            try:
-                await cls.scheduler.stop()
-                cls.scheduler = None
-            except TimeoutError:
-                _logger.exception('Unable to stop the scheduler')
-                return
+        try:
+            await cls.scheduler.stop()
+            cls.scheduler = None
+        except TimeoutError:
+            _logger.exception('Unable to stop the scheduler')
+            return
 
     @classmethod
     async def ping(cls, request):
         """ health check
-
         """
         since_started = time.time() - cls._start_time
         return web.json_response({'uptime': since_started})
@@ -462,9 +493,11 @@ class Server:
     async def register(cls, request):
         """ Register a service
 
-        :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
-                "management_port": 1090, "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
-        service_port is optional
+        :Example:
+            curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
+                "management_port": 1090, "protocol": "https"}' -X POST http://localhost:<core mgt port>/foglamp/service
+
+            service_port in payload is optional
         """
 
         try:
@@ -517,7 +550,8 @@ class Server:
     async def unregister(cls, request):
         """ Unregister a service
 
-        :Example: curl -X DELETE  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
+        :Example:
+            curl -X DELETE  http://localhost:<core mgt port>/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
         """
 
         try:
@@ -541,10 +575,11 @@ class Server:
 
     @classmethod
     async def get_service(cls, request):
-        """ Returns a list of all services or of the selected service
+        """ Returns a list of all services or as per name &|| type filter
 
-        :Example: curl -X GET  http://localhost:8082/foglamp/service
-        :Example: curl -X GET  http://localhost:8082/foglamp/service?name=X&type=Storage
+        :Example:
+            curl -X GET  http://localhost:<core mgt port>/foglamp/service
+            curl -X GET  http://localhost:<core mgt port>/foglamp/service?name=X&type=Storage
         """
         service_name = request.query['name'] if 'name' in request.query else None
         service_type = request.query['type'] if 'type' in request.query else None
@@ -590,13 +625,43 @@ class Server:
 
     @classmethod
     async def shutdown(cls, request):
-        pass
+        """ Shutdown the core microservice and its components
+
+        :return: JSON payload with message key
+        :Example:
+            curl -X POST http://localhost:<core mgt port>/foglamp/service/shutdown
+        """
+        try:
+            # There are 3 types of services
+            #   - Core
+            #   - Storage
+            #   - Southbound
+            try:
+                found_services = ServiceRegistry.get(s_type="Southbound")
+                for svc in found_services:
+                    # handle message key in response
+                    res = cls._shutdown_microservice(svc)
+                    try:
+                        res['message']
+                        _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
+                    except KeyError:
+                        raise
+                        # or just log the message | or both?
+            except service_registry_exceptions.DoesNotExist as ex:
+                pass
+
+            await cls._stop(asyncio.get_event_loop())
+
+            return web.json_response({'message': 'FogLAMP stopped successfully.'})
+        except Exception as ex:
+            raise web.HTTPException(reason=str(ex))
 
     @classmethod
     async def register_interest(cls, request):
         """ Register an interest in a configuration category
 
-        :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' -X POST http://localhost:8082/foglamp/interest
+        :Example:
+            curl -d '{"category": "COAP", "service": "x43978x8798x"}' -X POST http://localhost:<core mgt port>/foglamp/interest
         """
 
         try:
@@ -629,7 +694,8 @@ class Server:
     async def unregister_interest(cls, request):
         """ Unregister an interest
 
-        :Example: curl -X DELETE  http://localhost:8082/foglamp/interest/dc9bfc01-066a-4cc0-b068-9c35486db87f
+        :Example:
+            curl -X DELETE  http://localhost:<core mgt port>/foglamp/interest/dc9bfc01-066a-4cc0-b068-9c35486db87f
         """
 
         try:
@@ -672,8 +738,6 @@ def main():
         if command == 'start':
             Server().start()
         elif command == 'stop':
-            Server().stop_storage()
-            Server().stop_service_monitor()
-            # scheduler has signal binding
+            Server().stop()
         else:
             raise ValueError("Unknown argument: {}".format(sys.argv[1]))

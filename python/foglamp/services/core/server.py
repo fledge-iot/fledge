@@ -260,7 +260,7 @@ class Server:
             except KeyError:
                 cls._service_name = 'FogLAMP'
             try:
-                cls._service_descriptiopn = config['description']['value']
+                cls._service_description = config['description']['value']
             except KeyError:
                 cls._service_description = 'FogLAMP REST Services'
 

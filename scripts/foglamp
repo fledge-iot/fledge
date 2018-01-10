@@ -73,7 +73,7 @@ foglamp_start() {
     # Execute the Storage Plugin Script
     # NOTE: this script prepares the storage,
     #       but it does not start the microservice
-    # source "$FOGLAMP_ROOT/scripts/storage" start
+    source "$FOGLAMP_ROOT/scripts/storage" start
 
     result=`foglamp_status "silent"`
     case "$result" in
@@ -169,7 +169,7 @@ foglamp_stop() {
     # Execute the Storage Plugin script
     # NOTE: This script does not stop the microservice,
     #       it deals with the database engine.
-    # source "$FOGLAMP_ROOT/scripts/storage" stop
+    source "$FOGLAMP_ROOT/scripts/storage" stop
 
     foglamp_log "info" "FogLAMP stopped." "all" "pretty"
 

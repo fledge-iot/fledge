@@ -14,6 +14,7 @@ The sending process does not implement the protocol used to send the data,
 that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
+
 import json
 import resource
 import asyncio
@@ -22,6 +23,8 @@ import time
 import importlib
 import logging
 import datetime
+
+import foglamp.plugins.north.common.common as plugin_common
 
 from foglamp.common.parser import Parser
 from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
@@ -80,9 +83,12 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_LOGGER = logger.setup(__name__)
+# FIXME:
+_LOGGER = logger.setup(__name__, destination=logger.CONSOLE)
+
 _event_loop = ""
-_log_debug_level = 0
+# FIXME:
+_log_debug_level = 3
 """ Defines what and the level of details for logging """
 _log_performance = False
 """ Enable/Disable performance logging, enabled using a command line parameter"""
@@ -441,12 +447,54 @@ class SendingProcess:
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
             readings = self._readings.query(payload)
+
             raw_data = readings['rows']
+            converted_data = self._transform_in_memory_data_readings(raw_data)
+
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000009"].format(str(_ex))
             SendingProcess._logger.error(_message)
             raise
-        return raw_data
+        return converted_data
+
+    @staticmethod
+    def _transform_in_memory_data_readings(raw_data):
+        """ Transforms readings data retrieved form the DB layer to the proper format
+        Args:
+            raw_data: list of dicts to convert having the structure
+                id         : int
+                asset_code : string
+                user_ts    : Timestamp as a str
+                reading    : dict having the payload
+        Returns:
+            converted_data: converted data
+        Raises:
+        """
+        converted_data = []
+
+        try:
+            for row in raw_data:
+
+                # Converts values to the proper types, for example "180.2" to float 180.2
+                payload = row['reading']
+                for key in list(payload.keys()):
+                    value = payload[key]
+                    payload[key] = plugin_common.convert_to_type(value)
+
+                new_row = {
+                    'id': row['id'],                    # Row id
+                    'asset_code': row['asset_code'],    # Asset code
+                    'user_ts': row['user_ts'],          # Timestamp as a str
+                    'reading': payload                  # payload
+                }
+                converted_data.append(new_row)
+
+        except Exception as e:
+            _message = _MESSAGES_LIST["e000022"].format(str(e))
+            SendingProcess._logger.error(_message)
+            raise e
+
+        return converted_data
 
     @_performance_log
     def _load_data_into_memory_statistics(self, last_object_id):
@@ -796,7 +844,8 @@ class SendingProcess:
             # logging from different processes
             SendingProcess._logger.removeHandler(SendingProcess._logger.handle)
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
-            SendingProcess._logger = logger.setup(logger_name)
+            # FIXME:
+            SendingProcess._logger = logger.setup(logger_name, destination=logger.CONSOLE)
             try:
                 # Set the debug level
                 if self._log_debug_level == 1:

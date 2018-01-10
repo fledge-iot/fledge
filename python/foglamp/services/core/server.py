@@ -79,13 +79,13 @@ class Server:
         }
     }
 
-    _MANAGEMENT_SERVICE = '_foglamp_manage._tcp'
+    _MANAGEMENT_SERVICE = '_foglamp-manage._tcp'
     """ The management service we advertise """
 
-    _ADMIN_API_SERVICE = '_foglamp_admin._tcp'
+    _ADMIN_API_SERVICE = '_foglamp-admin._tcp'
     """ The admin REST service we advertise """
 
-    _USER_API_SERVICE = '_foglamp_user._tcp'
+    _USER_API_SERVICE = '_foglamp-user._tcp'
     """ The user REST service we advertise """
 
     admin_announcer = None

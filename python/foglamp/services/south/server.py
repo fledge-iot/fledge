@@ -9,14 +9,13 @@
 import asyncio
 import signal
 import uuid
-
+import sys
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
 from aiohttp import web
-
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -62,29 +61,6 @@ class Server(FoglampMicroservice):
 
     _type = "Southbound"
 
-    async def _stop(self, loop):
-        if self._plugin is not None:
-            try:
-                self._plugin.plugin_shutdown(self._plugin_handle)
-            except Exception:
-                _LOGGER.exception("Unable to shut down plugin '{}'".format(self._name))
-            finally:
-                self._plugin = None
-                self._plugin_handle = None
-
-        try:
-            await Ingest.stop()
-        except Exception:
-            _LOGGER.exception('Unable to stop the Ingest server')
-            return
-
-        # Stop all pending asyncio tasks
-        for task in asyncio.Task.all_tasks():
-            task.cancel()
-
-        loop.stop()
-
-    
     async def _start(self, loop) -> None:
         error = None
 
@@ -196,11 +172,6 @@ class Server(FoglampMicroservice):
 
     def run(self):
         """Starts the South Microservice
-
-        Args:
-            plugin: Specifies which device plugin to start
-            core_mgt_host: IP address of the core's management API
-            core_mgt_port: Port of the core's management API
         """
         loop = asyncio.get_event_loop()
 
@@ -213,16 +184,49 @@ class Server(FoglampMicroservice):
                 lambda: asyncio.ensure_future(self._stop(loop)))
 
         asyncio.ensure_future(self._start(loop))
+
+        # This activates event loop and starts fetching events to the microservice server instance
         loop.run_forever()
+
+    async def _stop(self, loop):
+        if self._plugin is not None:
+            try:
+                self._plugin.plugin_shutdown(self._plugin_handle)
+            except Exception:
+                _LOGGER.exception("Unable to stop plugin '{}'".format(self._name))
+            finally:
+                self._plugin = None
+                self._plugin_handle = None
+
+        try:
+            await Ingest.stop()
+        except Exception:
+            _LOGGER.exception('Unable to stop the Ingest server')
+            return
+
+        # Finish all pending asyncio tasks
+        pending = asyncio.Task.all_tasks()
+        asyncio.gather(*pending)
+
+        # This deactivates event loop and helps aiohttp microservice server instance in graceful shutdown
+        loop.stop()
 
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        print("shutdown south")
-        return web.json_response({"south":"shutdown"})
+        _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
+        try:
+            await self._stop(asyncio.get_event_loop())
+            self.unregister_service_with_core(self._microservice_id)
+        except Exception as ex:
+            _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
+            raise web.HTTPException(reason=str(ex))
+        return web.json_response({"message":
+            "Successfully shutdown microservice id {} at url http://{}:{}/foglamp/service/shutdown".format(
+            self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
 
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
         print("change south")
-        return web.json_response({"south":"change"})
+        return web.json_response({"south": "change"})

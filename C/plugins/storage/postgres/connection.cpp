@@ -1506,14 +1506,14 @@ bool Connection::returnJson(const Value& json, SQLBuffer& sql, SQLBuffer& jsonCo
 		}
 		jsonConstraint.append(json["column"].GetString());
 		int field = 0;
-		char *prev = NULL;
+		string prev;
 		for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 		{
 			if (field)
 			{
 				sql.append("->");
 			}
-			if (prev)
+			if (prev.length())
 			{
 				jsonConstraint.append("->'");
 				jsonConstraint.append(prev);
@@ -1523,7 +1523,7 @@ bool Connection::returnJson(const Value& json, SQLBuffer& sql, SQLBuffer& jsonCo
 			sql.append('\'');
 			sql.append(itr->GetString());
 			sql.append('\'');
-			jsonConstraint.append(jsonFields.GetString());
+			prev = itr->GetString();
 		}
 		jsonConstraint.append(" ? '");
 		jsonConstraint.append(prev);

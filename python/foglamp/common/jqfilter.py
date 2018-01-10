@@ -26,13 +26,15 @@ class JQFilter:
         self._logger = logger.setup("JQFilter")
 
     def transform(self, applyFilter, reading_block, filter_string):
-        if applyFilter:
+        if applyFilter.upper() == "TRUE":
             try:
                 return json.dumps(pyjq.all(filter_string, reading_block))
             except TypeError as ex:
                 self._logger.error("Failed to convert output to JSON, exception", str(ex))
+                raise
             except Exception as e:
-                self._logger.error("Failed to transform, exception", str(e))
+                self._logger.error("Failed to transform, please check the transformation rule syntax")
+                raise
         else:
             return reading_block
 
@@ -44,31 +46,31 @@ class JQFilter:
 # Change the name of a JSON key (e.g., descr to Description - ".[]|{Description: .descr}"
 
 
-def main():
-
-    jqfilter = JQFilter()
-    test_data = [{"value": 0, "key": "BUFFERED", "descr": "Bla"},
-                 {"value": 0, "key": "READINGS", "descr": "Bla2"}]
-    t_string = ".[]"
-    t_data = jqfilter.transform(True, test_data, t_string)
-    print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
-
-    t_string = ".[0]"
-    t_data = jqfilter.transform(True, test_data, t_string)
-    print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
-
-    t_string = ".[]|{descr}"
-    t_data = jqfilter.transform(True, test_data, t_string)
-    print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
-
-    t_string = ".[]|{Description: .descr}"
-    t_data = jqfilter.transform(True, test_data, t_string)
-    print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
-
-    test_data = {'value': 0, "key": "BUFFERED", "descr": "Bla"}
-    t_string = ".|{Description: .descr}"
-    t_data = jqfilter.transform(True, test_data, t_string)
-    print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
-
-
+# def main():
+#
+#     jqfilter = JQFilter()
+#     test_data = [{"value": 0, "key": "BUFFERED", "descr": "Bla"},
+#                  {"value": 0, "key": "READINGS", "descr": "Bla2"}]
+#     t_string = ".[]"
+#     t_data = jqfilter.transform("True", test_data, t_string)
+#     print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
+#
+#     t_string = ".[0]"
+#     t_data = jqfilter.transform("True", test_data, t_string)
+#     print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
+#
+#     t_string = ".[]|{descr}"
+#     t_data = jqfilter.transform("True", test_data, t_string)
+#     print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
+#
+#     t_string = ".[]|{Description: .descr}"
+#     t_data = jqfilter.transform("True", test_data, t_string)
+#     print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
+#
+#     test_data = {'value': 0, "key": "BUFFERED", "descr": "Bla"}
+#     t_string = ".|{Description: .descr}"
+#     t_data = jqfilter.transform("True", test_data, t_string)
+#     print("Data : {}\nTransformation Rule : {}\nTransformed Data : {}\n".format(test_data, t_string, t_data))
+#
+#
 # main()

@@ -26,7 +26,8 @@ class TestJQFilter:
       - Test that correct results are returned after applying JQ filter
     """
     _name = "JQFilter"
-    _core_management_port = 37685
+    # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
+    _core_management_port = 45279
     _core_management_host = "localhost"
 
     _storage_client = StorageClient("localhost", _core_management_port)
@@ -48,12 +49,15 @@ class TestJQFilter:
             "default": ".[]"
         }
     }
+    _first_read_id = None
+    _raw_data = None
+    _jqfilter = JQFilter()
 
     @classmethod
     def set_configuration(cls):
         """" set the default configuration for plugin
         :return:
-            Configuration information that was set for any north plugin
+            Configuration information that will be set for any north plugin
         """
         event_loop = asyncio.get_event_loop()
         event_loop.run_until_complete(cls._cfg_manager.create_category(cls._CONFIG_CATEGORY_NAME,
@@ -62,19 +66,30 @@ class TestJQFilter:
         return event_loop.run_until_complete(cls._cfg_manager.get_category_all_items(cls._CONFIG_CATEGORY_NAME))
 
     @classmethod
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(scope="class", autouse=True)
     def init_test(cls):
-        """Setup and Cleanup method, called after every test"""
+        """Setup and Cleanup method, executed once for the entire test class"""
         cls.set_configuration()
+        cls._first_read_id = cls._insert_readings_data()
+        cls._insert_readings_data()
+        payload = PayloadBuilder()\
+            .WHERE(['id', '>=', cls._first_read_id]) \
+            .ORDER_BY(['id', 'ASC']) \
+            .payload()
+        readings = cls._readings.query(payload)
+        cls._raw_data = readings['rows']
+
         yield
-        # Delete all test data from readings and logs
-        # cls._storage_client.delete_from_tbl("readings", {})
+        # Delete all test data from readings and configuration
+        cls._storage_client.delete_from_tbl("readings", {})
+        payload = PayloadBuilder().WHERE(["key", "=", cls._CONFIG_CATEGORY_NAME]).payload()
+        cls._storage_client.delete_from_tbl("configuration", payload)
 
     @classmethod
     def _insert_readings_data(cls):
-        """Insert reads in readings table with specified time delta of user_ts (in hours)
+        """Insert reads in readings table
         args:
-            hours_delta: delta of user_ts (in hours)
+
         :return:
             The id of inserted row
 
@@ -101,15 +116,39 @@ class TestJQFilter:
         return int(result["rows"][0]["max_id"])
 
     @pytest.mark.asyncio
-    async def test_default(self):
-        jqfilter = JQFilter()
-        id1 = self._insert_readings_data()
-        id2 = self._insert_readings_data()
-        apply_filter = await self._cfg_manager.get_category_item(self._CONFIG_CATEGORY_NAME,
-                                                           self._DEFAULT_FILTER_CONFIG['applyFilter'])
-        jq_rule = await self._cfg_manager.get_category_item(self._CONFIG_CATEGORY_NAME,
-                                                      self._DEFAULT_FILTER_CONFIG['filterRule'])
-        reading_block = self._readings.fetch(id1, 2)
-        print("\napply_filter:{}\n, reading_block:{}\n,jq_rule:{}\n".format(apply_filter, reading_block, jq_rule))
-        transformed_data = jqfilter.transform(apply_filter, reading_block, jq_rule)
-        assert transformed_data == reading_block
+    async def test_no_filter_configuration(self):
+        """Test that filter is not applied when testing with default configuration"""
+        apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
+        jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
+        transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
+        assert transformed_data == self._raw_data
+
+    @pytest.mark.asyncio
+    async def test_default_filter_configuration(self):
+        """Test that filter is applied and returns readings block unaltered with default configuration of filterRule"""
+        await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
+        apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
+        jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
+        transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
+        assert transformed_data == json.dumps(self._raw_data)
+
+    @pytest.mark.asyncio
+    async def test_filter_configuration(self):
+        """Test with supplied filterRule"""
+        await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
+        await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME,
+                                                              'filterRule', ".[0]|{Measurement_id: .id}")
+        apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
+        jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
+        transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
+        assert transformed_data == json.dumps([{"Measurement_id": self._first_read_id}])
+
+    @pytest.mark.asyncio
+    async def test_invalid_filter_configuration(self):
+        """Test with invalid filterRule"""
+        await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
+        await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule', "|")
+        apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
+        jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
+        with pytest.raises(Exception):
+            self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)

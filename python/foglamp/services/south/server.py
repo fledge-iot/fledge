@@ -215,8 +215,12 @@ class Server(FoglampMicroservice):
         """implementation of abstract method form foglamp.common.microservice.
         """
         _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
-        await self._stop(asyncio.get_event_loop())
-        self.unregister_service_with_core(self._microservice_id)
+        try:
+            await self._stop(asyncio.get_event_loop())
+            self.unregister_service_with_core(self._microservice_id)
+        except Exception as ex:
+            _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
+            raise web.HTTPException(reason=str(ex))
         return web.json_response({"message":
             "Successfully shutdown microservice id {} at url http://{}:{}/foglamp/service/shutdown".format(
             self._microservice_id, self._microservice_management_host, self._microservice_management_port)})

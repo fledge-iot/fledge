@@ -81,7 +81,7 @@ def evaluate_type(value):
 
         try:
             # Evaluates if it is a int or a number
-            if int(float(value)) == value:
+            if str(int(float(value))) == str(value):
 
                 # Checks the case having .0 as 967.0
                 int_str = str(int(float(value)))

@@ -83,12 +83,10 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-# FIXME:
-_LOGGER = logger.setup(__name__, destination=logger.CONSOLE)
+_LOGGER = logger.setup(__name__)
 
 _event_loop = ""
-# FIXME:
-_log_debug_level = 3
+_log_debug_level = 0
 """ Defines what and the level of details for logging """
 _log_performance = False
 """ Enable/Disable performance logging, enabled using a command line parameter"""
@@ -844,8 +842,7 @@ class SendingProcess:
             # logging from different processes
             SendingProcess._logger.removeHandler(SendingProcess._logger.handle)
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
-            # FIXME:
-            SendingProcess._logger = logger.setup(logger_name, destination=logger.CONSOLE)
+            SendingProcess._logger = logger.setup(logger_name)
             try:
                 # Set the debug level
                 if self._log_debug_level == 1:

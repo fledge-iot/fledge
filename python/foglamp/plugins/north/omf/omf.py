@@ -30,8 +30,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# FIXME:
-_LOGGER = logger.setup(__name__, destination=logger.CONSOLE)
+_LOGGER = logger.setup(__name__)
 _MODULE_NAME = "omf_north"
 # _storage = ()
 # Defines what and the level of details for logging
@@ -213,9 +212,8 @@ def plugin_init(data):
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
         logger_name = _MODULE_NAME + "_" + str(data['stream_id']['value'])
-        # FIXME:
-        _logger = logger.setup(logger_name, destination=logger.CONSOLE) if _log_debug_level == 0 else \
-                  logger.setup(logger_name, destination=logger.CONSOLE, level=logging.INFO if _log_debug_level == 1 else logging.DEBUG)
+        _logger = logger.setup(logger_name) if _log_debug_level == 0 else \
+                  logger.setup(logger_name, level=logging.INFO if _log_debug_level == 1 else logging.DEBUG)
     except Exception as ex:
         _logger.error("{0} - ERROR - {1}".format(time.strftime("%Y-%m-%d %H:%M:%S:"), plugin_common.MESSAGES_LIST["e000012"].format(str(ex))))
         raise ex

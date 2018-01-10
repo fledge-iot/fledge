@@ -10,7 +10,7 @@ create table foglamp.test (
 
 insert into foglamp.test values (1, 'TEST1',  'A test row', '{ "json" : "test1" }');
 
-delete from readings;
+delete from foglamp.readings;
 
 create table foglamp.test2 (
 	id	bigint,

@@ -22,7 +22,6 @@ __version__ = "${VERSION}"
 # Module attributes
 __DB_NAME = "foglamp"
 BASE_URL = 'localhost:8081'
-headers = {"Content-Type": 'application/json'}
 
 pytestmark = pytest.mark.asyncio
 
@@ -45,25 +44,19 @@ async def add_master_data():
 
 
 async def delete_master_data():
-    """
-    Delete test data records from backup table
-    """
+    """Delete test data records from backup table"""
     conn = await asyncpg.connect(database=__DB_NAME)
     await conn.execute('''DELETE from foglamp.backups WHERE file_name LIKE ($1)''', 'test_%')
     await conn.close()
 
 
-def setup_module(module):
-    """
-    Create backup files in db, directory (if required)
-    """
+def setup_module():
+    """Create backup files in db, directory (if required)"""
     asyncio.get_event_loop().run_until_complete(add_master_data())
 
 
-def teardown_module(module):
-    """
-    Delete the created files from backup db, directory (if created)
-    """
+def teardown_module():
+    """Delete the created files from backup db, directory (if created)"""
     asyncio.get_event_loop().run_until_complete(delete_master_data())
 
 
@@ -71,15 +64,16 @@ def teardown_module(module):
 @pytest.allure.story("backup")
 class TestBackup:
 
-    @pytest.mark.parametrize("request_params, response_code, exp_length, exp_output", [
-        ('', 200, 4, test_data),
-        ('?limit=1', 200, 1, [test_data[3]]),
-        ('?skip=3', 200, 1, [test_data[0]]),
-        ('?limit=2&skip=1', 200, 2, test_data[1:]),
-        ('?status=failed', 200, 1, [test_data[2]]),
-        ('?limit=2&skip=1&status=completed', 200, 1, [test_data[1]]),
+    @pytest.mark.parametrize("request_params, exp_length, exp_output", [
+        ('', 4, test_data),
+        ('?limit=1', 1, [test_data[3]]),
+        ('?skip=3', 1, [test_data[0]]),
+        ('?limit=2&skip=1', 2, test_data[1:]),
+        ('?status=failed', 1, [test_data[2]]),
+        ('?limit=2&skip=1&status=completed', 1, [test_data[1]]),
+        ('?limit=&skip=&status=', 4, test_data)
     ])
-    async def test_get_backups_valid(self, request_params, response_code, exp_length, exp_output):
+    async def test_get_backups(self, request_params, exp_length, exp_output):
         """
         Test to get all backups, where:
         1. No request parameter is passed
@@ -93,8 +87,9 @@ class TestBackup:
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/backup{}'.format(request_params))
         r = conn.getresponse()
-        assert response_code == r.status
+        assert 200 == r.status
         r = r.read().decode()
+        conn.close()
         retval = json.loads(r)
         response_length = len(retval['backups'])
         assert exp_length == response_length
@@ -104,14 +99,15 @@ class TestBackup:
             assert exp_output[exp_length - count]['id'] == retval['backups'][i]['id']
             assert Status(exp_output[exp_length - count]["status"]).name == retval['backups'][i]['status']
             assert retval['backups'][i]['date'] is not None
-        conn.close()
 
-    @pytest.mark.parametrize("request_params, response_code, output_code, output_message", [
-        ('?limit=invalid', 200, 400, "limit must be an integer"),
-        ('?skip=invalid', 200, 400, "skip must be an integer"),
-        ('?status=invalid', 200, 400, "'INVALID' not a valid status"),
+    @pytest.mark.parametrize("request_params, response_code, response_message", [
+        ('?limit=invalid', 400, "Limit must be a positive integer"),
+        ('?limit=-10', 400, "Limit must be a positive integer"),
+        ('?skip=invalid', 400, "Skip/Offset must be a positive integer"),
+        ('?skip=-1', 400, "Skip/Offset must be a positive integer"),
+        ('?status=invalid', 400, "'INVALID' is not a valid status"),
     ])
-    async def test_get_backups_invalid(self, request_params, response_code, output_code, output_message):
+    async def test_get_backups_invalid(self, request_params, response_code, response_message):
         """
         Test to get all backups, where:
         1. invalid limit is specified
@@ -121,17 +117,14 @@ class TestBackup:
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/backup{}'.format(request_params))
         r = conn.getresponse()
-        assert response_code == r.status
-        r = r.read().decode()
-        retval = json.loads(r)
-        assert output_code == retval['error']['code']
-        assert output_message == retval['error']['message']
         conn.close()
+        assert response_code == r.status
+        assert response_message == r.reason
 
-    @pytest.mark.parametrize("request_params, response_code, output", [
-        (test_data[0], 200, test_data[0])
+    @pytest.mark.parametrize("request_params, output", [
+        (test_data[0], test_data[0])
     ])
-    async def test_get_backup_details_valid(self, request_params, response_code, output):
+    async def test_get_backup_details(self, request_params, output):
         """
         Test to get details of backup, where:
         1. Valid backup id is specified as query parameter
@@ -139,19 +132,19 @@ class TestBackup:
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/backup/{}'.format(request_params["id"]))
         r = conn.getresponse()
-        assert response_code == r.status
+        assert 200 == r.status
         r = r.read().decode()
+        conn.close()
         retval = json.loads(r)
         assert output['id'] == retval['id']
         assert Status(output['status']).name == retval['status']
         assert retval['date'] is not None
-        conn.close()
 
-    @pytest.mark.parametrize("request_params, response_code, output_code, output_message", [
-        ('invalid', 200, 400, "Invalid backup id"),
-        ('-1', 200, 404, "Backup with -1 does not exist")
+    @pytest.mark.parametrize("request_params, response_code, response_message", [
+        ('invalid', 400, "Invalid backup id"),
+        ('-1', 404, "Backup with -1 does not exist")
     ])
-    async def test_get_backup_details_invalid(self, request_params, response_code, output_code, output_message):
+    async def test_get_backup_details_invalid(self, request_params, response_code, response_message):
         """
         Test to get details of backup, where:
         1. Invalid backup id is specified as query parameter
@@ -159,12 +152,9 @@ class TestBackup:
         conn = http.client.HTTPConnection(BASE_URL)
         conn.request("GET", '/foglamp/backup/{}'.format(request_params))
         r = conn.getresponse()
-        assert response_code == r.status
-        r = r.read().decode()
-        retval = json.loads(r)
-        assert output_code == retval['error']['code']
-        assert output_message == retval['error']['message']
         conn.close()
+        assert response_code == r.status
+        assert response_message == r.reason
 
     # TODO: Create mocks for this
     @pytest.mark.skip(reason="FOGL-865")
@@ -184,6 +174,40 @@ class TestBackup:
         2. Valid backup id is specified as query parameter
         """
         pass
+
+    async def test_get_backup_status(self):
+        conn = http.client.HTTPConnection(BASE_URL)
+        conn.request("GET", '/foglamp/backup/status')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        conn.close()
+        result = json.loads(r)
+        backup_status = result['backupStatus']
+
+        # verify the backup_status count
+        assert 6 == len(backup_status)
+
+        # verify the name and value of backup_status
+        for i in range(len(backup_status)):
+            if backup_status[i]['index'] == 1:
+                assert 1 == backup_status[i]['index']
+                assert 'RUNNING' == backup_status[i]['name']
+            elif backup_status[i]['index'] == 2:
+                assert 2 == backup_status[i]['index']
+                assert 'COMPLETED' == backup_status[i]['name']
+            elif backup_status[i]['index'] == 3:
+                assert 3 == backup_status[i]['index']
+                assert 'CANCELED' == backup_status[i]['name']
+            elif backup_status[i]['index'] == 4:
+                assert 4 == backup_status[i]['index']
+                assert 'INTERRUPTED' == backup_status[i]['name']
+            elif backup_status[i]['index'] == 5:
+                assert 5 == backup_status[i]['index']
+                assert 'FAILED' == backup_status[i]['name']
+            elif backup_status[i]['index'] == 6:
+                assert 6 == backup_status[i]['index']
+                assert 'RESTORED' == backup_status[i]['name']
 
 
 @pytest.allure.feature("api")

@@ -79,9 +79,9 @@ class TestScheduler:
     def teardown_class(cls):
         # TODO: Separate test db from a production/dev db as other running tasks interfere in the test execution
         # TODO: Figure out how to do a "foglamp stop" in the new dir structure
-        # from subprocess import call
-        # call(["scripts/foglamp", "stop"])
-        # time.sleep(10)
+        from subprocess import call
+        call([_SCRIPTS_DIR + "/foglamp", "stop"])
+        time.sleep(10)
         asyncio.get_event_loop().run_until_complete(delete_master_data())
 
     def setup_method(self):
@@ -118,7 +118,7 @@ class TestScheduler:
 
     async def test_post_schedule(self):
         await add_master_data()
-        data = {"type": 3, "name": "test_post_sch", "process_name": "testsleep30", "repeat": 3600}
+        data = {"type": 3, "name": "test_post_sch", "process_name": "testsleep30", "repeat": 3600, "enabled": "t"}
         r = requests.post(BASE_URL+'/schedule', data=json.dumps(data), headers=headers)
         retval = dict(r.json())
 
@@ -126,6 +126,7 @@ class TestScheduler:
         assert 200 == r.status_code
         assert uuid.UUID(retval['schedule']['id'], version=4)
         assert retval['schedule']['exclusive'] is True
+        assert retval['schedule']['enabled'] is True
         assert retval['schedule']['type'] == Schedule.Type(int(data['type'])).name
         assert retval['schedule']['time'] == 0
         assert retval['schedule']['day'] is None
@@ -136,12 +137,12 @@ class TestScheduler:
         # Assert schedule is really created in DB
         r = requests.get(BASE_URL + '/schedule/' + retval['schedule']['id'])
         assert 200 == r.status_code
-        retvall = dict(r.json())
-        assert retvall['name'] == data['name']
+        retval = dict(r.json())
+        assert retval['name'] == data['name']
 
     async def test_update_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_update_sch", "process_name": "testsleep30", "repeat": 3600}
+        data = {"type": 3, "name": "test_update_sch", "process_name": "testsleep30", "repeat": 3600, "enabled": "t"}
         schedule_id = self._create_schedule(data)
 
         # Secondly, update the schedule
@@ -163,7 +164,7 @@ class TestScheduler:
 
     async def test_delete_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_delete_sch", "process_name": "testsleep30", "repeat": 3600}
+        data = {"type": 3, "name": "test_delete_sch", "process_name": "testsleep30", "repeat": 3600, "enabled": "t"}
         schedule_id = self._create_schedule(data)
 
         # Now check the schedules
@@ -177,13 +178,12 @@ class TestScheduler:
 
         # Assert schedule is really deleted from DB
         r = requests.get(BASE_URL + '/schedule/' + schedule_id)
-        assert 200 == r.status_code
-        retvall = dict(r.json())
-        assert 'Schedule not found' in retvall['error']['message']
+        assert 404 == r.status_code
+        assert 'Schedule not found: {}'.format(schedule_id) == r.reason
 
     async def test_get_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_get_sch", "process_name": "testsleep30", "repeat": 3600}
+        data = {"type": 3, "name": "test_get_sch", "process_name": "testsleep30", "repeat": 3600, "enabled": "t"}
         schedule_id = self._create_schedule(data)
 
         # Now check the schedule
@@ -193,6 +193,7 @@ class TestScheduler:
         assert 200 == r.status_code
         assert retval['id'] == schedule_id
         assert retval['exclusive'] is True
+        assert retval['enabled'] is True
         assert retval['type'] == Schedule.Type(int(data['type'])).name
         assert retval['time'] == 0
         assert retval['day'] is None
@@ -202,12 +203,12 @@ class TestScheduler:
 
     async def test_get_schedules(self):
         # First create two schedules to get the schedule_id
-        data1 = {"type": 3, "name": "test_get_schA", "process_name": "testsleep30", "repeat": 3600}
+        data1 = {"type": 3, "name": "test_get_schA", "process_name": "testsleep30", "repeat": 3600, "enabled": "t"}
         schedule_id1 = self._create_schedule(data1)
 
         await asyncio.sleep(4)
 
-        data2 = {"type": 2, "name": "test_get_schB", "process_name": "testsleep30", "day": 5, "time": 44500}
+        data2 = {"type": 2, "name": "test_get_schB", "process_name": "testsleep30", "day": 5, "time": 44500, "enabled": "t"}
         schedule_id2 = self._create_schedule(data2)
 
         await asyncio.sleep(4)
@@ -222,7 +223,7 @@ class TestScheduler:
 
     async def test_start_schedule(self):
         # First create a schedule to get the schedule_id
-        data = {"type": 3, "name": "test_start_sch", "process_name": "testsleep30", "repeat": "30"}
+        data = {"type": 3, "name": "test_start_sch", "process_name": "testsleep30", "repeat": "30", "enabled": "t"}
         schedule_id = self._create_schedule(data)
 
         # Now start the schedules
@@ -242,6 +243,43 @@ class TestScheduler:
 
         l_task_state = []
         for tasks in retval['tasks']:
-            if tasks['processName'] == data['process_name']:
+            if tasks['name'] == data['process_name']:
                 l_task_state.append(tasks['state'])
         assert 1 == l_task_state.count('RUNNING')
+
+    async def test_enable_schedule(self):
+        # First create a schedule to get the schedule_id
+        data = {"type": 3, "name": "test_enable_sch", "process_name": "testsleep30", "repeat": "30", "enabled": "f"}
+        schedule_id = self._create_schedule(data)
+
+        # Now enable the schedules
+        r = requests.put(BASE_URL+'/schedule/' + schedule_id + '/enable')
+        retval = dict(r.json())
+
+        assert retval['scheduleId'] == schedule_id
+        assert retval['status'] is True
+
+        # Allow sufficient time for task record to be created
+        await asyncio.sleep(4)
+
+    async def test_disable_schedule(self):
+        # First create a schedule to get the schedule_id
+        data = {"type": 3, "name": "test_enable_sch", "process_name": "testsleep30", "repeat": "30", "enabled": "t"}
+        schedule_id = self._create_schedule(data)
+
+        # Now start the schedules
+        r = requests.post(BASE_URL+'/schedule/start/' + schedule_id)
+        retval = dict(r.json())
+
+        assert retval['id'] == schedule_id
+        assert retval['message'] == "Schedule started successfully"
+
+        # Allow sufficient time for task record to be created
+        await asyncio.sleep(4)
+
+        # Now disable the schedules
+        r = requests.put(BASE_URL+'/schedule/' + schedule_id + '/disable')
+        retval = dict(r.json())
+
+        assert retval['scheduleId'] == schedule_id
+        assert retval['status'] is True

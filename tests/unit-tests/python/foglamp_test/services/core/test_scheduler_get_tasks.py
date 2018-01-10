@@ -56,7 +56,7 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
                                        sqlalchemy.Column('reason', sqlalchemy.types.VARCHAR(255)))
 
 # TODO: To run this test,
-#       1) Do 'foglamp start' and note the management_port from syslog
+#       1) Do 'scripts/foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
 #       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit-tests/python/foglamp_test/services/core/test_scheduler_get_tasks.py
 

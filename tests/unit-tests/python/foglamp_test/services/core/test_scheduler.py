@@ -12,7 +12,7 @@ import uuid
 import aiopg
 import aiopg.sa
 import pytest
-from foglamp.services.core.scheduler.scheduler import Scheduler
+from foglamp.services.core.scheduler.scheduler import Scheduler, _FOGLAMP_ROOT
 from foglamp.services.core.scheduler.entities import IntervalSchedule, Task, Schedule, TimedSchedule, ManualSchedule, \
     StartUpSchedule
 from foglamp.services.core.scheduler.exceptions import ScheduleNotFoundError
@@ -24,13 +24,13 @@ __version__ = "${VERSION}"
 
 _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 # TODO: To run this test,
-#       1) Do 'foglamp start' and note the management_port from syslog
+#       1) Do 'scripts/foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
 #       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit-tests/python/foglamp_test/services/core/test_scheduler.py
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = '0.0.0.0'
-_m_port = 45004
+_m_port = 46000
 
 
 @pytest.allure.feature("unit")
@@ -54,17 +54,17 @@ class TestScheduler:
             await conn.execute('delete from foglamp.schedules')
             await conn.execute('delete from foglamp.scheduled_processes')
             await conn.execute(
-                '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep1', '["python3", "../scripts/sleep.py", "1"]')''')
+                "insert into foglamp.scheduled_processes(name, script) values('sleep1', '[\"python3\", " + '"' +
+                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"1\"]')")
             await conn.execute(
-                '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep10', '["python3", "../scripts/sleep.py", "10"]')''')
+                "insert into foglamp.scheduled_processes(name, script) values('sleep10', '[\"python3\",  " +  '"' +
+                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"10\"]')")
             await conn.execute(
-                '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep30', '["python3", "../scripts/sleep.py", "30"]')''')
+                "insert into foglamp.scheduled_processes(name, script) values('sleep30', '[\"python3\", " +  '"' +
+                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"30\"]')")
             await conn.execute(
-                '''insert into foglamp.scheduled_processes(name, script)
-                values('sleep5', '["python3", "../scripts/sleep.py", "5"]')''')
+                "insert into foglamp.scheduled_processes(name, script) values('sleep5', '[\"python3\",  " +  '"' +
+                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"5\"]')")
 
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler) -> None:
@@ -87,6 +87,7 @@ class TestScheduler:
         # Set schedule interval
         interval_schedule = IntervalSchedule()
         interval_schedule.exclusive = False
+        interval_schedule.enabled = True
         interval_schedule.name = 'sleep1'
         interval_schedule.process_name = "sleep1"
         interval_schedule.repeat = datetime.timedelta(seconds=1)  # Set frequency of
@@ -114,6 +115,7 @@ class TestScheduler:
         interval_schedule.name = 'sleep10'
         interval_schedule.process_name = "sleep10"
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -147,6 +149,7 @@ class TestScheduler:
         interval_schedule.name = 'sleep10'
         interval_schedule.process_name = "sleep10"
         interval_schedule.repeat = datetime.timedelta(seconds=1)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -165,6 +168,7 @@ class TestScheduler:
         interval_schedule.name = 'sleep10'
         interval_schedule.process_name = 'sleep10'
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -173,6 +177,7 @@ class TestScheduler:
         manual_schedule.name = 'manual'
         manual_schedule.process_name = 'sleep10'
         manual_schedule.repeat = datetime.timedelta(seconds=0)
+        manual_schedule.enabled = True
 
         await scheduler.save_schedule(manual_schedule)
 
@@ -199,6 +204,7 @@ class TestScheduler:
         interval_schedule.name = 'sleep10'
         interval_schedule.process_name = "sleep10"
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)  # Save update on _scheduler
 
@@ -211,6 +217,7 @@ class TestScheduler:
         interval_schedule.name = 'updated'
         interval_schedule.process_name = "sleep1"
         interval_schedule.repeat = datetime.timedelta(seconds=5)  # Set time interval to 5 sec
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)  # Save update on _scheduler
         await asyncio.sleep(6)
@@ -254,6 +261,7 @@ class TestScheduler:
         startup_schedule.name = 'startup schedule'
         startup_schedule.process_name = 'sleep30'
         startup_schedule.repeat = datetime.timedelta(seconds=0)  # set no repeat to startup
+        startup_schedule.enabled = True
 
         await scheduler.save_schedule(startup_schedule)
 
@@ -309,6 +317,7 @@ class TestScheduler:
         manual_schedule.name = 'manual task'
         manual_schedule.process_name = 'sleep10'
         manual_schedule.repeat = datetime.timedelta(seconds=0)
+        manual_schedule.enabled = True
 
         await scheduler.save_schedule(manual_schedule)
         manual_schedule = await scheduler.get_schedule(manual_schedule.schedule_id)
@@ -352,6 +361,7 @@ class TestScheduler:
         interval_schedule.name = 'max active'
         interval_schedule.exclusive = False
         interval_schedule.process_name = 'sleep10'
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -398,6 +408,7 @@ class TestScheduler:
         timed_schedule.day = 2
         timed_schedule.time = datetime.time(hour=8)
         timed_schedule.repeat = datetime.timedelta(seconds=0)
+        timed_schedule.enabled = True
 
         # Set env timezone
         os.environ["TZ"] = "PST8PDT"
@@ -439,6 +450,7 @@ class TestScheduler:
         interval_schedule.name = 'deletetest'
         interval_schedule.process_name = "sleep1"
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -468,6 +480,7 @@ class TestScheduler:
         interval_schedule.name = 'cancel_test'
         interval_schedule.process_name = 'sleep30'
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -493,6 +506,7 @@ class TestScheduler:
         interval_schedule.name = 'get_schedule_test'
         interval_schedule.process_name = "sleep30"
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -526,6 +540,7 @@ class TestScheduler:
         interval_schedule.name = 'get_task'
         interval_schedule.process_name = "sleep30"
         interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
         await asyncio.sleep(1)
@@ -558,6 +573,7 @@ class TestScheduler:
         interval_schedule.process_name = "sleep5"
         interval_schedule.repeat = datetime.timedelta(seconds=1)
         interval_schedule.exclusive = False
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -592,12 +608,12 @@ class TestScheduler:
             sort=[["state", "desc"], ["start_time", "asc"]])
         assert tasks
 
-        tasks = await scheduler.get_tasks(or_where_list=[["state", "=", int(Task.State.RUNNING)], \
-                                                         ["state", "=", int(Task.State.RUNNING)]])
+        tasks = await scheduler.get_tasks(
+            or_where=[["state", "=", int(Task.State.RUNNING)], ["state", "=", int(Task.State.RUNNING)]])
         assert tasks
 
-        tasks = await scheduler.get_tasks(and_where_list=[["state", "=", int(Task.State.RUNNING)], \
-                                                          ["state", "=", int(Task.State.RUNNING)]])
+        tasks = await scheduler.get_tasks(
+            and_where=[["state", "=", int(Task.State.RUNNING)], ["state", "=", int(Task.State.RUNNING)]])
         assert tasks
 
         await self.stop_scheduler(scheduler)
@@ -614,6 +630,7 @@ class TestScheduler:
         interval_schedule.process_name = "sleep5"
         interval_schedule.repeat = datetime.timedelta(seconds=0)
         # interval_schedule.repeat = datetime.timedelta(seconds=30)
+        interval_schedule.enabled = True
 
         await scheduler.save_schedule(interval_schedule)
 
@@ -630,3 +647,101 @@ class TestScheduler:
         tasks = await scheduler.get_tasks(5)
         assert not tasks
         await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_enable_schedule(self):
+        await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
+
+        scheduler = Scheduler(_address, _m_port)
+        await scheduler.start()
+
+        # Declare schedule
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'enable_schedule_test'
+        interval_schedule.process_name = "sleep5"
+        interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = False
+
+        await scheduler.save_schedule(interval_schedule)
+
+        # Get schedule
+        schedules = await scheduler.get_schedules()
+        assert len(schedules) == 1  # Assert the number of schedules
+        assert schedules[0].enabled is False
+
+        # Enable Schedule
+        retval, reason = await scheduler.enable_schedule(interval_schedule.schedule_id)
+        assert retval
+
+        # Confirm enabled changed
+        schedules = await scheduler.get_schedules()
+        assert len(schedules) == 1  # Assert the number of schedules
+        assert schedules[0].enabled is True
+
+        await asyncio.sleep(5)
+
+        # assert there exists a task
+        tasks = await scheduler.get_running_tasks()  # retrieve list running tasks
+        assert len(tasks)
+
+        task = await scheduler.get_task(tasks[0].task_id)
+        assert task
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_enable_schedule_wrong_schedule_id(self):
+        with pytest.raises(ScheduleNotFoundError) as excinfo:
+            scheduler = Scheduler(_address, _m_port)
+            await scheduler.start()
+            random_schedule_id = uuid.uuid4()
+            await scheduler.enable_schedule(random_schedule_id)
+
+    @pytest.mark.asyncio
+    async def test_disable_schedule(self):
+        await self.populate_test_data()  # Populate data in foglamp.scheduled_processes
+
+        scheduler = Scheduler(_address, _m_port)
+        await scheduler.start()
+
+        # Declare schedule
+        interval_schedule = IntervalSchedule()
+        interval_schedule.name = 'disable_schedule_test'
+        interval_schedule.process_name = "sleep5"
+        interval_schedule.repeat = datetime.timedelta(seconds=0)
+        interval_schedule.enabled = True
+
+        await scheduler.save_schedule(interval_schedule)
+
+        # Get schedule
+        schedules = await scheduler.get_schedules()
+        assert len(schedules) == 1  # Assert the number of schedules
+        assert schedules[0].enabled is True
+
+        await asyncio.sleep(5)
+
+        # assert there exists a task
+        tasks = await scheduler.get_running_tasks()  # retrieve list running tasks
+        assert len(tasks)
+
+        task = await scheduler.get_task(tasks[0].task_id)
+        assert task
+
+        # Disable Schedule
+        retval, reason = await scheduler.disable_schedule(interval_schedule.schedule_id)
+        assert retval
+
+        # Confirm enabled changed
+        schedules = await scheduler.get_schedules()
+        assert len(schedules) == 1  # Assert the number of schedules
+        assert schedules[0].enabled is False
+
+        await self.stop_scheduler(scheduler)
+
+    @pytest.mark.asyncio
+    async def test_disable_schedule_wrong_schedule_id(self):
+        with pytest.raises(ScheduleNotFoundError) as excinfo:
+            scheduler = Scheduler(_address, _m_port)
+            await scheduler.start()
+            random_schedule_id = uuid.uuid4()
+            await scheduler.disable_schedule(random_schedule_id)

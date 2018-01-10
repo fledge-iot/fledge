@@ -10,7 +10,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-
 def setup(app, obj):
     """ Common method to setup the microservice management api.
     Args:
@@ -26,11 +25,12 @@ def setup(app, obj):
     app.router.add_route('DELETE', '/foglamp/service/{service_id}', obj.unregister)
     app.router.add_route('GET', '/foglamp/service', obj.get_service)
     # Interest Registration
-    app.router.add_route('POST', '/foglamp/service/interest', obj.register_interest)
-    app.router.add_route('DELETE', '/foglamp/service/interest/{interest_id}', obj.unregister_interest)
+    app.router.add_route('POST', '/foglamp/interest', obj.register_interest)
+    app.router.add_route('DELETE', '/foglamp/interest/{interest_id}', obj.unregister_interest)
 
     # enable cors support
     enable_cors(app)
+
 
 def enable_cors(app):
     """ implements Cross Origin Resource Sharing (CORS) support """
@@ -49,6 +49,7 @@ def enable_cors(app):
     for route in list(app.router.routes()):
         cors.add(route)
 
+
 def enable_debugger(app):
     """ provides a debug toolbar for server requests """
     import aiohttp_debugtoolbar
@@ -56,4 +57,3 @@ def enable_debugger(app):
     # dev mode only
     # this will be served at API_SERVER_URL/_debugtoolbar
     aiohttp_debugtoolbar.setup(app)
-

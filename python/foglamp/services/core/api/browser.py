@@ -52,6 +52,7 @@ __version__ = "${VERSION}"
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __TIMESTAMP_FMT = 'YYYY-MM-DD HH24:MI:SS.MS'
+_NO_RECORDS_FOUND = {"message": "No Records found"}
 
 
 def setup(app):
@@ -61,6 +62,40 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
+
+
+def validate_limit_skip(request, _dict):
+    """ limit skip clause validation
+
+    Args:
+        request: request query params
+        _dict: main payload dict
+    Returns:
+        chain payload dict
+    """
+    limit = __DEFAULT_LIMIT
+    if 'limit' in request.query and request.query['limit'] != '':
+        try:
+            limit = int(request.query['limit'])
+            if limit < 0:
+                raise ValueError
+        except ValueError:
+            raise web.HTTPBadRequest(reason="Limit must be a positive integer")
+
+    offset = __DEFAULT_OFFSET
+    if 'skip' in request.query and request.query['skip'] != '':
+        try:
+            offset = int(request.query['skip'])
+            if offset < 0:
+                raise ValueError
+        except ValueError:
+            raise web.HTTPBadRequest(reason="Skip/Offset must be a positive integer")
+
+    payload = PayloadBuilder(_dict).LIMIT(limit)
+    if offset:
+        payload = PayloadBuilder(_dict).SKIP(offset)
+
+    return payload.chain_payload()
 
 
 async def asset_counts(request):
@@ -79,13 +114,17 @@ async def asset_counts(request):
     d['group'] = "asset_code"
 
     payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 async def asset(request):
@@ -107,23 +146,23 @@ async def asset(request):
     _and_where = where_clause(request, _where)
     d.update(_and_where)
 
-    # Add the order by and limit clause
-    limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
-    _sort_limit_skip_payload = PayloadBuilder(d).ORDER_BY(["user_ts", "desc"]).LIMIT(limit)
-    if offset:
-        _sort_limit_skip_payload = PayloadBuilder(d).SKIP(offset)
-
-    d.update(_sort_limit_skip_payload.chain_payload())
+    # Add the order by and limit, offset clause
+    _limit_skip_payload = validate_limit_skip(request, d)
+    _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).chain_payload()
+    d.update(_sort_payload)
 
     payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 async def asset_reading(request):
@@ -164,24 +203,23 @@ async def asset_reading(request):
     _and_where = where_clause(request, _where)
     d.update(_and_where)
 
-    # Add the order by and limit clause
-    limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
-    _sort_limit_skip_payload = PayloadBuilder(d).ORDER_BY(["user_ts", "desc"]).LIMIT(limit)
-
-    if offset:
-        _sort_limit_skip_payload = PayloadBuilder(d).SKIP(offset)
-
-    d.update(_sort_limit_skip_payload.chain_payload())
+    # Add the order by and limit, offset clause
+    _limit_skip_payload = validate_limit_skip(request, d)
+    _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).chain_payload()
+    d.update(_sort_payload)
 
     payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 async def asset_summary(request):
@@ -222,13 +260,17 @@ async def asset_summary(request):
     d.update(_and_where)
 
     payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' not in results:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    else:
-        return web.json_response({reading: results['rows']})
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response({reading: response})
 
 
 async def asset_averages(request):
@@ -259,13 +301,17 @@ async def asset_averages(request):
     reading = request.match_info.get('reading', '')
 
     ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
-    if 'group' in request.query:
-        if request.query['group'] == 'seconds':
-            ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
-        elif request.query['group'] == 'minutes':
-            ts_restraint = 'YYYY-MM-DD HH24:MI'
-        elif request.query['group'] == 'hours':
-            ts_restraint = 'YYYY-MM-DD HH24'
+    if 'group' in request.query and request.query['group'] != '':
+        _group = request.query['group']
+        if _group in ('seconds', 'minutes', 'hours'):
+            if _group == 'seconds':
+                ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
+            elif _group == 'minutes':
+                ts_restraint = 'YYYY-MM-DD HH24:MI'
+            elif _group == 'hours':
+                ts_restraint = 'YYYY-MM-DD HH24'
+        else:
+            raise web.HTTPBadRequest(reason="{} is not a valid group".format(_group))
 
     # TODO: FOGL-637, 640
     timestamp = {"column": "user_ts", "format": ts_restraint, "alias": "timestamp"}
@@ -282,31 +328,41 @@ async def asset_averages(request):
     _and_where = where_clause(request, _where)
     d.update(_and_where)
 
-    # Add the group by and limit clause
+    # Add the group by and limit, offset clause
     d['group'] = timestamp
-    limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    _limit_payload = PayloadBuilder(d).LIMIT(limit)
-    d.update(_limit_payload.chain_payload())
+    _limit_skip_payload = validate_limit_skip(request, d)
+    d.update(_limit_skip_payload)
 
     payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 def where_clause(request, where):
     val = 0
-    if 'seconds' in request.query:
-        val = int(request.query['seconds'])
-    elif 'minutes' in request.query:
-        val = int(request.query['minutes']) * 60
-    elif 'hours' in request.query:
-        val = int(request.query['hours']) * 60 * 60
+    try:
+        if 'seconds' in request.query and request.query['seconds'] != '':
+            val = int(request.query['seconds'])
+        elif 'minutes' in request.query and request.query['minutes'] != '':
+            val = int(request.query['minutes']) * 60
+        elif 'hours' in request.query and request.query['hours'] != '':
+            val = int(request.query['hours']) * 60 * 60
 
+        if val < 0:
+            raise ValueError
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Time must be a positive integer")
+
+    # if no time units then NO AND_WHERE condition applied
     if val == 0:
         return where
 

@@ -242,11 +242,13 @@ class Server:
         """Starts the micro-service monitor"""
         cls.service_monitor = Monitor()
         await cls.service_monitor.start()
+        _logger.info("Services monitoring started ...")
 
     @classmethod
     async def stop_service_monitor(cls):
         """Stops the micro-service monitor"""
         await cls.service_monitor.stop()
+        _logger.info("Services monitoring stopped.")
 
     @classmethod
     async def _start_scheduler(cls):
@@ -308,7 +310,7 @@ class Server:
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
             _logger.info('Announce management API service')
-            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core1', '_foglampcore1._tcp', cls.core_management_port,
+            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core', '_foglamp_core._tcp', cls.core_management_port,
                                                     ['The FogLAMP Core REST API'])
 
             # start storage
@@ -387,7 +389,7 @@ class Server:
         cls._start_core(loop=loop)
 
     @classmethod
-    async def _stop(cls, loop):
+    async def _stop(cls):
         """Stops FogLAMP"""
 
         # stop the scheduler
@@ -396,42 +398,43 @@ class Server:
         # stop monitor
         await cls.stop_service_monitor()
 
-        # stop storage
-        cls.stop_storage()
-        # move after stop rest server
-
         # stop the REST api (exposed on service port)
-        cls.stop_rest_server(loop)
+        await cls.stop_rest_server()
+
+        # stop storage
+        await cls.stop_storage()
 
         # stop core management api
-        cls.stop_core_server(loop)
-
-        loop.stop()
+        # loop.stop does it all ?!
+        # await cls.stop_core_server()
 
     @classmethod
     def stop(cls, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        loop.run_until_complete(cls._stop(loop))
+        loop.run_until_complete(cls._stop())
+        loop.stop()
 
     @classmethod
-    def stop_rest_server(cls, loop):
+    async def stop_rest_server(cls):
         cls.service_server.close()
-        loop.run_until_complete(cls.service_server.wait_closed())
-        loop.run_until_complete(cls.service_app.shutdown())
-        loop.run_until_complete(cls.service_server_handler.shutdown(60.0))
-        loop.run_until_complete(cls.service_app.cleanup())
+        await cls.service_server.wait_closed()
+        await cls.service_app.shutdown()
+        await cls.service_server_handler.shutdown(60.0)
+        await cls.service_app.cleanup()
+        _logger.info("Rest server stopped.")
+
+    # @classmethod
+    # async def stop_core_server(cls):
+    #     cls.core_server.close()
+    #     await cls.core_server.wait_closed()
+    #     await cls.core_app.shutdown()
+    #     await cls.core_server_handler.shutdown(60.0)
+    #     await cls.core_app.cleanup()
+    #     _logger.info("Core server stopped.")
 
     @classmethod
-    def stop_core_server(cls, loop):
-        cls.core_server.close()
-        loop.run_until_complete(cls.core_server.wait_closed())
-        loop.run_until_complete(cls.core_app.shutdown())
-        loop.run_until_complete(cls.core_server_handler.shutdown(60.0))
-        loop.run_until_complete(cls.core_app.cleanup())
-
-    @classmethod
-    def stop_storage(cls, loop):
+    async def stop_storage(cls):
         """Stops Storage service """
 
         # Or just do?!
@@ -446,7 +449,7 @@ class Server:
         svc = found_services[0]
         if svc is None:
             return
-        res = loop.run_until_complete(cls._shutdown_microservice(svc))
+        res = await cls._shutdown_microservice(svc)
 
         try:
             response = json.loads(res)
@@ -650,7 +653,10 @@ class Server:
             except service_registry_exceptions.DoesNotExist as ex:
                 pass
 
-            await cls._stop(asyncio.get_event_loop())
+            await cls._stop()
+
+            loop = asyncio.get_event_loop()
+            loop.stop()
 
             return web.json_response({'message': 'FogLAMP stopped successfully.'})
         except Exception as ex:

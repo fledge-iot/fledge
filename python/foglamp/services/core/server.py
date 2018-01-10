@@ -11,11 +11,12 @@ import asyncio
 import os
 import subprocess
 import sys
-import http.client
-import json
+
 import ssl
 import time
 from aiohttp import web
+import aiohttp
+import json
 
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -307,7 +308,7 @@ class Server:
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
             _logger.info('Announce management API service')
-            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core', '_foglamp_core._tcp', cls.core_management_port,
+            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core1', '_foglampcore1._tcp', cls.core_management_port,
                                                     ['The FogLAMP Core REST API'])
 
             # start storage
@@ -430,7 +431,7 @@ class Server:
         loop.run_until_complete(cls.core_app.cleanup())
 
     @classmethod
-    def stop_storage(cls):
+    def stop_storage(cls, loop):
         """Stops Storage service """
 
         # Or just do?!
@@ -445,33 +446,31 @@ class Server:
         svc = found_services[0]
         if svc is None:
             return
-        res = cls._shutdown_microservice(svc)
+        res = loop.run_until_complete(cls._shutdown_microservice(svc))
 
         try:
-           msg = res['message']
+            response = json.loads(res)
+            response['message']
         except KeyError:
             raise
 
     @classmethod
-    def _shutdown_microservice(cls, svc):
-        management_api_url = '{}:{}'.format(svc._address, svc._management_port)
-        _logger.info("Shutting down the %s service %s ...", svc._type, svc._name)
-        conn = http.client.HTTPConnection(management_api_url)
+    async def _shutdown_microservice(cls, svc):
+        """ request service's shutdown """
+        management_api_url = 'http://{}:{}/foglamp/service/shutdown'.format(svc._address, svc._management_port)
         # TODO: need to set http / https based on service protocol
+        _logger.info("Shutting down the %s service %s ...", svc._type, svc._name)
+        headers = {'content-type': 'application/json'}
+        async with aiohttp.ClientSession() as session:
+            async with session.post(management_api_url, data=None, headers=headers) as resp:
+                result = await resp.text()
+                status_code = resp.status
+                if status_code in range(400, 500):
+                    _logger.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+                if status_code in range(500, 600):
+                    _logger.error("Server error code: %d, reason: %s", status_code, resp.reason)
 
-        conn.request('POST', url='/foglamp/service/shutdown', body=None)
-        r = conn.getresponse()
-
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _logger.error("Client error code: %d, reason: %s", r.status, r.reason)
-        if r.status in range(500, 600):
-            _logger.error("Server error code: %d, reason: %s", r.status, r.reason)
-
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res)
+                return result
 
     @classmethod
     async def _stop_scheduler(cls):
@@ -640,9 +639,10 @@ class Server:
                 found_services = ServiceRegistry.get(s_type="Southbound")
                 for svc in found_services:
                     # handle message key in response
-                    res = cls._shutdown_microservice(svc)
+                    res = await cls._shutdown_microservice(svc)
                     try:
-                        res['message']
+                        response = json.loads(res)
+                        response['message']
                         _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
                     except KeyError:
                         raise

@@ -16,6 +16,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+pytestmark = pytest.mark.asyncio
+
 
 @pytest.allure.feature("integration")
 @pytest.allure.story("jq filter testing")
@@ -115,25 +117,22 @@ class TestJQFilter:
         result = cls._storage_client.query_tbl_with_payload("readings", payload)
         return int(result["rows"][0]["max_id"])
 
-    @pytest.mark.asyncio
-    async def test_no_filter_configuration(self):
+    async def test_default_filter_configuration(self):
         """Test that filter is not applied when testing with default configuration"""
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
         transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
         assert transformed_data == self._raw_data
 
-    @pytest.mark.asyncio
-    async def test_default_filter_configuration(self):
+    async def test_default_filterRule(self):
         """Test that filter is applied and returns readings block unaltered with default configuration of filterRule"""
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
         transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
-        assert transformed_data == json.dumps(self._raw_data)
+        assert transformed_data == self._raw_data
 
-    @pytest.mark.asyncio
-    async def test_filter_configuration(self):
+    async def test_custom_filter_configuration(self):
         """Test with supplied filterRule"""
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME,
@@ -141,14 +140,14 @@ class TestJQFilter:
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
         transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
-        assert transformed_data == json.dumps([{"Measurement_id": self._first_read_id}])
+        assert transformed_data == [{"Measurement_id": self._first_read_id}]
 
-    @pytest.mark.asyncio
     async def test_invalid_filter_configuration(self):
         """Test with invalid filterRule"""
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule', "|")
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError) as ex:
             self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
+        assert "jq: error: syntax error, unexpected '|'" in str(ex)

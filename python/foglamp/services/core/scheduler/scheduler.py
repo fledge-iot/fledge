@@ -11,11 +11,10 @@ import collections
 import datetime
 import logging
 import math
-import signal
-import sys
 import os
 import time
 import uuid
+import aiohttp
 from typing import List
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -1078,6 +1077,50 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
 
+    async def ping_service(self, service):
+        _MAX_ATTEMPTS = 5
+        """Number of max attempts for finding a heartbeat of service"""
+        attempt_count = 1
+        """Number of current attempt to ping url"""
+
+        url_ping = "{}://{}:{}/foglamp/service/ping".format(service._protocol,
+                                                            service._address,
+                                                            service._management_port)
+        async with aiohttp.ClientSession() as session:
+            while attempt_count < _MAX_ATTEMPTS + 1:
+                try:
+                    async with session.get(url_ping) as resp:
+                        res = await resp.json()
+                        if res["uptime"] is not None:
+                            break
+                except:
+                    attempt_count += 1
+                    time.sleep(1)
+            if attempt_count <= _MAX_ATTEMPTS:
+                self._logger.info('Ping received for Service %s id %s at url %s', service._name, service._id, url_ping)
+                return True
+        self._logger.error('Ping not received for Service %s id %s at url %s attempt_count %s', service._name, service._id,
+                      url_ping, attempt_count)
+        return False
+
+    async def shutdown_service(self, service):
+        _ping_timeout = 5  # type: int
+        """Timeout for a response from any given micro-service"""
+
+        try:
+            url_shutdown = "{}://{}:{}/foglamp/service/shutdown".format(service._protocol, service._address,
+                                                                        service._management_port)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url_shutdown) as resp:
+                    status_code = resp.status
+                    assert 200 == resp.status
+        except (Exception, AssertionError) as ex:
+            self._logger.exception('Error in Service shutdown %s, %s', service._name, str(ex))
+            return False
+        else:
+            self._logger.info('Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown)
+            return True
+
     async def disable_schedule(self, schedule_id):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
@@ -1100,6 +1143,17 @@ class Scheduler(object):
         # Disable Schedule
         # We need to recreate the _ScheduleRow for just one change - enabled = False. This is required as _ScheduleRow
         # is of named tuple type which does not allow updation.
+        if isinstance(schedule, TimedSchedule):
+            schedule_time = schedule.time
+            if schedule_time is not None and not isinstance(schedule_time, datetime.time):
+                raise ValueError('time must be of type datetime.time')
+            day = schedule.day
+            # TODO Remove this check when the database has constraint
+            if day is not None and (day < 1 or day > 7):
+                raise ValueError('day must be between 1 and 7')
+        else:
+            day = None
+            schedule_time = None
         repeat_seconds = None
         if schedule.repeat is not None:
             repeat_seconds = schedule.repeat.total_seconds()
@@ -1107,8 +1161,8 @@ class Scheduler(object):
             id=schedule.schedule_id,
             name=schedule.name,
             type=schedule.schedule_type,
-            time=schedule.time,
-            day=schedule.day,
+            time=schedule_time,
+            day=day,
             repeat=schedule.repeat,
             repeat_seconds=repeat_seconds,
             exclusive=schedule.exclusive,
@@ -1131,29 +1185,37 @@ class Scheduler(object):
         # If a task is running for the schedule, then terminate the process
         if task_id is not None:
             schedule = task_process.schedule
+            if schedule.type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
+                try:
+                    found_services = ServiceRegistry.get(name=schedule.process_name)
+                    service = found_services[0]
+                    if await self.ping_service(service) is True:
+                        # Shutdown will take care of unregistering the service from core
+                        await self.shutdown_service(service)
+                except:
+                    pass
+            else: # else it is a Task e.g. North tasks
+                # TODO: FOGL-356 track the last time TERM was sent to each task
+                task_process.cancel_requested = time.time()
+                # Terminate process
+                try:
+                    task_process.process.terminate()
+                    task_future = task_process.future
+                    if task_future.cancel() is True:
+                        await self._wait_for_task_completion(task_process)
+                    self._logger.info(
+                        "Terminated Task '%s/%s' process '%s' task %s pid %s\n%s",
+                        schedule.name,
+                        schedule.id,
+                        schedule.process_name,
+                        task_id,
+                        task_process.process.pid,
+                        self._process_scripts[schedule.process_name])
+                except ProcessLookupError:
+                    pass  # Process has terminated
 
-            # TODO: FOGL-356 track the last time TERM was sent to each task
-            task_process.cancel_requested = time.time()
-
-            # Terminate process
-            del self._schedules[schedule.id]
-            try:
-                # KNOWN ISSUE: Does not work well with microservices e.g. COAP etc
-                # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
-                task_process.process.terminate()
-                task_future = task_process.future
-                if schedule.type != Schedule.Type.STARTUP and task_future.cancel() is True:
-                    await self._wait_for_task_completion(task_process)
-                self._logger.info(
-                    "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",
-                    schedule.name,
-                    schedule.id,
-                    schedule.process_name,
-                    task_id,
-                    task_process.process.pid,
-                    self._process_scripts[schedule.process_name])
-            except ProcessLookupError:
-                pass  # Process has terminated
+        del self._schedules[schedule_id]
+        del self._schedule_executions[schedule_id]
 
         # All ok, now update the schedule in memory
         self._schedules[schedule_id] = schedule_row
@@ -1170,6 +1232,12 @@ class Scheduler(object):
             self._logger.exception('Update failed: %s', update_payload)
             raise RuntimeError('Update failed: %s', update_payload)
         await asyncio.sleep(1)
+
+        self._logger.info(
+            "Disabled Schedule '%s/%s' process '%s'\n",
+            schedule.name,
+            schedule_id,
+            schedule.process_name)
 
         return True, "Schedule successfully disabled"
 
@@ -1221,8 +1289,8 @@ class Scheduler(object):
             enabled=True,
             process_name=schedule.process_name)
 
-        del self._schedules[schedule.schedule_id]
-        self._schedules[schedule.schedule_id] = schedule_row
+        del self._schedules[schedule_id]
+        self._schedules[schedule_id] = schedule_row
 
         # Update database
         update_payload = PayloadBuilder() \

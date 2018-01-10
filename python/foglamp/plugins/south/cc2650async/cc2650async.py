@@ -357,12 +357,6 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    # Find all running tasks:
-    pending_tasks = asyncio.Task.all_tasks()
-
-    # Wait until tasks done:
-    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
-
     if 'tag' in handle:
         bluetooth_adr = handle['bluetoothAddress']['value']
         tag = handle['tag']

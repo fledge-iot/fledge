@@ -29,7 +29,7 @@ allure-report/
 /C/services/storage/build
 /cmake_build
 /plugins
-/python_build
+/python_build_dir
 /services
 
 # Error Logs

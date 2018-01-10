@@ -74,7 +74,7 @@ if [[ ! -d "${SSL_LOCATION}" ]]; then
 fi
 
 # include logger script
-. $FOGLAMP_ROOT/scripts/common/write_log.sh
+. ${FOGLAMP_ROOT}/scripts/common/write_log.sh
 
 if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
     echo "Could not find the write_log script."

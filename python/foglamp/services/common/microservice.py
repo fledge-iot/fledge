@@ -92,11 +92,11 @@ class FoglampMicroservice(FoglampProcess):
         return service_registration_payload
 
     @abstractmethod
-    async def shutdown(self):
+    async def shutdown(self, request):
         pass
 
     @abstractmethod
-    async def change(self):
+    async def change(self, request):
         pass
 
     async def ping(self, request):

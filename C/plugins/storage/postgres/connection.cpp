@@ -76,6 +76,7 @@ bool Connection::retrieve(const string& table, const string& condition, string& 
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
+SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 
 	if (condition.empty())
 	{
@@ -97,7 +98,7 @@ SQLBuffer	sql;
 				sql.append(document["modifier"].GetString());
 				sql.append(' ');
 			}
-			if (!jsonAggregates(document, document["aggregate"], sql))
+			if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
 			{
 				return false;
 			}
@@ -147,7 +148,7 @@ SQLBuffer	sql;
 					else if (itr->HasMember("json"))
 					{
 						const Value& json = (*itr)["json"];
-						if (! returnJson(json, sql))
+						if (! returnJson(json, sql, jsonConstraints))
 							return false;
 					}
 					else
@@ -193,6 +194,11 @@ SQLBuffer	sql;
 			{
 				raiseError("retrieve", "JSON does not contain where clause");
 				return false;
+			}
+			if (! jsonConstraints.isEmpty())
+			{
+				sql.append(" AND ");
+				sql.append(jsonConstraints.coalesce());
 			}
 		}
 		if (!jsonModifiers(document, sql))
@@ -736,7 +742,7 @@ int		row = 0;
  */
 bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet)
 {
-char	sqlbuffer[100];
+char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
 		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC', ts AT TIME ZONE 'UTC' FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
@@ -957,7 +963,7 @@ Document doc;
 /**
  * Process the aggregate options and return the columns to be selected
  */
-bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql)
+bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql, SQLBuffer& jsonConstraint)
 {
 	if (aggregates.IsObject())
 	{
@@ -1001,24 +1007,48 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			const Value& jsonFields = json["properties"];
 			if (jsonFields.IsArray())
 			{
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				jsonConstraint.append(json["column"].GetString());
 				int field = 0;
+				string prev;
 				for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 				{
 					if (field)
 					{
 						sql.append("->>");
 					}
+					if (prev.length() > 0)
+					{
+						jsonConstraint.append("->>'");
+						jsonConstraint.append(prev);
+						jsonConstraint.append("'");
+					}
+					prev = itr->GetString();
 					field++;
 					sql.append('\'');
 					sql.append(itr->GetString());
 					sql.append('\'');
 				}
+				jsonConstraint.append(" ? '");
+				jsonConstraint.append(prev);
+				jsonConstraint.append("'");
 			}
 			else
 			{
 				sql.append('\'');
 				sql.append(jsonFields.GetString());
 				sql.append('\'');
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				jsonConstraint.append(json["column"].GetString());
+				jsonConstraint.append(" ? '");
+				jsonConstraint.append(jsonFields.GetString());
+				jsonConstraint.append("'");
 			}
 			sql.append(")::float");
 		}
@@ -1080,33 +1110,45 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 				}
 				sql.append('(');
 				sql.append(json["column"].GetString());
-				sql.append("->>");
 				if (!json.HasMember("properties"))
 				{
 					raiseError("retrieve", "The json property is missing a properties property");
 					return false;
 				}
 				const Value& jsonFields = json["properties"];
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				jsonConstraint.append(json["column"].GetString());
 				if (jsonFields.IsArray())
 				{
-					int field = 0;
+					string prev;
 					for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 					{
-						if (field)
+						if (prev.length() > 0)
 						{
-							sql.append("->>");
+							jsonConstraint.append("->>'");
+							jsonConstraint.append(prev);
+							jsonConstraint.append("'");
 						}
-						field++;
-						sql.append('\'');
+						prev = itr->GetString();
+						sql.append("->>'");
 						sql.append(itr->GetString());
 						sql.append('\'');
 					}
+					jsonConstraint.append(" ? '");
+					jsonConstraint.append(prev);
+					jsonConstraint.append("'");
 				}
 				else
 				{
-					sql.append('\'');
+					sql.append("->>'");
 					sql.append(jsonFields.GetString());
 					sql.append('\'');
+					jsonConstraint.append(" ? '");
+					jsonConstraint.append(jsonFields.GetString());
+					jsonConstraint.append("'");
 				}
 				sql.append(")::float");
 			}
@@ -1436,7 +1478,7 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	return true;
 }
 
-bool Connection::returnJson(const Value& json, SQLBuffer& sql)
+bool Connection::returnJson(const Value& json, SQLBuffer& sql, SQLBuffer& jsonConstraint)
 {
 	if (! json.IsObject())
 	{
@@ -1458,24 +1500,48 @@ bool Connection::returnJson(const Value& json, SQLBuffer& sql)
 	const Value& jsonFields = json["properties"];
 	if (jsonFields.IsArray())
 	{
+		if (! jsonConstraint.isEmpty())
+		{
+			jsonConstraint.append(" AND ");
+		}
+		jsonConstraint.append(json["column"].GetString());
 		int field = 0;
+		string prev;
 		for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 		{
 			if (field)
 			{
 				sql.append("->");
 			}
+			if (prev.length())
+			{
+				jsonConstraint.append("->'");
+				jsonConstraint.append(prev);
+				jsonConstraint.append('\'');
+			}
 			field++;
 			sql.append('\'');
 			sql.append(itr->GetString());
 			sql.append('\'');
+			prev = itr->GetString();
 		}
+		jsonConstraint.append(" ? '");
+		jsonConstraint.append(prev);
+		jsonConstraint.append("'");
 	}
 	else
 	{
 		sql.append('\'');
 		sql.append(jsonFields.GetString());
 		sql.append('\'');
+		if (! jsonConstraint.isEmpty())
+		{
+			jsonConstraint.append(" AND ");
+		}
+		jsonConstraint.append(json["column"].GetString());
+		jsonConstraint.append(" ? '");
+		jsonConstraint.append(jsonFields.GetString());
+		jsonConstraint.append("'");
 	}
 
 	return true;

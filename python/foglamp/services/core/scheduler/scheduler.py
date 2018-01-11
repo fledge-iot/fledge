@@ -1140,35 +1140,6 @@ class Scheduler(object):
             self._logger.info("Schedule %s already disabled", schedule_id)
             return True, "Schedule {} already disabled".format(schedule_id)
 
-        # Disable Schedule
-        # We need to recreate the _ScheduleRow for just one change - enabled = False. This is required as _ScheduleRow
-        # is of named tuple type which does not allow updation.
-        if isinstance(schedule, TimedSchedule):
-            schedule_time = schedule.time
-            if schedule_time is not None and not isinstance(schedule_time, datetime.time):
-                raise ValueError('time must be of type datetime.time')
-            day = schedule.day
-            # TODO Remove this check when the database has constraint
-            if day is not None and (day < 1 or day > 7):
-                raise ValueError('day must be between 1 and 7')
-        else:
-            day = None
-            schedule_time = None
-        repeat_seconds = None
-        if schedule.repeat is not None:
-            repeat_seconds = schedule.repeat.total_seconds()
-        schedule_row = self._ScheduleRow(
-            id=schedule.schedule_id,
-            name=schedule.name,
-            type=schedule.schedule_type,
-            time=schedule_time,
-            day=day,
-            repeat=schedule.repeat,
-            repeat_seconds=repeat_seconds,
-            exclusive=schedule.exclusive,
-            enabled=False,
-            process_name=schedule.process_name)
-
         task_id = None
         task_process = None
         try:
@@ -1194,6 +1165,7 @@ class Scheduler(object):
                         await self.shutdown_service(service)
                 except:
                     pass
+                del self._schedule_executions[schedule_id]
             else: # else it is a Task e.g. North tasks
                 # TODO: FOGL-356 track the last time TERM was sent to each task
                 task_process.cancel_requested = time.time()
@@ -1214,11 +1186,8 @@ class Scheduler(object):
                 except ProcessLookupError:
                     pass  # Process has terminated
 
-        del self._schedules[schedule_id]
-        del self._schedule_executions[schedule_id]
-
-        # All ok, now update the schedule in memory
-        self._schedules[schedule_id] = schedule_row
+        # Disable Schedule - All ok, now update the schedule in memory
+        self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
 
         # Update database
         update_payload = PayloadBuilder() \
@@ -1259,43 +1228,12 @@ class Scheduler(object):
             return True, "Schedule is already enabled"
 
         # Enable Schedule
-        # We need to recreate the _ScheduleRow for just one change - enabled = True. This is required as _ScheduleRow
-        # is of named tuple type which does not allow updation.
-        if isinstance(schedule, TimedSchedule):
-            schedule_time = schedule.time
-            if schedule_time is not None and not isinstance(schedule_time, datetime.time):
-                raise ValueError('time must be of type datetime.time')
-            day = schedule.day
-            # TODO Remove this check when the database has constraint
-            if day is not None and (day < 1 or day > 7):
-                raise ValueError('day must be between 1 and 7')
-        else:
-            day = None
-            schedule_time = None
-
-        repeat_seconds = None
-        if schedule.repeat is not None:
-            repeat_seconds = schedule.repeat.total_seconds()
-
-        schedule_row = self._ScheduleRow(
-            id=schedule.schedule_id,
-            name=schedule.name,
-            type=schedule.schedule_type,
-            time=schedule_time,
-            day=day,
-            repeat=schedule.repeat,
-            repeat_seconds=repeat_seconds,
-            exclusive=schedule.exclusive,
-            enabled=True,
-            process_name=schedule.process_name)
-
-        del self._schedules[schedule_id]
-        self._schedules[schedule_id] = schedule_row
+        self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=True)
 
         # Update database
         update_payload = PayloadBuilder() \
             .SET(enabled='t') \
-            .WHERE(['id', '=', str(schedule.schedule_id)]) \
+            .WHERE(['id', '=', str(schedule_id)]) \
             .payload()
         try:
             self._logger.debug('Database command: %s', update_payload)
@@ -1310,7 +1248,7 @@ class Scheduler(object):
         self._logger.info(
             "Enabled Schedule '%s/%s' process '%s'\n",
             schedule.name,
-            schedule.schedule_id,
+            schedule_id,
             schedule.process_name)
 
         return True, "Schedule successfully enabled"

@@ -384,29 +384,30 @@ class Server:
     @classmethod
     def start(cls):
         """Starts FogLAMP"""
-
         loop = asyncio.get_event_loop()
         cls._start_core(loop=loop)
 
     @classmethod
     async def _stop(cls):
         """Stops FogLAMP"""
+        try:
+            # stop the scheduler
+            await cls._stop_scheduler()
 
-        # stop the scheduler
-        await cls._stop_scheduler()
+            # stop monitor
+            await cls.stop_service_monitor()
 
-        # stop monitor
-        await cls.stop_service_monitor()
+            # stop the REST api (exposed on service port)
+            await cls.stop_rest_server()
 
-        # stop the REST api (exposed on service port)
-        await cls.stop_rest_server()
+            # stop storage
+            await cls.stop_storage()
 
-        # stop storage
-        await cls.stop_storage()
-
-        # stop core management api
-        # loop.stop does it all ?!
-        # await cls.stop_core_server()
+            # stop core management api
+            # loop.stop does it all ?!
+            # await cls.stop_core_server()
+        except Exception:
+            raise
 
     @classmethod
     def stop(cls, loop=None):
@@ -659,6 +660,8 @@ class Server:
             loop.stop()
 
             return web.json_response({'message': 'FogLAMP stopped successfully.'})
+        except TimeoutError as err:
+            raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
             raise web.HTTPException(reason=str(ex))
 

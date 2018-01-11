@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ##--------------------------------------------------------------------
 ## Copyright (c) 2017 OSIsoft, LLC
@@ -31,29 +31,38 @@
 
 USAGE="Usage: ./`basename ${0}` CERTIFICATE_NAME EXPIRATION_DAYS"
 
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+# include logger script
+. ${FOGLAMP_ROOT}/scripts/common/write_log.sh
+
+if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+    logger "Could not find the write_log script."
+    exit 1
+fi
+
+# Logger wrapper
+selfssl_log() {
+    write_log "foglamp.script.core.selfssl" "$1" "$2" "$3"
+}
+
 if [ -z $1 ]; then
-    # write to log?
-    echo ${USAGE}
+    selfssl_log "err" "${USAGE}" "logonly"
     exit 1
 fi
 
 if [ -z $2 ]; then
-    # write to log?
-    echo ${USAGE}
+    selfssl_log "err" "${USAGE}" "logonly"
     exit 1
 fi
 
 if ! [ -x "$(type -P openssl)" ]; then
-  echo "ERROR: script requires openssl"
-  echo "For Debian and friends, get it with 'apt-get install openssl'"
+  selfssl_log "err" "script requires openssl" "logonly"
+  selfssl_log "err" "For Debian and friends, get it with 'apt-get install openssl'"  "logonly"
   exit 1
 fi
-
-
-# TODO: add fail_if_error and log
-
-# TODO: check openssl version
-
 
 # Check ENV VARS and decide the directory to place the certificates
 
@@ -67,18 +76,11 @@ else
     fi
 fi
 
-if [[ ! -d "${SSL_LOCATION}" ]]; then
-    # write to log?
-    echo "Could not find the directory ${SSL_LOCATION} to put SSL certificates."
+if [ ! -d "${SSL_LOCATION}" ]; then
+    selfssl_log "err" "Could not find the directory ${SSL_LOCATION} to put SSL certificates." "logonly"
     exit 1
 fi
 
-# include logger script
-. ${FOGLAMP_ROOT}/scripts/common/write_log.sh
-
-if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
-    echo "Could not find the write_log script."
-fi
 
 SSL_NAME=$1
 SSL_EXPIRATION_DAYS=$2
@@ -92,12 +94,12 @@ organization=OSIsoft
 common_name=FogLAMP
 email=info@dianomic.com
 
-echo "Creating a new Certificate ..."
+selfssl_log "info"  "Creating a self signed SSL certificate ..."  "logonly"
 
 # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
 SUBJ="/C=$country/ST=$state/O=$organization/CN=$common_name/emailAddress=$email"
 
-openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
+openssl genrsa -passout pass:x -out server.pass.key 2048
 openssl rsa -passin pass:x -in server.pass.key -out ${SSL_NAME}.key
 rm server.pass.key
 openssl req -new -key ${SSL_NAME}.key -subj ${SUBJ} -out ${SSL_NAME}.csr
@@ -111,15 +113,26 @@ openssl x509 -req -sha256 -days ${SSL_EXPIRATION_DAYS} -in ${SSL_NAME}.csr -sign
 mkdir -p ${SSL_LOCATION}/etc/certs
 SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
 
-if [[ ! -d "${SSL_CERTS_PATH}" ]]; then
-  echo "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}"
-  write_log "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}"
+if [ ! -d "${SSL_CERTS_PATH}" ]; then
+  selfssl_log "err" "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}" "logonly"
+  exit 1
 fi
 
 # Move SSL Certificate to defined path
-mv ${SSL_NAME}.key ${SSL_CERTS_PATH}/${SSL_NAME}.key
-mv ${SSL_NAME}.cert ${SSL_CERTS_PATH}/${SSL_NAME}.cert
+mv ${SSL_NAME}.key ${SSL_CERTS_PATH}/${SSL_NAME}.key > /dev/null
+mv_err=$?
+if [ ${mv_err} -ne 0 ]; then
+    selfssl_log "err" "Could not put SSL certificate ${SSL_NAME} at ${SSL_CERTS_PATH}" "logonly"
+    exit 1
+fi
+
+mv ${SSL_NAME}.cert ${SSL_CERTS_PATH}/${SSL_NAME}.cert > /dev/null
+mv_err=$?
+if [ ${mv_err} -ne 0 ]; then
+    selfssl_log "err" "Could not put SSL certificate ${SSL_NAME} at ${SSL_CERTS_PATH}" "logonly"
+    exit 1
+fi
+
 # what about CSR
 
-echo "Certificates created successfully, and placed in ${SSL_CERTS_PATH}"
-write_log "Certificates created successfully, and placed in ${SSL_CERTS_PATH}"
+selfssl_log "info" "Certificates created successfully, and placed in ${SSL_CERTS_PATH}" "logonly"

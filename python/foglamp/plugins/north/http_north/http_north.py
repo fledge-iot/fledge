@@ -12,6 +12,7 @@ import json
 
 from foglamp.common import logger
 from foglamp.plugins.north.common.common import *
+from foglamp.common.jqfilter import JQFilter
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -43,6 +44,16 @@ _DEFAULT_CONFIG = {
         'description': 'how long (x seconds) the plugin should wait for pending tasks to complete or cancel otherwise',
         'type': 'integer',
         'default': '10'
+    },
+    "applyFilter": {
+        "description": "Whether to apply filter before processing the data",
+        "type": "boolean",
+        "default": "True"
+    },
+    "filterRule": {
+        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "type": "string",
+        "default": ".[] | {readings: [{reading: .reading,user_ts: .user_ts,read_key: .read_key}], asset_code: .asset_code}"
     }
 }
 
@@ -127,20 +138,12 @@ class HttpNorthPlugin(object):
 
     async def _send_payloads(self, payloads):
         """ send a list of block payloads """
-        num_count = 0
-        last_id = None
+        jqFilter = JQFilter()
+        num_count = len(payloads)
+        last_id = payloads[-1]['id']
         async with aiohttp.ClientSession() as session:
-            payload_to_be_send = list()
-            for payload in payloads:
-                num_count += 1
-                last_id = payload['id']
-                p = {"asset_code": payload['asset_code'],
-                     "readings": [{
-                         "read_key": payload['read_key'],
-                         "user_ts": payload['user_ts'],
-                         "reading": payload['reading']
-                     }]}
-                payload_to_be_send.append(p)
+            payload_to_be_send = jqFilter.transform(config['applyFilter']['value'], payloads,
+                                                    config['filterRule']['value'])
             task = asyncio.ensure_future(self._send(payload_to_be_send, session))
             self.tasks.append(task)  # create list of tasks
             await asyncio.gather(*self.tasks)  # gather task responses

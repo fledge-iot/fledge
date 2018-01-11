@@ -18,8 +18,8 @@ __version__ = "${VERSION}"
 pytestmark = pytest.mark.asyncio
 
 # Needs foglamp to start,
-# replace 34827 with core_management_port
-BASE_URL = 'http://localhost:34827/foglamp'
+# replace 42921 with core_management_port
+BASE_URL = 'http://localhost:42921/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 
@@ -172,9 +172,20 @@ class TestInterestRegistryApi:
         assert response_code == r.status_code
         assert response_message == r.reason
 
+    @pytest.mark.parametrize("data, response_code, response_message", [
+        ({"category": "CAT1"}, 400, "Failed to register interest. microservice_uuid cannot be None"),
+        ({"service": "0xe6ebd0"}, 400, "Invalid microservice id 0xe6ebd0"),
+        ({"service": "d2abe6d7-ce77-448a-b13f-b2ada202b63b"}, 400,
+         "Failed to register interest. category_name cannot be None")
+    ])
+    async def test_register_with_bad_data(self, data, response_code, response_message):
+        r = requests.post(BASE_URL + '/interest', data=json.dumps(data), headers=headers)
+        assert response_code == r.status_code
+        assert response_message == r.reason
+
     @pytest.mark.parametrize("registration_id, response_code, response_message", [
-        ('blah', 400, "InterestRecord with registration_id blah does not exist"),
-        ('d2abe6d7-ce77-448a-b13f-b2ada202b63b', 400,
+        ('blah', 400, "Invalid registration id blah"),
+        ('d2abe6d7-ce77-448a-b13f-b2ada202b63b', 404,
          "InterestRecord with registration_id d2abe6d7-ce77-448a-b13f-b2ada202b63b does not exist")
     ])
     async def test_unregister_with_bad_data(self, registration_id, response_code, response_message):

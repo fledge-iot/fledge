@@ -15,6 +15,7 @@ import http.client
 import json
 import ssl
 import time
+import uuid
 from aiohttp import web
 
 from foglamp.common import logger
@@ -463,7 +464,7 @@ class Server:
         """ Register a service
 
         :Example: curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
-                "management_port": 1090, "protocol": "https"}' -X POST http://localhost:8082/foglamp/service
+                "management_port": 1090, "protocol": "https"}' -X POST http://localhost:{core_mgt_port}/foglamp/service
         service_port is optional
         """
 
@@ -517,7 +518,7 @@ class Server:
     async def unregister(cls, request):
         """ Unregister a service
 
-        :Example: curl -X DELETE  http://localhost:8082/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
+        :Example: curl -X DELETE  http://localhost:{core_mgt_port}/foglamp/service/dc9bfc01-066a-4cc0-b068-9c35486db87f
         """
 
         try:
@@ -543,8 +544,8 @@ class Server:
     async def get_service(cls, request):
         """ Returns a list of all services or of the selected service
 
-        :Example: curl -X GET  http://localhost:8082/foglamp/service
-        :Example: curl -X GET  http://localhost:8082/foglamp/service?name=X&type=Storage
+        :Example: curl -X GET  http://localhost:{core_mgt_port}/foglamp/service
+        :Example: curl -X GET  http://localhost:{core_mgt_port}/foglamp/service?name=X&type=Storage
         """
         service_name = request.query['name'] if 'name' in request.query else None
         service_type = request.query['type'] if 'type' in request.query else None
@@ -581,7 +582,7 @@ class Server:
             svc["address"] = service._address
             svc["management_port"] = service._management_port
             svc["protocol"] = service._protocol
-            svc["status"] =  service._status
+            svc["status"] = service._status
             if service._port:
                 svc["service_port"] = service._port
             services.append(svc)
@@ -596,7 +597,7 @@ class Server:
     async def register_interest(cls, request):
         """ Register an interest in a configuration category
 
-        :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' -X POST http://localhost:8082/foglamp/interest
+        :Example: curl -d '{"category": "COAP", "service": "x43978x8798x"}' -X POST http://localhost:{core_mgt_port}/foglamp/interest
         """
 
         try:
@@ -629,7 +630,7 @@ class Server:
     async def unregister_interest(cls, request):
         """ Unregister an interest
 
-        :Example: curl -X DELETE  http://localhost:8082/foglamp/interest/dc9bfc01-066a-4cc0-b068-9c35486db87f
+        :Example: curl -X DELETE  http://localhost:{core_mgt_port}/foglamp/interest/dc9bfc01-066a-4cc0-b068-9c35486db87f
         """
 
         try:
@@ -650,6 +651,53 @@ class Server:
             return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+
+    @classmethod
+    async def get_interest(cls, request):
+        """ Returns a list of all interests or of the selected interest
+
+        :Example:
+                curl -X GET  http://localhost:{core_mgt_port}/foglamp/interest
+                curl -X GET  http://localhost:{core_mgt_port}/foglamp/interest?microserviceid=X&category=Y
+        """
+        category = request.query['category'] if 'category' in request.query else None
+        microservice_id = request.query['microserviceid'] if 'microserviceid' in request.query else None
+        if microservice_id is not None:
+            try:
+                assert uuid.UUID(microservice_id)
+            except:
+                raise web.HTTPBadRequest(reason="Invalid microservice id {}".format(microservice_id))
+
+        try:
+            if not category and not microservice_id:
+                interest_list = cls._interest_registry.get()
+            elif category and not microservice_id:
+                interest_list = cls._interest_registry.get(category_name=category)
+            elif not category and microservice_id:
+                interest_list = cls._interest_registry.get(microservice_uuid=microservice_id)
+            else:
+                interest_list = cls._interest_registry.get(category_name=category, microservice_uuid=microservice_id)
+        except interest_registry_exceptions.DoesNotExist as ex:
+            if not category and not microservice_id:
+                msg = 'No interest registered'
+            elif category and not microservice_id:
+                msg = 'No interest registered for category {}'.format(category)
+            elif not category and microservice_id:
+                msg = 'No interest registered microservice id {}'.format(microservice_id)
+            else:
+                msg = 'No interest registered for category {} and microservice id {}'.format(category, microservice_id)
+
+            raise web.HTTPNotFound(reason=msg)
+
+        interests = []
+        for interest in interest_list:
+            d = dict()
+            d["registrationId"] = interest._registration_id
+            d["category"] = interest._category_name
+            d["microserviceId"] = interest._microservice_uuid
+            interests.append(d)
+
+        return web.json_response({"interests": interests})
 
     @classmethod
     async def change(cls, request):

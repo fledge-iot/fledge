@@ -319,7 +319,7 @@ class Server:
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
-            subprocess.call(cmd_with_args, cwd=_FOGLAMP_ROOT)
+            subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
         except Exception as ex:
             _logger.exception(str(ex))
 
@@ -454,6 +454,9 @@ class Server:
             # stop the scheduler
             await cls._stop_scheduler()
 
+            # I assume it will be by scheduler
+            await cls.stop_microservices()
+
             # stop monitor
             await cls.stop_service_monitor()
 
@@ -498,10 +501,6 @@ class Server:
     async def stop_storage(cls):
         """Stops Storage service """
 
-        # Or just do?!
-        # cmd_with_args = ['./services/storage', 'stop']
-        # subprocess.call(cmd_with_args, cwd=_FOGLAMP_ROOT)
-
         try:
             found_services = ServiceRegistry.get(name="FogLAMP Storage")
         except service_registry_exceptions.DoesNotExist as ex:
@@ -510,7 +509,7 @@ class Server:
         svc = found_services[0]
         if svc is None:
             return
-        res = await cls._shutdown_microservice(svc)
+        res = await cls._request_microservice_shutdown(svc)
 
         try:
             response = json.loads(res)
@@ -519,7 +518,34 @@ class Server:
             raise
 
     @classmethod
-    async def _shutdown_microservice(cls, svc):
+    async def stop_microservices(cls):
+        """ call shutdown endpoint for non core micro-services
+
+        There are 3 types of services
+           - Core
+           - Storage
+           - Southbound
+        """
+        try:
+            found_services = ServiceRegistry.get()
+            for svc in found_services:
+                # shutdown except CORE and STORAGE
+                if svc._name == "FogLAMP Storage" or svc._name == "FogLAMP Core":
+                    continue
+                # handle message key in response
+                res = await cls._request_microservice_shutdown(svc)
+                try:
+                    response = json.loads(res)
+                    response['message']
+                    _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
+                except KeyError:
+                    raise
+                    # or just log the message | or both?
+        except service_registry_exceptions.DoesNotExist as ex:
+            pass
+
+    @classmethod
+    async def _request_microservice_shutdown(cls, svc):
         """ request service's shutdown """
         management_api_url = 'http://{}:{}/foglamp/service/shutdown'.format(svc._address, svc._management_port)
         # TODO: need to set http / https based on service protocol
@@ -541,9 +567,9 @@ class Server:
         try:
             await cls.scheduler.stop()
             cls.scheduler = None
-        except TimeoutError:
+        except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
-            return
+            raise
 
     @classmethod
     async def ping(cls, request):
@@ -695,27 +721,8 @@ class Server:
             curl -X POST http://localhost:<core mgt port>/foglamp/service/shutdown
         """
         try:
-            # There are 3 types of services
-            #   - Core
-            #   - Storage
-            #   - Southbound
-            try:
-                found_services = ServiceRegistry.get(s_type="Southbound")
-                for svc in found_services:
-                    # handle message key in response
-                    res = await cls._shutdown_microservice(svc)
-                    try:
-                        response = json.loads(res)
-                        response['message']
-                        _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
-                    except KeyError:
-                        raise
-                        # or just log the message | or both?
-            except service_registry_exceptions.DoesNotExist as ex:
-                pass
 
             await cls._stop()
-
             loop = asyncio.get_event_loop()
             loop.stop()
 
@@ -843,24 +850,3 @@ class Server:
     @classmethod
     async def change(cls, request):
         pass
-
-
-def main():
-    """ Processes command-line arguments
-           COMMAND LINE ARGUMENTS:
-               - start
-               - stop
-
-           :raises ValueError: Invalid or missing arguments provided
-           """
-
-    if len(sys.argv) == 1:
-        raise ValueError("Usage: start|stop")
-    elif len(sys.argv) == 2:
-        command = sys.argv[1]
-        if command == 'start':
-            Server().start()
-        elif command == 'stop':
-            Server().stop()
-        else:
-            raise ValueError("Unknown argument: {}".format(sys.argv[1]))

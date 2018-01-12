@@ -92,11 +92,11 @@ class FoglampMicroservice(FoglampProcess):
         return service_registration_payload
 
     @abstractmethod
-    async def shutdown(self):
+    async def shutdown(self, request):
         pass
 
     @abstractmethod
-    async def change(self):
+    async def change(self, request):
         pass
 
     async def ping(self, request):
@@ -119,4 +119,7 @@ class FoglampMicroservice(FoglampProcess):
         raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))
 
     async def unregister_interest(self, request):
+        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))
+
+    async def get_interest(self, request):
         raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))

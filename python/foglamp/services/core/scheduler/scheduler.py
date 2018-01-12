@@ -325,7 +325,7 @@ class Scheduler(object):
             schedule.name, schedule.process_name, task_id, process.pid,
             len(self._task_processes), args_to_exec)
 
-        # Startup tasks are not tracked in the tasks table
+        # Startup tasks are not tracked in the tasks table and do not have any future associated with them.
         if schedule.type != Schedule.Type.STARTUP:
             # The task row needs to exist before the completion handler runs
             insert_payload = PayloadBuilder() \
@@ -342,8 +342,9 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
                 # The process has started. Regardless of this error it must be waited on.
-
-        self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
+            # No need to create future for STARTUP tasks aka microservices. Core and Storage microservices also do not
+            # have any future associated. Also because it interferes with shutdown process of microservices.
+            self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
 
     async def purge_tasks(self):
         """Deletes rows from the tasks table"""
@@ -1141,7 +1142,7 @@ class Scheduler(object):
                 # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
                 task_process.process.terminate()
                 task_future = task_process.future
-                if schedule.type == Schedule.Type.STARTUP and task_future.cancel() is True:
+                if schedule.type != Schedule.Type.STARTUP and task_future.cancel() is True:
                     await self._wait_for_task_completion(task_process)
                 self._logger.info(
                     "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",

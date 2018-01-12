@@ -14,9 +14,6 @@ from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
 from aiohttp import web
-import aiohttp
-import json
-
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -102,10 +99,10 @@ class Server(FoglampMicroservice):
 
             config = await cfg_manager.get_category_all_items(category)
 
-            # Register interest with category and microserviceid
-            result = await self._register_interest_via_core(self._microservice_id, category)
-            assert "id" in result
-            assert "message" in result
+            # Register interest with category and microservice_id
+            result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
+            assert result['id']
+            assert result['message']
 
             # Ensures the plugin type is the correct one - 'south'
             if plugin_info['type'] != 'south':
@@ -169,30 +166,6 @@ class Server(FoglampMicroservice):
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
-
-    async def _register_interest_via_core(self, microservice_id, category):
-        """Register interest
-
-        Args:
-            microservice_id: microservice uuid from the service registry
-            category: name to get register interest with microservice id
-
-        Returns:
-               registration id and message
-        """
-        url = 'http://{}:{}/foglamp/interest'.format(self._core_management_host, self._core_management_port)
-        data = {'category': category, 'service': microservice_id}
-        headers = {'content-type': 'application/json'}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, data=json.dumps(data), headers=headers) as resp:
-                result = await resp.text()
-                status_code = resp.status
-                if status_code in range(400, 500):
-                    _LOGGER.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
-                if status_code in range(500, 600):
-                    _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
-
-                return result
 
     def run(self):
         """Starts the South Microservice

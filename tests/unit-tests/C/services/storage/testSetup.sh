@@ -1,4 +1,4 @@
-psql << EOF
+psql -d foglamp << EOF
 drop table if exists foglamp.test;
 
 create table foglamp.test (

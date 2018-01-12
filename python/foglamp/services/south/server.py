@@ -8,14 +8,16 @@
 
 import asyncio
 import signal
-import uuid
-import sys
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
 from aiohttp import web
+import aiohttp
+from foglamp.common.parser import Parser
+import json
+
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -63,7 +65,6 @@ class Server(FoglampMicroservice):
 
     async def _start(self, loop) -> None:
         error = None
-
         try:
             category = self._name
             # Configuration handling - initial configuration
@@ -102,7 +103,10 @@ class Server(FoglampMicroservice):
 
             config = await cfg_manager.get_category_all_items(category)
 
-            # TODO: Register for config changes
+            # Register interest with category and microserviceid
+            result = await self._register_interest_via_core(self._microservice_id, category)
+            assert "id" in result
+            assert "message" in result
 
             # Ensures the plugin type is the correct one - 'south'
             if plugin_info['type'] != 'south':
@@ -121,21 +125,19 @@ class Server(FoglampMicroservice):
             elif plugin_info['mode'] == 'poll':
                 asyncio.ensure_future(self._exec_plugin_poll(config))
 
-        except Exception as ex:
+        except (Exception, KeyError) as ex:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
             print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
-    
     async def _exec_plugin_async(self, config) -> None:
         """Executes async type plugin
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
         self._plugin.plugin_start(self._plugin_handle)
 
-    
     async def _exec_plugin_poll(self, config) -> None:
         """Executes poll type plugin
         """
@@ -169,6 +171,31 @@ class Server(FoglampMicroservice):
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
 
+    async def _register_interest_via_core(self, microservice_id, category):
+        """Register interest
+
+        Args:
+            microservice_id: microservice uuid from the service registry
+            category: name to get register interest with microservice id
+
+        Returns:
+               registration id and message
+        """
+        core_management_port = Parser.get('--port')
+        core_management_address = Parser.get('--address')
+        core_management_api_url = 'http://{}:{}/foglamp/interest'.format(core_management_address, core_management_port)
+        data = {'category': category, 'service': microservice_id}
+        headers = {'content-type': 'application/json'}
+        async with aiohttp.ClientSession() as session:
+            async with session.post(core_management_api_url, data=json.dumps(data), headers=headers) as resp:
+                result = await resp.text()
+                status_code = resp.status
+                if status_code in range(400, 500):
+                    _LOGGER.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+                if status_code in range(500, 600):
+                    _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
+
+                return result
 
     def run(self):
         """Starts the South Microservice

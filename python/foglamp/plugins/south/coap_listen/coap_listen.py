@@ -114,8 +114,14 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
+    # TODO: handle vs new_config
+    # only use case for difference of old and new config or anything else?
 
-    new_handle = {}
+    _LOGGER.info("Old config for Coap plugin {} \n new config {}".format(handle, new_config))
+    new_handle = plugin_init(new_config)
+
+    # TODO: Right now plugin_shutdown has no body, needed before start - FOGL-Story?
+    plugin_start(new_handle)
 
     return new_handle
 

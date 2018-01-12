@@ -183,11 +183,11 @@ class Server(FoglampMicroservice):
         """
         core_management_port = Parser.get('--port')
         core_management_address = Parser.get('--address')
-        core_management_api_url = 'http://{}:{}/foglamp/interest'.format(core_management_address, core_management_port)
+        url = 'http://{}:{}/foglamp/interest'.format(core_management_address, core_management_port)
         data = {'category': category, 'service': microservice_id}
         headers = {'content-type': 'application/json'}
         async with aiohttp.ClientSession() as session:
-            async with session.post(core_management_api_url, data=json.dumps(data), headers=headers) as resp:
+            async with session.post(url, data=json.dumps(data), headers=headers) as resp:
                 result = await resp.text()
                 status_code = resp.status
                 if status_code in range(400, 500):
@@ -256,4 +256,12 @@ class Server(FoglampMicroservice):
         """implementation of abstract method form foglamp.common.microservice.
         """
         print("change south")
+        # retrieve new configuration
+        cfg_manager = ConfigurationManager(self._storage)
+        new_config = await cfg_manager.get_category_all_items(self._name)
+
+        # plugin_reconfigure and assign new handle
+        new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)
+        self._plugin_handle = new_handle
+
         return web.json_response({"south": "change"})

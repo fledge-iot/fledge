@@ -15,7 +15,6 @@ from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
 from aiohttp import web
 import aiohttp
-from foglamp.common.parser import Parser
 import json
 
 
@@ -181,9 +180,7 @@ class Server(FoglampMicroservice):
         Returns:
                registration id and message
         """
-        core_management_port = Parser.get('--port')
-        core_management_address = Parser.get('--address')
-        url = 'http://{}:{}/foglamp/interest'.format(core_management_address, core_management_port)
+        url = 'http://{}:{}/foglamp/interest'.format(self._core_management_host, self._core_management_port)
         data = {'category': category, 'service': microservice_id}
         headers = {'content-type': 'application/json'}
         async with aiohttp.ClientSession() as session:

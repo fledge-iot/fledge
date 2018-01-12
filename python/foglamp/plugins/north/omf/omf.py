@@ -95,6 +95,16 @@ _CONFIG_DEFAULT_OMF = {
                 "Company": "Dianomic"
             }
         )
+    },
+    "applyFilter": {
+        "description": "Whether to apply filter before processing the data",
+        "type": "boolean",
+        "default": "False"
+    },
+    "filterRule": {
+        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "type": "string",
+        "default": ".[]"
     }
 }
 

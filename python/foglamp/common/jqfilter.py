@@ -28,11 +28,9 @@ class JQFilter:
         super().__init__()
         self._logger = logger.setup("JQFilter")
 
-    def transform(self, apply_filter, reading_block, filter_string):
+    def transform(self, reading_block, filter_string):
         """
         Args:
-            apply_filter: Flag to tell whether to apply filter or not,
-                if flag is false then reading_block is returned as is.
             reading_block: Formatted JSON on which filter needs to be applied.
             filter_string: filter to apply. Filter should be in JQ format.
         Returns: transformed JSON (if apply_filter is true)
@@ -45,8 +43,6 @@ class JQFilter:
                 and usage with plugins using defined configurations.
 
         """
-        if apply_filter.upper() == "FALSE":
-            return reading_block
         try:
             return pyjq.all(filter_string, reading_block)
         except TypeError as ex:

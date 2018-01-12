@@ -1269,6 +1269,33 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
  */
 bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 {
+	if (payload.HasMember("timebucket") && payload.HasMember("sort"))
+	{
+		raiseError("query modifiers", "Sort and timebucket modifiers can not be used in the same payload");
+		return false;
+	}
+
+	if (payload.HasMember("group"))
+	{
+		sql.append(" GROUP BY ");
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+			if (grp.HasMember("format"))
+			{
+				sql.append("to_char(");
+				sql.append(grp["column"].GetString());
+				sql.append(", '");
+				sql.append(grp["format"].GetString());
+				sql.append("')");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
+	}
+
 	if (payload.HasMember("sort"))
 	{
 		sql.append(" ORDER BY ");
@@ -1324,28 +1351,6 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 	}
 
-
-	if (payload.HasMember("group"))
-	{
-		sql.append(" GROUP BY ");
-		if (payload["group"].IsObject())
-		{
-			const Value& grp = payload["group"];
-			if (grp.HasMember("format"))
-			{
-				sql.append("to_char(");
-				sql.append(grp["column"].GetString());
-				sql.append(", '");
-				sql.append(grp["format"].GetString());
-				sql.append("')");
-			}
-		}
-		else
-		{
-			sql.append(payload["group"].GetString());
-		}
-	}
-
 	if (payload.HasMember("timebucket"))
 	{
 		const Value& tb = payload["timebucket"];
@@ -1378,7 +1383,19 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		{
 			sql.append(1);
 		}
-		sql.append(')');
+		sql.append(") ORDER BY ");
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append(") DESC");
 	}
 
 	if (payload.HasMember("skip"))

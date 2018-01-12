@@ -3,18 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+***********************************
 Welcome to FogLAMP's documentation!
-===================================
+***********************************
 
 .. toctree::
+
     01_introduction
     02_foglamp_at_a_glance
     03_getting_started
     04_installation
     05_testing
     06_plugins
-    07_REST
-    08_developer
+    07_admin/index
+    08_developer/index
     91_version_history
     92_downloads
 

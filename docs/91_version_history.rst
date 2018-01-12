@@ -72,4 +72,18 @@ Known Issues
 ~~~~~~~~~~~~
 
 
+v1.2
+----
+
+Release Date: 2018-0X-XX
+
+
+New Features
+~~~~~~~~~~~~
+
+
+Known Issues
+~~~~~~~~~~~~
+
+
 

@@ -14,6 +14,7 @@ import sys
 
 import ssl
 import time
+import uuid
 from aiohttp import web
 import aiohttp
 import json
@@ -60,6 +61,34 @@ class Server:
 
     service_monitor = None
     """ foglamp.microservice_management.service_registry.Monitor """
+
+    _service_name = 'FogLAMP'
+    """ The name of this FogLAMP service """
+
+    _service_description = 'FogLAMP REST Services'
+    """ The description of this FogLAMP service """
+
+    _SERVICE_DEFAULT_CONFIG = {
+        'name': {
+            'description': 'The name of this FogLAMP service',
+            'type': 'string',
+            'default': 'FogLAMP'
+        },
+        'description': {
+            'description': 'The description of this FogLAMP service',
+            'type': 'string',
+            'default': 'The FogLAMP administrative API'
+        }
+    }
+
+    _MANAGEMENT_SERVICE = '_foglamp-manage._tcp'
+    """ The management service we advertise """
+
+    _ADMIN_API_SERVICE = '_foglamp-admin._tcp'
+    """ The admin REST service we advertise """
+
+    _USER_API_SERVICE = '_foglamp-user._tcp'
+    """ The user REST service we advertise """
 
     admin_announcer = None
     """ The Announcer for the Admin API """
@@ -217,6 +246,33 @@ class Server:
             _logger.exception(str(ex))
             raise
 
+    @classmethod
+    async def service_config(cls):
+        """
+        Get the service level configuration
+        """
+        try:
+            config = cls._SERVICE_DEFAULT_CONFIG
+            category = 'service'
+
+            if cls._configuration_manager is None:
+                _logger.error("No configuration manager available")
+            await cls._configuration_manager.create_category(category, config, 'The FogLAMP service configuration', True)
+            config = await cls._configuration_manager.get_category_all_items(category)
+
+            try:
+                cls._service_name = config['name']['value']
+            except KeyError:
+                cls._service_name = 'FogLAMP'
+            try:
+                cls._service_description = config['description']['value']
+            except KeyError:
+                cls._service_description = 'FogLAMP REST Services'
+
+        except Exception as ex:
+            _logger.exception(str(ex))
+            raise
+
     @staticmethod
     def _make_app():
         """Creates the REST server
@@ -309,10 +365,6 @@ class Server:
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
 
-            _logger.info('Announce management API service')
-            cls.management_announcer = ServiceAnnouncer('FogLAMP-Core', '_foglamp_core._tcp', cls.core_management_port,
-                                                    ['The FogLAMP Core REST API'])
-
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
             
@@ -345,15 +397,23 @@ class Server:
                 _logger.info('Loading certificates %s and key %s', cert, key)
                 ssl_ctx.load_cert_chain(cert, key)
 
-            cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app,
-                                                                    host, cls.rest_server_port, ssl_ctx=ssl_ctx)
+            # Get the service data and advertise the management port of the core
+            # to allow other microservices to find FogLAMP
+            loop.run_until_complete(cls.service_config())
+            _logger.info('Announce management API service')
+            cls.management_announcer = ServiceAnnouncer('core.{}'.format(cls._service_name), cls._MANAGEMENT_SERVICE, cls.core_management_port,
+                                                        ['The FogLAMP Core REST API'])
+
+            cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host, cls.rest_server_port, ssl_ctx=ssl_ctx)
             address, service_server_port = cls.service_server.sockets[0].getsockname()
             _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
                          address, service_server_port)
 
-            cls.admin_announcer = ServiceAnnouncer('FogLAMP', '_foglamp._tcp', service_server_port, ['The FogLAMP Admin REST API'])
-            cls.user_announcer = ServiceAnnouncer('FogLAMP', '_foglamp_app._tcp', service_server_port,
-                                              ['The FogLAMP Application  REST API'])
+            # All services are up so now we can advertise the Admin and User REST API's
+            cls.admin_announcer = ServiceAnnouncer(cls._service_name, cls._ADMIN_API_SERVICE, service_server_port,
+                                                   [cls._service_description])
+            cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
+                                                  [cls._service_description])
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
@@ -619,7 +679,7 @@ class Server:
             svc["address"] = service._address
             svc["management_port"] = service._management_port
             svc["protocol"] = service._protocol
-            svc["status"] =  service._status
+            svc["status"] = service._status
             if service._port:
                 svc["service_port"] = service._port
             services.append(svc)
@@ -677,9 +737,11 @@ class Server:
             data = await request.json()
             category_name = data.get('category', None)
             microservice_uuid = data.get('service', None)
-
-            if not (category_name.strip() or microservice_uuid.strip()):
-                raise web.HTTPBadRequest(reason='One or more values of category_name, service missing')
+            if microservice_uuid is not None:
+                try:
+                    assert uuid.UUID(microservice_uuid)
+                except:
+                    raise web.HTTPBadRequest(reason="Invalid microservice id {}".format(microservice_uuid))
 
             try:
                 registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
@@ -697,7 +759,7 @@ class Server:
             return web.json_response(_response)
 
         except ValueError as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+            raise web.HTTPBadRequest(reason=str(ex))
 
     @classmethod
     async def unregister_interest(cls, request):
@@ -712,11 +774,16 @@ class Server:
 
             if not interest_registration_id:
                 raise web.HTTPBadRequest(reason='Registration id is required')
+            else:
+                try:
+                    assert uuid.UUID(interest_registration_id)
+                except:
+                    raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
 
             try:
                 cls._interest_registry.get(registration_id=interest_registration_id)
             except interest_registry_exceptions.DoesNotExist:
-                raise web.HTTPBadRequest(reason='InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
+                raise web.HTTPNotFound(reason='InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
 
             cls._interest_registry.unregister(interest_registration_id)
 
@@ -725,6 +792,53 @@ class Server:
             return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+
+    @classmethod
+    async def get_interest(cls, request):
+        """ Returns a list of all interests or of the selected interest
+
+        :Example:
+                curl -X GET  http://localhost:{core_mgt_port}/foglamp/interest
+                curl -X GET  http://localhost:{core_mgt_port}/foglamp/interest?microserviceid=X&category=Y
+        """
+        category = request.query['category'] if 'category' in request.query else None
+        microservice_id = request.query['microserviceid'] if 'microserviceid' in request.query else None
+        if microservice_id is not None:
+            try:
+                assert uuid.UUID(microservice_id)
+            except:
+                raise web.HTTPBadRequest(reason="Invalid microservice id {}".format(microservice_id))
+
+        try:
+            if not category and not microservice_id:
+                interest_list = cls._interest_registry.get()
+            elif category and not microservice_id:
+                interest_list = cls._interest_registry.get(category_name=category)
+            elif not category and microservice_id:
+                interest_list = cls._interest_registry.get(microservice_uuid=microservice_id)
+            else:
+                interest_list = cls._interest_registry.get(category_name=category, microservice_uuid=microservice_id)
+        except interest_registry_exceptions.DoesNotExist as ex:
+            if not category and not microservice_id:
+                msg = 'No interest registered'
+            elif category and not microservice_id:
+                msg = 'No interest registered for category {}'.format(category)
+            elif not category and microservice_id:
+                msg = 'No interest registered microservice id {}'.format(microservice_id)
+            else:
+                msg = 'No interest registered for category {} and microservice id {}'.format(category, microservice_id)
+
+            raise web.HTTPNotFound(reason=msg)
+
+        interests = []
+        for interest in interest_list:
+            d = dict()
+            d["registrationId"] = interest._registration_id
+            d["category"] = interest._category_name
+            d["microserviceId"] = interest._microservice_uuid
+            interests.append(d)
+
+        return web.json_response({"interests": interests})
 
     @classmethod
     async def change(cls, request):

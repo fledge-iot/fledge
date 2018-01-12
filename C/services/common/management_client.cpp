@@ -35,6 +35,11 @@ ostringstream urlbase;
  */
 ManagementClient::~ManagementClient()
 {
+	if (m_uuid)
+	{
+		delete m_uuid;
+		m_uuid = 0;
+	}
 	delete m_client;
 }
 
@@ -123,7 +128,7 @@ ostringstream convert;
 
 	try {
 		convert << "{ \"category\" : \"" << category << "\", ";
-		convert << "\"service\" : \"" << m_uuid << "\" }";
+		convert << "\"service\" : \"" << *m_uuid << "\" }";
 		auto res = m_client->request("POST", "/foglamp/interest", convert.str());
 		Document doc;
 		doc.Parse(res->content.string().c_str());

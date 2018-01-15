@@ -25,6 +25,7 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.services.common import utils
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -1077,50 +1078,6 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
 
-    async def ping_service(self, service):
-        _MAX_ATTEMPTS = 5
-        """Number of max attempts for finding a heartbeat of service"""
-        attempt_count = 1
-        """Number of current attempt to ping url"""
-
-        url_ping = "{}://{}:{}/foglamp/service/ping".format(service._protocol,
-                                                            service._address,
-                                                            service._management_port)
-        async with aiohttp.ClientSession() as session:
-            while attempt_count < _MAX_ATTEMPTS + 1:
-                try:
-                    async with session.get(url_ping) as resp:
-                        res = await resp.json()
-                        if res["uptime"] is not None:
-                            break
-                except:
-                    attempt_count += 1
-                    time.sleep(1)
-            if attempt_count <= _MAX_ATTEMPTS:
-                self._logger.info('Ping received for Service %s id %s at url %s', service._name, service._id, url_ping)
-                return True
-        self._logger.error('Ping not received for Service %s id %s at url %s attempt_count %s', service._name, service._id,
-                      url_ping, attempt_count)
-        return False
-
-    async def shutdown_service(self, service):
-        _ping_timeout = 5  # type: int
-        """Timeout for a response from any given micro-service"""
-
-        try:
-            url_shutdown = "{}://{}:{}/foglamp/service/shutdown".format(service._protocol, service._address,
-                                                                        service._management_port)
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url_shutdown) as resp:
-                    status_code = resp.status
-                    assert 200 == resp.status
-        except (Exception, AssertionError) as ex:
-            self._logger.exception('Error in Service shutdown %s, %s', service._name, str(ex))
-            return False
-        else:
-            self._logger.info('Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown)
-            return True
-
     async def disable_schedule(self, schedule_id):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
@@ -1160,9 +1117,9 @@ class Scheduler(object):
                 try:
                     found_services = ServiceRegistry.get(name=schedule.process_name)
                     service = found_services[0]
-                    if await self.ping_service(service) is True:
+                    if await utils.ping_service(service) is True:
                         # Shutdown will take care of unregistering the service from core
-                        await self.shutdown_service(service)
+                        await utils.shutdown_service(service)
                 except:
                     pass
                 del self._schedule_executions[schedule_id]

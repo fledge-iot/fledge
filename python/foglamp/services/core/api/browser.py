@@ -343,7 +343,7 @@ async def asset_averages(request):
     _limit_skip_payload = validate_limit_skip(request, d)
     d.update(_limit_skip_payload)
 
-    # FOGL-949: add ORDER BY timestamp DESC
+    # Add ORDER BY timestamp DESC
     _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).chain_payload()
     d.update(_sort_payload)
 

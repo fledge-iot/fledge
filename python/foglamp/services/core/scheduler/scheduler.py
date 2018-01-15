@@ -1123,12 +1123,19 @@ class Scheduler(object):
                 except:
                     pass
                 del self._schedule_executions[schedule_id]
+                # As of now, script starts the process and therefore, we need to explicitly stop this script process
+                # as shutdown caters to stopping of the actual service only.
                 task_process.process.terminate()
             else: # else it is a Task e.g. North tasks
                 # TODO: FOGL-356 track the last time TERM was sent to each task
                 task_process.cancel_requested = time.time()
                 # Terminate process
                 try:
+                    # We need to terminate the child processes because now all tasks are started vide a script and
+                    # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+                    # and on termination of the task, both the script shell process and actual task process need to
+                    # be stopped.
+                    utils.terminate_child_processes(task_process.process.pid)
                     task_process.process.terminate()
                     task_future = task_process.future
                     if task_future.cancel() is True:

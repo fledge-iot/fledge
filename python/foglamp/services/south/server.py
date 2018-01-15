@@ -225,9 +225,10 @@ class Server(FoglampMicroservice):
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        print("change south")
+        _LOGGER.info('Configuration has changed for South plugin {}'.format(self._name))
+
         # plugin shutdown before re-configure
-        self._plugin.plugin_shutdown()
+        self._plugin.plugin_shutdown(self._plugin_handle)
 
         # retrieve new configuration
         cfg_manager = ConfigurationManager(self._storage)

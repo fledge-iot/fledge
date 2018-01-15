@@ -43,6 +43,16 @@ _DEFAULT_CONFIG = {
         'description': 'how long (x seconds) the plugin should wait for pending tasks to complete or cancel otherwise',
         'type': 'integer',
         'default': '10'
+    },
+    "applyFilter": {
+        "description": "Whether to apply filter before processing the data",
+        "type": "boolean",
+        "default": "False"
+    },
+    "filterRule": {
+        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "type": "string",
+        "default": ".[]"
     }
 }
 

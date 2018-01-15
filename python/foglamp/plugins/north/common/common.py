@@ -40,6 +40,32 @@ MESSAGES_LIST = {
 }
 
 
+def convert_to_type(value):
+    """Evaluates and converts to the type in relation to its actual value, for example "180.2" to float 180.2
+
+     Args:
+        value : value to evaluate and convert
+     Returns:
+         value_converted: converted value
+     Raises:
+     """
+
+    value_type = evaluate_type(value)
+
+    if value_type == "string":
+        value_converted = value
+
+    elif value_type == "number":
+        value_converted = float(value)
+
+    elif value_type == "integer":
+        value_converted = int(value)
+    else:
+        value_converted = value
+
+    return value_converted
+
+
 def evaluate_type(value):
     """Evaluates the type in relation to its value
 
@@ -55,7 +81,7 @@ def evaluate_type(value):
 
         try:
             # Evaluates if it is a int or a number
-            if int(float(value)) == value:
+            if str(int(float(value))) == str(value):
 
                 # Checks the case having .0 as 967.0
                 int_str = str(int(float(value)))

@@ -14,6 +14,7 @@ The sending process does not implement the protocol used to send the data,
 that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
+
 import json
 import resource
 import asyncio
@@ -23,12 +24,15 @@ import importlib
 import logging
 import datetime
 
+import foglamp.plugins.north.common.common as plugin_common
+
 from foglamp.common.parser import Parser
 from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.statistics import Statistics
+from foglamp.common.jqfilter import JQFilter
 
 
 __author__ = "Stefano Simonelli"
@@ -81,6 +85,7 @@ _MESSAGES_LIST = {
 """ Messages used for Information, Warning and Error notice """
 
 _LOGGER = logger.setup(__name__)
+
 _event_loop = ""
 _log_debug_level = 0
 """ Defines what and the level of details for logging """
@@ -441,12 +446,54 @@ class SendingProcess:
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
             readings = self._readings.query(payload)
+
             raw_data = readings['rows']
+            converted_data = self._transform_in_memory_data_readings(raw_data)
+
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000009"].format(str(_ex))
             SendingProcess._logger.error(_message)
             raise
-        return raw_data
+        return converted_data
+
+    @staticmethod
+    def _transform_in_memory_data_readings(raw_data):
+        """ Transforms readings data retrieved form the DB layer to the proper format
+        Args:
+            raw_data: list of dicts to convert having the structure
+                id         : int
+                asset_code : string
+                user_ts    : Timestamp as a str
+                reading    : dict having the payload
+        Returns:
+            converted_data: converted data
+        Raises:
+        """
+        converted_data = []
+
+        try:
+            for row in raw_data:
+
+                # Converts values to the proper types, for example "180.2" to float 180.2
+                payload = row['reading']
+                for key in list(payload.keys()):
+                    value = payload[key]
+                    payload[key] = plugin_common.convert_to_type(value)
+
+                new_row = {
+                    'id': row['id'],                    # Row id
+                    'asset_code': row['asset_code'],    # Asset code
+                    'user_ts': row['user_ts'],          # Timestamp as a str
+                    'reading': payload                  # payload
+                }
+                converted_data.append(new_row)
+
+        except Exception as e:
+            _message = _MESSAGES_LIST["e000022"].format(str(e))
+            SendingProcess._logger.error(_message)
+            raise e
+
+        return converted_data
 
     @_performance_log
     def _load_data_into_memory_statistics(self, last_object_id):
@@ -597,6 +644,9 @@ class SendingProcess:
             last_object_id = self._last_object_id_read(stream_id)
             data_to_send = self._load_data_into_memory(last_object_id)
             if data_to_send:
+                if self._config_from_manager['applyFilter']["value"].upper() == "TRUE":
+                    jqfilter = JQFilter()
+                    data_to_send = jqfilter.transform(data_to_send, self._config_from_manager['filterRule']["value"])
                 data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(self._plugin_handle, data_to_send, stream_id)
                 if data_sent:
                     # Updates reached position, statistics and logs the operation within the Storage Layer

@@ -32,6 +32,7 @@ from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.statistics import Statistics
+from foglamp.common.jqfilter import JQFilter
 
 
 __author__ = "Stefano Simonelli"
@@ -643,6 +644,9 @@ class SendingProcess:
             last_object_id = self._last_object_id_read(stream_id)
             data_to_send = self._load_data_into_memory(last_object_id)
             if data_to_send:
+                if self._config_from_manager['applyFilter']["value"].upper() == "TRUE":
+                    jqfilter = JQFilter()
+                    data_to_send = jqfilter.transform(data_to_send, self._config_from_manager['filterRule']["value"])
                 data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(self._plugin_handle, data_to_send, stream_id)
                 if data_sent:
                     # Updates reached position, statistics and logs the operation within the Storage Layer

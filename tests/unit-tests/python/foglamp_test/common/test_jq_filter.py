@@ -29,7 +29,7 @@ class TestJQFilter:
     """
     _name = "JQFilter"
     # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
-    _core_management_port = 45279
+    _core_management_port = 43643
     _core_management_host = "localhost"
 
     _storage_client = StorageClient("localhost", _core_management_port)
@@ -121,16 +121,22 @@ class TestJQFilter:
         """Test that filter is not applied when testing with default configuration"""
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
-        transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
-        assert transformed_data == self._raw_data
+        if apply_filter.upper() == "TRUE":
+            transformed_data = self._jqfilter.transform(self._raw_data, jq_rule)
+            assert transformed_data is None
+        else:
+            assert True
 
     async def test_default_filterRule(self):
         """Test that filter is applied and returns readings block unaltered with default configuration of filterRule"""
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
-        transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
-        assert transformed_data == self._raw_data
+        if apply_filter.upper() == "TRUE":
+            transformed_data = self._jqfilter.transform(self._raw_data, jq_rule)
+            assert transformed_data == self._raw_data
+        else:
+            assert False
 
     async def test_custom_filter_configuration(self):
         """Test with supplied filterRule"""
@@ -139,15 +145,16 @@ class TestJQFilter:
                                                               'filterRule', ".[0]|{Measurement_id: .id}")
         apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
-        transformed_data = self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
-        assert transformed_data == [{"Measurement_id": self._first_read_id}]
+        transformed_data = self._jqfilter.transform(self._raw_data, jq_rule)
+        if apply_filter.upper() == "TRUE":
+            assert transformed_data == [{"Measurement_id": self._first_read_id}]
+        else:
+            assert False
 
     async def test_invalid_filter_configuration(self):
         """Test with invalid filterRule"""
-        await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter', "True")
         await self._cfg_manager.set_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule', "|")
-        apply_filter = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'applyFilter')
         jq_rule = await self._cfg_manager.get_category_item_value_entry(self._CONFIG_CATEGORY_NAME, 'filterRule')
         with pytest.raises(ValueError) as ex:
-            self._jqfilter.transform(apply_filter, self._raw_data, jq_rule)
+            self._jqfilter.transform(self._raw_data, jq_rule)
         assert "jq: error: syntax error, unexpected '|'" in str(ex)

@@ -30,7 +30,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 _LOGGER = logger.setup(__name__)
 _MODULE_NAME = "omf_north"
 # _storage = ()

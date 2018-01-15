@@ -226,6 +226,9 @@ class Server(FoglampMicroservice):
         """implementation of abstract method form foglamp.common.microservice.
         """
         print("change south")
+        # plugin shutdown before re-configure
+        self._plugin.plugin_shutdown()
+
         # retrieve new configuration
         cfg_manager = ConfigurationManager(self._storage)
         new_config = await cfg_manager.get_category_all_items(self._name)

@@ -40,7 +40,7 @@ _DEFAULT_CONFIG = {
         'default': 'sensor-values',
     }
 }
-
+coap_task = None
 
 def plugin_info():
     """ Returns information about the plugin.
@@ -99,7 +99,9 @@ def plugin_start(handle):
 
     root.add_resource(('other', uri), CoAPIngest())
 
-    asyncio.ensure_future(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
+    global coap_task
+    coap_task = aiocoap.Context()
+    asyncio.ensure_future(coap_task.create_server_context(root, bind=('::', int(port))))
 
 
 def plugin_reconfigure(handle, new_config):
@@ -134,6 +136,12 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
+    # FIXME: ValueError: Set of coroutines/Futures is empty. Ctrl+C
+    try:
+        asyncio.ensure_future(coap_task.shutdown())
+    except Exception as ex:
+        _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
+        raise
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
 class CoAPIngest(aiocoap.resource.Resource):

@@ -1123,6 +1123,7 @@ class Scheduler(object):
                 except:
                     pass
                 del self._schedule_executions[schedule_id]
+                task_process.process.terminate()
             else: # else it is a Task e.g. North tasks
                 # TODO: FOGL-356 track the last time TERM was sent to each task
                 task_process.cancel_requested = time.time()

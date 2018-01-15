@@ -10,6 +10,7 @@ import asyncio
 import signal
 import uuid
 import sys
+import os
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -128,14 +129,14 @@ class Server(FoglampMicroservice):
             print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
-    
+
     async def _exec_plugin_async(self, config) -> None:
         """Executes async type plugin
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
         self._plugin.plugin_start(self._plugin_handle)
 
-    
+
     async def _exec_plugin_poll(self, config) -> None:
         """Executes poll type plugin
         """
@@ -211,12 +212,14 @@ class Server(FoglampMicroservice):
         # This deactivates event loop and helps aiohttp microservice server instance in graceful shutdown
         loop.stop()
 
+        _LOGGER.exception("Stopped plugin '{}'".format(self._name))
+
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
         _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
         try:
-            await self._stop(asyncio.get_event_loop())
+            os.kill(os.getpid(), signal.SIGTERM)
             self.unregister_service_with_core(self._microservice_id)
         except Exception as ex:
             _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))

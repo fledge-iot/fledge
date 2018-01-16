@@ -85,4 +85,6 @@ Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,d
 Add bad Readings,POST,http://localhost:8080/storage/reading,badreadings.json
 Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket_bad.json
 Reading Rate Array,PUT,http://localhost:8080/storage/reading/query,reading_property_array.json
+Common Read limit max_int,PUT,http://localhost:8080/storage/table/test/query,limit_max_int.json
+Common Read skip max_int,PUT,http://localhost:8080/storage/table/test/query,skip_max_int.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

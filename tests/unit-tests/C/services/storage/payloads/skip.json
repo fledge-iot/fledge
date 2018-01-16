@@ -1,8 +1,0 @@
-{
-	"sort" : {
-			"column" : "id",
-			"direction" : "asc"
-		},
-	"limit" : 1,
-	"skip" : 1
-}

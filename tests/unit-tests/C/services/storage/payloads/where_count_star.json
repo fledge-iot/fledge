@@ -1,7 +1,0 @@
-{
-	"aggregate" : {
-			"operation" : "count",
-			"column" : "*",
-			"alias" : "Entries"
-			}
-}

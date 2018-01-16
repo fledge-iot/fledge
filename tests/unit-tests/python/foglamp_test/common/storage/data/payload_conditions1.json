@@ -1,7 +1,0 @@
- {
-   "where": {
-     "column": "name",
-     "condition": "=",
-     "value": "test"
-   }
- }

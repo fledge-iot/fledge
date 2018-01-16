@@ -1,6 +1,0 @@
-{
-	"aggregate" : {
-			"operation" : "count",
-			"column" : "id"
-			}
-}

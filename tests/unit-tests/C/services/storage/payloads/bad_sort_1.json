@@ -1,7 +1,0 @@
-{
-	"sort" : {
-			"column" : "id"
-		},
-	"limit" : 1,
-	"skip" : 1
-}

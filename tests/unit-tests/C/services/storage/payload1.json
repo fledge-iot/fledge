@@ -1,7 +1,0 @@
-{
-	"where" : {
-				"column" : "key",
-				"condition" : "!=",
-				"value" : "SENSORS"
-			}
-}

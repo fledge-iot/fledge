@@ -1,7 +1,0 @@
-{
-	"aggregate" : {
-			"column" : "value",
-			"operation" : "min"
-		},
-	"group" : "key"
-}

@@ -30,7 +30,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 _LOGGER = logger.setup(__name__)
 _MODULE_NAME = "omf_north"
 # _storage = ()
@@ -95,6 +94,16 @@ _CONFIG_DEFAULT_OMF = {
                 "Company": "Dianomic"
             }
         )
+    },
+    "applyFilter": {
+        "description": "Whether to apply filter before processing the data",
+        "type": "boolean",
+        "default": "False"
+    },
+    "filterRule": {
+        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "type": "string",
+        "default": ".[]"
     }
 }
 

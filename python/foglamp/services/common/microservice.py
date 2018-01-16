@@ -120,3 +120,6 @@ class FoglampMicroservice(FoglampProcess):
 
     async def unregister_interest(self, request):
         raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))
+
+    async def get_interest(self, request):
+        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))

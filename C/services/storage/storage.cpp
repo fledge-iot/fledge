@@ -107,7 +107,7 @@ StorageService::StorageService(const string& myName) : m_name(myName), m_shutdow
 unsigned short servicePort;
 
 	config = new StorageConfiguration();
-	logger = new Logger(SERVICE_NAME);
+	logger = new Logger(myName);
 
 	if (config->getValue("port") == NULL)
 	{

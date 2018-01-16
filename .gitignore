@@ -11,6 +11,10 @@
 
 # Data / cache files
 data/etc/storage.json
+data/etc/certs/*
+
+/etc/storage.json
+/etc/certs/*
 
 # Docs
 docs/_build
@@ -29,7 +33,7 @@ allure-report/
 /C/services/storage/build
 /cmake_build
 /plugins
-/python_build
+/python_build_dir
 /services
 
 # Error Logs

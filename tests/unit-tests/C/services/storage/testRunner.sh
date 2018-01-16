@@ -41,9 +41,9 @@ if [ "$optional" = "" ] ; then
 			n_failed=`expr $n_failed + 1`
 			if [ "$payload" = "" ]
 			then
-				echo Test $testNum  curl -X $method $url >> failed
+				echo Test $testNum  ${name} curl -X $method $url >> failed
 			else
-				echo Test $testNum  curl -X $method $url -d@payloads/$payload  >> failed
+				echo Test $testNum  ${name} curl -X $method $url -d@payloads/$payload  >> failed
 			fi
 			(
 			unset IFS

@@ -333,9 +333,10 @@ def plugin_start(handle):
 
 
 def plugin_reconfigure(handle, new_config):
-    """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
-        The new configuration category should be passed.
+    """ Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -344,8 +345,10 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-    new_handle = {}
+    _LOGGER.info("Old config for CC2650ASYN plugin {} \n new config {}".format(handle, new_config))
 
+    new_handle = plugin_init(new_config)
+    plugin_start(new_handle)
     return new_handle
 
 

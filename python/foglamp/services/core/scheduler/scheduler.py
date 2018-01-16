@@ -849,6 +849,11 @@ class Scheduler(object):
                 self._process_scripts[schedule.process_name])
 
             try:
+                # We need to terminate the child processes because now all tasks are started vide a script and
+                # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+                # and on termination of the task, both the script shell process and actual task process need to
+                # be stopped.
+                utils.terminate_child_processes(task_process.process.pid)
                 task_process.process.terminate()
             except ProcessLookupError:
                 pass  # Process has terminated
@@ -1412,6 +1417,11 @@ class Scheduler(object):
             self._process_scripts[schedule.process_name])
 
         try:
+            # We need to terminate the child processes because now all tasks are started vide a script and
+            # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+            # and on termination of the task, both the script shell process and actual task process need to
+            # be stopped.
+            utils.terminate_child_processes(task_process.process.pid)
             task_process.process.terminate()
         except ProcessLookupError:
             pass  # Process has terminated

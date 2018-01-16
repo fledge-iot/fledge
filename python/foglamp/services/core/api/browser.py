@@ -294,8 +294,18 @@ async def asset_averages(request):
     The amount of time covered by each returned value is set using the
     query parameter group. This may be set to seconds, minutes or hours
 
-    Return the result of the query
-    SELECT user_ts AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
+    Return the result of the query:
+
+    SELECT min((reading->>'reading')::float) AS "min",
+           max((reading->>'reading')::float) AS "max",
+           avg((reading->>'reading')::float) AS "average",
+           to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS') AS "timestamp"
+    FROM foglamp.readings
+           WHERE asset_code = 'asset_code' AND
+             reading ? 'reading'
+    GROUP BY to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS')
+    ORDER BY timestamp DESC;
+
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -332,6 +342,10 @@ async def asset_averages(request):
     d['group'] = timestamp
     _limit_skip_payload = validate_limit_skip(request, d)
     d.update(_limit_skip_payload)
+
+    # Add ORDER BY timestamp DESC
+    _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).chain_payload()
+    d.update(_sort_payload)
 
     payload = json.dumps(d)
     results = {}

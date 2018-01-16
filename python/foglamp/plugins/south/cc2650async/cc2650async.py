@@ -344,8 +344,10 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-    new_handle = {}
+    _LOGGER.info("Old config for CC2650ASYN plugin {} \n new config {}".format(handle, new_config))
 
+    new_handle = plugin_init(new_config)
+    plugin_start(new_handle)
     return new_handle
 
 

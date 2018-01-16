@@ -1,0 +1,8 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : "=",
+				"value" : "1"
+			},
+	"return" : [ "key", "description" ]
+}

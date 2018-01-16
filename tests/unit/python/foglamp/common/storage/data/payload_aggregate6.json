@@ -1,0 +1,16 @@
+{
+  "aggregate": [
+    {
+      "operation": "min",
+      "column": "values"
+    },
+    {
+      "operation": "max",
+      "column": "values"
+    },
+    {
+      "operation": "avg",
+      "column": "values"
+    }
+  ]
+}

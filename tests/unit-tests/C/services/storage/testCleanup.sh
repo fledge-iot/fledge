@@ -1,4 +1,4 @@
-psql << EOF
+psql -d foglamp << EOF
 delete from foglamp.test;
 drop table foglamp.test;
 delete from foglamp.test2;

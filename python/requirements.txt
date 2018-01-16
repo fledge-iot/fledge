@@ -8,7 +8,7 @@ psycopg2==2.7.1
 packaging==16.8
 
 # Common - REST interface
-aiohttp==2.3.6
+aiohttp==2.3.8
 aiohttp_cors==0.5.3
 cchardet==2.1.1
 requests==2.18.4

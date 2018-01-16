@@ -90,8 +90,25 @@ def plugin_start(data):
         sys.exit(1)
 
 
-def plugin_reconfigure(config):
-    pass
+def plugin_reconfigure(handle, new_config):
+    """ Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+        new_config: JSON object representing the new configuration category for the category
+    Returns:
+        new_handle: new handle to be used in the future calls
+    Raises:
+    """
+
+    _LOGGER.info("Old config for HTTP_SOUTH plugin {} \n new config {}".format(handle, new_config))
+
+    new_handle = plugin_init(new_config)
+    plugin_start(new_handle)
+    return new_handle
 
 
 def plugin_shutdown(data):

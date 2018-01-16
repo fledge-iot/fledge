@@ -30,5 +30,9 @@
     "group" : {
         "column": "user_ts",
         "format": "YYYY-MM-DD HH24:MI:SS"
+    },
+    "sort" : {
+        "column": "user_ts",
+        "direction": "asc"
     }
 }

@@ -35,7 +35,7 @@ import asyncio
 import pytest
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
-from foglamp.services.core.scheduler.scheduler import Scheduler
+from foglamp.services.core.scheduler.scheduler import Scheduler, _FOGLAMP_ROOT
 from foglamp.services.core.scheduler.entities import Task
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
@@ -58,20 +58,56 @@ _TASKS_TABLE = sqlalchemy.Table('tasks', sqlalchemy.MetaData(),
 # TODO: To run this test,
 #       1) Do 'scripts/foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
-#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit/python/foglamp/services/core/test_scheduler_get_tasks.py
+#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/integration/foglamp/services/core/test_scheduler_get_tasks.py
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
-_address = '0.0.0.0'
-_m_port = 45004
+_address = pytest.test_env.address
+_m_port = pytest.test_env.core_mgmt_port
 scheduler = Scheduler(_address, _m_port)
 
 
 @pytest.allure.feature("integration")
 @pytest.allure.story("scheduler get_tasks")
 class TestSchedulerGetTasks:
+    _engine = None  # type: aiopg.sa.Engine
+
+    # TODO: This test will not work if our storage engine is not Postgres. OK for today but long term we need to
+    # approach this differently. We could simply use the storage layer to insert the test data.
+    @classmethod
+    async def _get_connection_pool(cls) -> aiopg.sa.Engine:
+        """Returns a database connection pool object"""
+        if cls._engine is None:
+            cls._engine = await aiopg.sa.create_engine(_CONNECTION_STRING)
+        return cls._engine
+
+
+    # TODO: Think of a better location for sleep.py + specify location with reference to FOGLAMP_ROOT in scheduled_processes table
+    @classmethod
+    async def populate_test_data(self):
+        """Delete all schedule-related tables and insert processes for testing"""
+        async with (await self._get_connection_pool()).acquire() as conn:
+            await conn.execute('delete from foglamp.tasks')
+            await conn.execute('delete from foglamp.schedules')
+            await conn.execute('delete from foglamp.scheduled_processes')
+            await conn.execute(
+                "insert into foglamp.scheduled_processes(name, script) values('sleep1', '[\"python3\", " + '"' +
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"1\"]')")
+            await conn.execute(
+                "insert into foglamp.scheduled_processes(name, script) values('sleep10', '[\"python3\",  " +  '"' +
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"10\"]')")
+            await conn.execute(
+                "insert into foglamp.scheduled_processes(name, script) values('sleep30', '[\"python3\", " +  '"' +
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"30\"]')")
+            await conn.execute(
+                "insert into foglamp.scheduled_processes(name, script) values('sleep5', '[\"python3\",  " +  '"' +
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"5\"]')")
+
+
     @classmethod
     def setup_class(cls):
+        asyncio.get_event_loop().run_until_complete(cls.populate_test_data())
         asyncio.get_event_loop().run_until_complete(scheduler.start())
+
 
     @classmethod
     def teardown_class(cls):

@@ -11,7 +11,7 @@ import requests
 import pytest
 import asyncio
 import uuid
-from foglamp.services.core.scheduler.scheduler import Schedule, _SCRIPTS_DIR
+from foglamp.services.core.scheduler.scheduler import Schedule, _SCRIPTS_DIR, _FOGLAMP_ROOT
 
 pytestmark = pytest.mark.asyncio
 
@@ -32,8 +32,8 @@ async def add_master_data():
     await conn.execute('''DELETE from foglamp.tasks WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.schedules WHERE process_name IN ('testsleep30', 'echo_test')''')
     await conn.execute(''' DELETE from foglamp.scheduled_processes WHERE name IN ('testsleep30', 'echo_test')''')
-    await conn.execute('''insert into foglamp.scheduled_processes(name, script)
-        values('testsleep30', '["python3", "../scripts/sleep.py", "30"]')''')
+    await conn.execute("insert into foglamp.scheduled_processes(name, script) values('testsleep30', '[\"python3\",\"" +
+                       _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"30\"]')")
     await conn.execute('''insert into foglamp.scheduled_processes(name, script)
         values('echo_test', '["echo", "Hello"]')''')
     await conn.execute(''' COMMIT''')

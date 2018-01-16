@@ -26,11 +26,11 @@ _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 # TODO: To run this test,
 #       1) Do 'scripts/foglamp start' and note the management_port from syslog
 #       2) Change _m_port below with the management_port
-#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/unit/python/foglamp/services/core/test_scheduler.py
+#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/integration/foglamp/services/core/test_scheduler.py
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
-_address = '0.0.0.0'
-_m_port = 46000
+_address = pytest.test_env.address
+_m_port = pytest.test_env.core_mgmt_port
 
 
 @pytest.allure.feature("integration")
@@ -55,16 +55,16 @@ class TestScheduler:
             await conn.execute('delete from foglamp.scheduled_processes')
             await conn.execute(
                 "insert into foglamp.scheduled_processes(name, script) values('sleep1', '[\"python3\", " + '"' +
-                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"1\"]')")
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"1\"]')")
             await conn.execute(
                 "insert into foglamp.scheduled_processes(name, script) values('sleep10', '[\"python3\",  " +  '"' +
-                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"10\"]')")
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"10\"]')")
             await conn.execute(
                 "insert into foglamp.scheduled_processes(name, script) values('sleep30', '[\"python3\", " +  '"' +
-                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"30\"]')")
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"30\"]')")
             await conn.execute(
                 "insert into foglamp.scheduled_processes(name, script) values('sleep5', '[\"python3\",  " +  '"' +
-                _FOGLAMP_ROOT + "/scripts/sleep.py\", \"5\"]')")
+                _FOGLAMP_ROOT + "/tests/integration/foglamp/data/sleep.py\", \"5\"]')")
 
     @staticmethod
     async def stop_scheduler(scheduler: Scheduler) -> None:

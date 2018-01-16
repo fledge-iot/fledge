@@ -6,4 +6,4 @@
 
 
 def pytest_namespace():
-    return {'test_env': {'core_mgmt_port': 39687}}
+    return {'test_env': {'address': '0.0.0.0', 'core_mgmt_port': 44039}}

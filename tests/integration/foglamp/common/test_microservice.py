@@ -6,8 +6,8 @@
 
 import pytest
 
-from . import foo
 from foglamp.common.microservice_management_client import exceptions
+from tests.integration.foglamp.common import foo
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

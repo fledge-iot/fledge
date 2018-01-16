@@ -4,11 +4,12 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import pytest
 import time
 
-from . import foo
+import pytest
+
 from foglamp.common.microservice_management_client import exceptions
+from tests.integration.foglamp.common import foo
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

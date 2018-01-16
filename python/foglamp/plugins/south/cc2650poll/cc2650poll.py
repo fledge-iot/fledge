@@ -262,8 +262,10 @@ def plugin_reconfigure(handle, new_config):
     Raises:
     """
 
-    new_handle = {}
+    _LOGGER.info("Old config for CC2650POLL plugin {} \n new config {}".format(handle, new_config))
 
+    new_handle = plugin_init(new_config)
+    plugin_poll(new_handle)
     return new_handle
 
 

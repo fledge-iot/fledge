@@ -101,8 +101,10 @@ class Server(FoglampMicroservice):
 
             # Register interest with category and microservice_id
             result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
-            assert result['id']
-            assert result['message']
+
+            # KeyError when result (id and message) keys are not found
+            registration_id = result['id']
+            message = result['message']
 
             # Ensures the plugin type is the correct one - 'south'
             if plugin_info['type'] != 'south':

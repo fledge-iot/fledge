@@ -333,9 +333,10 @@ def plugin_start(handle):
 
 
 def plugin_reconfigure(handle, new_config):
-    """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
-        The new configuration category should be passed.
+    """ Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
 
     Args:
         handle: handle returned by the plugin initialisation call

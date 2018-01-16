@@ -8,8 +8,6 @@
 
 import asyncio
 import signal
-import uuid
-import sys
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -63,7 +61,6 @@ class Server(FoglampMicroservice):
 
     async def _start(self, loop) -> None:
         error = None
-
         try:
             category = self._name
             # Configuration handling - initial configuration
@@ -102,7 +99,12 @@ class Server(FoglampMicroservice):
 
             config = await cfg_manager.get_category_all_items(category)
 
-            # TODO: Register for config changes
+            # Register interest with category and microservice_id
+            result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
+
+            # KeyError when result (id and message) keys are not found
+            registration_id = result['id']
+            message = result['message']
 
             # Ensures the plugin type is the correct one - 'south'
             if plugin_info['type'] != 'south':
@@ -121,21 +123,19 @@ class Server(FoglampMicroservice):
             elif plugin_info['mode'] == 'poll':
                 asyncio.ensure_future(self._exec_plugin_poll(config))
 
-        except Exception as ex:
+        except (Exception, KeyError) as ex:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
             print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
-    
     async def _exec_plugin_async(self, config) -> None:
         """Executes async type plugin
         """
         await Ingest.start(self._core_management_host, self._core_management_port)
         self._plugin.plugin_start(self._plugin_handle)
 
-    
     async def _exec_plugin_poll(self, config) -> None:
         """Executes poll type plugin
         """
@@ -168,7 +168,6 @@ class Server(FoglampMicroservice):
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
-
 
     def run(self):
         """Starts the South Microservice
@@ -228,5 +227,17 @@ class Server(FoglampMicroservice):
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        print("change south")
+        _LOGGER.info('Configuration has changed for South plugin {}'.format(self._name))
+
+        # plugin shutdown before re-configure
+        self._plugin.plugin_shutdown(self._plugin_handle)
+
+        # retrieve new configuration
+        cfg_manager = ConfigurationManager(self._storage)
+        new_config = await cfg_manager.get_category_all_items(self._name)
+
+        # plugin_reconfigure and assign new handle
+        new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)
+        self._plugin_handle = new_handle
+
         return web.json_response({"south": "change"})

@@ -40,6 +40,7 @@ _DEFAULT_CONFIG = {
         'default': 'sensor-values',
     }
 }
+aiocoap_ctx = None
 
 
 def plugin_info():
@@ -89,9 +90,10 @@ def plugin_start(handle):
 
     uri = handle['uri']['value']
     port = handle['port']['value']
+    asyncio.ensure_future(_start_aiocoap(uri, port))
 
-    _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
 
+async def _start_aiocoap(uri, port):
     root = aiocoap.resource.Site()
 
     root.add_resource(('.well-known', 'core'),
@@ -99,13 +101,16 @@ def plugin_start(handle):
 
     root.add_resource(('other', uri), CoAPIngest())
 
-    asyncio.ensure_future(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
+    global aiocoap_ctx
+    aiocoap_ctx = await aiocoap.Context().create_server_context(root, bind=('::', int(port)))
+    _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
 
 
 def plugin_reconfigure(handle, new_config):
-    """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
-        The new configuration category should be passed.
+    """  Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -114,8 +119,9 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-
-    new_handle = {}
+    _LOGGER.info("Old config for Coap plugin {} \n new config {}".format(handle, new_config))
+    new_handle = plugin_init(new_config)
+    plugin_start(new_handle)
 
     return new_handle
 
@@ -128,6 +134,12 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
+    try:
+        asyncio.ensure_future(aiocoap_ctx.shutdown())
+    except Exception as ex:
+        _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
+        raise
+
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
 class CoAPIngest(aiocoap.resource.Resource):

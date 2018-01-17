@@ -131,7 +131,8 @@ ostringstream convert;
 		convert << "\"service\" : \"" << *m_uuid << "\" }";
 		auto res = m_client->request("POST", "/foglamp/interest", convert.str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string content = res->content.string();
+		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of category registration: %s\n",
@@ -142,12 +143,19 @@ ostringstream convert;
 		{
 			const char *reg_id = doc["id"].GetString();
 			m_categories[category] = string(reg_id);
+			m_logger->info("Registered configuration category %s, registration id %s.",
+					category.c_str(), reg_id);
 			return true;
 		}
 		else if (doc.HasMember("message"))
 		{
-			m_logger->error("Failed to register service: %s.",
+			m_logger->error("Failed to register configuration category: %s.",
 				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("Failed to register configuration category: %s.",
+					content.c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Register configuration category failed %s.", e.what());

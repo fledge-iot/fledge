@@ -269,10 +269,10 @@ Data Coming from South
 
 Now you should have all the information necessary to test the CoAP South microservice. From the command line, type:
 
-- ``$FOGLAMP_ROOT/scripts/extras/fogbench -t $FOGLAMP_ROOT/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you are in a development environment, with the *FOGLAMP_ROOT* environment variable set with the path to your project repository folder
+- ``$FOGLAMP_ROOT/scripts/extras/fogbench`` ``-t $FOGLAMP_ROOT/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you are in a development environment, with the *FOGLAMP_ROOT* environment variable set with the path to your project repository folder
 - ``$FOGLAMP_ROOT/bin/fogbench -t $FOGLAMP_DATA/extras/fogbench/fogbench_sensor_coap.template.json``, if you are in a deployed environment, with *FOGLAMP_ROOT* and *FOGLAMP_DATA* set correctly.
   - If you have installed FogLAMP in the default location (i.e. */usr/local/foglamp*), type ``cd /usr/local/foglamp;bin/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json``.
-- ``foglamp.fogbench -t /snap/foglamp/current/usr/local/foglamp/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you have installed a snap version of FogLAMP.
+- ``foglamp.fogbench`` ``-t /snap/foglamp/current/usr/local/foglamp/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you have installed a snap version of FogLAMP.
 
 The output of your command should be:
 

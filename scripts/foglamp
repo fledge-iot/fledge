@@ -98,6 +98,9 @@ foglamp_start() {
                 exit 1
             fi
 
+            # ./selfssl CERTIFICATE_NAME EXPIRATION_DAYS
+            # rest server is hard-coded to use server.cert and server.key when enableHttp=False
+            source "$FOGLAMP_ROOT/scripts/core/selfssl" server 365
             python3 -m foglamp.services.core > /dev/null 2> "$FOGLAMP_DATA/core.err" & disown
 
             attempts=60

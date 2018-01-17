@@ -145,7 +145,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 	management.start();
 
 	// Allow time for the listeners to start before we register
-	sleep(10);
+	sleep(5);
 	if (! m_shutdown)
 	{
 		// Now register our service
@@ -155,7 +155,11 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
-		client->registerCategory(STORAGE_CATEGORY);
+		int retryCount = 0;
+		while (client->registerCategory(STORAGE_CATEGORY) == false && ++retryCount < 10)
+		{
+			sleep(2 * retryCount);
+		}
 
 		// Wait for all the API threads to complete
 		api->wait();

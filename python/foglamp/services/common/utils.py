@@ -73,4 +73,5 @@ def terminate_child_processes(parent_id):
     ps_output, err = ps_command.communicate()
     pids = ps_output.decode().strip().split("\n")
     for pid_str in pids:
-        os.kill(int(pid_str.strip()), signal.SIGTERM)
+        if pid_str.strip():
+            os.kill(int(pid_str.strip()), signal.SIGTERM)

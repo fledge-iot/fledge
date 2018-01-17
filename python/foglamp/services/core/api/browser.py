@@ -264,7 +264,8 @@ async def asset_summary(request):
     try:
         _storage = connect.get_storage()
         results = _storage.query_tbl_with_payload('readings', payload)
-        response = results['rows']
+        # for aggregates, so there can only ever be one row
+        response = results['rows'][0]
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
     except Exception as ex:

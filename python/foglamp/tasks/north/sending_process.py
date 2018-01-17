@@ -461,10 +461,11 @@ class SendingProcess:
         """ Transforms readings data retrieved form the DB layer to the proper format
         Args:
             raw_data: list of dicts to convert having the structure
-                id         : int
-                asset_code : string
-                user_ts    : Timestamp as a str
-                reading    : dict having the payload
+                id         : int  - Row id on the stoarge layer
+                asset_code : str  - Asset code
+                read_key   : str  - Id of the row
+                reading    : dict - Payload
+                user_ts    : str  - Timestamp
         Returns:
             converted_data: converted data
         Raises:
@@ -483,8 +484,9 @@ class SendingProcess:
                 new_row = {
                     'id': row['id'],                    # Row id
                     'asset_code': row['asset_code'],    # Asset code
-                    'user_ts': row['user_ts'],          # Timestamp as a str
-                    'reading': payload                  # payload
+                    'read_key': row['read_key'],
+                    'reading': payload,                 # Payload
+                    'user_ts': row['user_ts']           # Timestamp as a str
                 }
                 converted_data.append(new_row)
 

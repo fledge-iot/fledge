@@ -87,8 +87,6 @@ _MESSAGES_LIST = {
 _LOGGER = logger.setup(__name__)
 
 _event_loop = ""
-_log_debug_level = 0
-""" Defines what and the level of details for logging """
 _log_performance = False
 """ Enable/Disable performance logging, enabled using a command line parameter"""
 
@@ -97,9 +95,11 @@ class PluginInitialiseFailed(RuntimeError):
     """ PluginInitializeFailed """
     pass
 
+
 class UnknownDataSource(RuntimeError):
     """ the data source could be only one among: readings, statistics or audit """
     pass
+
 
 class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
@@ -113,6 +113,7 @@ def _performance_log(func):
         start = datetime.datetime.now()
         # Code execution
         res = func(*arg)
+
         if _log_performance:
             usage = resource.getrusage(resource.RUSAGE_SELF)
             process_memory = usage.ru_maxrss / 1000
@@ -179,6 +180,7 @@ def handling_input_parameters():
         log_debug_level = int(param_debug_level)
     else:
         log_debug_level = 0
+
     _LOGGER.debug("{func} "
                   "- name |{name}| - port |{port}| - address |{address}| "
                   "- stream_id |{stream_id}| - log_performance |{perf}| "
@@ -340,7 +342,9 @@ class SendingProcess:
 
         self.input_stream_id = None
         self._log_performance = None
+        """ Enable/Disable performance logging, enabled using a command line parameter"""
         self._log_debug_level = None
+        """ Defines what and the level of details for logging """
 
         self._event_loop = asyncio.get_event_loop()
 
@@ -461,11 +465,11 @@ class SendingProcess:
         """ Transforms readings data retrieved form the DB layer to the proper format
         Args:
             raw_data: list of dicts to convert having the structure
-                id         : int  - Row id on the stoarge layer
+                id         : int  - Row id on the storage layer
                 asset_code : str  - Asset code
                 read_key   : str  - Id of the row
                 reading    : dict - Payload
-                user_ts    : str  - Timestamp
+                user_ts    : str  - Timestamp as str
         Returns:
             converted_data: converted data
         Raises:
@@ -482,11 +486,11 @@ class SendingProcess:
                     payload[key] = plugin_common.convert_to_type(value)
 
                 new_row = {
-                    'id': row['id'],                    # Row id
-                    'asset_code': row['asset_code'],    # Asset code
+                    'id': row['id'],
+                    'asset_code': row['asset_code'],
                     'read_key': row['read_key'],
-                    'reading': payload,                 # Payload
-                    'user_ts': row['user_ts']           # Timestamp as a str
+                    'reading': payload,
+                    'user_ts': row['user_ts']
                 }
                 converted_data.append(new_row)
 
@@ -793,8 +797,8 @@ class SendingProcess:
                 exec_sending_process = self._config['enable']
                 if self._config['enable']:
                     self._plugin_load()
-                    self._plugin._log_debug_level = _log_debug_level
-                    self._plugin._log_performance = _log_performance
+                    self._plugin._log_debug_level = self._log_debug_level
+                    self._plugin._log_performance = self._log_performance
                     self._plugin_info = self._plugin.plugin_info()
                     SendingProcess._logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],
@@ -825,12 +829,16 @@ class SendingProcess:
             raise
         return exec_sending_process
 
-
     def start(self):
         # Command line parameter handling
+        global _log_performance
+        global _LOGGER
+
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \
                 handling_input_parameters()
+            _log_performance = self._log_performance
+
         except Exception as ex:
             message = _MESSAGES_LIST["e000017"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -849,12 +857,17 @@ class SendingProcess:
             SendingProcess._logger.removeHandler(SendingProcess._logger.handle)
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
             SendingProcess._logger = logger.setup(logger_name)
+
             try:
                 # Set the debug level
                 if self._log_debug_level == 1:
                     SendingProcess._logger.setLevel(logging.INFO)
                 elif self._log_debug_level >= 2:
                     SendingProcess._logger.setLevel(logging.DEBUG)
+
+                # Sets the reconfigured logger
+                _LOGGER = SendingProcess._logger
+
                 # Start sending
                 if self._start(self.input_stream_id):
                     self.send_data(self.input_stream_id)

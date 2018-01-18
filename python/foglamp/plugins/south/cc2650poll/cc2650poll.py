@@ -243,7 +243,6 @@ def plugin_poll(handle):
 
     except (Exception, RuntimeError) as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
-        raise exceptions.DataRetrievalError(ex)
 
     _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data

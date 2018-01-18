@@ -1136,32 +1136,29 @@ class Scheduler(object):
                 except ProcessLookupError:
                     pass  # Process has terminated
             else: # else it is a Task e.g. North tasks
-                # TODO: FOGL-356 track the last time TERM was sent to each task
-                task_process.cancel_requested = time.time()
                 # Terminate process
                 try:
-                    try:
-                        # We need to terminate the child processes because now all tasks are started vide a script and
-                        # this creates two unix processes. Scheduler can store pid of the parent shell script process only
-                        # and on termination of the task, both the script shell process and actual task process need to
-                        # be stopped.
-                        utils.terminate_child_processes(task_process.process.pid)
-                        task_process.process.terminate()
-                    except ProcessLookupError:
-                        pass  # Process has terminated
-                    task_future = task_process.future
-                    if task_future.cancel() is True:
-                        await self._wait_for_task_completion(task_process)
-                    self._logger.info(
-                        "Terminated Task '%s/%s' process '%s' task %s pid %s\n%s",
-                        schedule.name,
-                        schedule.id,
-                        schedule.process_name,
-                        task_id,
-                        task_process.process.pid,
-                        self._process_scripts[schedule.process_name])
+                    # We need to terminate the child processes because now all tasks are started vide a script and
+                    # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+                    # and on termination of the task, both the script shell process and actual task process need to
+                    # be stopped.
+                    utils.terminate_child_processes(task_process.process.pid)
+                    task_process.process.terminate()
                 except ProcessLookupError:
                     pass  # Process has terminated
+                self._logger.info(
+                    "Terminated Task '%s/%s' process '%s' task %s pid %s\n%s",
+                    schedule.name,
+                    schedule.id,
+                    schedule.process_name,
+                    task_id,
+                    task_process.process.pid,
+                    self._process_scripts[schedule.process_name])
+            # TODO: FOGL-356 track the last time TERM was sent to each task
+            task_process.cancel_requested = time.time()
+            task_future = task_process.future
+            if task_future.cancel() is True:
+                await self._wait_for_task_completion(task_process)
 
         # Disable Schedule - All ok, now update the schedule in memory
         self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)

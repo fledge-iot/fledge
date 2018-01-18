@@ -14,7 +14,6 @@ RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
 CP     := cp
 CP_DIR := cp -r
-RSYNC  := rsync
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -64,7 +63,7 @@ FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC         := scripts/common
-CORE_SCRIPTS_SRC           := scripts/core
+CORE_SCRIPTS_SRC           := scripts/core/selfssl
 POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
 SOUTH_SCRIPT_SRC           := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
@@ -190,7 +189,7 @@ install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
 
 install_core_scripts : $(SCRIPT_CORE_INSTALL_DIR) $(CORE_SCRIPTS_SRC)
-	$(RSYNC) --exclude *.rst $(CORE_SCRIPTS_SRC)/* $(SCRIPT_CORE_INSTALL_DIR)
+	$(CP) $(CORE_SCRIPTS_SRC) $(SCRIPT_CORE_INSTALL_DIR)
 
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)

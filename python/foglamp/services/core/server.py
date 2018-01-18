@@ -569,7 +569,7 @@ class Server:
             cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
-            raise
+            raise e
 
     @classmethod
     async def ping(cls, request):

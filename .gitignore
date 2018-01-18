@@ -16,6 +16,10 @@ data/etc/certs/*
 /etc/storage.json
 /etc/certs/*
 
+*.cert
+*.key
+*.csr
+
 # Docs
 docs/_build
 docs/__pycache__/

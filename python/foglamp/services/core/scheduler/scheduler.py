@@ -816,16 +816,16 @@ class Scheduler(object):
             if self._purge_tasks_task is not None:
                 try:
                     await self._purge_tasks_task
-                except Exception:
-                    self._logger.exception('An exception was raised by Scheduler._purge_tasks')
+                except Exception as ex:
+                    self._logger.exception('An exception was raised by Scheduler._purge_tasks %s', str(ex))
 
             self._resume_check_schedules()
 
             # Stop the main loop
             try:
                 await self._scheduler_loop_task
-            except Exception:
-                self._logger.exception('An exception was raised by Scheduler._scheduler_loop')
+            except Exception as ex:
+                self._logger.exception('An exception was raised by Scheduler._scheduler_loop %s', str(ex))
             self._scheduler_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration
@@ -860,7 +860,7 @@ class Scheduler(object):
             await asyncio.sleep(1)
 
         if self._task_processes:
-            raise TimeoutError()
+            raise TimeoutError("Timeout Error: Could not stop scheduler")
 
         self._schedule_executions = None
         self._task_processes = None
@@ -872,14 +872,9 @@ class Scheduler(object):
         self._start_time = None
 
         self._logger.info("Stopped")
-
         return True
 
-
-
-
-
-    # -------------------------------------------- CRUD methods for scheduled_processes, schedules, tasks
+    # CRUD methods for scheduled_processes, schedules, tasks
 
     async def get_scheduled_processes(self) -> List[ScheduledProcess]:
         """Retrieves all rows from the scheduled_processes table

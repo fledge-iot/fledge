@@ -278,14 +278,16 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    # Find all running tasks:
-    pending_tasks = asyncio.Task.all_tasks()
-
-    # Wait until tasks done:
-    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
 
     if 'tag' in handle:
         bluetooth_adr = handle['bluetoothAddress']['value']
         tag = handle['tag']
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+
+    # Find all pending tasks and cancel
+    pending = asyncio.Task.all_tasks()
+    for p in pending:
+        p.cancel()
+    _LOGGER.info('CC2650 poll plugin shut down.')
+

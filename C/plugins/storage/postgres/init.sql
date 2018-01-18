@@ -971,7 +971,7 @@ NULL, '00:00:15', true, true);
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive, enabled)
 VALUES ('5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', 'sending process OCS', 'sending process OCS', 3,
-NULL, '00:00:15', true, true);
+NULL, '00:00:15', true, false);
 
 -- Run the statistics collector every 15 seconds
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,

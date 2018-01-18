@@ -50,6 +50,7 @@ PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
 SCRIPTS_INSTALL_DIR=$(INSTALL_DIR)/scripts
 BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
+ETC_INSTALL_DIR=$(INSTALL_DIR)/etc
 SCRIPT_COMMON_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/common
 SCRIPT_CORE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/core
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
@@ -104,6 +105,7 @@ install : $(INSTALL_DIR) \
 	scripts_install \
 	bin_install \
 	extras_install \
+	etc_install \
 	data_install
 
 ###############################################################################
@@ -253,6 +255,8 @@ $(BIN_INSTALL_DIR) :
 # install bin
 extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench
 
+etc_install : $(ETC_INSTALL_DIR)
+
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
 
@@ -261,6 +265,10 @@ $(FOGBENCH_PYTHON_INSTALL_DIR) :
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
+
+# create etc install dir
+$(ETC_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 ###############################################################################
@@ -278,7 +286,7 @@ install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
 ifdef SUDO_USER
 ifeq ("$(USER)","root")
 	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
-	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/etc
+	chown -R ${SUDO_USER}:${SUDO_USER} $(ETC_INSTALL_DIR)
 endif
 endif
 

@@ -81,6 +81,15 @@ if [ ! -d "${SSL_LOCATION}" ]; then
   exit 1
 fi
 
+mkdir -p ${SSL_LOCATION}/etc/certs
+SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
+
+if [ ! -d "${SSL_CERTS_PATH}" ]; then
+  selfssl_log "err" "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}" "logonly"
+  exit 1
+fi
+
+
 SSL_NAME=$1
 SSL_EXPIRATION_DAYS=$2
 
@@ -98,36 +107,26 @@ selfssl_log "info"  "Creating a self signed SSL certificate ..."  "logonly"
 # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
 SUBJ="/C=$country/ST=$state/O=$organization/CN=$common_name/emailAddress=$email"
 
-openssl genrsa -passout pass:x -out server.pass.key 2048 2> /dev/null
-openssl rsa -passin pass:x -in server.pass.key -out ${SSL_NAME}.key  2> /dev/null
-rm server.pass.key 2>&1 | logger &
-openssl req -new -key ${SSL_NAME}.key -subj ${SUBJ} -out ${SSL_NAME}.csr 2> /dev/null
-openssl x509 -req -sha256 -days ${SSL_EXPIRATION_DAYS} -in ${SSL_NAME}.csr -signkey ${SSL_NAME}.key -out ${SSL_NAME}.cert 2> /dev/null
+openssl genrsa -passout pass:x -out ${SSL_CERTS_PATH}/server.pass.key 2048 2> /dev/null
+openssl rsa -passin pass:x -in ${SSL_CERTS_PATH}/server.pass.key -out ${SSL_CERTS_PATH}/${SSL_NAME}.key  2> /dev/null
+rm ${SSL_CERTS_PATH}/server.pass.key 2>&1 | logger &
+openssl req -new -key ${SSL_CERTS_PATH}/${SSL_NAME}.key -subj ${SUBJ} -out ${SSL_CERTS_PATH}/${SSL_NAME}.csr 2> /dev/null
+openssl x509 -req -sha256 -days ${SSL_EXPIRATION_DAYS} -in ${SSL_CERTS_PATH}/${SSL_NAME}.csr -signkey ${SSL_CERTS_PATH}/${SSL_NAME}.key -out ${SSL_CERTS_PATH}/${SSL_NAME}.cert 2> /dev/null
 
 # The ${SSL_NAME}.cert file is the certificate suitable for use along with the ${SSL_NAME}.key private key.
 # Put these in ${FOGLAMP_DATA}/etc/certs, ${FOGLAMP_ROOT}/etc/certs or /usr/local/foglamp/etc/certs
 # Make directory to place SSL Certificate, if it doesn't exist
 
-mkdir -p ${SSL_LOCATION}/etc/certs
-SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
-
-if [ ! -d "${SSL_CERTS_PATH}" ]; then
-  selfssl_log "err" "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}" "logonly"
-  exit 1
-fi
 
 # Move SSL Certificate & Key to defined path
-mv ${SSL_NAME}.key ${SSL_CERTS_PATH}/${SSL_NAME}.key > /dev/null
-mv_err=$?
-if [ ${mv_err} -ne 0 ]; then
-  selfssl_log "err" "Could not put SSL certificate ${SSL_NAME} key at ${SSL_CERTS_PATH}" "logonly"
+
+if [ ! -f ${SSL_CERTS_PATH}/${SSL_NAME}.key ]; then
+  selfssl_log "err" "Could not create SSL certificate ${SSL_NAME} key at ${SSL_CERTS_PATH}" "logonly"
   exit 1
 fi
 
-mv ${SSL_NAME}.cert ${SSL_CERTS_PATH}/${SSL_NAME}.cert > /dev/null
-mv_err=$?
-if [ ${mv_err} -ne 0 ]; then
-  selfssl_log "err" "Could not put SSL certificate ${SSL_NAME} at ${SSL_CERTS_PATH}" "logonly"
+if [ ! -f ${SSL_CERTS_PATH}/${SSL_NAME}.cert ]; then
+  selfssl_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_CERTS_PATH}" "logonly"
   exit 1
 fi
 

@@ -14,6 +14,7 @@ RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
 CP     := cp
 CP_DIR := cp -r
+RSYNC  := rsync
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -50,6 +51,7 @@ SCRIPTS_INSTALL_DIR=$(INSTALL_DIR)/scripts
 BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
 SCRIPT_COMMON_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/common
+SCRIPT_CORE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/core
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
 SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
@@ -61,6 +63,7 @@ FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC         := scripts/common
+CORE_SCRIPTS_SRC           := scripts/core
 POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
 SOUTH_SCRIPT_SRC           := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
@@ -166,6 +169,7 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 # install scripts
 scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_common_scripts \
+	install_core_scripts \
 	install_postgres_script \
 	install_south_script \
 	install_storage_service_script \
@@ -182,7 +186,10 @@ $(SCRIPTS_INSTALL_DIR) :
 
 install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
-	
+
+install_core_scripts : $(SCRIPT_CORE_INSTALL_DIR) $(CORE_SCRIPTS_SRC)
+	$(RSYNC) --exclude *.rst $(CORE_SCRIPTS_SRC)/* $(SCRIPT_CORE_INSTALL_DIR)
+
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
 	
@@ -211,6 +218,9 @@ install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_COMMON_INSTALL_DIR) :
+	$(MKDIR_PATH) $@
+
+$(SCRIPT_CORE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
@@ -268,6 +278,7 @@ install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
 ifdef SUDO_USER
 ifeq ("$(USER)","root")
 	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
+	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/etc
 endif
 endif
 

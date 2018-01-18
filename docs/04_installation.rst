@@ -34,7 +34,9 @@
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.0_armhf.snap" target="_blank">Snap for ARM (armhf - ARM hard float) / Raspberry PI 2 & 3</a>
 
+.. |Downloads page| raw:: html
 
+   <a href="92_downloads.html" target="_blank">Downloads page</a>
 
 
 .. =============================================
@@ -192,11 +194,7 @@ More information regarding the package manager are available on the |snapcraft| 
 Obtaining the Snap Package
 --------------------------
 
-You can download the package from here:
-
-- |x86 Package|
-- |ARM Package|
-
+Check the |Downloads page| to find the package to install.
 
 Once you have downloaded the package, install it using the ``snap install`` command. Note that you may need to install it as superuser (or by using the ``sudo`` command). The current version of FogLAMP must be installed using the *--devmode* argument, since there are currently no security confinments.
 
@@ -204,9 +202,11 @@ For example, if you are installing FogLAMP on an Intel x86/64 machine, you can t
 
 .. code-block:: console
 
-  $ sudo snap install --devmode foglamp_1.0_amd64.snap
-  foglamp 1.0 installed 
+  $ sudo snap install --devmode foglamp_<version>_amd64.snap
+  foglamp <version> installed 
   $
+
+... where *<version>* is the selected version that you are installing.
 
 Congratulations! This is all you need to do, now FogLAMP is ready to run.
 

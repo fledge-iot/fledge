@@ -12,6 +12,9 @@
 
    <a href="https://docs.pytest.org/en/latest/contents.html" target="_blank">pytest</a>
 
+.. _Unit: unit\README.rst
+.. _Integration: integration\README.rst
+.. _System: system\README.rst
 
 .. =============================================
 
@@ -21,9 +24,9 @@ FogLAMP Test Scripts
 
 FogLAMP scripted tests are classified into three categories:
 
-.. [#] Unit - Tests that checks the expected output of a code block.
-.. [#] Integration - Tests that checks the integration of different FogLAMP units that work as a single component.
-.. [#] System - Tests that checks the end to end flows in FogLAMP
+- `Unit`_ - Tests that checks the expected output of a code block.
+- `Integration`_ - Tests that checks the integration of different FogLAMP units that work as a single component.
+- `System`_ - Tests that checks the end to end flows in FogLAMP
 
 
 Running FogLAMP scripted tests
@@ -61,7 +64,7 @@ Test addition
 
 If you want to contribute towards adding a new tests in FogLAMP, make sure you follow some rules:
 
-.. [#] Test file name should begin with the word ``test_`` to enable pytest auto test discovery.
-.. [#] Make sure you are placing your test file in the correct test directory. For example, if you are writing a unit
+- Test file name should begin with the word ``test_`` to enable pytest auto test discovery.
+- Make sure you are placing your test file in the correct test directory. For example, if you are writing a unit
 test, it should be located under ``$FOGLAMP_ROOT/tests/unit/python/foglamp/<component>`` where component is the name of
 the component for which you are writing the unit tests. For more information of type of test, refer to the test categories.

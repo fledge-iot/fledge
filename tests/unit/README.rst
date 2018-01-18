@@ -13,19 +13,18 @@ minimise the test execution time of unit tests.
 E.g.,
 
 ::
-def mock_request(data):
-    payload = StreamReader(loop=loop)
-    payload.feed_data(data.encode())
-    payload.feed_eof()
+    def mock_request(data):
+        payload = StreamReader(loop=loop)
+        payload.feed_data(data.encode())
+        payload.feed_eof()
 
-    protocol = mock.Mock()
-    app = mock.Mock()
-    headers = CIMultiDict([('CONTENT-TYPE', 'application/json')])
-    req = make_mocked_request('POST', '/sensor-reading', headers=headers,
-                              protocol=protocol, payload=payload, app=app)
-    return req
+        protocol = mock.Mock()
+        app = mock.Mock()
+        headers = CIMultiDict([('CONTENT-TYPE', 'application/json')])
+        req = make_mocked_request('POST', '/sensor-reading', headers=headers, protocol=protocol, payload=payload, app=app)
+        return req
 
-This code creates a mock request and can replace a POST request to the the endpoint /sensor-readings., like:
+This code creates a mock request and can replace a POST request to the the endpoint ``/sensor-readings``., like:
 ::
     async def test_post_sensor_reading_ok(self):
         data =  """{
@@ -49,4 +48,4 @@ This code creates a mock request and can replace a POST request to the the endpo
                 assert 200 == retval['status']
                 assert 'success' == retval['result']
 
-Note the use of mock_request, we are mocking a request to the endpoint /sensor-readings and not making any actual request.
+Note the use of ``mock_request``, we are mocking a request to the endpoint ``/sensor-readings`` and not making any actual request.

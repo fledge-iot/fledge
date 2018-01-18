@@ -390,11 +390,10 @@ class TestBrowseAssets:
     """
     Tests for min/max/averages of a set of sensor readings
     """
-    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_stats(self):
         """
-        Verify that if more than 20 readings for an assets sensor value,
-        summary of only 20 readings are returned as the default limit
+        Verify max, min, avg summary values for all records
+
         http://localhost:8081/foglamp/asset/TESTAPI/x/summary
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -406,15 +405,15 @@ class TestBrowseAssets:
         retval = json.loads(r)
 
         assert len(retval) == 1
-        # Verify with last 20 records [1:] of test data since we are querying for default limit of 20
-        assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[1:])
-        assert retval[sensor_code_1]['average'] == sum(self.test_data_x_val_list[1:])/len(self.test_data_x_val_list[1:])
-        assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[1:])
+        sensor_code_1_list = self.test_data_x_val_list
+        avg = str(sum(sensor_code_1_list) / len(sensor_code_1_list))
+        assert retval[sensor_code_1]['min'] == str(min(sensor_code_1_list))
+        assert retval[sensor_code_1]['max'] == str(max(sensor_code_1_list))
+        assert pytest.approx(retval[sensor_code_1]['average'], avg)
 
-    @pytest.mark.xfail(reason="FOGL-547")
     async def test_get_asset_sensor_readings_stats_q_sec(self):
         """
-        Verify that if more than 20 readings, summary of only last n sec readings for a sensor value are returned when
+        Verify min, max, avg summary values of only last n sec readings for a sensor value are returned when
         seconds is passed as query parameter
         http://localhost:8081/foglamp/asset/TESTAPI/x/summary?seconds=180
         """
@@ -427,16 +426,18 @@ class TestBrowseAssets:
         retval = json.loads(r)
 
         assert len(retval) == 1
-        # We have 1 record in test data for last 180 sec
-        assert retval[sensor_code_1]['min'] == self.test_data_x_val_list[-1]
-        assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
-        assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
+        sensor_code_1_list = self.test_data_x_val_list[-1]
 
-    @pytest.mark.xfail(reason="FOGL-547")
+        # We have 1 record in test data for last 180 sec
+        assert retval[sensor_code_1]['min'] == str(sensor_code_1_list)
+        assert retval[sensor_code_1]['max'] == str(sensor_code_1_list)
+        assert retval[sensor_code_1]['average'] == str(sensor_code_1_list)
+
     async def test_get_asset_sensor_readings_stats_q_min(self):
         """
-        Verify that if more than 20 readings, summary of only last n min readings for a sensor value are returned when
+        Verify min, max, avg summary values of only last n min readings for a sensor value are returned when
         minutes is passed as query parameter
+
         http://localhost:8081/foglamp/asset/TESTAPI/x?minutes=20
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -448,17 +449,19 @@ class TestBrowseAssets:
         retval = json.loads(r)
 
         assert len(retval) == 1
-        avg = sum(self.test_data_x_val_list[-2:])/len(self.test_data_x_val_list[-2:])
-        # We have 2 records in test data for last 20 min
-        assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-2:])
-        assert retval[sensor_code_1]['average'] == avg
-        assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-2:])
+        sensor_code_1_list = self.test_data_x_val_list[-2:]
+        avg = sum(sensor_code_1_list) / len(sensor_code_1_list)
 
-    @pytest.mark.xfail(reason="FOGL-547")
+        # We have 2 records in test data for last 20 min
+        assert retval[sensor_code_1]['min'] == str(min(sensor_code_1_list))
+        assert retval[sensor_code_1]['max'] == str(max(sensor_code_1_list))
+        assert pytest.approx(retval[sensor_code_1]['average'], avg)
+
     async def test_get_asset_sensor_readings_stats_q_hrs(self):
         """
-        Verify that if more than 20 readings, summary of only last n hrs readings for a sensor value are returned when
+        Verify min, max, avg summary values of only last n hrs readings for a sensor value are returned when
         hours is passed as query parameter
+
         http://localhost:8081/foglamp/asset/TESTAPI/x?hours=2
         """
         conn = http.client.HTTPConnection(BASE_URL)
@@ -470,22 +473,24 @@ class TestBrowseAssets:
         retval = json.loads(r)
 
         assert len(retval) == 1
-        avg = sum(self.test_data_x_val_list[-3:])/len(self.test_data_x_val_list[-3:])
-        # We have 3 records in test data for last 2 hours
-        assert retval[sensor_code_1]['min'] == min(self.test_data_x_val_list[-3:])
-        assert retval[sensor_code_1]['average'] == avg
-        assert retval[sensor_code_1]['max'] == max(self.test_data_x_val_list[-3:])
+        sensor_code_1_list = self.test_data_x_val_list[-3:]
+        avg = sum(sensor_code_1_list) / len(sensor_code_1_list)
 
-    @pytest.mark.xfail(reason="FOGL-547")
+        # We have 3 records in test data for last 2 hours
+        assert retval[sensor_code_1]['min'] == str(min(sensor_code_1_list))
+        assert retval[sensor_code_1]['max'] == str(max(sensor_code_1_list))
+        assert pytest.approx(retval[sensor_code_1]['average'], avg)
+
     async def test_get_asset_sensor_readings_stats_q_time_complex(self):
         """
-        Verify that if a combination of hrs, min, sec is used, shortest period will apply for sensor reading
-        combined with limit of 20 (AND condition)
-        http://localhost:8081/foglamp/asset/TESTAPI/x/summary?hours=20&minutes=20&seconds=180&limit=20
+        Verify min, max, avg summary values, if a combination of hrs, min, sec is used,
+        shortest period will apply for sensor reading
+
+        http://localhost:8081/foglamp/asset/TESTAPI/x/summary?hours=20&minutes=20&seconds=180
         """
         conn = http.client.HTTPConnection(BASE_URL)
-        conn.request("GET", '/foglamp/asset/{}/{}/summary?hours={}&minutes={}&seconds={}&limit={}'
-                     .format(test_data_asset_code, sensor_code_1, 20, 20, 180, 20))
+        conn.request("GET", '/foglamp/asset/{}/{}/summary?hours={}&minutes={}&seconds={}'
+                     .format(test_data_asset_code, sensor_code_1, 20, 20, 180))
         r = conn.getresponse()
         assert r.status == 200
         r = r.read().decode()
@@ -493,9 +498,12 @@ class TestBrowseAssets:
         retval = json.loads(r)
 
         assert len(retval) == 1
-        assert retval[sensor_code_1]['min'] == self.test_data_x_val_list[-1]
-        assert retval[sensor_code_1]['average'] == self.test_data_x_val_list[-1]
-        assert retval[sensor_code_1]['max'] == self.test_data_x_val_list[-1]
+        sensor_code_1_list = self.test_data_x_val_list[-1]
+
+        # We have 1 record in test data for last 180 sec
+        assert retval[sensor_code_1]['min'] == str(sensor_code_1_list)
+        assert retval[sensor_code_1]['max'] == str(sensor_code_1_list)
+        assert retval[sensor_code_1]['average'] == str(sensor_code_1_list)
 
     """
     Tests for time averaged sensor values

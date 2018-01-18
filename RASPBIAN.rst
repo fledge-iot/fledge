@@ -12,6 +12,8 @@ distributions support Python 3.4 as the latest version of Python.
 In order to build and run FogLAMP on Raspbian the version of Python
 must be updated manually if your distribution has an older version.
 
+**NOTE**: These steps must be executed *in addition* to what is described in the README file when you install FogLAMP on Raspbian.
+
 Check your Python version by running the command
 ::
     python3 --version

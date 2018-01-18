@@ -216,7 +216,10 @@ class Scheduler(object):
             self._check_processes_pending = True
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess) -> None:
-        exit_code = await task_process.process.wait()
+        if _ENV == 'TEST' and task_process.cancel_requested:
+            exit_code = -1
+        else:
+            exit_code = await task_process.process.wait()
 
         schedule = task_process.schedule
 
@@ -342,9 +345,7 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
                 # The process has started. Regardless of this error it must be waited on.
-            # No need to create future for STARTUP tasks aka microservices. Core and Storage microservices also do not
-            # have any future associated. Also because it interferes with shutdown process of microservices.
-            self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
+        self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
 
     async def purge_tasks(self):
         """Deletes rows from the tasks table"""
@@ -1431,3 +1432,6 @@ class Scheduler(object):
             task_process.process.terminate()
         except ProcessLookupError:
             pass  # Process has terminated
+
+        if task_process.future.cancel() is True:
+            await self._wait_for_task_completion(task_process)

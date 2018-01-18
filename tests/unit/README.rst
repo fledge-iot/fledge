@@ -8,10 +8,7 @@ test is generating the desired output.
 FogLAMP unit tests heavily use test doubles to replace a production object. A typical example is a code fragment that
 requires a database connection. Instead of creating a database connection, we create a mock object that can be used.
 By doing this, we can make sure that our unit-tests are not dependent on external systems. This approach also helps to
-minimise the test execution time of unit tests.
-
-E.g.,
-
+minimise the test execution time of unit tests. For example:
 ::
     def mock_request(data):
         payload = StreamReader(loop=loop)

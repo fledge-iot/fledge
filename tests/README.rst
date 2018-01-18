@@ -12,9 +12,9 @@
 
    <a href="https://docs.pytest.org/en/latest/contents.html" target="_blank">pytest</a>
 
-.. _Unit: unit\README.rst
-.. _Integration: integration\README.rst
-.. _System: system\README.rst
+.. _Unit: unit\\README.rst
+.. _Integration: integration\\README.rst
+.. _System: system\\README.rst
 
 .. =============================================
 
@@ -65,6 +65,4 @@ Test addition
 If you want to contribute towards adding a new tests in FogLAMP, make sure you follow some rules:
 
 - Test file name should begin with the word ``test_`` to enable pytest auto test discovery.
-- Make sure you are placing your test file in the correct test directory. For example, if you are writing a unit
-test, it should be located under ``$FOGLAMP_ROOT/tests/unit/python/foglamp/<component>`` where component is the name of
-the component for which you are writing the unit tests. For more information of type of test, refer to the test categories.
+- Make sure you are placing your test file in the correct test directory. For example, if you are writing a unit test, it should be located under ``$FOGLAMP_ROOT/tests/unit/python/foglamp/<component>`` where component is the name of the component for which you are writing the unit tests. For more information of type of test, refer to the test categories.

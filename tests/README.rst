@@ -39,10 +39,12 @@ Running FogLAMP scripted tests
 
 Test Prerequisites
 ------------------
-Follow the instructions mentioned `here`_ to install and run FogLAMP on your machine.
+
+Follow the instructions mentioned `here`_  to install and run FogLAMP on your machine.
 You can test FogLAMP from your development environment or after installing FogLAMP.
 
-In order to execute the scripted tests, run the following command from FOGLAMP_ROOT ::
+In order to execute the scripted tests, run the following command from FOGLAMP_ROOT
+::
    pip3 install -r python/requirements-test.txt --user
 
 

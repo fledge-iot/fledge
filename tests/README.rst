@@ -12,9 +12,14 @@
 
    <a href="https://docs.pytest.org/en/latest/contents.html" target="_blank">pytest</a>
 
+.. |pytest decorators| raw:: html
+
+   <a href="https://docs.pytest.org/en/latest/mark.html" target="_blank">pytest</a>
+
 .. _Unit: unit\\README.rst
 .. _Integration: integration\\README.rst
 .. _System: system\\README.rst
+.. _here:: ..\\README.rst
 
 .. =============================================
 
@@ -34,10 +39,12 @@ Running FogLAMP scripted tests
 
 Test Prerequisites
 ------------------
+Follow the instructions mentioned `here`_ to install and run FogLAMP on your machine.
+You can test FogLAMP from your development environment or after installing FogLAMP.
 
-In order to execute the scripted tests, make sure that FOGLAMP_ROOT is set and test dependencies are installed.
-To install the FogLAMP test dependencies, run the following command from FOGLAMP_ROOT ::
+In order to execute the scripted tests, run the following command from FOGLAMP_ROOT ::
    pip3 install -r python/requirements-test.txt --user
+
 
 Test Execution
 --------------
@@ -53,6 +60,18 @@ To execute a single test, navigate to the directory where your test code is plac
 pytest also supports running of a complete test suite. To execute the complete test suite, navigate to the directory
 which contains the tests and run the command ``pytest`` . This will execute all the python tests in the given directory
 and sub-directories.
+
+**NOTE:** *FogLAMP integration tests can be executed individually and not in suite because of an open issue.
+Further information to run the different categories of tests can be found in their respective documentation*
+
+FogLAMP also use |pytest decorators| heavily. For example pytest allure decorators like:
+::
+   @pytest.allure.feature("unit")
+   @pytest.allure.story("south")
+
+feature can be anything from unit, integration and system and story is FogLAMP component/sub-component.
+These decorators are used in generating allure test reports on CI systems.
+
 
 C Tests
 +++++++

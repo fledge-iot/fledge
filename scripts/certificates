@@ -1,0 +1,149 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2018 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+
+# @date: 2018-01-02
+#
+# Bash Script to manage certificates
+# The first implementation is to create a new self-signed SSL Certificate
+#
+# USAGE: this command will ask for the certificate name and number in days it will expire
+# $ ./certificates foglamp 365
+#
+# Create a certificate key.
+# Create the certificate signing request (CSR) which contains details such as the domain name and address details.
+# Sign the certificate
+# Install the certificate and key in the application.
+
+#
+# USAGE
+# The script is meant to be called via make, i.e. it is not meant to be used interactively
+# Arguments:
+#   $1 - Certificate name
+#   $2 - Expiration days
+#   $3 - Organization
+#   $4 - State
+#   $5 - Country
+#   $6 - Email
+#
+# The script is executed from the project directory
+#
+
+set -e
+#set -x
+
+#
+# Includes
+#
+
+# logger script
+. scripts/common/write_log.sh
+
+
+# Logger wrapper
+certificate_log() {
+  write_log "foglamp.script.make.certificate" "$1" "$2" "$3" "$4"
+}
+
+#
+# Initial settings
+SSL_LOCATION="data/etc/certs"
+
+#
+# Initial checks
+#
+
+# Certificate Name
+if [ -z ${1+x} ]; then
+  certificate_log "err" "Missing certificate name" "all" "pretty"
+  exit 1
+else
+  SSL_NAME="$1"
+fi
+
+# Expiration days
+if [ -z ${2+x} ]; then
+  certificate_log "err" "Missing expiration days" "all" "pretty"
+  exit 1
+else
+  SSL_EXPIRATION_DAYS="$2"
+fi
+
+# Organization
+if [ -z ${3+x} ]; then
+  SSL_ORGANIZATION="OSIsoft"
+else
+  SSL_ORGANIZATION="$3"
+fi
+
+# State
+if [ -z ${4+x} ]; then
+  SSL_STATE="California"
+else
+  SSL_STATE="$4"
+fi
+
+# Country
+if [ -z ${5+x} ]; then
+  SSL_COUNTRY="US"
+else
+  SSL_COUNTRY="$5"
+fi
+
+# Email
+if [ -z ${6+x} ]; then
+  SSL_EMAIL="foglamp@googlegroups.com"
+else
+  SSL_EMAIL="$6"
+fi
+
+# OpenSSL command
+if ! [ -x "$(command -v openssl)" ]; then
+  certificate_log "err" "Missing openssl command or package" "all" "pretty"
+  exit 1
+fi
+
+if [ ! -d "${SSL_LOCATION}" ]; then
+  mkdir -p "${SSL_LOCATION}"
+fi
+
+certificate_log "info"  "Creating a self signed SSL certificate ..." "outonly" "pretty"
+
+# Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
+SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${SSL_NAME}/emailAddress=${SSL_EMAIL}"
+
+openssl genpkey -out "${SSL_LOCATION}/foglamp.pass.key" -pass pass:foglamp -algorithm RSA 2> /dev/null
+openssl rsa -passin pass:foglamp -in "${SSL_LOCATION}/foglamp.pass.key" -out "${SSL_LOCATION}/${SSL_NAME}.key" 2> /dev/null
+rm "${SSL_LOCATION}/foglamp.pass.key"
+openssl req -new -key "${SSL_LOCATION}/${SSL_NAME}.key" -subj "${SUBJ}" -out "${SSL_LOCATION}/${SSL_NAME}.csr" 2> /dev/null
+openssl x509 -req -sha256 -days "${SSL_EXPIRATION_DAYS}" -in "${SSL_LOCATION}/${SSL_NAME}.csr" -signkey "${SSL_LOCATION}/${SSL_NAME}.key" -out "${SSL_LOCATION}/${SSL_NAME}.cert" 2> /dev/null
+
+# Check key and certificate files
+if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.key" ]; then
+  certificate_log "err" "Could not create SSL certificate ${SSL_NAME} key at ${SSL_LOCATION}" "all" "pretty"
+  exit 1
+fi
+
+if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.cert" ]; then
+  certificate_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_LOCATION}" "all" "pretty"
+  exit 1
+fi
+
+certificate_log "info" "Certificates created successfully, and placed in ${SSL_LOCATION}" "outonly" "pretty"
+
+exit $?

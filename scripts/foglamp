@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Copyright (c) 2017 OSIsoft, LLC
+## Copyright (c) 2017-2018 OSIsoft, LLC
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -90,7 +90,7 @@ foglamp_start() {
 
         "2")
             #FogLAMP not running
-	    echo -n "Starting FogLAMP."
+            echo -n "Starting FogLAMP."
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
             if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -98,31 +98,28 @@ foglamp_start() {
                 exit 1
             fi
 
-            # ./selfssl CERTIFICATE_NAME EXPIRATION_DAYS
-            # rest server is hard-coded to use server.cert and server.key when enableHttp=False
-            source "$FOGLAMP_ROOT/scripts/core/selfssl" server 365
             python3 -m foglamp.services.core > /dev/null 2> "$FOGLAMP_DATA/core.err" & disown
 
             attempts=60
             while [ $attempts -gt 0 ]; do
-		sleep 1
+                sleep 1
                 new_attempt=`foglamp_status "silent"`
-		case "$new_attempt" in
-		    "0")
-			echo
-		        foglamp_log "info" "FogLAMP started." "all" "pretty"
-		        let attempts=0
-		        ;;
-		    "1")
-	                let attempts=attempts-1
-			echo -n "."
-			;;
-		    "2")
-                        foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
-                        foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
-                        exit 1
-			;;
-	        esac
+                case "$new_attempt" in
+                  "0")
+                    echo
+                    foglamp_log "info" "FogLAMP started." "all" "pretty"
+                    let attempts=0
+                    ;;
+                  "1")
+                    let attempts=attempts-1
+                    echo -n "."
+                    ;;
+                  "2")
+                    foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
+                    foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
+                    exit 1
+                    ;;
+                esac
             done
             ;;
 

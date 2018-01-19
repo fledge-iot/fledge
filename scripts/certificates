@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ##--------------------------------------------------------------------
-## Copyright (c) 2017 OSIsoft, LLC
+## Copyright (c) 2018 OSIsoft, LLC
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -19,17 +19,19 @@
 
 # @date: 2018-01-02
 #
-# Bash Script to create a new self-signed SSL Certificate
+# Bash Script to manage certificates
+# The first implementation is to create a new self-signed SSL Certificate
 #
 # USAGE: this command will ask for the certificate name and number in days it will expire
-# $ ./selfssl foglamp 365
-
+# $ ./certificates foglamp 365
+#
 # Create a certificate key.
 # Create the certificate signing request (CSR) which contains details such as the domain name and address details.
 # Sign the certificate
 # Install the certificate and key in the application.
 
 USAGE="Usage: ./`basename ${0}` CERTIFICATE_NAME EXPIRATION_DAYS"
+
 
 if [ "${FOGLAMP_ROOT}" = "" ]; then
   FOGLAMP_ROOT=/usr/local/foglamp

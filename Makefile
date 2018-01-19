@@ -63,7 +63,7 @@ FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC         := scripts/common
-CORE_SCRIPTS_SRC           := scripts/core/selfssl
+SELFSSL_SCRIPT_SRC         := scripts/core/selfssl
 POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
 SOUTH_SCRIPT_SRC           := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
@@ -170,7 +170,7 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 # install scripts
 scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_common_scripts \
-	install_core_scripts \
+	install_selfssl_script \
 	install_postgres_script \
 	install_south_script \
 	install_storage_service_script \
@@ -188,8 +188,8 @@ $(SCRIPTS_INSTALL_DIR) :
 install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
 
-install_core_scripts : $(SCRIPT_CORE_INSTALL_DIR) $(CORE_SCRIPTS_SRC)
-	$(CP) $(CORE_SCRIPTS_SRC) $(SCRIPT_CORE_INSTALL_DIR)
+install_selfssl_script : $(SCRIPT_CORE_INSTALL_DIR) $(SELFSSL_SCRIPT_SRC)
+	$(CP) $(SELFSSL_SCRIPT_SRC) $(SCRIPT_CORE_INSTALL_DIR)
 
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
@@ -310,4 +310,3 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
-

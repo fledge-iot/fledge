@@ -30,108 +30,118 @@
 # Sign the certificate
 # Install the certificate and key in the application.
 
-USAGE="Usage: ./`basename ${0}` CERTIFICATE_NAME EXPIRATION_DAYS"
+#
+# USAGE
+# The script is meant to be called via make, i.e. it is not meant to be used interactively
+# Arguments:
+#   $1 - Certificate name
+#   $2 - Expiration days
+#   $3 - Organization
+#   $4 - State
+#   $5 - Country
+#   $6 - Email
+#
+# The script is executed from the project directory
+#
 
-
-if [ "${FOGLAMP_ROOT}" = "" ]; then
-  FOGLAMP_ROOT=/usr/local/foglamp
-fi
+set -e
 
 # include logger script
-. ${FOGLAMP_ROOT}/scripts/common/write_log.sh
-
-if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
-  logger "Could not find the write_log script."
-  exit 1
-fi
+. scripts/common/write_log.sh
 
 # Logger wrapper
-selfssl_log() {
-  write_log "foglamp.script.core.selfssl" "$1" "$2" "$3"
+certificate_log() {
+  write_log "foglamp.script.make.certificate" "$1" "$2" "$3" "$4"
 }
 
+#
+# Initial settings
+SSL_LOCATION="data/etc/certs"
+
+#
+# Initial checks
+#
+
+# Certificate Name
 if [ -z $1 ]; then
-  selfssl_log "err" "${USAGE}" "logonly"
+  certificate_log "err" "Missing certificate name" "all" "pretty"
   exit 1
-fi
-
-if [ -z $2 ]; then
-  selfssl_log "err" "${USAGE}" "logonly"
-  exit 1
-fi
-
-if ! [ -x "$(type -P openssl)" ]; then
-  selfssl_log "err" "script requires openssl" "logonly"
-  selfssl_log "err" "For Debian and friends, get it with 'apt-get install openssl'"  "logonly"
-  exit 1
-fi
-
-# Check ENV VARS and decide the directory to place the certificates
-
-if [ ! -z ${FOGLAMP_DATA+x} ]; then
-  SSL_LOCATION="${FOGLAMP_DATA}"
 else
-  if [ ! -z ${FOGLAMP_ROOT+x} ]; then
-    SSL_LOCATION="${FOGLAMP_ROOT}"
-  else
-    SSL_LOCATION="/usr/local/foglamp"
-  fi
+  SSL_NAME="$1"
 fi
+
+# Expiration days
+if [ -z $2 ]; then
+  certificate_log "err" "Missing expiration days" "all" "pretty"
+  exit 1
+else
+  SSL_EXPIRATION_DAYS="$2"
+
+# Organization
+if [ -z $3 ]; then
+  SSL_ORGANIZATION="$3"
+else
+  SSL_ORGANIZATION="OSIsoft"
+fi
+
+# State
+if [ -z $4 ]; then
+  SSL_STATE="$4"
+else
+  SSL_STATE="California"
+fi
+
+# Country
+if [ -z $5 ]; then
+  SSL_COUNTRY="$5"
+else
+  SSL_COUNTRY="US"
+fi
+
+# Email
+if [ -z $6 ]; then
+  SSL_EMAIL="$6"
+else
+  SSL_EMAIL="foglamp@googlegroups.com"
+fi
+
+# OpenSSL command
+if ! [ -x "$(command -v openssl)" ]; then
+  certificate_log "err" "Missing openssl command or package" "all" "pretty"
+  exit 1
+fi
+
 
 if [ ! -d "${SSL_LOCATION}" ]; then
   selfssl_log "err" "Could not find the directory ${SSL_LOCATION} to put SSL certificates." "logonly"
   exit 1
 fi
 
-mkdir -p ${SSL_LOCATION}/etc/certs
-SSL_CERTS_PATH=${SSL_LOCATION}/etc/certs
+mkdir -p ${SSL_LOCATION}
 
-if [ ! -d "${SSL_CERTS_PATH}" ]; then
-  selfssl_log "err" "Could not create /etc/certs to put SSL certificates at ${SSL_LOCATION}" "logonly"
-  exit 1
-fi
-
-
-SSL_NAME=$1
-SSL_EXPIRATION_DAYS=$2
-
-# Change to your company details
-country=US
-state=California
-# locality=
-organization=OSIsoft
-# organizational_unit=
-common_name=FogLAMP
-email=info@dianomic.com
-
-selfssl_log "info"  "Creating a self signed SSL certificate ..."  "logonly"
+certificate_log "info"  "Creating a self signed SSL certificate ..." "outonly" "pretty"
 
 # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
-SUBJ="/C=$country/ST=$state/O=$organization/CN=$common_name/emailAddress=$email"
+SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${SSL_NAME}/emailAddress=${SSL_EMAIL}"
 
-openssl genrsa -passout pass:x -out ${SSL_CERTS_PATH}/server.pass.key 2048 2> /dev/null
-openssl rsa -passin pass:x -in ${SSL_CERTS_PATH}/server.pass.key -out ${SSL_CERTS_PATH}/${SSL_NAME}.key  2> /dev/null
-rm ${SSL_CERTS_PATH}/server.pass.key 2>&1 | logger &
-openssl req -new -key ${SSL_CERTS_PATH}/${SSL_NAME}.key -subj ${SUBJ} -out ${SSL_CERTS_PATH}/${SSL_NAME}.csr 2> /dev/null
-openssl x509 -req -sha256 -days ${SSL_EXPIRATION_DAYS} -in ${SSL_CERTS_PATH}/${SSL_NAME}.csr -signkey ${SSL_CERTS_PATH}/${SSL_NAME}.key -out ${SSL_CERTS_PATH}/${SSL_NAME}.cert 2> /dev/null
+openssl genpkey -out "${SSL_LOCATION}/foglamp.pass.key" -pass pass:foglamp -algorithm RSA 2> /dev/null
+openssl rsa -passin pass:foglamp -in "${SSL_LOCATION}/foglamp.pass.key" -out "${SSL_LOCATION}/${SSL_NAME}.key" 2> /dev/null
+rm "${SSL_LOCATION}/foglamp.pass.key"
+openssl req -new -key "${SSL_LOCATION}/${SSL_NAME}.key" -subj "${SUBJ}" -out "${SSL_LOCATION}/${SSL_NAME}.csr" 2> /dev/null
+openssl x509 -req -sha256 -days "${SSL_EXPIRATION_DAYS}" -in "${SSL_LOCATION}/${SSL_NAME}.csr" -signkey "${SSL_LOCATION}/${SSL_NAME}.key" -out "${SSL_LOCATION}/${SSL_NAME}.cert" 2> /dev/null
 
-# The ${SSL_NAME}.cert file is the certificate suitable for use along with the ${SSL_NAME}.key private key.
-# Put these in ${FOGLAMP_DATA}/etc/certs, ${FOGLAMP_ROOT}/etc/certs or /usr/local/foglamp/etc/certs
-# Make directory to place SSL Certificate, if it doesn't exist
-
-
-# Move SSL Certificate & Key to defined path
-
-if [ ! -f ${SSL_CERTS_PATH}/${SSL_NAME}.key ]; then
-  selfssl_log "err" "Could not create SSL certificate ${SSL_NAME} key at ${SSL_CERTS_PATH}" "logonly"
+# Check key and certificate files
+if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.key" ]; then
+  certificate_log "err" "Could not create SSL certificate ${SSL_NAME} key at ${SSL_LOCATION}" "all" "pretty"
   exit 1
 fi
 
-if [ ! -f ${SSL_CERTS_PATH}/${SSL_NAME}.cert ]; then
-  selfssl_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_CERTS_PATH}" "logonly"
+if [ ! -f ${SSL_LOCATION}/${SSL_NAME}.cert ]; then
+  certificate_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_LOCATION}" "all" "pretty"
   exit 1
 fi
 
-# what about CSR
+certificate_log "info" "Certificates created successfully, and placed in ${SSL_LOCATION}" "outonly" "pretty""
 
-selfssl_log "info" "Certificates created successfully, and placed in ${SSL_CERTS_PATH}" "logonly"
+exit $?
+

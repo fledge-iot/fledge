@@ -39,4 +39,9 @@ allure-report/
 # Error Logs
 *.err
 
+# Keys and certificates
+*.cert
+*.csr
+*.key
+
 .cache/

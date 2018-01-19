@@ -45,15 +45,9 @@
 #
 
 set -e
-#set -x
 
-#
-# Includes
-#
-
-# logger script
+# include logger script
 . scripts/common/write_log.sh
-
 
 # Logger wrapper
 certificate_log() {
@@ -69,7 +63,7 @@ SSL_LOCATION="data/etc/certs"
 #
 
 # Certificate Name
-if [ -z ${1+x} ]; then
+if [ -z $1 ]; then
   certificate_log "err" "Missing certificate name" "all" "pretty"
   exit 1
 else
@@ -77,39 +71,38 @@ else
 fi
 
 # Expiration days
-if [ -z ${2+x} ]; then
+if [ -z $2 ]; then
   certificate_log "err" "Missing expiration days" "all" "pretty"
   exit 1
 else
   SSL_EXPIRATION_DAYS="$2"
-fi
 
 # Organization
-if [ -z ${3+x} ]; then
-  SSL_ORGANIZATION="OSIsoft"
-else
+if [ -z $3 ]; then
   SSL_ORGANIZATION="$3"
+else
+  SSL_ORGANIZATION="OSIsoft"
 fi
 
 # State
-if [ -z ${4+x} ]; then
-  SSL_STATE="California"
-else
+if [ -z $4 ]; then
   SSL_STATE="$4"
+else
+  SSL_STATE="California"
 fi
 
 # Country
-if [ -z ${5+x} ]; then
-  SSL_COUNTRY="US"
-else
+if [ -z $5 ]; then
   SSL_COUNTRY="$5"
+else
+  SSL_COUNTRY="US"
 fi
 
 # Email
-if [ -z ${6+x} ]; then
-  SSL_EMAIL="foglamp@googlegroups.com"
-else
+if [ -z $6 ]; then
   SSL_EMAIL="$6"
+else
+  SSL_EMAIL="foglamp@googlegroups.com"
 fi
 
 # OpenSSL command
@@ -118,9 +111,13 @@ if ! [ -x "$(command -v openssl)" ]; then
   exit 1
 fi
 
+
 if [ ! -d "${SSL_LOCATION}" ]; then
-  mkdir -p "${SSL_LOCATION}"
+  certificate_log "err" "Could not find the directory ${SSL_LOCATION} to put SSL certificates." "logonly"
+  exit 1
 fi
+
+mkdir -p "${SSL_LOCATION}"
 
 certificate_log "info"  "Creating a self signed SSL certificate ..." "outonly" "pretty"
 
@@ -139,7 +136,7 @@ if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.key" ]; then
   exit 1
 fi
 
-if [ ! -f "${SSL_LOCATION}/${SSL_NAME}.cert" ]; then
+if [ ! -f ${SSL_LOCATION}/${SSL_NAME}.cert ]; then
   certificate_log "err" "Could not create SSL certificate ${SSL_NAME} at ${SSL_LOCATION}" "all" "pretty"
   exit 1
 fi

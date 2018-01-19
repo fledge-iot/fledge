@@ -1,3 +1,4 @@
+#.PHONY: generate_selfcertificate
 
 ###############################################################################
 ################################### COMMANDS ##################################
@@ -12,8 +13,10 @@ PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
-CP     := cp
-CP_DIR := cp -r
+CP            := cp
+CP_DIR        := cp -r
+SSL_NAME      := "foglamp"
+SSL_DAYS      := "365"
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -49,9 +52,7 @@ PYTHON_INSTALL_DIR=$(INSTALL_DIR)/python
 SCRIPTS_INSTALL_DIR=$(INSTALL_DIR)/scripts
 BIN_INSTALL_DIR=$(INSTALL_DIR)/bin
 EXTRAS_INSTALL_DIR=$(INSTALL_DIR)/extras
-ETC_INSTALL_DIR=$(INSTALL_DIR)/etc
 SCRIPT_COMMON_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/common
-SCRIPT_CORE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/core
 SCRIPT_PLUGINS_STORAGE_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/plugins/storage
 SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
@@ -63,7 +64,6 @@ FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC         := scripts/common
-SELFSSL_SCRIPT_SRC         := scripts/core/selfssl
 POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
 SOUTH_SCRIPT_SRC           := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
@@ -90,7 +90,8 @@ PACKAGE_NAME=FogLAMP
 # default
 # compile any code that must be compiled
 # generally prepare the development tree to allow for core to be run
-default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
+default : generate_selfcertificate \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 # install
@@ -104,8 +105,13 @@ install : $(INSTALL_DIR) \
 	scripts_install \
 	bin_install \
 	extras_install \
-	etc_install \
 	data_install
+
+###############################################################################
+############################ PRE-REQUISITE SCRIPTS ############################
+###############################################################################
+generate_selfcertificate:
+	scripts/certificates $(SSL_NAME) $(SSL_DAYS)
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################
@@ -170,7 +176,6 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 # install scripts
 scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_common_scripts \
-	install_selfssl_script \
 	install_postgres_script \
 	install_south_script \
 	install_storage_service_script \
@@ -187,10 +192,7 @@ $(SCRIPTS_INSTALL_DIR) :
 
 install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
-
-install_selfssl_script : $(SCRIPT_CORE_INSTALL_DIR) $(SELFSSL_SCRIPT_SRC)
-	$(CP) $(SELFSSL_SCRIPT_SRC) $(SCRIPT_CORE_INSTALL_DIR)
-
+	
 install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
 	
@@ -219,9 +221,6 @@ install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_COMMON_INSTALL_DIR) :
-	$(MKDIR_PATH) $@
-
-$(SCRIPT_CORE_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) :
@@ -254,8 +253,6 @@ $(BIN_INSTALL_DIR) :
 # install bin
 extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench
 
-etc_install : $(ETC_INSTALL_DIR)
-
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
 
@@ -264,10 +261,6 @@ $(FOGBENCH_PYTHON_INSTALL_DIR) :
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
-	$(MKDIR_PATH) $@
-
-# create etc install dir
-$(ETC_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 ###############################################################################
@@ -285,7 +278,6 @@ install_data : $(DATA_INSTALL_DIR) $(DATA_SRC_DIR)
 ifdef SUDO_USER
 ifeq ("$(USER)","root")
 	chown -R ${SUDO_USER}:${SUDO_USER} $(INSTALL_DIR)/$(DATA_SRC_DIR)
-	chown -R ${SUDO_USER}:${SUDO_USER} $(ETC_INSTALL_DIR)
 endif
 endif
 
@@ -310,3 +302,4 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
+

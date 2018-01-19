@@ -749,7 +749,7 @@ bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::stri
 char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC', ts AT TIME ZONE 'UTC' FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
+		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
 	
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)

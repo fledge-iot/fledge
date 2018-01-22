@@ -140,6 +140,14 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 								sql.append((*itr)["format"].GetString());
 								sql.append("')");
 							}
+							else if (itr->HasMember("timezone"))
+							{
+								sql.append((*itr)["column"].GetString());
+								sql.append(" AT TIME ZONE '");
+								sql.append((*itr)["timezone"]);
+								sql.append("' AS ");
+								sql.append((*itr)["column"].GetString());
+							}
 							else
 							{
 								sql.append((*itr)["column"].GetString());
@@ -749,7 +757,7 @@ bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::stri
 char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC', ts AT TIME ZONE 'UTC' FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
+		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC', ts AT TIME ZONE 'UTC' FROM foglamp.readings WHERE id >= %ld SORT BY id LIMIT %d;", id, blksize);
 	
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)

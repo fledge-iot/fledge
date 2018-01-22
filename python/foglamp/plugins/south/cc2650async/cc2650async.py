@@ -102,7 +102,7 @@ def plugin_init(config):
         data['notification_handles'] = tag.get_notification_handles()
         data['characteristics'] = sensortag_characteristics
         data['tag'] = tag
-        _LOGGER.info('SensorTagCC2650 {} Async fetching initialized'.format(bluetooth_adr))
+        _LOGGER.info('SensorTagCC2650 {} async fetching initialized'.format(bluetooth_adr))
 
     return data
 
@@ -165,11 +165,11 @@ def plugin_start(handle):
                 try:
                     pattern_index = tag.con.expect('Notification handle = .*? \r', timeout=4)
                 except pexpect.TIMEOUT:
-                    _LOGGER.error("SensorTagCC2650 {} async timeout")
+                    _LOGGER.error("SensorTagCC2650 async timeout")
                     print("TIMEOUT exception!")
                     break
 
-                # expect, if succesfull, will return the index of the pattern "Notification handle = " which ideally
+                # expect, if successful, will return the index of the pattern "Notification handle = " which ideally
                 # should appear at col 0. If not, then pexpect.TIMEOUT will be raised. Also, this choice of pattern
                 # will help in splitting at line#176.
                 if pattern_index == 0:
@@ -197,10 +197,8 @@ def plugin_start(handle):
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
-                                'temperature': {
                                     "object": object_temp_celsius,
                                     'ambient': ambient_temp_celsius
-                                },
                             }
                         }
 
@@ -212,9 +210,7 @@ def plugin_start(handle):
                             'asset': 'luxometer',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
-                            'readings': {
-                                'luxometer': {"lux": lux_luminance},
-                            }
+                            'readings': {"lux": lux_luminance}
                         }
 
                     # Get humidity
@@ -227,10 +223,8 @@ def plugin_start(handle):
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
                             'readings': {
-                                'humidity': {
                                     "humidity": rel_humidity,
                                     "temperature": rel_temperature
-                                },
                             }
                         }
 
@@ -242,9 +236,7 @@ def plugin_start(handle):
                             'asset': 'pressure',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
-                            'readings': {
-                                'pressure': {"pressure": bar_pressure},
-                            }
+                            'readings': {"pressure": bar_pressure}
                         }
 
                     # Get movement
@@ -276,14 +268,11 @@ def plugin_start(handle):
                                 'asset': reading_key,
                                 'timestamp': time_stamp,
                                 'key': str(uuid.uuid4()),
-                                'readings': {
-                                    reading_key: movement[reading_key],
-                                }
+                                'readings': {movement[reading_key]}
                             }
                             await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
-                                                                timestamp=data['timestamp'],
-                                                                key=data['key'],
-                                                                readings=data['readings'])
+                                                      timestamp=data['timestamp'], key=data['key'],
+                                                      readings=data['readings'])
 
                     # Get battery
                     # FIXME: Investigate why no battery input in async mode?
@@ -294,9 +283,7 @@ def plugin_start(handle):
                             'asset': 'battery',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
-                            'readings': {
-                                'battery': {"percentage": battery_level},
-                            }
+                            'readings': {"percentage": battery_level}
                         }
 
                     # Get keypress
@@ -308,26 +295,23 @@ def plugin_start(handle):
                             'asset': 'keypress',
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
-                            'readings': {
-                                'keypress': {"state": keypress_state},
-                            }
+                            'readings': {"state": keypress_state}
                         }
 
                     # Common add_readings for all keys other than movement
                     if int(handle['characteristics']['movement']['data']['handle'], 16) != \
                             int(hex_string[0].decode(), 16):
                         await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
-                                                            timestamp=data['timestamp'],
-                                                            key=data['key'],
-                                                            readings=data['readings'])
+                                                  timestamp=data['timestamp'], key=data['key'],
+                                                  readings=data['readings'])
                 else:
-                    _LOGGER.error("SensorTagCC2650 {} async timeout")
+                    _LOGGER.error("SensorTagCC2650 async timeout")
                     print("TIMEOUT!!")
         except (Exception, RuntimeError) as ex:
-            _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
+            _LOGGER.exception("SensorTagCC2650 async {} exception: {}".format(bluetooth_adr, str(ex)))
             raise exceptions.DataRetrievalError(ex)
 
-        _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
+        _LOGGER.debug("SensorTagCC2650 async {} reading: {}".format(bluetooth_adr, json.dumps(data)))
 
     asyncio.ensure_future(save_data())
 
@@ -382,4 +366,4 @@ def plugin_shutdown(handle):
             tag.char_write_cmd(notification_handle, notification_disable)
 
         tag.disconnect()
-        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+        _LOGGER.info('SensorTagCC2650 async {} Disconnected.'.format(bluetooth_adr))

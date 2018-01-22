@@ -132,8 +132,18 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					{
 						if (itr->HasMember("column"))
 						{
+							if (! (*itr)["column"].IsString())
+							{
+								raiseError("rerieve", "column must be a string");
+								return false;
+							}
 							if (itr->HasMember("format"))
 							{
+								if (! (*itr)["format"].IsString())
+								{
+									raiseError("rerieve", "format must be a string");
+									return false;
+								}
 								sql.append("to_char(");
 								sql.append((*itr)["column"].GetString());
 								sql.append(", '");
@@ -142,6 +152,11 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 							}
 							else if (itr->HasMember("timezone"))
 							{
+								if (! (*itr)["timezone"].IsString())
+								{
+									raiseError("rerieve", "timezone must be a string");
+									return false;
+								}
 								sql.append((*itr)["column"].GetString());
 								sql.append(" AT TIME ZONE '");
 								sql.append((*itr)["timezone"].GetString());

@@ -45,14 +45,27 @@ Build Prerequisites
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
-- *cmake*, *g++*, *make*, *build-essential*, *autoconf*, *automake*
-- *libtool*, *libboost-dev*, *libboost-system-dev*, *libboost-thread-dev*, *libpq-dev*
-- *python3-pip*, *python-dev*, *python-dbus*
-- *postgresql*
-- *bluez*
+- autoconf 
+- automake 
+- avahi-daemon
+- bluez
+- build-essential 
+- cmake
+- g++
+- libtool 
+- libbost-dev
+- libbost-system-dev
+- libbost-thread-dev
+- libpq-dev
+- make
+- postgresql
+- python-dbus
+- python3-pip
+- python-dev
 
 On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
 ::
+   apt-get install avahi-daemon
    apt-get install cmake g++ make build-essential autoconf automake
    apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev
    apt-get install python-dbus python-dev python3-pip

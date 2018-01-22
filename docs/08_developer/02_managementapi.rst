@@ -17,4 +17,5 @@
 Microservice Management API
 ***************************
 
-This is the Developer's Guide...
+.. note:: This page is currently under construction. Come back soon to check it again!
+

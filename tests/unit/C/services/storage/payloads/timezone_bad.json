@@ -1,0 +1,14 @@
+{
+	"where" : {
+				"column" : "id",
+				"condition" : ">=",
+				"value" : "2"
+			},
+	"return" : [ "key", "description", 
+			{
+			  "column" : "ts",
+			  "timezone" : "bad"
+			}
+		    ]
+}
+

@@ -144,7 +144,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 							{
 								sql.append((*itr)["column"].GetString());
 								sql.append(" AT TIME ZONE '");
-								sql.append((*itr)["timezone"]);
+								sql.append((*itr)["timezone"].GetString());
 								sql.append("' AS ");
 								sql.append((*itr)["column"].GetString());
 							}

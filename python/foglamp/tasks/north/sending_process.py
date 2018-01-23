@@ -15,7 +15,6 @@ that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
 
-import json
 import resource
 import asyncio
 import sys
@@ -23,6 +22,7 @@ import time
 import importlib
 import logging
 import datetime
+import signal
 
 import foglamp.plugins.north.common.common as plugin_common
 
@@ -89,7 +89,8 @@ _LOG_LEVEL_DEBUG = 10
 _LOG_LEVEL_INFO = 20
 _LOG_LEVEL_WARNING = 30
 
-_LOGGER_LEVEL = _LOG_LEVEL_WARNING
+# FIXME:
+_LOGGER_LEVEL = _LOG_LEVEL_DEBUG
 _LOGGER_DESTINATION = logger.SYSLOG
 
 _LOGGER = logger.setup(__name__, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
@@ -246,6 +247,9 @@ class SendingProcess:
 
     _logger = None  # type: logging.Logger
 
+    # FIXME:
+    _stop_execution = False
+
     # Filesystem path where the norths reside
     _NORTH_PATH = "foglamp.plugins.north."
 
@@ -356,6 +360,24 @@ class SendingProcess:
 
         self._event_loop = asyncio.get_event_loop()
 
+    @staticmethod
+    def _signal_handler(_signo, _stack_frame):
+        """ Handles signals to properly terminate the execution
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        # FIXME:
+        SendingProcess._stop_execution = True
+
+        short_stack_frame = str(_stack_frame)[:100]
+        SendingProcess._logger.debug("{func} - XXX BRK signal |{signo}| - info |{ssf}| ".format(
+            func="_signal_handler",
+            signo=_signo,
+            ssf=short_stack_frame))
+
     def _is_stream_id_valid(self, stream_id):
         """ Checks if the provided stream id  is valid
         Args:
@@ -451,13 +473,8 @@ class SendingProcess:
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
         try:
-            # Loads data
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['id', '>', last_object_id]) \
-                .LIMIT(self._config['blockSize']) \
-                .ORDER_BY(['id', 'ASC']) \
-                .payload()
-            readings = self._readings.query(payload)
+            # Loads data, +1 as > is needed
+            readings = self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
@@ -493,12 +510,15 @@ class SendingProcess:
                     value = payload[key]
                     payload[key] = plugin_common.convert_to_type(value)
 
+                # Adds timezone UTC
+                timestamp = row['user_ts'] + "+00"
+
                 new_row = {
                     'id': row['id'],
                     'asset_code': row['asset_code'],
                     'read_key': row['read_key'],
                     'reading': payload,
-                    'user_ts': row['user_ts']
+                    'user_ts': timestamp
                 }
                 converted_data.append(new_row)
 
@@ -524,11 +544,14 @@ class SendingProcess:
         raw_data = None
         try:
             payload = payload_builder.PayloadBuilder() \
+                .SELECT("id", "key", '{"column": "ts", "timezone": "UTC"}', "value", "history_ts")\
                 .WHERE(['id', '>', last_object_id]) \
                 .LIMIT(self._config['blockSize']) \
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
+
             statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+
             raw_data = statistics_history['rows']
             converted_data = self._transform_in_memory_data_statistics(raw_data)
         except Exception:
@@ -558,10 +581,14 @@ class SendingProcess:
             for row in raw_data:
                 # Removes spaces
                 asset_code = row['key'].strip()
+
+                # Adds timezone UTC
+                timestamp = row['ts'] + "+00"
+
                 new_row = {
                     'id': row['id'],                    # Row id
                     'asset_code': asset_code,           # Asset code
-                    'user_ts': row['ts'],               # Timestamp
+                    'user_ts': timestamp,               # Timestamp
                     'reading': {'value': row['value']}  # Converts raw data to a Dictionary
                 }
                 converted_data.append(new_row)
@@ -679,22 +706,33 @@ class SendingProcess:
         Args:
         Returns:
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - ".format("send_data"))
         try:
             start_time = time.time()
             elapsed_seconds = 0
+
             while elapsed_seconds < self._config['duration']:
+
                 try:
                     data_sent = self._send_data_block(stream_id)
                 except Exception as e:
                     data_sent = False
                     _message = _MESSAGES_LIST["e000021"].format(e)
                     SendingProcess._logger.error(_message)
+
+                # Terminates the execution in case a signal has been received
+                if SendingProcess._stop_execution:
+
+                    # FIXME:
+                    SendingProcess._logger.info("{func} - XXX-2 signal received, stops the execution".format(
+                            func="send_data"))
+                    break
+
                 if not data_sent:
                     SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
                     time.sleep(self._config['sleepInterval'])
+
                 elapsed_seconds = time.time() - start_time
                 SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format(
                                                             "send_data",
@@ -841,6 +879,14 @@ class SendingProcess:
         # Command line parameter handling
         global _log_performance
         global _LOGGER
+
+        # Setups signals handlers, to properly handle the termination
+        # a) SIGINT: Keyboard interrupt
+        # b) SIGTERM: kill or system shutdown
+        # c) SIGHUP: Controlling shell exiting
+        signal.signal(signal.SIGINT, SendingProcess._signal_handler)
+        signal.signal(signal.SIGTERM, SendingProcess._signal_handler)
+        signal.signal(signal.SIGHUP, SendingProcess._signal_handler)
 
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \

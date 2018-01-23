@@ -1,0 +1,4 @@
+{ "entryPoint" : "retrieve", "message" : "ERROR:  syntax error at or near \":\"
+LINE 1: ... AS ts  FROM foglamp.test2 WHERE id >= '2' ORDER BY id: ASC;
+                                                                 ^
+", "retryable" : false}

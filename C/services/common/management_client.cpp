@@ -126,6 +126,12 @@ bool ManagementClient::registerCategory(const string& category)
 {
 ostringstream convert;
 
+	if (m_uuid == 0)
+	{
+		// Not registered with core
+		m_logger->error("Storage service is not registered with the core - not registering configuration interest");
+		return true;
+	}
 	try {
 		convert << "{ \"category\" : \"" << category << "\", ";
 		convert << "\"service\" : \"" << *m_uuid << "\" }";

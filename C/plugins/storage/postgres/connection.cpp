@@ -132,13 +132,36 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					{
 						if (itr->HasMember("column"))
 						{
+							if (! (*itr)["column"].IsString())
+							{
+								raiseError("rerieve", "column must be a string");
+								return false;
+							}
 							if (itr->HasMember("format"))
 							{
+								if (! (*itr)["format"].IsString())
+								{
+									raiseError("rerieve", "format must be a string");
+									return false;
+								}
 								sql.append("to_char(");
 								sql.append((*itr)["column"].GetString());
 								sql.append(", '");
 								sql.append((*itr)["format"].GetString());
 								sql.append("')");
+							}
+							else if (itr->HasMember("timezone"))
+							{
+								if (! (*itr)["timezone"].IsString())
+								{
+									raiseError("rerieve", "timezone must be a string");
+									return false;
+								}
+								sql.append((*itr)["column"].GetString());
+								sql.append(" AT TIME ZONE '");
+								sql.append((*itr)["timezone"].GetString());
+								sql.append("' AS ");
+								sql.append((*itr)["column"].GetString());
 							}
 							else
 							{
@@ -749,7 +772,7 @@ bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::stri
 char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
+		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
 	
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)

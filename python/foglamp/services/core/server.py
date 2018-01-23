@@ -419,14 +419,14 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
-            print("(Press CTRL+C to quit)")
-            try:
-                loop.run_forever()
-            except KeyboardInterrupt:
-                pass
-            finally:
-                cls.stop(loop)
-            loop.close()
+            # print("(Press CTRL+C to quit)")
+            # try:
+            loop.run_forever()
+            # except KeyboardInterrupt:
+            #     pass
+            # finally:
+            #     cls.stop(loop)
+            # loop.close()
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -467,8 +467,7 @@ class Server:
             await cls.stop_storage()
 
             # stop core management api
-            # loop.stop does it all ?!
-            # await cls.stop_core_server()
+            # loop.stop does it all
         except Exception:
             raise
 
@@ -487,15 +486,6 @@ class Server:
         await cls.service_server_handler.shutdown(60.0)
         await cls.service_app.cleanup()
         _logger.info("Rest server stopped.")
-
-    # @classmethod
-    # async def stop_core_server(cls):
-    #     cls.core_server.close()
-    #     await cls.core_server.wait_closed()
-    #     await cls.core_app.shutdown()
-    #     await cls.core_server_handler.shutdown(60.0)
-    #     await cls.core_app.cleanup()
-    #     _logger.info("Core server stopped.")
 
     @classmethod
     async def stop_storage(cls):
@@ -569,7 +559,12 @@ class Server:
             cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
-            raise e
+            # TODO: FOGL-xxx Scheduler gets timeout,
+            """ Fix (POLL plugin + Ingest) and tasks plugin (see syslog) """
+
+            # raise e
+            asyncio.sleep(2)
+            return
 
     @classmethod
     async def ping(cls, request):
@@ -726,7 +721,8 @@ class Server:
             loop = asyncio.get_event_loop()
             loop.stop()
 
-            return web.json_response({'message': 'FogLAMP stopped successfully.'})
+            return web.json_response({'message': 'FogLAMP stopped successfully. '
+                                                 'Wait for few seconds for process cleanup.'})
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:

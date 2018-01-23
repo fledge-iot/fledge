@@ -199,7 +199,7 @@ class Server(FoglampMicroservice):
 
         try:
             await Ingest.stop()
-            _LOGGER.exception('Stopped the Ingest server.')
+            _LOGGER.info('Stopped the Ingest server.')
         except Exception as ex:
             _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
             # return

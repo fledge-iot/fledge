@@ -34,6 +34,10 @@
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.1_amd64.snap">v1.1</a>
 
+.. |intel 1.1.1| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.1.1_amd64.snap">v1.1.1</a>
+
 .. |arm 1.0| raw:: html
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.0_armhf.snap">v1.0</a>
@@ -41,6 +45,10 @@
 .. |arm 1.1| raw:: html
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.1_armhf.snap">v1.1</a>
+
+.. |arm 1.1.1| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.1.1_armhf.snap">v1.1.1</a>
 
 .. =============================================
 
@@ -69,6 +77,7 @@ We have created snaps for Intel and ARM architectures. The snaps have been teste
 Snaps for Intel
 ---------------
 
+- |intel 1.1.1| - Released 2018-01-18
 - |intel 1.1| - Released 2018-01-09
 - |intel 1.0| - Released 2017-12-11
 
@@ -76,6 +85,7 @@ Snaps for Intel
 Snaps for ARM
 -------------
 
+- |arm 1.1.1| - Released 2018-01-18
 - |arm 1.1| - Released 2018-01-09
 - |arm 1.0| - Released 2017-12-11
 

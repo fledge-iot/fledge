@@ -32,7 +32,7 @@ Let's get started! In this chapter we will see where to find and how to build, i
 FogLAMP Platforms
 =================
 
-Due to the use of standard libraries, FogLAMP can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04, Ubuntu Core 16.04 and Raspbian, but we have installed and tested FogLAMP on other Linux distributions. In addition to the native support, FogLAMP can also run on Virtual Machines, Docker and LXC containers.
+Due to the use of standard libraries, FogLAMP can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04, Ubuntu Core 16 and Raspbian, but we have installed and tested FogLAMP on other Linux distributions. In addition to the native support, FogLAMP can also run on Virtual Machines, Docker and LXC containers.
 
 
 General Requirements
@@ -40,16 +40,17 @@ General Requirements
 
 This version of FogLAMP requires the following software to be installed in the same environment:
 
-- Python 3.5+
-- PostgreSQL 9.5+
-- Bluez 5.37+
+- **Avahi 0.6.32+**
+- **Python 3.5+**
+- **PostgreSQL 9.5+**
+- **Bluez 5.37+**
 
 Bluez is the official Bluetooth stack and we have added plugins that are set on by default and use *gatttool* and other components of *bluez*. In the future we will make this package optional, but for the moment you should install it even if you do not intend to use any Bluetooth device. |br| If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. Other requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
 
 You may also want to install some utilities to make your life easier when you use or test FogLAMP:
 
-- curl: it is used to interact with the REST API
-- jq: the JSON processor, it helps in formatting the output of the REST API calls
+- **curl**: it is used to interact with the REST API
+- **jq**: the JSON processor, it helps in formatting the output of the REST API calls
 
 
 Building FogLAMP
@@ -62,11 +63,24 @@ Build Pre-Requisites
 
 FogLAMP is currently based on C/C++ and Python code. The packages needed to build and run FogLAMP are:
 
-- git, cmake, g++, make, build-essential, autoconf, automake
-- libtool, liboost-dev, liboost-system-dev, liboost-thread-dev, libpq-dev
-- python-dev, python3-pip, python-dbus
-- postgresql
+- autoconf 
+- automake 
+- avahi-daemon
 - bluez
+- build-essential 
+- cmake
+- g++
+- git
+- libtool 
+- libbost-dev
+- libbost-system-dev
+- libbost-thread-dev
+- libpq-dev
+- make
+- postgresql
+- python-dbus
+- python3-pip
+- python-dev
 
 .. code-block:: console
 
@@ -75,7 +89,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt-get install git cmake g++ make build-essential autoconf automake
+  $ sudo apt-get install avahi-daemon git cmake g++ make build-essential autoconf automake
   Reading package lists... Done
   Building dependency tree
   ...

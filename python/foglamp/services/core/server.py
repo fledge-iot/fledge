@@ -156,7 +156,7 @@ class Server:
         if _FOGLAMP_DATA:
             certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
         else:
-            certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/etc/certs')
+            certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
 
         """ Generated using      
                 $ openssl version
@@ -178,9 +178,9 @@ class Server:
         This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke 
         their certificate. Since this is a self-signed certificate, there’s no way to revoke it via CRL(Certificate Revocation List).
         
-        $ openssl genrsa -des3 -passout pass:rand0m -out server.pass.key 2048
+        $ openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
         ...
-        $ openssl rsa -passin pass:rand0m -in server.pass.key -out server.key
+        $ openssl rsa -passin pass:x -in server.pass.key -out foglamp.key
         writing RSA key
         $ rm server.pass.key
         $ openssl req -new -key server.key -out server.csr
@@ -199,13 +199,13 @@ class Server:
         
         The server.cert file is the certificate suitable for use along with the server.key private key.
         
-        Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/etc/certs or /usr/local/foglamp/etc/certs
+        Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/data/etc/certs or /usr/local/foglamp/data/etc/certs
         
         """
         # use pem file?
-        # file name will be WHAT? *using server for now*
-        cert = certs_dir + '/server.cert'
-        key = certs_dir + '/server.key'
+        # file name will be WHAT? *using foglamp for now*
+        cert = certs_dir + '/foglamp.cert'
+        key = certs_dir + '/foglamp.key'
         # remove these asserts and put in try-except block with logging
         assert os.path.isfile(cert)
         assert os.path.isfile(key)

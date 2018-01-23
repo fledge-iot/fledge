@@ -84,7 +84,15 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_LOGGER = logger.setup(__name__)
+# LOG configuration
+_LOG_LEVEL_DEBUG = 10
+_LOG_LEVEL_INFO = 20
+_LOG_LEVEL_WARNING = 30
+
+_LOGGER_LEVEL = _LOG_LEVEL_WARNING
+_LOGGER_DESTINATION = logger.SYSLOG
+
+_LOGGER = logger.setup(__name__, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
 
 _event_loop = ""
 _log_performance = False
@@ -856,7 +864,8 @@ class SendingProcess:
             # logging from different processes
             SendingProcess._logger.removeHandler(SendingProcess._logger.handle)
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
-            SendingProcess._logger = logger.setup(logger_name)
+
+            SendingProcess._logger = logger.setup(logger_name, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
 
             try:
                 # Set the debug level

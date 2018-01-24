@@ -15,7 +15,6 @@ that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
 
-import json
 import resource
 import asyncio
 import sys
@@ -451,13 +450,8 @@ class SendingProcess:
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
         try:
-            # Loads data
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['id', '>', last_object_id]) \
-                .LIMIT(self._config['blockSize']) \
-                .ORDER_BY(['id', 'ASC']) \
-                .payload()
-            readings = self._readings.query(payload)
+            # Loads data, +1 as > is needed
+            readings = self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
@@ -493,12 +487,15 @@ class SendingProcess:
                     value = payload[key]
                     payload[key] = plugin_common.convert_to_type(value)
 
+                # Adds timezone UTC
+                timestamp = row['user_ts'] + "+00"
+
                 new_row = {
                     'id': row['id'],
                     'asset_code': row['asset_code'],
                     'read_key': row['read_key'],
                     'reading': payload,
-                    'user_ts': row['user_ts']
+                    'user_ts': timestamp
                 }
                 converted_data.append(new_row)
 
@@ -524,11 +521,14 @@ class SendingProcess:
         raw_data = None
         try:
             payload = payload_builder.PayloadBuilder() \
+                .SELECT("id", "key", '{"column": "ts", "timezone": "UTC"}', "value", "history_ts")\
                 .WHERE(['id', '>', last_object_id]) \
                 .LIMIT(self._config['blockSize']) \
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
+
             statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+
             raw_data = statistics_history['rows']
             converted_data = self._transform_in_memory_data_statistics(raw_data)
         except Exception:
@@ -558,10 +558,14 @@ class SendingProcess:
             for row in raw_data:
                 # Removes spaces
                 asset_code = row['key'].strip()
+
+                # Adds timezone UTC
+                timestamp = row['ts'] + "+00"
+
                 new_row = {
                     'id': row['id'],                    # Row id
                     'asset_code': asset_code,           # Asset code
-                    'user_ts': row['ts'],               # Timestamp
+                    'user_ts': timestamp,               # Timestamp
                     'reading': {'value': row['value']}  # Converts raw data to a Dictionary
                 }
                 converted_data.append(new_row)

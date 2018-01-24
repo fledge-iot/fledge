@@ -39,13 +39,12 @@ _LOG_LEVEL_INFO = 20
 _LOG_LEVEL_WARNING = 30
 
 # FIXME:
-_LOGGER_LEVEL = _LOG_LEVEL_WARNING
+_LOGGER_LEVEL = _LOG_LEVEL_DEBUG
 _LOGGER_DESTINATION = logger.CONSOLE
 _logger = None
 
 # Defines what and the level of details for logging
 _log_debug_level = 0
-# FIXME:
 _log_performance = False
 
 _MODULE_NAME = "ocs_north"
@@ -139,7 +138,6 @@ _CONFIG_DEFAULT_OMF = {
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OCS_TYPES'
 _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OCS types'
 
-# FIXME:
 _CONFIG_DEFAULT_OMF_TYPES = omf.CONFIG_DEFAULT_OMF_TYPES
 
 _OMF_TEMPLATE_TYPE = omf.OMF_TEMPLATE_TYPE
@@ -154,7 +152,7 @@ def _performance_log(_function):
         start = datetime.datetime.now()
 
         # Code execution
-        res = _function(*arg)
+        result = _function(*arg)
 
         if _log_performance:
 
@@ -162,12 +160,13 @@ def _performance_log(_function):
             memory_process = (usage[2])/1000
             delta = datetime.datetime.now() - start
             delta_milliseconds = int(delta.total_seconds() * 1000)
+
             _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|".format(
                             _function.__name__,
                             delta_milliseconds,
                             memory_process))
 
-        return res
+        return result
 
     return wrapper
 
@@ -249,7 +248,9 @@ def plugin_init(data):
 
     # Converts the value field from str to a dict
     for item in _config_omf_types:
+
         if _config_omf_types[item]['type'] == 'JSON':
+
             # The conversion from a dict to str changes the case and it should be fixed before the conversion
             value = _config_omf_types[item]['value'].replace("true", "True")
             new_value = ast.literal_eval(value)
@@ -259,6 +260,7 @@ def plugin_init(data):
 
     try:
         _recreate_omf_objects = True
+
     except Exception as ex:
         _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)

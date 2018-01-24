@@ -351,7 +351,6 @@ class OmfNorthPlugin(object):
 
         self._sending_process_instance = sending_process_instance
 
-        # FIXME:
         self._config = config
         self._logger = _logger
 

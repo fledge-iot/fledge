@@ -247,8 +247,8 @@ class SendingProcess:
 
     _logger = None  # type: logging.Logger
 
-    # FIXME:
     _stop_execution = False
+    """ sets to True when a signal is captured and a graceful termination is needed """
 
     # Filesystem path where the norths reside
     _NORTH_PATH = "foglamp.plugins.north."
@@ -369,11 +369,10 @@ class SendingProcess:
         Raises:
         """
 
-        # FIXME:
         SendingProcess._stop_execution = True
 
         short_stack_frame = str(_stack_frame)[:100]
-        SendingProcess._logger.debug("{func} - XXX BRK signal |{signo}| - info |{ssf}| ".format(
+        SendingProcess._logger.debug("{func} - signal captured |{signo}| - info |{ssf}| ".format(
             func="_signal_handler",
             signo=_signo,
             ssf=short_stack_frame))
@@ -724,9 +723,8 @@ class SendingProcess:
                 # Terminates the execution in case a signal has been received
                 if SendingProcess._stop_execution:
 
-                    # FIXME:
-                    SendingProcess._logger.info("{func} - XXX-2 signal received, stops the execution".format(
-                            func="send_data"))
+                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
+                        func="send_data"))
                     break
 
                 if not data_sent:

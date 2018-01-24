@@ -419,14 +419,9 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
-            # print("(Press CTRL+C to quit)")
-            # try:
+
             loop.run_forever()
-            # except KeyboardInterrupt:
-            #     pass
-            # finally:
-            #     cls.stop(loop)
-            # loop.close()
+
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -562,7 +557,7 @@ class Server:
             cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
-            # TODO: FOGL-xxx Scheduler gets timeout,
+            # TODO: FOGL-986 Scheduler gets timeout,
             """Fix tasks plugin (see syslog) """
 
             # raise e

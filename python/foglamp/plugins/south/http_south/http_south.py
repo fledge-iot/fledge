@@ -79,8 +79,8 @@ def plugin_start(data):
         app = web.Application(middlewares=[middleware.error_middleware])
         app.router.add_route('POST', '/{}'.format(uri), HttpSouthIngest.render_post)
         handler = app.make_handler()
-        coro = loop.create_server(handler, host, port)
-        server = asyncio.ensure_future(coro)
+        server = loop.create_server(handler, host, port)
+        asyncio.ensure_future(server)
 
         data['app'] = app
         data['handler'] = handler

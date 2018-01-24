@@ -419,14 +419,9 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
-            print("(Press CTRL+C to quit)")
-            try:
-                loop.run_forever()
-            except KeyboardInterrupt:
-                pass
-            finally:
-                cls.stop(loop)
-            loop.close()
+
+            loop.run_forever()
+
         except (OSError, RuntimeError, TimeoutError) as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -467,8 +462,7 @@ class Server:
             await cls.stop_storage()
 
             # stop core management api
-            # loop.stop does it all ?!
-            # await cls.stop_core_server()
+            # loop.stop does it all
         except Exception:
             raise
 
@@ -488,34 +482,20 @@ class Server:
         await cls.service_app.cleanup()
         _logger.info("Rest server stopped.")
 
-    # @classmethod
-    # async def stop_core_server(cls):
-    #     cls.core_server.close()
-    #     await cls.core_server.wait_closed()
-    #     await cls.core_app.shutdown()
-    #     await cls.core_server_handler.shutdown(60.0)
-    #     await cls.core_app.cleanup()
-    #     _logger.info("Core server stopped.")
-
     @classmethod
     async def stop_storage(cls):
         """Stops Storage service """
 
         try:
             found_services = ServiceRegistry.get(name="FogLAMP Storage")
-        except service_registry_exceptions.DoesNotExist as ex:
+        except service_registry_exceptions.DoesNotExist:
             raise
 
         svc = found_services[0]
         if svc is None:
+            _logger.info("FogLAMP Storage shut down requested, but could not be found.")
             return
-        res = await cls._request_microservice_shutdown(svc)
-
-        try:
-            response = json.loads(res)
-            response['message']
-        except KeyError:
-            raise
+        await cls._request_microservice_shutdown(svc)
 
     @classmethod
     async def stop_microservices(cls):
@@ -528,21 +508,23 @@ class Server:
         """
         try:
             found_services = ServiceRegistry.get()
-            for svc in found_services:
-                # shutdown except CORE and STORAGE
-                if svc._name == "FogLAMP Storage" or svc._name == "FogLAMP Core":
+            services_to_stop = list()
+
+            for fs in found_services:
+                if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
                     continue
-                # handle message key in response
-                res = await cls._request_microservice_shutdown(svc)
-                try:
-                    response = json.loads(res)
-                    response['message']
-                    _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
-                except KeyError:
-                    raise
-                    # or just log the message | or both?
-        except service_registry_exceptions.DoesNotExist as ex:
+                services_to_stop.append(fs)
+
+            if len(services_to_stop) == 0:
+                _logger.info("No service found except the core, and(or) storage.")
+                return
+
+            tasks = [cls._request_microservice_shutdown(svc) for svc in services_to_stop]
+            await asyncio.wait(tasks)
+        except service_registry_exceptions.DoesNotExist:
             pass
+        except Exception as ex:
+            _logger.exception(str(ex))
 
     @classmethod
     async def _request_microservice_shutdown(cls, svc):
@@ -557,10 +539,16 @@ class Server:
                 status_code = resp.status
                 if status_code in range(400, 500):
                     _logger.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+                    raise web.HTTPBadRequest(reason=resp.reason)
                 if status_code in range(500, 600):
                     _logger.error("Server error code: %d, reason: %s", status_code, resp.reason)
-
-                return result
+                    raise web.HTTPInternalServerError(reason=resp.reason)
+                try:
+                    response = json.loads(result)
+                    response['message']
+                    _logger.info("Successfully shut down the %s service %s.", svc._type, svc._name)
+                except KeyError:
+                    raise
 
     @classmethod
     async def _stop_scheduler(cls):
@@ -569,7 +557,12 @@ class Server:
             cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
-            raise e
+            # TODO: FOGL-986 Scheduler gets timeout,
+            """Fix tasks plugin (see syslog) """
+
+            # raise e
+            await asyncio.sleep(1.0)
+            return
 
     @classmethod
     async def ping(cls, request):
@@ -724,9 +717,13 @@ class Server:
 
             await cls._stop()
             loop = asyncio.get_event_loop()
+            # allow some time
+            await asyncio.sleep(2.0)
+            _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
             loop.stop()
 
-            return web.json_response({'message': 'FogLAMP stopped successfully.'})
+            return web.json_response({'message': 'FogLAMP stopped successfully. '
+                                                 'Wait for few seconds for process cleanup.'})
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:

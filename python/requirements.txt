@@ -2,11 +2,6 @@
 # PostreSQL Storage Plugin
 psycopg2==2.7.1
 
-
-# Deployment
-# Packaging enables pip install -e
-packaging==16.8
-
 # Common - REST interface
 aiohttp==2.3.8
 aiohttp_cors==0.5.3

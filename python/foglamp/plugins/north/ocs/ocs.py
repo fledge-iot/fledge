@@ -12,6 +12,7 @@ PICROMF = PI Connector Relay OMF
 """
 
 from datetime import datetime
+import sys
 import copy
 import ast
 import resource
@@ -51,9 +52,7 @@ _MODULE_NAME = "ocs_north"
 
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
-_config_omf_types_from_manager = {}
 _config = {}
-_config_from_manager = {}
 
 # Forces the recreation of PIServer objects when the first error occurs
 _recreate_omf_objects = True
@@ -149,24 +148,32 @@ def _performance_log(_function):
     def wrapper(*arg):
         """ wrapper """
 
-        start = datetime.datetime.now()
+        # Avoids any exceptions related to the performance measurement
+        try:
 
-        # Code execution
-        result = _function(*arg)
+            start = datetime.datetime.now()
 
-        if _log_performance:
+            # Code execution
+            result = _function(*arg)
 
-            usage = resource.getrusage(resource.RUSAGE_SELF)
-            memory_process = (usage[2])/1000
-            delta = datetime.datetime.now() - start
-            delta_milliseconds = int(delta.total_seconds() * 1000)
+            if _log_performance:
 
-            _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|".format(
-                            _function.__name__,
-                            delta_milliseconds,
-                            memory_process))
+                usage = resource.getrusage(resource.RUSAGE_SELF)
+                memory_process = (usage[2])/1000
+                delta = datetime.datetime.now() - start
+                delta_milliseconds = int(delta.total_seconds() * 1000)
 
-        return result
+                _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|".format(
+                                _function.__name__,
+                                delta_milliseconds,
+                                memory_process))
+
+            return result
+
+        except Exception as ex:
+            print("ERROR - {func} - error details |{error}|".format(
+                                                                    func="_performance_log",
+                                                                    error=ex), file=sys.stderr)
 
     return wrapper
 
@@ -199,7 +206,6 @@ def plugin_init(data):
 
     global _config
     global _config_omf_types
-    global _config_omf_types_from_manager
     global _logger
     global _recreate_omf_objects
 
@@ -293,7 +299,12 @@ def plugin_send(data, raw_data, stream_id):
     data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
-    ocs_north = OCSNorthPlugin(data['sending_process_instance'], _config, _logger)
+    # Sets globals for the OMF module
+    omf._logger = _logger
+    omf._log_debug_level = _log_debug_level
+    omf._log_performance = _log_performance
+
+    ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
         is_data_available, new_position, num_sent = ocs_north.transform_in_memory_data(data_to_send, raw_data)
@@ -330,6 +341,7 @@ def plugin_shutdown(data):
     """
     try:
         _logger.debug("{0} - plugin_shutdown".format(_MODULE_NAME))
+
     except Exception as ex:
         _logger.error(plugin_common.MESSAGES_LIST["e000013"].format(ex))
         raise
@@ -351,15 +363,14 @@ def plugin_reconfigure():
 class OCSNorthPlugin(omf.OmfNorthPlugin):
     """ North OCS North Plugin """
 
-    def __init__(self, sending_process_instance, config, _logger):
+    def __init__(self, sending_process_instance, config, config_omf_types,  _logger):
 
-        super().__init__(sending_process_instance, config, _logger)
+        super().__init__(sending_process_instance, config, config_omf_types, _logger)
 
     def _create_omf_type_automatic(self, asset_info):
         """ Automatic OMF Type Mapping - Handles the OMF type creation
 
-            Overwrite OMF._create_omf_type_automatic function
-
+            Overwrite omf._create_omf_type_automatic function
             OCS needs the setting of the 'format' property to handle decimal numbers properly
 
          Args:
@@ -372,7 +383,7 @@ class OCSNorthPlugin(omf.OmfNorthPlugin):
 
          """
 
-        type_id = _config_omf_types["type-id"]["value"]
+        type_id = self._config_omf_types["type-id"]["value"]
         sensor_id = self._generate_omf_asset_id(asset_info["asset_code"])
         asset_data = asset_info["asset_data"]
         typename = self._generate_omf_typename_automatic(sensor_id)

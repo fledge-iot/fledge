@@ -248,7 +248,7 @@ class SendingProcess:
     _logger = None  # type: logging.Logger
 
     _stop_execution = False
-    """ sets to True when a signal is captured and a graceful termination is needed """
+    """ sets to True when a signal is captured and a termination is needed """
 
     # Filesystem path where the norths reside
     _NORTH_PATH = "foglamp.plugins.north."
@@ -361,7 +361,7 @@ class SendingProcess:
         self._event_loop = asyncio.get_event_loop()
 
     @staticmethod
-    def _signal_handler(_signo, _stack_frame):
+    def _signal_handler(_signal_num, _stack_frame):
         """ Handles signals to properly terminate the execution
 
         Args:
@@ -371,11 +371,9 @@ class SendingProcess:
 
         SendingProcess._stop_execution = True
 
-        short_stack_frame = str(_stack_frame)[:100]
-        SendingProcess._logger.debug("{func} - signal captured |{signo}| - info |{ssf}| ".format(
+        SendingProcess._logger.info("{func} - signal captured |{signal_num}| ".format(
             func="_signal_handler",
-            signo=_signo,
-            ssf=short_stack_frame))
+            signal_num=_signal_num))
 
     def _is_stream_id_valid(self, stream_id):
         """ Checks if the provided stream id  is valid
@@ -712,6 +710,11 @@ class SendingProcess:
             elapsed_seconds = 0
 
             while elapsed_seconds < self._config['duration']:
+                # Terminates the execution in case a signal has been received
+                if SendingProcess._stop_execution:
+                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
+                            func="send_data"))
+                    break
 
                 try:
                     data_sent = self._send_data_block(stream_id)
@@ -719,13 +722,6 @@ class SendingProcess:
                     data_sent = False
                     _message = _MESSAGES_LIST["e000021"].format(e)
                     SendingProcess._logger.error(_message)
-
-                # Terminates the execution in case a signal has been received
-                if SendingProcess._stop_execution:
-
-                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
-                        func="send_data"))
-                    break
 
                 if not data_sent:
                     SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
@@ -879,12 +875,8 @@ class SendingProcess:
         global _LOGGER
 
         # Setups signals handlers, to properly handle the termination
-        # a) SIGINT: Keyboard interrupt
-        # b) SIGTERM: kill or system shutdown
-        # c) SIGHUP: Controlling shell exiting
-        signal.signal(signal.SIGINT, SendingProcess._signal_handler)
+        # a) SIGTERM - 15 : kill or system shutdown
         signal.signal(signal.SIGTERM, SendingProcess._signal_handler)
-        signal.signal(signal.SIGHUP, SendingProcess._signal_handler)
 
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \

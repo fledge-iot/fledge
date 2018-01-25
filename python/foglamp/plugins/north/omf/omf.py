@@ -10,6 +10,7 @@ to send the reading data to a PI Server (or Connector) using the OSIsoft OMF for
 PICROMF = PI Connector Relay OMF"""
 
 from datetime import datetime
+import sys
 import copy
 import ast
 import resource
@@ -36,7 +37,7 @@ _LOG_LEVEL_INFO = 20
 _LOG_LEVEL_WARNING = 30
 
 # FIXME:
-_LOGGER_LEVEL = _LOG_LEVEL_WARNING
+_LOGGER_LEVEL = _LOG_LEVEL_DEBUG
 _LOGGER_DESTINATION = logger.CONSOLE
 _logger = None
 
@@ -46,12 +47,10 @@ _MODULE_NAME = "omf_north"
 _log_debug_level = 0
 _log_performance = False
 
-
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
-_config_omf_types_from_manager = {}
 _config = {}
-_config_from_manager = {}
+
 # Forces the recreation of PIServer objects when the first error occurs
 _recreate_omf_objects = True
 
@@ -189,24 +188,40 @@ _OMF_TEMPLATE_LINK_DATA = [
 ]
 
 
-def _performance_log(func):
+def _performance_log(_function):
     """ Logs information for performance measurement """
+
     def wrapper(*arg):
         """ wrapper """
-        start = datetime.datetime.now()
-        # Code execution
-        res = func(*arg)
-        if _log_performance:
-            usage = resource.getrusage(resource.RUSAGE_SELF)
-            memory_process = (usage[2])/1000
-            delta = datetime.datetime.now() - start
-            delta_milliseconds = int(delta.total_seconds() * 1000)
-            _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|"
-                         .format(func.__name__,
-                                 delta_milliseconds,
-                                 memory_process))
-        return res
+
+        # Avoids any exceptions related to the performance measurement
+        try:
+
+            start = datetime.datetime.now()
+
+            # Code execution
+            result = _function(*arg)
+
+            if _log_performance:
+                usage = resource.getrusage(resource.RUSAGE_SELF)
+                memory_process = (usage[2]) / 1000
+                delta = datetime.datetime.now() - start
+                delta_milliseconds = int(delta.total_seconds() * 1000)
+
+                _logger.info("PERFORMANCE - {0} - milliseconds |{1:>8,}| - memory MB |{2:>8,}|".format(
+                    _function.__name__,
+                    delta_milliseconds,
+                    memory_process))
+
+            return result
+
+        except Exception as ex:
+            print("ERROR - {func} - error details |{error}|".format(
+                                                                        func="_performance_log",
+                                                                        error=ex), file=sys.stderr)
+
     return wrapper
+
 
 def plugin_info():
     return {
@@ -226,7 +241,6 @@ def plugin_init(data):
     """
     global _config
     global _config_omf_types
-    global _config_omf_types_from_manager
     global _logger
     global _recreate_omf_objects
 
@@ -303,7 +317,7 @@ def plugin_send(data, raw_data, stream_id):
     data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
-    omf_north = OmfNorthPlugin(data['sending_process_instance'], _config, _logger)
+    omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
         is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
@@ -347,11 +361,12 @@ def plugin_reconfigure():
 class OmfNorthPlugin(object):
     """ North OMF North Plugin """
 
-    def __init__(self, sending_process_instance, config, _logger):
+    def __init__(self, sending_process_instance, config, config_omf_types, _logger):
 
         self._sending_process_instance = sending_process_instance
 
         self._config = config
+        self._config_omf_types = config_omf_types
         self._logger = _logger
 
     def deleted_omf_types_already_created(self, config_category_name, type_id):
@@ -464,7 +479,7 @@ class OmfNorthPlugin(object):
              omf_type : describe the OMF type as a python dict
          Raises:
          """
-        type_id = _config_omf_types["type-id"]["value"]
+        type_id = self._config_omf_types["type-id"]["value"]
         sensor_id = self._generate_omf_asset_id(asset_info["asset_code"])
         asset_data = asset_info["asset_data"]
         typename = self._generate_omf_typename_automatic(sensor_id)
@@ -514,7 +529,7 @@ class OmfNorthPlugin(object):
              omf_type : describe the OMF type as a python dict
          Raises:
          """
-        type_id = _config_omf_types["type-id"]["value"]
+        type_id = self._config_omf_types["type-id"]["value"]
         typename = asset_code_omf_type["typename"]
         new_tmp_dict = copy.deepcopy(OMF_TEMPLATE_TYPE)
         omf_type = {typename: new_tmp_dict["typename"]}
@@ -592,7 +607,7 @@ class OmfNorthPlugin(object):
             if not any(tmp_item == asset_code for tmp_item in asset_codes_already_created):
                 asset_code_omf_type = ""
                 try:
-                    asset_code_omf_type = copy.deepcopy(_config_omf_types[asset_code]["value"])
+                    asset_code_omf_type = copy.deepcopy(self._config_omf_types[asset_code]["value"])
                 except KeyError:
                     configuration_based = False
                 else:

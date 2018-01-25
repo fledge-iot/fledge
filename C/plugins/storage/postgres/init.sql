@@ -809,6 +809,11 @@ INSERT INTO foglamp.configuration ( key, description, value )
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } ');
 
+-- OCS north plugin configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'SEND_PR_4', 'OCS North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } ');
+
+
 -- STRMN: Streaming
 --        status      : the process is on or off, it is on by default
 --        time window : the time window when the process is active, always active by default (it means every second)
@@ -862,7 +867,6 @@ INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
 INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
      VALUES ( 1, 2, '{ "access": ["create","read","write","delete"] }' );
 
-
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
      VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0 ),
@@ -870,6 +874,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
             ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
             ( 'SENT_3',     'The number of readings data sent to the HTTP north', 0, 0 ),
+            ( 'SENT_4',     'The number of readings sent to OCS', 0, 0 ),
             ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
@@ -889,6 +894,7 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', 
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge', '["tasks/purge"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'stats collector', '["tasks/statistics"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'sending process OCS', '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
 
 -- FogLAMP statistics into PI
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
@@ -961,6 +967,12 @@ schedule_time, schedule_interval, exclusive, enabled)
 VALUES ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
 NULL, '00:00:15', true, true);
 
+-- Run the North sending process for OCS every 15 seconds
+INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
+schedule_time, schedule_interval, exclusive, enabled)
+VALUES ('5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', 'sending process OCS', 'sending process OCS', 3,
+NULL, '00:00:15', true, false);
+
 -- Run the statistics collector every 15 seconds
 INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
 schedule_time, schedule_interval, exclusive, enabled)
@@ -989,3 +1001,7 @@ INSERT INTO foglamp.streams (id,destination_id,description, last_object,ts ) VAL
 -- HTTP north configuration
 INSERT INTO foglamp.destinations(id,description, ts) VALUES (2,'HTTP_TR', now());
 INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (3,2,'HTTP north', 0,now());
+
+-- HTTP OCS configuration
+INSERT INTO foglamp.destinations(id,description, ts) VALUES (3,'OCS', now());
+INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (4,3,'OCS north', 0,now());

@@ -87,4 +87,6 @@ Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,qu
 Reading Rate Array,PUT,http://localhost:8080/storage/reading/query,reading_property_array.json
 Common Read limit max_int,PUT,http://localhost:8080/storage/table/test/query,limit_max_int.json
 Common Read skip max_int,PUT,http://localhost:8080/storage/table/test/query,skip_max_int.json
+Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone.json
+Bad Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone_bad.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

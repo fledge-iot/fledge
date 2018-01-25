@@ -17,6 +17,7 @@ __version__ = "${VERSION}"
 def json_error(message):
     return web.Response(body=json.dumps({'error': message}).encode('utf-8'), content_type='application/json')
 
+
 async def error_middleware(app, handler):
     async def middleware_handler(request):
         if_trace = request.query.get('trace') if 'trace' in request.query and request.query.get('trace') == '1' else None

@@ -15,7 +15,6 @@ that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
 
-import json
 import resource
 import asyncio
 import sys
@@ -84,11 +83,17 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_LOGGER = logger.setup(__name__)
+# LOG configuration
+_LOG_LEVEL_DEBUG = 10
+_LOG_LEVEL_INFO = 20
+_LOG_LEVEL_WARNING = 30
+
+_LOGGER_LEVEL = _LOG_LEVEL_WARNING
+_LOGGER_DESTINATION = logger.SYSLOG
+
+_LOGGER = logger.setup(__name__, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
 
 _event_loop = ""
-_log_debug_level = 0
-""" Defines what and the level of details for logging """
 _log_performance = False
 """ Enable/Disable performance logging, enabled using a command line parameter"""
 
@@ -97,9 +102,11 @@ class PluginInitialiseFailed(RuntimeError):
     """ PluginInitializeFailed """
     pass
 
+
 class UnknownDataSource(RuntimeError):
     """ the data source could be only one among: readings, statistics or audit """
     pass
+
 
 class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
@@ -113,6 +120,7 @@ def _performance_log(func):
         start = datetime.datetime.now()
         # Code execution
         res = func(*arg)
+
         if _log_performance:
             usage = resource.getrusage(resource.RUSAGE_SELF)
             process_memory = usage.ru_maxrss / 1000
@@ -179,6 +187,7 @@ def handling_input_parameters():
         log_debug_level = int(param_debug_level)
     else:
         log_debug_level = 0
+
     _LOGGER.debug("{func} "
                   "- name |{name}| - port |{port}| - address |{address}| "
                   "- stream_id |{stream_id}| - log_performance |{perf}| "
@@ -340,7 +349,9 @@ class SendingProcess:
 
         self.input_stream_id = None
         self._log_performance = None
+        """ Enable/Disable performance logging, enabled using a command line parameter"""
         self._log_debug_level = None
+        """ Defines what and the level of details for logging """
 
         self._event_loop = asyncio.get_event_loop()
 
@@ -439,13 +450,8 @@ class SendingProcess:
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
         try:
-            # Loads data
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['id', '>', last_object_id]) \
-                .LIMIT(self._config['blockSize']) \
-                .ORDER_BY(['id', 'ASC']) \
-                .payload()
-            readings = self._readings.query(payload)
+            # Loads data, +1 as > is needed
+            readings = self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
@@ -461,10 +467,11 @@ class SendingProcess:
         """ Transforms readings data retrieved form the DB layer to the proper format
         Args:
             raw_data: list of dicts to convert having the structure
-                id         : int
-                asset_code : string
-                user_ts    : Timestamp as a str
-                reading    : dict having the payload
+                id         : int  - Row id on the storage layer
+                asset_code : str  - Asset code
+                read_key   : str  - Id of the row
+                reading    : dict - Payload
+                user_ts    : str  - Timestamp as str
         Returns:
             converted_data: converted data
         Raises:
@@ -480,11 +487,15 @@ class SendingProcess:
                     value = payload[key]
                     payload[key] = plugin_common.convert_to_type(value)
 
+                # Adds timezone UTC
+                timestamp = row['user_ts'] + "+00"
+
                 new_row = {
-                    'id': row['id'],                    # Row id
-                    'asset_code': row['asset_code'],    # Asset code
-                    'user_ts': row['user_ts'],          # Timestamp as a str
-                    'reading': payload                  # payload
+                    'id': row['id'],
+                    'asset_code': row['asset_code'],
+                    'read_key': row['read_key'],
+                    'reading': payload,
+                    'user_ts': timestamp
                 }
                 converted_data.append(new_row)
 
@@ -510,11 +521,14 @@ class SendingProcess:
         raw_data = None
         try:
             payload = payload_builder.PayloadBuilder() \
+                .SELECT("id", "key", '{"column": "ts", "timezone": "UTC"}', "value", "history_ts")\
                 .WHERE(['id', '>', last_object_id]) \
                 .LIMIT(self._config['blockSize']) \
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
+
             statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+
             raw_data = statistics_history['rows']
             converted_data = self._transform_in_memory_data_statistics(raw_data)
         except Exception:
@@ -544,10 +558,14 @@ class SendingProcess:
             for row in raw_data:
                 # Removes spaces
                 asset_code = row['key'].strip()
+
+                # Adds timezone UTC
+                timestamp = row['ts'] + "+00"
+
                 new_row = {
                     'id': row['id'],                    # Row id
                     'asset_code': asset_code,           # Asset code
-                    'user_ts': row['ts'],               # Timestamp
+                    'user_ts': timestamp,               # Timestamp
                     'reading': {'value': row['value']}  # Converts raw data to a Dictionary
                 }
                 converted_data.append(new_row)
@@ -791,8 +809,8 @@ class SendingProcess:
                 exec_sending_process = self._config['enable']
                 if self._config['enable']:
                     self._plugin_load()
-                    self._plugin._log_debug_level = _log_debug_level
-                    self._plugin._log_performance = _log_performance
+                    self._plugin._log_debug_level = self._log_debug_level
+                    self._plugin._log_performance = self._log_performance
                     self._plugin_info = self._plugin.plugin_info()
                     SendingProcess._logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],
@@ -823,12 +841,16 @@ class SendingProcess:
             raise
         return exec_sending_process
 
-
     def start(self):
         # Command line parameter handling
+        global _log_performance
+        global _LOGGER
+
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \
                 handling_input_parameters()
+            _log_performance = self._log_performance
+
         except Exception as ex:
             message = _MESSAGES_LIST["e000017"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -846,13 +868,19 @@ class SendingProcess:
             # logging from different processes
             SendingProcess._logger.removeHandler(SendingProcess._logger.handle)
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
-            SendingProcess._logger = logger.setup(logger_name)
+
+            SendingProcess._logger = logger.setup(logger_name, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
+
             try:
                 # Set the debug level
                 if self._log_debug_level == 1:
                     SendingProcess._logger.setLevel(logging.INFO)
                 elif self._log_debug_level >= 2:
                     SendingProcess._logger.setLevel(logging.DEBUG)
+
+                # Sets the reconfigured logger
+                _LOGGER = SendingProcess._logger
+
                 # Start sending
                 if self._start(self.input_stream_id):
                     self.send_data(self.input_stream_id)

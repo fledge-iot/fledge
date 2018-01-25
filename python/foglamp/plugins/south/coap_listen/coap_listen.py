@@ -139,7 +139,7 @@ def plugin_shutdown(handle):
     except Exception as ex:
         _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
         raise
-
+    _LOGGER.info('COAP plugin shut down.')
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
 class CoAPIngest(aiocoap.resource.Resource):

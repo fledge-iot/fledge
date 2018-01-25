@@ -80,36 +80,36 @@ Plugins in this version of FogLAMP
 
 This version of FogLAMP provides the following plugins:
 
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| Type    | Name       | Description                                             | Availability               | Notes                                                         |
-+=========+============+=========================================================+============================+===============================================================+
-| Storage | Postgres   | PostgreSQL storage for data and metadata                | Ubuntu: x86 |br|           |                                                               |
-|         |            |                                                         | Ubuntu Core: x86, ARM |br| |                                                               |
-|         |            |                                                         | Raspbian                   |                                                               |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| South   | COAP       | CoAP Listener                                           | Ubuntu: x86 |br|           |                                                               |
-|         |            |                                                         | Ubuntu Core: x86, ARM |br| |                                                               |
-|         |            |                                                         | Raspbian                   |                                                               |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| South   | CC2650POLL | TI SensorTag CC2650 in polling mode                     | Ubuntu: x86 |br|           | It requires BLE support. |br|                                 |
-|         |            |                                                         | Ubuntu Core: x86, ARM |br| | There are issues with Ubuntu Core on ARM, reported |here BT|. |
-|         |            |                                                         | Raspbian                   |                                                               |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| South   | CC2650ASYN | TI SensorTag CC2650 in asynchronous (listening) mode    | Ubuntu: x86 |br|           | It requires BLE support. |br|                                 |
-|         |            |                                                         | Ubuntu Core: x86, ARM |br| | There are issues with Ubuntu Core on ARM, reported |here BT|. |
-|         |            |                                                         | Raspbian                   |                                                               |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| South   | HTTP_SOUTH | HTTP Listener                                           | Ubuntu: x86  |br|          |                                                               |
-|         |            |                                                         | Ubuntu Core: x86, ARM |br| |                                                               |
-|         |            |                                                         | Raspbian                   |                                                               |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| South   | dht11pi    | Wired DHT11 Sensor in polling mode                      | Ubuntu Core: ARM |br|      | It requires the |ADAFruit|. |br|                              |
-|         |            |                                                         | Raspbian                   | The plugin is still experimental.                             |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
-| North   | OMF        | OSIsoft Message Format sender to PI Connector Relay OMF | Ubuntu: x86 |br|           | It works with PI Connector Relay OMF 1.0 and 1.2.             |
-|         |            |                                                         | Ubuntu Core: x86, ARM |br| |                                                               |
-|         |            |                                                         | Raspbian                   |                                                               |
-+---------+------------+---------------------------------------------------------+----------------------------+---------------------------------------------------------------+
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| Type    | Name       | Description                 | Availability               | Notes                                  |
++=========+============+=============================+============================+========================================+
+| Storage | Postgres   | PostgreSQL storage |br|     | Ubuntu: x86 |br|           |                                        |
+|         |            | for data and metadata       | Ubuntu Core: x86, ARM |br| |                                        |
+|         |            |                             | Raspbian                   |                                        |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| South   | COAP       | CoAP Listener               | Ubuntu: x86 |br|           |                                        |
+|         |            |                             | Ubuntu Core: x86, ARM |br| |                                        |
+|         |            |                             | Raspbian                   |                                        |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| South   | CC2650POLL | TI SensorTag CC2650 |br|    | Ubuntu: x86 |br|           | It requires BLE support. |br|          |
+|         |            | in polling mode             | Ubuntu Core: x86, ARM |br| | There are issues with Ubuntu Core |br| |
+|         |            |                             | Raspbian                   | on ARM, reported |here BT|             |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| South   | CC2650ASYN | TI SensorTag CC2650 |br|    | Ubuntu: x86 |br|           | It requires BLE support. |br|          |
+|         |            | asynchronous |br|           | Ubuntu Core: x86, ARM |br| | There are issues with Ubuntu Core |br| |
+|         |            | (listening) mode            | Raspbian                   | on ARM, reported |here BT|.            |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| South   | HTTP_SOUTH | HTTP Listener               | Ubuntu: x86  |br|          |                                        |
+|         |            |                             | Ubuntu Core: x86, ARM |br| |                                        |
+|         |            |                             | Raspbian                   |                                        |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| South   | dht11pi    | Wired DHT11 Sensor |br|     | Ubuntu Core: ARM |br|      | It requires the |ADAFruit|. |br|       |
+|         |            | in polling mode             | Raspbian                   | The plugin is still experimental.      |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
+| North   | OMF        | OSIsoft Message Format |br| | Ubuntu: x86 |br|           | It works with PI Connector |br|        |
+|         |            | sender to PI Connector |br| | Ubuntu Core: x86, ARM |br| | Relay OMF 1.0 and 1.2.                 |
+|         |            | Relay OMF                   | Raspbian                   |                                        |
++---------+------------+-----------------------------+----------------------------+----------------------------------------+
 
 |br|
 

@@ -52,7 +52,6 @@ __version__ = "${VERSION}"
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __TIMESTAMP_FMT = 'YYYY-MM-DD HH24:MI:SS.MS'
-_NO_RECORDS_FOUND = {"message": "No Records found"}
 
 
 def setup(app):
@@ -64,7 +63,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
 
 
-def validate_limit_skip(request, _dict):
+def prepare_limit_skip_payload(request, _dict):
     """ limit skip clause validation
 
     Args:
@@ -102,8 +101,11 @@ async def asset_counts(request):
     """ Browse all the assets for which we have recorded readings and
     return a readings count.
 
-    Return the result of the query
-    SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
+    Returns:
+           json result on basis of SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset
     """
 
     # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
@@ -133,8 +135,13 @@ async def asset(request):
     return is defaulted to a small number (20), this may be changed by supplying
     the query parameter ?limit=xx&skip=xx
 
-    Return the result of the query
-    SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
+    Returns:
+          json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1
+            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1&skip=1"
     """
     asset_code = request.match_info.get('asset_code', '')
 
@@ -147,11 +154,9 @@ async def asset(request):
     d.update(_and_where)
 
     # Add the order by and limit, offset clause
-    _limit_skip_payload = validate_limit_skip(request, d)
-    _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).chain_payload()
-    d.update(_sort_payload)
-
-    payload = json.dumps(d)
+    _limit_skip_payload = prepare_limit_skip_payload(request, d)
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    
     results = {}
     try:
         _storage = connect.get_storage()
@@ -185,8 +190,14 @@ async def asset_reading(request):
 
     Only one of hour, minutes or seconds should be supplied
 
-    Return the result of the query
-    SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
+    Returns:
+           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?skip=10
+            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1&skip=10"
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -204,11 +215,9 @@ async def asset_reading(request):
     d.update(_and_where)
 
     # Add the order by and limit, offset clause
-    _limit_skip_payload = validate_limit_skip(request, d)
-    _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).chain_payload()
-    d.update(_sort_payload)
+    _limit_skip_payload = prepare_limit_skip_payload(request, d)
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
-    payload = json.dumps(d)
     results = {}
     try:
         _storage = connect.get_storage()
@@ -241,8 +250,11 @@ async def asset_summary(request):
 
     Only one of hour, minutes or seconds should be supplied
 
-    Return the result of the query
-    SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code'
+    Returns:
+           json result on basis of SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code';
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/summary
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -264,7 +276,8 @@ async def asset_summary(request):
     try:
         _storage = connect.get_storage()
         results = _storage.query_tbl_with_payload('readings', payload)
-        response = results['rows']
+        # for aggregates, so there can only ever be one row
+        response = results['rows'][0]
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
     except Exception as ex:
@@ -294,18 +307,27 @@ async def asset_averages(request):
     The amount of time covered by each returned value is set using the
     query parameter group. This may be set to seconds, minutes or hours
 
-    Return the result of the query:
+    Returns:
+            on the basis of
+            SELECT min((reading->>'reading')::float) AS "min",
+                   max((reading->>'reading')::float) AS "max",
+                   avg((reading->>'reading')::float) AS "average",
+                   to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS') AS "timestamp"
+            FROM foglamp.readings
+                   WHERE asset_code = 'asset_code' AND
+                     reading ? 'reading'
+            GROUP BY to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS')
+            ORDER BY timestamp DESC;
 
-    SELECT min((reading->>'reading')::float) AS "min",
-           max((reading->>'reading')::float) AS "max",
-           avg((reading->>'reading')::float) AS "average",
-           to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS') AS "timestamp"
-    FROM foglamp.readings
-           WHERE asset_code = 'asset_code' AND
-             reading ? 'reading'
-    GROUP BY to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS')
-    ORDER BY timestamp DESC;
-
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
+            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?limit=1&skip=1"
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?hours=1
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?minutes=60
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?seconds=3600
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=seconds
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=minutes
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=hours
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
@@ -338,16 +360,13 @@ async def asset_averages(request):
     _and_where = where_clause(request, _where)
     d.update(_and_where)
 
-    # Add the group by and limit, offset clause
+    # Add the GROUP BY
     d['group'] = timestamp
-    _limit_skip_payload = validate_limit_skip(request, d)
-    d.update(_limit_skip_payload)
 
-    # Add ORDER BY timestamp DESC
-    _sort_payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).chain_payload()
-    d.update(_sort_payload)
+    # Add LIMIT, OFFSET, ORDER BY timestamp DESC
+    _limit_skip_payload = prepare_limit_skip_payload(request, d)
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
-    payload = json.dumps(d)
     results = {}
     try:
         _storage = connect.get_storage()

@@ -1,3 +1,4 @@
+#.PHONY: generate_selfcertificate
 
 ###############################################################################
 ################################### COMMANDS ##################################
@@ -12,8 +13,10 @@ PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
-CP     := cp
-CP_DIR := cp -r
+CP            := cp
+CP_DIR        := cp -r
+SSL_NAME      := "foglamp"
+SSL_DAYS      := "365"
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -87,7 +90,8 @@ PACKAGE_NAME=FogLAMP
 # default
 # compile any code that must be compiled
 # generally prepare the development tree to allow for core to be run
-default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
+default : generate_selfcertificate \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 # install
@@ -102,6 +106,12 @@ install : $(INSTALL_DIR) \
 	bin_install \
 	extras_install \
 	data_install
+
+###############################################################################
+############################ PRE-REQUISITE SCRIPTS ############################
+###############################################################################
+generate_selfcertificate:
+	scripts/certificates $(SSL_NAME) $(SSL_DAYS)
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################

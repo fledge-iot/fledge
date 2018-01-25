@@ -246,21 +246,23 @@ class Scheduler(object):
         except KeyError:
             schedule_deleted = True
 
+        print(10)
         if self._paused or schedule_deleted or (
                         schedule.repeat is None and not schedule_execution.start_now):
             if schedule_execution.next_start_time:
+                print(1)
                 schedule_execution.next_start_time = None
                 self._logger.info(
                     "Tasks will no longer execute for schedule '%s'", schedule.name)
         elif schedule.exclusive:
             self._schedule_next_task(schedule)
-
+        print(2)
         if schedule.type != Schedule.Type.STARTUP:
             if exit_code < 0 and task_process.cancel_requested:
                 state = Task.State.CANCELED
             else:
                 state = Task.State.COMPLETE
-
+            print(3)
             # Update the task's status
             update_payload = PayloadBuilder() \
                 .SET(exit_code=exit_code,
@@ -268,6 +270,7 @@ class Scheduler(object):
                      end_time=str(datetime.datetime.now())) \
                 .WHERE(['id', '=', str(task_process.task_id)]) \
                 .payload()
+            print(4)
             try:
                 self._logger.debug('Database command: %s', update_payload)
                 res = self._storage.update_tbl("tasks", update_payload)
@@ -1084,7 +1087,7 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
 
-    async def disable_schedule(self, schedule_id):
+    async def disable_schedule(self, schedule_id: uuid.UUID):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
 
@@ -1128,7 +1131,6 @@ class Scheduler(object):
                         await utils.shutdown_service(service)
                 except:
                     pass
-                del self._schedule_executions[schedule_id]
                 try:
                     # As of now, script starts the process and therefore, we need to explicitly stop this script process
                     # as shutdown caters to stopping of the actual service only.
@@ -1149,17 +1151,18 @@ class Scheduler(object):
                 self._logger.info(
                     "Terminated Task '%s/%s' process '%s' task %s pid %s\n%s",
                     schedule.name,
-                    schedule.id,
+                    str(schedule.id),
                     schedule.process_name,
                     task_id,
                     task_process.process.pid,
                     self._process_scripts[schedule.process_name])
+            print(0)
             # TODO: FOGL-356 track the last time TERM was sent to each task
             task_process.cancel_requested = time.time()
             task_future = task_process.future
             if task_future.cancel() is True:
                 await self._wait_for_task_completion(task_process)
-
+        print(2)
         # Disable Schedule - All ok, now update the schedule in memory
         self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
 
@@ -1168,6 +1171,7 @@ class Scheduler(object):
             .SET(enabled='f') \
             .WHERE(['id', '=', str(schedule_id)]) \
             .payload()
+
         try:
             self._logger.debug('Database command: %s', update_payload)
             res = self._storage.update_tbl("schedules", update_payload)
@@ -1179,9 +1183,8 @@ class Scheduler(object):
         self._logger.info(
             "Disabled Schedule '%s/%s' process '%s'\n",
             schedule.name,
-            schedule_id,
+            str(schedule_id),
             schedule.process_name)
-
         return True, "Schedule successfully disabled"
 
     async def enable_schedule(self, schedule_id):

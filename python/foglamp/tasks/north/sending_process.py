@@ -370,7 +370,6 @@ class SendingProcess:
 
         SendingProcess._stop_execution = True
 
-        # FIXME:
         SendingProcess._logger.info("{func} - signal captured |{signal_num}| ".format(
             func="_signal_handler",
             signal_num=_signal_num))

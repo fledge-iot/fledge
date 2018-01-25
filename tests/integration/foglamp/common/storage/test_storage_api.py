@@ -16,7 +16,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-store = StorageClient("0.0.0.0", core_management_port=37631)
+store = StorageClient(core_management_host=pytest.test_env.address, core_management_port=pytest.test_env.core_mgmt_port)
 
 
 # TODO: remove once FOGL-510 is done

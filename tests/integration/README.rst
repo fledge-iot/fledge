@@ -17,10 +17,23 @@ Since these kinds of tests interacts between two or more heterogeneous systems, 
 
 Currently integration tests can be executed only once at a time, going forward it will be possible to run integration
 tests as a suite. To run any integration test, you need to replace the _core_management_port in the code. The core
-management port is exposed by the FogLAMP Core service.
+management port is exposed by the FogLAMP Core service when FogLAMP starts.
 
-core management port can be found out from /var/log/syslog
+Start FogLAMP
+::
+    $FOGLAMP_ROOT/scripts/start
+
+Check for core management port from /var/log/syslog, e.g:
 ::
     Management port received is 41347
 
 or it can be found out from running the foglamp status command which displays a common port ``--port=99999`` for any service.
+
+Replace the value of core_mgmt_port in conftest.py, e.g:
+::
+    {'test_env': {'address': '0.0.0.0', 'core_mgmt_port': 41347}}
+
+Run the test., e.g:
+::
+    ~/FogLAMP $ pytest tests/integration/foglamp/common/test_microservice.py
+

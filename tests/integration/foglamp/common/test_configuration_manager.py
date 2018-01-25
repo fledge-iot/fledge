@@ -30,7 +30,7 @@ _configuration_tbl = sa.Table(
     sa.Column('ts', sa.types.TIMESTAMP)
 )
 
-_storage = StorageClient(core_management_host='0.0.0.0', core_management_port=43411, svc=None)
+_storage = StorageClient(core_management_host=pytest.test_env.address, core_management_port=pytest.test_env.core_mgmt_port, svc=None)
 cf_mgr = None
 
 

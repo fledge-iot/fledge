@@ -20,8 +20,7 @@ __version__ = "${VERSION}"
 BASE_URL = 'localhost:8081'
 pytestmark = pytest.mark.asyncio
 
-storage_client = StorageClient("0.0.0.0", core_management_port=43947)
-
+storage_client = StorageClient("0.0.0.0", pytest.test_env.core_mgmt_port)
 
 # TODO: remove once FOGL-510 is done
 @pytest.fixture()

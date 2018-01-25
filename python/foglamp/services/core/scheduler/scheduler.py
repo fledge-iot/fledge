@@ -246,23 +246,20 @@ class Scheduler(object):
         except KeyError:
             schedule_deleted = True
 
-        print(10)
         if self._paused or schedule_deleted or (
                         schedule.repeat is None and not schedule_execution.start_now):
             if schedule_execution.next_start_time:
-                print(1)
                 schedule_execution.next_start_time = None
                 self._logger.info(
                     "Tasks will no longer execute for schedule '%s'", schedule.name)
         elif schedule.exclusive:
             self._schedule_next_task(schedule)
-        print(2)
+
         if schedule.type != Schedule.Type.STARTUP:
             if exit_code < 0 and task_process.cancel_requested:
                 state = Task.State.CANCELED
             else:
                 state = Task.State.COMPLETE
-            print(3)
             # Update the task's status
             update_payload = PayloadBuilder() \
                 .SET(exit_code=exit_code,
@@ -270,7 +267,6 @@ class Scheduler(object):
                      end_time=str(datetime.datetime.now())) \
                 .WHERE(['id', '=', str(task_process.task_id)]) \
                 .payload()
-            print(4)
             try:
                 self._logger.debug('Database command: %s', update_payload)
                 res = self._storage.update_tbl("tasks", update_payload)
@@ -1101,6 +1097,23 @@ class Scheduler(object):
             self._logger.info("Schedule %s already disabled", schedule_id)
             return True, "Schedule {} already disabled".format(schedule_id)
 
+        # Disable Schedule - update the schedule in memory
+        self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
+
+        # Update database
+        update_payload = PayloadBuilder() \
+            .SET(enabled='f') \
+            .WHERE(['id', '=', str(schedule_id)]) \
+            .payload()
+        try:
+            self._logger.debug('Database command: %s', update_payload)
+            res = self._storage.update_tbl("schedules", update_payload)
+        except Exception:
+            self._logger.exception('Update failed: %s', update_payload)
+            raise RuntimeError('Update failed: %s', update_payload)
+        await asyncio.sleep(1)
+
+        # If a task is running for the schedule, then terminate the process
         task_id = None
         task_process = None
         try:
@@ -1114,7 +1127,6 @@ class Scheduler(object):
         except KeyError:
             self._logger.info("No Task running for Schedule %s", schedule_id)
 
-        # If a task is running for the schedule, then terminate the process
         if task_id is not None:
             schedule = task_process.schedule
             if schedule.type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
@@ -1151,29 +1163,11 @@ class Scheduler(object):
                     task_id,
                     task_process.process.pid,
                     self._process_scripts[schedule.process_name])
-            print(0)
             # TODO: FOGL-356 track the last time TERM was sent to each task
             task_process.cancel_requested = time.time()
             task_future = task_process.future
             if task_future.cancel() is True:
                 await self._wait_for_task_completion(task_process)
-        print(2)
-        # Disable Schedule - All ok, now update the schedule in memory
-        self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
-
-        # Update database
-        update_payload = PayloadBuilder() \
-            .SET(enabled='f') \
-            .WHERE(['id', '=', str(schedule_id)]) \
-            .payload()
-
-        try:
-            self._logger.debug('Database command: %s', update_payload)
-            res = self._storage.update_tbl("schedules", update_payload)
-        except Exception:
-            self._logger.exception('Update failed: %s', update_payload)
-            raise RuntimeError('Update failed: %s', update_payload)
-        await asyncio.sleep(1)
 
         self._logger.info(
             "Disabled Schedule '%s/%s' process '%s'\n",
@@ -1217,6 +1211,7 @@ class Scheduler(object):
 
         # Start schedule
         await self.queue_task(schedule_id)
+
         self._logger.info(
             "Enabled Schedule '%s/%s' process '%s'\n",
             schedule.name,

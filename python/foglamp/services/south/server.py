@@ -199,15 +199,19 @@ class Server(FoglampMicroservice):
 
         try:
             await Ingest.stop()
-        except Exception:
-            _LOGGER.exception('Unable to stop the Ingest server')
-            return
+            _LOGGER.info('Stopped the Ingest server.')
+        except Exception as ex:
+            _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
+            # return
 
         # Finish all pending asyncio tasks
         pending = asyncio.Task.all_tasks()
-        asyncio.gather(*pending)
+        for p in pending:
+            p.cancel()
 
-        # This deactivates event loop and helps aiohttp microservice server instance in graceful shutdown
+        # This deactivates event loop and
+        # helps aiohttp microservice server instance in graceful shutdown
+        _LOGGER.info('Stopping South Service Event Loop')
         loop.stop()
 
     async def shutdown(self, request):

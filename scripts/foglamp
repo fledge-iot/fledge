@@ -170,7 +170,7 @@ foglamp_stop() {
     # NOTE: This script does not stop the microservice,
     #       it deals with the database engine.
     source "$FOGLAMP_ROOT/scripts/storage" stop
-    
+
     foglamp_log "info" "FogLAMP stopped." "all" "pretty"
 
 }

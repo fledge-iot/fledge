@@ -54,6 +54,9 @@ class Server(FoglampMicroservice):
     _plugin = None
     """The plugin's module'"""
 
+    _plugin_info = None
+    """The plugin's info'"""
+
     _plugin_handle = None
     """The value that is returned by the plugin_init"""
 
@@ -91,8 +94,8 @@ class Server(FoglampMicroservice):
                 raise
 
             # Plugin initialization
-            plugin_info = self._plugin.plugin_info()
-            default_config = plugin_info['config']
+            self._plugin_info = self._plugin.plugin_info()
+            default_config = self._plugin_info['config']
 
             # Configuration handling - updates the configuration using information specific to the plugin
             await cfg_manager.create_category(category, default_config, '{} Device'.format(self._name))
@@ -107,20 +110,17 @@ class Server(FoglampMicroservice):
             message = result['message']
 
             # Ensures the plugin type is the correct one - 'south'
-            if plugin_info['type'] != 'south':
-
-                message = self._MESSAGES_LIST['e000001'].format(self._name, plugin_info['type'])
+            if self._plugin_info['type'] != 'south':
+                message = self._MESSAGES_LIST['e000001'].format(self._name, self._plugin_info['type'])
                 _LOGGER.error(message)
-
                 raise exceptions.InvalidPluginTypeError()
 
             self._plugin_handle = self._plugin.plugin_init(config)
 
             # Executes the requested plugin type
-            if plugin_info['mode'] == 'async':
+            if self._plugin_info['mode'] == 'async':
                 await  self._exec_plugin_async(config)
-
-            elif plugin_info['mode'] == 'poll':
+            elif self._plugin_info['mode'] == 'poll':
                 asyncio.ensure_future(self._exec_plugin_poll(config))
 
         except (Exception, KeyError) as ex:
@@ -235,8 +235,24 @@ class Server(FoglampMicroservice):
         """
         _LOGGER.info('Configuration has changed for South plugin {}'.format(self._name))
 
-        # plugin shutdown before re-configure
-        self._plugin.plugin_shutdown(self._plugin_handle)
+        # Shutdown plugin and Ingest before re-configure
+        if self._plugin is not None:
+            try:
+                self._plugin.plugin_shutdown(self._plugin_handle)
+            except Exception:
+                _LOGGER.exception("Unable to stop plugin '{}' during reconfigure".format(self._name))
+                return web.json_response({"south": "reconfigure error - unable to stop plugin"})
+        try:
+            await Ingest.stop()
+            _LOGGER.info('Stopped the Ingest server.')
+        except Exception as ex:
+            _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
+            return web.json_response({"south": "reconfigure error - unable to stop ingest"})
+
+        # Cancel all pending asyncio tasks after a timeout occurs
+        done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=5)
+        for task_pending in pending:
+            task_pending.cancel()
 
         # retrieve new configuration
         cfg_manager = ConfigurationManager(self._storage)
@@ -245,5 +261,11 @@ class Server(FoglampMicroservice):
         # plugin_reconfigure and assign new handle
         new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)
         self._plugin_handle = new_handle
+
+        # Executes the requested plugin type with new config
+        if self._plugin_info['mode'] == 'async':
+            await  self._exec_plugin_async(new_config)
+        elif self._plugin_info['mode'] == 'poll':
+            asyncio.ensure_future(self._exec_plugin_poll(new_config))
 
         return web.json_response({"south": "change"})

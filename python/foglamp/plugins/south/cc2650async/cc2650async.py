@@ -370,8 +370,4 @@ def plugin_shutdown(handle):
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 (async) {} Disconnected.'.format(bluetooth_adr))
 
-    # Find all pending tasks and cancel
-    pending = asyncio.Task.all_tasks()
-    for p in pending:
-        p.cancel()
     _LOGGER.info('CC2650 async plugin shut down.')

@@ -70,13 +70,6 @@ CREATE SCHEMA foglamp;
 GRANT USAGE ON SCHEMA foglamp TO PUBLIC;
 
 ------ SEQUENCES
-CREATE SEQUENCE foglamp.asset_message_status_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE SEQUENCE foglamp.asset_messages_id_seq
     INCREMENT 1
     START 1
@@ -345,13 +338,18 @@ CREATE INDEX fki_asset_link_fk2
 
 
 -- Asset Message Status table
+-- Status of the messages to send South
+CREATE SEQUENCE foglamp.asset_message_status_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE foglamp.asset_message_status (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_message_status_id_seq'::regclass),
        description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
         CONSTRAINT asset_message_status_pkey PRIMARY KEY (id) );
-
-COMMENT ON TABLE foglamp.asset_message_status IS
-'Status of the messages to send to a south';
 
 
 -- Asset Messages table
@@ -737,6 +735,7 @@ CREATE TABLE foglamp.omf_created_objects (
 
 
 -- Backups information
+-- Stores information about executed backups
 CREATE TABLE foglamp.backups (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.backups_id_seq'::regclass),
     file_name  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- Backup file name, expressed as absolute path
@@ -753,8 +752,6 @@ CREATE TABLE foglamp.backups (
     CONSTRAINT backups_pkey PRIMARY KEY (id)
     );
 
-COMMENT ON TABLE foglamp.backups IS
-'Stores information about executed backups.';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 
@@ -773,45 +770,64 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'SYPRG', 'System Purge' );
 
 
+--
 -- Configuration parameters
+--
 DELETE FROM foglamp.configuration;
 
--- PURGE: The cleaning process is on by default
---   age          : Age of data to be retained, all data that is older than this value will be removed by the purge process. This value is expressed in hours.
---   enabled      : A boolean switch that can be used to disable the purging of data. This is used if the process should be stopped from running.
---   retainUnsent : Retain data that has not been sent to tany historian yet.
--- INSERT INTO foglamp.configuration ( key, description, value )
---      VALUES ( 'PURGE', 'Purge data process', '{ "age" : 72, "enabled" : true, "retainUnsent" : false }' );
+-- Core Tasks and serviices
 
--- LOGPR: Log Partitioning
---        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
+-- SYPRG: System Purge
+--        retention : data retention in seconds. Default is 3 days (259200 seconds)
+--        last purge: ts of the last purge call
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'LOGPART', 'Log Partitioning', '{ "unit" : "day" }' );
+     VALUES ( 'SYPURGE',
+              'System Purge',
+              to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' )
+            );
 
--- SENSR: Sensors and south devices
---        status      : the process is on or off, it is on by default
---        time window : the time window when the process is active, always active by default (it means every second)
+
+-- North plugins
+
+-- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SENSORS',
-              'Sensors and South Interface',
-              '{ "category" : "CoAP", "configuration" : { "port" : { "description" : "Port to listen on", "default" : "5432", "value" : "5432", "type" : "integer" }, "url" : { "description" : "URL to accept data on", "default" : "sensor/reading-values", "value" : "sensor/reading-values", "type" : "string" }, "certificate" : { "description" : "X509 certificate used to identify ingress interface", "value" : "47676565", "type" : "x509 certificate" } } }' );
+     VALUES ( 'SEND_PR_1',
+              'OMF North Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+            );
 
--- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- SEND_PR_2 - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_1', 'OMF North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_2',
+              'OMF North Statistics Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+            );
 
--- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- SEND_PR_3 - HTTP Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_2', 'OMF North Statistics Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_3',
+              'HTTP North Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } '
+            );
 
-
--- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_4',
+              'OCS North Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } '
+            );
 
--- OCS north plugin configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_4', 'OCS North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } ');
+
+-- South plugins
+
+
+
+
+
+
+
+
+
 
 
 -- STRMN: Streaming
@@ -819,12 +835,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
 --        time window : the time window when the process is active, always active by default (it means every second)
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'STREAMING', 'Streaming', '{ "status" : "day", "window" : [ "always" ] }' );
-
--- SYPRG: System Purge
---        retention : data retention in seconds. Default is 3 days (259200 seconds)
---        last purge: ts of the last purge call
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SYPURGE', 'System Purge', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
 
 -- COAP: South Microservice - CoAP Listener Plugin
 --        plugin: python module to load dynamically

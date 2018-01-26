@@ -129,6 +129,7 @@ def plugin_shutdown(data):
         asyncio.ensure_future(app.shutdown())
         asyncio.ensure_future(handler.shutdown(60.0))
         asyncio.ensure_future(app.cleanup())
+        _LOGGER.info('South HTTP plugin shut down.')
     except Exception as e:
         _LOGGER.exception(str(e))
         raise

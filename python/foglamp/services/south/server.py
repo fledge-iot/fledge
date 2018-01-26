@@ -142,7 +142,7 @@ class Server(FoglampMicroservice):
         await Ingest.start(self._core_management_host, self._core_management_port)
         max_retry = 3
         try_count = 1
-        while True and try_count <= max_retry:
+        while self._plugin and try_count <= max_retry:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
                 if len(data) > 0:
@@ -164,7 +164,7 @@ class Server(FoglampMicroservice):
                 try_count = 1
             except KeyError as ex:
                 _LOGGER.exception('Keyerror plugin {} : {}'.format(self._name, str(ex)))
-            except Exception as ex:
+            except (Exception, RuntimeError) as ex:
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
@@ -214,7 +214,7 @@ class Server(FoglampMicroservice):
         _LOGGER.info('Stopping South Service Event Loop')
         loop.stop()
 
-        _LOGGER.exception("Stopped plugin '{}'".format(self._name))
+        _LOGGER.info("Stopped plugin '{}'".format(self._name))
 
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
@@ -236,12 +236,11 @@ class Server(FoglampMicroservice):
         _LOGGER.info('Configuration has changed for South plugin {}'.format(self._name))
 
         # Shutdown plugin and Ingest before re-configure
-        if self._plugin is not None:
-            try:
-                self._plugin.plugin_shutdown(self._plugin_handle)
-            except Exception:
-                _LOGGER.exception("Unable to stop plugin '{}' during reconfigure".format(self._name))
-                return web.json_response({"south": "reconfigure error - unable to stop plugin"})
+        try:
+            self._plugin.plugin_shutdown(self._plugin_handle)
+        except Exception:
+            _LOGGER.exception("Unable to stop plugin '{}' during reconfigure".format(self._name))
+            return web.json_response({"south": "reconfigure error - unable to stop plugin"})
         try:
             await Ingest.stop()
             _LOGGER.info('Stopped the Ingest server.')

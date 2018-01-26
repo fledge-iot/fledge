@@ -344,7 +344,7 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
                 # The process has started. Regardless of this error it must be waited on.
-        self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
+            self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
 
     async def purge_tasks(self):
         """Deletes rows from the tasks table"""
@@ -840,23 +840,24 @@ class Scheduler(object):
 
             schedule = task_process.schedule
 
-            self._logger.info(
-                "Stopping process: Schedule '%s' process '%s' task %s pid %s\n%s",
-                schedule.name,
-                schedule.process_name,
-                task_id,
-                task_process.process.pid,
-                self._process_scripts[schedule.process_name])
-
-            try:
-                # We need to terminate the child processes because now all tasks are started vide a script and
-                # this creates two unix processes. Scheduler can store pid of the parent shell script process only
-                # and on termination of the task, both the script shell process and actual task process need to
-                # be stopped.
-                utils.terminate_child_processes(task_process.process.pid)
-                task_process.process.terminate()
-            except ProcessLookupError:
-                pass  # Process has terminated
+            # Stopping of STARTUP tasks aka microservices will be taken up separately by Core
+            if schedule.type != Schedule.Type.STARTUP:
+                self._logger.info(
+                    "Stopping process: Schedule '%s' process '%s' task %s pid %s\n%s",
+                    schedule.name,
+                    schedule.process_name,
+                    task_id,
+                    task_process.process.pid,
+                    self._process_scripts[schedule.process_name])
+                try:
+                    # We need to terminate the child processes because now all tasks are started vide a script and
+                    # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+                    # and on termination of the task, both the script shell process and actual task process need to
+                    # be stopped.
+                    utils.terminate_child_processes(task_process.process.pid)
+                    task_process.process.terminate()
+                except ProcessLookupError:
+                    pass  # Process has terminated
 
         # Wait for all processes to stop
         for _ in range(self._STOP_WAIT_SECONDS):
@@ -865,7 +866,16 @@ class Scheduler(object):
             await asyncio.sleep(1)
 
         if self._task_processes:
-            raise TimeoutError("Timeout Error: Could not stop scheduler")
+            task_count = 0
+            for task_id in list(self._task_processes.keys()):
+                try:
+                    task_process = self._task_processes[task_id]
+                    schedule = task_process.schedule
+                    task_count += 1 if schedule.type != Schedule.Type.STARTUP else 0
+                except KeyError:
+                    continue
+            if task_count != 0:
+                raise TimeoutError("Timeout Error: Could not stop scheduler as {} tasks are pending".format(task_count))
 
         self._schedule_executions = None
         self._task_processes = None
@@ -1144,6 +1154,9 @@ class Scheduler(object):
                     task_process.process.terminate()
                 except ProcessLookupError:
                     pass  # Process has terminated
+                schedule_execution = self._schedule_executions[schedule.id]
+                del schedule_execution.task_processes[task_process.task_id]
+                del self._task_processes[task_process.task_id]
             else: # else it is a Task e.g. North tasks
                 # Terminate process
                 try:
@@ -1163,11 +1176,11 @@ class Scheduler(object):
                     task_id,
                     task_process.process.pid,
                     self._process_scripts[schedule.process_name])
-            # TODO: FOGL-356 track the last time TERM was sent to each task
-            task_process.cancel_requested = time.time()
-            task_future = task_process.future
-            if task_future.cancel() is True:
-                await self._wait_for_task_completion(task_process)
+                # TODO: FOGL-356 track the last time TERM was sent to each task
+                task_process.cancel_requested = time.time()
+                task_future = task_process.future
+                if task_future.cancel() is True:
+                    await self._wait_for_task_completion(task_process)
 
         self._logger.info(
             "Disabled Schedule '%s/%s' process '%s'\n",

@@ -191,8 +191,9 @@ class Server(FoglampMicroservice):
         if self._plugin is not None:
             try:
                 self._plugin.plugin_shutdown(self._plugin_handle)
-            except Exception:
+            except Exception as ex:
                 _LOGGER.exception("Unable to stop plugin '{}'".format(self._name))
+                raise ex
             finally:
                 self._plugin = None
                 self._plugin_handle = None
@@ -202,7 +203,7 @@ class Server(FoglampMicroservice):
             _LOGGER.info('Stopped the Ingest server.')
         except Exception as ex:
             _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
-            # return
+            raise ex
 
         # Cancel all pending asyncio tasks after a timeout occurs
         done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=5)
@@ -225,10 +226,9 @@ class Server(FoglampMicroservice):
             self.unregister_service_with_core(self._microservice_id)
         except Exception as ex:
             _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
-            raise web.HTTPException(reason=str(ex))
-        return web.json_response({"message":
-            "Successfully shutdown microservice id {} at url http://{}:{}/foglamp/service/shutdown".format(
-            self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
+            raise web.HTTPInternalServerError(reason=str(ex))
+        return web.json_response({"message": "Successfully shutdown microservice id {} at "
+                                             "url http://{}:{}/foglamp/service/shutdown".format(self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
 
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.

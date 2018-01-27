@@ -165,7 +165,6 @@ def plugin_start(handle):
                     attempt_count += 1
                     if attempt_count > 15:
                         _LOGGER.error("SensorTagCC2650 {} async timeout")
-                        print("TIMEOUT!!")
                         break
                     else:
                         await asyncio.sleep(1)
@@ -178,7 +177,6 @@ def plugin_start(handle):
                     attempt_count += 1
                     if attempt_count > 15:
                         _LOGGER.error("SensorTagCC2650 {} async timeout")
-                        print("TIMEOUT!!")
                         break
                     else:
                         await asyncio.sleep(1)
@@ -192,7 +190,6 @@ def plugin_start(handle):
                 if debug_cnt > 0:
                     if cnt >= debug_cnt:
                         break
-                    print(cnt, "****", hex_string)
 
                 # Allow some breathing time for event loop to finish the background tasks such as responding to ping etc
                 if cnt % 10 == 0:
@@ -340,7 +337,6 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for CC2650ASYN plugin {} \n new config {}".format(handle, new_config))
 
     new_handle = plugin_init(new_config)
-    plugin_start(new_handle)
     return new_handle
 
 

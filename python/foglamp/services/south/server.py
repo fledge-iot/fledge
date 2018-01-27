@@ -15,7 +15,7 @@ from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
 from aiohttp import web
 
-__author__ = "Terris Linenbach"
+__author__ = "Terris Linenbach, Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -212,10 +212,8 @@ class Server(FoglampMicroservice):
 
         # This deactivates event loop and
         # helps aiohttp microservice server instance in graceful shutdown
-        _LOGGER.info('Stopping South Service Event Loop')
+        _LOGGER.info('Stopping plugin {} Event Loop'.format(self._name))
         loop.stop()
-
-        _LOGGER.info("Stopped plugin '{}'".format(self._name))
 
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
@@ -227,6 +225,7 @@ class Server(FoglampMicroservice):
         except Exception as ex:
             _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
             raise web.HTTPInternalServerError(reason=str(ex))
+
         return web.json_response({"message": "Successfully shutdown microservice id {} at "
                                              "url http://{}:{}/foglamp/service/shutdown".format(self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
 
@@ -240,13 +239,13 @@ class Server(FoglampMicroservice):
             self._plugin.plugin_shutdown(self._plugin_handle)
         except Exception:
             _LOGGER.exception("Unable to stop plugin '{}' during reconfigure".format(self._name))
-            return web.json_response({"south": "reconfigure error - unable to stop plugin"})
+            raise web.HTTPInternalServerError(reason="reconfigure error - unable to stop plugin {}".format(self._name))
         try:
             await Ingest.stop()
             _LOGGER.info('Stopped the Ingest server.')
         except Exception as ex:
             _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
-            return web.json_response({"south": "reconfigure error - unable to stop ingest"})
+            raise web.HTTPInternalServerError(reason="reconfigure error - unable to stop ingest for plugin {}".format(self._name))
 
         # Cancel all pending asyncio tasks after a timeout occurs
         done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=5)

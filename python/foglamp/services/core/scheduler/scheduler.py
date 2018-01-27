@@ -216,6 +216,7 @@ class Scheduler(object):
             self._check_processes_pending = True
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess) -> None:
+        # TODO: FOGL-510 - Prepare foglamp testing environment
         if _ENV == 'TEST' and task_process.cancel_requested:
             exit_code = -1
         else:

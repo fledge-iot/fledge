@@ -241,6 +241,7 @@ def plugin_poll(handle):
 
     except (Exception, RuntimeError) as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
+        raise exceptions.DataRetrievalError(ex)
 
     _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
@@ -262,7 +263,6 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for CC2650POLL plugin {} \n new config {}".format(handle, new_config))
 
     new_handle = plugin_init(new_config)
-    plugin_poll(new_handle)
     return new_handle
 
 def plugin_shutdown(handle):

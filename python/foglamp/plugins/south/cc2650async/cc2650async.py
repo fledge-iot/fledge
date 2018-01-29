@@ -100,7 +100,7 @@ def plugin_init(config):
         data['notification_handles'] = tag.get_notification_handles()
         data['characteristics'] = sensortag_characteristics
         data['tag'] = tag
-        _LOGGER.info('SensorTagCC2650 {} Async fetching initialized'.format(bluetooth_adr))
+        _LOGGER.info('SensorTagCC2650 {} async fetching initialized'.format(bluetooth_adr))
 
     return data
 
@@ -154,8 +154,7 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
-            # TODO: How to implement CTRL-C or terminate process?
-            debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
+            # debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
             cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
@@ -186,10 +185,11 @@ def plugin_start(handle):
                 hex_string = after.split()[3:]
 
                 cnt += 1
-                # Used only for debugging. debug_cnt should be set to 0 in production
-                if debug_cnt > 0:
-                    if cnt >= debug_cnt:
-                        break
+
+                # # Used only for debugging. debug_cnt should be set to 0 in production
+                # if debug_cnt > 0:
+                #     if cnt >= debug_cnt:
+                #         break
 
                 # Allow some breathing time for event loop to finish the background tasks such as responding to ping etc
                 if cnt % 10 == 0:

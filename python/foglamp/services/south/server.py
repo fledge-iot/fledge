@@ -212,7 +212,7 @@ class Server(FoglampMicroservice):
 
         # This deactivates event loop and
         # helps aiohttp microservice server instance in graceful shutdown
-        _LOGGER.info('Stopping plugin {} Event Loop'.format(self._name))
+        _LOGGER.info('Stopping South service event loop, for plugin {}.'.format(self._name))
         loop.stop()
 
     async def shutdown(self, request):

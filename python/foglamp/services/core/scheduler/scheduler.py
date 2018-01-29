@@ -11,10 +11,11 @@ import collections
 import datetime
 import logging
 import math
-import os
 import time
 import uuid
-import aiohttp
+import os
+import subprocess
+import signal
 from typing import List
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -855,7 +856,7 @@ class Scheduler(object):
                     # this creates two unix processes. Scheduler can store pid of the parent shell script process only
                     # and on termination of the task, both the script shell process and actual task process need to
                     # be stopped.
-                    utils.terminate_child_processes(task_process.process.pid)
+                    self._terminate_child_processes(task_process.process.pid)
                     task_process.process.terminate()
                 except ProcessLookupError:
                     pass  # Process has terminated
@@ -867,6 +868,7 @@ class Scheduler(object):
             await asyncio.sleep(1)
 
         if self._task_processes:
+            # Before throwing timeout error, just check if there are still any tasks pending for cancellation
             task_count = 0
             for task_id in list(self._task_processes.keys()):
                 try:
@@ -1105,17 +1107,14 @@ class Scheduler(object):
             return False, "No such Schedule"
 
         if schedule.enabled is False:
-            self._logger.info("Schedule %s already disabled", schedule_id)
-            return True, "Schedule {} already disabled".format(schedule_id)
+            self._logger.info("Schedule %s already disabled", str(schedule_id))
+            return True, "Schedule {} already disabled".format(str(schedule_id))
 
         # Disable Schedule - update the schedule in memory
         self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
 
         # Update database
-        update_payload = PayloadBuilder() \
-            .SET(enabled='f') \
-            .WHERE(['id', '=', str(schedule_id)]) \
-            .payload()
+        update_payload = PayloadBuilder().SET(enabled='f').WHERE(['id', '=', str(schedule_id)]).payload()
         try:
             self._logger.debug('Database command: %s', update_payload)
             res = self._storage.update_tbl("schedules", update_payload)
@@ -1136,7 +1135,7 @@ class Scheduler(object):
                 raise KeyError
             task_process = self._task_processes[task_id]
         except KeyError:
-            self._logger.info("No Task running for Schedule %s", schedule_id)
+            self._logger.info("No Task running for Schedule %s", str(schedule_id))
 
         if task_id is not None:
             schedule = task_process.schedule
@@ -1165,7 +1164,7 @@ class Scheduler(object):
                     # this creates two unix processes. Scheduler can store pid of the parent shell script process only
                     # and on termination of the task, both the script shell process and actual task process need to
                     # be stopped.
-                    utils.terminate_child_processes(task_process.process.pid)
+                    self._terminate_child_processes(task_process.process.pid)
                     task_process.process.terminate()
                 except ProcessLookupError:
                     pass  # Process has terminated
@@ -1190,7 +1189,7 @@ class Scheduler(object):
             schedule.process_name)
         return True, "Schedule successfully disabled"
 
-    async def enable_schedule(self, schedule_id):
+    async def enable_schedule(self, schedule_id: uuid.UUID):
         """
         Get Schedule, Enable Schedule, Update database, Start Schedule
 
@@ -1200,21 +1199,18 @@ class Scheduler(object):
         try:
             schedule = await self.get_schedule(schedule_id)
         except KeyError:
-            self._logger.info("No such Schedule %s", schedule_id)
+            self._logger.info("No such Schedule %s", str(schedule_id))
             return False, "No such Schedule"
 
         if schedule.enabled is True:
-            self._logger.info("Schedule %s already enabled", schedule_id)
+            self._logger.info("Schedule %s already enabled", str(schedule_id))
             return True, "Schedule is already enabled"
 
         # Enable Schedule
         self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=True)
 
         # Update database
-        update_payload = PayloadBuilder() \
-            .SET(enabled='t') \
-            .WHERE(['id', '=', str(schedule_id)]) \
-            .payload()
+        update_payload = PayloadBuilder().SET(enabled='t').WHERE(['id', '=', str(schedule_id)]).payload()
         try:
             self._logger.debug('Database command: %s', update_payload)
             res = self._storage.update_tbl("schedules", update_payload)
@@ -1229,7 +1225,7 @@ class Scheduler(object):
         self._logger.info(
             "Enabled Schedule '%s/%s' process '%s'\n",
             schedule.name,
-            schedule_id,
+            str(schedule_id),
             schedule.process_name)
 
         return True, "Schedule successfully enabled"
@@ -1432,10 +1428,18 @@ class Scheduler(object):
             # this creates two unix processes. Scheduler can store pid of the parent shell script process only
             # and on termination of the task, both the script shell process and actual task process need to
             # be stopped.
-            utils.terminate_child_processes(task_process.process.pid)
+            self._terminate_child_processes(task_process.process.pid)
             task_process.process.terminate()
         except ProcessLookupError:
             pass  # Process has terminated
 
         if task_process.future.cancel() is True:
             await self._wait_for_task_completion(task_process)
+
+    def _terminate_child_processes(self, parent_id):
+        ps_command = subprocess.Popen("ps -o pid --ppid {} --noheaders".format(parent_id), shell=True, stdout=subprocess.PIPE)
+        ps_output, err = ps_command.communicate()
+        pids = ps_output.decode().strip().split("\n")
+        for pid_str in pids:
+            if pid_str.strip():
+                os.kill(int(pid_str.strip()), signal.SIGTERM)

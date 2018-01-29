@@ -7,11 +7,7 @@
 """Common Utilities"""
 
 import aiohttp
-import os
-import subprocess
-import signal
 import asyncio
-import sys
 from foglamp.common import logger
 
 __author__ = "Amarendra Kumar Sinha"
@@ -53,8 +49,8 @@ async def ping_service(service):
 async def shutdown_service(service):
     _ping_timeout = 15  # type: int
     """Timeout for a response from any given micro-service"""
-
     try:
+        _logger.info("Shutting down the %s service %s ...", service._type, service._name)
         url_shutdown = "{}://{}:{}/foglamp/service/shutdown".format(service._protocol, service._address,
                                                                     service._management_port)
         async with aiohttp.ClientSession() as session:
@@ -67,11 +63,3 @@ async def shutdown_service(service):
     else:
         _logger.info('Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown)
         return True
-
-def terminate_child_processes(parent_id):
-    ps_command = subprocess.Popen("ps -o pid --ppid {} --noheaders".format(parent_id), shell=True, stdout=subprocess.PIPE)
-    ps_output, err = ps_command.communicate()
-    pids = ps_output.decode().strip().split("\n")
-    for pid_str in pids:
-        if pid_str.strip():
-            os.kill(int(pid_str.strip()), signal.SIGTERM)

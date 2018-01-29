@@ -520,7 +520,7 @@ class Server:
                 return
 
             tasks = [cls._request_microservice_shutdown(svc) for svc in services_to_stop]
-            await asyncio.gather(*tasks)
+            await asyncio.wait(tasks)
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:

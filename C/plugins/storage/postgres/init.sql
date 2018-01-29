@@ -119,20 +119,6 @@ CREATE SEQUENCE foglamp.links_id_seq
     MAXVALUE 9223372036854775807
     CACHE 1;
 
-CREATE SEQUENCE foglamp.readings_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.statistics_history_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE SEQUENCE foglamp.resources_id_seq
     INCREMENT 1
     START 1
@@ -370,6 +356,13 @@ CREATE INDEX fki_asset_messages_fk2
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to FogLAMP
+CREATE SEQUENCE foglamp.readings_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE foglamp.readings (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
     asset_code character varying(50)       NOT NULL,                      -- The provided asset code. Not necessarily located in the
@@ -437,7 +430,6 @@ CREATE TABLE foglamp.configuration (
        CONSTRAINT configuration_pkey PRIMARY KEY (key) );
 
 
-
 -- Configuration changes
 -- This table has the same structure of foglamp.configuration, plus the timestamp that identifies the time it has changed
 -- The table is used to keep track of the changes in the "value" column
@@ -460,10 +452,16 @@ CREATE TABLE foglamp.statistics (
        CONSTRAINT statistics_pkey PRIMARY KEY (key) );
 
 
-
 -- Statistics history
 -- Keeps history of the statistics in foglamp.statistics
 -- The table is updated at startup
+CREATE SEQUENCE foglamp.statistics_history_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE foglamp.statistics_history (
        id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass), 
        key         character varying(56)       NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
@@ -471,7 +469,6 @@ CREATE TABLE foglamp.statistics_history (
        value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change
        CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts) );
-
 
 
 -- Resources table
@@ -812,10 +809,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
              'TI SensorTag CC2650 async South Plugin',
              ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } '
            );
-
-
-
-
 
 
 -- STRMN: Streaming

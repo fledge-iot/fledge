@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "Test C"
+#. $TEST_BASEDIR/bash/testC.bash
+

@@ -14,7 +14,7 @@
 #
 ##############################################################################
 
-set -e
+#set -e
 #set -x
 
 # FOGLAMP_ROOT and FOGLAMP_DATAi:
@@ -23,6 +23,9 @@ set -e
 FACTORY_SETTING_ROOT="/usr/local/foglamp"
 FACTORY_SETTING_DATA="/usr/local/foglamp/data"
 
+FOGLAMP_EXE=""             # Call to the foglamp script
+TEST_BASEDIR=""            # Base Directory for tests
+RESULT_DIR=""              # Result Directory
 foglamp_from_package=false # True if the scripts finds a foglamp script
 print_list=false           # By default do not print any list
 TEST_SUITE=""              # Name of the test-suite to execute
@@ -108,7 +111,7 @@ extract_desc_from_test() {
 
 ## Get the test files from the test file suite
 extract_test_files() {
-  test_files=`grep '^\. \$TEST_BASEDIR/' $1 | sed 's/^\. \$TEST_BASEDIR\///' | sed 's/.bash$//'`
+  test_files=`grep '\. \$TEST_BASEDIR/' $1 | cut -d' ' -f2 | sed 's/$TEST_BASEDIR\///' | sed 's/.bash$//'`
   echo $test_files
 }
 
@@ -150,6 +153,7 @@ check_env_vars() {
   if ! [[ -x "$(command -v foglamp)" ]]; then
 
     foglamp_from_package=false
+
     # Check FOGLAMP_ROOT and set it if it does not exist
     if [ -z ${FOGLAMP_ROOT+x} ]; then
       FOGLAMP_ROOT="$FACTORY_SETTING_ROOT"
@@ -163,13 +167,20 @@ check_env_vars() {
       echo "- ${FOGLAMP_ROOT} is not a valid directory."
       exit 1
     else
-      if [[ ! -x "${FOGLAMP_ROOT}/bin/foglamp" ]] && [[ ! -x "${FOGLAMP_ROOT}/scripts/foglamp" ]]; then
-        echo "The test cannot be executed: the foglamp script is not present in ${FOGLAMP_ROOT}."
-        exit 1
+      if [[ -x "${FOGLAMP_ROOT}/bin/foglamp" ]]; then
+        FOGLAMP_EXE="${FOGLAMP_ROOT}/bin/foglamp"
+      else
+        if [[ -x "${FOGLAMP_ROOT}/scripts/foglamp" ]]; then
+          FOGLAMP_EXE="${FOGLAMP_ROOT}/scripts/foglamp"
+        else
+          echo "The test cannot be executed: the foglamp script is not present in ${FOGLAMP_ROOT}."
+          exit 1
+        fi
       fi
     fi
   else
     foglamp_from_package=true
+    FOGLAMP_EXE="foglamp"
   fi
 
 } 
@@ -184,7 +195,8 @@ extract_file_test_name() {
 
 ## Clean the results directory
 cleanup_results() {
-  rm -f ${TEST_SUITE}/r/*.result
+  rm -f ${TEST_SUITE}/r/*.result # Result files
+  rm -f ${TEST_SUITE}/r/*.temp   # Temp files
 }
 
 
@@ -270,8 +282,9 @@ else
 
   # test-suite selected
 
-  TEST_BASEDIR=`realpath ../tests`    # Set the test dir
-  TEST_NAMES=${TEST_SUITE}/t/*.test   # Collect the list of tests in the suite
+  TEST_BASEDIR=`realpath ../tests`      # Set the test dir
+  RESULT_DIR=`realpath ${TEST_SUITE}/r` # Set the Result Dir
+  TEST_NAMES=${TEST_SUITE}/t/*.test     # Collect the list of tests in the suite
 
   print_header
 
@@ -300,20 +313,52 @@ else
       test_name=$(extract_file_test_name $test_to_execute)
       echo -n "[$(date +'%Y-%m-%d %H:%M:%S.%6N')] - $test_name - "
       test_start=$(date +%s%N)
-      . $test_to_execute > ${TEST_SUITE}/r/${test_name}.result
+      . $test_to_execute > ${TEST_SUITE}/r/${test_name}.result 2>&1
       test_end=$(date +%s%N)
       elapsed_time=$((($test_end - $test_start)/1000000 ))
-      check_diff=`diff ${TEST_SUITE}/r/${test_name}.result ${TEST_SUITE}/e/${test_name}.expected | wc -l`
-      if [[ "$check_diff" -eq 0 ]]; then
-        test_result="PASSED"
-      else
-        test_result="FAILED"
+
+      # Check if the two files (expect and result) exist
+      if [[ -e "${TEST_SUITE}/e/${test_name}.expected" ]]; then
+
+        # The expected output exists
+        if [[ -e "${TEST_SUITE}/r/${test_name}.result" ]]; then
+
+          # Expected and result output exist
+          check_diff=`diff ${TEST_SUITE}/r/${test_name}.result ${TEST_SUITE}/e/${test_name}.expected | wc -l`
+          if [[ "$check_diff" -eq 0 ]]; then
+            test_result="PASSED"
+          else
+            test_result="FAILED"
+            extra_result_info="Expect/Result MISMATCH"
+          fi
+
+        else # Expected exists - Result does not exist
+
+          test_result="FAILED"
+          extra_result_info="MISSING Result"
+
+        fi
+
+      else # There is no expected output
+  
+        if [[ -e "${TEST_SUITE}/r/${test_name}.result" ]]; then
+          # Expected does not exist - Result exists
+          test_result="FAILED"
+          extra_result_info="UNEXPECTED Result"
+        else # Expected and Result do not exist
+          test_result="PASSED"
+        fi
+
       fi
+  
       echo -n "[$(date +'%Y-%m-%d %H:%M:%S.%6N')] ($(convert_msec_to_sec $elapsed_time) seconds) - ${test_result}"
-      echo
       if [[ "${test_result}" == "FAILED" ]]; then
+        echo -n " - ${extra_result_info}"
+        echo
         suite_result="INCOMPLETED"
         break
+      else
+        echo
       fi
     done
 

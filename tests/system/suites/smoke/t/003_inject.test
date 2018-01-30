@@ -1,0 +1,2 @@
+. $TEST_BASEDIR/bash/inject_fogbench_data.bash
+

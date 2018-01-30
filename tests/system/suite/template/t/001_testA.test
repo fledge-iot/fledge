@@ -1,9 +1,0 @@
-#!/bin/bash
-
-## This is Test A
-## Second Row of Comments
-
-. $TEST_BASEDIR/bash/testA.bash
-. $TEST_BASEDIR/bash/testB.bash
-. $TEST_BASEDIR/bash/testC.bash
-

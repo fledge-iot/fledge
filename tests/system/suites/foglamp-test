@@ -24,6 +24,7 @@ FACTORY_SETTING_ROOT="/usr/local/foglamp"
 FACTORY_SETTING_DATA="/usr/local/foglamp/data"
 
 FOGLAMP_EXE=""             # Call to the foglamp script
+FOGBENCH_EXE=""            # Call to the fogbench script
 TEST_BASEDIR=""            # Base Directory for tests
 RESULT_DIR=""              # Result Directory
 foglamp_from_package=false # True if the scripts finds a foglamp script
@@ -181,6 +182,19 @@ check_env_vars() {
   else
     foglamp_from_package=true
     FOGLAMP_EXE="foglamp"
+  fi
+
+  # Check if fogbench exists
+  if ! [[ -x "$(command -v foglamp.fogbench)" ]]; then
+    if [[ -x "${FOGLAMP_ROOT}/bin/fogbench" ]]; then
+      FOGBENCH_EXE="${FOGLAMP_ROOT}/bin/fogbench"
+    else
+      if [[ -x "${FOGLAMP_ROOT}/scripts/extras/fogbench" ]]; then
+        FOGBENCH_EXE="${FOGLAMP_ROOT}/scripts/extras/fogbench"
+      fi
+    fi
+  else
+    FOGBENCH_EXE="foglamp.fogbench"
   fi
 
 } 

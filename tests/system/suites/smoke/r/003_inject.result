@@ -1,0 +1,5 @@
+usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
+                [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
+                [-i INTERVAL] [-S {total}]
+fogbench: error: the following arguments are required: -t/--template
+>>> Make sure device service is running & CoAP server is listening on specified host and port

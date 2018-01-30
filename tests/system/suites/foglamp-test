@@ -112,7 +112,7 @@ extract_desc_from_test() {
 
 ## Get the test files from the test file suite
 extract_test_files() {
-  test_files=`grep '\. \$TEST_BASEDIR/' $1 | cut -d' ' -f2 | sed 's/$TEST_BASEDIR\///' | sed 's/.bash$//'`
+  test_files=`grep -o '\. \$TEST_BASEDIR/.*' $1 | cut -d' ' -f2 | sed 's/$TEST_BASEDIR\///' | sed 's/.bash$//'`
   echo $test_files
 }
 

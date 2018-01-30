@@ -14,6 +14,7 @@
 ##############################################################################
 
 set -e
+#set -x
 
 debug_mode=""
 test_to_run="0"
@@ -26,6 +27,7 @@ FACTORY_SETTING_DATA="/usr/local/foglamp/data"
 
 SUITE_SCRIPT=`basename ${0}`
 SUITE_NAME="`echo $SUITE_SCRIPT | sed 's/foglamp-test-//'`"
+TEST_NAMES=""
 
 
 ## Script Header
@@ -43,6 +45,7 @@ print_vars() {
   echo "Script Suite: $SUITE_SCRIPT"
   echo "Suite DIR:    $SUITE_BASEDIR"
   echo "Test DIR:     $TEST_BASEDIR"
+  echo
 
 }
 
@@ -77,9 +80,36 @@ set_env_vars() {
   SUITE_BASEDIR=`realpath $SUITE_NAME`
 
   # Set the test dir
-  TEST_BASEDIR=`realpath ../test`
+  TEST_BASEDIR=`realpath ../tests`
 
 } 
+
+
+## Get the file name of a test
+extract_file_test_name() {
+  file_name=`basename $1`
+  echo $file_name | sed 's/.test$//'
+}
+
+
+## Get the comments in a test file of the suite
+extract_comments_from_file_test() {
+  comment=`grep '^## ' $1 | sed 's/^## //'`
+  echo $comment
+}
+  
+
+## Get the test files from the test file suite
+extract_test_files() {
+  test_files=`grep '^\. \$TEST_BASEDIR/' $1 | sed 's/^\. \$TEST_BASEDIR\///' | sed 's/.bash$//'`
+  echo $test_files
+}
+
+
+## Clean the results directory
+cleanup_results() {
+  rm $SUITE_BASEDIR/r/*.result
+}
 
 
 ##  Print the help screen
@@ -89,9 +119,8 @@ do_help() {
 	echo "foglamp-test-template : Execute the FogLAMP Template Test Suite"
   echo
   echo "Parameters:"
-  echo " -t | --test <test-number>  Execute test number <test-number>"
 	echo " -h | --help                Print this help"
-	echo " -d | --debug               The script is executed with set +x"
+  echo " -l | --list                Print the list of tests to execute"
 	echo
   echo "Environment Variables:"
   echo " FOGLAMP_ROOT (default: /usr/local/foglamp)"
@@ -99,115 +128,36 @@ do_help() {
   echo " FOGLAMP_DATA (default: /usr/local/foglamp/data"
   echo "            - The data directory for FogLAMP"
   echo ""
+
+}
+
+
+## Print the list of tests
+do_list() {
+
   echo "Tests:"
+
+  for test_file in $TEST_NAMES; do
+    test_name=$(extract_file_test_name $test_file)
+    test_comment=$(extract_comments_from_file_test $test_file)
+    row_to_print="${test_name}: ${test_comment}"
+    echo "$row_to_print"
+
+    test_files=$(extract_test_files $test_file)
+    for single_test_file in ${test_files}; do
+      desc_file="${TEST_BASEDIR}/${single_test_file}.desc"
+
+      if [[ -e "${desc_file}" ]]; then
+        desc=`cat ${desc_file}`
+      else
+        desc=""
+      fi
+      echo "   > ${single_test_file}: ${desc}"
+    done
+  done
+
   echo
 	exit 0
-
-}
-
-
-## Test 001: Create Table
-do_001_create_table () {
-
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance \
-      --do-test=001_create_table
-
-}
-
-
-## Test 002: First Insert
-do_002_first_insert () {
-
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance \
-      --do-test=002_first_insert
-
-}
-
-
-## Test 003: Single Inserts
-do_003_single_inserts () {
-
-  ${SCALEDB_TEST_BASEDIR}/tests/performance_import/003_single_inserts.py   ${TEST_003_FILE_NAME}
-
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance \
-      --do-test=003_single_inserts
-
-  # Cleaning the auto-generated file for test #3
-  echo ${MESSAGE} > ${TEST_003_FILE_NAME}
-
-
-}
-
-
-## Test 004: Multiple Inserts 
-do_004_multiple_inserts () {
-
-  ${SCALEDB_TEST_BASEDIR}/tests/performance_import/004_multiple_inserts.py ${TEST_004_FILE_NAME}
-
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance \
-      --do-test=004_multiple_inserts   \
-      --repeat=1000
-
-  # Cleaning the auto-generated file for test #4
-  echo ${MESSAGE} > ${TEST_004_FILE_NAME}
-
-}
-
-
-## Test 005: Flush Table
-do_005_flush_table () {
-
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance \
-      --do-test=005_flush_table
-
-}
-
-
-## Test 006: Truncate Table
-do_006_truncate_table () {
-
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance \
-      --do-test=006_truncate_table
-
-}
-
-
-## Execute the test
-do_all_tests () {
-
-  # Generate .test files
-  ${SCALEDB_TEST_BASEDIR}/tests/performance_import/003_single_inserts.py   ${TEST_003_FILE_NAME}
-
-  # Test - Full suite
-  cd ${MYSQL_TEST_FRAMEWORK_BASEDIR}
-  ./mysql-test-run ${MYSQL_CONNECTION} \
-      --vardir=${SCALEDB_TEST_VAR}  \
-      --suite=${SCALEDB_TEST_BASEDIR}/suite/performance
-
-  # Cleaning the auto-generated file for test #3
-  echo ${MESSAGE} > ${TEST_003_FILE_NAME}
-
-  do_004_multiple_inserts
-  do_005_flush_table
-  do_006_truncate_table
 
 }
 
@@ -222,10 +172,6 @@ if [[ $SUITE_SCRIPT != foglamp-test* ]]; then
   exit 1
 fi
 
-print_header
-set_env_vars
-print_vars
-
 ### Parameter Check ###
 while [ "$1" != "" ]; do
   case "$1" in
@@ -237,8 +183,12 @@ while [ "$1" != "" ]; do
       shift
       test_to_run=$1
       ;;
+    -l | --list )
+      print_list=true
+      ;;
     -h | --help )
-      print_help=true
+      do_help
+      exit 0
       ;;
     * )
       echo "Usage: $SUITE_NAME --help"
@@ -248,37 +198,28 @@ while [ "$1" != "" ]; do
   shift
 done
 
-### Main Logic ###
-if [ "${print_help}" = true ]; then
-  do_help
+print_header
+set_env_vars
+print_vars
+
+## Fill the TEST_NAMES variable with the tests to run
+TEST_NAMES=$SUITE_BASEDIR/t/*.test
+
+if [ "${print_list}" = true ]; then
+
+  do_list
+  exit 0
+
 else
-  case "$test_to_run" in
-    0 )
-      do_all_tests
-      ;;
-    1 ) 
-      do_001_create_table
-      ;;
-    2 )
-      do_002_first_insert
-      ;;
-    3 )
-      do_003_single_inserts
-      ;;
-    4 )
-      do_004_multiple_inserts
-      ;;
-    5 )
-      do_005_flush_table
-      ;;
-    6 )
-      do_006_truncate_table
-      ;;
-    * )
-      echo "Usage: $SUITE_NAME --help"
-      exit 1
-      ;;
-  esac
+
+  cleanup_results
+  echo "Test Start: $(date +'%Y-%m-%d %H:%M:%S.%6N')"
+  test_start=$SECONDS
+  sleep 2
+  elapsed_time=$(( SECONDS - test_start ))
+  echo "Total Execution Time: $elapsed_time seconds."
+  echo "Test End:   $(date +'%Y-%m-%d %H:%M:%S.%6N')"
+
 fi
 
 exit 0

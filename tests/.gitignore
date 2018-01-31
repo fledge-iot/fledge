@@ -1,0 +1,10 @@
+# Cache
+.pytest_cache
+
+# Coverage
+.coverage
+htmlcov/
+
+# Allure
+allure/
+allure-report/

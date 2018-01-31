@@ -51,8 +51,6 @@ _DEFAULT_CONFIG = {
 
 _LOGGER = logger.setup(__name__, level=20)
 
-sensortag_characteristics = characteristics
-
 
 def plugin_info():
     """ Returns information about the plugin.
@@ -81,7 +79,7 @@ def plugin_init(config):
         handle: JSON object to be used in future calls to the plugin
     Raises:
     """
-    global sensortag_characteristics
+    sensortag_characteristics = copy.deepcopy(characteristics)
     data = copy.deepcopy(config)
 
     bluetooth_adr = config['bluetoothAddress']['value']
@@ -259,10 +257,31 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-
     _LOGGER.info("Old config for CC2650POLL plugin {} \n new config {}".format(handle, new_config))
 
-    new_handle = plugin_init(new_config)
+    # Find diff between old config and new config
+    diff = list()
+    for key in new_config:
+        if key in handle:
+            if handle[key] != new_config[key]:
+                diff.append(key)
+        else:
+            diff.append(key)
+
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'bluetoothAddress' in diff:
+        # TODO: Investigate if a common stop_plugin() method, shared by plugin_shutdown(), required.
+        if 'tag' in handle:
+            bluetooth_adr = handle['bluetoothAddress']['value']
+            tag = handle['tag']
+            tag.disconnect()
+            _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting CC2650POLL plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
     return new_handle
 
 def plugin_shutdown(handle):

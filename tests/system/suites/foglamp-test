@@ -30,6 +30,7 @@ FACTORY_SETTING_DATA="/usr/local/foglamp/data"
 export SUITE_NAME=""       # Name of the suite to execute
 export FOGLAMP_EXE=""      # Call to the foglamp script
 export FOGBENCH_EXE=""     # Call to the fogbench script
+export SUITE_BASEDIR=""    # Suite Directory
 export TEST_BASEDIR=""     # Base Directory for tests
 export RESULT_DIR=""       # Result Directory
 export TEST_NAME=""        # Name of the suite file to execute
@@ -303,9 +304,10 @@ else
 
   # test-suite selected
 
-  TEST_BASEDIR=`realpath ../tests`      # Set the test dir
-  RESULT_DIR=`realpath ${SUITE_NAME}/r` # Set the Result Dir
-  TEST_NAMES=${SUITE_NAME}/t/*.test     # Collect the list of tests in the suite
+  TEST_BASEDIR=`realpath ../tests`        # Set the test dir
+  SUITE_BASEDIR=`realpath ${SUITE_NAME}`  # Set the suite dir
+  RESULT_DIR=`realpath ${SUITE_NAME}/r`   # Set the Result Dir
+  TEST_NAMES=${SUITE_NAME}/t/*.test       # Collect the list of tests in the suite
 
   print_header
 

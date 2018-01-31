@@ -15,7 +15,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET             | /foglamp/category                                         |
+    | GET POST        | /foglamp/category                                         |
     | GET             | /foglamp/category/{category_name}                         |
     | GET PUT         | /foglamp/category/{category_name}/{config_item}           |
     | DELETE          | /foglamp/category/{category_name}/{config_item}/value     |
@@ -70,6 +70,51 @@ async def get_category(request):
         raise web.HTTPNotFound(reason="No such Category found for {}".format(category_name))
 
     return web.json_response(category)
+
+
+async def create_category(request):
+    """
+
+    Args:
+         request: A JSON object that defines the category
+
+    Returns:
+            category info
+
+    :Example:
+            curl -d '{"key": "category_name", "description": "description", "value": {dict}}' -X POST http://localhost:8081/foglamp/category
+    """
+    try:
+        cf_mgr = ConfigurationManager(connect.get_storage())
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
+
+        valid_keys = ['key', 'description', 'value']
+        for k in valid_keys:
+            if k not in list(data.keys()):
+                raise KeyError("'{}' key not found".format(k))
+
+        category_name = data.get('key')
+        category_desc = data.get('description')
+        category_value = data.get('value')
+        if not isinstance(category_value, dict):
+            raise ValueError('Category value must be a dictionary')
+
+        await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
+                                     category_value=category_value, keep_original_items=False)
+
+        category_info = await cf_mgr.get_category_all_items(category_name=category_name)
+        if category_info is None:
+            raise web.HTTPNotFound(reason="No such {} found".format(category_info))
+
+    except (KeyError, ValueError, TypeError) as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response({"key": category_name, "description": category_desc, "value": category_info})
 
 
 async def get_category_item(request):

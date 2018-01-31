@@ -23,6 +23,7 @@ def setup(app):
 
     # Configuration
     app.router.add_route('GET', '/foglamp/category', api_configuration.get_categories)
+    app.router.add_route('POST', '/foglamp/category', api_configuration.create_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}', api_configuration.get_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api_configuration.get_category_item)
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api_configuration.set_configuration_item)

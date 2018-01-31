@@ -46,3 +46,9 @@ class IntegrationTestTemplateClass:
         """
         # assertions to verify that the actual output of a component is equal to the expected output
         assert test_input == expected
+
+    def test_other_integration_component(self, _module_fixture):
+        """Purpose of the test, This test is called once.
+        """
+        # assertions to verify that the actual output of a component is equal to the expected output
+        assert "actual" != "expected"

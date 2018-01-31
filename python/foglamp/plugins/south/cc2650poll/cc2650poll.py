@@ -72,7 +72,6 @@ def plugin_info():
         'config': _DEFAULT_CONFIG
     }
 
-
 def plugin_init(config):
     """ Initialise the plugin.
 
@@ -108,7 +107,6 @@ def plugin_init(config):
         _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
     return data
-
 
 def plugin_poll(handle):
     """ Extracts data from the sensor and returns it in a JSON document as a Python dict.
@@ -248,7 +246,6 @@ def plugin_poll(handle):
     _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
 
-
 def plugin_reconfigure(handle, new_config):
     """  Reconfigures the plugin
 
@@ -266,9 +263,7 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for CC2650POLL plugin {} \n new config {}".format(handle, new_config))
 
     new_handle = plugin_init(new_config)
-    plugin_poll(new_handle)
     return new_handle
-
 
 def plugin_shutdown(handle):
     """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
@@ -278,16 +273,10 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-
     if 'tag' in handle:
         bluetooth_adr = handle['bluetoothAddress']['value']
         tag = handle['tag']
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
 
-    # Find all pending tasks and cancel
-    pending = asyncio.Task.all_tasks()
-    for p in pending:
-        p.cancel()
     _LOGGER.info('CC2650 poll plugin shut down.')
-

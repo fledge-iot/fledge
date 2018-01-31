@@ -11,11 +11,11 @@ import collections
 import datetime
 import logging
 import math
-import signal
-import sys
-import os
 import time
 import uuid
+import os
+import subprocess
+import signal
 from typing import List
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -26,6 +26,7 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.services.common import utils
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -216,7 +217,11 @@ class Scheduler(object):
             self._check_processes_pending = True
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess) -> None:
-        exit_code = await task_process.process.wait()
+        # TODO: FOGL-510 - Prepare foglamp testing environment
+        if _ENV == 'TEST' and task_process.cancel_requested:
+            exit_code = -1
+        else:
+            exit_code = await task_process.process.wait()
 
         schedule = task_process.schedule
 
@@ -257,7 +262,6 @@ class Scheduler(object):
                 state = Task.State.CANCELED
             else:
                 state = Task.State.COMPLETE
-
             # Update the task's status
             update_payload = PayloadBuilder() \
                 .SET(exit_code=exit_code,
@@ -342,8 +346,6 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
                 # The process has started. Regardless of this error it must be waited on.
-            # No need to create future for STARTUP tasks aka microservices. Core and Storage microservices also do not
-            # have any future associated. Also because it interferes with shutdown process of microservices.
             self._task_processes[task_id].future = asyncio.ensure_future(self._wait_for_task_completion(task_process))
 
     async def purge_tasks(self):
@@ -840,18 +842,24 @@ class Scheduler(object):
 
             schedule = task_process.schedule
 
-            self._logger.info(
-                "Stopping process: Schedule '%s' process '%s' task %s pid %s\n%s",
-                schedule.name,
-                schedule.process_name,
-                task_id,
-                task_process.process.pid,
-                self._process_scripts[schedule.process_name])
-
-            try:
-                task_process.process.terminate()
-            except ProcessLookupError:
-                pass  # Process has terminated
+            # Stopping of STARTUP tasks aka microservices will be taken up separately by Core
+            if schedule.type != Schedule.Type.STARTUP:
+                self._logger.info(
+                    "Stopping process: Schedule '%s' process '%s' task %s pid %s\n%s",
+                    schedule.name,
+                    schedule.process_name,
+                    task_id,
+                    task_process.process.pid,
+                    self._process_scripts[schedule.process_name])
+                try:
+                    # We need to terminate the child processes because now all tasks are started vide a script and
+                    # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+                    # and on termination of the task, both the script shell process and actual task process need to
+                    # be stopped.
+                    self._terminate_child_processes(task_process.process.pid)
+                    task_process.process.terminate()
+                except ProcessLookupError:
+                    pass  # Process has terminated
 
         # Wait for all processes to stop
         for _ in range(self._STOP_WAIT_SECONDS):
@@ -860,7 +868,17 @@ class Scheduler(object):
             await asyncio.sleep(1)
 
         if self._task_processes:
-            raise TimeoutError("Timeout Error: Could not stop scheduler")
+            # Before throwing timeout error, just check if there are still any tasks pending for cancellation
+            task_count = 0
+            for task_id in list(self._task_processes.keys()):
+                try:
+                    task_process = self._task_processes[task_id]
+                    schedule = task_process.schedule
+                    task_count += 1 if schedule.type != Schedule.Type.STARTUP else 0
+                except KeyError:
+                    continue
+            if task_count != 0:
+                raise TimeoutError("Timeout Error: Could not stop scheduler as {} tasks are pending".format(task_count))
 
         self._schedule_executions = None
         self._task_processes = None
@@ -1073,7 +1091,7 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
 
-    async def disable_schedule(self, schedule_id):
+    async def disable_schedule(self, schedule_id: uuid.UUID):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
 
@@ -1089,27 +1107,23 @@ class Scheduler(object):
             return False, "No such Schedule"
 
         if schedule.enabled is False:
-            self._logger.info("Schedule %s already disabled", schedule_id)
-            return True, "Schedule {} already disabled".format(schedule_id)
+            self._logger.info("Schedule %s already disabled", str(schedule_id))
+            return True, "Schedule {} already disabled".format(str(schedule_id))
 
-        # Disable Schedule
-        # We need to recreate the _ScheduleRow for just one change - enabled = False. This is required as _ScheduleRow
-        # is of named tuple type which does not allow updation.
-        repeat_seconds = None
-        if schedule.repeat is not None:
-            repeat_seconds = schedule.repeat.total_seconds()
-        schedule_row = self._ScheduleRow(
-            id=schedule.schedule_id,
-            name=schedule.name,
-            type=schedule.schedule_type,
-            time=schedule.time,
-            day=schedule.day,
-            repeat=schedule.repeat,
-            repeat_seconds=repeat_seconds,
-            exclusive=schedule.exclusive,
-            enabled=False,
-            process_name=schedule.process_name)
+        # Disable Schedule - update the schedule in memory
+        self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
 
+        # Update database
+        update_payload = PayloadBuilder().SET(enabled='f').WHERE(['id', '=', str(schedule_id)]).payload()
+        try:
+            self._logger.debug('Database command: %s', update_payload)
+            res = self._storage.update_tbl("schedules", update_payload)
+        except Exception:
+            self._logger.exception('Update failed: %s', update_payload)
+            raise RuntimeError('Update failed: %s', update_payload)
+        await asyncio.sleep(1)
+
+        # If a task is running for the schedule, then terminate the process
         task_id = None
         task_process = None
         try:
@@ -1121,54 +1135,61 @@ class Scheduler(object):
                 raise KeyError
             task_process = self._task_processes[task_id]
         except KeyError:
-            self._logger.info("No Task running for Schedule %s", schedule_id)
+            self._logger.info("No Task running for Schedule %s", str(schedule_id))
 
-        # If a task is running for the schedule, then terminate the process
         if task_id is not None:
             schedule = task_process.schedule
-
-            # TODO: FOGL-356 track the last time TERM was sent to each task
-            task_process.cancel_requested = time.time()
-
-            # Terminate process
-            del self._schedules[schedule.id]
-            try:
-                # KNOWN ISSUE: Does not work well with microservices e.g. COAP etc
-                # TODO: If schedule is a microservice, then deal with shutdown, unregister etc.
-                task_process.process.terminate()
-                task_future = task_process.future
-                if schedule.type != Schedule.Type.STARTUP and task_future.cancel() is True:
-                    await self._wait_for_task_completion(task_process)
+            if schedule.type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
+                try:
+                    found_services = ServiceRegistry.get(name=schedule.process_name)
+                    service = found_services[0]
+                    if await utils.ping_service(service) is True:
+                        # Shutdown will take care of unregistering the service from core
+                        await utils.shutdown_service(service)
+                except:
+                    pass
+                try:
+                    # As of now, script starts the process and therefore, we need to explicitly stop this script process
+                    # as shutdown caters to stopping of the actual service only.
+                    task_process.process.terminate()
+                except ProcessLookupError:
+                    pass  # Process has terminated
+                schedule_execution = self._schedule_executions[schedule.id]
+                del schedule_execution.task_processes[task_process.task_id]
+                del self._task_processes[task_process.task_id]
+            else: # else it is a Task e.g. North tasks
+                # Terminate process
+                try:
+                    # We need to terminate the child processes because now all tasks are started vide a script and
+                    # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+                    # and on termination of the task, both the script shell process and actual task process need to
+                    # be stopped.
+                    self._terminate_child_processes(task_process.process.pid)
+                    task_process.process.terminate()
+                except ProcessLookupError:
+                    pass  # Process has terminated
                 self._logger.info(
-                    "Disabled Schedule '%s/%s' process '%s' task %s pid %s\n%s",
+                    "Terminated Task '%s/%s' process '%s' task %s pid %s\n%s",
                     schedule.name,
-                    schedule.id,
+                    str(schedule.id),
                     schedule.process_name,
                     task_id,
                     task_process.process.pid,
                     self._process_scripts[schedule.process_name])
-            except ProcessLookupError:
-                pass  # Process has terminated
+                # TODO: FOGL-356 track the last time TERM was sent to each task
+                task_process.cancel_requested = time.time()
+                task_future = task_process.future
+                if task_future.cancel() is True:
+                    await self._wait_for_task_completion(task_process)
 
-        # All ok, now update the schedule in memory
-        self._schedules[schedule_id] = schedule_row
-
-        # Update database
-        update_payload = PayloadBuilder() \
-            .SET(enabled='f') \
-            .WHERE(['id', '=', str(schedule_id)]) \
-            .payload()
-        try:
-            self._logger.debug('Database command: %s', update_payload)
-            res = self._storage.update_tbl("schedules", update_payload)
-        except Exception:
-            self._logger.exception('Update failed: %s', update_payload)
-            raise RuntimeError('Update failed: %s', update_payload)
-        await asyncio.sleep(1)
-
+        self._logger.info(
+            "Disabled Schedule '%s/%s' process '%s'\n",
+            schedule.name,
+            str(schedule_id),
+            schedule.process_name)
         return True, "Schedule successfully disabled"
 
-    async def enable_schedule(self, schedule_id):
+    async def enable_schedule(self, schedule_id: uuid.UUID):
         """
         Get Schedule, Enable Schedule, Update database, Start Schedule
 
@@ -1178,52 +1199,18 @@ class Scheduler(object):
         try:
             schedule = await self.get_schedule(schedule_id)
         except KeyError:
-            self._logger.info("No such Schedule %s", schedule_id)
+            self._logger.info("No such Schedule %s", str(schedule_id))
             return False, "No such Schedule"
 
         if schedule.enabled is True:
-            self._logger.info("Schedule %s already enabled", schedule_id)
+            self._logger.info("Schedule %s already enabled", str(schedule_id))
             return True, "Schedule is already enabled"
 
         # Enable Schedule
-        # We need to recreate the _ScheduleRow for just one change - enabled = True. This is required as _ScheduleRow
-        # is of named tuple type which does not allow updation.
-        if isinstance(schedule, TimedSchedule):
-            schedule_time = schedule.time
-            if schedule_time is not None and not isinstance(schedule_time, datetime.time):
-                raise ValueError('time must be of type datetime.time')
-            day = schedule.day
-            # TODO Remove this check when the database has constraint
-            if day is not None and (day < 1 or day > 7):
-                raise ValueError('day must be between 1 and 7')
-        else:
-            day = None
-            schedule_time = None
-
-        repeat_seconds = None
-        if schedule.repeat is not None:
-            repeat_seconds = schedule.repeat.total_seconds()
-
-        schedule_row = self._ScheduleRow(
-            id=schedule.schedule_id,
-            name=schedule.name,
-            type=schedule.schedule_type,
-            time=schedule_time,
-            day=day,
-            repeat=schedule.repeat,
-            repeat_seconds=repeat_seconds,
-            exclusive=schedule.exclusive,
-            enabled=True,
-            process_name=schedule.process_name)
-
-        del self._schedules[schedule.schedule_id]
-        self._schedules[schedule.schedule_id] = schedule_row
+        self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=True)
 
         # Update database
-        update_payload = PayloadBuilder() \
-            .SET(enabled='t') \
-            .WHERE(['id', '=', str(schedule.schedule_id)]) \
-            .payload()
+        update_payload = PayloadBuilder().SET(enabled='t').WHERE(['id', '=', str(schedule_id)]).payload()
         try:
             self._logger.debug('Database command: %s', update_payload)
             res = self._storage.update_tbl("schedules", update_payload)
@@ -1234,10 +1221,11 @@ class Scheduler(object):
 
         # Start schedule
         await self.queue_task(schedule_id)
+
         self._logger.info(
             "Enabled Schedule '%s/%s' process '%s'\n",
             schedule.name,
-            schedule.schedule_id,
+            str(schedule_id),
             schedule.process_name)
 
         return True, "Schedule successfully enabled"
@@ -1436,6 +1424,22 @@ class Scheduler(object):
             self._process_scripts[schedule.process_name])
 
         try:
+            # We need to terminate the child processes because now all tasks are started vide a script and
+            # this creates two unix processes. Scheduler can store pid of the parent shell script process only
+            # and on termination of the task, both the script shell process and actual task process need to
+            # be stopped.
+            self._terminate_child_processes(task_process.process.pid)
             task_process.process.terminate()
         except ProcessLookupError:
             pass  # Process has terminated
+
+        if task_process.future.cancel() is True:
+            await self._wait_for_task_completion(task_process)
+
+    def _terminate_child_processes(self, parent_id):
+        ps_command = subprocess.Popen("ps -o pid --ppid {} --noheaders".format(parent_id), shell=True, stdout=subprocess.PIPE)
+        ps_output, err = ps_command.communicate()
+        pids = ps_output.decode().strip().split("\n")
+        for pid_str in pids:
+            if pid_str.strip():
+                os.kill(int(pid_str.strip()), signal.SIGTERM)

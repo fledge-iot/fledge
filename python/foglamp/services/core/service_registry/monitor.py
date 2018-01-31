@@ -46,7 +46,7 @@ class Monitor(object):
     async def _monitor_loop(self):
         """Main loop for the scheduler"""
         # check health of all micro-services every N seconds
-        _MAX_ATTEMPTS = 5
+        _MAX_ATTEMPTS = 15
         """Number of max attempts for finding a heartbeat of service"""
 
         while True:

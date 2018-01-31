@@ -31,7 +31,7 @@ _DEFAULT_CONFIG = {
     'bluetoothAddress': {
         'description': 'Bluetooth MAC address',
         'type': 'string',
-        'default': 'B0:91:22:F6:D2:83'
+        'default': 'B0:91:22:EA:79:04'
     },
     'connectionTimeout': {
         'description': 'BLE South Device timeout value in seconds',
@@ -161,9 +161,10 @@ def plugin_start(handle):
                 except pexpect.exceptions.TIMEOUT:
                     attempt_count += 1
                     if attempt_count > 15:
-                        _LOGGER.error("SensorTagCC2650 {} async timeout")
+                        _LOGGER.error("SensorTagCC2650 {} timeout error".format(bluetooth_adr))
                         break
                     else:
+                        _LOGGER.error("SensorTagCC2650 {} async exception attempt_count {}".format(bluetooth_adr, attempt_count))
                         await asyncio.sleep(1)
                         continue
 
@@ -173,9 +174,10 @@ def plugin_start(handle):
                 if pattern_index != 0:
                     attempt_count += 1
                     if attempt_count > 15:
-                        _LOGGER.error("SensorTagCC2650 {} async timeout")
+                        _LOGGER.error("SensorTagCC2650 {} async timeout error".format(bluetooth_adr))
                         break
                     else:
+                        _LOGGER.error("SensorTagCC2650 {} async pattern attempt_count {}".format(bluetooth_adr, attempt_count))
                         await asyncio.sleep(1)
                         continue
 
@@ -316,8 +318,8 @@ def plugin_start(handle):
         except (Exception, RuntimeError, pexpect.exceptions.TIMEOUT) as ex:
             _LOGGER.exception("SensorTagCC2650 async {} exception: {}".format(bluetooth_adr, str(ex)))
             raise exceptions.DataRetrievalError(ex)
-
         _LOGGER.debug("SensorTagCC2650 async {} reading: {}".format(bluetooth_adr, json.dumps(data)))
+        return
 
     asyncio.ensure_future(save_data())
 

@@ -732,17 +732,6 @@ INSERT INTO foglamp.log_codes ( code, description )
 --
 DELETE FROM foglamp.configuration;
 
--- Core Tasks and serviices
-
--- SYPRG: System Purge
---        retention : data retention in seconds. Default is 3 days (259200 seconds)
---        last purge: ts of the last purge call
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SYPURGE',
-              'System Purge',
-              to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' )
-            );
-
 
 -- North plugins
 
@@ -809,13 +798,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
              'TI SensorTag CC2650 async South Plugin',
              ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } '
            );
-
-
--- STRMN: Streaming
---        status      : the process is on or off, it is on by default
---        time window : the time window when the process is active, always active by default (it means every second)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'STREAMING', 'Streaming', '{ "status" : "day", "window" : [ "always" ] }' );
 
 
 -- Statistics

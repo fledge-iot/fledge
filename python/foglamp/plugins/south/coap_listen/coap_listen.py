@@ -60,7 +60,6 @@ def plugin_info():
             'config': _DEFAULT_CONFIG
             }
 
-
 def plugin_init(config):
     """ Registers CoAP handler to accept sensor readings
 
@@ -77,7 +76,6 @@ def plugin_init(config):
 
     return handle
 
-
 def plugin_start(handle):
     """ Starts the South device ingress process.
         Used only for South device plugins that support async IO.
@@ -92,7 +90,6 @@ def plugin_start(handle):
     port = handle['port']['value']
     asyncio.ensure_future(_start_aiocoap(uri, port))
 
-
 async def _start_aiocoap(uri, port):
     root = aiocoap.resource.Site()
 
@@ -104,7 +101,6 @@ async def _start_aiocoap(uri, port):
     global aiocoap_ctx
     aiocoap_ctx = await aiocoap.Context().create_server_context(root, bind=('::', int(port)))
     _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
-
 
 def plugin_reconfigure(handle, new_config):
     """  Reconfigures the plugin
@@ -121,10 +117,7 @@ def plugin_reconfigure(handle, new_config):
     """
     _LOGGER.info("Old config for Coap plugin {} \n new config {}".format(handle, new_config))
     new_handle = plugin_init(new_config)
-    plugin_start(new_handle)
-
     return new_handle
-
 
 def plugin_shutdown(handle):
     """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
@@ -140,6 +133,7 @@ def plugin_shutdown(handle):
         _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
         raise
     _LOGGER.info('COAP plugin shut down.')
+
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
 class CoAPIngest(aiocoap.resource.Resource):
@@ -218,4 +212,3 @@ class CoAPIngest(aiocoap.resource.Resource):
             Ingest.increment_discarded_readings()
 
         return aiocoap.Message(payload=message.encode('utf-8'), code=code)
-

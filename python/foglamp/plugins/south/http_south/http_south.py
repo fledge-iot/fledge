@@ -55,7 +55,6 @@ def plugin_info():
             'config': _DEFAULT_CONFIG
     }
 
-
 def plugin_init(config):
     """Registers HTTP Listener handler to accept sensor readings"""
 
@@ -66,7 +65,6 @@ def plugin_init(config):
     uri = config['uri']['value']
 
     return {'host': host, 'port': port, 'uri': uri}
-
 
 def plugin_start(data):
     try:
@@ -96,7 +94,6 @@ def plugin_start(data):
         _LOGGER.exception(str(e))
         sys.exit(1)
 
-
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin
 
@@ -114,9 +111,7 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for HTTP_SOUTH plugin {} \n new config {}".format(handle, new_config))
 
     new_handle = plugin_init(new_config)
-    plugin_start(new_handle)
     return new_handle
-
 
 def plugin_shutdown(data):
     try:

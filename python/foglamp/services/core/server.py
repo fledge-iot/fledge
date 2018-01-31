@@ -557,12 +557,7 @@ class Server:
             cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
-            # TODO: FOGL-986 Scheduler gets timeout,
-            """Fix tasks plugin (see syslog) """
-
-            # raise e
-            await asyncio.sleep(1.0)
-            return
+            raise e
 
     @classmethod
     async def ping(cls, request):

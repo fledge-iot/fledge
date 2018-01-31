@@ -55,7 +55,6 @@ def plugin_info():
             'config': _DEFAULT_CONFIG
     }
 
-
 def plugin_init(config):
     """Registers HTTP Listener handler to accept sensor readings"""
 
@@ -66,7 +65,6 @@ def plugin_init(config):
     uri = config['uri']['value']
 
     return {'host': host, 'port': port, 'uri': uri}
-
 
 def plugin_start(data):
     try:
@@ -79,16 +77,22 @@ def plugin_start(data):
         app = web.Application(middlewares=[middleware.error_middleware])
         app.router.add_route('POST', '/{}'.format(uri), HttpSouthIngest.render_post)
         handler = app.make_handler()
-        server = loop.create_server(handler, host, port)
-        asyncio.ensure_future(server)
+        server_coro = loop.create_server(handler, host, port)
+        future = asyncio.ensure_future(server_coro)
+
+        def f_callback(f):
+            # _LOGGER.info(repr(f.result()))
+            """ <Server sockets=
+            [<socket.socket fd=17, family=AddressFamily.AF_INET, type=2049,proto=6, laddr=('0.0.0.0', 6683)>]>"""
+            data['server'] = f.result()
+
+        future.add_done_callback(f_callback)
 
         data['app'] = app
         data['handler'] = handler
-        data['server'] = server
     except Exception as e:
         _LOGGER.exception(str(e))
         sys.exit(1)
-
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin
@@ -107,9 +111,7 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for HTTP_SOUTH plugin {} \n new config {}".format(handle, new_config))
 
     new_handle = plugin_init(new_config)
-    plugin_start(new_handle)
     return new_handle
-
 
 def plugin_shutdown(data):
     try:
@@ -122,6 +124,7 @@ def plugin_shutdown(data):
         asyncio.ensure_future(app.shutdown())
         asyncio.ensure_future(handler.shutdown(60.0))
         asyncio.ensure_future(app.cleanup())
+        _LOGGER.info('South HTTP plugin shut down.')
     except Exception as e:
         _LOGGER.exception(str(e))
         raise

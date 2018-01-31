@@ -22,6 +22,7 @@ import time
 import importlib
 import logging
 import datetime
+import signal
 
 import foglamp.plugins.north.common.common as plugin_common
 
@@ -245,6 +246,9 @@ class SendingProcess:
 
     _logger = None  # type: logging.Logger
 
+    _stop_execution = False
+    """ sets to True when a signal is captured and a termination is needed """
+
     # Filesystem path where the norths reside
     _NORTH_PATH = "foglamp.plugins.north."
 
@@ -354,6 +358,21 @@ class SendingProcess:
         """ Defines what and the level of details for logging """
 
         self._event_loop = asyncio.get_event_loop()
+
+    @staticmethod
+    def _signal_handler(_signal_num, _stack_frame):
+        """ Handles signals to properly terminate the execution
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        SendingProcess._stop_execution = True
+
+        SendingProcess._logger.info("{func} - signal captured |{signal_num}| ".format(
+            func="_signal_handler",
+            signal_num=_signal_num))
 
     def _is_stream_id_valid(self, stream_id):
         """ Checks if the provided stream id  is valid
@@ -683,22 +702,30 @@ class SendingProcess:
         Args:
         Returns:
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - ".format("send_data"))
         try:
             start_time = time.time()
             elapsed_seconds = 0
+
             while elapsed_seconds < self._config['duration']:
+                # Terminates the execution in case a signal has been received
+                if SendingProcess._stop_execution:
+                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
+                            func="send_data"))
+                    break
+
                 try:
                     data_sent = self._send_data_block(stream_id)
                 except Exception as e:
                     data_sent = False
                     _message = _MESSAGES_LIST["e000021"].format(e)
                     SendingProcess._logger.error(_message)
+
                 if not data_sent:
                     SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
                     time.sleep(self._config['sleepInterval'])
+
                 elapsed_seconds = time.time() - start_time
                 SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format(
                                                             "send_data",
@@ -845,6 +872,10 @@ class SendingProcess:
         # Command line parameter handling
         global _log_performance
         global _LOGGER
+
+        # Setups signals handlers, to properly handle the termination
+        # a) SIGTERM - 15 : kill or system shutdown
+        signal.signal(signal.SIGTERM, SendingProcess._signal_handler)
 
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \

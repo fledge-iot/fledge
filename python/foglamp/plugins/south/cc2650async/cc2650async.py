@@ -52,7 +52,6 @@ sensortag_characteristics = characteristics
 
 def plugin_info():
     """ Returns information about the plugin.
-
     Args:
     Returns:
         dict: plugin information
@@ -71,7 +70,6 @@ def plugin_info():
 
 def plugin_init(config):
     """ Initialise the plugin.
-
     Args:
         config: JSON configuration document for the South device configuration category
     Returns:
@@ -109,9 +107,7 @@ def plugin_init(config):
 
 def plugin_start(handle):
     """ Extracts data from the sensor and returns it in a JSON document as a Python dict.
-
     Available for async mode only.
-
     Args:
         handle: handle returned by the plugin initialisation call
     Returns:
@@ -141,6 +137,7 @@ def plugin_start(handle):
         movement = None
         battery_level = None
         keypress_state = None
+        attempt_count = 1
 
         try:
             if not tag.is_connected:
@@ -157,156 +154,164 @@ def plugin_start(handle):
             tag.char_write_cmd(handle['characteristics']['pressure']['configuration']['handle'], char_enable)
             tag.char_write_cmd(handle['characteristics']['movement']['configuration']['handle'], movement_enable)
 
-            # TODO: How to implement CTRL-C or terminate process?
-            debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
+            # debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
             cnt = 0
             while True:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
                 try:
                     pattern_index = tag.con.expect('Notification handle = .*? \r', timeout=4)
                 except pexpect.TIMEOUT:
-                    _LOGGER.error("SensorTagCC2650 async timeout")
-                    print("TIMEOUT exception!")
-                    break
+                    attempt_count += 1
+                    if attempt_count > 15:
+                        _LOGGER.error("SensorTagCC2650 {} async timeout")
+                        break
+                    else:
+                        await asyncio.sleep(1)
+                        continue
 
-                # expect, if successful, will return the index of the pattern "Notification handle = " which ideally
+                # expect, if succesfull, will return the index of the pattern "Notification handle = " which ideally
                 # should appear at col 0. If not, then pexpect.TIMEOUT will be raised. Also, this choice of pattern
-                # will help in splitting at line#176.
-                if pattern_index == 0:
-                    after = tag.con.after
-                    hex_string = after.split()[3:]
+                # will help in splitting at line#190.
+                if pattern_index != 0:
+                    attempt_count += 1
+                    if attempt_count > 15:
+                        _LOGGER.error("SensorTagCC2650 {} async timeout")
+                        break
+                    else:
+                        await asyncio.sleep(1)
+                        continue
 
-                    cnt += 1
-                    # Used only for debugging. debug_cnt should be set to 0 in production
-                    if debug_cnt > 0:
-                        if cnt >= debug_cnt:
-                            break
-                        print(cnt, "****", hex_string)
+                after = tag.con.after
+                hex_string = after.split()[3:]
 
-                    # Allow some breathing time for event loop to finish the background tasks.
-                    if cnt % 50 == 0:
-                        await asyncio.sleep(.5)
+                cnt += 1
 
-                    # Get temperature
-                    if int(handle['characteristics']['temperature']['data']['handle'], 16) == \
-                            int(hex_string[0].decode(), 16):
-                        object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(
-                                                                    tag.get_raw_measurement("temperature", hex_string))
+                # # Used only for debugging. debug_cnt should be set to 0 in production
+                # if debug_cnt > 0:
+                #     if cnt >= debug_cnt:
+                #         break
+
+                # Allow some breathing time for event loop to finish the background tasks such as responding to ping etc
+                if cnt % 10 == 0:
+                    await asyncio.sleep(.5)
+
+                # Get temperature
+                if int(handle['characteristics']['temperature']['data']['handle'], 16) == \
+                        int(hex_string[0].decode(), 16):
+                    object_temp_celsius, ambient_temp_celsius = tag.hex_temp_to_celsius(
+                                                                tag.get_raw_measurement("temperature", hex_string))
+                    data = {
+                        'asset': 'temperature',
+                        'timestamp': time_stamp,
+                        'key': str(uuid.uuid4()),
+                        'readings': {
+                                "object": object_temp_celsius,
+                                'ambient': ambient_temp_celsius
+                        }
+                    }
+
+                # Get luminance
+                if int(handle['characteristics']['luminance']['data']['handle'], 16) == \
+                        int(hex_string[0].decode(), 16):
+                    lux_luminance = tag.hex_lux_to_lux(tag.get_raw_measurement("luminance", hex_string))
+                    data = {
+                        'asset': 'luxometer',
+                        'timestamp': time_stamp,
+                        'key': str(uuid.uuid4()),
+                        'readings': {"lux": lux_luminance}
+                    }
+
+                # Get humidity
+                if int(handle['characteristics']['humidity']['data']['handle'], 16) == \
+                        int(hex_string[0].decode(), 16):
+                    rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(
+                                                    tag.get_raw_measurement("humidity", hex_string))
+                    data = {
+                        'asset': 'humidity',
+                        'timestamp': time_stamp,
+                        'key': str(uuid.uuid4()),
+                        'readings': {
+                                "humidity": rel_humidity,
+                                "temperature": rel_temperature
+                        }
+                    }
+
+                # Get pressure
+                if int(handle['characteristics']['pressure']['data']['handle'], 16) == \
+                        int(hex_string[0].decode(), 16):
+                    bar_pressure = tag.hex_pressure_to_pressure(tag.get_raw_measurement("pressure", hex_string))
+                    data = {
+                        'asset': 'pressure',
+                        'timestamp': time_stamp,
+                        'key': str(uuid.uuid4()),
+                        'readings': {"pressure": bar_pressure}
+                    }
+
+                # Get movement
+                if int(handle['characteristics']['movement']['data']['handle'], 16) == \
+                        int(hex_string[0].decode(), 16):
+                    gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = \
+                        tag.hex_movement_to_movement(tag.char_read_hnd(
+                                            handle['characteristics']['movement']['data']['handle'], "movement"))
+                    movement = {
+                        'gyroscope': {
+                            "x": gyro_x,
+                            "y": gyro_y,
+                            "z": gyro_z
+                        },
+                        'accelerometer': {
+                            "x": acc_x,
+                            "y": acc_y,
+                            "z": acc_z
+                        },
+                        'magnetometer': {
+                            "x": mag_x,
+                            "y": mag_y,
+                            "z": mag_z
+                        },
+                    }
+                    # Dedicated add_readings for movement
+                    for reading_key in movement:
                         data = {
-                            'asset': 'temperature',
+                            'asset': reading_key,
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
-                            'readings': {
-                                    "object": object_temp_celsius,
-                                    'ambient': ambient_temp_celsius
-                            }
+                            'readings': {reading_key: movement[reading_key]}
                         }
-
-                    # Get luminance
-                    if int(handle['characteristics']['luminance']['data']['handle'], 16) == \
-                            int(hex_string[0].decode(), 16):
-                        lux_luminance = tag.hex_lux_to_lux(tag.get_raw_measurement("luminance", hex_string))
-                        data = {
-                            'asset': 'luxometer',
-                            'timestamp': time_stamp,
-                            'key': str(uuid.uuid4()),
-                            'readings': {"lux": lux_luminance}
-                        }
-
-                    # Get humidity
-                    if int(handle['characteristics']['humidity']['data']['handle'], 16) == \
-                            int(hex_string[0].decode(), 16):
-                        rel_humidity, rel_temperature = tag.hex_humidity_to_rel_humidity(
-                                                        tag.get_raw_measurement("humidity", hex_string))
-                        data = {
-                            'asset': 'humidity',
-                            'timestamp': time_stamp,
-                            'key': str(uuid.uuid4()),
-                            'readings': {
-                                    "humidity": rel_humidity,
-                                    "temperature": rel_temperature
-                            }
-                        }
-
-                    # Get pressure
-                    if int(handle['characteristics']['pressure']['data']['handle'], 16) == \
-                            int(hex_string[0].decode(), 16):
-                        bar_pressure = tag.hex_pressure_to_pressure(tag.get_raw_measurement("pressure", hex_string))
-                        data = {
-                            'asset': 'pressure',
-                            'timestamp': time_stamp,
-                            'key': str(uuid.uuid4()),
-                            'readings': {"pressure": bar_pressure}
-                        }
-
-                    # Get movement
-                    if int(handle['characteristics']['movement']['data']['handle'], 16) == \
-                            int(hex_string[0].decode(), 16):
-                        gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, mag_x, mag_y, mag_z, acc_range = \
-                            tag.hex_movement_to_movement(tag.char_read_hnd(
-                                                handle['characteristics']['movement']['data']['handle'], "movement"))
-                        movement = {
-                            'gyroscope': {
-                                "x": gyro_x,
-                                "y": gyro_y,
-                                "z": gyro_z
-                            },
-                            'accelerometer': {
-                                "x": acc_x,
-                                "y": acc_y,
-                                "z": acc_z
-                            },
-                            'magnetometer': {
-                                "x": mag_x,
-                                "y": mag_y,
-                                "z": mag_z
-                            },
-                        }
-                        # Dedicated add_readings for movement
-                        for reading_key in movement:
-                            data = {
-                                'asset': reading_key,
-                                'timestamp': time_stamp,
-                                'key': str(uuid.uuid4()),
-                                'readings': {movement[reading_key]}
-                            }
-                            await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
-                                                      timestamp=data['timestamp'], key=data['key'],
-                                                      readings=data['readings'])
-
-                    # Get battery
-                    # FIXME: Investigate why no battery input in async mode?
-                    if int(battery['data']['handle'], 16) == int(hex_string[0].decode(), 16):
-                        battery_level = tag.get_battery_level(
-                            tag.char_read_hnd(battery['data']['handle'], "battery"))
-                        data = {
-                            'asset': 'battery',
-                            'timestamp': time_stamp,
-                            'key': str(uuid.uuid4()),
-                            'readings': {"percentage": battery_level}
-                        }
-
-                    # Get keypress
-                    # FIXME: Investigate why no keypress input?
-                    if int(keypress['data']['handle'], 16) == int(hex_string[0].decode(), 16):
-                        keypress_state = tag.get_keypress_state(
-                            tag.char_read_hnd(keypress['data']['handle'], "keypress"))
-                        data = {
-                            'asset': 'keypress',
-                            'timestamp': time_stamp,
-                            'key': str(uuid.uuid4()),
-                            'readings': {"state": keypress_state}
-                        }
-
-                    # Common add_readings for all keys other than movement
-                    if int(handle['characteristics']['movement']['data']['handle'], 16) != \
-                            int(hex_string[0].decode(), 16):
                         await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                                   timestamp=data['timestamp'], key=data['key'],
                                                   readings=data['readings'])
-                else:
-                    _LOGGER.error("SensorTagCC2650 async timeout")
-                    print("TIMEOUT!!")
+
+                # Get battery
+                # FIXME: Investigate why no battery input in async mode?
+                if int(battery['data']['handle'], 16) == int(hex_string[0].decode(), 16):
+                    battery_level = tag.get_battery_level(
+                        tag.char_read_hnd(battery['data']['handle'], "battery"))
+                    data = {
+                        'asset': 'battery',
+                        'timestamp': time_stamp,
+                        'key': str(uuid.uuid4()),
+                        'readings': {"percentage": battery_level}
+                    }
+
+                # Get keypress
+                # FIXME: Investigate why no keypress input?
+                if int(keypress['data']['handle'], 16) == int(hex_string[0].decode(), 16):
+                    keypress_state = tag.get_keypress_state(
+                        tag.char_read_hnd(keypress['data']['handle'], "keypress"))
+                    data = {
+                        'asset': 'keypress',
+                        'timestamp': time_stamp,
+                        'key': str(uuid.uuid4()),
+                        'readings': {"state": keypress_state}
+                    }
+
+                # Common add_readings for all keys other than movement
+                if int(handle['characteristics']['movement']['data']['handle'], 16) != \
+                        int(hex_string[0].decode(), 16):
+                    await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
+                                              timestamp=data['timestamp'], key=data['key'],
+                                              readings=data['readings'])
         except (Exception, RuntimeError) as ex:
             _LOGGER.exception("SensorTagCC2650 async {} exception: {}".format(bluetooth_adr, str(ex)))
             raise exceptions.DataRetrievalError(ex)
@@ -332,7 +337,6 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for CC2650ASYN plugin {} \n new config {}".format(handle, new_config))
 
     new_handle = plugin_init(new_config)
-    plugin_start(new_handle)
     return new_handle
 
 
@@ -362,8 +366,4 @@ def plugin_shutdown(handle):
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 (async) {} Disconnected.'.format(bluetooth_adr))
 
-    # Find all pending tasks and cancel
-    pending = asyncio.Task.all_tasks()
-    for p in pending:
-        p.cancel()
     _LOGGER.info('CC2650 async plugin shut down.')

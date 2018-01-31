@@ -283,7 +283,7 @@ class TestScheduler:
         scheduler.max_running_tasks = 0  # set that no tasks would run
         await scheduler.cancel_task(tasks[0].task_id)
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
 
         # Assert no tasks are running
         tasks = await scheduler.get_running_tasks()

@@ -23,13 +23,20 @@
 FACTORY_SETTING_ROOT="/usr/local/foglamp"
 FACTORY_SETTING_DATA="/usr/local/foglamp/data"
 
-FOGLAMP_EXE=""             # Call to the foglamp script
-FOGBENCH_EXE=""            # Call to the fogbench script
-TEST_BASEDIR=""            # Base Directory for tests
-RESULT_DIR=""              # Result Directory
+##
+## Environment Variables
+## These variables will be used in the test suites and files
+##
+export SUITE_NAME=""       # Name of the suite to execute
+export FOGLAMP_EXE=""      # Call to the foglamp script
+export FOGBENCH_EXE=""     # Call to the fogbench script
+export TEST_BASEDIR=""     # Base Directory for tests
+export RESULT_DIR=""       # Result Directory
+export TEST_NAME=""        # Name of the suite file to execute
+
+## Other variables
 foglamp_from_package=false # True if the scripts finds a foglamp script
 print_list=false           # By default do not print any list
-TEST_SUITE=""              # Name of the test-suite to execute
 AVAILABLE_TEST_SUITES=""   # Array of available test suites
 TEST_NAMES=""              # Array of tests in a suite to execute
 
@@ -70,7 +77,7 @@ extract_desc_from_suite() {
 ## Print the list of tests in a suite
 print_test_list() {
 
-  echo "Tests in the ${TEST_SUITE} suite:"
+  echo "Tests in the ${SUITE_NAME} suite:"
 
   for test_file in $TEST_NAMES; do
     test_name=$(extract_file_test_name $test_file)
@@ -78,7 +85,7 @@ print_test_list() {
     row_to_print="${test_name}: ${test_description}"
     echo "$row_to_print"
 
-    # Extradt original test files and descriptions
+    # Extract original test files and descriptions
     original_test_files=$(extract_test_files $test_file)
     for single_test_file in ${original_test_files}; do
       desc_file="${TEST_BASEDIR}/${single_test_file}.desc"
@@ -88,7 +95,7 @@ print_test_list() {
       else
         desc=""
       fi
-      echo "   > ${single_test_file}: ${desc}"
+      echo ">>> ${single_test_file}: ${desc}"
     done
   done
   echo
@@ -112,7 +119,7 @@ extract_desc_from_test() {
 
 ## Get the test files from the test file suite
 extract_test_files() {
-  test_files=`grep -o '\. \$TEST_BASEDIR/.*' $1 | cut -d' ' -f2 | sed 's/$TEST_BASEDIR\///' | sed 's/.bash$//'`
+  test_files=`grep -v '^ *#' $1 | grep -o '\$TEST_BASEDIR/.*' | cut -d' ' -f1 | sed 's/$TEST_BASEDIR\///' | sed 's/.bash$//'`
   echo $test_files
 }
 
@@ -120,7 +127,7 @@ extract_test_files() {
 ## Script variables print
 print_vars() {
 
-  echo "Script Suite: $TEST_SUITE"
+  echo "Script Suite: $SUITE_NAME"
   echo "Suite DIR:    $SUITE_BASEDIR"
   echo "Test DIR:     $TEST_BASEDIR"
   echo "FogLAMP Root: $FOGLAMP_ROOT"
@@ -209,8 +216,8 @@ extract_file_test_name() {
 
 ## Clean the results directory
 cleanup_results() {
-  rm -f ${TEST_SUITE}/r/*.result # Result files
-  rm -f ${TEST_SUITE}/r/*.temp   # Temp files
+  rm -f ${SUITE_NAME}/r/*.result # Result files
+  rm -f ${SUITE_NAME}/r/*.temp   # Temp files
 }
 
 
@@ -257,9 +264,9 @@ while [ "$1" != "" ]; do
       ;;
     * )
       # This may be the test suite name
-      if [[ -z "${TEST_SUITE}" ]]; then
+      if [[ -z "${SUITE_NAME}" ]]; then
         if [ "$(check_suite_list $1)" = true ]; then
-          TEST_SUITE=$1
+          SUITE_NAME=$1
         else
           echo "Not a valid test-suite name."
           echo "Try foglamp-test --help for more info"
@@ -277,7 +284,7 @@ while [ "$1" != "" ]; do
 done
 
 # Time to decide what to do
-if [[ -z "${TEST_SUITE}" ]]; then
+if [[ -z "${SUITE_NAME}" ]]; then
 
   # No test-suite selected
   if [ "${print_list}" = true ]; then
@@ -297,15 +304,15 @@ else
   # test-suite selected
 
   TEST_BASEDIR=`realpath ../tests`      # Set the test dir
-  RESULT_DIR=`realpath ${TEST_SUITE}/r` # Set the Result Dir
-  TEST_NAMES=${TEST_SUITE}/t/*.test     # Collect the list of tests in the suite
+  RESULT_DIR=`realpath ${SUITE_NAME}/r` # Set the Result Dir
+  TEST_NAMES=${SUITE_NAME}/t/*.test     # Collect the list of tests in the suite
 
   print_header
 
   if [ "${print_list}" = true ]; then
 
-    echo "Test Suite: ${TEST_SUITE}"
-    echo $(extract_desc_from_suite ${TEST_SUITE})
+    echo "Test Suite: ${SUITE_NAME}"
+    echo $(extract_desc_from_suite ${SUITE_NAME})
     echo
 
     # --list: print the list of tests in the test suite
@@ -324,21 +331,21 @@ else
 
     # Main Loop to execute tests
     for test_to_execute in $TEST_NAMES; do
-      test_name=$(extract_file_test_name $test_to_execute)
-      echo -n "[$(date +'%Y-%m-%d %H:%M:%S.%6N')] - $test_name - "
+      TEST_NAME=$(extract_file_test_name $test_to_execute)
+      echo -n "[$(date +'%Y-%m-%d %H:%M:%S.%6N')] - $TEST_NAME - "
       test_start=$(date +%s%N)
-      . $test_to_execute > ${TEST_SUITE}/r/${test_name}.result 2>&1
+      $test_to_execute > ${SUITE_NAME}/r/${TEST_NAME}.result 2>&1
       test_end=$(date +%s%N)
       elapsed_time=$((($test_end - $test_start)/1000000 ))
 
       # Check if the two files (expect and result) exist
-      if [[ -e "${TEST_SUITE}/e/${test_name}.expected" ]]; then
+      if [[ -e "${SUITE_NAME}/e/${TEST_NAME}.expected" ]]; then
 
         # The expected output exists
-        if [[ -e "${TEST_SUITE}/r/${test_name}.result" ]]; then
+        if [[ -e "${SUITE_NAME}/r/${TEST_NAME}.result" ]]; then
 
           # Expected and result output exist
-          check_diff=`diff ${TEST_SUITE}/r/${test_name}.result ${TEST_SUITE}/e/${test_name}.expected | wc -l`
+          check_diff=`diff ${SUITE_NAME}/r/${TEST_NAME}.result ${SUITE_NAME}/e/${TEST_NAME}.expected | wc -l`
           if [[ "$check_diff" -eq 0 ]]; then
             test_result="PASSED"
           else
@@ -355,7 +362,7 @@ else
 
       else # There is no expected output
   
-        if [[ -e "${TEST_SUITE}/r/${test_name}.result" ]]; then
+        if [[ -e "${SUITE_NAME}/r/${TEST_NAME}.result" ]]; then
           # Expected does not exist - Result exists
           test_result="FAILED"
           extra_result_info="UNEXPECTED Result"

@@ -29,7 +29,7 @@ class TestJQFilter:
     """
     _name = "JQFilter"
     # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
-    _core_management_port = 43643
+    _core_management_port = pytest.test_env.core_mgmt_port
     _core_management_host = "localhost"
 
     _storage_client = StorageClient("localhost", _core_management_port)

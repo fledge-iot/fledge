@@ -511,7 +511,7 @@ class TestConfigurationManager:
             str(error_exec))
 
     async def test_unregister_interest_0_callback(self):
-        """ Test that when unregister_interest is called and name/callback combo does not 
+        """ Test that when unregister_interest is called and name/callback combo does not
             exist, nothing happens
 
         :assert:
@@ -520,9 +520,9 @@ class TestConfigurationManager:
         """
         self.cf_mgr.unregister_interest(category_name='boolean', callback='tests.callback')
         assert len(self.cf_mgr._registered_interests) == 0
-       
+
     async def test_unregister_interest_1_callback(self):
-        """ Test that when unregister_interest is called and only one callback exists for 
+        """ Test that when unregister_interest is called and only one callback exists for
             the name, _registered_interests removes the dictionary item for that name
 
         :assert:
@@ -534,7 +534,7 @@ class TestConfigurationManager:
         assert len(self.cf_mgr._registered_interests) == 0
 
     async def test_unregister_interest_2_callback(self):
-        """ Test that when unregister_interest is called and only one callback exists for 
+        """ Test that when unregister_interest is called and only one callback exists for
             the name, _registered_interests removes only the single callback from the list
 
         :assert:

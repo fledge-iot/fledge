@@ -29,7 +29,7 @@ class TestPurge:
 
     # TODO: FOGL-510 Hardcoded core_management_port needs to be removed, should be coming form a test configuration file
     _name = "PurgeTask"
-    _core_management_port = 33925
+    _core_management_port = pytest.test_env.core_mgmt_port
     _core_management_host = "localhost"
 
     _storage_client = StorageClient("localhost", _core_management_port)

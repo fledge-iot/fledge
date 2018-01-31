@@ -1,13 +1,13 @@
-pylint==1.7.1
-pytest==3.1.1
-pytest-allure-adaptor==1.7.7
-pytest-asyncio==0.6.0
+pylint==1.8.2
+pytest==3.4.0
+pytest-allure-adaptor==1.7.10
+pytest-asyncio==0.8.0
 pytest-mock==1.6.0
 pytest-cov==2.5.1
+pytest-aiohttp==0.3.0
 
 # postgreSQL
 aiopg==0.13.0
 SQLAlchemy==1.1.10
 psycopg2==2.7.1
 asyncpg==0.12.0
-

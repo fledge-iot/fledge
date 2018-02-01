@@ -824,6 +824,7 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 --
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge',           '["tasks/purge"]'      );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'stats collector', '["tasks/statistics"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'FogLAMPUpdater',  '["tasks/update"]'     );
 
 -- Storage Tasks
 --

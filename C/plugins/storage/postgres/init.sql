@@ -70,13 +70,6 @@ CREATE SCHEMA foglamp;
 GRANT USAGE ON SCHEMA foglamp TO PUBLIC;
 
 ------ SEQUENCES
-CREATE SEQUENCE foglamp.asset_message_status_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE SEQUENCE foglamp.asset_messages_id_seq
     INCREMENT 1
     START 1
@@ -120,20 +113,6 @@ CREATE SEQUENCE foglamp.destinations_id_seq
     CACHE 1;
 
 CREATE SEQUENCE foglamp.links_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.readings_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.statistics_history_id_seq
     INCREMENT 1
     START 1
     MINVALUE 1
@@ -222,23 +201,19 @@ CREATE INDEX log_ix1
 
 
 -- Asset status
+-- List of status an asset can have.
 CREATE TABLE foglamp.asset_status (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_status_id_seq'::regclass),
        descriprion character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
         CONSTRAINT asset_status_pkey PRIMARY KEY (id) );
 
-COMMENT ON TABLE foglamp.asset_status IS
-'List of status an asset can have.';
-
 
 -- Asset Types
+-- Type of asset (for example south, sensor etc.)
 CREATE TABLE foglamp.asset_types (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_types_id_seq'::regclass),
        description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", 
         CONSTRAINT asset_types_pkey PRIMARY KEY (id) );
-
-COMMENT ON TABLE foglamp.asset_types IS
-'Type of asset (for example south, sensor etc.)';
 
 
 -- Assets table
@@ -265,9 +240,6 @@ CREATE TABLE foglamp.assets (
                  ON UPDATE NO ACTION
                  ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.assets IS
-'The assets table.';
-
 -- Index: fki_assets_fk1
 CREATE INDEX fki_assets_fk1
     ON foglamp.assets USING btree (status_id);
@@ -282,6 +254,8 @@ CREATE UNIQUE INDEX assets_ix1
 
 
 -- Asset Status Changes
+-- When an asset changes its status, the previous status is added here.
+-- tart_ts contains the value of ts of the row in the asset table.
 CREATE TABLE foglamp.asset_status_changes (
        id         bigint                      NOT NULL DEFAULT nextval('foglamp.asset_status_changes_id_seq'::regclass),
        asset_id   integer                     NOT NULL,
@@ -299,10 +273,6 @@ CREATE TABLE foglamp.asset_status_changes (
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.asset_status_changes IS
-'When an asset changes its status, the previous status is added here.
-start_ts contains the value of ts of the row in the asset table.';
-
 CREATE INDEX fki_asset_status_changes_fk1
     ON foglamp.asset_status_changes USING btree (asset_id);
 
@@ -311,6 +281,7 @@ CREATE INDEX fki_asset_status_changes_fk2
 
 
 -- Links table
+-- Links among assets in 1:M relationships.
 CREATE TABLE foglamp.links (
        id         integer                     NOT NULL DEFAULT nextval('foglamp.links_id_seq'::regclass),
        asset_id   integer                     NOT NULL,
@@ -321,9 +292,6 @@ CREATE TABLE foglamp.links (
        REFERENCES foglamp.assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
-
-COMMENT ON TABLE foglamp.links IS
-'Links among assets in 1:M relationships.';
 
 CREATE INDEX fki_links_fk1
     ON foglamp.links USING btree (asset_id);
@@ -345,16 +313,22 @@ CREATE INDEX fki_asset_link_fk2
 
 
 -- Asset Message Status table
+-- Status of the messages to send South
+CREATE SEQUENCE foglamp.asset_message_status_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE foglamp.asset_message_status (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_message_status_id_seq'::regclass),
        description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
         CONSTRAINT asset_message_status_pkey PRIMARY KEY (id) );
 
-COMMENT ON TABLE foglamp.asset_message_status IS
-'Status of the messages to send to a south';
-
 
 -- Asset Messages table
+-- Messages directed to the south devices.
 CREATE TABLE foglamp.asset_messages (
        id        bigint                      NOT NULL DEFAULT nextval('foglamp.asset_messages_id_seq'::regclass),
        asset_id  integer                     NOT NULL,
@@ -371,9 +345,6 @@ CREATE TABLE foglamp.asset_messages (
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.asset_messages IS
-'Messages directed to the south devices.';
-
 CREATE INDEX fki_asset_messages_fk1
     ON foglamp.asset_messages USING btree (asset_id);
 
@@ -385,6 +356,13 @@ CREATE INDEX fki_asset_messages_fk2
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to FogLAMP
+CREATE SEQUENCE foglamp.readings_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE foglamp.readings (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
     asset_code character varying(50)       NOT NULL,                      -- The provided asset code. Not necessarily located in the
@@ -395,9 +373,6 @@ CREATE TABLE foglamp.readings (
     ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
     CONSTRAINT readings_pkey PRIMARY KEY (id) );
 
-COMMENT ON TABLE foglamp.readings IS
-'Readings from sensors and south devices.';
-
 CREATE INDEX fki_readings_fk1
     ON foglamp.readings USING btree (asset_code);
 
@@ -406,6 +381,7 @@ CREATE INDEX readings_ix1
 
 
 -- Destinations table
+-- Multiple destinations are allowed, for example multiple PI servers.
 CREATE TABLE foglamp.destinations (
        id            integer                     NOT NULL DEFAULT nextval('foglamp.destinations_id_seq'::regclass),   -- Sequence ID
        type          smallint                    NOT NULL DEFAULT 1,                                                  -- Enum : 1: OMF, 2: Elasticsearch
@@ -416,11 +392,9 @@ CREATE TABLE foglamp.destinations (
        ts            timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Creation or last update
        CONSTRAINT destination_pkey PRIMARY KEY (id) );
 
-COMMENT ON TABLE foglamp.destinations IS
-'Multiple destinations are allowed, for example multiple PI servers.';
-
 
 -- Streams table
+-- List of the streams to the Cloud.
 CREATE TABLE foglamp.streams (
        id             integer                     NOT NULL DEFAULT nextval('foglamp.streams_id_seq'::regclass),         -- Sequence ID
        destination_id integer                     NOT NULL,                                                             -- FK to foglamp.destinations
@@ -439,37 +413,32 @@ CREATE TABLE foglamp.streams (
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.streams IS
-'List of the streams to the Cloud.';
-
 CREATE INDEX fki_streams_fk1
     ON foglamp.streams USING btree (destination_id);
 
 
 -- Configuration table
 -- The configuration in JSON format.
--- The PK is a 10 CHAR code (standard is to keep it UPPERCASE and usually filled with _
+-- The PK is also used in the REST API
 -- Values is a jsonb column
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
-       key         character(10)               NOT NULL COLLATE pg_catalog."default", -- Primary key, the rules are: 1. All uppercase, 2. All characters are filled.
-       description character varying(255)      NOT NULL,                              -- Description, in plan text
+       key         character varying(255)      NOT NULL COLLATE pg_catalog."default", -- Primary key
+       description character varying(255)      NOT NULL,                              -- Description, in plain text
        value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
        ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
        CONSTRAINT configuration_pkey PRIMARY KEY (key) );
-
 
 
 -- Configuration changes
 -- This table has the same structure of foglamp.configuration, plus the timestamp that identifies the time it has changed
 -- The table is used to keep track of the changes in the "value" column
 CREATE TABLE foglamp.configuration_changes (
-       key                 character(10)               NOT NULL COLLATE pg_catalog."default",
+       key                 character varying(255)      NOT NULL COLLATE pg_catalog."default",
        configuration_ts    timestamp(6) with time zone NOT NULL,
        configuration_value jsonb                       NOT NULL,
        ts                  timestamp(6) with time zone NOT NULL DEFAULT now(),
        CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts) );
-
 
 
 -- Statistics table
@@ -483,10 +452,16 @@ CREATE TABLE foglamp.statistics (
        CONSTRAINT statistics_pkey PRIMARY KEY (key) );
 
 
-
 -- Statistics history
 -- Keeps history of the statistics in foglamp.statistics
 -- The table is updated at startup
+CREATE SEQUENCE foglamp.statistics_history_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE foglamp.statistics_history (
        id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass), 
        key         character varying(56)       NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
@@ -496,19 +471,16 @@ CREATE TABLE foglamp.statistics_history (
        CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts) );
 
 
-
 -- Resources table
+-- A resource and be anything that is available or can be done in FogLAMP. Examples: 
+-- - Access to assets
+-- - Access to readings
+-- - Access to streams
 CREATE TABLE foglamp.resources (
     id          bigint                 NOT NULL DEFAULT nextval('foglamp.resources_id_seq'::regclass),
     code        character(10)          NOT NULL COLLATE pg_catalog."default",
     description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
     CONSTRAINT  resources_pkey PRIMARY KEY (id) );
-
-COMMENT ON TABLE foglamp.resources IS
-'A resource and be anything that is available or can be done in FogLAMP. Examples: 
-- Access to assets
-- Access to readings
-- Access to streams';
 
 CREATE UNIQUE INDEX resource_ix1
     ON foglamp.resources USING btree (code COLLATE pg_catalog."default");
@@ -521,12 +493,12 @@ CREATE TABLE foglamp.roles (
     description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
     CONSTRAINT  roles_pkey PRIMARY KEY (id) );
 
-
 CREATE UNIQUE INDEX roles_ix1
     ON foglamp.roles USING btree (name COLLATE pg_catalog."default");
 
 
 -- Roles, Resources and Permssions table
+-- For each role there are resources associated, with a given permission.
 CREATE TABLE foglamp.role_resource_permission (
        role_id     integer NOT NULL,
        resource_id integer NOT NULL,
@@ -541,9 +513,6 @@ CREATE TABLE foglamp.role_resource_permission (
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.role_resource_permission IS
-'For each role there are resources associated, with a given permission.';
-
 CREATE INDEX fki_role_resource_permissions_fk1
     ON foglamp.role_resource_permission USING btree (role_id);
 
@@ -552,6 +521,7 @@ CREATE INDEX fki_role_resource_permissions_fk2
 
 
 -- Roles Assets Permissions table
+-- Combination of roles, assets and access
 CREATE TABLE foglamp.role_asset_permissions (
     role_id    integer NOT NULL,
     asset_id   integer NOT NULL,
@@ -570,9 +540,6 @@ CREATE TABLE foglamp.role_asset_permissions (
             ON UPDATE NO ACTION
             ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.role_asset_permissions IS
-'Combination of roles, assets and access';
-
 CREATE INDEX fki_role_asset_permissions_fk1
     ON foglamp.role_asset_permissions USING btree (role_id);
 
@@ -581,6 +548,11 @@ CREATE INDEX fki_role_asset_permissions_fk2
 
 
 -- Users table
+-- FogLAMP users table.
+-- Authentication Method:
+-- 0 - Disabled
+-- 1 - PWD
+-- 2 - Public Key
 CREATE TABLE foglamp.users (
        id            integer                NOT NULL DEFAULT nextval('foglamp.users_id_seq'::regclass),
        uid           character varying(80)  NOT NULL COLLATE pg_catalog."default",
@@ -595,13 +567,6 @@ CREATE TABLE foglamp.users (
                   ON UPDATE NO ACTION
                   ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.users IS
-'FogLAMP users table.
-Authentication Method:
-0 - Disabled
-1 - PWD
-2 - Public Key';
-
 CREATE INDEX fki_users_fk1
     ON foglamp.users USING btree (role_id);
 
@@ -609,6 +574,7 @@ CREATE UNIQUE INDEX users_ix1
     ON foglamp.users USING btree (uid COLLATE pg_catalog."default");
 
 -- User Login table
+-- List of logins executed by the users.
 CREATE TABLE foglamp.user_logins (
        id      integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
        user_id integer                     NOT NULL,
@@ -620,14 +586,12 @@ CREATE TABLE foglamp.user_logins (
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.user_logins IS
-'List of logins executed by the users.';
-
 CREATE INDEX fki_user_logins_fk1
     ON foglamp.user_logins USING btree (user_id);
 
 
 -- User Resource Permissions table
+-- Association of users with resources and given permissions for each resource.
 CREATE TABLE foglamp.user_resource_permissions (
        user_id     integer NOT NULL,
        resource_id integer NOT NULL,
@@ -642,9 +606,6 @@ CREATE TABLE foglamp.user_resource_permissions (
                 ON UPDATE NO ACTION
                 ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.user_resource_permissions IS
-'Association of users with resources and given permissions for each resource.';
-
 CREATE INDEX fki_user_resource_permissions_fk1
     ON foglamp.user_resource_permissions USING btree (user_id);
 
@@ -653,6 +614,7 @@ CREATE INDEX fki_user_resource_permissions_fk2
 
 
 -- User Asset Permissions table
+-- Association of users with assets
 CREATE TABLE foglamp.user_asset_permissions (
        user_id    integer NOT NULL,
        asset_id   integer NOT NULL,
@@ -667,9 +629,6 @@ CREATE TABLE foglamp.user_asset_permissions (
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-COMMENT ON TABLE foglamp.user_asset_permissions IS
-'Association of users with assets';
-
 CREATE INDEX fki_user_asset_permissions_fk1
     ON foglamp.user_asset_permissions USING btree (user_id);
 
@@ -679,56 +638,53 @@ CREATE INDEX fki_user_asset_permissions_fk2
 
 -- List of scheduled Processes
 CREATE TABLE foglamp.scheduled_processes (
-  name   character varying(20)  NOT NULL, -- Name of the process
-  script jsonb, -- Full path of the process
-  CONSTRAINT scheduled_processes_pkey PRIMARY KEY (name) );
-
+             name   character varying(255)  NOT NULL, -- Name of the process
+             script jsonb,                            -- Full path of the process
+  CONSTRAINT scheduled_processes_pkey PRIMARY KEY ( name ) );
 
 
 -- List of schedules
 CREATE TABLE foglamp.schedules (
-  id                uuid                  NOT NULL, -- PK
-  process_name      character varying(20) NOT NULL, -- FK process name
-  schedule_name     character varying(20) NOT NULL, -- schedule name
-  schedule_type     smallint              NOT NULL, -- 1 = startup,  2 = timed
-                                                    -- 3 = interval, 4 = manual
-  schedule_interval interval,                       -- Repeat interval
-  schedule_time     time,                           -- Start time
-  schedule_day      smallint,                       -- ISO day 1 = Monday, 7 = Sunday
-  exclusive         boolean not null default true,  -- true = Only one task can run
-                                                    -- at any given time
-  enabled           boolean not null default false, -- false = A given schedule is disabled by default
-  CONSTRAINT schedules_pkey PRIMARY KEY (id),
-  CONSTRAINT schedules_fk1 FOREIGN KEY (process_name)
-  REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
+             id                uuid                   NOT NULL, -- PK
+             process_name      character varying(255) NOT NULL, -- FK process name
+             schedule_name     character varying(255) NOT NULL, -- schedule name
+             schedule_type     smallint               NOT NULL, -- 1 = startup,  2 = timed
+                                                                -- 3 = interval, 4 = manual
+             schedule_interval interval,                        -- Repeat interval
+             schedule_time     time,                            -- Start time
+             schedule_day      smallint,                        -- ISO day 1 = Monday, 7 = Sunday
+             exclusive         boolean not null default true,   -- true = Only one task can run
+                                                                -- at any given time
+             enabled           boolean not null default false,  -- false = A given schedule is disabled by default
+  CONSTRAINT schedules_pkey PRIMARY KEY  ( id ),
+  CONSTRAINT schedules_fk1  FOREIGN KEY  ( process_name )
+  REFERENCES foglamp.scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
-
 
 
 -- List of tasks
 CREATE TABLE foglamp.tasks (
-  id           uuid                        NOT NULL,               -- PK
-  process_name character varying(20)       NOT NULL,               -- Name of the task
-  state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
-  start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
-  end_time     timestamp(6) with time zone,                        -- The date and time the task ended
-  reason       character varying(255),                             -- The reason why the task ended
-  pid          int                         NOT NULL,               -- Linux process id
-  exit_code    int,                                                -- Process exit status code (negative means exited via signal)
-  CONSTRAINT tasks_pkey PRIMARY KEY (id),
-  CONSTRAINT tasks_fk1 FOREIGN KEY (process_name)
-  REFERENCES foglamp.scheduled_processes (name) MATCH SIMPLE
+             id           uuid                        NOT NULL,               -- PK
+             process_name character varying(255)      NOT NULL,               -- Name of the task
+             state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
+             start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
+             end_time     timestamp(6) with time zone,                        -- The date and time the task ended
+             reason       character varying(255),                             -- The reason why the task ended
+             pid          integer                     NOT NULL,               -- Linux process id
+             exit_code    integer,                                            -- Process exit status code (negative means exited via signal)
+  CONSTRAINT tasks_pkey PRIMARY KEY ( id ),
+  CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
+  REFERENCES foglamp.scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
 
-
 -- Tracks types already created into PI Server
 CREATE TABLE foglamp.omf_created_objects (
-    configuration_key   character(10)			NOT NULL,                             -- FK to foglamp.configuration
-    type_id             integer           	    NOT NULL,                             -- Identifies the specific PI Server type
-    asset_code			character varying(50)   NOT NULL,
+    configuration_key character varying(255)	NOT NULL,            -- FK to foglamp.configuration
+    type_id           integer           	    NOT NULL,            -- Identifies the specific PI Server type
+    asset_code        character varying(50)   NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
     REFERENCES foglamp.configuration (key) MATCH SIMPLE
@@ -737,24 +693,22 @@ CREATE TABLE foglamp.omf_created_objects (
 
 
 -- Backups information
+-- Stores information about executed backups
 CREATE TABLE foglamp.backups (
     id         bigint                      NOT NULL DEFAULT nextval('foglamp.backups_id_seq'::regclass),
     file_name  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- Backup file name, expressed as absolute path
     ts         timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Backup creation timestamp
-    type       integer           	       NOT NULL,                                                            -- Backup type : 1-Full, 2-Incremental
-    status     integer           	       NOT NULL,                                                            -- Backup status :
+    type       integer           	         NOT NULL,                                                            -- Backup type : 1-Full, 2-Incremental
+    status     integer           	         NOT NULL,                                                            -- Backup status :
                                                                                                                 --   1-Running
                                                                                                                 --   2-Completed
                                                                                                                 --   3-Cancelled
                                                                                                                 --   4-Interrupted
                                                                                                                 --   5-Failed
                                                                                                                 --   6-Restored backup
-    exit_code    int,                                                                                           -- Process exit status code
-    CONSTRAINT backups_pkey PRIMARY KEY (id)
-    );
+    exit_code  integer,                                                                                         -- Process exit status code
+    CONSTRAINT backups_pkey PRIMARY KEY (id) );
 
-COMMENT ON TABLE foglamp.backups IS
-'Stores information about executed backups.';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 
@@ -773,99 +727,78 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'SYPRG', 'System Purge' );
 
 
+--
 -- Configuration parameters
+--
 DELETE FROM foglamp.configuration;
 
--- PURGE: The cleaning process is on by default
---   age          : Age of data to be retained, all data that is older than this value will be removed by the purge process. This value is expressed in hours.
---   enabled      : A boolean switch that can be used to disable the purging of data. This is used if the process should be stopped from running.
---   retainUnsent : Retain data that has not been sent to tany historian yet.
--- INSERT INTO foglamp.configuration ( key, description, value )
---      VALUES ( 'PURGE', 'Purge data process', '{ "age" : 72, "enabled" : true, "retainUnsent" : false }' );
 
--- LOGPR: Log Partitioning
---        unit: unit used for partitioning. Valid values are minute, half-hour, hour, 6-hour, half-day, day, week, fortnight, month. Default is day
+-- North plugins
+
+-- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'LOGPART', 'Log Partitioning', '{ "unit" : "day" }' );
+     VALUES ( 'SEND_PR_1',
+              'OMF North Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+            );
 
--- SENSR: Sensors and south devices
---        status      : the process is on or off, it is on by default
---        time window : the time window when the process is active, always active by default (it means every second)
+-- SEND_PR_2 - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SENSORS',
-              'Sensors and South Interface',
-              '{ "category" : "CoAP", "configuration" : { "port" : { "description" : "Port to listen on", "default" : "5432", "value" : "5432", "type" : "integer" }, "url" : { "description" : "URL to accept data on", "default" : "sensor/reading-values", "value" : "sensor/reading-values", "type" : "string" }, "certificate" : { "description" : "X509 certificate used to identify ingress interface", "value" : "47676565", "type" : "x509 certificate" } } }' );
+     VALUES ( 'SEND_PR_2',
+              'OMF North Statistics Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+            );
 
--- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- SEND_PR_3 - HTTP Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_1', 'OMF North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_3',
+              'HTTP North Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } '
+            );
 
--- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
+-- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_2', 'OMF North Statistics Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'SEND_PR_4',
+              'OCS North Plugin Configuration',
+              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } '
+            );
 
 
--- HTTP north configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_3', 'HTTP North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } ');
-
--- OCS north plugin configuration, north key-value pair should not be added and pick dynamically (TODO- FOGL-732)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_4', 'OCS North Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } ');
-
-
--- STRMN: Streaming
---        status      : the process is on or off, it is on by default
---        time window : the time window when the process is active, always active by default (it means every second)
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'STREAMING', 'Streaming', '{ "status" : "day", "window" : [ "always" ] }' );
-
--- SYPRG: System Purge
---        retention : data retention in seconds. Default is 3 days (259200 seconds)
---        last purge: ts of the last purge call
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SYPURGE', 'System Purge', to_jsonb( '{ "retention" : 259200, "last purge" : "' || now() || '" }' ) );
-
--- COAP: South Microservice - CoAP Listener Plugin
---        plugin: python module to load dynamically
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'COAP', 'CoAP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } ');
+-- South plugins
 
 -- POLL: South Microservice - POLL Plugin template
---        plugin: python module to load dynamically
 INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'POLL', 'POLL South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } ');
+     VALUES ( 'POLL',
+              'South Plugin polling template',
+              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } '
+            );
+
+-- HTTP South template
+INSERT INTO foglamp.configuration ( key, description, value )
+    VALUES ( 'HTTP_SOUTH',
+             'HTTP Listener South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } '
+           );
+
+-- COAP: CoAP Listener Plugin
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'COAP',
+              'CoAP Listener South Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } '
+            );
 
 INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650POLL', 'SensorTagCC2650 South Poll Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } ');
+    VALUES ( 'CC2650POLL',
+             'TI SensorTag CC2650 polling South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } '
+           );
 
 INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650ASYN', 'SensorTagCC2650 South Async Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } ');
+    VALUES ( 'CC2650ASYN',
+             'TI SensorTag CC2650 async South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } '
+           );
 
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'HTTP_SOUTH', 'HTTP South Plugin Configuration', ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } ');
-
--- DELETE data for roles, resources and permissions
-DELETE FROM foglamp.role_resource_permission;
-DELETE FROM foglamp.roles;
-DELETE FROM foglamp.resources;
-
--- Roles
-INSERT INTO foglamp.roles ( id, name, description )
-     VALUES ( 1, 'Power User', 'A user with special privileges' );
-
--- Resources
-INSERT INTO foglamp.resources ( id, code, description )
-     VALUES ( 1, 'PURGE_MGR', 'Can Start / Stop the purging process' );
-INSERT INTO foglamp.resources ( id, code, description )
-     VALUES ( 2, 'PURGE_RULE', 'Can view or set purging rules' );
-
-
--- Roles/Resources Permissions
-INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
-     VALUES ( 1, 1, '{ "access": "set" }' );
-INSERT INTO foglamp.role_resource_permission ( role_id, resource_id, access )
-     VALUES ( 1, 2, '{ "access": ["create","read","write","delete"] }' );
 
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
@@ -880,128 +813,266 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
             ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0 );
 
--- Schedules
+
+--
+-- Scheduled processes
+--
 -- Use this to create guids: https://www.uuidgenerator.net/version1 */
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
--- FogLAMP South Microservice - CoAP Listener Plugin
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'COAP', '["services/south"]' );
--- FogLAMP South Microservice - POLL Plugin template
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'POLL', '["services/south"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]');
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]');
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]');
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge', '["tasks/purge"]' );
+-- Core Tasks
+--
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge',           '["tasks/purge"]'      );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'stats collector', '["tasks/statistics"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'sending process', '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'sending process OCS', '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
 
--- FogLAMP statistics into PI
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'statistics to pi','["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+-- Storage Tasks
+--
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup_postgres"]'  );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore_postgres"]' );
 
--- Send readings via HTTP
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('sending HTTP', '["tasks/north", "--stream_id", "3", "--debug_level", "1"]');
+-- South Microservices
+--
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'POLL',       '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'COAP',       '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]' );
 
--- FogLAMP Backup
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup','["tasks/backup_postgres"]' );
--- FogLAMP Restore
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore','["tasks/restore_postgres"]' );
+-- North Tasks
+--
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North HTTP',             '["tasks/north", "--stream_id", "3", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
+
+
+--
+-- Schedules
+--
+-- Use this to create guids: https://www.uuidgenerator.net/version1 */
+-- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
+--
+
+
+-- Core Tasks
+--
+
+-- Purge
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'cea17db8-6ccc-11e7-907b-a6006ad3dba0', -- id
+                'purge',                                -- schedule_name
+                'purge',                                -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '01:00:00',                             -- schedule_interval (evey hour)
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
+
+-- Statistics collection
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '2176eb68-7303-11e7-8cf7-a6006ad3dba0', -- id
+                'stats collection',                     -- schedule_name
+                'stats collector',                      -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:15',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
+
+
+-- Storage Tasks
+--
 
 -- Execute a Backup every 1 hour
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('d1631422-9ec6-11e7-abc4-cec278b6b50a', 'backup', 'backup', 3,
-NULL, '01:00:00', true, false);
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'd1631422-9ec6-11e7-abc4-cec278b6b50a', -- id
+                'backup hourly',                        -- schedule_name
+                'backup',                               -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '01:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- Used to execute an on demand Backup
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('fac8dae6-d8d1-11e7-9296-cec278b6b50a', 'backup on demand', 'backup', 4,
-NULL, '00:00:00', true, true);
+-- On demand Backup
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'fac8dae6-d8d1-11e7-9296-cec278b6b50a', -- id
+                'backup on demand',                     -- schedule_name
+                'backup',                               -- process_name
+                4,                                      -- schedule_type (manual)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
+  
+-- On demand Restore
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '8d4d3ca0-de80-11e7-80c1-9a214cf093ae', -- id
+                'restore on demand',                    -- schedule_name
+                'restore',                              -- process_name
+                4,                                      -- schedule_type (manual)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
 
--- Used to execute an on demand Restore
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('8d4d3ca0-de80-11e7-80c1-9a214cf093ae', 'restore on demand', 'restore', 4,
-NULL, '00:00:00', true, true);
 
--- Start the south server at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive, enabled)
-VALUES ('ada12840-68d3-11e7-907b-a6006ad3dba0', 'south', 'COAP', 1,
-'0:0', true, true);
+--
+-- South Microsevices
 
--- Start the Poll mode south server at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive, enabled)
-VALUES ('543a59ce-a9ca-11e7-abc4-cec278b6b50a', 'south', 'CC2650POLL', 1,
-'0:0', true, true);
+-- Poll template
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '543a59ce-a9ca-11e7-abc4-cec278b6b50b', -- id
+                'Poll south',                           -- schedule_name
+                'POLL',                                 -- process_name
+                1,                                      -- schedule_type (startup)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- Start the async mode CC2650 Sensortag at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive, enabled)
-VALUES ('716a16ea-c736-490b-86d5-10204585ca8c', 'south', 'CC2650ASYN', 1,
-'0:0', true, false);
+---- HTTP Listener
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'a2caca59-1241-478d-925a-79584e7096e0', -- id
+                'HTTP listener south',                  -- schedule_name
+                'HTTP_SOUTH',                           -- process_name
+                1,                                      -- schedule_type (startup)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
 
--- Start the Poll mode south server at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive, enabled)
-VALUES ('543a59ce-a9ca-11e7-abc4-cec278b6b50b', 'south', 'POLL', 1,
-'0:0', true, false);
+-- COAP Listener
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( 'ada12840-68d3-11e7-907b-a6006ad3dba0', -- id
+                'COAP listener south',                  -- schedule_name
+                'COAP',                                 -- process_name
+                1,                                      -- schedule_type (startup)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
 
----- Start the south server HTTP Listener at start-up
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_interval, exclusive, enabled)
-VALUES ('a2caca59-1241-478d-925a-79584e7096e0', 'south', 'HTTP_SOUTH', 1,
-'0:0', true, false);
+-- TI CC2650 Poll
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '543a59ce-a9ca-11e7-abc4-cec278b6b50a', -- id
+                'CC2650 poll south',                    -- schedule_name
+                'CC2650POLL',                           -- proceess_name
+                1,                                      -- schedule_type (startup)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- Run the purge process every 5 minutes
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('cea17db8-6ccc-11e7-907b-a6006ad3dba0', 'purge', 'purge', 3,
-NULL, '00:05:00', true, true);
+-- TI CC2650 Async
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '716a16ea-c736-490b-86d5-10204585ca8c', -- id
+                'CC2650 async south',                   -- schedule_name
+                'CC2650ASYN',                           -- process_name
+                1,                                      -- schedule_type (startup)
+                NULL,                                   -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- Run the North sending process every 15 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('2b614d26-760f-11e7-b5a5-be2e44b06b34', 'sending process', 'sending process', 3,
-NULL, '00:00:15', true, true);
 
--- Run the North sending process for OCS every 15 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', 'sending process OCS', 'sending process OCS', 3,
-NULL, '00:00:15', true, false);
-
--- Run the statistics collector every 15 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('2176eb68-7303-11e7-8cf7-a6006ad3dba0', 'stats collector', 'stats collector', 3,
-NULL, '00:00:15', true, true);
-
--- Run FogLAMP statistics into PI every 25 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('1d7c327e-7dae-11e7-bb31-be2e44b06b34', 'statistics to pi', 'statistics to pi', 3,
-NULL, '00:00:25', true, true);
+-- North Tasks
+--
 
 -- Run the sending process using HTTP North translator every 15 seconds
-INSERT INTO foglamp.schedules(id, schedule_name, process_name, schedule_type,
-schedule_time, schedule_interval, exclusive, enabled)
-VALUES ('81bdf749-8aa0-468e-b229-9ff695668e8c', 'sending via HTTP', 'sending HTTP', 3,
-NULL, '00:00:15', true, false);
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '81bdf749-8aa0-468e-b229-9ff695668e8c', -- id
+                'sending via HTTP',                     -- schedule_name
+                'North HTTP',                           -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- OMF north configuration
-INSERT INTO foglamp.destinations(id,description, ts) VALUES (1,'OMF', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (1,1,'OMF north', 0,now());
+-- Readings OMF to PI
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '2b614d26-760f-11e7-b5a5-be2e44b06b34', -- id
+                'OMF to PI north',                      -- schedule_name
+                'North Readings to PI',                 -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- FogLAMP statistics into PI configuration
-INSERT INTO foglamp.streams (id,destination_id,description, last_object,ts ) VALUES (2,1,'FogLAMP statistics into PI', 0,now());
+-- Readings OMF to OCS
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '5d7fed92-fb9a-11e7-8c3f-9a214cf093ae', -- id
+                'OMF to OCS north',                     -- schedule_name
+                'North Readings to OCS',                -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- HTTP north configuration
-INSERT INTO foglamp.destinations(id,description, ts) VALUES (2,'HTTP_TR', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (3,2,'HTTP north', 0,now());
+-- Statistics OMF to PI
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '1d7c327e-7dae-11e7-bb31-be2e44b06b34', -- id
+                'Stats OMF to PI north',                -- schedule_name
+                'North Statistics to PI',               -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                true,                                   -- exclusive
+                false                                   -- disabled
+              );
 
--- HTTP OCS configuration
-INSERT INTO foglamp.destinations(id,description, ts) VALUES (3,'OCS', now());
-INSERT INTO foglamp.streams(id,destination_id,description, last_object,ts) VALUES (4,3,'OCS north', 0,now());
+
+--
+-- Configuration for North Plugins OMF
+--
+
+-- Readings to OMF to PI
+INSERT INTO foglamp.destinations ( id, description, ts )
+       VALUES ( 1, 'OMF', now() );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts ) 
+       VALUES ( 1, 1, 'OMF north', 0, now() );
+
+-- Stats to OMF to PI
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts ) 
+       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0, now() );
+
+-- Readings to HTTP
+INSERT INTO foglamp.destinations ( id, description, ts ) 
+       VALUES ( 2, 'HTTP_TR', now() );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
+       VALUES ( 3, 2, 'HTTP north', 0, now() );
+
+-- Readings to OMF to OCS
+INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', now() );
+INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, now() );
+

@@ -24,9 +24,7 @@ __version__ = "${VERSION}"
 
 _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
 # TODO: To run this test,
-#       1) Do 'scripts/foglamp start' and note the management_port from syslog
-#       2) Change _m_port below with the management_port
-#       3) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/integration/foglamp/services/core/test_scheduler.py
+# 1) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/integration/foglamp/services/core/test_scheduler.py
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?
 _address = pytest.test_env.address

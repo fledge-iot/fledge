@@ -16,6 +16,7 @@ from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
+from foglamp.plugins import utils
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -339,13 +340,7 @@ def plugin_reconfigure(handle, new_config):
     _LOGGER.info("Old config for CC2650ASYN plugin {} \n new config {}".format(handle, new_config))
 
     # Find diff between old config and new config
-    diff = list()
-    for key in new_config:
-        if key in handle:
-            if handle[key] != new_config[key]:
-                diff.append(key)
-        else:
-            diff.append(key)
+    diff = utils.get_diff(handle, new_config)
 
     # Plugin should re-initialize and restart if key configuration is changed
     if 'bluetoothAddress' in diff:

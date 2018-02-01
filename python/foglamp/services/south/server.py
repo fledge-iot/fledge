@@ -7,10 +7,6 @@
 """FogLAMP South Microservice"""
 
 import asyncio
-import signal
-
-import pexpect
-
 from foglamp.services.south import exceptions
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
@@ -64,8 +60,8 @@ class Server(FoglampMicroservice):
     """The value that is returned by the plugin_init"""
 
     _type = "Southbound"
-    _task_async = None
-    _task_poll = None
+
+    _task_main = None
 
     async def _start(self, loop) -> None:
         error = None
@@ -126,14 +122,14 @@ class Server(FoglampMicroservice):
 
             # Executes the requested plugin type
             if self._plugin_info['mode'] == 'async':
-                self._task_async = asyncio.ensure_future(self._exec_plugin_async())
+                self._task_main = asyncio.ensure_future(self._exec_plugin_async())
             elif self._plugin_info['mode'] == 'poll':
-                self._task_poll = asyncio.ensure_future(self._exec_plugin_poll())
+                self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
         except asyncio.CancelledError:
             pass
         except exceptions.DataRetrievalError:
             _LOGGER.exception('Data retreival error in plugin {}'.format(self._name))
-        except (Exception, KeyError, pexpect.exceptions.TIMEOUT) as ex:
+        except (Exception, KeyError) as ex:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
@@ -143,13 +139,11 @@ class Server(FoglampMicroservice):
     async def _exec_plugin_async(self) -> None:
         """Executes async type plugin
         """
-        # await Ingest.start(self._core_management_host, self._core_management_port)
         self._plugin.plugin_start(self._plugin_handle)
 
     async def _exec_plugin_poll(self) -> None:
         """Executes poll type plugin
         """
-        # await Ingest.start(self._core_management_host, self._core_management_port)
         max_retry = 3
         try_count = 1
         while self._plugin and try_count <= max_retry:
@@ -206,16 +200,13 @@ class Server(FoglampMicroservice):
             raise ex
 
         try:
-            if self._task_async:
-                self._task_async.cancel()
-            if self._task_poll:
-                self._task_poll.cancel()
+            self._task_main.cancel()
             # Cancel all pending asyncio tasks after a timeout occurs
             done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=5)
             for task_pending in pending:
                 task_pending.cancel()
             await asyncio.sleep(2)
-        except (asyncio.CancelledError, exceptions.DataRetrievalError, pexpect.exceptions.TIMEOUT):
+        except (asyncio.CancelledError, exceptions.DataRetrievalError):
             pass
 
         # This deactivates event loop and
@@ -252,17 +243,16 @@ class Server(FoglampMicroservice):
             self._plugin_handle = new_handle
 
             if new_handle['restart'] == 'yes':
+                self._task_main.cancel()
                 # Executes the requested plugin type with new config
                 if self._plugin_info['mode'] == 'async':
-                    self._task_async.cancel()
-                    self._task_async = asyncio.ensure_future(self._exec_plugin_async())
+                    self._task_main = asyncio.ensure_future(self._exec_plugin_async())
                 elif self._plugin_info['mode'] == 'poll':
-                    self._task_poll.cancel()
-                    self._task_poll = asyncio.ensure_future(self._exec_plugin_poll())
+                    self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
                 await asyncio.sleep(2)
         except asyncio.CancelledError:
             pass
-        except (exceptions.DataRetrievalError, pexpect.exceptions.TIMEOUT):
+        except exceptions.DataRetrievalError:
             _LOGGER.exception('Data retreival error in plugin {} during reconfigure'.format(self._name))
             raise web.HTTPInternalServerError('Data retreival error in plugin {} during reconfigure'.format(self._name))
 

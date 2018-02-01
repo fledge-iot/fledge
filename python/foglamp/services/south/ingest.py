@@ -518,7 +518,6 @@ class Ingest(object):
         if cls._stop:
             _LOGGER.warning('The South server is stopping')
             return
-            # raise RuntimeError('The South server is stopping')
 
         if not cls._started:
             raise RuntimeError('The South server was not started')

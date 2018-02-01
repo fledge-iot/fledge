@@ -41,8 +41,9 @@ Before we start our adventure in the world of FogLAMP testing, let's set a commo
 
 - **Unit tests**: these are tests that developers prepare to test their functions and modules. Unit tests can vary in complexity, but in principle they are meant to test a small piece of code. A unit test does not have a particular meaning to users, but it is an essential part of the software development: by running unit tests, developers can check if a modified piece of code still behaves as expected and it will not cause issues to the whole system. Unit testing is explained |unit test|.
 - **Integration tests**: these are tests that developers prepare to test larger modules or microservices. Integration tests usually require a significant development effort in building other mocked modules and services. We are not planning to provide any integration test in the foreseeable future. Integration testing is explained |integration test|.
-- **System tests**: these are tests that can be used by developers and even by power users who want to test the entire system. In order to execute this tests, FogLAMP must be built, installed (although it could be in a development environment) and ready to run. System testing is explained |system test|.
+- **System tests**: these are tests that can be used by developers and even by power users who want to test FogLAMP running with all the necessary microservices running. In order to execute these tests, FogLAMP must be built, installed (although it could be in a development environment) and ready to run. System testing is explained |system test|.
 - **Test suite**: this is a set of tests combined together to execute a meaningful test of the system. Examples of test suites are a *smoke test* (a quick and simple system test used to verify that FogLAMP is working properly), or *end-to-end test* (a test used to verify that FogLAMP can successfully collect, store and forward data from South to North and East/West or from North to South and East/West.
+- **End to end tests**: this is a type of system test that, in FogLAMP terms, can test the collection, storage and transfer of data. For example, we can call "End to End" test a suite that tests the collection of data from a South plugin and the storage of the same data in a PI server, through the North plugin. The concept of "End to End" relies on the fact that data is collected from one end (the South plugin) and it is tested all the way up to the other end (the PI Server).
 
 
 FogLAMP System Test Principles
@@ -165,13 +166,13 @@ This is an example of a direcory tree from the system test base directory:
 How to Prepare a Test Suite
 ===========================
 
-In this section we will see how to prepare a new test suite. The objective is to familiarize with the various components, so that you may create your own suite. 
+In this section we will see how to prepare a new test suite. The objective is to familiarize with the various components, so that you can create your own suite. 
 
 
 Step 1: the Building Blocks, i.e. the Test Files
 ------------------------------------------------
 
-The first thing to do is to create some building blocks. These are test files, normally written in bash, that can be reused as many times as you wish in multiple test suites. |br| There are no limitations in the logic you may want to add to each test file, but you should consider these guidelines:
+The first thing to do is to create some building blocks. These are test files, normally written in bash or Python, that can be reused as many times as you wish in multiple test suites. |br| There are no limitations in the logic you may want to add to each test file, but you should consider these guidelines:
 
 - **Verify the consistency of each file**: the most common error in the test suite is the modification of a test file that is used in many test suites. When you modify a test file, make sure that the file will produce the same results. If the results change, then you must modify all the result files affected by the test file.
 - **Document the test file**: it is the most obvious suggestion, but also the one that is often ignored. Try to avoid to create test files that are obscured, with unknown behaviour, because there is a high risk of recreating many times the very same test file simply because you are not aware that there is another test file with the same logic.
@@ -308,7 +309,7 @@ In the example above, you may see the suite has been completed and all the tests
 Checking a Failed Test
 ----------------------
 
-This is what you may see if one of the tests in the suite fail:
+This is what you may see if one of the tests if the suite fails:
 
 
 .. code-block:: console

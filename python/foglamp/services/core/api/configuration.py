@@ -82,7 +82,7 @@ async def create_category(request):
             category info
 
     :Example:
-            curl -d '{"key": "category_name", "description": "description", "value": {dict}}' -X POST http://localhost:8081/foglamp/category
+            curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}' -X POST http://localhost:8081/foglamp/category
     """
     try:
         cf_mgr = ConfigurationManager(connect.get_storage())
@@ -90,16 +90,14 @@ async def create_category(request):
         if not isinstance(data, dict):
             raise ValueError('Data payload must be a dictionary')
 
-        valid_keys = ['key', 'description', 'value']
-        for k in valid_keys:
+        valid_post_keys = ['key', 'description', 'value']
+        for k in valid_post_keys:
             if k not in list(data.keys()):
-                raise KeyError("'{}' key not found".format(k))
+                raise KeyError("'{}' param required to create a category".format(k))
 
         category_name = data.get('key')
         category_desc = data.get('description')
         category_value = data.get('value')
-        if not isinstance(category_value, dict):
-            raise ValueError('Category value must be a dictionary')
 
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
                                      category_value=category_value, keep_original_items=False)

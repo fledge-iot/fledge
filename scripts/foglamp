@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {start|stop|status|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|reset|help}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
@@ -48,9 +48,35 @@ fi
 . $FOGLAMP_ROOT/scripts/common/write_log.sh
 
 
+## Check the Storage management script
+check_storage_management_script() {
+
+  if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
+      foglamp_log "info" "FogLAMP cannot ${1}." "all" "pretty"
+      foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
+      exit 1
+  fi
+
+}
+
 ## Logger wrapper
 foglamp_log() {
     write_log "foglamp.script.foglamp" "$1" "$2" "$3" "$4"
+}
+
+
+## FogLAMP Reset
+## Reset means that the database is removed and all the data will be lost!
+foglamp_reset() {
+
+  # Check the storage management script
+  check_storage_management_script "be reset"
+
+  # Execute the Storage Plugin Script
+  # NOTE: this script prepares the storage,
+  #       but it does not start the microservice
+  source "$FOGLAMP_ROOT/scripts/storage" reset
+
 }
 
 
@@ -58,11 +84,7 @@ foglamp_log() {
 foglamp_start() {
 
     # Check the storage management script
-    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
-        foglamp_log "info" "FogLAMP cannot start." "all" "pretty"
-        foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
-        exit 1
-    fi
+    check_storage_management_script "start"
 
     # Check the Python environment
     if ! [[ -x "$(command -v python3)" ]]; then
@@ -276,6 +298,9 @@ if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
 fi
 
 case "$1" in
+    reset)
+        foglamp_reset
+        ;;
     start)
         foglamp_start
         ;;

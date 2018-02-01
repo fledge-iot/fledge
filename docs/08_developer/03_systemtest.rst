@@ -181,7 +181,6 @@ The first thing to do is to create some building blocks. These are test files, n
 These are examples of test files:
 
 - *check_foglamp_status*: this script executes the ``foglamp status`` command, but it only provides the first line of the command, i.e. if FogLAMP is running or not.
-- *start_foglamp*: this script executes the ``foglamp start`` command, but the output is normally ignored.
 - *exec_any_foglamp_command*: this is a script used to generically call any command of the *foglamp* utility. 
 
 

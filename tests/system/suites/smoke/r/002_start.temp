@@ -1,7 +1,0 @@
-FogLAMP running.
-FogLAMP uptime:  5 seconds.
-=== FogLAMP services:
-foglamp.services.core
-foglamp.services.south --port=45364 --address=127.0.0.1 --name=HTTP_SOUTH
-foglamp.services.south --port=45364 --address=127.0.0.1 --name=COAP
-=== FogLAMP tasks:

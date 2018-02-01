@@ -264,7 +264,7 @@ def plugin_reconfigure(handle, new_config):
 
     # Plugin should re-initialize and restart if key configuration is changed
     if 'bluetoothAddress' in diff:
-        plugin_stop(handle)
+        _plugin_stop(handle)
         new_handle = plugin_init(new_config)
         new_handle['restart'] = 'yes'
         _LOGGER.info("Restarting CC2650POLL plugin due to change in configuration keys [{}]".format(', '.join(diff)))
@@ -273,7 +273,7 @@ def plugin_reconfigure(handle, new_config):
         new_handle['restart'] = 'no'
     return new_handle
 
-def plugin_stop(handle):
+def _plugin_stop(handle):
     """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
     Args:
@@ -295,5 +295,5 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    plugin_stop(handle)
+    _plugin_stop(handle)
     _LOGGER.info('CC2650 poll plugin shut down.')

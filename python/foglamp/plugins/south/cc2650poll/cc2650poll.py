@@ -9,13 +9,12 @@
 import copy
 import datetime
 import json
-import asyncio
 import uuid
 
+from foglamp.common import logger
+from foglamp.plugins.common import utils
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
-from foglamp.common import logger
-from foglamp.plugins import utils
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -265,13 +264,7 @@ def plugin_reconfigure(handle, new_config):
 
     # Plugin should re-initialize and restart if key configuration is changed
     if 'bluetoothAddress' in diff:
-        # TODO: Investigate if a common stop_plugin() method, shared by plugin_shutdown(), required.
-        if 'tag' in handle:
-            bluetooth_adr = handle['bluetoothAddress']['value']
-            tag = handle['tag']
-            tag.disconnect()
-            _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
-
+        plugin_stop(handle)
         new_handle = plugin_init(new_config)
         new_handle['restart'] = 'yes'
         _LOGGER.info("Restarting CC2650POLL plugin due to change in configuration keys [{}]".format(', '.join(diff)))
@@ -280,8 +273,8 @@ def plugin_reconfigure(handle, new_config):
         new_handle['restart'] = 'no'
     return new_handle
 
-def plugin_shutdown(handle):
-    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+def plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -294,4 +287,13 @@ def plugin_shutdown(handle):
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
 
+def plugin_shutdown(handle):
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    plugin_stop(handle)
     _LOGGER.info('CC2650 poll plugin shut down.')

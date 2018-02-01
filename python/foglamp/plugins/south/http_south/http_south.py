@@ -5,14 +5,16 @@
 # FOGLAMP_END
 
 """HTTP Listener handler for sensor readings"""
-import sys
-from aiohttp import web
 import asyncio
 import copy
+import sys
+
+from aiohttp import web
+
 from foglamp.common import logger
 from foglamp.common.web import middleware
+from foglamp.plugins.common import utils
 from foglamp.services.south.ingest import Ingest
-from foglamp.plugins import utils
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -117,20 +119,7 @@ def plugin_reconfigure(handle, new_config):
 
     # Plugin should re-initialize and restart if key configuration is changed
     if 'port' in diff or 'host' in diff:
-        # TODO: Investigate if a common stop_plugin() method, shared by plugin_shutdown(), required.
-        try:
-            app = handle['app']
-            handler = handle['handler']
-            server = handle['server']
-
-            server.close()
-            asyncio.ensure_future(server.wait_closed())
-            asyncio.ensure_future(app.shutdown())
-            asyncio.ensure_future(handler.shutdown(60.0))
-            asyncio.ensure_future(app.cleanup())
-        except Exception as e:
-            _LOGGER.exception(str(e))
-            raise
+        plugin_stop(handle)
         new_handle = plugin_init(new_config)
         new_handle['restart'] = 'yes'
         _LOGGER.info("Restarting HTTP_SOUTH plugin due to change in configuration keys [{}]".format(', '.join(diff)))
@@ -139,11 +128,18 @@ def plugin_reconfigure(handle, new_config):
         new_handle['restart'] = 'no'
     return new_handle
 
-def plugin_shutdown(data):
+def plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
     try:
-        app = data['app']
-        handler = data['handler']
-        server = data['server']
+        app = handle['app']
+        handler = handle['handler']
+        server = handle['server']
 
         server.close()
         asyncio.ensure_future(server.wait_closed())
@@ -153,6 +149,16 @@ def plugin_shutdown(data):
     except Exception as e:
         _LOGGER.exception(str(e))
         raise
+
+def plugin_shutdown(handle):
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    plugin_stop(handle)
     _LOGGER.info('South HTTP plugin shut down.')
 
 

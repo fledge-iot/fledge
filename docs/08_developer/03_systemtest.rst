@@ -180,7 +180,7 @@ The first thing to do is to create some building blocks. These are test files, n
 
 These are examples of test files:
 
-- *check_foglamp_status*: this script executes the ``foglamp status`` command, but it only provides the firs line of the command, i.e. if FogLAMP is running or not.
+- *check_foglamp_status*: this script executes the ``foglamp status`` command, but it only provides the first line of the command, i.e. if FogLAMP is running or not.
 - *start_foglamp*: this script executes the ``foglamp start`` command, but the output is normally ignored.
 - *exec_any_foglamp_command*: this is a script used to generically call any command of the *foglamp* utility. 
 
@@ -192,7 +192,7 @@ These pre-defined variables are helpful in the test files:
 
 - **FOGLAMP_EXE**: the foglamp script. Based on the *FOGLAMP_ROOT* variable and the presence of the *foglamp* command, the *foglamp-test* utility has already selected the script for you. By using the variable, you will have consistent executions along the whole suite.
 - **FOGBENCH_EXE**: the fogbench script. As for *FOGLAMP_EXE*, this variable guarantees the consistency of the execution along the whole suite.
-- **SUITE_NAME**: the name of the suite that is currently executed. The variable is also the name o the directory containing the suite files.
+- **SUITE_NAME**: the name of the suite that is currently executed. The variable is also the name of the directory containing the suite files.
 - **SUITE_BASEDIR**: the path to the suite directory, i.e. the directory containing all the suite files.
 - **TEST_BASEDIR**: the path to the tests directory, i.e. the directory containing the building blocks (the test files) for the suites.
 - **RESULT_DIR**: the path to the result directory, which is part of the suite.
@@ -266,7 +266,7 @@ If you want to see details of a suite, select a suite and add the *--list* argum
   foglamp@vbox-dev:~/FogLAMP/tests/system/suites$
 
 
-Once you have selected the test suite you want to execute, you can run it by simply passing it as a parameter to the *foglamp-utility*:
+Once you have selected the test suite you want to execute, you can run it by simply passing it as a parameter to the *foglamp-test*:
 
 .. code-block:: console
 

@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 
-# Setups the proper OCS configuration
-server=localhost
+# Reads the configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
 
-curl -X PUT http://${server}:8081/foglamp/schedule/5d7fed92-fb9a-11e7-8c3f-9a214cf093ae -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/$TEST_NAME.temp
+# Setups the proper OCS configuration
+curl -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${OCS_schedule} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/$TEST_NAME.temp
+# FIXME:
 sleep 45
 
-curl -X PUT http://${server}:8081/foglamp/category/OCS_TYPES/type-id -d '{ "value" : "2919" }' &>>  ${RESULT_DIR}/$TEST_NAME.temp
-curl -X PUT http://${server}:8081/foglamp/category/SEND_PR_4/producerToken -d '{ "value" : "1/806fc3f16bc44bb7a38cacadc1fcfb9d/8510897da3054f268576195a0e56d4b7/4be9ded8-c6a6-44ac-8e1a-9db44e58fa49/65230398000/5shiyq%2FljMqHxeKHD6eAv5vULuQJ6eRuV7%2F4nefRYSI%3D" }' &>>  ${RESULT_DIR}/$TEST_NAME.temp
+curl -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OCS_TYPES/type-id -d "{ \"value\" : \"${OCS_type_id}\" }"  &>>  ${RESULT_DIR}/$TEST_NAME.temp
+curl -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/producerToken -d "{ \"value\" : \"${OCS_token}\" }" &>>  ${RESULT_DIR}/$TEST_NAME.temp
+# FIXME:
 sleep 5
 
 # Initialize OCS cleaning all the content of the defined OCS NameSpace
-python3 $TEST_BASEDIR/python/ocs_clean.py $@              > /dev/null 2>&1
-python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@ | tee ${RESULT_DIR}/$TEST_NAME.temp | grep 'OCS - number of Streams'
+python3 $TEST_BASEDIR/python/ocs_clean.py $@              &>>  ${RESULT_DIR}/$TEST_NAME.temp
+# Retrieves the list of the Streams to ensure it is empty
+python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@

@@ -85,6 +85,10 @@ def plugin_start(data):
         server_coro = loop.create_server(handler, host, port)
         future = asyncio.ensure_future(server_coro)
 
+        data['app'] = app
+        data['handler'] = handler
+        data['server'] = None
+
         def f_callback(f):
             # _LOGGER.info(repr(f.result()))
             """ <Server sockets=
@@ -92,12 +96,8 @@ def plugin_start(data):
             data['server'] = f.result()
 
         future.add_done_callback(f_callback)
-
-        data['app'] = app
-        data['handler'] = handler
     except Exception as e:
         _LOGGER.exception(str(e))
-        sys.exit(1)
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin
@@ -141,11 +141,12 @@ def _plugin_stop(handle):
         handler = handle['handler']
         server = handle['server']
 
-        server.close()
-        asyncio.ensure_future(server.wait_closed())
-        asyncio.ensure_future(app.shutdown())
-        asyncio.ensure_future(handler.shutdown(60.0))
-        asyncio.ensure_future(app.cleanup())
+        if server:
+            server.close()
+            asyncio.ensure_future(server.wait_closed())
+            asyncio.ensure_future(app.shutdown())
+            asyncio.ensure_future(handler.shutdown(60.0))
+            asyncio.ensure_future(app.cleanup())
     except Exception as e:
         _LOGGER.exception(str(e))
         raise

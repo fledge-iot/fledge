@@ -24,6 +24,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
+# We want to see informational output from this plugin
+_LOGGER.setLevel(logging.INFO)
 
 _DEFAULT_CONFIG = {
     'plugin': {
@@ -72,10 +74,6 @@ def plugin_init(config):
     Raises:
     """
     handle = config
-
-    _LOGGER.setLevel(logging.INFO)
-    """ We want to see informational output from this plugin """
-
     return handle
 
 def plugin_start(handle):

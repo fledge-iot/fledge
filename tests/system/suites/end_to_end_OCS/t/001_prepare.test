@@ -7,8 +7,3 @@ echo -e "YES" | $TEST_BASEDIR/bash/exec_any_foglamp_command.bash reset > /dev/nu
 # FIXME:
 psql  -U foglamp  -c "DELETE FROM foglamp.readings;"    > /dev/null 2>&1
 psql  -U foglamp  -c "DELETE FROM foglamp.omf_created_objects;"    > /dev/null 2>&1
-
-
-python3 $TEST_BASEDIR/python/ocs_clean.py $@              > /dev/null 2>&1
-python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@ | tee ${RESULT_DIR}/$TEST_NAME.temp | grep 'OCS - number of Streams'
-

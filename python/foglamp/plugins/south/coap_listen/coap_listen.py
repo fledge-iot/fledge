@@ -73,8 +73,8 @@ def plugin_init(config):
     """
     handle = config
 
+    # We want to see informational output from this plugin
     _LOGGER.setLevel(logging.INFO)
-    """ We want to see informational output from this plugin """
 
     return handle
 

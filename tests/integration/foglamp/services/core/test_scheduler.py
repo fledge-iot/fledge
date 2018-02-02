@@ -23,7 +23,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _CONNECTION_STRING = "dbname='foglamp' user='foglamp'"
-# TODO: To run this test,
+# TODO: FOGL-1017 :To run this test, FOGLAMP_ENV=TEST is only used by scheduler
 # 1) Execute this command: FOGLAMP_ENV=TEST pytest -s -vv tests/integration/foglamp/services/core/test_scheduler.py
 
 # TODO: How to eliminate manual intervention as below when tests will run unattended at CI?

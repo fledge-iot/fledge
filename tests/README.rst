@@ -16,9 +16,9 @@
 
    <a href="https://docs.pytest.org/en/latest/mark.html" target="_blank">pytest</a>
 
-.. _Unit: unit\\README.rst
-.. _Integration: integration\\README.rst
-.. _System: system\\README.rst
+.. _Unit: unit\\python\\
+.. _Integration: integration\\
+.. _System: system\\
 .. _here: ..\\README.rst
 
 .. =============================================
@@ -56,12 +56,12 @@ Python Tests
 
 FogLAMP uses pytest as the test runner for testing python based code. For more information on pytest please refer
 |pytest docs|
-To execute a single test, navigate to the directory where your test code is placed and execute the command
-``pytest test_filename.py`` where test_filename.py is the name of the file which contains your tests.
+Running the python tests:
 
-pytest also supports running of a complete test suite. To execute the complete test suite, navigate to the directory
-which contains the tests and run the command ``pytest`` . This will execute all the python tests in the given directory
-and sub-directories.
+- ``pytest`` - This will execute all the python test files in the given directory and sub-directories.
+- ``pytest test_filename.py`` - This will execute all tests in the file named test_filename.py
+- ``pytest test_filename.py::TestClass`` -  This will execute all test methods in a single class TestClass in file test_filename.py
+- ``pytest test_filename.py::TestClass::test_case`` - This will execute test method test_case in class TestClass in file test_filename.py
 
 **NOTE:** *FogLAMP integration tests can be executed individually and not in suite because of an open issue.
 Further information to run the different categories of tests can be found in their respective documentation*

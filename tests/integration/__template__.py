@@ -37,18 +37,20 @@ class IntegrationTestTemplateClass:
         """Test fixtures that is specific for this class. This fixture can be used with any test definition"""
         pass
 
-    @pytest.mark.parametrize("test_input, expected", [
-        ("input_data1", "expected_data_1"),
-        ("input_data1", "expected_data_2")
+    @pytest.mark.parametrize("input, expected", [
+        ("input_data1", "expected_result_1"),
+        ("input_data1", "expected_result_2")
     ])
-    def test_some_integration_component(self, _module_fixture, test_input, expected):
+    def test_some_integration_component(self, _module_fixture, input, expected):
         """Purpose of the test, This test is called twice with different test inputs and expected values.
         """
         # assertions to verify that the actual output of a component is equal to the expected output
-        assert test_input == expected
+        actual = None
+        # actual = code_under_test(input)
+        assert expected == actual
 
     def test_other_integration_component(self, _module_fixture):
         """Purpose of the test, This test is called once.
         """
         # assertions to verify that the actual output of a component is equal to the expected output
-        assert "actual" != "expected"
+        assert "expected" == "actual"

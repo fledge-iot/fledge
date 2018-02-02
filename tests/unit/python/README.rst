@@ -10,7 +10,7 @@ requires a database connection. Instead of creating a database connection, we cr
 By doing this, we can make sure that our unit-tests are not dependent on external systems. This approach also helps to
 minimise the test execution time of unit tests. For example:
 ::
-    def mock_request(data):
+    def mock_request(data, loop):
         payload = StreamReader(loop=loop)
         payload.feed_data(data.encode())
         payload.feed_eof()
@@ -18,13 +18,15 @@ minimise the test execution time of unit tests. For example:
         protocol = mock.Mock()
         app = mock.Mock()
         headers = CIMultiDict([('CONTENT-TYPE', 'application/json')])
-        req = make_mocked_request('POST', '/sensor-reading', headers=headers, protocol=protocol, payload=payload, app=app)
+        req = make_mocked_request('POST', '/sensor-reading', headers=headers,
+                                  protocol=protocol, payload=payload, app=app)
         return req
 
-This code creates a mock request and can replace a POST request to the the endpoint ``/sensor-readings``., like:
+This code creates a mock request and can be used as follows:
 ::
-    async def test_post_sensor_reading_ok(self):
-        data =  """{
+    async def test_post_sensor_reading_ok(self, event_loop):
+        # event_loop is a fixture from pytest-asyncio
+        data = """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
             "asset": "sensor1",
             "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
@@ -36,13 +38,15 @@ This code creates a mock request and can replace a POST request to the the endpo
                 }
             }
         }"""
-        with patch.object(Ingest, 'add_readings', return_value=asyncio.ensure_future(asyncio.sleep(0.1))) as mock_method1:
-            with patch.object(Ingest, 'is_available', return_value=True) as mock_method2:
-                request = mock_request(data)
+        with patch.object(Ingest, 'add_readings', return_value=asyncio.ensure_future(asyncio.sleep(0.1))):
+            with patch.object(Ingest, 'is_available', return_value=True):
+                request = mock_request(data, event_loop)
                 r = await HttpSouthIngest.render_post(request)
                 retval = json.loads(r.body.decode())
                 # Assert the POST request response
                 assert 200 == retval['status']
                 assert 'success' == retval['result']
 
-Note the use of ``mock_request``, we are mocking a request to the endpoint ``/sensor-readings`` and not making any actual request.
+
+Note the use of patch object context managers, we are patching the ``add_readings`` and ``is_available`` methods of ``Ingest`` class,
+further we are also using the mock object created above for creating a POST request to ``/sensor-readings`` endpoint.

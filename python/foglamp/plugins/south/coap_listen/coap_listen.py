@@ -7,13 +7,15 @@
 """CoAP handler for sensor readings"""
 
 import asyncio
+import copy
 import json
+import logging
 
 import aiocoap.resource
 import cbor2
-import logging
 
 from foglamp.common import logger
+from foglamp.plugins.common import utils
 from foglamp.services.south.ingest import Ingest
 
 __author__ = "Terris Linenbach"
@@ -22,6 +24,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
+# We want to see informational output from this plugin
+_LOGGER.setLevel(logging.INFO)
 
 _DEFAULT_CONFIG = {
     'plugin': {
@@ -70,10 +74,6 @@ def plugin_init(config):
     Raises:
     """
     handle = config
-
-    _LOGGER.setLevel(logging.INFO)
-    """ We want to see informational output from this plugin """
-
     return handle
 
 def plugin_start(handle):
@@ -115,12 +115,24 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-    _LOGGER.info("Old config for Coap plugin {} \n new config {}".format(handle, new_config))
-    new_handle = plugin_init(new_config)
+    _LOGGER.info("Old config for COAP plugin {} \n new config {}".format(handle, new_config))
+
+    # Find diff between old config and new config
+    diff = utils.get_diff(handle, new_config)
+
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'port' in diff or 'uri' in diff:
+        _plugin_stop(handle)
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting COAP plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
     return new_handle
 
-def plugin_shutdown(handle):
-    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+def _plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -132,6 +144,16 @@ def plugin_shutdown(handle):
     except Exception as ex:
         _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
         raise
+
+def plugin_shutdown(handle):
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    _plugin_stop(handle)
     _LOGGER.info('COAP plugin shut down.')
 
 

@@ -6,15 +6,16 @@
 
 """ Module for Sensortag CC2650 'async' type plugin """
 
+import asyncio
 import copy
 import datetime
-import uuid
 import json
-import asyncio
+import uuid
 
+from foglamp.common import logger
+from foglamp.plugins.common import utils
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
-from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
@@ -47,8 +48,6 @@ _DEFAULT_CONFIG = {
 
 _LOGGER = logger.setup(__name__, level=20)
 
-sensortag_characteristics = characteristics
-
 
 def plugin_info():
     """ Returns information about the plugin.
@@ -67,7 +66,6 @@ def plugin_info():
         'config': _DEFAULT_CONFIG
     }
 
-
 def plugin_init(config):
     """ Initialise the plugin.
     Args:
@@ -76,7 +74,7 @@ def plugin_init(config):
         handle: JSON object to be used in future calls to the plugin
     Raises:
     """
-    global sensortag_characteristics
+    sensortag_characteristics = copy.deepcopy(characteristics)
     data = copy.deepcopy(config)
 
     bluetooth_adr = config['bluetoothAddress']['value']
@@ -103,7 +101,6 @@ def plugin_init(config):
         _LOGGER.info('SensorTagCC2650 {} async fetching initialized'.format(bluetooth_adr))
 
     return data
-
 
 def plugin_start(handle):
     """ Extracts data from the sensor and returns it in a JSON document as a Python dict.
@@ -156,16 +153,19 @@ def plugin_start(handle):
 
             # debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
             cnt = 0
-            while True:
+            while tag.is_connected:
                 time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
                 try:
                     pattern_index = tag.con.expect('Notification handle = .*? \r', timeout=4)
-                except pexpect.TIMEOUT:
+                    # Re-initialize attempt_count on success
+                    attempt_count = 1
+                except pexpect.exceptions.TIMEOUT:
                     attempt_count += 1
                     if attempt_count > 15:
-                        _LOGGER.error("SensorTagCC2650 {} async timeout")
+                        _LOGGER.error("SensorTagCC2650 {} timeout error".format(bluetooth_adr))
                         break
                     else:
+                        _LOGGER.error("SensorTagCC2650 {} async exception attempt_count {}".format(bluetooth_adr, attempt_count))
                         await asyncio.sleep(1)
                         continue
 
@@ -175,11 +175,15 @@ def plugin_start(handle):
                 if pattern_index != 0:
                     attempt_count += 1
                     if attempt_count > 15:
-                        _LOGGER.error("SensorTagCC2650 {} async timeout")
+                        _LOGGER.error("SensorTagCC2650 {} async timeout error".format(bluetooth_adr))
                         break
                     else:
+                        _LOGGER.error("SensorTagCC2650 {} async pattern attempt_count {}".format(bluetooth_adr, attempt_count))
                         await asyncio.sleep(1)
                         continue
+
+                # Re-initialize attempt_count on success
+                attempt_count = 1
 
                 after = tag.con.after
                 hex_string = after.split()[3:]
@@ -312,14 +316,13 @@ def plugin_start(handle):
                     await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                               timestamp=data['timestamp'], key=data['key'],
                                               readings=data['readings'])
-        except (Exception, RuntimeError) as ex:
+        except (Exception, RuntimeError, pexpect.exceptions.TIMEOUT) as ex:
             _LOGGER.exception("SensorTagCC2650 async {} exception: {}".format(bluetooth_adr, str(ex)))
             raise exceptions.DataRetrievalError(ex)
-
         _LOGGER.debug("SensorTagCC2650 async {} reading: {}".format(bluetooth_adr, json.dumps(data)))
+        return
 
     asyncio.ensure_future(save_data())
-
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin
@@ -336,12 +339,22 @@ def plugin_reconfigure(handle, new_config):
     """
     _LOGGER.info("Old config for CC2650ASYN plugin {} \n new config {}".format(handle, new_config))
 
-    new_handle = plugin_init(new_config)
+    # Find diff between old config and new config
+    diff = utils.get_diff(handle, new_config)
+
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'bluetoothAddress' in diff:
+        _plugin_stop(handle)
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting CC2650ASYN plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
     return new_handle
 
-
-def plugin_shutdown(handle):
-    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+def _plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -366,4 +379,13 @@ def plugin_shutdown(handle):
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 (async) {} Disconnected.'.format(bluetooth_adr))
 
+def plugin_shutdown(handle):
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    _plugin_stop(handle)
     _LOGGER.info('CC2650 async plugin shut down.')

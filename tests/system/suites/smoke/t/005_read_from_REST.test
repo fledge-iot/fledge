@@ -1,0 +1,6 @@
+#!/bin/bash
+
+$TEST_BASEDIR/bash/count_assets_http.bash
+$TEST_BASEDIR/bash/read_an_asset_http.bash "fogbench%2Fsmoke_test" > $RESULT_DIR/$TEST_NAME.temp 2>&1
+jq '.[] | .reading' $RESULT_DIR/$TEST_NAME.temp
+

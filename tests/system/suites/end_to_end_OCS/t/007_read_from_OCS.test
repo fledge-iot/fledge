@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+$TEST_BASEDIR/bash/ocs_read_an_asset.bash | grep 'Information |sensor'

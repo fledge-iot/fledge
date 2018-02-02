@@ -20,7 +20,7 @@ fs = None
 
 name = "Foo"
 core_host = "localhost"
-core_port = "34134"
+core_port = pytest.test_env.core_mgmt_port
 
 
 @pytest.allure.feature("common")

@@ -20,8 +20,7 @@ pytestmark = pytest.mark.asyncio
 # Module attributes
 __DB_NAME = "foglamp"
 # Needs foglamp to start,
-# replace 37935 with core_management_port
-BASE_URL = 'http://localhost:37935/foglamp'
+BASE_URL = 'http://localhost:'+str(pytest.test_env.core_mgmt_port)+'/foglamp'
 headers = {'Content-Type': 'application/json'}
 
 

@@ -28,10 +28,6 @@ docs/.cache/
 # Compiled Object files
 *.pyc
 
-# Allure
-allure/
-allure-report/
-
 # build specific
 /C/plugins/storage/build
 /C/services/storage/build

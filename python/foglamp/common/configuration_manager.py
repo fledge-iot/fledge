@@ -13,6 +13,7 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -145,6 +146,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
+        audit = AuditLogger(self._storage)
+        await audit.information('CONAD', { 'name' : category_name, 'category' : category_val })
         payload = PayloadBuilder().INSERT(key=category_name, description=category_description, value=category_val).payload()
         self._storage.insert_into_tbl("configuration", payload)
 
@@ -204,6 +207,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return results['rows'][0]['value']
 
     async def _update_value_val(self, category_name, item_name, new_value_val):
+        old_value = await self._read_value_val(category_name, item_name)
         # UPDATE foglamp.configuration
         # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
         # WHERE key='PURGE_READ'
@@ -214,6 +218,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         d['where'] = {"column": "key", "condition": "=", "value": category_name}
         payload = json.dumps(d)
         self._storage.update_tbl("configuration", payload)
+        audit = AuditLogger(self._storage)
+        audit_details = { 'category' : category_name, 'item' : item_name, 'oldValue' : old_value, 'newValue': new_value_val }
+        await audit.information('CONCH', audit_details)
 
     async def _update_category(self, category_name, category_val, category_description):
         payload = PayloadBuilder().SET(value=category_val, description=category_description).\

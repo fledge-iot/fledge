@@ -20,6 +20,7 @@ import aiohttp
 import json
 
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
@@ -146,6 +147,9 @@ class Server:
 
     _interest_registry = None
     """ Instance of interest registry (singleton) """
+
+    _audit = None
+    """ Instance of audit logger(singleton) """
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
@@ -420,6 +424,10 @@ class Server:
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
 
+            # Everything is complete in the startup sequence, writethe audit log entry
+            cls._audit = AuditLogger(cls._storage_client)
+            loop.run_until_complete(cls._audit.information('START', None))
+
             loop.run_forever()
 
         except (OSError, RuntimeError, TimeoutError) as e:
@@ -457,6 +465,10 @@ class Server:
 
             # stop the REST api (exposed on service port)
             await cls.stop_rest_server()
+
+            # Must write the audit log entry before we stop the storage service
+            cls._audit = AuditLogger(cls._storage_client)
+            await cls._audit.information('FSTOP', None)
 
             # stop storage
             await cls.stop_storage()

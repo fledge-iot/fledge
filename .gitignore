@@ -39,6 +39,10 @@ docs/.cache/
 # Error Logs
 *.err
 
+# Test files
+*.result
+*.temp
+
 # Keys and certificates
 *.cert
 *.csr

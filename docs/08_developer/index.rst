@@ -8,3 +8,4 @@ Developers' Guide
 
     01_developer
     02_managementapi
+    03_systemtest

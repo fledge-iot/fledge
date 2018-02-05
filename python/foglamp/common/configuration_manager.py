@@ -146,10 +146,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
-        audit = AuditLogger(self._storage)
-        await audit.information('CONAD', { 'name' : category_name, 'category' : category_val })
-        payload = PayloadBuilder().INSERT(key=category_name, description=category_description, value=category_val).payload()
-        self._storage.insert_into_tbl("configuration", payload)
+        try:
+            audit = AuditLogger(self._storage)
+            await audit.information('CONAD', { 'name' : category_name, 'category' : category_val })
+            payload = PayloadBuilder().INSERT(key=category_name, description=category_description, value=category_val).payload()
+            result = self._storage.insert_into_tbl("configuration", payload)
+            response = result['response']
+        except KeyError:
+                raise ValueError(result['message'])
 
     async def _read_all_category_names(self):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
@@ -223,9 +227,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         await audit.information('CONCH', audit_details)
 
     async def _update_category(self, category_name, category_val, category_description):
-        payload = PayloadBuilder().SET(value=category_val, description=category_description).\
-            WHERE(["key", "=", category_name]).payload()
-        self._storage.update_tbl("configuration", payload)
+        try:
+            payload = PayloadBuilder().SET(value=category_val, description=category_description).\
+                WHERE(["key", "=", category_name]).payload()
+            result = self._storage.update_tbl("configuration", payload)
+            response = result['response']
+        except KeyError:
+            raise ValueError(result['message'])
 
     async def get_all_category_names(self):
         """Get all category names in the FogLAMP system

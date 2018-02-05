@@ -12,6 +12,7 @@ import json
 import logging
 
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core import connect
@@ -74,6 +75,11 @@ class Monitor(object):
                         service_record._status = 0
                         ServiceRegistry.unregister(service_record._id)
                         self._logger.info("Unregistered the failed micro-service %s", service_record.__repr__())
+                        try:
+                            audit = AuditLogger(connect.get_storage())
+                            await audit.failure('SRVFL', {'name':service_record._name})
+                        except Exception as ex:
+                            seld._logger.info("Failed to audit service failure %s", str(ex));
                     else:
                         service_record._status = 1
 

@@ -424,7 +424,7 @@ class Server:
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
 
-            # Everything is complete in the startup sequence, writethe audit log entry
+            # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client)
             loop.run_until_complete(cls._audit.information('START', None))
 
@@ -613,6 +613,12 @@ class Server:
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                    service_port, service_management_port, service_protocol)
+                try:
+                    if not cls._storage_client is None:
+                        cls._audit = AuditLogger(cls._storage_client)
+                        await cls._audit.information('SRVRG', { 'name' : service_name})
+                except Exception as ex:
+                    print("Failed to audit registration: ", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
@@ -655,6 +661,10 @@ class Server:
                 raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
+            print("Unregister service ", service_id)
+            if not cls._storage_client is None:
+                cls._audit = AuditLogger(cls._storage_client)
+                await cls._audit.information('SRVUN', { 'name' : service_name})
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 

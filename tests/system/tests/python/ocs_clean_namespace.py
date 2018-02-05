@@ -5,7 +5,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Retrieves the list of Streams defined in OCS for the specific Namespace """
+""" Purges a Namespace deleting all the types and streams """
 
 import common.ocs as ocs
 import os
@@ -16,16 +16,13 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-# ## Main ##############################################################################
+# ### Main ##############################################################################
 
 tenant = os.environ['OCS_TENANT']
 client_id = os.environ['OCS_CLIENT_ID']
 client_secret = os.environ['OCS_CLIENT_SECRET']
-name_space = os.environ['OCS_NAME_SPACE']
+namespace = os.environ['OCS_NAME_SPACE']
 
 headers = ocs.retrieve_authentication_token(tenant, client_id, client_secret)
 
-api = "Streams"
-api_output = ocs.call_api(headers, tenant, name_space, api)
-
-print("{0}".format(api_output))
+ocs.delete_types_streams(headers, tenant, namespace)

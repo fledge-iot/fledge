@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-python3 $TEST_BASEDIR/python/ocs_read_an_asset.py | grep 'Information |sensor'

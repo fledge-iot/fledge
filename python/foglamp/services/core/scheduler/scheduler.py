@@ -218,7 +218,7 @@ class Scheduler(object):
             self._check_processes_pending = True
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess) -> None:
-        # TODO: FOGL-510 - Prepare foglamp testing environment
+        # TODO: FOGL-1017 - Remove Foglamp test environment references from scheduler.py
         if _ENV == 'TEST' and task_process.cancel_requested:
             exit_code = -1
         else:
@@ -770,7 +770,7 @@ class Scheduler(object):
 
         while storage_service is None and self._storage is None:
             try:
-                # TODO: FOGL-510 - Prepare foglamp testing environment
+                # TODO: FOGL-1017 - Remove Foglamp test environment references from scheduler.py
                 if _ENV != 'TEST':
                     found_services = ServiceRegistry.get(name="FogLAMP Storage")
                     storage_service = found_services[0]

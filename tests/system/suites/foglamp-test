@@ -1,0 +1,400 @@
+#!/bin/bash
+##############################################################################
+#
+# FogLAMP System Test Running Script
+# Copyright (C) 2018 Dianomic Systems, Inc.
+#
+##############################################################################
+
+
+##############################################################################
+#
+## This script is used to run system tests. It can call any test suite present
+## in the local directory.
+#
+##############################################################################
+
+#set -e
+#set -x
+
+# FOGLAMP_ROOT and FOGLAMP_DATAi:
+# change these variables if you know the tests are going to need them
+# Alternatively, let the script find FogLAMP
+FACTORY_SETTING_ROOT="/usr/local/foglamp"
+FACTORY_SETTING_DATA="/usr/local/foglamp/data"
+
+##
+## Environment Variables
+## These variables will be used in the test suites and files
+##
+export SUITE_NAME=""       # Name of the suite to execute
+export FOGLAMP_EXE=""      # Call to the foglamp script
+export FOGBENCH_EXE=""     # Call to the fogbench script
+export SUITE_BASEDIR=""    # Suite Directory
+export TEST_BASEDIR=""     # Base Directory for tests
+export RESULT_DIR=""       # Result Directory
+export TEST_NAME=""        # Name of the suite file to execute
+
+## Other variables
+foglamp_from_package=false # True if the scripts finds a foglamp script
+print_list=false           # By default do not print any list
+AVAILABLE_TEST_SUITES=""   # Array of available test suites
+TEST_NAMES=""              # Array of tests in a suite to execute
+
+
+## Script Header
+print_header() {
+
+  echo "##### FogLAMP System Test #####"
+
+}
+
+
+## Print the list of test suites
+print_suite_list() {
+
+  echo "Available test suites:"
+  for test_suite in $AVAILABLE_TEST_SUITES; do
+    suite_description=$(extract_desc_from_suite $test_suite)
+    echo "${test_suite}: ${suite_description}"
+  done
+
+}
+
+
+## Extract the text from the suite.desc file in the suite directory
+extract_desc_from_suite() {
+
+  if [[ -e "${1}/suite.desc" ]]; then
+    suite_description=`cat ${1}/suite.desc`
+  else
+    suite_description=""
+  fi
+  echo "$suite_description"
+
+}
+
+
+## Print the list of tests in a suite
+print_test_list() {
+
+  echo "Tests in the ${SUITE_NAME} suite:"
+
+  for test_file in $TEST_NAMES; do
+    test_name=$(extract_file_test_name $test_file)
+    test_description=$(extract_desc_from_test $test_file)
+    row_to_print="${test_name}: ${test_description}"
+    echo "$row_to_print"
+
+    # Extract original test files and descriptions
+    original_test_files=$(extract_test_files $test_file)
+    for single_test_file in ${original_test_files}; do
+      desc_file="${TEST_BASEDIR}/${single_test_file}.desc"
+
+      if [[ -e "${desc_file}" ]]; then
+        desc=`cat ${desc_file}`
+      else
+        desc=""
+      fi
+      echo ">>> ${single_test_file}: ${desc}"
+    done
+  done
+  echo
+
+}
+
+
+## Extract the text from the <suite-test>.desc file in the <test-suite>/t directory
+extract_desc_from_test() {
+
+  desc_file=`echo $1 | sed 's/.test$/.desc/'`
+  if [[ -e "${desc_file}" ]]; then
+    test_description=`cat ${desc_file}`
+  else
+    test_description=""
+  fi
+  echo "$test_description"
+
+}
+
+
+## Get the test files from the test file suite
+extract_test_files() {
+  test_files=`grep -v '^ *#' $1 | grep -o '\$TEST_BASEDIR/.*' | cut -d' ' -f1 | sed 's/$TEST_BASEDIR\///' | sed 's/.bash$//'`
+  echo $test_files
+}
+
+
+## Script variables print
+print_vars() {
+
+  echo "Script Suite:     $SUITE_NAME"
+  echo "Suite DIR:        $SUITE_BASEDIR"
+  echo "Test DIR:         $TEST_BASEDIR"
+  echo "FogLAMP Root:     $FOGLAMP_ROOT"
+  echo "FogLAMP Data:     $FOGLAMP_DATA"
+  echo "foglamp command:  $FOGLAMP_EXE"
+  echo "fogbench command: $FOGBENCH_EXE"
+  if [ "${foglamp_from_package}" = true ]; then
+    echo "FogLAMP from a package"
+  fi
+  echo
+
+}
+
+
+## Check if a suite is in the suite list
+check_suite_list() {
+  suite_found=false
+  for test_suite in $AVAILABLE_TEST_SUITES; do
+    if [[ "${test_suite}" == "${1}" ]]; then
+      suite_found=true
+      break
+    fi
+  done
+
+  echo $suite_found
+}
+
+
+## Set FogLAMP variables
+check_env_vars() {
+
+  # Check if a foglamp command exists - that usually means that a snap is installed
+  if ! [[ -x "$(command -v foglamp)" ]]; then
+
+    foglamp_from_package=false
+
+    # Check FOGLAMP_ROOT and set it if it does not exist
+    if [ -z ${FOGLAMP_ROOT+x} ]; then
+      FOGLAMP_ROOT="$FACTORY_SETTING_ROOT"
+      export FOGLAMP_ROOT
+    fi
+
+    # Check if the FOGLAMP_ROOT directory exists
+    if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
+      echo "The test cannot be executed:"
+      echo "- foglamp is not a valid command"
+      echo "- ${FOGLAMP_ROOT} is not a valid directory."
+      exit 1
+    else
+      if [[ -x "${FOGLAMP_ROOT}/bin/foglamp" ]]; then
+        FOGLAMP_EXE="${FOGLAMP_ROOT}/bin/foglamp"
+      else
+        if [[ -x "${FOGLAMP_ROOT}/scripts/foglamp" ]]; then
+          FOGLAMP_EXE="${FOGLAMP_ROOT}/scripts/foglamp"
+        else
+          echo "The test cannot be executed: the foglamp script is not present in ${FOGLAMP_ROOT}."
+          exit 1
+        fi
+      fi
+    fi
+  else
+    foglamp_from_package=true
+    FOGLAMP_EXE="foglamp"
+  fi
+
+  # Check if fogbench exists
+  if ! [[ -x "$(command -v foglamp.fogbench)" ]]; then
+    if [[ -x "${FOGLAMP_ROOT}/bin/fogbench" ]]; then
+      FOGBENCH_EXE="${FOGLAMP_ROOT}/bin/fogbench"
+    else
+      if [[ -x "${FOGLAMP_ROOT}/scripts/extras/fogbench" ]]; then
+        FOGBENCH_EXE="${FOGLAMP_ROOT}/scripts/extras/fogbench"
+      fi
+    fi
+  else
+    FOGBENCH_EXE="foglamp.fogbench"
+  fi
+
+} 
+
+
+## Get the file name of a test
+extract_file_test_name() {
+  file_name=`basename $1`
+  echo $file_name | sed 's/.test$//'
+}
+  
+
+## Clean the results directory
+cleanup_results() {
+  rm -f ${SUITE_NAME}/r/*.result # Result files
+  rm -f ${SUITE_NAME}/r/*.temp   # Temp files
+}
+
+
+## Convert milliseconds into seconds with decimals
+convert_msec_to_sec() {
+  echo $1 |  awk '{print substr($1,1,length($1)-3)"."substr($1,length($1)-2,3)}'
+}
+
+
+##  Print the help screen
+do_help() {
+
+	echo
+	echo "foglamp-test : Execute a FogLAMP System Test Suite"
+  echo
+  echo "Usage: foglamp-test [test-suite] [parameters]"
+  echo
+  echo "test-suite: a directory suite in the local directory"
+  echo "parameters: a valid parameter with or without a test-suite name"
+	echo " -h | --help  Print this help, it takes priority over the test-suite"
+  echo " -l | --list  (without test-suite name) Print the list of test suites"
+  echo "              (with a test-suite name) Print the list of tests in a suite"
+	echo
+
+}
+
+
+##################
+### MAIN LOGIC ###
+##################
+
+# Retrieve the list of test suites
+AVAILABLE_TEST_SUITES=`find * -maxdepth 0 -type d`
+
+### Parameter Check ###
+while [ "$1" != "" ]; do
+  case "$1" in
+    -l | --list )
+      print_list=true
+      ;;
+    -h | --help )
+      do_help
+      exit 0
+      ;;
+    * )
+      # This may be the test suite name
+      if [[ -z "${SUITE_NAME}" ]]; then
+        if [ "$(check_suite_list $1)" = true ]; then
+          SUITE_NAME=$1
+        else
+          echo "Not a valid test-suite name."
+          echo "Try foglamp-test --help for more info"
+          echo
+          exit 1
+        fi
+      else
+        # It looks like the user typed more than one test-suite name
+        echo "You can only execute one test suite at a time"
+        exit 1
+      fi
+      ;;
+  esac
+  shift
+done
+
+# Time to decide what to do
+if [[ -z "${SUITE_NAME}" ]]; then
+
+  # No test-suite selected
+  if [ "${print_list}" = true ]; then
+
+    # --list: print the list of test suites
+    print_header
+    print_suite_list
+ 
+  else
+
+    # Nothing passed: print usage
+    echo "Usage: foglamp-test [test-suite] [parameters] [--help]"
+  fi 
+
+else
+
+  # test-suite selected
+
+  TEST_BASEDIR=`realpath ../tests`        # Set the test dir
+  SUITE_BASEDIR=`realpath ${SUITE_NAME}`  # Set the suite dir
+  RESULT_DIR=`realpath ${SUITE_NAME}/r`   # Set the Result Dir
+  TEST_NAMES=${SUITE_NAME}/t/*.test       # Collect the list of tests in the suite
+
+  print_header
+
+  if [ "${print_list}" = true ]; then
+
+    echo "Test Suite: ${SUITE_NAME}"
+    echo $(extract_desc_from_suite ${SUITE_NAME})
+    echo
+
+    # --list: print the list of tests in the test suite
+    print_test_list
+ 
+  else
+
+    # Execute the test suite
+    check_env_vars
+    print_vars
+    cleanup_results
+
+    suite_result="COMPLETED"
+    echo "Suite Start: $(date +'%Y-%m-%d %H:%M:%S.%6N')"
+    suite_start=$(date +%s%N)
+
+    # Main Loop to execute tests
+    for test_to_execute in $TEST_NAMES; do
+      TEST_NAME=$(extract_file_test_name $test_to_execute)
+      echo -n "[$(date +'%Y-%m-%d %H:%M:%S.%6N')] - $TEST_NAME - "
+      test_start=$(date +%s%N)
+      $test_to_execute > ${SUITE_NAME}/r/${TEST_NAME}.result 2>&1
+      test_end=$(date +%s%N)
+      elapsed_time=$((($test_end - $test_start)/1000000 ))
+
+      # Check if the two files (expect and result) exist
+      if [[ -e "${SUITE_NAME}/e/${TEST_NAME}.expected" ]]; then
+
+        # The expected output exists
+        if [[ -e "${SUITE_NAME}/r/${TEST_NAME}.result" ]]; then
+
+          # Expected and result output exist
+          check_diff=`diff ${SUITE_NAME}/r/${TEST_NAME}.result ${SUITE_NAME}/e/${TEST_NAME}.expected | wc -l`
+          if [[ "$check_diff" -eq 0 ]]; then
+            test_result="PASSED"
+          else
+            test_result="FAILED"
+            extra_result_info="Expect/Result MISMATCH"
+          fi
+
+        else # Expected exists - Result does not exist
+
+          test_result="FAILED"
+          extra_result_info="MISSING Result"
+
+        fi
+
+      else # There is no expected output
+  
+        if [[ -e "${SUITE_NAME}/r/${TEST_NAME}.result" ]]; then
+          # Expected does not exist - Result exists
+          test_result="FAILED"
+          extra_result_info="UNEXPECTED Result"
+        else # Expected and Result do not exist
+          test_result="PASSED"
+        fi
+
+      fi
+  
+      echo -n "[$(date +'%Y-%m-%d %H:%M:%S.%6N')] ($(convert_msec_to_sec $elapsed_time) seconds) - ${test_result}"
+      if [[ "${test_result}" == "FAILED" ]]; then
+        echo -n " - ${extra_result_info}"
+        echo
+        suite_result="INCOMPLETED"
+        break
+      else
+        echo
+      fi
+    done
+
+    suite_end=$(date +%s%N)
+    elapsed_time=$((($suite_end - $suite_start)/1000000 ))
+    echo "Total Execution Time: $(convert_msec_to_sec $elapsed_time) seconds."
+    echo "Suite End:   $(date +'%Y-%m-%d %H:%M:%S.%6N') - $suite_result"
+
+  fi 
+
+fi
+
+exit 0
+

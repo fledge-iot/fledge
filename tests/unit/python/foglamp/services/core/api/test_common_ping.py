@@ -55,6 +55,8 @@ def ssl_ctx(certs_path):
     return ssl_ctx
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("api", "common")
 async def test_ping_https(test_server, ssl_ctx, test_client, loop):
     app = web.Application()
     # fill route table

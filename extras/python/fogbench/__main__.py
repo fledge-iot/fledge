@@ -213,7 +213,6 @@ async def send_to_coap(payload):
      URI "/other/sensor-values".
 
     """
-    print(payload)
     context = await Context.create_client_context()
 
     request = Message(payload=dumps(payload), code=POST)

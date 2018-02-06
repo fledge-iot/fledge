@@ -395,7 +395,7 @@ class BackupProcess(FoglampProcess):
 
             self._logger.error(self._MESSAGES_LIST["e000007"])
             raise exceptions.BackupFailed
-            loop.run_untilk_complete(audit.information('BKEXC', {'status': 'failed'}))
+            loop.run_until_complete(audit.information('BKEXC', {'status': 'failed'}))
         else:
             loop.run_until_complete(audit.information('BKEXC', {'status': 'completed'}))
 

@@ -1,5 +1,27 @@
 #!/bin/bash
 
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash start > /dev/null 2>&1
-$TEST_BASEDIR/bash/check_foglamp_status.bash > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
-head -n1 ${RESULT_DIR}/$TEST_NAME.temp
+
+# Waits until either FogLAMP starts successfully or it reaches the timeout
+while [ true ]
+do
+    $TEST_BASEDIR/bash/check_foglamp_status.bash > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
+    result=`head -n1 ${RESULT_DIR}/$TEST_NAME.temp`
+
+    if [[ "$result" == "FogLAMP running." ]]
+    then
+        echo ${result}
+        exit 0
+    else
+        if [[ $count -le ${RETRY_COUNT} ]]
+        then
+            sleep 1
+            count=$((count+1))
+        else
+            exit 1
+        fi
+    fi
+done

@@ -79,7 +79,7 @@ class Monitor(object):
                             audit = AuditLogger(connect.get_storage())
                             await audit.failure('SRVFL', {'name':service_record._name})
                         except Exception as ex:
-                            seld._logger.info("Failed to audit service failure %s", str(ex));
+                            self._logger.info("Failed to audit service failure %s", str(ex));
                     else:
                         service_record._status = 1
 

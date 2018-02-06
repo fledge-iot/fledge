@@ -134,10 +134,13 @@ class Purge(FoglampProcess):
 
         if total_rows_removed > 0:
             """ Only write anb audit log entry when rows are removed """
-            self._audit.information('PURGE', {"start_time": start_time, "end_time": end_time,
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time, "end_time": end_time,
                                               "rowsRemoved": total_rows_removed,
                                               "unsentRowsRemoved": unsent_rows_removed,
-                                              "rowsRetained": unsent_retained, "rowsRemaining": total_count})
+                                              "rowsRetained": unsent_retained, "rowsRemaining": total_count}))
+        else:
+            self._logger.info("No rows purged")
 
         return total_rows_removed, unsent_rows_removed
 

@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {start|stop|status|reset|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
@@ -162,12 +162,19 @@ foglamp_start() {
 
 }
 
-
 ## FogLAMP Stop
 #
 # We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
 #
 foglamp_stop() {
+    curl -s -X PUT http://localhost:8081/foglamp/shutdown
+}
+
+## FogLAMP Kill
+#
+# We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
+#
+foglamp_kill() {
 
     # Check the storage management script
     if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
@@ -276,6 +283,7 @@ The script is used to start FogLAMP
 Arguments:
  start   - Start FogLAMP core (core will start other services).
  stop    - Stop all FogLAMP services and processes
+ kill    - Kill all FogLAMP services and processes
  status  - Show the status for the FogLAMP services
  reset   - Restore FogLAMP factory settings
            WARNING! This command will destroy all your data!
@@ -317,6 +325,9 @@ case "$1" in
         ;;
     stop)
         foglamp_stop
+        ;;
+    kill)
+        foglamp_kill
         ;;
     status)
         foglamp_status

@@ -656,15 +656,17 @@ class Server:
                 raise web.HTTPBadRequest(reason='Service id is required')
 
             try:
-                ServiceRegistry.get(idx=service_id)
+                services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
                 raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
-            print("Unregister service ", service_id)
             if not cls._storage_client is None:
-                cls._audit = AuditLogger(cls._storage_client)
-                await cls._audit.information('SRVUN', { 'name' : service_name})
+                try:
+                    cls._audit = AuditLogger(cls._storage_client)
+                    await cls._audit.information('SRVUN', { 'name' : services[0]._name })
+                except Exception as ex:
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 

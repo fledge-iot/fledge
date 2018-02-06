@@ -10,8 +10,8 @@
 """ fogbench -- a Python script used to test FogLAMP.
 
 The objective is to simulate payloads for input, REST and other requests against one or
-more FogLAMP instances. The initial version of fogbench is meant to test the sensor/device
-interface of FogLAMP using CoAP.
+more FogLAMP instances. This version of fogbench is meant to test the CoAP and HTTP plugins
+interface of FogLAMP southbound services.
 
 fogbench
 
@@ -19,7 +19,7 @@ fogbench
         -i --interval    The interval in seconds between each iteration (default: 0)
  [IN]   -k --keep        Do not delete (keep) the running sample (default: no)
  [IN]   -o --output      Set the output file for statistics
- [IN]   -p --payload     Type of payload and protocol (default: sensor/coap)
+ [IN]   -p --payload     Type of payload and protocol (default: coap)
  [IN]   -t --template    Set the template to use
  [IN]   -v --version     Display the version and exit
  [IN]   -H --host        The FogLAMP host (default: localhost)
@@ -37,12 +37,12 @@ fogbench
 
      $ ./fogbench -h
 
- .. todo::
-
    * Create reading objects from given template, as per the json file name specified with -t
    * Save those objects to the file, as per the file name specified with -o
    * Read those objects
-   * Send those to CoAP sever, on specific host and port
+   * Send those to CoAP or HTTP south plugin server, on specific host and port
+
+ .. todo::
 
    * Try generators
 
@@ -143,7 +143,7 @@ def _prepare_sensor_reading(data, supported_format_types):
         sensor_value_object = dict()
         sensor_value_object["asset"] = d['name']
         sensor_value_object["readings"] = x_sensor_values
-        sensor_value_object["timetamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
+        sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
         sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
         ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))

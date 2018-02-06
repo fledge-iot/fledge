@@ -29,7 +29,7 @@ else:
 tenant = os.environ['OCS_TENANT']
 client_id = os.environ['OCS_CLIENT_ID']
 client_secret = os.environ['OCS_CLIENT_SECRET']
-namespace = os.environ['OCS_NAME_SPACE']
+namespace = os.environ['OCS_NAMESPACE']
 
 start_timestamp = os.environ['START_TIMESTAMP']
 values_count = os.environ['VALUES_COUNT']

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
+echo DBG OCS_TENANT -${OCS_TENANT}- > /dev/tty
+echo DBG SCHEDULE_ID_OCS_PLUGIN -${SCHEDULE_ID_OCS_PLUGIN}- > /dev/tty
+
+# Enables the OCS plugin
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OCS_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/$TEST_NAME.temp
+
+# Initializes OCS cleaning all the content of the defined OCS NameSpace
+python3 $TEST_BASEDIR/python/ocs_clean_namespace.py $@              &>>  ${RESULT_DIR}/$TEST_NAME.temp
+# Retrieves the list of the Streams to ensure it is empty
+python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@

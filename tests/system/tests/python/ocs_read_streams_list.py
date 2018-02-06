@@ -21,7 +21,7 @@ __version__ = "${VERSION}"
 tenant = os.environ['OCS_TENANT']
 client_id = os.environ['OCS_CLIENT_ID']
 client_secret = os.environ['OCS_CLIENT_SECRET']
-name_space = os.environ['OCS_NAME_SPACE']
+name_space = os.environ['OCS_NAMESPACE']
 
 headers = ocs.retrieve_authentication_token(tenant, client_id, client_secret)
 

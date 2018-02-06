@@ -3,7 +3,3 @@
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash stop > /dev/null 2>&1
 $TEST_BASEDIR/bash/check_foglamp_status.bash
 echo -e "YES" | $TEST_BASEDIR/bash/exec_any_foglamp_command.bash reset > /dev/null 2>&1
-
-# FIXME:
-psql  -U foglamp  -c "DELETE FROM foglamp.readings;"    > /dev/null 2>&1
-psql  -U foglamp  -c "DELETE FROM foglamp.omf_created_objects;"    > /dev/null 2>&1

@@ -21,7 +21,13 @@ __version__ = "${VERSION}"
 tenant = os.environ['OCS_TENANT']
 client_id = os.environ['OCS_CLIENT_ID']
 client_secret = os.environ['OCS_CLIENT_SECRET']
-namespace = os.environ['OCS_NAME_SPACE']
+namespace = os.environ['OCS_NAMESPACE']
+
+
+print ("DBG tenant |{0}|".format (tenant) )
+print ("DBG client_id |{0}|".format (client_id) )
+print ("DBG client_secret |{0}|".format (client_secret) )
+print ("DBG namespace |{0}|".format (namespace) )
 
 headers = ocs.retrieve_authentication_token(tenant, client_id, client_secret)
 

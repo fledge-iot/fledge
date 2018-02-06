@@ -3,5 +3,5 @@
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
-python3 $TEST_BASEDIR/python/ocs_read_an_asset.py ${OCS_STREAMS} > $RESULT_DIR/$TEST_NAME.temp 2>&1
+python3 $TEST_BASEDIR/python/ocs_read_an_asset.py ${OCS_STREAM} > $RESULT_DIR/$TEST_NAME.temp 2>&1
 jq '.[] | .sensor' $RESULT_DIR/$TEST_NAME.temp

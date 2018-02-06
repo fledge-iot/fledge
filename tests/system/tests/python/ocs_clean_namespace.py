@@ -11,7 +11,7 @@ import common.ocs as ocs
 import os
 
 __author__ = "Stefano Simonelli"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -22,12 +22,6 @@ tenant = os.environ['OCS_TENANT']
 client_id = os.environ['OCS_CLIENT_ID']
 client_secret = os.environ['OCS_CLIENT_SECRET']
 namespace = os.environ['OCS_NAMESPACE']
-
-
-print ("DBG tenant |{0}|".format (tenant) )
-print ("DBG client_id |{0}|".format (client_id) )
-print ("DBG client_secret |{0}|".format (client_secret) )
-print ("DBG namespace |{0}|".format (namespace) )
 
 headers = ocs.retrieve_authentication_token(tenant, client_id, client_secret)
 

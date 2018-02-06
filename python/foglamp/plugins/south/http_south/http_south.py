@@ -5,11 +5,15 @@
 # FOGLAMP_END
 
 """HTTP Listener handler for sensor readings"""
-import sys
-from aiohttp import web
 import asyncio
+import copy
+import sys
+
+from aiohttp import web
+
 from foglamp.common import logger
 from foglamp.common.web import middleware
+from foglamp.plugins.common import utils
 from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
@@ -56,21 +60,22 @@ def plugin_info():
     }
 
 def plugin_init(config):
-    """Registers HTTP Listener handler to accept sensor readings"""
+    """Registers HTTP Listener handler to accept sensor readings
 
-    _LOGGER.info("Retrieve HTTP Listener Configuration %s", config)
-
-    host = config['host']['value']
-    port = config['port']['value']
-    uri = config['uri']['value']
-
-    return {'host': host, 'port': port, 'uri': uri}
+    Args:
+        config: JSON configuration document for the South device configuration category
+    Returns:
+        handle: JSON object to be used in future calls to the plugin
+    Raises:
+    """
+    handle = config
+    return handle
 
 def plugin_start(data):
     try:
-        host = data['host']
-        port = data['port']
-        uri = data['uri']
+        host = data['host']['value']
+        port = data['port']['value']
+        uri = data['uri']['value']
 
         loop = asyncio.get_event_loop()
 
@@ -80,6 +85,10 @@ def plugin_start(data):
         server_coro = loop.create_server(handler, host, port)
         future = asyncio.ensure_future(server_coro)
 
+        data['app'] = app
+        data['handler'] = handler
+        data['server'] = None
+
         def f_callback(f):
             # _LOGGER.info(repr(f.result()))
             """ <Server sockets=
@@ -87,12 +96,8 @@ def plugin_start(data):
             data['server'] = f.result()
 
         future.add_done_callback(f_callback)
-
-        data['app'] = app
-        data['handler'] = handler
     except Exception as e:
         _LOGGER.exception(str(e))
-        sys.exit(1)
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin
@@ -107,27 +112,55 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
-
     _LOGGER.info("Old config for HTTP_SOUTH plugin {} \n new config {}".format(handle, new_config))
 
-    new_handle = plugin_init(new_config)
+    # Find diff between old config and new config
+    diff = utils.get_diff(handle, new_config)
+
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'port' in diff or 'host' in diff:
+        _plugin_stop(handle)
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting HTTP_SOUTH plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
     return new_handle
 
-def plugin_shutdown(data):
-    try:
-        app = data['app']
-        handler = data['handler']
-        server = data['server']
+def _plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
-        server.close()
-        asyncio.ensure_future(server.wait_closed())
-        asyncio.ensure_future(app.shutdown())
-        asyncio.ensure_future(handler.shutdown(60.0))
-        asyncio.ensure_future(app.cleanup())
-        _LOGGER.info('South HTTP plugin shut down.')
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    try:
+        app = handle['app']
+        handler = handle['handler']
+        server = handle['server']
+
+        if server:
+            server.close()
+            asyncio.ensure_future(server.wait_closed())
+            asyncio.ensure_future(app.shutdown())
+            asyncio.ensure_future(handler.shutdown(60.0))
+            asyncio.ensure_future(app.cleanup())
     except Exception as e:
         _LOGGER.exception(str(e))
         raise
+
+def plugin_shutdown(handle):
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    _plugin_stop(handle)
+    _LOGGER.info('South HTTP plugin shut down.')
 
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
@@ -148,16 +181,11 @@ class HttpSouthIngest(object):
                         "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                         "asset": "pump1",
                         "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
-                        "readings": {
-                            "velocity": "500",
-                            "temperature": {
-                                "value": "32",
-                                "unit": "kelvin"
-                            }
+                        "readings": {"humidity": 0.0, "temperature": -40.0}
                         }
                     }
         Example:
-            curl -X POST http://localhost:6683/sensor-reading -d '{"timestamp": "2017-01-02T01:02:03.23232Z-05:00", "asset": "pump1", "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4", "readings": {"velocity": "500", "temperature": {"value": "32", "unit": "kelvin"}}}'
+            curl -X POST http://localhost:6683/sensor-reading -d '{"timestamp": "2017-01-02T01:02:03.23232Z-05:00", "asset": "pump1", "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4", "readings": {"humidity": 0.0, "temperature": -40.0}}'
         """
         # TODO: The payload is documented at
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#

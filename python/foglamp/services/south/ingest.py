@@ -516,7 +516,8 @@ class Ingest(object):
                 An invalid value was provided
         """
         if cls._stop:
-            raise RuntimeError('The South server is stopping')
+            _LOGGER.warning('The South server is stopping')
+            return
 
         if not cls._started:
             raise RuntimeError('The South server was not started')

@@ -26,6 +26,7 @@ import asyncio
 import time
 import logging
 
+from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -33,7 +34,7 @@ from foglamp.common import logger
 from foglamp.common.process import FoglampProcess
 
 
-__author__ = "Ori Shadmon, Vaibhav Singhal"
+__author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -66,21 +67,13 @@ class Purge(FoglampProcess):
     def __init__(self):
         super().__init__()
         self._logger = logger.setup("Data Purge")
+        self._audit = AuditLogger(self._storage)
 
     def write_statistics(self, total_purged, unsent_purged):
         loop = asyncio.get_event_loop()
         stats = Statistics(self._storage)
         loop.run_until_complete(stats.update('PURGED', total_purged))
         loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
-
-    def _insert_into_log(self, level=0, log=None):
-        """" INSERT into log table values """
-        payload = PayloadBuilder().INSERT(code='PURGE', level=level, log=log).payload()
-        self._storage.insert_into_tbl("log", payload)
-        if level == 1:
-            self._logger.error("Purge failed: ", log)
-        else:
-            self._logger.info("Purge: ", log)
 
     def set_configuration(self):
         """" set the default configuration for purge
@@ -118,14 +111,8 @@ class Purge(FoglampProcess):
         if config['age']['value'] != 0:
             result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-            """ Default to a warning
-                TODO Make a common audit trail class for inserting itno this log table
-            """
-            error_level = 4
-
             if "message" in result.keys() and "409 Conflict" in result["message"]:
-                """ Message has become a failure """
-                error_level = 1 
+                self._logger.error("Purge failed: %s", result["message"])
             else:
                 total_count = result['readings']
                 total_rows_removed = result['removed']
@@ -135,14 +122,8 @@ class Purge(FoglampProcess):
         if config['size']['value'] != 0:
             result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
-            """ Default to a warning
-                TODO Make a common audit trail class for inserting itno this log table
-            """
-            error_level = 4
-
             if "message" in result.keys() and "409 Conflict" in result["message"]:
-                """ Message has become a failure """
-                error_level = 1 
+                self._logger.error("Purge failed: %s", result["message"])
             else:
                 total_count += result['readings']
                 total_rows_removed += result['removed']
@@ -151,10 +132,15 @@ class Purge(FoglampProcess):
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-        self._insert_into_log(level=error_level, log={"start_time": start_time, "end_time": end_time,
-                                                      "rowsRemoved": total_rows_removed,
-                                                      "unsentRowsRemoved": unsent_rows_removed,
-                                                      "rowsRetained": unsent_retained, "rowsRemaining": total_count})
+        if total_rows_removed > 0:
+            """ Only write anb audit log entry when rows are removed """
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time, "end_time": end_time,
+                                              "rowsRemoved": total_rows_removed,
+                                              "unsentRowsRemoved": unsent_rows_removed,
+                                              "rowsRetained": unsent_retained, "rowsRemaining": total_count}))
+        else:
+            self._logger.info("No rows purged")
 
         return total_rows_removed, unsent_rows_removed
 

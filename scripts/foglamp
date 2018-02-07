@@ -136,16 +136,33 @@ foglamp_start() {
                 sleep 1
                 new_attempt=`foglamp_status "silent"`
                 case "$new_attempt" in
-                  "0")
+
+                  "0")  # Started
                     echo
                     foglamp_log "info" "FogLAMP started." "all" "pretty"
                     let attempts=0
                     ;;
-                  "1")
+
+                  "1")  # Starting
                     let attempts=attempts-1
-                    echo -n "."
+
+                    # Check the status of the attempts - is the time over?
+                    if [[ attempts -gt 0 ]]; then
+
+                      # Print an extra dot
+                      echo -n "."
+
+                    else
+
+                      # Time is over - exit with error
+                      foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
+                      foglamp_log "err" "Number of attempts exceeded: FogLAMP may be in an inconsistent state." "all" "pretty"
+                      exit 1
+
+                    fi
                     ;;
-                  "2")
+
+                  "2")  # Not running
                     foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
                     foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
                     exit 1
@@ -223,12 +240,6 @@ foglamp_kill() {
 # 2 - FogLAMP core is not running
 #
 foglamp_status() {
-
-    # Check if curl is present
-    if [[ ! `command -v curl` ]]; then
-        foglamp_log "info" "FogLAMP cannot be checked." "outonly" "pretty"
-        foglamp_log "info" "The curl command cannot be executed." "outonly" "pretty"
-    fi
 
     result=`curl -s http://localhost:8081/foglamp/ping || true`
     case "$result" in
@@ -314,6 +325,13 @@ if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
     foglamp_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
     exit 1
 
+fi
+
+# Check if curl is present
+if [[ ! `command -v curl` ]]; then
+    foglamp_log "err" "Missing dependency: curl." "all" "pretty"
+    foglamp_log "info" "Install curl and run FogLAMP again." "outonly" "pretty"
+    exit 1
 fi
 
 case "$1" in

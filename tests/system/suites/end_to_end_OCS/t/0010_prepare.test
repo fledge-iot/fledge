@@ -6,12 +6,4 @@ source ${SUITE_BASEDIR}/suite.cfg
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash stop > /dev/null 2>&1
 $TEST_BASEDIR/bash/check_foglamp_status.bash
 
-# FIXME:
-#sleep 2
-#sudo  /etc/init.d/postgresql restart  > /dev/null 2>&1
-#sleep 2
-#sudo  /etc/init.d/postgresql restart  > /dev/null 2>&1
-#sleep 2
-#
-
 echo -e "YES" | $TEST_BASEDIR/bash/exec_any_foglamp_command.bash reset > /dev/null 2>&1

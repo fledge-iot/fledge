@@ -6,7 +6,7 @@ source ${SUITE_BASEDIR}/suite.cfg
 # Enables the OCS plugin
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OCS_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/$TEST_NAME.temp
 
-# Waits until the process has created the default configurations
+# Waits until the OCS plugin has created the default configurations
 ${TEST_BASEDIR}/bash/wait_creation_cfg.bash "SEND_PR_4/producerToken"
 
 # Configures FogLAMP with the required settings
@@ -25,7 +25,34 @@ python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@
 
 # Restarts FogLAMP to ensure the new configurations are used
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
-${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > /dev/null 2>&1
-${TEST_BASEDIR}/bash/check_foglamp_status.bash > ${RESULT_DIR}/${TEST_NAME}_002.temp 2>&1
-head -n1 ${RESULT_DIR}/${TEST_NAME}_002.temp
+
+# FIXME: NEW VERSION
+# ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}_002.temp 2>&1
+# tail  -n1 ${RESULT_DIR}/${TEST_NAME}_002.temp
+
+# FIXME: TMP VERSION
+ ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > /dev/null 2>&1
+
+# Waits until either FogLAMP starts successfully or it reaches the timeout
+while [ true ]
+do
+    $TEST_BASEDIR/bash/check_foglamp_status.bash > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
+    result=`head -n1 ${RESULT_DIR}/$TEST_NAME.temp`
+
+    if [[ "$result" == "FogLAMP running." ]]
+    then
+        echo FogLAMP started.
+        exit 0
+    else
+        if [[ $count -le ${RETRY_COUNT} ]]
+        then
+            sleep 1
+            count=$((count+1))
+        else
+            exit 1
+        fi
+    fi
+done
+
+
 

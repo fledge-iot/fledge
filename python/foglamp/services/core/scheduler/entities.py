@@ -48,6 +48,15 @@ class Schedule(object):
         self.process_name = None  # type: str
         self.schedule_type = schedule_type  # type: Schedule.Type
 
+    def toDict(self):
+        return { 'name': self.name,
+                 'type':self.schedule_type,
+                 'processName':self.process_name,
+                 'repeat':self.repeat.total_seconds() if self.repeat else 0,
+                 'enabled':self.enabled,
+                 'exclusive':self.exclusive
+               }
+
 
 class IntervalSchedule(Schedule):
     """Interval schedule"""
@@ -65,6 +74,12 @@ class TimedSchedule(Schedule):
         self.time = None  # type: datetime.time
         self.day = None  # type: int
         """1 (Monday) to 7 (Sunday)"""
+
+    def toDict(self):
+        my_dict = super().toDict();
+        my_dict['time'] = str(self.time.hour) +':' + str(self.time.minute) + ':' + str(self.time.second) if self.time else '00:00:00'
+        my_dict['day'] = self.day if self.day else 0
+        return my_dict
 
 
 class ManualSchedule(Schedule):

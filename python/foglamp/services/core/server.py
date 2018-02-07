@@ -618,7 +618,7 @@ class Server:
                         cls._audit = AuditLogger(cls._storage_client)
                         await cls._audit.information('SRVRG', { 'name' : service_name})
                 except Exception as ex:
-                    print("Failed to audit registration: ", str(ex))
+                    _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
@@ -666,7 +666,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client)
                     await cls._audit.information('SRVUN', { 'name' : services[0]._name })
                 except Exception as ex:
-                    _logger.exception(ex)
+                    _logger.exception(str(ex))
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 

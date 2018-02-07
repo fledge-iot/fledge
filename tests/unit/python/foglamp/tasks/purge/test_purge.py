@@ -13,6 +13,7 @@ from foglamp.common.storage_client.storage_client import ReadingsStorageClient, 
 from foglamp.common.statistics import Statistics
 from foglamp.tasks.purge.purge import Purge
 from foglamp.common.process import FoglampProcess
+from foglamp.common.configuration_manager import ConfigurationManager
 
 
 __author__ = "Vaibhav Singhal"
@@ -48,7 +49,15 @@ class TestPurge:
         pass
 
     def test_set_configuration(self):
-        pass
+        """Test that purge's set_configuration returns configuration item with key 'PURGE_READ' """
+        with patch.object(FoglampProcess, '__init__'):
+            p = Purge()
+            p._storage = MagicMock(spec=StorageClient)
+            mock_cm = ConfigurationManager(p._storage)
+            with patch.object(mock_cm, 'get_category_all_items', return_value=asyncio.ensure_future(asyncio.sleep(0.1))) \
+                    as mock_get_cat:
+                p.set_configuration()
+                mock_get_cat.assert_called_once_with('PURGE_READ')
 
     config = [{"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "0"}},
               {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "100"}}]
@@ -73,4 +82,14 @@ class TestPurge:
                                                 [call(size=conf["size"]["value"], flag=flag, sent_id=0)])
 
     def test_run(self):
-        pass
+        """Test that run calls all units of purge process"""
+        with patch.object(FoglampProcess, '__init__'):
+            p = Purge()
+            config = "Some config"
+            with patch.object(p, 'set_configuration', return_value=config) as sc:
+                with patch.object(p, 'purge_data', return_value=(1, 2)) as pd:
+                    with patch.object(p, 'write_statistics') as ws:
+                        p.run()
+            sc.assert_called_once_with()
+            pd.assert_called_once_with(config)
+            ws.assert_called_once_with(1, 2)

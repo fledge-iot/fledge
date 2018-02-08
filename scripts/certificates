@@ -57,7 +57,7 @@ set -e
 
 # Logger wrapper
 certificate_log() {
-  write_log "foglamp.script.make.certificate" "$1" "$2" "$3" "$4"
+  write_log "Utilities" "script.make.certificate" "$1" "$2" "$3" "$4"
 }
 
 #

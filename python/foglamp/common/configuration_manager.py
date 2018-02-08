@@ -61,13 +61,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     """
 
     _storage = None
-    _registered_interests = {}
+    _registered_interests = None
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
         if self._storage is None:
             if not isinstance(storage, StorageClient):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
+        if self._registered_interests is None:
+            self._registered_interests = {}
+
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)

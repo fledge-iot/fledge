@@ -186,7 +186,9 @@ class Server(FoglampMicroservice):
             try:
                 self._plugin.plugin_shutdown(self._plugin_handle)
             except Exception as ex:
-                _LOGGER.exception("Unable to stop plugin '{}'".format(self._name))
+                _LOGGER.exception("Unable to stop plugin '%s' | reason: %s", self._name, str(ex))
+                #  must not prevent FogLAMP shutting down cleanly via the API call.
+                # raise ex
             finally:
                 self._plugin = None
                 self._plugin_handle = None
@@ -196,6 +198,7 @@ class Server(FoglampMicroservice):
             _LOGGER.info('Stopped the Ingest server.')
         except Exception as ex:
             _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
+            raise ex
 
         try:
             self._task_main.cancel()

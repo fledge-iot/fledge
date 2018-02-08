@@ -61,7 +61,7 @@ check_storage_management_script() {
 
 ## Logger wrapper
 foglamp_log() {
-    write_log "foglamp.script.foglamp" "$1" "$2" "$3" "$4"
+    write_log "" "script.foglamp" "$1" "$2" "$3" "$4"
 }
 
 

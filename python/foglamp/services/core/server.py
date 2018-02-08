@@ -661,7 +661,8 @@ class Server:
                 raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
-            if not cls._storage_client is None:
+
+            if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client)
                     await cls._audit.information('SRVUN', { 'name' : services[0]._name })

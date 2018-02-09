@@ -52,7 +52,7 @@ fi
 
 # Logger wrapper
 postgres_log() {
-    write_log "foglamp.script.plugin.storage.postgres" "$1" "$2" "$3" "$4"
+    write_log "Storage" "script.plugin.storage.postgres" "$1" "$2" "$3" "$4"
 }
 
 

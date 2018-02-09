@@ -20,6 +20,7 @@ __version__ = "${VERSION}"
 
 def setup(app):
     app.router.add_route('GET', '/foglamp/ping', api_common.ping)
+    app.router.add_route('PUT', '/foglamp/shutdown', api_common.shutdown)
 
     # Configuration
     app.router.add_route('GET', '/foglamp/category', api_configuration.get_categories)

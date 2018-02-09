@@ -724,7 +724,21 @@ INSERT INTO foglamp.log_codes ( code, description )
      VALUES ( 'PURGE', 'Data Purging Process' ),
             ( 'LOGGN', 'Logging Process' ),
             ( 'STRMN', 'Streaming Process' ),
-            ( 'SYPRG', 'System Purge' );
+            ( 'SYPRG', 'System Purge' ),
+            ( 'START', 'System Startup' ),
+            ( 'FSTOP', 'System Shutdown' ),
+            ( 'CONCH', 'Configuration Change' ),
+            ( 'CONAD', 'Configuration Addition' ),
+            ( 'SCHCH', 'Schedule Change' ),
+            ( 'SCHAD', 'Schedule Addition' ),
+            ( 'SRVRG', 'Service Registered' ),
+            ( 'SRVUN', 'Service Unregistered' ),
+            ( 'SRVFL', 'Service Fail' ),
+            ( 'NHCOM', 'North Process Complete' ),
+            ( 'NHDWN', 'North Destination Unavailable' ),
+            ( 'NHAVL', 'North Destination Available' ),
+            ( 'UPEXC', 'Update Complete' ),
+            ( 'BKEXC', 'Backup Complete' );
 
 
 --

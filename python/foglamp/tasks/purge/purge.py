@@ -24,7 +24,6 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
-import logging
 
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -106,9 +105,8 @@ class Purge(FoglampProcess):
         result = self._storage.query_tbl_with_payload("streams", payload)
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
-
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
-        if config['age']['value'] != 0:
+        if int(config['age']['value']) != 0:
             result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
             if "message" in result.keys() and "409 Conflict" in result["message"]:
@@ -119,7 +117,7 @@ class Purge(FoglampProcess):
                 unsent_rows_removed = result['unsentPurged']
                 unsent_retained = result['unsentRetained']
 
-        if config['size']['value'] != 0:
+        if int(config['size']['value']) != 0:
             result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
             if "message" in result.keys() and "409 Conflict" in result["message"]:
@@ -133,12 +131,13 @@ class Purge(FoglampProcess):
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
         if total_rows_removed > 0:
-            """ Only write anb audit log entry when rows are removed """
+            """ Only write an audit log entry when rows are removed """
             loop = asyncio.get_event_loop()
             loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time, "end_time": end_time,
-                                              "rowsRemoved": total_rows_removed,
-                                              "unsentRowsRemoved": unsent_rows_removed,
-                                              "rowsRetained": unsent_retained, "rowsRemaining": total_count}))
+                                                                      "rowsRemoved": total_rows_removed,
+                                                                      "unsentRowsRemoved": unsent_rows_removed,
+                                                                      "rowsRetained": unsent_retained,
+                                                                      "rowsRemaining": total_count}))
         else:
             self._logger.info("No rows purged")
 

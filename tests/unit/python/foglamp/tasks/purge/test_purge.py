@@ -103,9 +103,7 @@ class TestPurge:
         (config[5], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, True),
         (config[6], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, True),
         (config[7], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, True),
-        (config[8], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, False),
-        (config[9], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, False),
-        (config[10], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, False)
+        (config[8], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, False)
     ])
     def test_purge_data(self, event_loop, conf, expected_return, expected_calls, valid_purge, valid_store_return):
         """Test that purge_data calls Storage's purge with defined values"""
@@ -139,14 +137,36 @@ class TestPurge:
                             assert expected_return == p.purge_data(conf)
                             p._logger.info.assert_called_once_with("No rows purged")
                         # Test the code block when purge failed
-                        elif valid_purge and not valid_store_return:
+                        else:
                             assert expected_return == p.purge_data(conf)
                             p._logger.error.assert_called_with('Purge failed: %s', '409 Conflict')
+
+    @pytest.mark.parametrize("conf", [(config[9]), (config[10])])
+    def test_purge_data_invalid_conf(self, event_loop, conf):
+        """Test that purge_data raises exception when called with invalid configuration"""
+
+        @asyncio.coroutine
+        def mock_audit_info():
+            return ""
+
+        mockStorageClient = MagicMock(spec=StorageClient)
+        mockAuditLogger = AuditLogger(mockStorageClient)
+
+        with patch.object(FoglampProcess, '__init__'):
+            with patch.object(mockAuditLogger, "__init__", return_value=None):
+                p = Purge(loop=event_loop)
+                p._logger = logger
+                p._logger.info = MagicMock()
+                p._logger.error = MagicMock()
+                p._storage = MagicMock(spec=StorageClient)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                audit = p._audit
+                with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge) as mock_storage_purge:
+                    with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
                         # Test the code block when purge failed because of invalid configuration
-                        else:
-                            with pytest.raises(ValueError):
-                                assert expected_return == p.purge_data(conf)
-                            p._logger.error.assert_called_with('Configuration bla should be integer!')
+                        with pytest.raises(ValueError):
+                            p.purge_data(conf)
+                        p._logger.error.assert_called_with('Configuration bla should be integer!')
 
     @pytest.mark.parametrize("input, expected_error", [
         ((1, 2), False),

@@ -12,7 +12,7 @@ Conditions:
     1. If the configuration value of retainUnsent is set to True then any reading with an id value that is
     greater than the minimum(last_object) of streams table will not be removed.
 
-    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age,
+    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age | size,
     regardless of the minimum(last_object) of streams table will be removed.
 
 Statistics reported by Purge process are:
@@ -49,8 +49,8 @@ class Purge(FoglampProcess):
             "default": "72"
         },
         "size": {
-            "description": "Maximium size of data to be retained, the oldest data will be removed to keep below this size," +
-                           "unless retained. (in Hours)",
+            "description": "Maximum size of data to be retained, the oldest data will be removed to keep below this "
+                           "size, unless retained. (in Bytes)",
             "type": "integer",
             "default": "1000000"
         },
@@ -106,27 +106,35 @@ class Purge(FoglampProcess):
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
-        if int(config['age']['value']) != 0:
-            result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
+        try:
+            if int(config['age']['value']) != 0:
 
-            if "message" in result.keys() and "409 Conflict" in result["message"]:
-                self._logger.error("Purge failed: %s", result["message"])
-            else:
-                total_count = result['readings']
-                total_rows_removed = result['removed']
-                unsent_rows_removed = result['unsentPurged']
-                unsent_retained = result['unsentRetained']
+                result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-        if int(config['size']['value']) != 0:
-            result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
+                if "message" in result.keys() and "409 Conflict" in result["message"]:
+                    self._logger.error("Purge failed: %s", result["message"])
+                else:
+                    total_count = result['readings']
+                    total_rows_removed = result['removed']
+                    unsent_rows_removed = result['unsentPurged']
+                    unsent_retained = result['unsentRetained']
+        except ValueError:
+            self._logger.error("Configuration {} should be integer!".format(config['age']['value']))
+            raise ValueError
+        try:
+            if int(config['size']['value']) != 0:
+                result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
-            if "message" in result.keys() and "409 Conflict" in result["message"]:
-                self._logger.error("Purge failed: %s", result["message"])
-            else:
-                total_count += result['readings']
-                total_rows_removed += result['removed']
-                unsent_rows_removed += result['unsentPurged']
-                unsent_retained += result['unsentRetained']
+                if "message" in result.keys() and "409 Conflict" in result["message"]:
+                    self._logger.error("Purge failed: %s", result["message"])
+                else:
+                    total_count += result['readings']
+                    total_rows_removed += result['removed']
+                    unsent_rows_removed += result['unsentPurged']
+                    unsent_retained += result['unsentRetained']
+        except ValueError:
+            self._logger.error("Configuration {} should be integer!".format(config['size']['value']))
+            raise ValueError
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 

@@ -31,13 +31,13 @@ class TestPurge:
         """Test that creating an instance of Purge calls init of FoglampProcess and creates loggers"""
         mock_store = MagicMock(spec=StorageClient)
         mock_ad = AuditLogger(mock_store)
-        with patch.object(FoglampProcess, "__init__") as fp:
+        with patch.object(FoglampProcess, "__init__") as mock_process:
             with patch.object(logger, "setup") as log:
                 with patch.object(mock_ad, "__init__", return_value=None):
                     p = Purge()
                 assert isinstance(p._audit, AuditLogger)
             log.assert_called_once_with("Data Purge")
-        fp.assert_called_once_with()
+        mock_process.assert_called_once_with()
 
     def test_write_statistics(self):
         """Test that write_statistics calls update statistics with defined keys and value increments"""
@@ -74,7 +74,9 @@ class TestPurge:
               {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "100"}},
               {"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "0"}},
               {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "0"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}}]
+              {"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}},
+              {"retainUnsent": {"value": "True"}, "age": {"value": "bla"}, "size": {"value": "0"}},
+              {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "bla"}}]
 
     @pytest.mark.parametrize("conf, expected_return, expected_calls, valid_purge, valid_store_return", [
         (config[0], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'purge'}, True, True),
@@ -85,7 +87,9 @@ class TestPurge:
         (config[5], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, True),
         (config[6], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, True),
         (config[7], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, True),
-        (config[8], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, False)
+        (config[8], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, False),
+        (config[9], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, False),
+        (config[10], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, False)
     ])
     def test_purge_data(self, conf, expected_return, expected_calls, valid_purge, valid_store_return):
         """Test that purge_data calls Storage's purge with defined values"""
@@ -100,24 +104,25 @@ class TestPurge:
             with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge) as mock_storage_purge:
                 with patch.object(audit, 'information', return_value=asyncio.ensure_future(asyncio.sleep(0.1))) \
                         as audit_info:
-                    assert expected_return == p.purge_data(conf)
                     # Test the positive case when all if conditions in purge_data pass
                     if valid_purge and valid_store_return:
+                        assert expected_return == p.purge_data(conf)
                         assert audit_info.called
                         args, kwargs = mock_storage_purge.call_args
                         assert kwargs == expected_calls
                     # Test the code block when no rows were purged
                     elif not valid_purge and valid_store_return:
+                        assert expected_return == p.purge_data(conf)
                         p._logger.info.assert_called_once_with("No rows purged")
                     # Test the code block when purge failed
-                    else:
+                    elif valid_purge and not valid_store_return:
+                        assert expected_return == p.purge_data(conf)
                         p._logger.error.assert_called_with('Purge failed: %s', '409 Conflict')
-            # Reset mocks required to clean any call states between parametrised tests
-            audit_info.reset_mock()
-            mock_storage_purge.reset_mock()
-            p._storage.reset_mock()
-            p._logger.info.reset_mock()
-            p._logger.error.reset_mock()
+                    # Test the code block when purge failed because of invalid configuration
+                    else:
+                        with pytest.raises(ValueError):
+                            assert expected_return == p.purge_data(conf)
+                        p._logger.error.assert_called_with('Configuration bla should be integer!')
 
     @pytest.mark.parametrize("input, expected_error", [
         ((1, 2), False),
@@ -129,20 +134,15 @@ class TestPurge:
             p = Purge()
             config = "Some config"
             p._logger.exception = MagicMock()
-            with patch.object(p, 'set_configuration', return_value=config) as sc:
-                with patch.object(p, 'purge_data', return_value=input) as pd:
-                    with patch.object(p, 'write_statistics') as ws:
+            with patch.object(p, 'set_configuration', return_value=config) as mock_set_config:
+                with patch.object(p, 'purge_data', return_value=input) as mock_purge_data:
+                    with patch.object(p, 'write_statistics') as mock_write_stats:
                         p.run()
             # Test the positive case when no error in try block
             if not expected_error:
-                sc.assert_called_once_with()
-                pd.assert_called_once_with(config)
-                ws.assert_called_once_with(1, 2)
+                mock_set_config.assert_called_once_with()
+                mock_purge_data.assert_called_once_with(config)
+                mock_write_stats.assert_called_once_with(1, 2)
             # Test the negative case when function purge_data raise some exception
             else:
                 p._logger.exception.assert_called_once_with("'Exception' object is not iterable")
-            # Reset mocks required to clean any call states between parametrised tests
-            ws.reset_mock()
-            pd.reset_mock()
-            sc.reset_mock()
-            p._logger.exception.reset_mock()

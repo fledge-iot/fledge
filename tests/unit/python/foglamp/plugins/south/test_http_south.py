@@ -18,8 +18,6 @@ from multidict import CIMultiDict
 from foglamp.plugins.south.http_south.http_south import HttpSouthIngest
 from foglamp.plugins.south.coap_listen.coap_listen import Ingest
 
-pytestmark = pytest.mark.asyncio
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -46,6 +44,7 @@ class TestHttpSouthIngest(object):
     """Unit tests foglamp.plugins.south.http_south.http_south.HttpSouthIngest
     """
 
+    @pytest.mark.asyncio
     async def test_post_sensor_reading_ok(self, event_loop):
         data = """{
             "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
@@ -59,7 +58,11 @@ class TestHttpSouthIngest(object):
                 }
             }
         }"""
-        with patch.object(Ingest, 'add_readings', return_value=asyncio.ensure_future(asyncio.sleep(0.1))):
+
+        async def mock_coro():
+            return ""
+
+        with patch.object(Ingest, 'add_readings', return_value=mock_coro()):
             with patch.object(Ingest, 'is_available', return_value=True):
                 request = mock_request(data, event_loop)
                 r = await HttpSouthIngest.render_post(request)

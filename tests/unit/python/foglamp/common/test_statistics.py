@@ -38,11 +38,11 @@ class TestStatistics:
         s = Statistics(storage_client_mock)
         payload = '{"where": {"column": "key", "condition": "=", "value": "READING"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 5}]}'
-        result = {"response": "updated", "rows_affected": 1}
-        with patch.object(s._storage, 'update_tbl', return_value=result) as stat_update:
+        expected_result = {"response": "updated", "rows_affected": 1}
+        with patch.object(s._storage, 'update_tbl', return_value=expected_result) as stat_update:
             await s.update('READING', 5)
             stat_update.assert_called_once_with('statistics', payload)
-            assert "updated" == result['response']
+            assert "updated" == expected_result['response']
 
     @pytest.mark.parametrize("key, value_increment, exception_name, exception_message", [
         (123456, 120, TypeError, "key must be a string"),
@@ -57,7 +57,6 @@ class TestStatistics:
 
         with pytest.raises(exception_name) as excinfo:
             await s.update(key, value_increment)
-
         assert exception_message == str(excinfo.value)
 
     async def test_update_exception(self):
@@ -77,11 +76,11 @@ class TestStatistics:
         s = Statistics(storage_client_mock)
         payload = '{"where": {"column": "key", "condition": "=", "value": "FOGBENCH/TEMPERATURE"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 1}]}'
-        result = {"response": "updated", "rows_affected": 1}
-        with patch.object(s._storage, 'update_tbl', return_value=result) as stat_update:
+        expected_result = {"response": "updated", "rows_affected": 1}
+        with patch.object(s._storage, 'update_tbl', return_value=expected_result) as stat_update:
             await s.add_update(stat_dict)
             stat_update.assert_called_once_with('statistics', payload)
-            assert "updated" == result['response']
+            assert "updated" == expected_result['response']
 
     async def test_insert_when_key_error(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
@@ -90,13 +89,13 @@ class TestStatistics:
         payload = '{"previous_value": 0, "value": 1, "key": "FOGBENCH/TEMPERATURE", ' \
                   '"description": "The number of readings received by FogLAMP since startup' \
                   ' for sensor FOGBENCH/TEMPERATURE"}'
-        result = {"response": "inserted", "rows_affected": 1}
+        expected_result = {"response": "inserted", "rows_affected": 1}
         with patch.object(s._storage, 'update_tbl', side_effect=KeyError):
-            with patch.object(s._storage, 'insert_into_tbl', return_value=result) as stat_insert:
+            with patch.object(s._storage, 'insert_into_tbl', return_value=expected_result) as stat_insert:
                 await s.add_update(stat_dict)
                 # FIXME: payload order issue
                 # stat_insert.assert_called_with('statistics', payload)
-                assert "inserted" == result['response']
+                assert "inserted" == expected_result['response']
 
     async def test_add_update_exception(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}

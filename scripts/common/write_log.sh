@@ -27,7 +27,8 @@
 ## The Loggging Handler
 #
 # Paramaters: $1 - Module
-#             $2 - Severity:
+#             $2 - Function
+#             $3 - Severity:
 #                  - debug
 #                  - info
 #                  - notice
@@ -35,35 +36,59 @@
 #                  - crit
 #                  - alert
 #                  - emerg
-#             $3 - Message
-#             $4 - Output:
+#             $4 - Message
+#             $5 - Output:
 #                  - logonly : send the message only to syslog
 #                  - all     : send the message to syslog and stdout
 #                  - outonly " send the message only to stdout
-#             $5 - Format
+#             $6 - Format
 #                - pretty : Do not show the date and priority
 #
 write_log() {
 
-    # Check log severity
-    if ! [[ "$2" =~ ^(debug|info|notice|err|crit|alert|emerg)$ ]]; then
-        write_log $1 "err" "Internal error: unrecognized priority: $2" $3
-        exit 1
-    fi
+  # Check log severity
+  case "$3" in
+    "debug")
+      severity="DEBUG"
+      ;;
+    "info")
+      severity="INFO"
+      ;;
+    "notice")
+      severity="WARNING"
+      ;;
+    "err")
+      severity="ERROR"
+      ;;
+    "crit")
+      severity="CRITICAL ERROR"
+      ;;
+    "alert")
+      severity="ALERT"
+      ;;
+    "emerg")
+      severity="EMERGENCY"
+      ;;
+    "*")
+      write_log $1 "err" "Internal error: unrecognized priority: $3" $4
+      exit 1
+      ;;
+  esac
 
-    # Log to syslog
-    if [[ "$4" =~ ^(logonly|all)$ ]]; then
-        logger -p local0.$2 -t $1 $3
-    fi
+  # Log to syslog
+  if [[ "$5" =~ ^(logonly|all)$ ]]; then
+      tag="FogLAMP ${1}[${BASHPID}] ${severity}: ${2}"
+      logger -t "${tag}" "${4}"
+  fi
 
-    # Log to Stdout
-    if [[ "$4" =~ ^(outonly|all)$ ]]; then
-        if [[ "$5" == "pretty" ]]; then
-            echo "$3" >&2
-        else
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
-        fi
-    fi
+  # Log to Stdout
+  if [[ "${5}" =~ ^(outonly|all)$ ]]; then
+      if [[ "${6}" == "pretty" ]]; then
+          echo "${4}" >&2
+      else
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
+      fi
+  fi
 
 }
 

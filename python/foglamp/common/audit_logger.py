@@ -4,11 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from importlib import import_module
-import copy
-import json
-
-from collections import OrderedDict
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 
@@ -34,7 +29,7 @@ class AuditLoggerSingleton(object):
 class AuditLogger(AuditLoggerSingleton):
     """ Audit Logger
 
-        Singleton interfce to an audit logging class
+        Singleton interface to an audit logging class
     """
 
     _success = 0
@@ -63,7 +58,7 @@ class AuditLogger(AuditLoggerSingleton):
 
         except Exception as ex:
             _logger.exception("Failed to log audit trail entry %s: %s", code, str(ex))
-            raise str(ex)
+            raise ex
 
     async def success(self, code, log):
         await self._log(self._success, code, log)

@@ -63,28 +63,29 @@ class Purge(FoglampProcess):
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
-    def __init__(self):
+    def __init__(self, loop=None):
         super().__init__()
         self._logger = logger.setup("Data Purge")
         self._audit = AuditLogger(self._storage)
+        if loop is None:
+            self.loop = asyncio.get_event_loop()
+        else:
+            self.loop = loop
 
     def write_statistics(self, total_purged, unsent_purged):
-        loop = asyncio.get_event_loop()
         stats = Statistics(self._storage)
-        loop.run_until_complete(stats.update('PURGED', total_purged))
-        loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
+        self.loop.run_until_complete(stats.update('PURGED', total_purged))
+        self.loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 
     def set_configuration(self):
         """" set the default configuration for purge
         :return:
             Configuration information that was set for purge process
         """
-        event_loop = asyncio.get_event_loop()
         cfg_manager = ConfigurationManager(self._storage)
-        event_loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
-                                                                            self._DEFAULT_PURGE_CONFIG,
-                                                                            self._CONFIG_CATEGORY_DESCRIPTION))
-        return event_loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
+        self.loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME, self._DEFAULT_PURGE_CONFIG,
+                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
+        return self.loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
 
     def purge_data(self, config):
         """" Purge readings table based on the set configuration
@@ -140,12 +141,13 @@ class Purge(FoglampProcess):
 
         if total_rows_removed > 0:
             """ Only write an audit log entry when rows are removed """
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time, "end_time": end_time,
-                                                                      "rowsRemoved": total_rows_removed,
-                                                                      "unsentRowsRemoved": unsent_rows_removed,
-                                                                      "rowsRetained": unsent_retained,
-                                                                      "rowsRemaining": total_count}))
+            self.loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time,
+                                                                           "end_time": end_time,
+                                                                           "rowsRemoved": total_rows_removed,
+                                                                           "unsentRowsRemoved": unsent_rows_removed,
+                                                                           "rowsRetained": unsent_retained,
+                                                                           "rowsRemaining": total_count
+                                                                           }))
         else:
             self._logger.info("No rows purged")
 

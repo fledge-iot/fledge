@@ -134,6 +134,7 @@ FogLAMP is now present in */usr/local/foglamp* and ready to start. The start scr
   ubuntu@ubuntu:/usr/local/foglamp$
   $
   $ bin/foglamp start
+  Starting FogLAMP......
   FogLAMP started.
   $ 
 
@@ -177,6 +178,7 @@ If you have installed FogLAMP in a non-default directory, you must at least set 
   $ export FOGLAMP_ROOT="/opt/usr/local/foglamp"
   $ cd /opt/usr/local/foglamp/
   $ bin/foglamp start
+  Starting FogLAMP......
   FogLAMP started.
   $
 
@@ -224,6 +226,7 @@ You can use the same ``foglamp`` command we discussed in the previous section to
   PostgreSQL started.
   Building the metadata for the FogLAMP Plugin...
   Build complete.
+  Starting FogLAMP......
   FogLAMP started.
   $
   $ foglamp status
@@ -240,6 +243,7 @@ You can use the same ``foglamp`` command we discussed in the previous section to
   foglamp.tasks.statistics --port=37829 --address=127.0.0.1 --name=stats collector
   $
   $ foglamp stop
+  Stopping FogLAMP.............
   Stopping PostgreSQL...
   PostgreSQL stopped.
   FogLAMP stopped.

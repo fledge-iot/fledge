@@ -1,0 +1,4 @@
+#!/bin/bash
+
+$TEST_BASEDIR/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
+tail -n1 ${RESULT_DIR}/$TEST_NAME.temp

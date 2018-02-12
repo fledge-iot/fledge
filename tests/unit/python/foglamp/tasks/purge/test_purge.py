@@ -141,8 +141,9 @@ class TestPurge:
                             assert expected_return == p.purge_data(conf)
                             p._logger.error.assert_called_with('Purge failed: %s', '409 Conflict')
 
-    @pytest.mark.parametrize("conf", [(config[9]), (config[10])])
-    def test_purge_data_invalid_conf(self, event_loop, conf):
+    @pytest.mark.parametrize("conf, expected_key", [(config[9], "age"),
+                                                    (config[10], "size")])
+    def test_purge_data_invalid_conf(self, event_loop, conf, expected_key):
         """Test that purge_data raises exception when called with invalid configuration"""
 
         @asyncio.coroutine
@@ -166,7 +167,7 @@ class TestPurge:
                         # Test the code block when purge failed because of invalid configuration
                         with pytest.raises(ValueError):
                             p.purge_data(conf)
-                        p._logger.error.assert_called_with('Configuration bla should be integer!')
+                        p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.format(expected_key))
 
     @pytest.mark.parametrize("input, expected_error", [
         ((1, 2), False),

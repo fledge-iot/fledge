@@ -120,7 +120,7 @@ class Purge(FoglampProcess):
                     unsent_rows_removed = result['unsentPurged']
                     unsent_retained = result['unsentRetained']
         except ValueError:
-            self._logger.error("Configuration {} should be integer!".format(config['age']['value']))
+            self._logger.error("Configuration item age {} should be integer!".format(config['age']['value']))
             raise ValueError
         try:
             if int(config['size']['value']) != 0:
@@ -134,7 +134,7 @@ class Purge(FoglampProcess):
                     unsent_rows_removed += result['unsentPurged']
                     unsent_retained += result['unsentRetained']
         except ValueError:
-            self._logger.error("Configuration {} should be integer!".format(config['size']['value']))
+            self._logger.error("Configuration item size {} should be integer!".format(config['size']['value']))
             raise ValueError
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))

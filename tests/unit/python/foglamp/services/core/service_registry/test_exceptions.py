@@ -47,8 +47,9 @@ class TestServiceRegistryExceptions:
         assert issubclass(excinfo.type, Exception)
         assert "" == str(excinfo.value)
 
-    with pytest.raises(Exception) as excinfo:
-        raise NonNumericPortError()
-    assert excinfo.type is NonNumericPortError
-    assert issubclass(excinfo.type, TypeError)
-    assert "" == str(excinfo.value)
+    def test_NonNumericPortError(self):
+        with pytest.raises(Exception) as excinfo:
+            raise NonNumericPortError()
+        assert excinfo.type is NonNumericPortError
+        assert issubclass(excinfo.type, TypeError)
+        assert "" == str(excinfo.value)

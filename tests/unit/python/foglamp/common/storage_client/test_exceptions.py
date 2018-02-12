@@ -46,7 +46,9 @@ class TestStorageClientExceptions:
             raise StorageClientException(code=11, message="foo")
         assert excinfo.type is StorageClientException
         assert issubclass(excinfo.type, Exception)
+
         # code is 11
+        # pytest raises wrapper allow only type, value and traceback info
         assert "foo" == str(excinfo.value)
 
         try:
@@ -62,10 +64,7 @@ class TestStorageClientExceptions:
             raise BadRequest()
         assert excinfo.type is BadRequest
         assert issubclass(excinfo.type, StorageClientException)
-        # code is 400
-        assert "Bad request" == str(excinfo.value)
 
-    def test_BadRequest2(self):
         try:
             raise BadRequest()
         except Exception as ex:
@@ -79,37 +78,67 @@ class TestStorageClientExceptions:
             raise StorageServiceUnavailable()
         assert excinfo.type is StorageServiceUnavailable
         assert issubclass(excinfo.type, StorageClientException)
-        # code is 503
-        assert "Storage service is unavailable" == str(excinfo.value)
+
+        try:
+            raise StorageServiceUnavailable()
+        except Exception as ex:
+            assert ex.__class__ is StorageServiceUnavailable
+            assert issubclass(ex.__class__, StorageClientException)
+            assert 503 == ex.code
+            assert "Storage service is unavailable" == ex.message
 
     def test_InvalidServiceInstance(self):
         with pytest.raises(Exception) as excinfo:
             raise InvalidServiceInstance()
         assert excinfo.type is InvalidServiceInstance
         assert issubclass(excinfo.type, StorageClientException)
-        # code is 502
-        assert "Storage client needs a valid *FogLAMP storage* micro-service instance" == str(excinfo.value)
+
+        try:
+            raise InvalidServiceInstance()
+        except Exception as ex:
+            assert ex.__class__ is InvalidServiceInstance
+            assert issubclass(ex.__class__, StorageClientException)
+            assert 502 == ex.code
+            assert "Storage client needs a valid *FogLAMP storage* micro-service instance" == ex.message
 
     def test_InvalidReadingsPurgeFlagParameters(self):
         with pytest.raises(Exception) as excinfo:
             raise InvalidReadingsPurgeFlagParameters()
         assert excinfo.type is InvalidReadingsPurgeFlagParameters
         assert issubclass(excinfo.type, BadRequest)
-        # code is 400
-        assert "Purge flag valid options are retain or purge only" == str(excinfo.value)
 
-    def test_PurgeOnlyOneOfAgeAndSize(self):
-        with pytest.raises(Exception) as excinfo:
-            raise PurgeOnlyOneOfAgeAndSize()
-        assert excinfo.type is PurgeOnlyOneOfAgeAndSize
-        assert issubclass(excinfo.type, BadRequest)
-        # code is 400
-        assert "Purge must specify only one of age or size" == str(excinfo.value)
+        try:
+            raise InvalidReadingsPurgeFlagParameters()
+        except Exception as ex:
+            assert ex.__class__ is InvalidReadingsPurgeFlagParameters
+            assert issubclass(ex.__class__, BadRequest)
+            assert 400 == ex.code
+            assert "Purge flag valid options are retain or purge only" == ex.message
 
     def test_PurgeOneOfAgeAndSize(self):
         with pytest.raises(Exception) as excinfo:
             raise PurgeOneOfAgeAndSize()
         assert excinfo.type is PurgeOneOfAgeAndSize
         assert issubclass(excinfo.type, BadRequest)
-        # code is 400
-        assert "Purge must specify one of age or size" == str(excinfo.value)
+
+        try:
+            raise PurgeOneOfAgeAndSize()
+        except Exception as ex:
+            assert ex.__class__ is PurgeOneOfAgeAndSize
+            assert issubclass(ex.__class__, BadRequest)
+            assert 400 == ex.code
+            assert "Purge must specify one of age or size" == ex.message
+
+    def test_PurgeOnlyOneOfAgeAndSize(self):
+        with pytest.raises(Exception) as excinfo:
+            raise PurgeOnlyOneOfAgeAndSize()
+        assert excinfo.type is PurgeOnlyOneOfAgeAndSize
+        assert issubclass(excinfo.type, BadRequest)
+
+        try:
+            raise PurgeOnlyOneOfAgeAndSize()
+        except Exception as ex:
+            assert ex.__class__ is PurgeOnlyOneOfAgeAndSize
+            assert issubclass(ex.__class__, BadRequest)
+            assert 400 == ex.code
+            assert "Purge must specify only one of age or size" == ex.message

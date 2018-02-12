@@ -61,7 +61,7 @@ check_storage_management_script() {
 
 ## Logger wrapper
 foglamp_log() {
-    write_log "foglamp.script.foglamp" "$1" "$2" "$3" "$4"
+    write_log "" "script.foglamp" "$1" "$2" "$3" "$4"
 }
 
 
@@ -136,16 +136,33 @@ foglamp_start() {
                 sleep 1
                 new_attempt=`foglamp_status "silent"`
                 case "$new_attempt" in
-                  "0")
+
+                  "0")  # Started
                     echo
                     foglamp_log "info" "FogLAMP started." "all" "pretty"
                     let attempts=0
                     ;;
-                  "1")
+
+                  "1")  # Starting
                     let attempts=attempts-1
-                    echo -n "."
+
+                    # Check the status of the attempts - is the time over?
+                    if [[ attempts -gt 0 ]]; then
+
+                      # Print an extra dot
+                      echo -n "."
+
+                    else
+
+                      # Time is over - exit with error
+                      foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
+                      foglamp_log "err" "Number of attempts exceeded: FogLAMP may be in an inconsistent state." "all" "pretty"
+                      exit 1
+
+                    fi
                     ;;
-                  "2")
+
+                  "2")  # Not running
                     foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
                     foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
                     exit 1
@@ -164,10 +181,58 @@ foglamp_start() {
 
 ## FogLAMP Stop
 #
-# We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
-#
 foglamp_stop() {
-    curl -s -X PUT http://localhost:8081/foglamp/shutdown
+
+  result=`foglamp_status "silent"`
+  
+  if [[ $result = "2" ]]; then
+      foglamp_log "info" "It looks like FogLAMP is not running." "all" "pretty"
+    exit 0
+  fi
+
+  result=`curl -s -X PUT http://localhost:8081/foglamp/shutdown`
+
+  if [[ "${result}" =~ "FogLAMP shutdown has been scheduled" ]]; then
+    echo -n "Stopping FogLAMP."
+  fi
+
+  attempts=60
+
+  while [ $attempts -gt 0 ]; do
+    sleep 1
+    new_attempt=`foglamp_status "silent"`
+    case "$new_attempt" in
+
+      0|1 )  # Still running
+
+        let attempts=attempts-1
+
+        # Check the status of the attempts - is the time over?
+        if [[ attempts -gt 0 ]]; then
+
+          # Print an extra dot
+          echo -n "."
+
+        else
+
+          # Time is over - exit with error
+          foglamp_log "err" "FogLAMP cannot be stopped." "all" "pretty"
+          foglamp_log "err" "Number of attempts exceeded: FogLAMP may be in an inconsistent state." "all" "pretty"
+          exit 1
+
+        fi
+        ;;
+
+      2 )  # Not running
+
+        echo
+        foglamp_log "info" "FogLAMP stopped." "all" "pretty"
+        let attempts=0
+        ;;
+
+    esac
+  done
+
 }
 
 ## FogLAMP Kill
@@ -178,7 +243,7 @@ foglamp_kill() {
 
     # Check the storage management script
     if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
-        foglamp_log "info" "FogLAMP cannot be stopped." "all" "pretty"
+        foglamp_log "info" "FogLAMP cannot be killed." "all" "pretty"
         foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
         exit 1
     fi
@@ -209,7 +274,7 @@ foglamp_kill() {
     #       it deals with the database engine.
     source "$FOGLAMP_ROOT/scripts/storage" stop
 
-    foglamp_log "info" "FogLAMP stopped." "all" "pretty"
+    foglamp_log "info" "FogLAMP killed." "all" "pretty"
 
 }
 
@@ -223,12 +288,6 @@ foglamp_kill() {
 # 2 - FogLAMP core is not running
 #
 foglamp_status() {
-
-    # Check if curl is present
-    if [[ ! `command -v curl` ]]; then
-        foglamp_log "info" "FogLAMP cannot be checked." "outonly" "pretty"
-        foglamp_log "info" "The curl command cannot be executed." "outonly" "pretty"
-    fi
 
     result=`curl -s http://localhost:8081/foglamp/ping || true`
     case "$result" in
@@ -314,6 +373,13 @@ if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
     foglamp_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
     exit 1
 
+fi
+
+# Check if curl is present
+if [[ ! `command -v curl` ]]; then
+    foglamp_log "err" "Missing dependency: curl." "all" "pretty"
+    foglamp_log "info" "Install curl and run FogLAMP again." "outonly" "pretty"
+    exit 1
 fi
 
 case "$1" in

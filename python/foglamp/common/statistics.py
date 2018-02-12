@@ -51,16 +51,22 @@ class Statistics(object):
         Returns:
             None
         """
+        if not isinstance(key, str):
+            raise TypeError('key must be a string')
+
+        if not isinstance(value_increment, int):
+            raise ValueError('value must be an integer')
+
         try:
             payload = PayloadBuilder()\
                 .WHERE(["key", "=", key])\
                 .EXPR(["value", "+", value_increment])\
                 .payload()
             self._storage.update_tbl("statistics", payload)
-        except:
+        except Exception as ex:
             _logger.exception(
-                'Unable to update statistics value based on statistics_key %s and value_increment %s'
-                , key, value_increment)
+                'Unable to update statistics value based on statistics_key %s and value_increment %d, error %s'
+                , key, value_increment, str(ex))
             raise
 
     async def add_update(self, sensor_stat_dict):
@@ -117,4 +123,3 @@ class Statistics(object):
                 self._registered_keys.append(row['key'])
         except Exception as ex:
             _logger.exception('Failed to retrieve statistics keys, %s', str(ex))
-

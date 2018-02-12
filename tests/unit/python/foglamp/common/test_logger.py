@@ -51,7 +51,7 @@ class TestLogger:
         """ Test the logger type being returned when destination=1
 
         :assert:
-            Assert that the setup returns value of type logging.Logger
+            Assert that the setup returns instance of type logging.Logger
         """
         instance = logger.setup(__name__, destination=1)
         assert isinstance(instance, logging.Logger) is True
@@ -67,12 +67,12 @@ class TestLogger:
         assert "ValueError: Invalid destination 2" in str(error_exec)
  
     def test_logger_level(self):
-        """ Test logger level  gets updated
+        """ Test logger level gets updated
 
         :assert:
             Assert that unless i==0, output.getEffectiveLevel() == i
         """
-        for i in range(0, 50, 10):
+        for i in range(0, 60, 10):
             output = logger.setup(__name__, level=i)
             if i == 0:
                 # Level NOTSET (0) so inherits level WARNING (30)

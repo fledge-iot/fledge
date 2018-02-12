@@ -82,31 +82,23 @@ class TestPurge:
             return {"message": "409 Conflict"}
         return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7}
 
-    config = [{"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "20"}},
-              {"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "0"}},
-              {"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "100"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "72"}, "size": {"value": "20"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "72"}, "size": {"value": "0"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "100"}},
-              {"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "0"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "0"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "bla"}, "size": {"value": "0"}},
-              {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "bla"}}]
+    config = {"purgeAgeSize": {"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "20"}},
+              "purgeAge": {"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "0"}},
+              "purgeSize": {"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "100"}},
+              "retainAgeSize": {"retainUnsent": {"value": "True"}, "age": {"value": "72"}, "size": {"value": "20"}},
+              "retainAge": {"retainUnsent": {"value": "True"}, "age": {"value": "72"}, "size": {"value": "0"}},
+              "retainSize": {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "100"}}}
 
-    @pytest.mark.parametrize("conf, expected_return, expected_calls, valid_purge, valid_store_return", [
-        (config[0], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'purge'}, True, True),
-        (config[1], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'purge'}, True, True),
-        (config[2], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'purge'}, True, True),
-        (config[3], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'retain'}, True, True),
-        (config[4], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'retain'}, True, True),
-        (config[5], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, True),
-        (config[6], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, True),
-        (config[7], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, False, True),
-        (config[8], (0, 0), {'sent_id': 0, 'size': '100', 'flag': 'retain'}, True, False)
+    @pytest.mark.parametrize("conf, expected_return, expected_calls", [
+        (config["purgeAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'purge'}),
+        (config["purgeAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'purge'}),
+        (config["purgeSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'purge'}),
+        (config["retainAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'retain'}),
+        (config["retainAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'retain'}),
+        (config["retainSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retain'})
     ])
-    def test_purge_data(self, event_loop, conf, expected_return, expected_calls, valid_purge, valid_store_return):
-        """Test that purge_data calls Storage's purge with defined values"""
+    def test_purge_data(self, event_loop, conf, expected_return, expected_calls):
+        """Test that purge_data calls Storage's purge with defined configuration"""
 
         @asyncio.coroutine
         def mock_audit_info():
@@ -127,23 +119,72 @@ class TestPurge:
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge) as mock_storage_purge:
                     with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
                         # Test the positive case when all if conditions in purge_data pass
-                        if valid_purge and valid_store_return:
-                            assert expected_return == p.purge_data(conf)
-                            assert audit_info.called
-                            args, kwargs = mock_storage_purge.call_args
-                            assert kwargs == expected_calls
-                        # Test the code block when no rows were purged
-                        elif not valid_purge and valid_store_return:
-                            assert expected_return == p.purge_data(conf)
-                            p._logger.info.assert_called_once_with("No rows purged")
-                        # Test the code block when purge failed
-                        else:
-                            assert expected_return == p.purge_data(conf)
-                            p._logger.error.assert_called_with('Purge failed: %s', '409 Conflict')
+                        assert expected_return == p.purge_data(conf)
+                        assert audit_info.called
+                        args, kwargs = mock_storage_purge.call_args
+                        assert kwargs == expected_calls
 
-    @pytest.mark.parametrize("conf, expected_key", [(config[9], "age"),
-                                                    (config[10], "size")])
-    def test_purge_data_invalid_conf(self, event_loop, conf, expected_key):
+    @pytest.mark.parametrize("conf, expected_return", [
+        ({"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0)),
+        ({"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0))
+    ])
+    def test_purge_data_no_data_purged(self, event_loop, conf, expected_return):
+        """Test that purge_data logs message when no data was purged"""
+
+        @asyncio.coroutine
+        def mock_audit_info():
+            return ""
+
+        mockStorageClient = MagicMock(spec=StorageClient)
+        mockAuditLogger = AuditLogger(mockStorageClient)
+
+        with patch.object(FoglampProcess, '__init__'):
+            with patch.object(mockAuditLogger, "__init__", return_value=None):
+                p = Purge(loop=event_loop)
+                p._logger = logger
+                p._logger.info = MagicMock()
+                p._logger.error = MagicMock()
+                p._storage = MagicMock(spec=StorageClient)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                audit = p._audit
+                with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
+                    with patch.object(audit, 'information', return_value=mock_audit_info()):
+                        assert expected_return == p.purge_data(conf)
+                        p._logger.info.assert_called_once_with("No rows purged")
+
+    @pytest.mark.parametrize("conf, expected_return", [
+        ({"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}}, (0, 0))
+    ])
+    def test_purge_error_storage_response(self, event_loop, conf, expected_return):
+        """Test that purge_data logs error when storage purge returns an error response"""
+
+        @asyncio.coroutine
+        def mock_audit_info():
+            return ""
+
+        mockStorageClient = MagicMock(spec=StorageClient)
+        mockAuditLogger = AuditLogger(mockStorageClient)
+
+        with patch.object(FoglampProcess, '__init__'):
+            with patch.object(mockAuditLogger, "__init__", return_value=None):
+                p = Purge(loop=event_loop)
+                p._logger = logger
+                p._logger.info = MagicMock()
+                p._logger.error = MagicMock()
+                p._storage = MagicMock(spec=StorageClient)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                audit = p._audit
+                with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
+                    with patch.object(audit, 'information', return_value=mock_audit_info()):
+                        assert expected_return == p.purge_data(conf)
+                        p._logger.error.assert_called_with('Purge failed: %s', '409 Conflict')
+
+    @pytest.mark.parametrize("conf, expected_error_key",
+                             [({"retainUnsent": {"value": "True"}, "age": {"value": "bla"}, "size": {"value": "0"}},
+                               "age"),
+                              ({"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "bla"}},
+                               "size")])
+    def test_purge_data_invalid_conf(self, event_loop, conf, expected_error_key):
         """Test that purge_data raises exception when called with invalid configuration"""
 
         @asyncio.coroutine
@@ -162,18 +203,15 @@ class TestPurge:
                 p._storage = MagicMock(spec=StorageClient)
                 p._readings_storage = MagicMock(spec=ReadingsStorageClient)
                 audit = p._audit
-                with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge) as mock_storage_purge:
-                    with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
+                with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
+                    with patch.object(audit, 'information', return_value=mock_audit_info()):
                         # Test the code block when purge failed because of invalid configuration
                         with pytest.raises(ValueError):
                             p.purge_data(conf)
-                        p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.format(expected_key))
+                        p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
+                                                           format(expected_error_key))
 
-    @pytest.mark.parametrize("input, expected_error", [
-        ((1, 2), False),
-        (Exception(), True),
-    ])
-    def test_run(self, event_loop, input, expected_error):
+    def test_run(self, event_loop):
         """Test that run calls all units of purge process"""
         @asyncio.coroutine
         def mock_audit_info():
@@ -188,14 +226,31 @@ class TestPurge:
                 config = "Some config"
                 p._logger.exception = MagicMock()
                 with patch.object(p, 'set_configuration', return_value=config) as mock_set_config:
-                    with patch.object(p, 'purge_data', return_value=input) as mock_purge_data:
+                    with patch.object(p, 'purge_data', return_value=(1, 2)) as mock_purge_data:
                         with patch.object(p, 'write_statistics') as mock_write_stats:
                             p.run()
                 # Test the positive case when no error in try block
-                if not expected_error:
-                    mock_set_config.assert_called_once_with()
-                    mock_purge_data.assert_called_once_with(config)
-                    mock_write_stats.assert_called_once_with(1, 2)
+                mock_set_config.assert_called_once_with()
+                mock_purge_data.assert_called_once_with(config)
+                mock_write_stats.assert_called_once_with(1, 2)
+
+    def test_run_exception(self, event_loop):
+        """Test that run calls all units of purge process and checks the exception handling"""
+        @asyncio.coroutine
+        def mock_audit_info():
+            return ""
+
+        mockStorageClient = MagicMock(spec=StorageClient)
+        mockAuditLogger = AuditLogger(mockStorageClient)
+
+        with patch.object(FoglampProcess, '__init__'):
+            with patch.object(mockAuditLogger, "__init__", return_value=None):
+                p = Purge(loop=event_loop)
+                config = "Some config"
+                p._logger.exception = MagicMock()
+                with patch.object(p, 'set_configuration', return_value=config):
+                    with patch.object(p, 'purge_data', return_value=Exception()):
+                        with patch.object(p, 'write_statistics'):
+                            p.run()
                 # Test the negative case when function purge_data raise some exception
-                else:
-                    p._logger.exception.assert_called_once_with("'Exception' object is not iterable")
+                p._logger.exception.assert_called_once_with("'Exception' object is not iterable")

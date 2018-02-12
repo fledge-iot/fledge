@@ -23,7 +23,7 @@ class Utils(object):
     @staticmethod
     def is_json(payload):
         try:
-            json_object = json.loads(payload)
-        except ValueError:
+            json.loads(payload)
+        except (TypeError, ValueError):  # JSONDecodeError is a subclass of ValueError
             return False
         return True

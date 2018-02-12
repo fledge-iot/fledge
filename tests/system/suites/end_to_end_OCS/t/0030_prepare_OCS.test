@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
+# Enables the OCS plugin
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OCS_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+
+# Waits until the OCS plugin has created the default configurations
+${TEST_BASEDIR}/bash/wait_creation_cfg.bash "SEND_PR_4/producerToken"
+
+# Configures FogLAMP with the required settings
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/tenant_id -d '{ "value" : "'${OCS_TENANT}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/client_id -d '{ "value" : "'${OCS_CLIENT_ID}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/client_secret -d '{ "value" : "'${OCS_CLIENT_SECRET}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/namespace -d '{ "value" : "'${OCS_NAMESPACE}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OCS_TYPES/type-id -d '{ "value" : "'${OCS_TYPE_ID}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/SEND_PR_4/producerToken -d '{ "value" : "'${OCS_TOKEN}'" }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+
+# Initializes OCS cleaning all the content of the defined OCS NameSpace
+python3 $TEST_BASEDIR/python/ocs_clean_namespace.py $@              &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+# Retrieves the list of the Streams to ensure it is empty
+python3 $TEST_BASEDIR/python/ocs_read_streams_list.py $@
+
+# Restarts FogLAMP to ensure the new configurations are used
+${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
+
+${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}.2.temp 2>&1
+tail  -n1 ${RESULT_DIR}/${TEST_NAME}.2.temp

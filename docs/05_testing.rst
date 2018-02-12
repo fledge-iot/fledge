@@ -427,7 +427,7 @@ FogLAMP comes with a North plugin called *OMF Translator*. OMF is the OSIsoft Me
 - Information regarding OMF are available |here OMF|
 - Information regarding the OSIsoft PI System are available |here PI|
 
-*OMF Translator* is schedules as a North task that is executed every 30 seconds (the time may vary, we set it to 30 seconds to facilitate the testing.
+*OMF Translator* is scheduled as a North task that is executed every 30 seconds (the time may vary, we set it to 30 seconds to facilitate the testing).
 
 
 Preparing the PI System
@@ -618,7 +618,7 @@ Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 
   }
   $
 
-You can look at the descriptions to have a taste of what you can control with this plugin. The configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. Assuming, for example, that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
+You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2 uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
 
 .. code-block:: console
 

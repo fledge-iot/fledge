@@ -12,7 +12,7 @@ Conditions:
     1. If the configuration value of retainUnsent is set to True then any reading with an id value that is
     greater than the minimum(last_object) of streams table will not be removed.
 
-    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age,
+    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age | size,
     regardless of the minimum(last_object) of streams table will be removed.
 
 Statistics reported by Purge process are:
@@ -24,7 +24,6 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
-import logging
 
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -50,8 +49,8 @@ class Purge(FoglampProcess):
             "default": "72"
         },
         "size": {
-            "description": "Maximium size of data to be retained, the oldest data will be removed to keep below this size," +
-                           "unless retained. (in Hours)",
+            "description": "Maximum size of data to be retained, the oldest data will be removed to keep below this "
+                           "size, unless retained. (in Bytes)",
             "type": "integer",
             "default": "1000000"
         },
@@ -64,28 +63,29 @@ class Purge(FoglampProcess):
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
-    def __init__(self):
+    def __init__(self, loop=None):
         super().__init__()
         self._logger = logger.setup("Data Purge")
         self._audit = AuditLogger(self._storage)
+        if loop is None:
+            self.loop = asyncio.get_event_loop()
+        else:
+            self.loop = loop
 
     def write_statistics(self, total_purged, unsent_purged):
-        loop = asyncio.get_event_loop()
         stats = Statistics(self._storage)
-        loop.run_until_complete(stats.update('PURGED', total_purged))
-        loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
+        self.loop.run_until_complete(stats.update('PURGED', total_purged))
+        self.loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 
     def set_configuration(self):
         """" set the default configuration for purge
         :return:
             Configuration information that was set for purge process
         """
-        event_loop = asyncio.get_event_loop()
         cfg_manager = ConfigurationManager(self._storage)
-        event_loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
-                                                                            self._DEFAULT_PURGE_CONFIG,
-                                                                            self._CONFIG_CATEGORY_DESCRIPTION))
-        return event_loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
+        self.loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME, self._DEFAULT_PURGE_CONFIG,
+                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
+        return self.loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
 
     def purge_data(self, config):
         """" Purge readings table based on the set configuration
@@ -106,39 +106,48 @@ class Purge(FoglampProcess):
         result = self._storage.query_tbl_with_payload("streams", payload)
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
-
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
-        if config['age']['value'] != 0:
-            result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
+        try:
+            if int(config['age']['value']) != 0:
 
-            if "message" in result.keys() and "409 Conflict" in result["message"]:
-                self._logger.error("Purge failed: %s", result["message"])
-            else:
-                total_count = result['readings']
-                total_rows_removed = result['removed']
-                unsent_rows_removed = result['unsentPurged']
-                unsent_retained = result['unsentRetained']
+                result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-        if config['size']['value'] != 0:
-            result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
+                if "message" in result.keys() and "409 Conflict" in result["message"]:
+                    self._logger.error("Purge failed: %s", result["message"])
+                else:
+                    total_count = result['readings']
+                    total_rows_removed = result['removed']
+                    unsent_rows_removed = result['unsentPurged']
+                    unsent_retained = result['unsentRetained']
+        except ValueError:
+            self._logger.error("Configuration item age {} should be integer!".format(config['age']['value']))
+            raise ValueError
+        try:
+            if int(config['size']['value']) != 0:
+                result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
-            if "message" in result.keys() and "409 Conflict" in result["message"]:
-                self._logger.error("Purge failed: %s", result["message"])
-            else:
-                total_count += result['readings']
-                total_rows_removed += result['removed']
-                unsent_rows_removed += result['unsentPurged']
-                unsent_retained += result['unsentRetained']
+                if "message" in result.keys() and "409 Conflict" in result["message"]:
+                    self._logger.error("Purge failed: %s", result["message"])
+                else:
+                    total_count += result['readings']
+                    total_rows_removed += result['removed']
+                    unsent_rows_removed += result['unsentPurged']
+                    unsent_retained += result['unsentRetained']
+        except ValueError:
+            self._logger.error("Configuration item size {} should be integer!".format(config['size']['value']))
+            raise ValueError
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
         if total_rows_removed > 0:
-            """ Only write anb audit log entry when rows are removed """
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time, "end_time": end_time,
-                                              "rowsRemoved": total_rows_removed,
-                                              "unsentRowsRemoved": unsent_rows_removed,
-                                              "rowsRetained": unsent_retained, "rowsRemaining": total_count}))
+            """ Only write an audit log entry when rows are removed """
+            self.loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time,
+                                                                           "end_time": end_time,
+                                                                           "rowsRemoved": total_rows_removed,
+                                                                           "unsentRowsRemoved": unsent_rows_removed,
+                                                                           "rowsRetained": unsent_retained,
+                                                                           "rowsRemaining": total_count
+                                                                           }))
         else:
             self._logger.info("No rows purged")
 

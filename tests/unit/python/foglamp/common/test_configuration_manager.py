@@ -10,6 +10,8 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from unittest.mock import Mock
+from unittest.mock import call
 
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -533,7 +535,7 @@ class TestConfigurationManager():
     async def test__create_new_category(self,reset_singleton):
         storageClientMock = MagicMock(spec=StorageClient)
         c = ConfigurationManager(storageClientMock)
-        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(asyncio.sleep(0.1))) as auditloggerpatch:
+        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as auditloggerpatch:
             with patch('foglamp.common.storage_client.payload_builder.PayloadBuilder') as payloadbuilderpatch:                 
                 return_value = await c._create_new_category('category_name', 'category_val', 'category_description')
         auditloggerpatch.assert_called_once_with('CONAD', {'category': 'category_val', 'name': 'category_name'})
@@ -588,11 +590,166 @@ class TestConfigurationManager():
         return_value = await c._update_category(category_name, category_val, category_description)
 
 
+    
+    # async def create_category(self, category_name, category_value, category_description='', keep_original_items=False):
+
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_bad_storageval_good_update(self,reset_singleton):
+        async def return_not_none(return_value):
+            await asyncio.sleep(.1)
+            return return_value
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[return_not_none({}), Exception()]) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=return_not_none({})) as readpatch:
+                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=return_not_none({})) as mergepatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_update_category', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as updatepatch:
+                            await c.create_category('catname', 'catvalue', 'catdesc')
+        valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
+        readpatch.assert_called_once_with('catname')
+        mergepatch.assert_not_called()
+        updatepatch.assert_called_once_with('catname', {}, 'catdesc')
+        callbackpatch.assert_called_once_with('catname')
+
+
+        
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_bad_storageval_bad_update(self,reset_singleton):
+        async def return_not_none(return_value):
+            await asyncio.sleep(.1)
+            return return_value
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[return_not_none({}), Exception()]) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=return_not_none({})) as readpatch:
+                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=return_not_none({})) as mergepatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_update_category', side_effect=Exception()) as updatepatch:
+                            with pytest.raises(Exception) as excinfo:
+                                await c.create_category('catname', 'catvalue', 'catdesc')
+        valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
+        readpatch.assert_called_once_with('catname')
+        mergepatch.assert_not_called()
+        updatepatch.assert_called_once_with('catname', {}, 'catdesc')
+        callbackpatch.assert_not_called()
+
+
+
+    # (merged_value)
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_good_storageval_nochange(self,reset_singleton):
+        async def return_not_none(return_value):
+            await asyncio.sleep(.1)
+            return return_value
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[return_not_none({}), return_not_none({})]) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=return_not_none({})) as readpatch:
+                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=return_not_none({})) as mergepatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_update_category', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as updatepatch:
+                            await c.create_category('catname', 'catvalue', 'catdesc')
+        valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
+        readpatch.assert_called_once_with('catname')
+        mergepatch.assert_called_once_with({},{},False)
+        updatepatch.assert_not_called()
+        callbackpatch.assert_not_called()
+
+
+
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_good_storageval_good_update(self,reset_singleton):
+        async def return_not_none(return_value):
+            await asyncio.sleep(.1)
+            return return_value
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[return_not_none({}), return_not_none({})]) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=return_not_none({})) as readpatch:
+                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=return_not_none({'bla':'bla'})) as mergepatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_update_category', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as updatepatch:
+                            await c.create_category('catname', 'catvalue', 'catdesc')
+        valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
+        readpatch.assert_called_once_with('catname')
+        mergepatch.assert_called_once_with({},{},False)
+        updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc')
+        callbackpatch.assert_called_once_with('catname')
+
+
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_good_storageval_bad_update(self,reset_singleton):
+        async def return_not_none(return_value):
+            await asyncio.sleep(.1)
+            return return_value
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[return_not_none({}), return_not_none({})]) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=return_not_none({})) as readpatch:
+                with patch.object(ConfigurationManager, '_merge_category_vals', return_value=return_not_none({'bla':'bla'})) as mergepatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_update_category', side_effect=Exception()) as updatepatch:
+                            with pytest.raises(Exception) as excinfo:
+                                await c.create_category('catname', 'catvalue', 'catdesc')
+        valpatch.assert_has_calls([call('catvalue', True), call({}, False)])
+        readpatch.assert_called_once_with('catname')
+        mergepatch.assert_called_once_with({},{},False)
+        updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc')
+        callbackpatch.assert_not_called()
+
+
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_no_storageval_good_create(self,reset_singleton):
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as readpatch:
+                with patch.object(ConfigurationManager, '_create_new_category', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as createpatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        await c.create_category('catname', 'catvalue', "catdesc")
+        valpatch.assert_called_once_with('catvalue', True)
+        readpatch.assert_called_once_with('catname')
+        createpatch.assert_called_once_with('catname', None, 'catdesc')
+        callbackpatch.assert_called_once_with('catname')
+
+
+    @pytest.mark.asyncio
+    async def test_create_category_good_newval_no_storageval_bad_create(self,reset_singleton):
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as readpatch:
+                with patch.object(ConfigurationManager, '_create_new_category', side_effect=Exception()) as createpatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with pytest.raises(Exception) as excinfo:
+                            await c.create_category('catname', 'catvalue', "catdesc")
+        valpatch.assert_called_once_with('catvalue', True)
+        readpatch.assert_called_once_with('catname')
+        createpatch.assert_called_once_with('catname', None, 'catdesc')
+        callbackpatch.assert_not_called()
+
+
+
+    @pytest.mark.asyncio
+    async def test_create_category_bad_newval(self,reset_singleton):
+        storageClientMock = MagicMock(spec=StorageClient)
+        c = ConfigurationManager(storageClientMock)
+        with patch.object(ConfigurationManager, '_validate_category_val', side_effect=Exception()) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as readpatch:
+                with patch.object(ConfigurationManager, '_create_new_category', side_effect=Exception()) as createpatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=asyncio.ensure_future(asyncio.sleep(.1))) as callbackpatch:
+                        with pytest.raises(Exception) as excinfo:
+                            await c.create_category('catname', 'catvalue', "catdesc")
+        valpatch.assert_called_once_with('catvalue', True)
+        readpatch.assert_not_called()
+        callbackpatch.assert_not_called()
+
+
 """
     async def get_all_category_names(self,reset_singleton):
     async def get_category_all_items(self, category_name):
     async def get_category_item(self, category_name, item_name):
     async def get_category_item_value_entry(self, category_name, item_name):
     async def set_category_item_value_entry(self, category_name, item_name, new_value_entry):
-    async def create_category(self, category_name, category_value, category_description='', keep_original_items=False):
 """

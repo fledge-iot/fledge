@@ -4,10 +4,10 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import pytest
 
-from foglamp.services.core.service_registry.service_registry import ServiceRegistry as Service
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry.exceptions import DoesNotExist
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClient
@@ -22,25 +22,28 @@ __version__ = "${VERSION}"
 @pytest.allure.story("services", "core")
 class TestConnect:
     """ Storage connection"""
-    
     def setup_method(self):
-        Service._registry = []
+        ServiceRegistry._registry = []
 
     def teardown_method(self):
-        Service._registry = []
+        ServiceRegistry._registry = []
 
     def test_get_storage(self):
-        service_reg = MagicMock(spec=Service)
-        service_idx = Service.register("FogLAMP Storage", "Storage", "127.0.0.1", 37449, 37843)
-        with patch.object(service_reg, 'get', return_value=service_idx):
-            storage_client = connect.get_storage()
-            assert isinstance(storage_client, StorageClient)
+        ServiceRegistry.register("FogLAMP Storage", "Storage", "127.0.0.1", 37449, 37843)
+        storage_client = connect.get_storage()
+        assert isinstance(storage_client, StorageClient)
 
-    def test_get_storage_exception(self):
-        service_reg = MagicMock(spec=Service)
-        with patch.object(service_reg, 'get', side_effect=Exception()):
-            with pytest.raises(DoesNotExist) as excinfo:
-                with patch.object(connect._logger, 'exception') as logger_exception:
-                    connect.get_storage()
-                assert str(excinfo).endswith('DoesNotExist')
-                logger_exception.assert_called_once_with()
+    @patch('foglamp.services.core.connect._logger')
+    def test_exception_when_no_storage(self, mock_logger):
+        with pytest.raises(DoesNotExist) as excinfo:
+            connect.get_storage()
+        assert str(excinfo).endswith('DoesNotExist')
+        mock_logger.exception.assert_called_once_with('')
+
+    @patch('foglamp.services.core.connect._logger')
+    def test_exception_when_non_foglamp_storage(self, mock_logger):
+        ServiceRegistry.register("foo", "Storage", "127.0.0.1", 1, 2)
+        with pytest.raises(DoesNotExist) as excinfo:
+            connect.get_storage()
+        assert str(excinfo).endswith('DoesNotExist')
+        mock_logger.exception.assert_called_once_with('')

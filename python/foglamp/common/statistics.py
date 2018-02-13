@@ -4,7 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import asyncio
 from foglamp.common import logger
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -18,6 +17,7 @@ __version__ = "${VERSION}"
 
 
 _logger = logger.setup(__name__)
+
 
 class Statistics(object):
     """ Statistics interface of the API to gather the available statistics counters,
@@ -110,7 +110,7 @@ class Statistics(object):
         except Exception as ex:
             """ The error may be because the key has been created in another process, reload keys """
             self._load_keys()
-            if not key in _self.registered_key:
+            if key not in self._registered_keys:
                 _logger.exception('Unable to create new statistic %s, error %s', key, str(ex))
                 raise
 

@@ -9,11 +9,13 @@ from foglamp.common.configuration_manager import _valid_type_strings
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
-
+__author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("common", "configuration_manager")
 
 class TestConfigurationManager():
     @pytest.fixture()

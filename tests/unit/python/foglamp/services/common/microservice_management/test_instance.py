@@ -16,8 +16,6 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("service-registry instance")

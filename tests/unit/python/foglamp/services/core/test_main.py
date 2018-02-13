@@ -13,8 +13,6 @@ from unittest.mock import patch
 
 from foglamp.services import core
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("services", "core")
@@ -25,7 +23,7 @@ async def test_main():
 
         srvr.start()
 
-        srvr.start.assert_called_once_with() # assert_called_once() is python3.6 onwards :]
+        srvr.start.assert_called_once_with()  # assert_called_once() is python3.6 onwards :]
 
         # Okay, let's verify once more! :P
         assert 1 == srvr.start.call_count

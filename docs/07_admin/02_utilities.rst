@@ -10,6 +10,12 @@
 
 .. Links
 
+.. Links in new tabs
+
+.. |GH Issues| raw:: html
+
+   <a href="https://github.com/foglamp/FogLAMP/issues" target="_blank">GitHub</a>
+
 
 .. =============================================
 
@@ -30,6 +36,7 @@ In the current implementation, *foglamp* provides these features:
 
 - *start* FogLAMP
 - *stop* FogLAMP
+- *kill* FogLAMP processes
 - Check the *status* of FogLAMP, i.e. whether it is running, starting or not running
 - *reset* FogLAMP to its factory settings
 
@@ -52,7 +59,15 @@ In more specific terms, the command executes these steps:
 Stopping FogLAMP
 ----------------
 
-``foglamp stop`` is the command used to stop FogLAMP. In its current implementation, the command kills the processes associated to the FogLAMP microservices on the machine. A later version will execute a more graceful shutdown.
+``foglamp stop`` is the command used to stop FogLAMP. The command waits until all the tasks and services have been completed, then it stops the core service.
+
+
+If Foglamp Does Not Stop
+------------------------
+
+If FogLAMP does not stop, i.e. if by using the process status command ``ps`` you see FogLAMP processes still running, you can use ``foglamp kill`` to kill them.
+
+.. note:: The command issues a ``kill -9`` against the processes associated to FogLAMP. This is not recommended, unless FogLAMP cannot be stopped. The *stop* command. In other words, *kill* is your last resort before a reboot. If you must use the kill command, it means that there is a problem: let us know about that by submitting an issue on |GH Issues|.
 
 
 Checking the Status of FogLAMP

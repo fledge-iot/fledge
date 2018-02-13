@@ -15,14 +15,18 @@ __version__ = "${VERSION}"
 class DoesNotExist(Exception):
     pass
 
+
 class AlreadyExistsWithTheSameName(Exception):
     pass
+
 
 class AlreadyExistsWithTheSameAddressAndPort(Exception):
     pass
 
+
 class AlreadyExistsWithTheSameAddressAndManagementPort(Exception):
     pass
+
 
 class NonNumericPortError(TypeError):
     pass

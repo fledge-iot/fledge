@@ -179,17 +179,18 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0, send_to='
             msg_transferred_itr += 1
             byte_transferred_itr += sys.getsizeof(r)
 
-        # Start sending the messages to server
-        _start_time.append(datetime.now())  # Start time of every iteration
-        for r in readings_list:
-            is_sent = False
-            if send_to == 'coap':
+        if send_to == 'coap':
+            _start_time.append(datetime.now())
+            for r in readings_list:
                 is_sent = loop.run_until_complete(send_to_coap(r))
-            elif send_to == 'http':
+                if not is_sent:
+                    break
+        elif send_to == 'http':
+            _start_time.append(datetime.now())
+            for r in readings_list:
                 is_sent = loop.run_until_complete(send_to_http(r))
-
-            if not is_sent:
-                break
+                if not is_sent:
+                    break
 
         _end_time.append(datetime.now())  # End time of every iteration
         _tot_msgs_transferred.append(msg_transferred_itr)

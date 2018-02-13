@@ -1193,7 +1193,7 @@ class Scheduler(object):
             str(schedule_id),
             schedule.process_name)
         audit = AuditLogger(self._storage)
-        await audit.information('SCHCH', { 'schedule': schedule.toDict() })
+        await audit.information('SCHCH', { 'schedule': schedule.name, 'action' : 'disabled' })
         return True, "Schedule successfully disabled"
 
     async def enable_schedule(self, schedule_id: uuid.UUID):

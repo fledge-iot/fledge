@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
+server=WIN-4M7ODKB0RH2;\
+uid=Administrator;\
+pwd=FogLamp200
+
+url_Databases=`curl -s -u  ${uid}:${pwd} -X GET -k https://${server}/piwebapi/assetservers | jq --raw-output '.Items | .[] | .Links | .Databases '`
+echo DBG url_Databases -${url_Databases}- >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1 
+
+#
+#
+#
+url_Elements=`curl -s -u  ${uid}:${pwd} -X GET -k ${url_Databases} |  jq --raw-output '.Items | .[] | select(.Name=="osidatabase") | .Links | .Elements'`
+echo DBG url_Elements -${url_Elements}- >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+
+#
+#
+#
+url_Elements_list=`curl -s -u  ${uid}:${pwd} -X GET -k ${url_Elements} |  jq --raw-output '.Items | .[] | .Links | .Elements'`
+echo DBG url_Elements_list -${url_Elements_list}- >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+
+
+
+#
+#
+#
+url_assets_list=`curl -s -u  ${uid}:${pwd} -X GET -k ${url_Elements_list} |  jq --raw-output '.Items | .[] | select(.Name=="omf_srvdev_translator_2924")  | .Links | .Elements'`
+echo DBG url_assets_list -${url_assets_list}- >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+
+#
+# Asset
+#
+url_asset=`curl -s -u  ${uid}:${pwd} -X GET -k ${url_assets_list} |  jq --raw-output '.Items | .[] | select(.Name=="fogbench_smoke_test") | .Links | .EndValue'`
+echo DBG url_asset -${url_asset}- >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+
+#
+# Value
+#
+value=`curl -s -u  ${uid}:${pwd} -X GET -k ${url_asset} |  jq --raw-output '.Items | .[] | select(.Name=="sensor") | .Value | .Value'`
+echo DBG url_value -${value}- >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+
+echo ${value}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

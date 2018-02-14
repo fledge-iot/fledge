@@ -7,6 +7,7 @@
 from importlib import import_module
 import copy
 import json
+import inspect 
 
 from collections import OrderedDict
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -24,7 +25,7 @@ __version__ = "${VERSION}"
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
+_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON'])
 
 class ConfigurationManagerSingleton(object):
     """ ConfigurationManagerSingleton
@@ -62,13 +63,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     """
 
     _storage = None
-    _registered_interests = {}
+    _registered_interests = None
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
         if self._storage is None:
             if not isinstance(storage, StorageClient):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
+        if self._registered_interests is None:
+            self._registered_interests = {}
+
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -80,12 +84,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.exception(
                         'Unable to import callback module %s for category_name %s', callback, category_name)
                     raise
-                try:
-                    await cb.run(category_name)
-                except AttributeError:
+                if not hasattr(cb, 'run'):
                     _logger.exception(
-                        'Unable to run %s.run(category_name) for category_name %s', callback, category_name)
-                    raise
+                        'Callback module %s does not have method run', callback)
+                    raise AttributeError('Callback module {} does not have method run'.format(callback))
+                method = cb.run
+                if not inspect.iscoroutinefunction(method):
+                    _logger.exception(
+                        'Callback module %s run method must be a coroutine function', callback)
+                    raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
+                await cb.run(category_name)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items):
         # preserve all value_vals from category_val_storage
@@ -129,9 +137,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Specifying value_name and value_val for item_name {} is not allowed if desired behavior is to use default_val as value_val'.format(
                             item_name))
                 if num_entries is None:
-                    raise ValueError('Unrecognized entry_name for item_name {}'.format(item_name))
-                if num_entries > 0:
-                    raise ValueError('Duplicate entry_name for item_name {}'.format(item_name))
+                    raise ValueError('Unrecognized entry_name {} for item_name {}'.format(entry_name, item_name))
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
                         raise ValueError(

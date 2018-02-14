@@ -14,7 +14,7 @@ from foglamp.services.common.microservice import FoglampMicroservice
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.common import utils as utils
 
-__author__ = "Amarendra K Sinha"
+__author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -49,18 +49,17 @@ class TestUtils:
 
             server = await test_server(app)
             server.start_server(loop=loop)
-            # for index, route in enumerate(app.router.routes()):
-            #     res_info = route.resource.get_info()
-            #     print(res_info)
 
-        # =  s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
-
-        # WHEN the service is pinged with a valid URL
-        service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
-        resp = await utils.ping_service(service, loop=loop)
+            # WHEN the service is pinged with a valid URL
+            with patch.object(utils._logger, "info") as log:
+                service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
+                url_ping = "{}://{}:{}/foglamp/service/ping".format(service._protocol, service._address, service._management_port)
+                log_params = 'Ping received for Service %s id %s at url %s', service._name, service._id, url_ping
+                resp = await utils.ping_service(service, loop=loop)
 
         # THEN ping response is received
         assert resp is True
+        log.assert_called_once_with(*log_params)
 
     async def test_ping_service_fail_bad_url(self, test_server, loop):
         # GIVEN a service is running at a given URL
@@ -74,12 +73,17 @@ class TestUtils:
             server = await test_server(app)
             server.start_server(loop=loop)
 
-        # WHEN the service is pinged with a BAD URL
-        service = ServiceRecord("d", "test", "Southbound", "http", server.host+"1", 1, server.port)
-        resp = await utils.ping_service(service, loop=loop)
+            # WHEN the service is pinged with a BAD URL
+            with patch.object(utils._logger, "error") as log:
+                service = ServiceRecord("d", "test", "Southbound", "http", server.host+"1", 1, server.port)
+                url_ping = "{}://{}:{}/foglamp/service/ping".format(service._protocol, service._address, service._management_port)
+                log_params = 'Ping not received for Service %s id %s at url %s attempt_count %s', service._name, service._id, \
+                       url_ping, utils._MAX_ATTEMPTS+1
+                resp = await utils.ping_service(service, loop=loop)
 
         # THEN ping response is NOT received
         assert resp is False
+        log.assert_called_once_with(*log_params)
 
     async def test_shutdown_service_pass(self, test_server, loop):
         # GIVEN a service is running at a given URL
@@ -92,12 +96,18 @@ class TestUtils:
             server = await test_server(app)
             server.start_server(loop=loop)
 
-        # WHEN shutdown call is made at the valid URL
-        service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
-        resp = await utils.shutdown_service(service, loop=loop)
+            # WHEN shutdown call is made at the valid URL
+            with patch.object(utils._logger, "info") as log:
+                service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
+                url_shutdown = "{}://{}:{}/foglamp/service/shutdown".format(service._protocol, service._address,
+                                                                            service._management_port)
+                log_params1 = "Shutting down the %s service %s ...", service._type, service._name
+                log_params2 = 'Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown
+                resp = await utils.shutdown_service(service, loop=loop)
 
         # THEN shutdown returns success
         assert resp is True
+        log.assert_called_with(*log_params2)
 
     async def test_shutdown_service_fail_bad_url(self, test_server, loop):
         # GIVEN a service is running at a given URL
@@ -110,10 +120,15 @@ class TestUtils:
             server = await test_server(app)
             server.start_server(loop=loop)
 
-        # WHEN shutdown call is made at the invalid URL
-        service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port+1)
-
-        resp = await utils.shutdown_service(service, loop=loop)
+            # WHEN shutdown call is made at the invalid URL
+            with patch.object(utils._logger, "info") as log1:
+                with patch.object(utils._logger, "exception") as log2:
+                    service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port+1)
+                    log_params1 = "Shutting down the %s service %s ...", service._type, service._name
+                    log_params2 = 'Error in Service shutdown %s, %s', service._name, ' '
+                    resp = await utils.shutdown_service(service, loop=loop)
 
         # THEN shutdown fails
         assert resp is False
+        log1.assert_called_with(*log_params1)
+        log2.assert_called()

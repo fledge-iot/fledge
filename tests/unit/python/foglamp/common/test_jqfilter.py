@@ -7,13 +7,11 @@
 """ Test common/jqfilter.py
 
 """
-
+from unittest.mock import patch
 import pytest
 import pyjq
-from unittest.mock import patch
 from foglamp.common import logger
 from foglamp.common.jqfilter import JQFilter
-
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -50,6 +48,5 @@ class TestJQFilter:
             with patch.object(jqfilter_instance._logger, "error") as log:
                 with pytest.raises(expected_error):
                     jqfilter_instance.transform(input_filter_string, input_reading_block)
-        log.assert_called_once_with(expected_log, '')
         mock_pyjq.assert_called_once_with(input_reading_block, input_filter_string)
-
+        log.assert_called_once_with(expected_log, '')

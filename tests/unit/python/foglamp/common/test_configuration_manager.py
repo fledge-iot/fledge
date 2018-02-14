@@ -125,7 +125,6 @@ class TestConfigurationManager:
         c_mgr = ConfigurationManager(storage_client_mock)
         c_mgr.register_interest('name', 'configuration_manager_callback')
         await c_mgr._run_callbacks('name')
-        # what we are asserting here?!
 
     @pytest.mark.asyncio
     async def test__run_callbacks_invalid_module(self, reset_singleton):
@@ -134,7 +133,6 @@ class TestConfigurationManager:
         c_mgr.register_interest('name', 'invalid')
         with pytest.raises(ImportError) as excinfo:
             await c_mgr._run_callbacks('name')
-        # what we are asserting here?!
 
     @pytest.mark.asyncio
     async def test__run_callbacks_norun(self, reset_singleton):
@@ -888,9 +886,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__create_new_category_good(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
 
         async def async_mock(return_value):
             return return_value
@@ -920,9 +915,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_1_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
 
         async def async_mock(return_value):
             return return_value
@@ -945,9 +937,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_2_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
 
         async def async_mock(return_value):
             return return_value
@@ -970,9 +959,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_0_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
 
         async def async_mock(return_value):
             return return_value
@@ -994,9 +980,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_category_val_1_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
         category_name = 'catname'
 
         storage_client_mock = MagicMock(spec=StorageClient)
@@ -1018,9 +1001,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_category_val_0_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
         category_name = 'catname'
 
         storage_client_mock = MagicMock(spec=StorageClient)
@@ -1041,9 +1021,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_item_val_0_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
         category_name = 'catname'
         item_name = 'itemname'
 
@@ -1055,9 +1032,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_item_val_1_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
         category_name = 'catname'
         item_name = 'itemname'
         storage_client_mock = MagicMock(spec=StorageClient)
@@ -1069,9 +1043,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_value_val_0_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
         category_name = 'catname'
         item_name = 'itemname'
         storage_client_mock = MagicMock(spec=StorageClient)
@@ -1082,9 +1053,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_value_val_1_row(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
         category_name = 'catname'
         item_name = 'itemname'
 
@@ -1097,10 +1065,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__update_value_val(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
-
         async def async_mock(return_value):
             return return_value
 
@@ -1120,10 +1084,6 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__update_category(self, reset_singleton):
-        # audit logger
-        # payload builder
-        # storage client
-
         async def async_mock(return_value):
             return return_value
 

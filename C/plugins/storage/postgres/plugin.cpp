@@ -165,15 +165,17 @@ std::string results;
 /**
  * Purge readings from the buffer
  */
-char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent)
+char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long param, unsigned int flags, unsigned long sent)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string 	  results;
+unsigned long	  age, size;
 
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
+		size = param;
 		unsigned long deletedRows = 0;
 		unsigned long unsentPurged = 0;
 		unsigned long unsentRetained = 0;
@@ -183,7 +185,7 @@ std::string 	  results;
 		 * the required size or we no longer remove readings
 		 */
 		long tableSize = connection->tableSize(std::string("readings"));
-		while (tableSize > age)
+		while (tableSize > size)
 		{
 			(void)connection->purgeReadings(0, flags, sent, results);
 
@@ -203,7 +205,7 @@ std::string 	  results;
 			{
 				// We didn't remove any readings, so stop here
 				Logger::getLogger()->error("Failed to reach target readings size %ld during purge operation",
-					age);
+					size);
 				break;
 			}
 			tableSize = newTableSize;
@@ -221,6 +223,7 @@ std::string 	  results;
 	}
 	else
 	{
+		age = param;
 		(void)connection->purgeReadings(age, flags, sent, results);
 	}
 	manager->release(connection);

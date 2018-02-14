@@ -25,7 +25,6 @@ class JQFilter:
 
     def __init__(self):
         """Initialise the JQFilter"""
-        super().__init__()
         self._logger = logger.setup("JQFilter")
 
     def transform(self, reading_block, filter_string):

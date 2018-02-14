@@ -5,9 +5,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-"""Purge process starter"""
-
-import sys
+"""Statistics history process starter"""
 
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common import logger

@@ -50,7 +50,7 @@ class Purge(FoglampProcess):
         },
         "size": {
             "description": "Maximum size of data to be retained, the oldest data will be removed to keep below this "
-                           "size, unless retained. (in Bytes)",
+                           "size, unless retained. (in Kbytes)",
             "type": "integer",
             "default": "1000000"
         },

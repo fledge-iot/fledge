@@ -7,6 +7,7 @@
 """Interest Registry Class"""
 
 import uuid
+from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.core.interest_registry.interest_record import InterestRecord
 from foglamp.services.core.interest_registry import exceptions as interest_registry_exceptions
@@ -33,10 +34,14 @@ class InterestRegistry(InterestRegistrySingleton):
 
     """
 
-    _registered_interests = list()
+    _registered_interests = None
     """ maintains the list of InterestRecord objects """
 
-    def __init__(self, configuration_manager):
+    _configuration_manager = None
+    """ ConfigurationManager used by InterestRegistry """
+
+
+    def __init__(self, configuration_manager=None):
         """ Used to create InterestRegistry object
 
         Args:
@@ -45,7 +50,12 @@ class InterestRegistry(InterestRegistrySingleton):
         """
 
         InterestRegistrySingleton.__init__(self)
-        self._configuration_manager = configuration_manager
+        if self._configuration_manager is None:
+            if not isinstance(configuration_manager, ConfigurationManager):
+                raise TypeError('Must be a valid ConfigurationManager object')
+            self._configuration_manager = configuration_manager
+        if self._registered_interests is None:
+            self._registered_interests = list()
     
     def and_filter(self, **kwargs):
         """ Used to filter InterestRecord objects based on attribute values.

@@ -125,10 +125,9 @@ class TestUtils:
                 with patch.object(utils._logger, "exception") as log2:
                     service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port+1)
                     log_params1 = "Shutting down the %s service %s ...", service._type, service._name
-                    log_params2 = 'Error in Service shutdown %s, %s', service._name, ' '
                     resp = await utils.shutdown_service(service, loop=loop)
 
         # THEN shutdown fails
         assert resp is False
         log1.assert_called_with(*log_params1)
-        log2.assert_called()
+        assert log2.called is True

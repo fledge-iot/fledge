@@ -30,19 +30,14 @@ async def ping_service(service, loop=None):
     url_ping = "{}://{}:{}/foglamp/service/ping".format(service._protocol,
                                                         service._address,
                                                         service._management_port)
-    # print(service.__str__())
-
     async with aiohttp.ClientSession(loop=loop) as session:
         while attempt_count < _MAX_ATTEMPTS + 1:
             try:
-                # print(url_ping)
                 async with session.get(url_ping) as resp:
                     res = await resp.json()
-                    # print(res)
                     if res["uptime"] is not None:
                         break
             except Exception as ex:
-                # print(str(ex))
                 attempt_count += 1
                 await asyncio.sleep(1.5, loop=loop)
         if attempt_count <= _MAX_ATTEMPTS:
@@ -61,15 +56,12 @@ async def shutdown_service(service, loop=None):
         url_shutdown = "{}://{}:{}/foglamp/service/shutdown".format(service._protocol, service._address,
                                                                     service._management_port)
         async with aiohttp.ClientSession(loop=loop) as session:
-            # print(url_shutdown)
             async with session.post(url_shutdown) as resp:
                 status_code = resp.status
                 text = await resp.text()
-                # print(status_code)
                 if not status_code == 200:
                     raise Exception(message=text)
     except Exception as ex:
-        # print("", str(ex))
         _logger.exception('Error in Service shutdown %s, %s', service._name, str(ex))
         return False
     else:

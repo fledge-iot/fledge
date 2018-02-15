@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import json
 import asyncio
 from aiohttp import web
+from aiohttp.test_utils import unused_port
 
 from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.storage_client import StorageClient
@@ -19,6 +20,9 @@ from foglamp.common.storage_client.exceptions import *
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
+HOST = '127.0.0.1'
+PORT = unused_port()
 
 
 class FakeFoglampStorageSrvr:
@@ -32,10 +36,9 @@ class FakeFoglampStorageSrvr:
         self.runner = None
 
     async def start(self):
-        # port = unused_port() default http is 8080
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        svc = web.TCPSite(self.runner, '127.0.0.1', ssl_context=None)
+        svc = web.TCPSite(self.runner, host=HOST, port=PORT, ssl_context=None)
         await svc.start()
 
     async def stop(self):
@@ -47,7 +50,7 @@ class FakeFoglampStorageSrvr:
         if payload.get("bad_request", None):
             return web.HTTPBadRequest(reason="bad data")
 
-        if payload.get("internal_error", None):
+        if payload.get("internal_server_err", None):
             return web.HTTPInternalServerError(reason="something wrong")
 
         return web.json_response({
@@ -115,13 +118,13 @@ class TestStorageClient:
         await fake_storage_srvr.start()
 
         mockServiceRecord = MagicMock(ServiceRecord)
-        mockServiceRecord._address = "127.0.0.1"
+        mockServiceRecord._address = HOST
         mockServiceRecord._type = "Storage"
-        mockServiceRecord._port = 8080
+        mockServiceRecord._port = PORT
         mockServiceRecord._management_port = 2000
 
         sc = StorageClient(1, 2, mockServiceRecord)
-        assert "127.0.0.1:8080" == sc.base_url
+        assert "{}:{}".format(HOST, PORT) == sc.base_url
 
         with pytest.raises(Exception) as excinfo:
             res = sc.insert_into_tbl(None, '{"k": "v"}')
@@ -143,20 +146,21 @@ class TestStorageClient:
         for response in await asyncio.gather(*futures):
             assert {"k": "v"} == response["called"]
 
-        # args = "aTable", json.dumps({"bad_request": "v"})
-        # futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
-        # for response in await asyncio.gather(*futures):
-        #     pass
-        #
-        # args = "aTable", json.dumps({"internal_error": "v"})
-        # futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
-        # for response in await asyncio.gather(*futures):
-        #     pass
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"bad_request": "v"})
+            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is BadRequest
 
-        # async with aiohttp.ClientSession(loop=event_loop) as session:
-        #     async with session.post('http://127.0.0.1:8080/storage/table/z',
-        #                             data=None) as resp:
-        #         print(await resp.json())
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"internal_server_err": "v"})
+            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
 
         # stop at class/module level teardown
         await fake_storage_srvr.stop()

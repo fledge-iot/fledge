@@ -188,8 +188,10 @@ class StorageClient(AbstractStorage):
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Post %s: Client error code: %d", post_url, r.status)
+            raise BadRequest
         if r.status in range(500, 600):
             _LOGGER.error("Post %s: Server error code: %d", post_url, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()

@@ -142,3 +142,17 @@ class TestStorageClientExceptions:
             assert issubclass(ex.__class__, BadRequest)
             assert 400 == ex.code
             assert "Purge must specify only one of age or size" == ex.message
+
+    def test_StorageServerInternalError(self):
+        with pytest.raises(Exception) as excinfo:
+            raise StorageServerInternalError()
+        assert excinfo.type is StorageServerInternalError
+        assert issubclass(excinfo.type, StorageClientException)
+
+        try:
+            raise StorageServerInternalError()
+        except Exception as ex:
+            assert ex.__class__ is StorageServerInternalError
+            assert issubclass(ex.__class__, StorageClientException)
+            assert 500 == ex.code
+            assert "Storage server got some unhandled error" == ex.message

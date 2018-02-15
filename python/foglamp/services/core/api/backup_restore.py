@@ -131,7 +131,7 @@ async def get_backup_details(request):
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')
     except exceptions.DoesNotExist:
-        raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
+        raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
         raise web.HTTPException(reason=(str(ex)))
 
@@ -144,8 +144,6 @@ async def delete_backup(request):
     :Example: curl -X DELETE http://localhost:8081/foglamp/backup/1
     """
     backup_id = request.match_info.get('backup_id', None)
-    if not backup_id:
-        raise web.HTTPBadRequest(reason='Backup id is required')
     try:
         backup_id = int(backup_id)
         backup = Backup(connect.get_storage())

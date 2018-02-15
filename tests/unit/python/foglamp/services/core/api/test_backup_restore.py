@@ -103,7 +103,7 @@ class TestBackup:
                     assert 200 == resp.status
                     assert '{"status": "running_or_failed"}' == await resp.text()
 
-    async def test_create_backups_exception(self, client):
+    async def test_create_backup_exception(self, client):
         resp = await client.post('/foglamp/backup')
         assert 500 == resp.status
         assert "Internal Server Error" == resp.reason
@@ -122,7 +122,7 @@ class TestBackup:
                     assert Counter({"id", "date", "status"}) == Counter(json_response.keys())
 
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
-        (exceptions.DoesNotExist, 404, "Backup with 8 does not exist"),
+        (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
         (Exception, 500, "Internal Server Error")
         ])
     async def test_get_backup_details_exceptions(self, client, input_exception, response_code, response_message):
@@ -133,8 +133,34 @@ class TestBackup:
                     assert response_code == resp.status
                     assert response_message == resp.reason
 
-    async def test_get_backups_details_bad_data(self, client):
+    async def test_get_backup_details_bad_data(self, client):
         resp = await client.get('/foglamp/backup/{}'.format('BLA'))
         assert 400 == resp.status
         assert "Invalid backup id" == resp.reason
 
+    async def test_delete_backup(self, client):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Backup, 'delete_backup', return_value=None):
+                    resp = await client.delete('/foglamp/backup/{}'.format(1))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': 'Backup deleted successfully'} == json_response
+
+    @pytest.mark.parametrize("input_exception, response_code, response_message", [
+        (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
+        (Exception, 500, "Internal Server Error")
+        ])
+    async def test_delete_backup_exceptions(self, client, input_exception, response_code, response_message):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Backup, 'delete_backup', side_effect=input_exception):
+                    resp = await client.delete('/foglamp/backup/{}'.format(8))
+                    assert response_code == resp.status
+                    assert response_message == resp.reason
+
+    async def test_delete_backup_bad_data(self, client):
+        resp = await client.delete('/foglamp/backup/{}'.format('BLA'))
+        assert 400 == resp.status
+        assert "Invalid backup id" == resp.reason

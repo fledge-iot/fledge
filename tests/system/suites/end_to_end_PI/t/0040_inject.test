@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# FIXME:
-psql -d foglamp -c "DELETE FROM  foglamp.omf_created_objects;" >& /dev/null
-psql -d foglamp -c "DELETE FROM  foglamp.readings;" >& /dev/null
-
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
@@ -11,5 +7,3 @@ echo '[{"name":"'${ASSET_CODE}'","sensor_values":[{"name":"sensor","type":"numbe
 $TEST_BASEDIR/bash/inject_fogbench_data.bash -t $RESULT_DIR/$TEST_NAME.1.temp > $RESULT_DIR/$TEST_NAME.2.temp 2>&1
 grep '^Total Messages Transferred: ' $RESULT_DIR/$TEST_NAME.2.temp
 
-# FIXME:
-sleep 30

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg
+
+# Enables the OMF plugin
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OMF_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+
+# Waits until the OMF plugin has created the default configurations
+${TEST_BASEDIR}/bash/wait_creation_cfg.bash "${SENDING_PROCESS_DATA}/producerToken"
+
+# Configures FogLAMP with the required settings
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/URL           -d '{ "value" : "https://'${PI_SERVER}':'${PI_SERVER_PORT}'/ingress/messages"}' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/${SENDING_PROCESS_DATA}/producerToken -d '{ "value" : "'${OMF_PRODUCER_TOKEN}'" }'                                    &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OMF_TYPES/type-id                     -d '{ "value" : "'${OMF_TYPE_ID}'" }'                                           &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
+
+# Restarts FogLAMP to ensure the new configurations are used
+${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
+
+${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}.2.temp 2>&1
+tail  -n1 ${RESULT_DIR}/${TEST_NAME}.2.temp
+
+# FIXME:
+sleep 10

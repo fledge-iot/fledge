@@ -9,10 +9,12 @@ import json
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
+import asyncio
 from collections import Counter
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
+from foglamp.plugins.storage.postgres.backup_restore import exceptions
 from foglamp.services.core.api import backup_restore
 from foglamp.common.storage_client.storage_client import StorageClient
 
@@ -25,7 +27,7 @@ __version__ = "${VERSION}"
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "core")
-class TestBackupRestore:
+class TestBackup:
 
     @pytest.fixture
     def client(self, loop, test_client):
@@ -78,10 +80,61 @@ class TestBackupRestore:
         ('?limit=-1', 400, "Limit must be a positive integer"),
         ('?skip=invalid', 400, "Skip/Offset must be a positive integer"),
         ('?skip=-1', 400, "Skip/Offset must be a positive integer"),
-        ('?status=BLA', 400, "'BLA' is not a valid status"),
-        ('', 500, "Internal Server Error")
+        ('?status=BLA', 400, "'BLA' is not a valid status")
     ])
     async def test_get_backups_bad_data(self, client, request_params, response_code, response_message):
         resp = await client.get('/foglamp/backup{}'.format(request_params))
         assert response_code == resp.status
         assert response_message == resp.reason
+
+    async def test_get_backups_exceptions(self, client):
+        resp = await client.get('/foglamp/backup')
+        assert 500 == resp.status
+        assert "Internal Server Error" == resp.reason
+
+    async def test_create_backup(self, client):
+        async def mock_create():
+            return "running_or_failed"
+
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Backup, 'create_backup', return_value=mock_create()):
+                    resp = await client.post('/foglamp/backup')
+                    assert 200 == resp.status
+                    assert '{"status": "running_or_failed"}' == await resp.text()
+
+    async def test_create_backups_exception(self, client):
+        resp = await client.post('/foglamp/backup')
+        assert 500 == resp.status
+        assert "Internal Server Error" == resp.reason
+
+    async def test_get_backup_details(self, client):
+        storage_client_mock = MagicMock(StorageClient)
+        response = {'id': 1, 'file_name': '1.dump', 'ts': '2018-02-15 15:18:41.821978+05:30',
+                    'status': '2', 'type': '1', 'exit_code': '0'}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Backup, 'get_backup_details', return_value=response):
+                    resp = await client.get('/foglamp/backup/{}'.format(1))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert 3 == len(json_response)
+                    assert Counter({"id", "date", "status"}) == Counter(json_response.keys())
+
+    @pytest.mark.parametrize("input_exception, response_code, response_message", [
+        (exceptions.DoesNotExist, 404, "Backup with 8 does not exist"),
+        (Exception, 500, "Internal Server Error")
+        ])
+    async def test_get_backup_details_exceptions(self, client, input_exception, response_code, response_message):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
+                    resp = await client.get('/foglamp/backup/{}'.format(8))
+                    assert response_code == resp.status
+                    assert response_message == resp.reason
+
+    async def test_get_backups_details_bad_data(self, client):
+        resp = await client.get('/foglamp/backup/{}'.format('BLA'))
+        assert 400 == resp.status
+        assert "Invalid backup id" == resp.reason
+

@@ -118,8 +118,6 @@ async def get_backup_details(request):
     :Example: curl -X GET http://localhost:8081/foglamp/backup/1
     """
     backup_id = request.match_info.get('backup_id', None)
-    if not backup_id:
-        raise web.HTTPBadRequest(reason='Backup id is required')
     try:
         backup_id = int(backup_id)
         backup = Backup(connect.get_storage())

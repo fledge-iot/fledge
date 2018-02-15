@@ -973,6 +973,24 @@ class Scheduler(object):
 
         return self._schedule_row_to_schedule(schedule_id, schedule_row)
 
+    async def get_schedule_by_name(self, name) -> Schedule:
+        """Retrieves a schedule from its id
+
+        Raises:
+            ScheduleNotFoundException
+        """
+        if not self._ready:
+            raise NotReadyError()
+
+        found_id = None
+        for (schedule_id, schedule_row) in self._schedules.items():
+            if self._schedules[schedule_id].name == name:
+                found_id = schedule_id
+        if found_id is None:
+            raise ScheduleNotFoundError(name)
+
+        return self._schedule_row_to_schedule(found_id, schedule_row)
+
     async def save_schedule(self, schedule: Schedule):
         """Creates or update a schedule
 

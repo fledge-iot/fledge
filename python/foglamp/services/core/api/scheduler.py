@@ -409,9 +409,13 @@ async def start_schedule(request):
         await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
 
         # Start schedule
-        await server.Server.scheduler.queue_task(uuid.UUID(schedule_id))
+        resp = await server.Server.scheduler.queue_task(uuid.UUID(schedule_id))
 
-        return web.json_response({'id': schedule_id, 'message': 'Schedule started successfully'})
+        if resp is True:
+            return web.json_response({'id': schedule_id, 'message': 'Schedule started successfully'})
+        else:
+            return web.json_response({'id': schedule_id, 'message': 'Schedule could not be started'})
+
     except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 

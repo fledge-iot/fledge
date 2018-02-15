@@ -1096,6 +1096,48 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
 
+    async def remove_service_from_task_processes(self, service_name):
+        """
+        This method caters to the use case when a microservice, e.g. South service, which has been started by the
+        Scheduler and then is shutdown vide api and then is needed to be restarted. It removes the Scheduler's record
+        of the task related to the STARTUP schedule (which is not removed when shutdown action is taken by the
+        microservice api as the microservice is running in a separate process and hinders starting a schedule by
+        Scheduler's queue_task() method).
+
+        Args: service_name:
+        Returns:
+        """
+        if not self._ready:
+            return False
+
+        # Find task_id for the service
+        task_id = None
+        task_process = None
+        schedule_type = None
+        try:
+            for key in list(self._task_processes.keys()):
+                if self._task_processes[key].schedule.process_name == service_name:
+                    task_id = key
+                    break
+            if task_id is None:
+                raise KeyError
+
+            task_process = self._task_processes[task_id]
+
+            if task_id is not None:
+                schedule = task_process.schedule
+                schedule_type = schedule.type
+                if schedule_type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
+                    del self._schedule_executions[schedule.id]
+                    del self._task_processes[task_process.task_id]
+                    self._logger.exception("Service {} records successfully removed".format(service_name))
+                    return True
+        except KeyError:
+            pass
+
+        self._logger.exception("Service {} records could not be removed with task id {} type {}".format(service_name, str(task_id), schedule_type))
+        return False
+
     async def disable_schedule(self, schedule_id: uuid.UUID):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
@@ -1159,9 +1201,6 @@ class Scheduler(object):
                     task_process.process.terminate()
                 except ProcessLookupError:
                     pass  # Process has terminated
-                schedule_execution = self._schedule_executions[schedule.id]
-                del schedule_execution.task_processes[task_process.task_id]
-                del self._task_processes[task_process.task_id]
             else: # else it is a Task e.g. North tasks
                 # Terminate process
                 try:
@@ -1238,7 +1277,6 @@ class Scheduler(object):
         audit = AuditLogger(self._storage)
         sch = await self.get_schedule(schedule_id)
         await audit.information('SCHCH', { 'schedule': sch.toDict() })
-
         return True, "Schedule successfully enabled"
 
     async def queue_task(self, schedule_id: uuid.UUID) -> None:
@@ -1261,6 +1299,10 @@ class Scheduler(object):
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
 
+        if schedule_row.enabled is False:
+            self._logger.info("Schedule '%s' is not enabled", schedule_row.name)
+            return False
+
         try:
             schedule_execution = self._schedule_executions[schedule_id]
         except KeyError:
@@ -1271,6 +1313,7 @@ class Scheduler(object):
 
         self._logger.info("Queued schedule '%s' for execution", schedule_row.name)
         self._resume_check_schedules()
+        return True
 
     async def delete_schedule(self, schedule_id: uuid.UUID):
         """Deletes a schedule

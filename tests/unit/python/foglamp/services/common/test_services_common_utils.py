@@ -57,9 +57,9 @@ class TestUtils:
                 log_params = 'Ping received for Service %s id %s at url %s', service._name, service._id, url_ping
                 resp = await utils.ping_service(service, loop=loop)
 
-        # THEN ping response is received
-        assert resp is True
-        log.assert_called_once_with(*log_params)
+            # THEN ping response is received
+            assert resp is True
+            log.assert_called_once_with(*log_params)
 
     async def test_ping_service_fail_bad_url(self, test_server, loop):
         # GIVEN a service is running at a given URL
@@ -81,9 +81,9 @@ class TestUtils:
                        url_ping, utils._MAX_ATTEMPTS+1
                 resp = await utils.ping_service(service, loop=loop)
 
-        # THEN ping response is NOT received
-        assert resp is False
-        log.assert_called_once_with(*log_params)
+            # THEN ping response is NOT received
+            assert resp is False
+            log.assert_called_once_with(*log_params)
 
     async def test_shutdown_service_pass(self, test_server, loop):
         # GIVEN a service is running at a given URL
@@ -105,9 +105,10 @@ class TestUtils:
                 log_params2 = 'Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown
                 resp = await utils.shutdown_service(service, loop=loop)
 
-        # THEN shutdown returns success
-        assert resp is True
-        log.assert_called_with(*log_params2)
+            # THEN shutdown returns success
+            assert resp is True
+            log.assert_called_with(*log_params2)
+            assert 2 == log.call_count
 
     async def test_shutdown_service_fail_bad_url(self, test_server, loop):
         # GIVEN a service is running at a given URL
@@ -127,7 +128,7 @@ class TestUtils:
                     log_params1 = "Shutting down the %s service %s ...", service._type, service._name
                     resp = await utils.shutdown_service(service, loop=loop)
 
-        # THEN shutdown fails
-        assert resp is False
-        log1.assert_called_with(*log_params1)
-        assert log2.called is True
+            # THEN shutdown fails
+            assert resp is False
+            log1.assert_called_with(*log_params1)
+            assert log2.called is True

@@ -171,6 +171,8 @@ class StorageClient(AbstractStorage):
         # TODO: need to set http / https based on service protocol
 
         post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+        if not tbl_name:
+            raise ValueError("Table name is missing")
         if not data:
             raise ValueError("Data to insert is missing")
 

@@ -9,6 +9,7 @@ import pytest
 
 from unittest.mock import MagicMock, patch
 import json
+import asyncio
 from aiohttp import web
 
 from foglamp.common.service_record import ServiceRecord
@@ -41,8 +42,16 @@ class FakeFoglampStorageSrvr:
         await self.runner.cleanup()
 
     async def insert_into_tbl(self, request):
+        payload = await request.json()
+
+        if payload.get("bad_request", None):
+            return web.HTTPBadRequest(reason="bad data")
+
+        if payload.get("internal_error", None):
+            return web.HTTPInternalServerError(reason="something wrong")
+
         return web.json_response({
-           "called": 1
+           "called": payload
         })
 
 
@@ -115,14 +124,35 @@ class TestStorageClient:
         assert "127.0.0.1:8080" == sc.base_url
 
         with pytest.raises(Exception) as excinfo:
-            res = sc.insert_into_tbl("z", {"k": "v"})
+            res = sc.insert_into_tbl(None, '{"k": "v"}')
+        assert excinfo.type is ValueError
+        assert "Table name is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            res = sc.insert_into_tbl("aTable", None)
+        assert excinfo.type is ValueError
+        assert "Data to insert is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            res = sc.insert_into_tbl("aTable", {"k": "v"})
         assert excinfo.type is TypeError
         assert "Provided data to insert must be a valid JSON" in str(excinfo.value)
 
-        # res = sc.insert_into_tbl("z", json.dumps({"k": "v"}))
-        # print(res)
+        args = "aTable", json.dumps({"k": "v"})
+        futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+        for response in await asyncio.gather(*futures):
+            assert {"k": "v"} == response["called"]
 
-        # TODO: call via actual code
+        # args = "aTable", json.dumps({"bad_request": "v"})
+        # futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+        # for response in await asyncio.gather(*futures):
+        #     pass
+        #
+        # args = "aTable", json.dumps({"internal_error": "v"})
+        # futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+        # for response in await asyncio.gather(*futures):
+        #     pass
+
         # async with aiohttp.ClientSession(loop=event_loop) as session:
         #     async with session.post('http://127.0.0.1:8080/storage/table/z',
         #                             data=None) as resp:

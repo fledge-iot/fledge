@@ -7,17 +7,15 @@
 
 import json
 from unittest.mock import MagicMock, patch
+from collections import Counter
 from aiohttp import web
 import pytest
-import asyncio
-from collections import Counter
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
 from foglamp.plugins.storage.postgres.backup_restore import exceptions
 from foglamp.services.core.api import backup_restore
 from foglamp.common.storage_client.storage_client import StorageClient
-
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -28,7 +26,8 @@ __version__ = "${VERSION}"
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "core")
 class TestBackup:
-
+    """Unit test the Backup functionality
+    """
     @pytest.fixture
     def client(self, loop, test_client):
         app = web.Application(loop=loop)
@@ -68,12 +67,12 @@ class TestBackup:
                      'exit_code': '0'}]
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(Backup, 'get_all_backups', return_value=response):
-                    resp = await client.get('/foglamp/backup{}'.format(request_params))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert 1 == len(json_response['backups'])
-                    assert Counter({"id", "date", "status"}) == Counter(json_response['backups'][0].keys())
+                resp = await client.get('/foglamp/backup{}'.format(request_params))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 1 == len(json_response['backups'])
+                assert Counter({"id", "date", "status"}) == Counter(json_response['backups'][0].keys())
 
     @pytest.mark.parametrize("request_params, response_code, response_message", [
         ('?limit=invalid', 400, "Limit must be a positive integer"),
@@ -99,9 +98,9 @@ class TestBackup:
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(Backup, 'create_backup', return_value=mock_create()):
-                    resp = await client.post('/foglamp/backup')
-                    assert 200 == resp.status
-                    assert '{"status": "running_or_failed"}' == await resp.text()
+                resp = await client.post('/foglamp/backup')
+                assert 200 == resp.status
+                assert '{"status": "running_or_failed"}' == await resp.text()
 
     async def test_create_backup_exception(self, client):
         resp = await client.post('/foglamp/backup')
@@ -114,24 +113,24 @@ class TestBackup:
                     'status': '2', 'type': '1', 'exit_code': '0'}
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(Backup, 'get_backup_details', return_value=response):
-                    resp = await client.get('/foglamp/backup/{}'.format(1))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert 3 == len(json_response)
-                    assert Counter({"id", "date", "status"}) == Counter(json_response.keys())
+                resp = await client.get('/foglamp/backup/{}'.format(1))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 3 == len(json_response)
+                assert Counter({"id", "date", "status"}) == Counter(json_response.keys())
 
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
         (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
         (Exception, 500, "Internal Server Error")
-        ])
+    ])
     async def test_get_backup_details_exceptions(self, client, input_exception, response_code, response_message):
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
-                    resp = await client.get('/foglamp/backup/{}'.format(8))
-                    assert response_code == resp.status
-                    assert response_message == resp.reason
+                resp = await client.get('/foglamp/backup/{}'.format(8))
+                assert response_code == resp.status
+                assert response_message == resp.reason
 
     async def test_get_backup_details_bad_data(self, client):
         resp = await client.get('/foglamp/backup/{}'.format('BLA'))
@@ -142,25 +141,54 @@ class TestBackup:
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(Backup, 'delete_backup', return_value=None):
-                    resp = await client.delete('/foglamp/backup/{}'.format(1))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'message': 'Backup deleted successfully'} == json_response
+                resp = await client.delete('/foglamp/backup/{}'.format(1))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': 'Backup deleted successfully'} == json_response
 
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
         (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
         (Exception, 500, "Internal Server Error")
-        ])
+    ])
     async def test_delete_backup_exceptions(self, client, input_exception, response_code, response_message):
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(Backup, 'delete_backup', side_effect=input_exception):
-                    resp = await client.delete('/foglamp/backup/{}'.format(8))
-                    assert response_code == resp.status
-                    assert response_message == resp.reason
+                resp = await client.delete('/foglamp/backup/{}'.format(8))
+                assert response_code == resp.status
+                assert response_message == resp.reason
 
     async def test_delete_backup_bad_data(self, client):
         resp = await client.delete('/foglamp/backup/{}'.format('BLA'))
         assert 400 == resp.status
         assert "Invalid backup id" == resp.reason
+
+    async def test_get_backup_status(self, client):
+        resp = await client.get('/foglamp/backup/status')
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {'backupStatus': [{'index': 1, 'name': 'RUNNING'},
+                                 {'index': 2, 'name': 'COMPLETED'},
+                                 {'index': 3, 'name': 'CANCELED'},
+                                 {'index': 4, 'name': 'INTERRUPTED'},
+                                 {'index': 5, 'name': 'FAILED'},
+                                 {'index': 6, 'name': 'RESTORED'}]} == json_response
+
+
+class TestRestore:
+    """Unit test the Restore functionality
+    """
+    @pytest.fixture
+    def client(self, loop, test_client):
+        app = web.Application(loop=loop)
+        # fill the routes table
+        routes.setup(app)
+        return loop.run_until_complete(test_client(app))
+
+    # TODO: FOGL-861
+    async def test_restore_backup(self, client):
+        resp = await client.put('/foglamp/backup/{}/restore'.format(1))
+        assert 501 == resp.status
+        assert "Restore backup method is not implemented yet." == resp.reason

@@ -36,21 +36,27 @@ class TestMonitor:
         async def async_mock(return_value):
             return return_value
         # used to mock client session context manager
+
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             async def __aenter__(self):
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 # mock response (good)
-                client_response_mock.text.side_effect = [async_mock('{"uptime": "bla"}')]
+                client_response_mock.text.side_effect = [
+                    async_mock('{"uptime": "bla"}')]
                 return client_response_mock
+
             async def __aexit__(self, *args):
                 return None
         # as monitor loop is as infinite loop, this exception is thrown when we need to exit the loop
+
         class TestMonitorException(Exception):
             pass
         # register a service
-        s_id_1 = ServiceRegistry.register('sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
+        s_id_1 = ServiceRegistry.register(
+            'sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
         monitor = Monitor()
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
 
@@ -68,25 +74,30 @@ class TestMonitor:
         async def async_mock(return_value):
             return return_value
         # used to mock client session context manager
+
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             async def __aenter__(self):
                 # mock response (error- exception)
                 raise Exception()
+
             async def __aexit__(self, *args):
                 return None
         # as monitor loop is as infinite loop, this exception is thrown when we need to exit the loop
+
         class TestMonitorException(Exception):
             pass
         # register a service
-        s_id_1 = ServiceRegistry.register('sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
+        s_id_1 = ServiceRegistry.register(
+            'sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
         monitor = Monitor()
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
         sleep_side_effect_list = list()
         # _MAX_ATTEMPTS is 15
         # throw exception on the 16th time sleep is called - the first 15 sleeps are used during retries
-        for i in range(0,15):
+        for i in range(0, 15):
             sleep_side_effect_list.append(async_mock(None))
         sleep_side_effect_list.append(TestMonitorException())
         with patch.object(Monitor, '_sleep', side_effect=sleep_side_effect_list):
@@ -96,4 +107,3 @@ class TestMonitor:
         # service is bad, so it would be removed from the service registry
         with pytest.raises(service_registry_exceptions.DoesNotExist) as excinfo:
             assert len(ServiceRegistry.get(idx=s_id_1)) is 0
-

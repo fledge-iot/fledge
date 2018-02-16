@@ -52,3 +52,4 @@ docs/.cache/
 
 # test
 .pytest_cache
+.coverage

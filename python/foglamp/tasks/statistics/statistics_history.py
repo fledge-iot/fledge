@@ -42,7 +42,7 @@ class StatisticsHistory(FoglampProcess):
         key_list = [r['key'] for r in results['rows']]
         return key_list
 
-    def _insert_into_stats_history(self,key='', value=0, history_ts=None):
+    def _insert_into_stats_history(self, key='', value=0, history_ts=None):
         """ INSERT values in statistics_history
     
         Args:

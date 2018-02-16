@@ -19,6 +19,3 @@ ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
 
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}.2.temp 2>&1
 tail  -n1 ${RESULT_DIR}/${TEST_NAME}.2.temp
-
-# FIXME:
-sleep 10

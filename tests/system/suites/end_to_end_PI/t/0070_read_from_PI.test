@@ -15,14 +15,14 @@ function pi_web_retrieves_value {
 
     if [[ "${url_assets_list}" != "" ]]; then
 
-        # Asset Information
+        # Retrieves asset information
         url_asset=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_assets_list} |  jq --raw-output '.Items | .[] | select(.Name=="'${ASSET_CODE}'") | .Links | .EndValue'`
         echo url_asset :${url_asset}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
     fi
 
     if [[ "${url_asset}" != "" ]]; then
 
-        # Value
+        # Retrieves the value
         value=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_asset} |  jq --raw-output '.Items | .[] | select(.Name=="sensor") | .Value | .Value'`
         echo value :${value}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
     fi
@@ -48,7 +48,7 @@ echo url_Elements :${url_elements}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
 url_elements_list=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_elements} |  jq --raw-output '.Items | .[] | .Links | .Elements'`
 echo url_Elements_list :${url_elements_list}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
 
-# Waits until either the data is available in the PI-SERVER or it reaches the timeout
+# Waits until either the data is available in the PI server or it reaches the timeout
 while [ true ]
 do
 
@@ -56,7 +56,7 @@ do
 
     if [[ "${value}" != "" && "${value}" != *"PI Point not found"* ]]; then
 
-        echo Value reached - N. of retries :${count}:
+        echo Value retrieved - N. of retries :${count}:  >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
         echo ${value}
         exit 0
     else
@@ -65,7 +65,8 @@ do
             sleep 1
             count=$((count+1))
         else
-            echo Timeout reached - N. of retries :${count}:
+            echo Timeout reached - N. of retries :${count}:  >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+            echo ${value}
             exit 1
         fi
     fi

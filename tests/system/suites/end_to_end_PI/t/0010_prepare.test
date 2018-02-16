@@ -5,7 +5,7 @@ source ${SUITE_BASEDIR}/suite.cfg
 
 if [[ ${OMF_PRODUCER_TOKEN} == "omf_north_0001" ]]
 then
-    echo ERROR : the file suite.cfg should be modified using the values for the specific OCS account.
+    echo ERROR : the file suite.cfg should be modified using the appropriated values.
     exit 1
 fi
 

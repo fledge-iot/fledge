@@ -142,8 +142,7 @@ async def create_audit_entry(request):
         raise web.HTTPNotFound(reason={"error": err_msg})
     except Exception as ex:
         # Return error
-        _logger.error(ex.__class__.__name__)
-        raise web.HTTPNotFound(reason=str(ex))
+        raise web.HTTPNotFound(reason={"error:": str(ex)})
 
 async def get_audit_entries(request):
     """ Returns a list of audit trail entries sorted with most recent first and total count

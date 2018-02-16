@@ -20,6 +20,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
+_MAX_RETRY_POLL = 3
 
 
 class Server(FoglampMicroservice):
@@ -139,14 +140,15 @@ class Server(FoglampMicroservice):
     async def _exec_plugin_async(self) -> None:
         """Executes async type plugin
         """
+        _LOGGER.info('Started South Plugin: {}'.format(self._name))
         self._plugin.plugin_start(self._plugin_handle)
 
     async def _exec_plugin_poll(self) -> None:
         """Executes poll type plugin
         """
-        max_retry = 3
+        _LOGGER.info('Started South Plugin: {}'.format(self._name))
         try_count = 1
-        while self._plugin and try_count <= max_retry:
+        while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
                 if len(data) > 0:
@@ -172,6 +174,7 @@ class Server(FoglampMicroservice):
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
                 await asyncio.sleep(2)
+        _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
 
     def run(self):
         """Starts the South Microservice
@@ -243,6 +246,7 @@ class Server(FoglampMicroservice):
             new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)
             self._plugin_handle = new_handle
 
+            _LOGGER.info('Reconfiguration done for South plugin {}'.format(self._name))
             if new_handle['restart'] == 'yes':
                 self._task_main.cancel()
                 # Executes the requested plugin type with new config

@@ -4,14 +4,12 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import json
 import datetime
 from aiohttp import web
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core import server
 from foglamp.services.core import connect
-from foglamp.services.core.scheduler import scheduler
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 
 __author__ = "Mark Riddoch"
@@ -40,24 +38,24 @@ async def add_service(request):
 
         name = data.get('name', None)
         plugin = data.get('plugin', None)
-        type = data.get('type', None)
+        service_type = data.get('type', None)
         if name is None:
-            raise web.HTTPBadRequest(reason='Missing name propoerty in payload.')
+            raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if plugin is None:
-            raise web.HTTPBadRequest(reason='Missing plugin propoerty in payload.')
-        if type is None:
-            raise web.HTTPBadRequest(reason='Missing type propoerty in payload.')
-        if not type in ['south', 'north']:
+            raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
+        if service_type is None:
+            raise web.HTTPBadRequest(reason='Missing type property in payload.')
+        if not service_type in ['south', 'north']:
             raise web.HTTPBadRequest(reason='Only north and south types are supported.')
 
         storage = connect.get_storage()
 
         # First create the scheduled process entry for our new service
-        if type == 'south':
+        if service_type == 'south':
             script = '["services/south"]'
-        if type == 'north':
+        if service_type == 'north':
             script = '["services/north"]'
-        payload = PayloadBuilder().INSERT(name=name,script=script).payload()
+        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
         try:
             res = storage.insert_into_tbl("scheduled_processes", payload)
         except Exception as ins_ex:
@@ -88,7 +86,7 @@ async def add_service(request):
         schedule = await server.Server.scheduler.get_schedule_by_name(name)
 
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
-        
-    except (ValueError) as ex:
+
+    except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 

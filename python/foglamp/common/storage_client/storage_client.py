@@ -502,6 +502,13 @@ class ReadingsStorageClient(StorageClient):
                 }
             }
         """
+
+        if not query_payload:
+            raise ValueError("Query payload is missing")
+
+        if not Utils.is_json(query_payload):
+            raise TypeError("Query payload must be a valid JSON")
+
         conn = http.client.HTTPConnection(cls._base_url)
         # TODO: need to set http / https based on service protocol
 
@@ -511,9 +518,11 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Query readings: Client error code: %d", r.status)
+            _LOGGER.error("Query payload: %s, Client error code: %d", query_payload, r.status)
+            raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("Query readings: Server error code: %d", r.status)
+            _LOGGER.error("Query payload: %s, Server error code: %d", query_payload, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()

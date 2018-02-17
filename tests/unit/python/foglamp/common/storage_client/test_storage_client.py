@@ -40,7 +40,8 @@ class FakeFoglampStorageSrvr:
 
             # readings table
             web.post('/storage/reading', self.readings_append),
-            web.get('/storage/reading', self.readings_fetch)
+            web.get('/storage/reading', self.readings_fetch),
+            web.put('/storage/reading/query', self.readings_query)
         ])
         self.handler = None
         self.server = None
@@ -128,6 +129,19 @@ class FakeFoglampStorageSrvr:
                                   "start": request.query.get('id'),
                                   "count": request.query.get('count')
                                   })
+
+    async def readings_query(self, request):
+        payload = await request.json()
+
+        if payload.get("bad_request", None):
+            return web.HTTPBadRequest(reason="bad data")
+
+        if payload.get("internal_server_err", None):
+            return web.HTTPInternalServerError(reason="something wrong")
+
+        return web.json_response({
+           "called": payload
+        })
 
 
 @pytest.allure.feature("unit")
@@ -613,8 +627,55 @@ class TestReadingsStorageClient:
 
         await fake_storage_srvr.stop()
 
-    # def query(cls, query_payload):
-    # 'PUT', '/storage/reading/query' query_payload
+    @pytest.mark.asyncio
+    async def test_query(self, event_loop):
+        # 'PUT', '/storage/reading/query' query_payload
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        rsc = ReadingsStorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == rsc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, rsc.query, None)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Query payload is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, rsc.query, "blah")]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is TypeError
+        assert "Query payload must be a valid JSON" in str(excinfo.value)
+
+        futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"k": "v"}))]
+        for response in await asyncio.gather(*futures):
+            assert {"k": "v"} == response["called"]
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"bad_request": "v"}) )]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"internal_server_err": "v"}) )]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        await fake_storage_srvr.stop()
 
     #  def purge(cls, age=None, sent_id=0, size=None, flag=None):
     # 'PUT', url=put_url, /storage/reading/purge?age=&sent=&flags

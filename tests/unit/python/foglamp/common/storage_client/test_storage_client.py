@@ -39,7 +39,8 @@ class FakeFoglampStorageSrvr:
             web.put('/storage/table/{tbl_name}/query', self.query_with_payload_insert_into_or_update_tbl_handler),
 
             # readings table
-            web.post('/storage/reading', self.readings_append)
+            web.post('/storage/reading', self.readings_append),
+            web.get('/storage/reading', self.readings_fetch)
         ])
         self.handler = None
         self.server = None
@@ -115,6 +116,18 @@ class FakeFoglampStorageSrvr:
         return web.json_response({
             "appended": payload
         })
+
+    async def readings_fetch(self, request):
+        if request.query.get("id") == "bad_data":
+            return web.HTTPBadRequest(reason="bad data")
+
+        if request.query.get("id") == "internal_server_err":
+            return web.HTTPInternalServerError(reason="something wrong")
+
+        return web.json_response({"readings": [],
+                                  "start": request.query.get('id'),
+                                  "count": request.query.get('count')
+                                  })
 
 
 @pytest.allure.feature("unit")
@@ -537,8 +550,68 @@ class TestReadingsStorageClient:
 
         await fake_storage_srvr.stop()
 
-    # def fetch(cls, reading_id, count):
-    # GET, '/storage/reading?id={}&count={}'
+    @pytest.mark.asyncio
+    async def test_fetch(self, event_loop):
+        # GET, '/storage/reading?id={}&count={}'
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        rsc = ReadingsStorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == rsc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            args = None, 3
+            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+            for response in await asyncio.gather( * futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "first reading id to retrieve the readings block is required" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = 2, None
+            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "count is required to retrieve the readings block" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = 2, "1s"
+            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "invalid literal for int() with base 10" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = "bad_data", 3
+            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            args = "internal_server_err", 3
+            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        args = 2, 3
+        futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+        for response in await asyncio.gather(*futures):
+            assert {'readings': [], 'start': '2', 'count': '3'} == response
+
+        await fake_storage_srvr.stop()
 
     # def query(cls, query_payload):
     # 'PUT', '/storage/reading/query' query_payload

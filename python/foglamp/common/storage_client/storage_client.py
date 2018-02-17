@@ -433,7 +433,7 @@ class ReadingsStorageClient(StorageClient):
             _LOGGER.error("readings: %s, Client error code: %d", readings, r.status)
             raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("readings: %s, Client error code: %d", readings, r.status)
+            _LOGGER.error("readings: %s, Server error code: %d", readings, r.status)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -455,17 +455,30 @@ class ReadingsStorageClient(StorageClient):
         conn = http.client.HTTPConnection(cls._base_url)
         # TODO: need to set http / https based on service protocol
 
-        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
+        if reading_id is None:
+            raise ValueError("first reading id to retrieve the readings block is required")
 
+        if count is None:
+            raise ValueError("count is required to retrieve the readings block")
+
+        try:
+            count = int(count)
+        except ValueError:
+            raise
+
+        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
         conn.request('GET', url=get_url)
         r = conn.getresponse()
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Fetch readings: Client error code: %d", r.status)
+            _LOGGER.error("Fetch readings url: %s, Client error code: %d", get_url, r.status)
+            raise BadRequest
+
         if r.status in range(500, 600):
-            _LOGGER.error("Fetch readings: Server error code: %d", r.status)
+            _LOGGER.error("Fetch readings url: %s Server error code: %d", get_url, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()
@@ -545,7 +558,7 @@ class ReadingsStorageClient(StorageClient):
                 _size = int(size)
 
             _sent_id = int(sent_id)
-        except TypeError:
+        except ValueError:
             raise
 
         conn = http.client.HTTPConnection(cls._base_url)

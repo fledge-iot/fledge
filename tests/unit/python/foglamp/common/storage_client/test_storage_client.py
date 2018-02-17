@@ -31,7 +31,11 @@ class FakeFoglampStorageSrvr:
         self.loop = loop
         self.app = web.Application(loop=loop)
         self.app.router.add_routes([
-            web.post('/storage/table/{tbl_name}', self.insert_into_tbl)
+            web.post('/storage/table/{tbl_name}', self.query_with_payload_insert_into_or_update_tbl_handler),
+            web.put('/storage/table/{tbl_name}', self.query_with_payload_insert_into_or_update_tbl_handler),
+            web.delete('/storage/table/{tbl_name}', self.delete_from_tbl_handler),
+            web.get('/storage/table/{tbl_name}', self.query_tbl_handler),
+            web.put('/storage/table/{tbl_name}/query', self.query_with_payload_insert_into_or_update_tbl_handler)
         ])
         self.runner = None
 
@@ -44,7 +48,7 @@ class FakeFoglampStorageSrvr:
     async def stop(self):
         await self.runner.cleanup()
 
-    async def insert_into_tbl(self, request):
+    async def query_with_payload_insert_into_or_update_tbl_handler(self, request):
         payload = await request.json()
 
         if payload.get("bad_request", None):
@@ -55,6 +59,40 @@ class FakeFoglampStorageSrvr:
 
         return web.json_response({
            "called": payload
+        })
+
+    async def delete_from_tbl_handler(self, request):
+        try:
+            payload = await request.json()
+
+            if payload.get("bad_request", None):
+                return web.HTTPBadRequest(reason="bad data")
+
+            if payload.get("internal_server_err", None):
+                return web.HTTPInternalServerError(reason="something wrong")
+        except:
+            payload = 1
+
+        return web.json_response({
+            "called": payload
+        })
+
+    async def query_tbl_handler(self, request):
+
+        # add side effect based on query param foo `?foo=`
+
+        res = 1
+        if request.query.get('foo', None):
+            res = 'foo passed'
+
+        if request.query.get("bad_foo", None):
+            return web.HTTPBadRequest(reason="bad data")
+
+        if request.query.get("internal_server_err_foo", None):
+            return web.HTTPInternalServerError(reason="something wrong")
+
+        return web.json_response({
+            "called": res
         })
 
 
@@ -113,7 +151,8 @@ class TestStorageClient:
 
     @pytest.mark.asyncio
     async def test_insert_into_tbl(self, event_loop):
-        # start at class/module level setup
+        # 'POST', '/storage/table/{tbl_name}', data
+
         fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
         await fake_storage_srvr.start()
 
@@ -127,17 +166,26 @@ class TestStorageClient:
         assert "{}:{}".format(HOST, PORT) == sc.base_url
 
         with pytest.raises(Exception) as excinfo:
-            res = sc.insert_into_tbl(None, '{"k": "v"}')
+            args = None, '{"k": "v"}'
+            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
         assert excinfo.type is ValueError
         assert "Table name is missing" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            res = sc.insert_into_tbl("aTable", None)
+            args = "aTable", None
+            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
         assert excinfo.type is ValueError
         assert "Data to insert is missing" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            res = sc.insert_into_tbl("aTable", {"k": "v"})
+            args = "aTable", {"k": "v"}
+            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
         assert excinfo.type is TypeError
         assert "Provided data to insert must be a valid JSON" in str(excinfo.value)
 
@@ -151,7 +199,7 @@ class TestStorageClient:
             futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
             for response in await asyncio.gather(*futures):
                 pass
-        # assert logger called once
+        # assert logger called twice
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
@@ -162,7 +210,242 @@ class TestStorageClient:
         # assert logger called once
         assert excinfo.type is StorageServerInternalError
 
-        # stop at class/module level teardown
+        await fake_storage_srvr.stop()
+
+    @pytest.mark.asyncio
+    async def test_update_tbl(self, event_loop):
+        # PUT, '/storage/table/{tbl_name}', data
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        sc = StorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == sc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            args = None, json.dumps({"k": "v"})
+            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Table name is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", None
+            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Data to update is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", {"k": "v"}
+            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is TypeError
+        assert "Provided data to update must be a valid JSON" in str(excinfo.value)
+
+        args = "aTable", json.dumps({"k": "v"})
+        futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+        for response in await asyncio.gather(*futures):
+            assert {"k": "v"} == response["called"]
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"bad_request": "v"})
+            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called twice
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"internal_server_err": "v"})
+            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        await fake_storage_srvr.stop()
+
+    @pytest.mark.asyncio
+    async def test_delete_from_tbl(self, event_loop):
+        # 'DELETE', '/storage/table/{tbl_name}', condition (optional)
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        sc = StorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == sc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, None)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Table name is missing" in str(excinfo.value)
+
+        args = "aTable", None  # delete without condition is allowed
+        futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+        for response in await asyncio.gather(*futures):
+            assert 1 == response["called"]
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", {"condition": "v"}
+            futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is TypeError
+        assert "condition payload must be a valid JSON" in str(excinfo.value)
+
+        args = "aTable", json.dumps({"condition": "v"})
+        futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+        for response in await asyncio.gather(*futures):
+            assert {"condition": "v"} == response["called"]
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"bad_request": "v"})
+            futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called twice
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"internal_server_err": "v"})
+            futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        await fake_storage_srvr.stop()
+
+    @pytest.mark.asyncio
+    async def test_query_tbl(self, event_loop):
+        # 'GET', '/storage/table/{tbl_name}', *allows query params
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        sc = StorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == sc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, sc.query_tbl, None)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Table name is missing" in str(excinfo.value)
+
+        args = "aTable", None  # query_tbl without query param is == SELECT *
+        futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+        for response in await asyncio.gather(*futures):
+            assert 1 == response["called"]
+
+        args = "aTable", 'foo=v1&bar=v2'
+        futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+        for response in await asyncio.gather(*futures):
+            assert 'foo passed' == response["called"]
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", 'bad_foo=1'
+            futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called twice
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", 'internal_server_err_foo=1'
+            futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        await fake_storage_srvr.stop()
+
+    @pytest.mark.asyncio
+    async def test_query_tbl_with_payload(self, event_loop):
+        # 'PUT', '/storage/table/{tbl_name}/query', query_payload
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        sc = StorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == sc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            args = None, json.dumps({"k": "v"})
+            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Table name is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", None
+            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Query payload is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", {"k": "v"}
+            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is TypeError
+        assert "Query payload must be a valid JSON" in str(excinfo.value)
+
+        args = "aTable", json.dumps({"k": "v"})
+        futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+        for response in await asyncio.gather(*futures):
+            assert {"k": "v"} == response["called"]
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"bad_request": "v"})
+            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called twice
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            args = "aTable", json.dumps({"internal_server_err": "v"})
+            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
         await fake_storage_srvr.stop()
 
 

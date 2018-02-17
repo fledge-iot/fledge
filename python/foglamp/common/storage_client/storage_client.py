@@ -136,12 +136,7 @@ class StorageClient(AbstractStorage):
             raise InvalidServiceInstance
         self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
                                m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
-        # found_services = Service.Instances.get(name="FogLAMP Storage")
-        # svc = found_services[0]
-        # # retry for a while?
-        # if svc is None:
-        #     raise InvalidServiceInstance
-        # self.service = svc
+
         return self
 
     def disconnect(self):
@@ -167,19 +162,19 @@ class StorageClient(AbstractStorage):
                 "value" : 1
             }
         """
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
-
-        post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
-        
         if not tbl_name:
             raise ValueError("Table name is missing")
-        
+
         if not data:
             raise ValueError("Data to insert is missing")
 
         if not Utils.is_json(data):
             raise TypeError("Provided data to insert must be a valid JSON")
+
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+
+        post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
         conn.request('POST', url=post_url, body=data)
         r = conn.getresponse()
@@ -187,8 +182,10 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
+            _LOGGER.info("Request payload: %s", data)
             _LOGGER.error("Post %s: Client error code: %d", post_url, r.status)
             raise BadRequest
+
         if r.status in range(500, 600):
             _LOGGER.error("Post %s: Server error code: %d", post_url, r.status)
             raise StorageServerInternalError
@@ -218,9 +215,8 @@ class StorageClient(AbstractStorage):
                 }
             }
         """
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
-        put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+        if not tbl_name:
+            raise ValueError("Table name is missing")
 
         if not data:
             raise ValueError("Data to update is missing")
@@ -228,21 +224,28 @@ class StorageClient(AbstractStorage):
         if not Utils.is_json(data):
             raise TypeError("Provided data to update must be a valid JSON")
 
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+        put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+
         conn.request('PUT', url=put_url, body=data)
         r = conn.getresponse()
-
-        res = r.read().decode()
-        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
+            _LOGGER.info("Request payload: %s", data)
             _LOGGER.error("PUT %s: Client error code: %d", put_url, r.status)
-            _LOGGER.error("Request payload: %s", data)
+            raise BadRequest
+
         if r.status in range(500, 600):
             _LOGGER.error("PUT %s Server error code: %d", put_url, r.status)
+            raise StorageServerInternalError
+
+        res = r.read().decode()
         conn.close()
-        return jdoc
+
+        return json.loads(res, strict=False)
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
@@ -260,6 +263,10 @@ class StorageClient(AbstractStorage):
                     "value" : "SENT_test"
             }
         """
+
+        if not tbl_name:
+            raise ValueError("Table name is missing")
+
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
         del_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
@@ -273,9 +280,13 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
+            _LOGGER.info("Request url: %s, condition: %s", del_url, condition if condition else '')
             _LOGGER.error("Delete %s: Client error code: %d", del_url, r.status)
+            raise BadRequest
+
         if r.status in range(500, 600):
             _LOGGER.error("Delete %s: Server error code: %d", del_url, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()
@@ -292,6 +303,9 @@ class StorageClient(AbstractStorage):
             curl -X GET http://0.0.0.0:8080/storage/table/statistics_history
             curl -X GET http://0.0.0.0:8080/storage/table/statistics_history?key=PURGE
         """
+        if not tbl_name:
+            raise ValueError("Table name is missing")
+
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
 
@@ -307,8 +321,11 @@ class StorageClient(AbstractStorage):
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Get %s: Client error code: %d", get_url, r.status)
+            raise BadRequest
+
         if r.status in range(500, 600):
             _LOGGER.error("Get %s: Server error code: %d", get_url, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()
@@ -330,6 +347,15 @@ class StorageClient(AbstractStorage):
                     "value" : "SENT_test"
             }
         """
+        if not tbl_name:
+            raise ValueError("Table name is missing")
+
+        if not query_payload:
+            raise ValueError("Query payload is missing")
+
+        if not Utils.is_json(query_payload):
+            raise TypeError("Query payload must be a valid JSON")
+
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
@@ -340,9 +366,12 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
+            _LOGGER.info("Request payload: %s", query_payload)
             _LOGGER.error("Put %s: Client error code: %d", put_url, r.status)
+            raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("Put %s: Server error code: %d", put_url, r.status) 
+            _LOGGER.error("Put %s: Server error code: %d", put_url, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()

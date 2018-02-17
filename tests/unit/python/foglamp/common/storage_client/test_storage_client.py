@@ -743,6 +743,7 @@ class TestReadingsStorageClient:
         assert excinfo.type is PurgeOneOfAgeAndSize
         assert "Purge must specify one of age or size" in str(excinfo.value)
 
+        # age int
         with pytest.raises(Exception) as excinfo:
             kwargs = dict(age="1b", sent_id=0, size=None, flag='retain')
             func = partial(rsc.purge, **kwargs)
@@ -752,8 +753,19 @@ class TestReadingsStorageClient:
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
+        # size int
         with pytest.raises(Exception) as excinfo:
             kwargs = dict(age=None, sent_id=0, size="1b", flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "invalid literal for int() with base 10" in str(excinfo.value)
+
+        # sent_id int
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=1, sent_id="1b", size=None, flag='retain')
             func = partial(rsc.purge, **kwargs)
             futures = [event_loop.run_in_executor(None, func)]
             for response in await asyncio.gather(*futures):

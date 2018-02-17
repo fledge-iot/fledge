@@ -419,10 +419,10 @@ class ReadingsStorageClient(StorageClient):
         # TODO: need to set http / https based on service protocol
 
         if not readings:
-            raise ValueError("ReadingsStorageClient payload is missing")
+            raise ValueError("Readings payload is missing")
 
         if not Utils.is_json(readings):
-            raise TypeError("ReadingsStorageClient payload must be a valid JSON")
+            raise TypeError("Readings payload must be a valid JSON")
 
         conn.request('POST', url='/storage/reading', body=readings)
         r = conn.getresponse()
@@ -430,9 +430,11 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Post readings: Client error code: %d", r.status)
+            _LOGGER.error("readings: %s, Client error code: %d", readings, r.status)
+            raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("Post readings: Server error code: %d", r.status)
+            _LOGGER.error("readings: %s, Client error code: %d", readings, r.status)
+            raise StorageServerInternalError
 
         res = r.read().decode()
         conn.close()

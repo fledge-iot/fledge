@@ -31,11 +31,15 @@ class FakeFoglampStorageSrvr:
         self.loop = loop
         self.app = web.Application(loop=loop)
         self.app.router.add_routes([
+            # common table operations
             web.post('/storage/table/{tbl_name}', self.query_with_payload_insert_into_or_update_tbl_handler),
             web.put('/storage/table/{tbl_name}', self.query_with_payload_insert_into_or_update_tbl_handler),
             web.delete('/storage/table/{tbl_name}', self.delete_from_tbl_handler),
             web.get('/storage/table/{tbl_name}', self.query_tbl_handler),
-            web.put('/storage/table/{tbl_name}/query', self.query_with_payload_insert_into_or_update_tbl_handler)
+            web.put('/storage/table/{tbl_name}/query', self.query_with_payload_insert_into_or_update_tbl_handler),
+
+            # readings table
+            web.post('/storage/reading', self.readings_append)
         ])
         self.handler = None
         self.server = None
@@ -97,6 +101,19 @@ class FakeFoglampStorageSrvr:
 
         return web.json_response({
             "called": res
+        })
+
+    async def readings_append(self, request):
+        payload = await request.json()
+
+        if payload.get("readings", None) is None:
+            return web.HTTPBadRequest(reason="bad data")
+
+        if payload.get("internal_server_err", None):
+            return web.HTTPInternalServerError(reason="something wrong")
+
+        return web.json_response({
+            "appended": payload
         })
 
 
@@ -467,8 +484,58 @@ class TestReadingsStorageClient:
         rsc = ReadingsStorageClient(1, 2, mockServiceRecord)
         assert "{}:{}".format(HOST, PORT) == rsc.base_url
 
-    # def append(cls, readings):
-    # 'POST', '/storage/reading', readings
+    @pytest.mark.asyncio
+    async def test_append(self, event_loop):
+        # 'POST', '/storage/reading', readings
+
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
+
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        rsc = ReadingsStorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == rsc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, rsc.append, None)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "Readings payload is missing" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            futures = [event_loop.run_in_executor(None, rsc.append, "blah")]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is TypeError
+        assert "Readings payload must be a valid JSON" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            readings_bad_payload = json.dumps({"Xreadings": []})
+            futures = [event_loop.run_in_executor(None, rsc.append, readings_bad_payload)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called with payload and status code
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            r = json.dumps({"readings": [], "internal_server_err": 1})
+            futures = [event_loop.run_in_executor(None, rsc.append, r)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        readings = json.dumps({"readings": []})
+        futures = [event_loop.run_in_executor(None, rsc.append, readings)]
+        for response in await asyncio.gather(*futures):
+            assert {'readings': []} == response['appended']
+
+        await fake_storage_srvr.stop()
 
     # def fetch(cls, reading_id, count):
     # GET, '/storage/reading?id={}&count={}'

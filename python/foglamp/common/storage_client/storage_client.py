@@ -533,12 +533,15 @@ class ReadingsStorageClient(StorageClient):
             raise PurgeOneOfAgeAndSize
 
         # age should be int
+        # size should be int
         # sent_id should again be int
         try:
             if age is not None:
                 _age = int(age)
+
             if size is not None:
                 _size = int(size)
+
             _sent_id = int(sent_id)
         except TypeError:
             raise

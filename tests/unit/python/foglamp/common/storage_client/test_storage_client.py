@@ -14,7 +14,7 @@ from aiohttp import web
 from aiohttp.test_utils import unused_port
 
 from foglamp.common.service_record import ServiceRecord
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
 from foglamp.common.storage_client.exceptions import *
 
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -37,16 +37,20 @@ class FakeFoglampStorageSrvr:
             web.get('/storage/table/{tbl_name}', self.query_tbl_handler),
             web.put('/storage/table/{tbl_name}/query', self.query_with_payload_insert_into_or_update_tbl_handler)
         ])
-        self.runner = None
+        self.handler = None
+        self.server = None
 
     async def start(self):
-        self.runner = web.AppRunner(self.app)
-        await self.runner.setup()
-        svc = web.TCPSite(self.runner, host=HOST, port=PORT, ssl_context=None)
-        await svc.start()
+
+        self.handler = self.app.make_handler()
+        self.server = await self.loop.create_server(self.handler, HOST, PORT, ssl=None)
 
     async def stop(self):
-        await self.runner.cleanup()
+        self.server.close()
+        await self.server.wait_closed()
+        await self.app.shutdown()
+        await self.handler.shutdown()
+        await self.app.cleanup()
 
     async def query_with_payload_insert_into_or_update_tbl_handler(self, request):
         payload = await request.json()
@@ -451,6 +455,36 @@ class TestStorageClient:
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("common", "storage_client")
-class TestReadingsSC:
-    pass
+class TestReadingsStorageClient:
+
+    def test_init(self):
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        rsc = ReadingsStorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == rsc.base_url
+
+    # def append(cls, readings):
+    # 'POST', '/storage/reading', readings
+
+    # def fetch(cls, reading_id, count):
+    # GET, '/storage/reading?id={}&count={}'
+
+    # def query(cls, query_payload):
+    # 'PUT', '/storage/reading/query' query_payload
+
+    #  def purge(cls, age=None, sent_id=0, size=None, flag=None):
+    # 'PUT', url=put_url, /storage/reading/purge?age=&sent=&flags
+    """
+        if age:
+            put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
+        if size:
+            put_url = '/storage/reading/purge?size={}&sent={}'.format(_size, _sent_id)
+        if flag: # valid_flags = ['retain', 'purge']
+            put_url += "&flags={}".format(flag.lower())
+
+    """
 

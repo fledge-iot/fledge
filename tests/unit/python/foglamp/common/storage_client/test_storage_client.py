@@ -12,6 +12,7 @@ import json
 import asyncio
 from aiohttp import web
 from aiohttp.test_utils import unused_port
+from functools import partial
 
 from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
@@ -41,7 +42,8 @@ class FakeFoglampStorageSrvr:
             # readings table
             web.post('/storage/reading', self.readings_append),
             web.get('/storage/reading', self.readings_fetch),
-            web.put('/storage/reading/query', self.readings_query)
+            web.put('/storage/reading/query', self.readings_query),
+            web.put('/storage/reading/purge', self.readings_purge)
         ])
         self.handler = None
         self.server = None
@@ -141,6 +143,18 @@ class FakeFoglampStorageSrvr:
 
         return web.json_response({
            "called": payload
+        })
+
+    async def readings_purge(self, request):
+
+        if request.query.get('age', None) == "-1":
+            return web.HTTPBadRequest(reason="age should not be less than 0")
+
+        if request.query.get('size', None) == "4294967296":
+            return web.HTTPInternalServerError(reason="unsigned int range")
+
+        return web.json_response({
+            "called": 1
         })
 
 
@@ -677,15 +691,116 @@ class TestReadingsStorageClient:
 
         await fake_storage_srvr.stop()
 
-    #  def purge(cls, age=None, sent_id=0, size=None, flag=None):
-    # 'PUT', url=put_url, /storage/reading/purge?age=&sent=&flags
-    """
-        if age:
-            put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
-        if size:
-            put_url = '/storage/reading/purge?size={}&sent={}'.format(_size, _sent_id)
-        if flag: # valid_flags = ['retain', 'purge']
-            put_url += "&flags={}".format(flag.lower())
+    @pytest.mark.asyncio
+    async def test_purge(self, event_loop):
+        # 'PUT', url=put_url, /storage/reading/purge?age=&sent=&flags
 
-    """
+        fake_storage_srvr = FakeFoglampStorageSrvr(loop=event_loop)
+        await fake_storage_srvr.start()
 
+        mockServiceRecord = MagicMock(ServiceRecord)
+        mockServiceRecord._address = HOST
+        mockServiceRecord._type = "Storage"
+        mockServiceRecord._port = PORT
+        mockServiceRecord._management_port = 2000
+
+        rsc = ReadingsStorageClient(1, 2, mockServiceRecord)
+        assert "{}:{}".format(HOST, PORT) == rsc.base_url
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(flag='blah', age=1, sent_id=0, size=None)
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is InvalidReadingsPurgeFlagParameters
+        assert "Purge flag valid options are retain or purge only" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=1, sent_id=0, size=1, flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is PurgeOnlyOneOfAgeAndSize
+        assert "Purge must specify only one of age or size" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=None, sent_id=0, size=None, flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is PurgeOneOfAgeAndSize
+        assert "Purge must specify one of age or size" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=0, sent_id=0, size=0, flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is PurgeOneOfAgeAndSize
+        assert "Purge must specify one of age or size" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age="1b", sent_id=0, size=None, flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "invalid literal for int() with base 10" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=None, sent_id=0, size="1b", flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        assert excinfo.type is ValueError
+        assert "invalid literal for int() with base 10" in str(excinfo.value)
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=-1, sent_id=1, size=None, flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is BadRequest
+
+        with pytest.raises(Exception) as excinfo:
+            kwargs = dict(age=None, sent_id=1, size=4294967296, flag='retain')
+            func = partial(rsc.purge, **kwargs)
+            futures = [event_loop.run_in_executor(None, func)]
+            for response in await asyncio.gather(*futures):
+                pass
+        # assert logger called once
+        assert excinfo.type is StorageServerInternalError
+
+        kwargs = dict(age=1, sent_id=1, size=0, flag='retain')
+        func = partial(rsc.purge, **kwargs)
+        futures = [event_loop.run_in_executor(None, func)]
+        for response in await asyncio.gather(*futures):
+            assert 1 == response["called"]
+
+        kwargs = dict(age=0, sent_id=1, size=1, flag='retain')
+        func = partial(rsc.purge, **kwargs)
+        futures = [event_loop.run_in_executor(None, func)]
+        for response in await asyncio.gather(*futures):
+            assert 1 == response["called"]
+
+        kwargs = dict(age=1, sent_id=1, size=None, flag='retain')
+        func = partial(rsc.purge, **kwargs)
+        futures = [event_loop.run_in_executor(None, func)]
+        for response in await asyncio.gather(*futures):
+            assert 1 == response["called"]
+
+        kwargs = dict(age=None, sent_id=1, size=1, flag='retain')
+        func = partial(rsc.purge, **kwargs)
+        futures = [event_loop.run_in_executor(None, func)]
+        for response in await asyncio.gather(*futures):
+            assert 1 == response["called"]
+
+        await fake_storage_srvr.stop()

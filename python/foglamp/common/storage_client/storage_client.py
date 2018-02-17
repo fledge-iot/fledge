@@ -543,7 +543,6 @@ class ReadingsStorageClient(StorageClient):
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?age=24&sent=2&flags=PURGE"
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
-        # TODO: flagS should be flag?
 
         valid_flags = ['retain', 'purge']
 
@@ -553,7 +552,7 @@ class ReadingsStorageClient(StorageClient):
         if age and size:
             raise PurgeOnlyOneOfAgeAndSize
 
-        if age is None and size is None:
+        if not age and not size:
             raise PurgeOneOfAgeAndSize
 
         # age should be int
@@ -586,9 +585,12 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Purge readings: Client error code: %d", r.status)
+            _LOGGER.error("Purge readings url: %s, Client error code: %d", put_url, r.status)
+            raise BadRequest
+
         if r.status in range(500, 600):
-            _LOGGER.error("Purge readings: Server error code: %d", r.status)
+            _LOGGER.error("Purge readings url: %s, Server error code: %d", put_url, r.status)
+            raise StorageServerInternalError
 
         # NOTE: If the data could not be deleted because of a conflict,
         #       then the error “409 Conflict” will be returned.

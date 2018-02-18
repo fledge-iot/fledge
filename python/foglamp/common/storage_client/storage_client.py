@@ -156,6 +156,9 @@ class StorageClient(AbstractStorage):
 
         conn.request('POST', url=post_url, body=data)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -169,9 +172,7 @@ class StorageClient(AbstractStorage):
             _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     def update_tbl(self, tbl_name, data):
         """ update json payload for specified condition into given table
@@ -209,6 +210,9 @@ class StorageClient(AbstractStorage):
 
         conn.request('PUT', url=put_url, body=data)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -222,10 +226,7 @@ class StorageClient(AbstractStorage):
             _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-
-        return json.loads(res, strict=False)
+        return jdoc
 
     def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
@@ -256,6 +257,9 @@ class StorageClient(AbstractStorage):
 
         conn.request('DELETE', url=del_url, body=condition)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -269,9 +273,7 @@ class StorageClient(AbstractStorage):
             _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     def query_tbl(self, tbl_name, query=None):
         """ Simple SELECT query for the specified table with optional query params
@@ -297,6 +299,9 @@ class StorageClient(AbstractStorage):
 
         conn.request('GET', url=get_url)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -310,9 +315,7 @@ class StorageClient(AbstractStorage):
             _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     def query_tbl_with_payload(self, tbl_name, query_payload):
         """ Complex SELECT query for the specified table with a payload
@@ -345,6 +348,9 @@ class StorageClient(AbstractStorage):
 
         conn.request('PUT', url=put_url, body=query_payload)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -357,9 +363,7 @@ class StorageClient(AbstractStorage):
             _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
 
 class ReadingsStorageClient(StorageClient):
@@ -410,6 +414,9 @@ class ReadingsStorageClient(StorageClient):
 
         conn.request('POST', url='/storage/reading', body=readings)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -422,9 +429,7 @@ class ReadingsStorageClient(StorageClient):
                           '/storage/reading', readings, r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     @classmethod
     def fetch(cls, reading_id, count):
@@ -455,6 +460,9 @@ class ReadingsStorageClient(StorageClient):
         get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
         conn.request('GET', url=get_url)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -466,9 +474,7 @@ class ReadingsStorageClient(StorageClient):
             _LOGGER.error("GET url: %s, Server error code: %d | reason: %s", get_url, r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     @classmethod
     def query(cls, query_payload):
@@ -500,6 +506,9 @@ class ReadingsStorageClient(StorageClient):
 
         conn.request('PUT', url='/storage/reading/query', body=query_payload)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -512,9 +521,7 @@ class ReadingsStorageClient(StorageClient):
                           '/storage/reading/query', query_payload, r.status, r.reason)
             raise StorageServerInternalError
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     @classmethod
     def purge(cls, age=None, sent_id=0, size=None, flag=None):
@@ -569,6 +576,9 @@ class ReadingsStorageClient(StorageClient):
 
         conn.request('PUT', url=put_url, body=None)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
@@ -581,6 +591,4 @@ class ReadingsStorageClient(StorageClient):
             raise StorageServerInternalError
 
         # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc

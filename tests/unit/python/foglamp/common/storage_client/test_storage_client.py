@@ -64,10 +64,10 @@ class FakeFoglampStorageSrvr:
         payload = await request.json()
 
         if payload.get("bad_request", None):
-            return web.HTTPBadRequest(reason="bad data")
+            return web.HTTPBadRequest(reason="bad data", text='{"key": "value"}')
 
         if payload.get("internal_server_err", None):
-            return web.HTTPInternalServerError(reason="something wrong")
+            return web.HTTPInternalServerError(reason="something wrong", text='{"key": "value"}')
 
         return web.json_response({
            "called": payload
@@ -78,10 +78,10 @@ class FakeFoglampStorageSrvr:
             payload = await request.json()
 
             if payload.get("bad_request", None):
-                return web.HTTPBadRequest(reason="bad data")
+                return web.HTTPBadRequest(reason="bad data", text='{"key": "value"}')
 
             if payload.get("internal_server_err", None):
-                return web.HTTPInternalServerError(reason="something wrong")
+                return web.HTTPInternalServerError(reason="something wrong", text='{"key": "value"}')
         except:
             payload = 1
 
@@ -98,10 +98,10 @@ class FakeFoglampStorageSrvr:
             res = 'foo passed'
 
         if request.query.get("bad_foo", None):
-            return web.HTTPBadRequest(reason="bad data")
+            return web.HTTPBadRequest(reason="bad data", text='{"key": "value"}')
 
         if request.query.get("internal_server_err_foo", None):
-            return web.HTTPInternalServerError(reason="something wrong")
+            return web.HTTPInternalServerError(reason="something wrong", text='{"key": "value"}')
 
         return web.json_response({
             "called": res
@@ -111,10 +111,10 @@ class FakeFoglampStorageSrvr:
         payload = await request.json()
 
         if payload.get("readings", None) is None:
-            return web.HTTPBadRequest(reason="bad data")
+            return web.HTTPBadRequest(reason="bad data", text='{"key": "value"}')
 
         if payload.get("internal_server_err", None):
-            return web.HTTPInternalServerError(reason="something wrong")
+            return web.HTTPInternalServerError(reason="something wrong", text='{"key": "value"}')
 
         return web.json_response({
             "appended": payload
@@ -122,10 +122,10 @@ class FakeFoglampStorageSrvr:
 
     async def readings_fetch(self, request):
         if request.query.get("id") == "bad_data":
-            return web.HTTPBadRequest(reason="bad data")
+            return web.HTTPBadRequest(reason="bad data", text='{"key": "value"}')
 
         if request.query.get("id") == "internal_server_err":
-            return web.HTTPInternalServerError(reason="something wrong")
+            return web.HTTPInternalServerError(reason="something wrong", text='{"key": "value"}')
 
         return web.json_response({"readings": [],
                                   "start": request.query.get('id'),
@@ -136,10 +136,10 @@ class FakeFoglampStorageSrvr:
         payload = await request.json()
 
         if payload.get("bad_request", None):
-            return web.HTTPBadRequest(reason="bad data")
+            return web.HTTPBadRequest(reason="bad data", text='{"key": "value"}')
 
         if payload.get("internal_server_err", None):
-            return web.HTTPInternalServerError(reason="something wrong")
+            return web.HTTPInternalServerError(reason="something wrong", text='{"key": "value"}')
 
         return web.json_response({
            "called": payload
@@ -148,10 +148,10 @@ class FakeFoglampStorageSrvr:
     async def readings_purge(self, request):
 
         if request.query.get('age', None) == "-1":
-            return web.HTTPBadRequest(reason="age should not be less than 0")
+            return web.HTTPBadRequest(reason="age should not be less than 0", text='{"key": "value"}')
 
         if request.query.get('size', None) == "4294967296":
-            return web.HTTPInternalServerError(reason="unsigned int range")
+            return web.HTTPInternalServerError(reason="unsigned int range", text='{"key": "value"}')
 
         return web.json_response({
             "called": 1

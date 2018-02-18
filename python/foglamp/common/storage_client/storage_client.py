@@ -414,10 +414,12 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("readings: %s, Client error code: %d", readings, r.status)
+            _LOGGER.error("POST url %s with payload: %s, Client error code: %d | reason: %s",
+                          '/storage/reading', readings, r.status, r.reason)
             raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("readings: %s, Server error code: %d", readings, r.status)
+            _LOGGER.error("POST url %s with payload: %s, Server error code: %d | reason: %s",
+                          '/storage/reading', readings, r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -457,11 +459,11 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Fetch readings url: %s, Client error code: %d", get_url, r.status)
+            _LOGGER.error("GET url: %s, Client error code: %d | reason: %s", get_url, r.status, r.reason)
             raise BadRequest
 
         if r.status in range(500, 600):
-            _LOGGER.error("Fetch readings url: %s Server error code: %d", get_url, r.status)
+            _LOGGER.error("GET url: %s, Server error code: %d | reason: %s", get_url, r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -502,10 +504,12 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Query payload: %s, Client error code: %d", query_payload, r.status)
+            _LOGGER.error("PUT url %s with query payload: %s, Client error code: %d | %s",
+                          '/storage/reading/query', query_payload, r.status, r.reason)
             raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("Query payload: %s, Server error code: %d", query_payload, r.status)
+            _LOGGER.error("PUT url %s with query payload: %s, Server error code: %d | %s",
+                          '/storage/reading/query', query_payload, r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -569,15 +573,14 @@ class ReadingsStorageClient(StorageClient):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Purge readings url: %s, Client error code: %d", put_url, r.status)
+            _LOGGER.error("PUT url %s, Client error code: %d | %s", put_url, r.status, r.reason)
             raise BadRequest
 
         if r.status in range(500, 600):
-            _LOGGER.error("Purge readings url: %s, Server error code: %d", put_url, r.status)
+            _LOGGER.error("PUT url %s, Client error code: %d | %s", put_url, r.status, r.reason)
             raise StorageServerInternalError
 
-        # NOTE: If the data could not be deleted because of a conflict,
-        #       then the error “409 Conflict” will be returned.
+        # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
         res = r.read().decode()
         conn.close()
         return json.loads(res, strict=False)

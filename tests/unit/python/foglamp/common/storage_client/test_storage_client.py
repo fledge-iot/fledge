@@ -591,19 +591,24 @@ class TestReadingsStorageClient:
         assert "Readings payload must be a valid JSON" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            readings_bad_payload = json.dumps({"Xreadings": []})
-            futures = [event_loop.run_in_executor(None, rsc.append, readings_bad_payload)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called with payload and status code
+            with patch.object(_LOGGER, "error") as log_e:
+                readings_bad_payload = json.dumps({"Xreadings": []})
+                futures = [event_loop.run_in_executor(None, rsc.append, readings_bad_payload)]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with("POST url %s with payload: %s, Client error code: %d | reason: %s",
+                                      '/storage/reading', '{"Xreadings": []}', 400, 'bad data')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            r = json.dumps({"readings": [], "internal_server_err": 1})
-            futures = [event_loop.run_in_executor(None, rsc.append, r)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                r = '{"readings": [], "internal_server_err": 1}'
+                futures = [event_loop.run_in_executor(None, rsc.append, r)]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with("POST url %s with payload: %s, Server error code: %d | reason: %s",
+                                      '/storage/reading', '{"readings": [], "internal_server_err": 1}',
+                                      500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         readings = json.dumps({"readings": []})
@@ -654,19 +659,23 @@ class TestReadingsStorageClient:
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            args = "bad_data", 3
-            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                args = "bad_data", 3
+                futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with('GET url: %s, Client error code: %d | reason: %s',
+                                      '/storage/reading?id=bad_data&count=3', 400, 'bad data')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            args = "internal_server_err", 3
-            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                args = "internal_server_err", 3
+                futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with('GET url: %s, Server error code: %d | reason: %s',
+                                      '/storage/reading?id=internal_server_err&count=3', 500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         args = 2, 3
@@ -711,17 +720,21 @@ class TestReadingsStorageClient:
             assert {"k": "v"} == response["called"]
 
         with pytest.raises(Exception) as excinfo:
-            futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"bad_request": "v"}) )]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"bad_request": "v"}))]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with("PUT url %s with query payload: %s, Client error code: %d | %s",
+                                      '/storage/reading/query', '{"bad_request": "v"}', 400, 'bad data')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"internal_server_err": "v"}) )]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"internal_server_err": "v"}))]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with("PUT url %s with query payload: %s, Server error code: %d | %s",
+                                      '/storage/reading/query', '{"internal_server_err": "v"}', 500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         await fake_storage_srvr.stop()
@@ -809,21 +822,25 @@ class TestReadingsStorageClient:
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=-1, sent_id=1, size=None, flag='retain')
-            func = partial(rsc.purge, **kwargs)
-            futures = [event_loop.run_in_executor(None, func)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                kwargs = dict(age=-1, sent_id=1, size=None, flag='retain')
+                func = partial(rsc.purge, **kwargs)
+                futures = [event_loop.run_in_executor(None, func)]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with('PUT url %s, Client error code: %d | %s',
+                                      '/storage/reading/purge?age=-1&sent=1&flags=retain', 400, 'age should not be less than 0')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=None, sent_id=1, size=4294967296, flag='retain')
-            func = partial(rsc.purge, **kwargs)
-            futures = [event_loop.run_in_executor(None, func)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                kwargs = dict(age=None, sent_id=1, size=4294967296, flag='retain')
+                func = partial(rsc.purge, **kwargs)
+                futures = [event_loop.run_in_executor(None, func)]
+                for response in await asyncio.gather(*futures):
+                    pass
+        log_e.assert_called_once_with('PUT url %s, Client error code: %d | %s',
+                                      '/storage/reading/purge?size=4294967296&sent=1&flags=retain', 500, 'unsigned int range')
         assert excinfo.type is StorageServerInternalError
 
         kwargs = dict(age=1, sent_id=1, size=0, flag='retain')

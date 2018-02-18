@@ -15,7 +15,7 @@ from aiohttp.test_utils import unused_port
 from functools import partial
 
 from foglamp.common.service_record import ServiceRecord
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
+from foglamp.common.storage_client.storage_client import _LOGGER, StorageClient, ReadingsStorageClient
 from foglamp.common.storage_client.exceptions import *
 
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -176,8 +176,6 @@ class TestStorageClient:
         with pytest.raises(Exception) as excinfo:
             with patch.object(StorageClient, '_get_storage_service', return_value=svc):
                 sc = StorageClient(1, 2)
-        # assert logger called to log warning with
-        # 'Storage should be a valid *Storage* micro-service instance'
         assert excinfo.type is InvalidServiceInstance
 
     def test_init_with_service_record(self):
@@ -193,9 +191,9 @@ class TestStorageClient:
 
     def test_init_with_invalid_service_record(self):
         with pytest.raises(Exception) as excinfo:
-            sc = StorageClient(1, 2, "blah")
-        # assert logger called to log warning with
-        # 'Storage should be a valid FogLAMP micro-service instance'
+            with patch.object(_LOGGER, "warning") as log:
+                sc = StorageClient(1, 2, "blah")
+        log.assert_called_once_with("Storage should be a valid FogLAMP micro-service instance")
         assert excinfo.type is InvalidServiceInstance
 
     def test_init_with_service_record_non_storage_type(self):
@@ -206,9 +204,9 @@ class TestStorageClient:
         mockServiceRecord._management_port = 2000
 
         with pytest.raises(Exception) as excinfo:
-            sc = StorageClient(1, 2, mockServiceRecord)
-        # assert logger called to log warning with
-        # 'Storage should be a valid *Storage* micro-service instance'
+            with patch.object(_LOGGER, "warning") as log:
+                sc = StorageClient(1, 2, mockServiceRecord)
+        log.assert_called_once_with("Storage should be a valid *Storage* micro-service instance")
         assert excinfo.type is InvalidServiceInstance
 
     @pytest.mark.asyncio
@@ -257,19 +255,25 @@ class TestStorageClient:
             assert {"k": "v"} == response["called"]
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"bad_request": "v"})
-            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called twice
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
+        log_e.assert_called_once_with("Client error code: %d, reason: %s", 400, 'bad data')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"internal_server_err": "v"})
-            futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"internal_server_err": "v"}')
+        log_e.assert_called_once_with("Server error code: %d, reason: %s", 500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         await fake_storage_srvr.stop()
@@ -320,19 +324,27 @@ class TestStorageClient:
             assert {"k": "v"} == response["called"]
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"bad_request": "v"})
-            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called twice
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("PUT %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
+        log_e.assert_called_once_with("Client error code: %d, reason: %s", 400, 'bad data')
+
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"internal_server_err": "v"})
-            futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("PUT %s, with payload: %s", '/storage/table/aTable',
+                                      '{"internal_server_err": "v"}')
+        log_e.assert_called_once_with("Server error code: %d, reason: %s", 500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         await fake_storage_srvr.stop()
@@ -379,19 +391,26 @@ class TestStorageClient:
             assert {"condition": "v"} == response["called"]
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"bad_request": "v"})
-            futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called twice
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("DELETE %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
+        log_e.assert_called_once_with("Client error code: %d, reason: %s", 400, 'bad data')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"internal_server_err": "v"})
-            futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("DELETE %s, with payload: %s", '/storage/table/aTable',
+                                      '{"internal_server_err": "v"}')
+        log_e.assert_called_once_with("Server error code: %d, reason: %s", 500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         await fake_storage_srvr.stop()
@@ -430,19 +449,27 @@ class TestStorageClient:
             assert 'foo passed' == response["called"]
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", 'bad_foo=1'
-            futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called twice
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", 'bad_foo=1'
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("GET %s", '/storage/table/aTable?bad_foo=1')
+        log_e.assert_called_once_with("Client error code: %d, reason: %s", 400, 'bad data')
+
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", 'internal_server_err_foo=1'
-            futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", 'internal_server_err_foo=1'
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("GET %s", '/storage/table/aTable?internal_server_err_foo=1')
+        log_e.assert_called_once_with("Server error code: %d, reason: %s", 500, 'something wrong')
+
         assert excinfo.type is StorageServerInternalError
 
         await fake_storage_srvr.stop()
@@ -493,19 +520,27 @@ class TestStorageClient:
             assert {"k": "v"} == response["called"]
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"bad_request": "v"})
-            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called twice
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("PUT %s, with query payload: %s", '/storage/table/aTable/query',
+                                      '{"bad_request": "v"}')
+        log_e.assert_called_once_with("Client error code: %d, reason: %s", 400, 'bad data')
         assert excinfo.type is BadRequest
 
         with pytest.raises(Exception) as excinfo:
-            args = "aTable", json.dumps({"internal_server_err": "v"})
-            futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        # assert logger called once
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+        log_i.assert_called_once_with("PUT %s, with query payload: %s", '/storage/table/aTable/query',
+                                      '{"internal_server_err": "v"}')
+        log_e.assert_called_once_with("Server error code: %d, reason: %s", 500, 'something wrong')
         assert excinfo.type is StorageServerInternalError
 
         await fake_storage_srvr.stop()

@@ -87,27 +87,6 @@ class StorageClient(AbstractStorage):
 
         self.__service = svc
 
-    # TODO: remove me, and allow this call in service registry API
-    def check_service_availibility(self):
-        """ ping Storage service """
-
-        conn = http.client.HTTPConnection(self.management_api_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('GET', url='/foglamp/service/ping')
-        r = conn.getresponse()
-
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Ping: Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Ping: Server error code: %d", r.status)
-
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res)
-
     def _get_storage_service(self, host, port):
         """ get Storage service """
 
@@ -135,12 +114,11 @@ class StorageClient(AbstractStorage):
         if len(svc) == 0:
             raise InvalidServiceInstance
         self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
-                               m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+                                     m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
 
         return self
 
     def disconnect(self):
-        # Allow shutdown()?
         pass
 
     # FIXME: As per JIRA-615 strict=false at python side (interim solution)
@@ -182,12 +160,13 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.info("Request payload: %s", data)
-            _LOGGER.error("Post %s: Client error code: %d", post_url, r.status)
+            _LOGGER.info("POST %s, with payload: %s", post_url, data)
+            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
             raise BadRequest
 
         if r.status in range(500, 600):
-            _LOGGER.error("Post %s: Server error code: %d", post_url, r.status)
+            _LOGGER.info("POST %s, with payload: %s", post_url, data)
+            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -234,12 +213,13 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.info("Request payload: %s", data)
-            _LOGGER.error("PUT %s: Client error code: %d", put_url, r.status)
+            _LOGGER.info("PUT %s, with payload: %s", put_url, data)
+            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
             raise BadRequest
 
         if r.status in range(500, 600):
-            _LOGGER.error("PUT %s Server error code: %d", put_url, r.status)
+            _LOGGER.info("PUT %s, with payload: %s", put_url, data)
+            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -280,12 +260,13 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.info("Request url: %s, condition: %s", del_url, condition if condition else '')
-            _LOGGER.error("Delete %s: Client error code: %d", del_url, r.status)
+            _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
+            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
             raise BadRequest
 
         if r.status in range(500, 600):
-            _LOGGER.error("Delete %s: Server error code: %d", del_url, r.status)
+            _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
+            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -320,11 +301,13 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Get %s: Client error code: %d", get_url, r.status)
+            _LOGGER.info("GET %s", get_url)
+            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
             raise BadRequest
 
         if r.status in range(500, 600):
-            _LOGGER.error("Get %s: Server error code: %d", get_url, r.status)
+            _LOGGER.info("GET %s", get_url)
+            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()
@@ -366,11 +349,12 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.info("Request payload: %s", query_payload)
-            _LOGGER.error("Put %s: Client error code: %d", put_url, r.status)
+            _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
+            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
             raise BadRequest
         if r.status in range(500, 600):
-            _LOGGER.error("Put %s: Server error code: %d", put_url, r.status)
+            _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
+            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
             raise StorageServerInternalError
 
         res = r.read().decode()

@@ -27,13 +27,6 @@ class TestStatisticsHistory:
     """Test the units of statistics_history.py
     """
 
-    @pytest.fixture
-    async def _stat_hist_instance(self):
-        with patch.object(FoglampProcess, "__init__"):
-            with patch.object(logger, "setup"):
-                sh = StatisticsHistory()
-        return sh
-
     def test_init(self):
         """Test that creating an instance of StatisticsHistory calls init of FoglampProcess and creates loggers"""
         with patch.object(FoglampProcess, "__init__") as mock_process:

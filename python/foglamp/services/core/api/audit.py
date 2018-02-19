@@ -4,15 +4,19 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+from datetime import datetime
+import time
 import json
 from enum import IntEnum
 from collections import OrderedDict
 from aiohttp import web
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
+from foglamp.common.audit_logger import AuditLogger
+from foglamp.common import logger
 
-__author__ = "Amarendra K. Sinha, Ashish Jabble"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Amarendra K. Sinha, Ashish Jabble, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -24,9 +28,12 @@ _help = """
     | GET             | /foglamp/audit                                            |
     | GET             | /foglamp/audit/logcode                                    |
     | GET             | /foglamp/audit/severity                                   |
+    | POST            | /foglamp/audit                                            |
     -------------------------------------------------------------------------------
 """
 
+_LOG_LEVEL_INFO = 20
+_logger = logger.setup(__name__, level=_LOG_LEVEL_INFO)
 
 class Severity(IntEnum):
     """ Enumeration for log.severity """
@@ -36,11 +43,106 @@ class Severity(IntEnum):
     WARNING = 3
     INFORMATION = 4
 
-
 ####################################
 #  Audit Trail
 ####################################
 
+
+async def create_audit_entry(request):
+    """ Create a new Audit entry
+
+    :Example:
+        JSON data
+        POST /foglamp/audit
+
+        {
+                "source"   : "LocalMonitor",
+                "severity" : "WARNING",
+                "details"  : {
+                                message" : "Engine oil pressure low"
+                             }
+        }
+    : curl example call
+
+        curl -X POST -d '{"source":"LocalMonitor","severity":"FATAL","details":{ message":"Engine oil pressure low"}} http://localhost:8081/foglamp/audit
+
+    : returned JSON data on success
+
+    {
+        "timestamp" : "2017-06-21T09:39:51.8949395",
+        "source"    : "LocalMonitor",
+        "severity"  : "WARNING",
+        "details"   : { 
+                        message" : "Engine oil pressure low"
+                      }
+    }
+
+    Note:
+         only 4 levels are supported as the current methods in AuditLogger class
+         0 = Success
+         1 = Failure
+         2 = Warning
+         4 = Info
+    """
+
+
+    _SEVERITY_PARAM = "severity"
+    _SOURCE_PARAM = "source"
+    _DETAILS_PARAM = "details"
+
+    try:
+        return_error = False
+        err_msg = "Missing required parameter "
+
+        # Get input data
+        json_data = await request.json()
+
+        # Set items to store
+        severity = json_data.get(_SEVERITY_PARAM)
+        source = json_data.get(_SOURCE_PARAM)
+        details = json_data.get(_DETAILS_PARAM)
+
+        if severity is None:
+            err_msg += "'" + _SEVERITY_PARAM + "'"
+            return_error = True
+        if source is None:
+            err_msg += "'" + _SOURCE_PARAM + "'"
+            return_error = True
+        if details is None:
+            err_msg += "'" + _DETAILS_PARAM + "'"
+            return_error = True
+
+        # Return error if parameters are not present
+        if return_error is True:
+            raise web.HTTPNotFound(reason={"error": err_msg})
+
+        # Prepare the audit log method to call
+        audit_method = "audit." + str(severity).lower() + "(source, details)"
+
+        # Instantiate the audit log class
+        audit = AuditLogger()
+
+        # Call the audit log method
+        await eval(audit_method)
+
+        # Set timestamp for retun message
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+        # Return success
+        message = {'timestamp': str(timestamp), \
+                   'source': source, \
+                   'severity': severity, \
+                   'details': details \
+                  }
+        return web.json_response(message)
+    except AttributeError as ex:
+        # Return error for wrong severity method
+        err_msg = "severity type '" + severity + "' is not supported"
+        _logger.error("Error in create_audit_entry(): " + err_msg)
+        raise web.HTTPNotFound(reason={"error": err_msg})
+    except Exception as ex:
+        # Return error
+        raise web.HTTPNotFound(reason={"error:": str(ex)})
 
 async def get_audit_entries(request):
     """ Returns a list of audit trail entries sorted with most recent first and total count

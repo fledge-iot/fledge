@@ -262,8 +262,8 @@ class TestStorageClient:
                     for response in await asyncio.gather(*futures):
                         pass
         log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
-        log_e.assert_called_once_with("Client error code: %d, reason: %s", 400, 'bad data')
-        assert excinfo.type is BadRequest
+        log_e.assert_called_once_with("Error code: %d, reason: %s", 400, 'bad data')
+        assert excinfo.type is StorageServerError
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(_LOGGER, "error") as log_e:
@@ -273,8 +273,11 @@ class TestStorageClient:
                     for response in await asyncio.gather(*futures):
                         pass
         log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"internal_server_err": "v"}')
-        log_e.assert_called_once_with("Server error code: %d, reason: %s", 500, 'something wrong')
-        assert excinfo.type is StorageServerInternalError
+        log_e.assert_called_once_with("Error code: %d, reason: %s", 500, 'something wrong')
+        assert 500 == excinfo.value.code
+        assert "something wrong" == excinfo.value.reason
+        assert {"key": "value"} == excinfo.value.error
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 

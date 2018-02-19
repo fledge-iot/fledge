@@ -94,3 +94,7 @@ class StorageServerError(Exception):
         self.code = code
         self.reason = reason
         self.error = error
+
+    def __str__(self):
+        fmt_msg = "code: %d, reason:%s, error:%s" % (self.code, self.reason, self.error)
+        return fmt_msg

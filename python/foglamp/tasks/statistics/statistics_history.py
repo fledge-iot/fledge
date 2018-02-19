@@ -11,8 +11,6 @@ stores the delta value (statistics.value - statistics.previous_value) in the sta
 
 from datetime import datetime
 
-import asyncio
-
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
 from foglamp.common.process import FoglampProcess

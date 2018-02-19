@@ -5,11 +5,11 @@
 # FOGLAMP_END
 
 from datetime import datetime
-import time
 import json
 from enum import IntEnum
 from collections import OrderedDict
 from aiohttp import web
+
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 from foglamp.common.audit_logger import AuditLogger
@@ -35,12 +35,13 @@ _help = """
 _LOG_LEVEL_INFO = 20
 _logger = logger.setup(__name__, level=_LOG_LEVEL_INFO)
 
+
 class Severity(IntEnum):
     """ Enumeration for log.severity """
-    # TODO: FOGL-701
-    FATAL = 1
-    ERROR = 2
-    WARNING = 3
+    # TODO: FOGL-701, no info for 3
+    SUCCESS = 0
+    FAILURE = 1
+    WARNING = 2
     INFORMATION = 4
 
 ####################################
@@ -64,7 +65,8 @@ async def create_audit_entry(request):
         }
     : curl example call
 
-        curl -X POST -d '{"source":"LocalMonitor","severity":"FATAL","details":{ message":"Engine oil pressure low"}} http://localhost:8081/foglamp/audit
+        curl -X POST -d '{"source":"LocalMonitor","severity":"WARNING","details":{ message":"Engine oil pressure low"}}
+        http://localhost:8081/foglamp/audit
 
     : returned JSON data on success
 
@@ -82,67 +84,52 @@ async def create_audit_entry(request):
          0 = Success
          1 = Failure
          2 = Warning
-         4 = Info
+         4 = Information
     """
-
-
-    _SEVERITY_PARAM = "severity"
-    _SOURCE_PARAM = "source"
-    _DETAILS_PARAM = "details"
 
     try:
         return_error = False
         err_msg = "Missing required parameter "
 
-        # Get input data
-        json_data = await request.json()
+        payload = await request.json()
 
-        # Set items to store
-        severity = json_data.get(_SEVERITY_PARAM)
-        source = json_data.get(_SOURCE_PARAM)
-        details = json_data.get(_DETAILS_PARAM)
+        severity = payload.get("severity")
+        source = payload.get("source")
+        details = payload.get("details")
 
         if severity is None:
-            err_msg += "'" + _SEVERITY_PARAM + "'"
+            err_msg += " severity"
             return_error = True
         if source is None:
-            err_msg += "'" + _SOURCE_PARAM + "'"
+            err_msg += " source"
             return_error = True
         if details is None:
-            err_msg += "'" + _DETAILS_PARAM + "'"
+            err_msg += " details"
             return_error = True
 
-        # Return error if parameters are not present
         if return_error is True:
-            raise web.HTTPNotFound(reason={"error": err_msg})
+            raise web.HTTPBadRequest(reason={"error": err_msg})
 
-        # Prepare the audit log method to call
-        audit_method = "audit." + str(severity).lower() + "(source, details)"
-
-        # Instantiate the audit log class
         audit = AuditLogger()
+        getattr(audit, str(severity).lower())(source, details)
 
-        # Call the audit log method
-        await eval(audit_method)
-
-        # Set timestamp for retun message
+        # Set timestamp for return message
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-        # Return success
-        message = {'timestamp': str(timestamp), \
-                   'source': source, \
-                   'severity': severity, \
-                   'details': details \
-                  }
+        message = {'timestamp': str(timestamp),
+                   'source': source,
+                   'severity': severity,
+                   'details': details
+                   }
         return web.json_response(message)
-    except AttributeError as ex:
+    except AttributeError as e:
         # Return error for wrong severity method
-        err_msg = "severity type '" + severity + "' is not supported"
-        _logger.error("Error in create_audit_entry(): " + err_msg)
+        err_msg = "severity type {} is not supported".format(severity)
+        _logger.error("Error in create_audit_entry(): %s | %s" + err_msg + str(e))
         raise web.HTTPNotFound(reason={"error": err_msg})
     except Exception as ex:
-        # Return error
-        raise web.HTTPNotFound(reason={"error:": str(ex)})
+        raise web.HTTPException(reason={"error:": str(ex)})
+
 
 async def get_audit_entries(request):
     """ Returns a list of audit trail entries sorted with most recent first and total count
@@ -160,7 +147,7 @@ async def get_audit_entries(request):
 
         curl -X GET http://localhost:8081/foglamp/audit?source=PURGE
 
-        curl -X GET http://localhost:8081/foglamp/audit?severity=ERROR
+        curl -X GET http://localhost:8081/foglamp/audit?severity=FAILURE
 
         curl -X GET http://localhost:8081/foglamp/audit?source=LOGGN&severity=INFORMATION&limit=10
     """
@@ -241,7 +228,7 @@ async def get_audit_entries(request):
             r = dict()
             r["details"] = row["log"]
             severity_level = int(row["level"])
-            r["severity"] = Severity(severity_level).name if severity_level in range(1, 5) else "UNKNOWN"
+            r["severity"] = Severity(severity_level).name if severity_level in (0, 1, 2, 4) else "UNKNOWN"
             r["source"] = row["code"]
             r["timestamp"] = row["ts"]
 

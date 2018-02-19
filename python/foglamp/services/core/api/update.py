@@ -7,18 +7,14 @@
 """ FogLAMP package updater API support"""
 
 from aiohttp import web
-import uuid
-import asyncio
-import json
 import datetime
 
-# FogLAMP imports
 from foglamp.services.core import server
 from foglamp.common import logger
 from foglamp.services.core.scheduler.entities import ManualSchedule
 
-_LOG_LEVEL_INFO = 20
-_logger = logger.setup(__name__, level=_LOG_LEVEL_INFO)
+_LOG_LEVEL = 20
+_logger = logger.setup(__name__, level=_LOG_LEVEL)
 
 __author__ = "Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -28,8 +24,6 @@ __version__ = "${VERSION}"
 _help = """
     -----------------------------------------
     | PUT             | /foglamp/update     |
-    -----------------------------------------
-    | no paylod       |                     |
     -----------------------------------------
 """
 
@@ -43,18 +37,19 @@ _help = """
 _FOGLAMP_UPDATE_TASK = "FogLAMPUpdater"
 _FOGLAMP_MANUAL_UPDATE_SCHEDULE = 'FogLAMP updater on demand'
 
+
 async def update_package(request):
     """ Queues the execution of FogLAMP package update task
 
     :Example: curl -X PUT http://localhost:8081/foglamp/update
     """
 
-    create_message = "'" + _FOGLAMP_MANUAL_UPDATE_SCHEDULE + \
-                     "': a new shedule has been created"
-    status_message = "'" + _FOGLAMP_MANUAL_UPDATE_SCHEDULE + \
-                     "' has been queued for execution"
-    error_message = "failure creating the schedule '" + \
-                    _FOGLAMP_MANUAL_UPDATE_SCHEDULE + "'"
+    create_message = "{} : a new schedule has been created".format(_FOGLAMP_MANUAL_UPDATE_SCHEDULE)
+
+    status_message = "{}  has been queued for execution".format(_FOGLAMP_MANUAL_UPDATE_SCHEDULE)
+
+    error_message = "Failed to create the schedule {}".format(_FOGLAMP_MANUAL_UPDATE_SCHEDULE)
+
     task_found = False
 
     # Get all the 'Scheduled Tasks'
@@ -67,7 +62,7 @@ async def update_package(request):
 
             # Set the schedule id
             schedule_id = schedule_info.schedule_id
-            break;
+            break
 
     # If no schedule then create it
     if task_found is False:
@@ -75,7 +70,7 @@ async def update_package(request):
         manual_schedule = ManualSchedule()
 
         if not manual_schedule:
-        # Return error
+            # Return error
             _logger.error(error_message)
             return web.json_response({"status": "Failed", "message": error_message})
 
@@ -91,8 +86,8 @@ async def update_package(request):
         # Set the schedule id
         schedule_id = manual_schedule.schedule_id
 
-        # Log new shedule creation
-        _logger.info(create_message + ", ID [" + str(schedule_id) + "]")
+        # Log new schedule creation
+        _logger.info("%s, ID [ %s ]", create_message, str(schedule_id))
 
     # Add schedule_id to the schedule queue
     await server.Server.scheduler.queue_task(schedule_id)

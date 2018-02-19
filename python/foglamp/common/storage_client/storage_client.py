@@ -162,15 +162,10 @@ class StorageClient(AbstractStorage):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
+        if r.status in range(400, 600):
             _LOGGER.info("POST %s, with payload: %s", post_url, data)
-            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
-            raise BadRequest
-
-        if r.status in range(500, 600):
-            _LOGGER.info("POST %s, with payload: %s", post_url, data)
-            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
-            raise StorageServerInternalError
+            _LOGGER.error("Error code: %d, reason: %s", r.status, r.reason)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 

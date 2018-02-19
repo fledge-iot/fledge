@@ -88,6 +88,13 @@ plugin_attrs = {
 }
 
 
+@asyncio.coroutine
+def mock_coro():
+    yield from false_coro()
+
+async def false_coro():
+    return True
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("south")
 class TestServicesSouthServer:
@@ -105,10 +112,10 @@ class TestServicesSouthServer:
         mocker.patch.object(south_server, '_name', 'test')
 
         cfg_mgr_create_cat = mocker.patch.object(ConfigurationManager, "create_category",
-                                                 return_value=asyncio.sleep(.1))
+                                                 return_value=mock_coro())
         cfg_mgr_get_cat_all = mocker.patch.object(ConfigurationManager, "get_category_all_items",
                                                   return_value=asyncio.ensure_future(cat_get()))
-        ingest_start = mocker.patch.object(Ingest, 'start', return_value=asyncio.sleep(.1))
+        ingest_start = mocker.patch.object(Ingest, 'start', return_value=mock_coro())
         log_exception = mocker.patch.object(South._LOGGER, "exception")
         log_info = mocker.patch.object(South._LOGGER, "info")
 
@@ -127,7 +134,7 @@ class TestServicesSouthServer:
 
         # WHEN
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # THEN
         assert 2 == cfg_mgr_create_cat.call_count
@@ -163,17 +170,17 @@ class TestServicesSouthServer:
         south_server._storage = MagicMock(spec=StorageClient)
         mocker.patch.object(south_server, '_core_microservice_management_client')
         mocker.patch.object(south_server, '_name', 'test')
-        mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
 
         cfg_mgr_create_cat = mocker.patch.object(ConfigurationManager, "create_category",
-                                                 return_value=asyncio.sleep(.1))
+                                                 return_value=mock_coro())
         cfg_mgr_get_cat_all = mocker.patch.object(ConfigurationManager, "get_category_all_items",
                                                   return_value=asyncio.ensure_future(cat_get()))
         log_exception = mocker.patch.object(South._LOGGER, "exception")
 
         # WHEN
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # THEN
         assert 1 == cfg_mgr_create_cat.call_count
@@ -186,12 +193,12 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         sys.modules['foglamp.plugins.south.test.test'] = None
 
         # WHEN
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # THEN
         assert 1 == cfg_mgr_create_cat.call_count
@@ -204,7 +211,7 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -214,7 +221,7 @@ class TestServicesSouthServer:
 
         # WHEN
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # THEN
         assert 2 == cfg_mgr_create_cat.call_count
@@ -228,7 +235,7 @@ class TestServicesSouthServer:
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
         # Mocking _stop() required as we are testing poll_plugin indirectly
-        mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'poll'
@@ -238,7 +245,7 @@ class TestServicesSouthServer:
         # WHEN
         South._MAX_RETRY_POLL = 1
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # THEN
         assert 2 == cfg_mgr_create_cat.call_count
@@ -274,7 +281,7 @@ class TestServicesSouthServer:
         # WHEN
         # We need to run _start() in order to initialize self._plugin
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # This line is redundant as it has already been executed above
         await south_server._exec_plugin_async()
@@ -289,7 +296,7 @@ class TestServicesSouthServer:
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
         # Mocking _stop() required as we are testing poll_plugin indirectly
-        mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'poll'
@@ -299,8 +306,9 @@ class TestServicesSouthServer:
         # WHEN
         # We need to run _start() in order to initialize self._plugin
         South._MAX_RETRY_POLL = 1
+        South._TIME_TO_WAIT_BEFORE_RETRY = .1
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
 
         # This line is redundant as it has already been executed above
         await south_server._exec_plugin_poll()
@@ -314,7 +322,7 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'poll'
@@ -324,8 +332,9 @@ class TestServicesSouthServer:
         # WHEN
         # We need to run _start() in order to initialize self._plugin
         South._MAX_RETRY_POLL = 1
+        South._TIME_TO_WAIT_BEFORE_RETRY = .1
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
         await south_server._exec_plugin_poll()
 
         # THEN
@@ -346,7 +355,7 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=asyncio.sleep(.1))
+        ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -356,9 +365,9 @@ class TestServicesSouthServer:
         # WHEN
         # We need to initialize and start plugin in order to stop it
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.1)
+        South._CLEAR_PENDING_TASKS_TIMEOUT = 1
         await south_server._stop(loop)
-        await asyncio.sleep(1)
 
         # THEN
         assert 3 == log_info.call_count
@@ -373,7 +382,7 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=asyncio.sleep(.1))
+        ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -384,9 +393,9 @@ class TestServicesSouthServer:
         # WHEN
         # We need to initialize and start plugin in order to stop it
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
+        South._CLEAR_PENDING_TASKS_TIMEOUT = 1
         await south_server._stop(loop)
-        await asyncio.sleep(1)
 
         # THEN
         assert 3 == log_info.call_count
@@ -401,7 +410,7 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        server_stop = mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1))
+        server_stop = mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         unregister = mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
         # WHEN
@@ -416,7 +425,7 @@ class TestServicesSouthServer:
         # GIVEN
         cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
                 self.south_fixture(mocker)
-        server_stop = mocker.patch.object(south_server, '_stop', return_value=asyncio.sleep(.1), side_effect=RuntimeError)
+        server_stop = mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
         unregister = mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
         # WHEN
@@ -443,7 +452,7 @@ class TestServicesSouthServer:
 
         # WHEN
         await south_server._start(loop)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
         await south_server.change(request=None)
 
         # THEN
@@ -470,7 +479,7 @@ class TestServicesSouthServer:
         # WHEN
         with pytest.raises(TypeError):
             await south_server._start(loop)
-            await asyncio.sleep(1)
+            await asyncio.sleep(.5)
             await south_server.change(request=None)
 
         # THEN

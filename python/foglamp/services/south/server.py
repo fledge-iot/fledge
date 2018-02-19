@@ -21,7 +21,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
 _MAX_RETRY_POLL = 3
-
+_TIME_TO_WAIT_BEFORE_RETRY = 2
+_CLEAR_PENDING_TASKS_TIMEOUT = 5
 
 class Server(FoglampMicroservice):
     """" Implements the South Microservice """
@@ -173,7 +174,7 @@ class Server(FoglampMicroservice):
             except (Exception, RuntimeError, exceptions.DataRetrievalError) as ex:
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
-                await asyncio.sleep(2)
+                await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
         _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
 
     def run(self):
@@ -206,7 +207,7 @@ class Server(FoglampMicroservice):
         try:
             self._task_main.cancel()
             # Cancel all pending asyncio tasks after a timeout occurs
-            done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=5)
+            done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
             for task_pending in pending:
                 task_pending.cancel()
             await asyncio.sleep(2)
@@ -254,7 +255,7 @@ class Server(FoglampMicroservice):
                     self._task_main = asyncio.ensure_future(self._exec_plugin_async())
                 elif self._plugin_info['mode'] == 'poll':
                     self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
-                await asyncio.sleep(2)
+                await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
         except asyncio.CancelledError:
             pass
         except exceptions.DataRetrievalError:

@@ -37,13 +37,7 @@ class TestSchedulerExceptions:
             raise TaskNotRunningError(task_id)
         assert excinfo.type is TaskNotRunningError
         assert issubclass(excinfo.type, RuntimeError)
-
-        try:
-            raise TaskNotRunningError(task_id)
-        except Exception as ex:
-            assert ex.__class__ is TaskNotRunningError
-            assert issubclass(ex.__class__, TaskNotRunningError)
-            assert "Task is not running: {}".format(task_id) == str(ex)
+        assert str(excinfo).endswith("Task is not running: {}".format(str(task_id)))
 
     def test_TaskNotFoundError(self):
         task_id = uuid.uuid4()
@@ -51,13 +45,7 @@ class TestSchedulerExceptions:
             raise TaskNotFoundError(task_id)
         assert excinfo.type is TaskNotFoundError
         assert issubclass(excinfo.type, ValueError)
-
-        try:
-            raise TaskNotFoundError(task_id)
-        except Exception as ex:
-            assert ex.__class__ is TaskNotFoundError
-            assert issubclass(ex.__class__, TaskNotFoundError)
-            assert "Task not found: {}".format(task_id) == str(ex)
+        assert str(excinfo).endswith("Task not found: {}".format(task_id))
 
     def test_ScheduleNotFoundError(self):
         schedule_id = uuid.uuid4()
@@ -65,11 +53,4 @@ class TestSchedulerExceptions:
             raise ScheduleNotFoundError(schedule_id)
         assert excinfo.type is ScheduleNotFoundError
         assert issubclass(excinfo.type, ValueError)
-
-        try:
-            raise ScheduleNotFoundError(schedule_id)
-        except Exception as ex:
-            assert ex.__class__ is ScheduleNotFoundError
-            assert issubclass(ex.__class__, ScheduleNotFoundError)
-            assert "Schedule not found: {}".format(schedule_id) == str(ex)
-
+        assert str(excinfo).endswith("Schedule not found: {}".format(schedule_id))

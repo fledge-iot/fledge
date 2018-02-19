@@ -65,11 +65,11 @@ class TestAudit:
 
         # verify the name and value of severity
         for i in range(len(log_severity)):
-            if log_severity[i]['index'] == 1:
-                assert 'FATAL' == log_severity[i]['name']
+            if log_severity[i]['index'] == 0:
+                assert 'SUCCESS' == log_severity[i]['name']
+            elif log_severity[i]['index'] == 1:
+                assert 'FAILURE' == log_severity[i]['name']
             elif log_severity[i]['index'] == 2:
-                assert 'ERROR' == log_severity[i]['name']
-            elif log_severity[i]['index'] == 3:
                 assert 'WARNING' == log_severity[i]['name']
             elif log_severity[i]['index'] == 4:
                 assert 'INFORMATION' == log_severity[i]['name']
@@ -94,8 +94,8 @@ class TestAudit:
         ('', '{"where": {"column": "1", "condition": "=", "value": "1"}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
         ('?source=PURGE', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "code", "condition": "=", "value": "PURGE"}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
         ('?skip=1', '{"where": {"column": "1", "condition": "=", "value": "1"}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20, "skip": 1}'),
-        ('?severity=error', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 2}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
-        ('?severity=ERROR&limit=1', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 2}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1}'),
+        ('?severity=failure', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 1}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
+        ('?severity=FAILURE&limit=1', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 1}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1}'),
         ('?severity=INFORMATION&limit=1&skip=1', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 4}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1, "skip": 1}'),
         ('?source=&severity=&limit=&skip=', '{"where": {"column": "1", "condition": "=", "value": "1"}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}')
     ])

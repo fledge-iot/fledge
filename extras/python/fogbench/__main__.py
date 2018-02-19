@@ -174,23 +174,23 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0, send_to='
         msg_transferred_itr = 0  # Messages transferred in every iteration
         byte_transferred_itr = 0  # Bytes transferred in every iteration
 
-        # Start sending the messages to server
-        _start_time.append(datetime.now())  # Start time of every iteration
-
         for idx, r in enumerate(readings_list):
             readings_list[idx]["key"] = str(uuid.uuid4())
-
-            is_sent = False
-            if send_to == 'coap':
-                is_sent = loop.run_until_complete(send_to_coap(r))
-            elif send_to == 'http':
-                is_sent = loop.run_until_complete(send_to_http(r))
-
-            if not is_sent:
-                break
-
             msg_transferred_itr += 1
             byte_transferred_itr += sys.getsizeof(r)
+
+        if send_to == 'coap':
+            _start_time.append(datetime.now())
+            for r in readings_list:
+                is_sent = loop.run_until_complete(send_to_coap(r))
+                if not is_sent:
+                    break
+        elif send_to == 'http':
+            _start_time.append(datetime.now())
+            for r in readings_list:
+                is_sent = loop.run_until_complete(send_to_http(r))
+                if not is_sent:
+                    break
 
         _end_time.append(datetime.now())  # End time of every iteration
         _tot_msgs_transferred.append(msg_transferred_itr)

@@ -61,7 +61,7 @@ class TestPurge:
         """Test that purge's set_configuration returns configuration item with key 'PURGE_READ' """
 
         @asyncio.coroutine
-        def mock_cm_get_category():
+        def mock_cm_return():
             return ""
 
         mockStorageClient = MagicMock(spec=StorageClient)
@@ -71,10 +71,14 @@ class TestPurge:
                 p = Purge(loop=event_loop)
                 p._storage = MagicMock(spec=StorageClient)
                 mock_cm = ConfigurationManager(p._storage)
-                with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_get_category()) \
-                        as mock_get_cat:
-                    p.set_configuration()
-                    mock_get_cat.assert_called_once_with('PURGE_READ')
+                with patch.object(mock_cm, 'create_category', return_value=mock_cm_return()) as mock_create_cat:
+                    with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_return()) \
+                            as mock_get_cat:
+                        p.set_configuration()
+                        mock_get_cat.assert_called_once_with('PURGE_READ')
+                    args, kwargs = mock_create_cat.call_args
+                    assert len(args) == 3
+                    assert args[0] == 'PURGE_READ'
 
     @pytest.fixture()
     def store_purge(self, **kwargs):

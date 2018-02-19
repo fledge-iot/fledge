@@ -57,7 +57,7 @@ async def create_audit_entry(request):
         POST /foglamp/audit
 
         {
-                "source"   : "LocalMonitor",
+                "source"   : "LMTR", # 5 char max
                 "severity" : "WARNING",
                 "details"  : {
                                 message" : "Engine oil pressure low"
@@ -65,14 +65,14 @@ async def create_audit_entry(request):
         }
     : curl example call
 
-        curl -X POST -d '{"source":"LocalMonitor","severity":"WARNING","details":{ message":"Engine oil pressure low"}}
+        curl -X POST -d '{"source":"LMTR","severity":"WARNING","details":{ message":"Engine oil pressure low"}}
         http://localhost:8081/foglamp/audit
 
     : returned JSON data on success
 
     {
         "timestamp" : "2017-06-21T09:39:51.8949395",
-        "source"    : "LocalMonitor",
+        "source"    : "LMTR",
         "severity"  : "WARNING",
         "details"   : { 
                         message" : "Engine oil pressure low"
@@ -111,7 +111,7 @@ async def create_audit_entry(request):
             raise web.HTTPBadRequest(reason={"error": err_msg})
 
         audit = AuditLogger()
-        getattr(audit, str(severity).lower())(source, details)
+        await getattr(audit, str(severity).lower())(source, details)
 
         # Set timestamp for return message
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -126,9 +126,9 @@ async def create_audit_entry(request):
         # Return error for wrong severity method
         err_msg = "severity type {} is not supported".format(severity)
         _logger.error("Error in create_audit_entry(): %s | %s", err_msg, str(e))
-        raise web.HTTPNotFound(reason={"error": err_msg})
+        raise web.HTTPNotFound(reason=err_msg)
     except Exception as ex:
-        raise web.HTTPException(reason={"error:": str(ex)})
+        raise web.HTTPInternalServerError(reason=str(ex))
 
 
 async def get_audit_entries(request):

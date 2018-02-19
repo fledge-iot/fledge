@@ -426,6 +426,10 @@ class Ingest(object):
 
         stats = Statistics(cls.storage)
 
+        # Register static statistics
+        await stats.register('READINGS', 'The number of readings received by FogLAMP since startup')
+        await stats.register('DISCARDED', 'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.')
+
         while not cls._stop:
             # stop() calls _write_statistics_sleep_task.cancel().
             # Tracking _write_statistics_sleep_task separately is cleaner than canceling
@@ -460,6 +464,10 @@ class Ingest(object):
                 cls._discarded_readings_stats += readings
                 _LOGGER.exception('An error occurred while writing discarded statistics')
 
+            """ Register the statistics keys as this may be the first time the key has come into existance """
+            for key in cls._sensor_stats:
+                description = 'The number of readings received by FogLAMP since startup for sensor {}'.format(key)
+                await stats.register(key, description)
             try:
                 await stats.add_update(cls._sensor_stats)
                 cls._sensor_stats = {}

@@ -20,6 +20,7 @@ import aiohttp
 import json
 
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
@@ -37,8 +38,8 @@ from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
 
 
-__author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -49,6 +50,9 @@ _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 
+# PID dir and filename
+_FOGLAMP_PID_DIR= "/var/run"
+_FOGLAMP_PID_FILE = "foglamp.core.pid"
 
 class Server:
     """ FOGLamp core server.
@@ -146,6 +150,12 @@ class Server:
 
     _interest_registry = None
     """ Instance of interest registry (singleton) """
+
+    _audit = None
+    """ Instance of audit logger(singleton) """
+
+    _pidfile = None
+    """ The PID file anme """
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
@@ -352,6 +362,85 @@ class Server:
         server = loop.run_until_complete(coro)
         return server, handler
 
+    @staticmethod
+    def pid_filename():
+        """ Get the full path of FogLAMP PID file """
+        if _FOGLAMP_DATA is None:
+            path = _FOGLAMP_ROOT + "/data"
+        else:
+            path = _FOGLAMP_DATA
+        return path + _FOGLAMP_PID_DIR + "/" + _FOGLAMP_PID_FILE 
+
+    @classmethod
+    def _pidfile_exists(cls):
+        """ Check whether the PID file exists """
+        try:
+            fh = open(cls._pidfile,'r')
+            fh.close()
+            return True
+        except (FileNotFoundError, IOError, TypeError):
+            return False
+
+    @classmethod
+    def _remove_pid(cls):
+        """ Remove PID file """
+        try:
+            os.remove(cls._pidfile)
+            _logger.info("FogLAMP PID file [" + cls._pidfile + "] removed.")
+        except Exception as ex:
+            _logger.error("FogLAMP PID file remove error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")")
+
+    @classmethod
+    def _write_pid(cls, api_address, api_port):
+        """ Write data into PID file """
+        try:
+            # Get PID file path
+            cls._pidfile = cls.pid_filename()
+
+            # Check for existing PID file and log a message """
+            if cls._pidfile_exists() is True:
+                _logger.warn("A FogLAMP PID file has been found: [" + \
+                             cls._pidfile + "] found, ignoring it.")
+
+            # Get the running script PID
+            pid = os.getpid()
+
+            # Open for writing and truncate existing file
+            fh = None
+            try:
+                fh = open(cls._pidfile, 'w+')
+            except FileNotFoundError:
+                try:
+                    os.makedirs(os.path.dirname(cls._pidfile))
+                    _logger.info("The PID directory [" + os.path.dirname(cls._pidfile) + "] has been created")
+                    fh = open(cls._pidfile, 'w+')
+                except Exception as ex:
+                    errmsg = "PID dir create error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")"
+                    _logger.error(errmsg)
+                    raise
+            except Exception as ex:
+                errmsg = "FogLAMP PID file create error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")"
+                _logger.error(errmsg)
+                raise
+
+            # Build the JSON object to write into PID file
+            info_data = {'processID' : pid,\
+                         'adminAPI' : {\
+                             "protocol": "HTTP" if cls.is_rest_server_http_enabled else "HTTPS",\
+                             "addresses": [api_address],\
+                             "port": api_port }\
+                        }
+
+            # Write data into PID file
+            fh.write(json.dumps(info_data))
+
+            # Close the PID file
+            fh.close()
+            _logger.info("PID [" + str(pid) + "] written in [" + cls._pidfile + "]")
+        except Exception as e:
+            sys.stderr.write('Error: ' + format(str(e)) + "\n")
+            sys.exit(1)
+
     @classmethod
     def _start_core(cls, loop=None):
         _logger.info("start core")
@@ -406,6 +495,10 @@ class Server:
 
             cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host, cls.rest_server_port, ssl_ctx=ssl_ctx)
             address, service_server_port = cls.service_server.sockets[0].getsockname()
+
+            # Write PID file with REST API details
+            cls._write_pid(address, service_server_port)
+
             _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
                          address, service_server_port)
 
@@ -419,6 +512,10 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
+
+            # Everything is complete in the startup sequence, write the audit log entry
+            cls._audit = AuditLogger(cls._storage_client)
+            loop.run_until_complete(cls._audit.information('START', None))
 
             loop.run_forever()
 
@@ -458,11 +555,18 @@ class Server:
             # stop the REST api (exposed on service port)
             await cls.stop_rest_server()
 
+            # Must write the audit log entry before we stop the storage service
+            cls._audit = AuditLogger(cls._storage_client)
+            await cls._audit.information('FSTOP', None)
+
             # stop storage
             await cls.stop_storage()
 
             # stop core management api
             # loop.stop does it all
+
+            # Remove PID file
+            cls._remove_pid()
         except Exception:
             raise
 
@@ -601,6 +705,12 @@ class Server:
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                    service_port, service_management_port, service_protocol)
+                try:
+                    if not cls._storage_client is None:
+                        cls._audit = AuditLogger(cls._storage_client)
+                        await cls._audit.information('SRVRG', { 'name' : service_name})
+                except Exception as ex:
+                    _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
@@ -638,11 +748,18 @@ class Server:
                 raise web.HTTPBadRequest(reason='Service id is required')
 
             try:
-                ServiceRegistry.get(idx=service_id)
+                services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
                 raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
+
+            if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
+                try:
+                    cls._audit = AuditLogger(cls._storage_client)
+                    await cls._audit.information('SRVUN', { 'name' : services[0]._name })
+                except Exception as ex:
+                    _logger.exception(str(ex))
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 

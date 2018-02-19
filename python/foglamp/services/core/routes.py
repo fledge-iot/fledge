@@ -11,15 +11,17 @@ from foglamp.services.core.api import configuration as api_configuration
 from foglamp.services.core.api import scheduler as api_scheduler
 from foglamp.services.core.api import statistics as api_statistics
 from foglamp.services.core.api import backup_restore
+from foglamp.services.core.api import update
 
-__author__ = "Ashish Jabble, Praveen Garg"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
 def setup(app):
     app.router.add_route('GET', '/foglamp/ping', api_common.ping)
+    app.router.add_route('PUT', '/foglamp/shutdown', api_common.shutdown)
 
     # Configuration
     app.router.add_route('GET', '/foglamp/category', api_configuration.get_categories)
@@ -59,6 +61,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/statistics/history', api_statistics.get_statistics_history)
 
     # Audit trail - As per doc
+    app.router.add_route('POST', '/foglamp/audit', api_audit.create_audit_entry)
     app.router.add_route('GET', '/foglamp/audit', api_audit.get_audit_entries)
     app.router.add_route('GET', '/foglamp/audit/logcode', api_audit.get_audit_log_codes)
     app.router.add_route('GET', '/foglamp/audit/severity', api_audit.get_audit_log_severity)
@@ -70,6 +73,9 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/backup/{backup_id}', backup_restore.get_backup_details)
     app.router.add_route('DELETE', '/foglamp/backup/{backup_id}', backup_restore.delete_backup)
     app.router.add_route('PUT', '/foglamp/backup/{backup_id}/restore', backup_restore.restore_backup)
+
+    # Package Update on demand
+    app.router.add_route('PUT', '/foglamp/update', update.update_package)
 
     # enable cors support
     enable_cors(app)

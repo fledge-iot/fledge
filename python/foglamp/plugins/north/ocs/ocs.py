@@ -67,7 +67,14 @@ _MESSAGES_LIST = {
 # Configuration related to the OMF North
 _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OCS North plugin'
 
-# noinspection SpellCheckingInspection
+
+# The parameters used for the interaction with OCS are :
+#    producerToken                      - It allows to ingest data into OCS using OMF.
+#    tenant_id / client_id / client_id  - They are used for the authentication and interaction with the OCS API,
+#                                         they are associated to the specific OCS account.
+#    namespace                          - Specifies the OCS namespace where the information are stored,
+#                                         it is used for the interaction with the OCS API.
+#
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
         'description': 'OCS North Plugin',
@@ -80,9 +87,33 @@ _CONFIG_DEFAULT_OMF = {
         "default": "https://qi-data.osisoft.com/api/omf"
     },
     "producerToken": {
-        "description": "The producer token used to authenticate as a valid publisher",
+        "description": "The producer token used to authenticate as a valid publisher and "
+                       "required to ingest data into OCS using OMF.",
         "type": "string",
         "default": "ocs_north_0001"
+    },
+    "namespace": {
+        "description": "Specifies the OCS namespace where the information are stored and "
+                       "it is used for the interaction with the OCS API.",
+        "type": "string",
+        "default": "ocs_namespace_0001"
+    },
+    "tenant_id": {
+      "description": "Tenant id associated to the specific OCS account.",
+      "type": "string",
+      "default": "ocs_tenant_id"
+    },
+    "client_id": {
+      "description": "Client id associated to the specific OCS account, "
+                     "it is used to authenticate the source for using the OCS API.",
+      "type": "string",
+      "default": "ocs_client_id"
+    },
+    "client_secret": {
+      "description": "Client secret associated to the specific OCS account, "
+                     "it is used to authenticate the source for using the OCS API.",
+      "type": "string",
+      "default": "ocs_client_secret"
     },
     "OMFMaxRetry": {
         "description": "Max number of retries for the communication with the OMF PI Connector Relay",

@@ -19,6 +19,7 @@ import signal
 from typing import List
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 from foglamp.services.core.scheduler.entities import ScheduledProcess, Schedule, Task, IntervalSchedule, TimedSchedule, StartUpSchedule, ManualSchedule
 from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
@@ -1042,6 +1043,8 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Update failed: %s', update_payload)
                 raise
+            audit = AuditLogger(self._storage)
+            await audit.information('SCHCH', { 'schedule': schedule.toDict() })
 
         if is_new_schedule:
             insert_payload = PayloadBuilder() \
@@ -1061,6 +1064,8 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
                 raise
+            audit = AuditLogger(self._storage)
+            await audit.information('SCHAD', { 'schedule': schedule.toDict() })
 
         repeat_seconds = None
         if schedule.repeat is not None:
@@ -1187,6 +1192,9 @@ class Scheduler(object):
             schedule.name,
             str(schedule_id),
             schedule.process_name)
+        audit = AuditLogger(self._storage)
+        sch = await self.get_schedule(schedule_id)
+        await audit.information('SCHCH', { 'schedule': sch.toDict() })
         return True, "Schedule successfully disabled"
 
     async def enable_schedule(self, schedule_id: uuid.UUID):
@@ -1227,6 +1235,9 @@ class Scheduler(object):
             schedule.name,
             str(schedule_id),
             schedule.process_name)
+        audit = AuditLogger(self._storage)
+        sch = await self.get_schedule(schedule_id)
+        await audit.information('SCHCH', { 'schedule': sch.toDict() })
 
         return True, "Schedule successfully enabled"
 

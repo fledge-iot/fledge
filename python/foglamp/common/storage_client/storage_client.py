@@ -475,13 +475,14 @@ class ReadingsStorageClient(StorageClient):
 
         :param age: the maximum age of data to retain, expressed in hours
         :param sent_id: the id of the last reading to be sent out of FogLAMP
+        :param size: the maximum size of data to retain, expressed in Kbytes
         :param flag: define what to do about unsent readings. Valid options are retain or purge
         :return: a JSON with the number of readings removed, the number of unsent readings removed
             and the number of readings that remain
         :Example:
-            curl -X PUT http://0.0.0.0:8080/storage/reading/purge?age=24&sent=2&flags=PURGE
-            curl -X PUT <base url>?/storage/reading/purge?age=<age>&sent=<reading id>&flags=<flags>
-
+            curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?age=<age>&sent=<reading id>&flags=<flags>"
+            curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?age=24&sent=2&flags=PURGE"
+            curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
         # TODO: flagS should be flag?
 

@@ -8,7 +8,6 @@ import asyncio
 import copy
 import pytest
 import sys
-from unittest import mock
 from unittest.mock import MagicMock, Mock, call
 from foglamp.services.south import server as South
 from foglamp.services.south.server import Server
@@ -16,7 +15,6 @@ from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.common.microservice import FoglampMicroservice
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.south.ingest import Ingest
-from foglamp.services.south import exceptions
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

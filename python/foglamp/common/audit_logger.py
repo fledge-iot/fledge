@@ -59,12 +59,14 @@ class AuditLogger(AuditLoggerSingleton):
             # Get the JSON result of the insert
             out_data = self._storage.insert_into_tbl("log", payload)
 
-            # Is error message present
-            err_msg = out_data.get('message', None)
+            # Check if storage output is a dict (JSION data)
+            if type(out_data) is dict:
+                # Is error message present ?
+                err_msg = out_data.get('message', None)
 
-            # Raise a Exception
-            if err_msg is not None:
-                raise Exception(str(err_msg))
+                # Raise a Exception
+                if err_msg is not None:
+                    raise Exception(str(err_msg))
         except Exception as ex:
             _logger.exception("Failed to log audit trail entry '%s': %s", code, str(ex))
             raise ex

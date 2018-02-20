@@ -535,9 +535,9 @@ async def delete_schedule(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
-        await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
+        retval, message = await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
-        return web.json_response({'message': 'Schedule deleted successfully', 'id': schedule_id})
+        return web.json_response({'message': message, 'id': schedule_id})
     except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 

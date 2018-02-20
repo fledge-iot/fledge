@@ -135,11 +135,6 @@ class TestBrowserAssets:
         assert 500 == resp.status
         assert 'Internal Server Error' == resp.reason
 
-    async def test_asset_averages_with_invalid_group_name(self, client, group='BLA'):
-        resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature/series?group={}'.format(group))
-        assert 400 == resp.status
-        assert '{} is not a valid group'.format(group) == resp.reason
-
     @pytest.mark.parametrize("group_name, payload, result", [
         ('seconds', '{"aggregate": [{"alias": "min", "operation": "min", "json": {"properties": "temperature", "column": "reading"}}, {"alias": "max", "operation": "max", "json": {"properties": "temperature", "column": "reading"}}, {"alias": "average", "operation": "avg", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "group": {"alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS", "column": "user_ts"}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}',
          {'count': 1, 'rows': [{'min': '9', 'average': '9', 'max': '9', 'timestamp': '2018-02-19 17:35:25'}]}),
@@ -167,10 +162,48 @@ class TestBrowserAssets:
             assert json.loads(payload) == json.loads(args[1])
             query_table_patch.assert_called_once_with('readings', args[1])
 
-    @pytest.mark.skip(reason="internal def test, skipped for now")
-    async def test_prepare_limit_skip_payload(self, client, request_param, d, payload):
-        pass
+    @pytest.mark.parametrize("request_param, response_message", [
+        ('?group=BLA', "BLA is not a valid group"),
+        ('?group=0', "0 is not a valid group"),
+        ('?limit=invalid', "Limit must be a positive integer"),
+        ('?limit=-1', "Limit must be a positive integer"),
+        ('?skip=invalid', "Skip/Offset must be a positive integer"),
+        ('?skip=-1', "Skip/Offset must be a positive integer"),
+        ('?seconds=invalid', "Time must be a positive integer"),
+        ('?seconds=-1', "Time must be a positive integer"),
+        ('?minutes=invalid', "Time must be a positive integer"),
+        ('?minutes=-1', "Time must be a positive integer"),
+        ('?hours=invalid', "Time must be a positive integer"),
+        ('?hours=-1', "Time must be a positive integer")
+    ])
+    async def test_request_params_with_bad_data(self, client, request_param, response_message):
+        resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature/series{}'.format(request_param))
+        assert 400 == resp.status
+        assert response_message == resp.reason
 
-    @pytest.mark.skip(reason="internal def test, skipped for now")
-    async def test_where_clause(self, client, request_param, where, payload):
-        pass
+    @pytest.mark.parametrize("request_params, payload", [
+        ('?limit=5', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "skip": 1, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?limit=5&skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?seconds=3600', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 3600}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?minutes=20', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?hours=3', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10800}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?seconds=60&minutes=10', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 60}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?seconds=600&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 600}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?minutes=20&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'),
+        ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}')
+    ])
+    async def test_limit_skip_time_units_payload(self, client, request_params, payload):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'count': 0, 'rows': []}) \
+                    as query_table_patch:
+                resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature{}'.format(request_params))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert [] == json_response
+
+            args, kwargs = query_table_patch.call_args
+            assert json.loads(payload) == json.loads(args[1])
+            query_table_patch.assert_called_once_with('readings', args[1])

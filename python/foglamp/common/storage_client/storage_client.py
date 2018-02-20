@@ -99,9 +99,9 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Get Service: Client error code: %d", r.status)
+            _LOGGER.error("Get Service: Client error code: %d, %s", r.status. r.reason)
         if r.status in range(500, 600):
-            _LOGGER.error("Get Service: Server error code: %d", r.status)
+            _LOGGER.error("Get Service: Server error code: %d, %s", r.status, r.reason)
 
         res = r.read().decode()
         conn.close()
@@ -164,8 +164,8 @@ class StorageClient(AbstractStorage):
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.info("POST %s, with payload: %s", post_url, data)
-            _LOGGER.error("Error code: %d, reason: %s", r.status, r.reason)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -211,15 +211,10 @@ class StorageClient(AbstractStorage):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
+        if r.status in range(400, 600):
             _LOGGER.info("PUT %s, with payload: %s", put_url, data)
-            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
-            raise BadRequest
-
-        if r.status in range(500, 600):
-            _LOGGER.info("PUT %s, with payload: %s", put_url, data)
-            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
-            raise StorageServerInternalError
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -258,15 +253,10 @@ class StorageClient(AbstractStorage):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
+        if r.status in range(400, 600):
             _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
-            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
-            raise BadRequest
-
-        if r.status in range(500, 600):
-            _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
-            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
-            raise StorageServerInternalError
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -300,15 +290,10 @@ class StorageClient(AbstractStorage):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
+        if r.status in range(400, 600):
             _LOGGER.info("GET %s", get_url)
-            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
-            raise BadRequest
-
-        if r.status in range(500, 600):
-            _LOGGER.info("GET %s", get_url)
-            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
-            raise StorageServerInternalError
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -349,14 +334,10 @@ class StorageClient(AbstractStorage):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
+        if r.status in range(400, 600):
             _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
-            _LOGGER.error("Client error code: %d, reason: %s", r.status, r.reason)
-            raise BadRequest
-        if r.status in range(500, 600):
-            _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
-            _LOGGER.error("Server error code: %d, reason: %s", r.status, r.reason)
-            raise StorageServerInternalError
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -415,14 +396,10 @@ class ReadingsStorageClient(StorageClient):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("POST url %s with payload: %s, Client error code: %d | reason: %s",
-                          '/storage/reading', readings, r.status, r.reason)
-            raise BadRequest
-        if r.status in range(500, 600):
-            _LOGGER.error("POST url %s with payload: %s, Server error code: %d | reason: %s",
-                          '/storage/reading', readings, r.status, r.reason)
-            raise StorageServerInternalError
+        if r.status in range(400, 600):
+            _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
+                          '/storage/reading', readings, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -461,13 +438,9 @@ class ReadingsStorageClient(StorageClient):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("GET url: %s, Client error code: %d | reason: %s", get_url, r.status, r.reason)
-            raise BadRequest
-
-        if r.status in range(500, 600):
-            _LOGGER.error("GET url: %s, Server error code: %d | reason: %s", get_url, r.status, r.reason)
-            raise StorageServerInternalError
+        if r.status in range(400, 600):
+            _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", get_url, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -507,14 +480,10 @@ class ReadingsStorageClient(StorageClient):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("PUT url %s with query payload: %s, Client error code: %d | %s",
-                          '/storage/reading/query', query_payload, r.status, r.reason)
-            raise BadRequest
-        if r.status in range(500, 600):
-            _LOGGER.error("PUT url %s with query payload: %s, Server error code: %d | %s",
-                          '/storage/reading/query', query_payload, r.status, r.reason)
-            raise StorageServerInternalError
+        if r.status in range(400, 600):
+            _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
+                          '/storage/reading/query', query_payload, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -577,13 +546,9 @@ class ReadingsStorageClient(StorageClient):
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("PUT url %s, Client error code: %d | %s", put_url, r.status, r.reason)
-            raise BadRequest
-
-        if r.status in range(500, 600):
-            _LOGGER.error("PUT url %s, Client error code: %d | %s", put_url, r.status, r.reason)
-            raise StorageServerInternalError
+        if r.status in range(400, 600):
+            _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
         return jdoc

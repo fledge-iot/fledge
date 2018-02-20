@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Test server.Server.__main__ entry point
+""" Test services/south/__main__ entry point
 
 """
 
@@ -26,11 +26,11 @@ async def test_south_main(mocker):
     # GIVEN
     mocker.patch.object(FoglampMicroservice, "__init__", return_value=None)
     south_server = south_main.Server()
-    run = mocker.patch.object(south_server, "run", return_value=None)
+    mock_run = mocker.patch.object(south_server, "run", return_value=None)
 
     # WHEN
     south_server.run()
 
     # THEN
-    run.assert_called_once_with()
-    assert 1 == run.call_count
+    mock_run.assert_called_once_with()
+    assert 1 == mock_run.call_count

@@ -20,12 +20,12 @@ __version__ = "${VERSION}"
 @pytest.allure.feature("unit")
 @pytest.allure.story("services", "core", "scheduler")
 class TestSchedulerEntities:
-    def test_ScheduledProcess(self):
+    def test_scheduled_process(self):
         scheduled_process = ScheduledProcess()
         assert scheduled_process.name is None
         assert scheduled_process.script is None
 
-    def test_Schedule(self):
+    def test_schedule(self):
         assert isinstance(Schedule.Type(2), IntEnum)
         schedule = Schedule(Schedule.Type.STARTUP)
         assert schedule.schedule_id is None
@@ -53,7 +53,7 @@ class TestSchedulerEntities:
         }
         assert schedule_json == schedule.toDict()
 
-    def test_StartUpSchedule(self):
+    def test_startup_schedule(self):
         startup_schedule = StartUpSchedule()
         assert startup_schedule.schedule_id is None
         assert startup_schedule.name is None
@@ -66,7 +66,7 @@ class TestSchedulerEntities:
             assert startup_schedule.day is None
             assert startup_schedule.time is None
 
-    def test_TimedSchedule(self):
+    def test_timed_schedule(self):
         timed_schedule = TimedSchedule()
         assert timed_schedule.schedule_id is None
         assert timed_schedule.name is None
@@ -78,7 +78,7 @@ class TestSchedulerEntities:
         assert timed_schedule.day is None
         assert timed_schedule.time is None
 
-    def test_timedschedule_todict(self):
+    def test_timed_schedule_todict(self):
         schedule = TimedSchedule()
         schedule.name = 'test'
         schedule.process_name = 'test'
@@ -99,7 +99,7 @@ class TestSchedulerEntities:
         }
         assert schedule_json == schedule.toDict()
 
-    def test_IntervalSchedule(self):
+    def test_interval_schedule(self):
         interval_schedule = IntervalSchedule()
         assert interval_schedule.schedule_id is None
         assert interval_schedule.name is None
@@ -112,7 +112,7 @@ class TestSchedulerEntities:
             assert interval_schedule.day is None
             assert interval_schedule.time is None
 
-    def test_ManualSchedule(self):
+    def test_manual_schedule(self):
         manual_schedule = ManualSchedule()
         assert manual_schedule.schedule_id is None
         assert manual_schedule.name is None
@@ -125,7 +125,7 @@ class TestSchedulerEntities:
             assert manual_schedule.day is None
             assert manual_schedule.time is None
 
-    def test_Task(self):
+    def test_task(self):
         assert isinstance(Task.State(2), IntEnum)
         task = Task()
         assert task.task_id is None

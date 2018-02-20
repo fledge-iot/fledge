@@ -4,7 +4,6 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-import json
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 
@@ -18,14 +17,17 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__)
 
+
 class AuditLoggerSingleton(object):
     """ AuditLoggerSingleton
     
     Used to make AuditLogger a singleton via shared state
     """
     _shared_state = {}
+
     def __init__(self):
         self.__dict__ = self._shared_state
+
 
 class AuditLogger(AuditLoggerSingleton):
     """ Audit Logger
@@ -57,14 +59,16 @@ class AuditLogger(AuditLoggerSingleton):
                 payload = PayloadBuilder().INSERT(code=code, level=level, log=log).payload()
 
             # Get the JSON result of the insert
-            out_data = self._storage.insert_into_tbl("log", payload)
+            res = self._storage.insert_into_tbl("log", payload)
 
-            # Is error message present
-            err_msg = out_data.get('message', None)
+            # Check if storage output is a dict (JSON data)
+            if type(res) is dict:
+                # Is error message present?
+                err_msg = res.get('message', None)
 
-            # Raise a Exception
-            if err_msg is not None:
-                raise Exception(str(err_msg))
+                # Raise a Exception
+                if err_msg is not None:
+                    raise Exception(str(err_msg))
         except Exception as ex:
             _logger.exception("Failed to log audit trail entry '%s': %s", code, str(ex))
             raise ex

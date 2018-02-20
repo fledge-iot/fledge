@@ -1,0 +1,9 @@
+[
+  {
+    "asset_code": "fogbench/smoke_test",
+    "count": 1
+  }
+]
+{
+  "sensor": 10
+}

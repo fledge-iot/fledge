@@ -32,13 +32,13 @@ _help = """
     -------------------------------------------------------------------------------
 """
 
-_LOG_LEVEL_INFO = 20
-_logger = logger.setup(__name__, level=_LOG_LEVEL_INFO)
+_LOG_LEVEL = 20
+_logger = logger.setup(__name__, level=_LOG_LEVEL)
 
 
 class Severity(IntEnum):
     """ Enumeration for log.severity """
-    # TODO: FOGL-701, no info for 3
+    # TODO: FOGL-1100, no info for 3
     SUCCESS = 0
     FAILURE = 1
     WARNING = 2
@@ -50,46 +50,40 @@ class Severity(IntEnum):
 
 
 async def create_audit_entry(request):
-    """ Create a new Audit entry
+    """ Creates a new Audit entry
 
-    :Example:
-        JSON data
-        POST /foglamp/audit
+    Args:
+        request: POST /foglamp/audit
 
         {
-                "source"   : "LMTR", # 5 char max
-                "severity" : "WARNING",
-                "details"  : {
-                                message" : "Engine oil pressure low"
-                             }
+          "source"   : "LMTR", # 5 char max
+          "severity" : "WARNING",
+          "details"  : {
+                        "message" : "Engine oil pressure low"
+                      }
         }
-    : curl example call
 
-        curl -X POST -d '{"source":"LMTR","severity":"WARNING","details":{ message":"Engine oil pressure low"}}
+    :Example:
+
+        curl -X POST -d '{"source":"LMTR","severity":"WARNING","details":{"message":"Engine oil pressure low"}}
         http://localhost:8081/foglamp/audit
 
-    : returned JSON data on success
+    Returns:
+        json object representation of created audit entry
 
-    {
-        "timestamp" : "2017-06-21T09:39:51.8949395",
-        "source"    : "LMTR",
-        "severity"  : "WARNING",
-        "details"   : { 
-                        message" : "Engine oil pressure low"
-                      }
-    }
-
-    Note:
-         only 4 levels are supported as the current methods in AuditLogger class
-         0 = Success
-         1 = Failure
-         2 = Warning
-         4 = Information
+        {
+          "timestamp" : "2017-06-21T09:39:51.8949395",
+          "source"    : "LMTR",
+          "severity"  : "WARNING",
+          "details"   : {
+                         "message" : "Engine oil pressure low"
+                        }
+        }
     """
 
     try:
         return_error = False
-        err_msg = "Missing required parameter "
+        err_msg = "Missing required parameter"
 
         payload = await request.json()
 
@@ -97,18 +91,21 @@ async def create_audit_entry(request):
         source = payload.get("source")
         details = payload.get("details")
 
-        if severity is None:
+        if severity is None or severity == "":
             err_msg += " severity"
             return_error = True
-        if source is None:
+        if source is None or source == "":
             err_msg += " source"
             return_error = True
         if details is None:
             err_msg += " details"
             return_error = True
 
-        if return_error is True:
-            raise web.HTTPBadRequest(reason={"error": err_msg})
+        if return_error:
+            raise web.HTTPBadRequest(reason=err_msg)
+
+        if not isinstance(details, dict):
+            raise web.HTTPBadRequest(reason="details should be a valid json object")
 
         audit = AuditLogger()
         await getattr(audit, str(severity).lower())(source, details)

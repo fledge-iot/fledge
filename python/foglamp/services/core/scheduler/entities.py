@@ -10,12 +10,13 @@ import collections
 import datetime
 import uuid
 from enum import IntEnum
-from typing import Iterable, List, Tuple, Union
+from typing import List
 
 __author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
+
 
 class ScheduledProcess(object):
     """Represents a program that a Task can run"""
@@ -49,13 +50,13 @@ class Schedule(object):
         self.schedule_type = schedule_type  # type: Schedule.Type
 
     def toDict(self):
-        return { 'name': self.name,
-                 'type':self.schedule_type,
-                 'processName':self.process_name,
-                 'repeat':self.repeat.total_seconds() if self.repeat else 0,
-                 'enabled':self.enabled,
-                 'exclusive':self.exclusive
-               }
+        return {'name': self.name,
+                'type': self.schedule_type,
+                'processName': self.process_name,
+                'repeat': self.repeat.total_seconds() if self.repeat else 0,
+                'enabled': self.enabled,
+                'exclusive': self.exclusive
+                }
 
 
 class IntervalSchedule(Schedule):
@@ -77,7 +78,8 @@ class TimedSchedule(Schedule):
 
     def toDict(self):
         my_dict = super().toDict();
-        my_dict['time'] = str(self.time.hour) +':' + str(self.time.minute) + ':' + str(self.time.second) if self.time else '00:00:00'
+        my_dict['time'] = str(self.time.hour) + ':' + str(self.time.minute) + ':' + str(self.time.second) \
+            if self.time else '00:00:00'
         my_dict['day'] = self.day if self.day else 0
         return my_dict
 
@@ -94,6 +96,7 @@ class StartUpSchedule(Schedule):
 
     def __init__(self):
         super().__init__(self.Type.STARTUP)
+
 
 class Task(object):
     """A task represents an operating system process"""
@@ -123,5 +126,3 @@ class Task(object):
         self.start_time = None  # type: datetime.datetime
         self.end_time = None  # type: datetime.datetime
         self.exit_code = None  # type: int
-
-

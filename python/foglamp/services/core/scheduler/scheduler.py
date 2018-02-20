@@ -1287,9 +1287,14 @@ class Scheduler(object):
             raise NotReadyError()
 
         try:
-            del self._schedules[schedule_id]
+            schedule = self._schedules[schedule_id]
+            if schedule.enabled is True:
+                self._logger.exception('Attempt to delete an enabled Schedule %s. Not deleted.', str(schedule_id))
+                return False, "Enabled Schedule cannot be deleted."
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
+
+        del self._schedules[schedule_id]
 
         # TODO: Inspect race conditions with _set_first
         delete_payload = PayloadBuilder() \
@@ -1301,6 +1306,8 @@ class Scheduler(object):
         except Exception:
             self._logger.exception('Delete failed: %s', delete_payload)
             raise
+
+        return True, "Schedule deleted successfully."
 
     async def get_running_tasks(self) -> List[Task]:
         """Retrieves a list of all tasks that are currently running

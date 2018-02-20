@@ -55,7 +55,7 @@ async def run(category_name):
         url = "{}://{}:{}/foglamp/change".format(service_record._protocol, service_record._address, service_record._management_port)
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
+                async with session.post(url, data=json.dumps(payload, sort_keys=True), headers=headers) as resp:
                     result = await resp.text()
                     status_code = resp.status
                     if status_code in range(400, 500):

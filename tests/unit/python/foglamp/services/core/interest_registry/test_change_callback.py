@@ -55,9 +55,11 @@ class TestChangeCallback:
         # used to mock client session context manager
         async def async_mock(return_value):
             return return_value
+
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             async def __aenter__(self):
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 client_response_mock.text.side_effect = [async_mock(None)]
@@ -65,6 +67,7 @@ class TestChangeCallback:
                 status_mock.side_effect = [200]
                 client_response_mock.status = status_mock()
                 return client_response_mock
+
             async def __aexit__(self, *args):
                 return None
 
@@ -72,17 +75,20 @@ class TestChangeCallback:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname1')
         cm_get_patch.assert_called_once_with('catname1')
-        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'}), call('http://saddress2:2/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])
+        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'}), call(
+            'http://saddress2:2/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=async_mock(None)) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname2')
         cm_get_patch.assert_called_once_with('catname2')
-        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname2", "items": null}', headers={'content-type': 'application/json'}), call('http://saddress2:2/foglamp/change', data='{"category": "catname2", "items": null}', headers={'content-type': 'application/json'})])
+        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname2", "items": null}', headers={'content-type': 'application/json'}), call(
+            'http://saddress2:2/foglamp/change', data='{"category": "catname2", "items": null}', headers={'content-type': 'application/json'})])
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=async_mock(None)) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname3')
         cm_get_patch.assert_called_once_with('catname3')
-        post_patch.assert_called_once_with('http://saddress3:3/foglamp/change', data='{"category": "catname3", "items": null}', headers={'content-type': 'application/json'})
+        post_patch.assert_called_once_with(
+            'http://saddress3:3/foglamp/change', data='{"category": "catname3", "items": null}', headers={'content-type': 'application/json'})
 
     @pytest.mark.asyncio
     async def test_run_empty_interests(self, reset_state):
@@ -100,9 +106,11 @@ class TestChangeCallback:
         # used to mock client session context manager
         async def async_mock(return_value):
             return return_value
+
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             async def __aenter__(self):
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 client_response_mock.text.side_effect = [async_mock(None)]
@@ -110,6 +118,7 @@ class TestChangeCallback:
                 status_mock.side_effect = [200]
                 client_response_mock.status = status_mock()
                 return client_response_mock
+
             async def __aexit__(self, *args):
                 return None
 
@@ -138,9 +147,11 @@ class TestChangeCallback:
         # used to mock client session context manager
         async def async_mock(return_value):
             return return_value
+
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             async def __aenter__(self):
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 client_response_mock.text.side_effect = [async_mock(None)]
@@ -148,6 +159,7 @@ class TestChangeCallback:
                 status_mock.side_effect = [200]
                 client_response_mock.status = status_mock()
                 return client_response_mock
+
             async def __aexit__(self, *args):
                 return None
         with patch.object(ConfigurationManager, 'get_category_all_items') as cm_get_patch:
@@ -178,9 +190,11 @@ class TestChangeCallback:
         # used to mock client session context manager
         async def async_mock(return_value):
             return return_value
+
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             async def __aenter__(self):
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 client_response_mock.text.side_effect = [async_mock(None)]
@@ -188,6 +202,7 @@ class TestChangeCallback:
                 status_mock.side_effect = [200]
                 client_response_mock.status = status_mock()
                 return client_response_mock
+
             async def __aexit__(self, *args):
                 return None
 
@@ -195,4 +210,5 @@ class TestChangeCallback:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname1')
         cm_get_patch.assert_called_once_with('catname1')
-        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'}), call('http://saddress2:2/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])
+        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'}), call(
+            'http://saddress2:2/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])

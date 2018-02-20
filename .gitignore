@@ -12,6 +12,7 @@
 # Data / cache files
 data/etc/storage.json
 data/etc/certs/*
+data/var
 
 /etc/storage.json
 /etc/certs/*

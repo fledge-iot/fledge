@@ -6,7 +6,6 @@
 
 """ Test foglamp/services/core/scheduler/entities.py """
 
-import uuid
 import pytest
 from foglamp.services.core.scheduler.entities import *
 
@@ -26,36 +25,33 @@ class TestSchedulerEntities:
 
     def test_Schedule(self):
         assert isinstance(Schedule.Type(2), IntEnum)
-
         schedule = Schedule(Schedule.Type.STARTUP)
         assert schedule.schedule_id is None
-        assert schedule.name  is None
-        assert schedule.exclusive  is True
+        assert schedule.name is None
+        assert schedule.exclusive is True
         assert schedule.enabled is False
         assert schedule.repeat is None
         assert schedule.process_name is None
         assert schedule.schedule_type == 1
 
     def test_StartUpSchedule(self):
-        schedule = Schedule(Schedule.Type.STARTUP)
         startup_schedule = StartUpSchedule()
         assert startup_schedule.schedule_id is None
-        assert startup_schedule.name  is None
-        assert startup_schedule.exclusive  is True
+        assert startup_schedule.name is None
+        assert startup_schedule.exclusive is True
         assert startup_schedule.enabled is False
         assert startup_schedule.repeat is None
         assert startup_schedule.process_name is None
         assert startup_schedule.schedule_type == 1
-        with pytest.raises(AttributeError) as excinfo:
+        with pytest.raises(AttributeError):
             assert startup_schedule.day is None
             assert startup_schedule.time is None
 
     def test_TimedSchedule(self):
-        schedule = Schedule(Schedule.Type.TIMED)
         timed_schedule = TimedSchedule()
         assert timed_schedule.schedule_id is None
-        assert timed_schedule.name  is None
-        assert timed_schedule.exclusive  is True
+        assert timed_schedule.name is None
+        assert timed_schedule.exclusive is True
         assert timed_schedule.enabled is False
         assert timed_schedule.repeat is None
         assert timed_schedule.process_name is None
@@ -64,30 +60,28 @@ class TestSchedulerEntities:
         assert timed_schedule.time is None
 
     def test_IntervalSchedule(self):
-        schedule = Schedule(Schedule.Type.INTERVAL)
         interval_schedule = IntervalSchedule()
         assert interval_schedule.schedule_id is None
-        assert interval_schedule.name  is None
-        assert interval_schedule.exclusive  is True
+        assert interval_schedule.name is None
+        assert interval_schedule.exclusive is True
         assert interval_schedule.enabled is False
         assert interval_schedule.repeat is None
         assert interval_schedule.process_name is None
         assert interval_schedule.schedule_type == 3
-        with pytest.raises(AttributeError) as excinfo:
+        with pytest.raises(AttributeError):
             assert interval_schedule.day is None
             assert interval_schedule.time is None
 
     def test_ManualSchedule(self):
-        schedule = Schedule(Schedule.Type.MANUAL)
         manual_schedule = ManualSchedule()
         assert manual_schedule.schedule_id is None
-        assert manual_schedule.name  is None
-        assert manual_schedule.exclusive  is True
+        assert manual_schedule.name is None
+        assert manual_schedule.exclusive is True
         assert manual_schedule.enabled is False
         assert manual_schedule.repeat is None
         assert manual_schedule.process_name is None
         assert manual_schedule.schedule_type == 4
-        with pytest.raises(AttributeError) as excinfo:
+        with pytest.raises(AttributeError):
             assert manual_schedule.day is None
             assert manual_schedule.time is None
 

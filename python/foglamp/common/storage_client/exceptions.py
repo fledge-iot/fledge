@@ -19,7 +19,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 __all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance', 'InvalidReadingsPurgeFlagParameters',
-           'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize', 'StorageServerInternalError')
+           'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize', 'StorageServerError')
 
 
 class StorageClientException(Exception):
@@ -88,10 +88,13 @@ class PurgeOneOfAgeAndSize(BadRequest):
         self.message = "Purge must specify one of age or size"
 
 
-class StorageServerInternalError(StorageClientException):
-    """ 500 - Storage server had some internal error
-    """
+class StorageServerError(Exception):
 
-    def __init__(self):
-        self.code = 500
-        self.message = "Storage server got some unhandled error"
+    def __init__(self, code, reason, error):
+        self.code = code
+        self.reason = reason
+        self.error = error
+
+    def __str__(self):
+        fmt_msg = "code: %d, reason:%s, error:%s" % (self.code, self.reason, self.error)
+        return fmt_msg

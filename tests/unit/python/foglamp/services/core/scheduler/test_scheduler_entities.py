@@ -7,6 +7,8 @@
 """ Test foglamp/services/core/scheduler/entities.py """
 
 import pytest
+import datetime
+
 from foglamp.services.core.scheduler.entities import *
 
 __author__ = "Amarendra K Sinha"
@@ -34,6 +36,23 @@ class TestSchedulerEntities:
         assert schedule.process_name is None
         assert schedule.schedule_type == 1
 
+    def test_schedule_todict(self):
+        schedule = Schedule(Schedule.Type.STARTUP)
+        schedule.name = 'test'
+        schedule.process_name = 'test'
+        schedule.repeat = datetime.timedelta(seconds=30)
+        schedule.enabled = True
+        schedule.exclusive = False
+        schedule_json = {
+            "name": "test",
+            "type": 1,
+            "processName": "test",
+            "repeat": 30,
+            "enabled": True,
+            "exclusive": False
+        }
+        assert schedule_json == schedule.toDict()
+
     def test_StartUpSchedule(self):
         startup_schedule = StartUpSchedule()
         assert startup_schedule.schedule_id is None
@@ -58,6 +77,27 @@ class TestSchedulerEntities:
         assert timed_schedule.schedule_type == 2
         assert timed_schedule.day is None
         assert timed_schedule.time is None
+
+    def test_timedschedule_todict(self):
+        schedule = TimedSchedule()
+        schedule.name = 'test'
+        schedule.process_name = 'test'
+        schedule.repeat = datetime.timedelta(seconds=30)
+        schedule.enabled = True
+        schedule.exclusive = False
+        schedule.day = 3
+        schedule.time = datetime.time(hour=5, minute=22, second=25)
+        schedule_json = {
+            "name": "test",
+            "type": 2,
+            "processName": "test",
+            "repeat": 30,
+            "day": 3,
+            "time": "5:22:25",
+            "enabled": True,
+            "exclusive": False
+        }
+        assert schedule_json == schedule.toDict()
 
     def test_IntervalSchedule(self):
         interval_schedule = IntervalSchedule()

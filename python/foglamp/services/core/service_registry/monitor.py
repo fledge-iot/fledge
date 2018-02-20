@@ -44,8 +44,11 @@ class Monitor(object):
         self._ping_timeout = None  # type: int
         """Timeout for a response from any given micro-service"""
 
+    async def _sleep(self, sleep_time):
+        await asyncio.sleep(sleep_time)
+
     async def _monitor_loop(self):
-        """Main loop for the scheduler"""
+        """async Monitor loop to monitor registered services"""
         # check health of all micro-services every N seconds
         _MAX_ATTEMPTS = 15
         """Number of max attempts for finding a heartbeat of service"""
@@ -70,7 +73,7 @@ class Monitor(object):
                         # TODO: Fix too broad exception clause
                         except:
                             attempt_count += 1
-                            await asyncio.sleep(1.5)
+                            await self._sleep(1.5)
                     if attempt_count > _MAX_ATTEMPTS:
                         service_record._status = 0
                         ServiceRegistry.unregister(service_record._id)
@@ -82,8 +85,7 @@ class Monitor(object):
                             self._logger.info("Failed to audit service failure %s", str(ex));
                     else:
                         service_record._status = 1
-
-            await asyncio.sleep(self._sleep_interval)
+            await self._sleep(self._sleep_interval)
 
     async def _read_config(self):
         """Reads configuration"""

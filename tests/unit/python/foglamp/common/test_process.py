@@ -2,13 +2,9 @@
 
 import pytest
 
-from unittest.mock import MagicMock
 from unittest.mock import patch
-from unittest.mock import call
 
-from argparse import ArgumentParser
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
-from foglamp.common import logger
 from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
@@ -19,12 +15,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-"""
-unit tests:
-    abstract class enforcement
-    abstract method enforcement
-
-"""
 @pytest.allure.feature("unit")
 @pytest.allure.story("common", "foglamp-process")
 class TestFoglampProcess:
@@ -37,16 +27,16 @@ class TestFoglampProcess:
                 pass
             fp = FoglampProcessImp()
 
-    @pytest.mark.parametrize('argslist', 
+    @pytest.mark.parametrize('argslist',
                              [([ArgumentParserError()]),
                               (['corehost', ArgumentParserError()]),
                               (['corehost', 0, ArgumentParserError()])
-                             ])
+                              ])
     def test_constructor_missing_args(self, argslist):
         class FoglampProcessImp(FoglampProcess):
             def run():
                 pass
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=argslist): 
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=argslist):
             with pytest.raises(ArgumentParserError) as excinfo:
                 fp = FoglampProcessImp()
         assert '' in str(
@@ -110,4 +100,3 @@ class TestFoglampProcess:
                             fp = FoglampProcessImp()
                             fp.unregister_service_with_core('id')
         unregister_patch.assert_called_once_with('id')
-

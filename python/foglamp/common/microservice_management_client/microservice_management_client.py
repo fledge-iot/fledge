@@ -87,7 +87,7 @@ class MicroserviceManagementClient(object):
         :return: A JSON object containing a registration ID for this registration
         """
 
-        payload = json.dumps({"category": category, "service": microservice_id})
+        payload = json.dumps({"category": category, "service": microservice_id}, sort_keys=True)
         self._management_client_conn.request(method='POST', url='/foglamp/interest', body=payload)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):

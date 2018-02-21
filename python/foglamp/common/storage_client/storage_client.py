@@ -87,27 +87,6 @@ class StorageClient(AbstractStorage):
 
         self.__service = svc
 
-    # TODO: remove me, and allow this call in service registry API
-    def check_service_availibility(self):
-        """ ping Storage service """
-
-        conn = http.client.HTTPConnection(self.management_api_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('GET', url='/foglamp/service/ping')
-        r = conn.getresponse()
-
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Ping: Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Ping: Server error code: %d", r.status)
-
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res)
-
     def _get_storage_service(self, host, port):
         """ get Storage service """
 
@@ -120,9 +99,9 @@ class StorageClient(AbstractStorage):
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
-            _LOGGER.error("Get Service: Client error code: %d", r.status)
+            _LOGGER.error("Get Service: Client error code: %d, %s", r.status. r.reason)
         if r.status in range(500, 600):
-            _LOGGER.error("Get Service: Server error code: %d", r.status)
+            _LOGGER.error("Get Service: Server error code: %d, %s", r.status, r.reason)
 
         res = r.read().decode()
         conn.close()
@@ -135,17 +114,11 @@ class StorageClient(AbstractStorage):
         if len(svc) == 0:
             raise InvalidServiceInstance
         self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
-                               m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
-        # found_services = Service.Instances.get(name="FogLAMP Storage")
-        # svc = found_services[0]
-        # # retry for a while?
-        # if svc is None:
-        #     raise InvalidServiceInstance
-        # self.service = svc
+                                     m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+
         return self
 
     def disconnect(self):
-        # Allow shutdown()?
         pass
 
     # FIXME: As per JIRA-615 strict=false at python side (interim solution)
@@ -167,29 +140,34 @@ class StorageClient(AbstractStorage):
                 "value" : 1
             }
         """
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
+        if not tbl_name:
+            raise ValueError("Table name is missing")
 
-        post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
         if not data:
             raise ValueError("Data to insert is missing")
 
         if not Utils.is_json(data):
             raise TypeError("Provided data to insert must be a valid JSON")
 
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+
+        post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+
         conn.request('POST', url=post_url, body=data)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Post %s: Client error code: %d", post_url, r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Post %s: Server error code: %d", post_url, r.status)
+        if r.status in range(400, 600):
+            _LOGGER.info("POST %s, with payload: %s", post_url, data)
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     def update_tbl(self, tbl_name, data):
         """ update json payload for specified condition into given table
@@ -212,9 +190,8 @@ class StorageClient(AbstractStorage):
                 }
             }
         """
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
-        put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+        if not tbl_name:
+            raise ValueError("Table name is missing")
 
         if not data:
             raise ValueError("Data to update is missing")
@@ -222,20 +199,23 @@ class StorageClient(AbstractStorage):
         if not Utils.is_json(data):
             raise TypeError("Provided data to update must be a valid JSON")
 
+        conn = http.client.HTTPConnection(self.base_url)
+        # TODO: need to set http / https based on service protocol
+        put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
+
         conn.request('PUT', url=put_url, body=data)
         r = conn.getresponse()
-
         res = r.read().decode()
+        conn.close()
         jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("PUT %s: Client error code: %d", put_url, r.status)
-            _LOGGER.error("Request payload: %s", data)
-        if r.status in range(500, 600):
-            _LOGGER.error("PUT %s Server error code: %d", put_url, r.status)
-        conn.close()
+        if r.status in range(400, 600):
+            _LOGGER.info("PUT %s, with payload: %s", put_url, data)
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+
         return jdoc
 
     def delete_from_tbl(self, tbl_name, condition=None):
@@ -254,6 +234,10 @@ class StorageClient(AbstractStorage):
                     "value" : "SENT_test"
             }
         """
+
+        if not tbl_name:
+            raise ValueError("Table name is missing")
+
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
         del_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
@@ -263,17 +247,18 @@ class StorageClient(AbstractStorage):
 
         conn.request('DELETE', url=del_url, body=condition)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Delete %s: Client error code: %d", del_url, r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Delete %s: Server error code: %d", del_url, r.status)
+        if r.status in range(400, 600):
+            _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     def query_tbl(self, tbl_name, query=None):
         """ Simple SELECT query for the specified table with optional query params
@@ -286,6 +271,9 @@ class StorageClient(AbstractStorage):
             curl -X GET http://0.0.0.0:8080/storage/table/statistics_history
             curl -X GET http://0.0.0.0:8080/storage/table/statistics_history?key=PURGE
         """
+        if not tbl_name:
+            raise ValueError("Table name is missing")
+
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
 
@@ -296,17 +284,18 @@ class StorageClient(AbstractStorage):
 
         conn.request('GET', url=get_url)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Get %s: Client error code: %d", get_url, r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Get %s: Server error code: %d", get_url, r.status)
+        if r.status in range(400, 600):
+            _LOGGER.info("GET %s", get_url)
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     def query_tbl_with_payload(self, tbl_name, query_payload):
         """ Complex SELECT query for the specified table with a payload
@@ -324,23 +313,33 @@ class StorageClient(AbstractStorage):
                     "value" : "SENT_test"
             }
         """
+        if not tbl_name:
+            raise ValueError("Table name is missing")
+
+        if not query_payload:
+            raise ValueError("Query payload is missing")
+
+        if not Utils.is_json(query_payload):
+            raise TypeError("Query payload must be a valid JSON")
+
         conn = http.client.HTTPConnection(self.base_url)
         # TODO: need to set http / https based on service protocol
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
 
         conn.request('PUT', url=put_url, body=query_payload)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Put %s: Client error code: %d", put_url, r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Put %s: Server error code: %d", put_url, r.status) 
+        if r.status in range(400, 600):
+            _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
+            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
 
 class ReadingsStorageClient(StorageClient):
@@ -384,24 +383,25 @@ class ReadingsStorageClient(StorageClient):
         # TODO: need to set http / https based on service protocol
 
         if not readings:
-            raise ValueError("ReadingsStorageClient payload is missing")
+            raise ValueError("Readings payload is missing")
 
         if not Utils.is_json(readings):
-            raise TypeError("ReadingsStorageClient payload must be a valid JSON")
+            raise TypeError("Readings payload must be a valid JSON")
 
         conn.request('POST', url='/storage/reading', body=readings)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Post readings: Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Post readings: Server error code: %d", r.status)
+        if r.status in range(400, 600):
+            _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
+                          '/storage/reading', readings, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     @classmethod
     def fetch(cls, reading_id, count):
@@ -418,21 +418,31 @@ class ReadingsStorageClient(StorageClient):
         conn = http.client.HTTPConnection(cls._base_url)
         # TODO: need to set http / https based on service protocol
 
-        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
+        if reading_id is None:
+            raise ValueError("first reading id to retrieve the readings block is required")
 
+        if count is None:
+            raise ValueError("count is required to retrieve the readings block")
+
+        try:
+            count = int(count)
+        except ValueError:
+            raise
+
+        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
         conn.request('GET', url=get_url)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Fetch readings: Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Fetch readings: Server error code: %d", r.status)
+        if r.status in range(400, 600):
+            _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", get_url, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     @classmethod
     def query(cls, query_payload):
@@ -452,22 +462,30 @@ class ReadingsStorageClient(StorageClient):
                 }
             }
         """
+
+        if not query_payload:
+            raise ValueError("Query payload is missing")
+
+        if not Utils.is_json(query_payload):
+            raise TypeError("Query payload must be a valid JSON")
+
         conn = http.client.HTTPConnection(cls._base_url)
         # TODO: need to set http / https based on service protocol
 
         conn.request('PUT', url='/storage/reading/query', body=query_payload)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Query readings: Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Query readings: Server error code: %d", r.status)
+        if r.status in range(400, 600):
+            _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
+                          '/storage/reading/query', query_payload, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        return jdoc
 
     @classmethod
     def purge(cls, age=None, sent_id=0, size=None, flag=None):
@@ -484,7 +502,6 @@ class ReadingsStorageClient(StorageClient):
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?age=24&sent=2&flags=PURGE"
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
-        # TODO: flagS should be flag?
 
         valid_flags = ['retain', 'purge']
 
@@ -494,18 +511,21 @@ class ReadingsStorageClient(StorageClient):
         if age and size:
             raise PurgeOnlyOneOfAgeAndSize
 
-        if age is None and size is None:
+        if not age and not size:
             raise PurgeOneOfAgeAndSize
 
         # age should be int
+        # size should be int
         # sent_id should again be int
         try:
             if age is not None:
                 _age = int(age)
+
             if size is not None:
                 _size = int(size)
+
             _sent_id = int(sent_id)
-        except TypeError:
+        except ValueError:
             raise
 
         conn = http.client.HTTPConnection(cls._base_url)
@@ -520,16 +540,15 @@ class ReadingsStorageClient(StorageClient):
 
         conn.request('PUT', url=put_url, body=None)
         r = conn.getresponse()
+        res = r.read().decode()
+        conn.close()
+        jdoc = json.loads(res, strict=False)
 
         # TODO: FOGL-615
         # log error with message if status is 4xx or 5xx
-        if r.status in range(400, 500):
-            _LOGGER.error("Purge readings: Client error code: %d", r.status)
-        if r.status in range(500, 600):
-            _LOGGER.error("Purge readings: Server error code: %d", r.status)
+        if r.status in range(400, 600):
+            _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, r.status, r.reason, jdoc)
+            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        # NOTE: If the data could not be deleted because of a conflict,
-        #       then the error “409 Conflict” will be returned.
-        res = r.read().decode()
-        conn.close()
-        return json.loads(res, strict=False)
+        # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
+        return jdoc

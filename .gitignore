@@ -50,3 +50,7 @@ docs/.cache/
 *.key
 
 .cache/
+
+# test
+.pytest_cache
+.coverage

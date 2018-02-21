@@ -4,7 +4,6 @@ import pytest
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
-from unittest.mock import call
 
 from http.client import HTTPConnection, HTTPResponse
 import json
@@ -213,3 +212,58 @@ class TestMicroserviceManagementClient:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
                     ret_value = ms_mgt_client.unregister_interest('someid')
+
+    @pytest.mark.parametrize("name, type, url",
+                             [('foo', None, '/foglamp/service?name=foo'),
+                              (None, 'bar', '/foglamp/service?type=bar'),
+                              ('foo', 'bar', '/foglamp/service?name=foo&type=bar')])
+    def test_get_services_good(self, name, type, url):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        undecoded_data_mock.decode.return_value = json.dumps(
+            {'services': 'bla'})
+        response_mock.status = 200
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                ret_value = ms_mgt_client.get_services(name, type)
+        request_patch.assert_called_once_with(
+            method='GET', url=url)
+        assert ret_value == {'services': 'bla'}
+
+    def test_get_services_no_services(self):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        undecoded_data_mock.decode.return_value = json.dumps(
+            {'notservices': 'bla'})
+        response_mock.status = 200
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                with pytest.raises(KeyError) as excinfo:
+                    ret_value = ms_mgt_client.get_services('foo', 'bar')
+
+    @pytest.mark.parametrize("status_code", [450, 550])
+    def test_get_services_client_err(self, status_code):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        undecoded_data_mock.decode.return_value = json.dumps(
+            {'services': 'bla'})
+        response_mock.status = status_code
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
+                    ret_value = ms_mgt_client.get_services('foo', 'bar')

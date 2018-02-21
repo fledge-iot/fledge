@@ -1130,7 +1130,7 @@ class Scheduler(object):
                 if schedule_type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
                     del self._schedule_executions[schedule.id]
                     del self._task_processes[task_process.task_id]
-                    self._logger.exception("Service {} records successfully removed".format(service_name))
+                    self._logger.info("Service {} records successfully removed".format(service_name))
                     return True
         except KeyError:
             pass

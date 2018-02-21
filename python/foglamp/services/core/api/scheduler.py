@@ -75,9 +75,6 @@ async def get_scheduled_process(request):
 
     scheduled_process_name = request.match_info.get('scheduled_process_name', None)
 
-    if not scheduled_process_name:
-        raise web.HTTPBadRequest(reason='No Scheduled Process Name given')
-
     payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", scheduled_process_name]).payload()
     _storage = connect.get_storage()
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)

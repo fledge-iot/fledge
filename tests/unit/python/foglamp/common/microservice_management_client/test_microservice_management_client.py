@@ -121,7 +121,6 @@ class TestMicroserviceManagementClient:
                 with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
                     ret_value = ms_mgt_client.unregister_service('someid')
 
-#=================================
     def test_register_interest_good_id(self):
         microservice_management_host = 'host1'
         microservice_management_port = 1

@@ -7,10 +7,10 @@
 """Unit test for foglamp.plugins.south.http_south.http_south"""
 
 import json
-import pytest
-import asyncio
 from unittest import mock
 from unittest.mock import patch
+import pytest
+import aiohttp
 from aiohttp.test_utils import make_mocked_request
 from aiohttp.streams import StreamReader
 from multidict import CIMultiDict
@@ -68,7 +68,6 @@ class TestHttpSouthIngest(object):
                 r = await HttpSouthIngest.render_post(request)
                 retval = json.loads(r.body.decode())
                 # Assert the POST request response
-                assert 200 == retval['status']
                 assert 'success' == retval['result']
 
     async def test_post_sensor_reading_missing_delimiter(self, event_loop):
@@ -84,12 +83,12 @@ class TestHttpSouthIngest(object):
                 }
         }"""
         with patch.object(Ingest, 'is_available', return_value=True):
-            request = mock_request(data, event_loop)
-            r = await HttpSouthIngest.render_post(request)
-            retval = json.loads(r.body.decode())
-            # Assert the POST request response
-            assert 400 == retval['status']
-            assert retval['error'].startswith("Expecting ',' delimiter:")
+            with pytest.raises(Exception) as excinfo:
+                request = mock_request(data, event_loop)
+                await HttpSouthIngest.render_post(request)
+            assert excinfo.type is aiohttp.web_exceptions.HTTPBadRequest
+            assert 'HTTPBadRequest' == excinfo.typename
+            assert str(excinfo.value).startswith("Expecting ',' delimiter")
 
     async def test_post_sensor_reading_not_dict(self, event_loop):
         data = """{
@@ -98,11 +97,10 @@ class TestHttpSouthIngest(object):
             "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
             "readings": "500"
         }"""
-
         with patch.object(Ingest, 'is_available', return_value=True):
-            request = mock_request(data, event_loop)
-            r = await HttpSouthIngest.render_post(request)
-            retval = json.loads(r.body.decode())
-            # Assert the POST request response
-            assert 400 == retval['status']
-            assert "readings must be a dictionary" == retval['error']
+            with pytest.raises(Exception) as excinfo:
+                request = mock_request(data, event_loop)
+                await HttpSouthIngest.render_post(request)
+            assert excinfo.type is aiohttp.web_exceptions.HTTPBadRequest
+            assert 'HTTPBadRequest' == excinfo.typename
+            assert str(excinfo).endswith("readings must be a dictionary")

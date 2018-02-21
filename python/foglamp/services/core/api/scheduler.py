@@ -328,9 +328,6 @@ async def enable_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -359,9 +356,6 @@ async def disable_schedule(request):
 
     try:
         schedule_id = request.match_info.get('schedule_id', None)
-
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         try:
             assert uuid.UUID(schedule_id)

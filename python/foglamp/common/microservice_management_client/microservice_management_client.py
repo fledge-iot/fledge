@@ -87,7 +87,7 @@ class MicroserviceManagementClient(object):
         :return: A JSON object containing a registration ID for this registration
         """
 
-        payload = json.dumps({"category": category, "service": microservice_id})
+        payload = json.dumps({"category": category, "service": microservice_id}, sort_keys=True)
         self._management_client_conn.request(method='POST', url='/foglamp/interest', body=payload)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
@@ -133,20 +133,21 @@ class MicroserviceManagementClient(object):
 
         return response
 
-    def get_services(self, name=None, _type=None):
+    def get_services(self, service_name=None, service_type=None):
         """ Retrieve the details of one or more services that are registered
 
-        :param name: filter the returned services by name
-        :param _type: filter the returned services by type
+        :param service_name: filter the returned services by name
+        :param service_type: filter the returned services by type
         :return: list of registered microservices, all or based on filter(s) applied
         """
         url = '/foglamp/service'
-        if _type:
-            url = '{}?type={}'.format(url, _type)
-        if name:
-            url = '{}?name={}'.format(url, name)
-        if name and _type:
-            url = '{}?name={}&type={}'.format(url, name, _type)
+        delimeter = '?'
+        if service_name:
+            url = '{}{}name={}'.format(url, delimeter, service_name)
+            delimeter = '&'
+        if service_type:
+            url = '{}{}type={}'.format(url, delimeter, service_type)
+            delimeter = '&'
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):

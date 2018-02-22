@@ -30,8 +30,11 @@ class ArgumentParserError(Exception):
     pass
 
 class SilentArgParse(argparse.ArgumentParser):
+
     def error(self, message):
+        """ Overwrite default error functionality to not terminate application """
         raise ArgumentParserError(message)
+
     def silent_arg_parse(self, argument_name):
         self.add_argument(argument_name)
         parser_result = self.parse_known_args()

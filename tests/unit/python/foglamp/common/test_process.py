@@ -34,7 +34,7 @@ class TestFoglampProcess:
                               ])
     def test_constructor_missing_args(self, argslist):
         class FoglampProcessImp(FoglampProcess):
-            def run():
+            def run(self):
                 pass
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=argslist):
             with pytest.raises(ArgumentParserError) as excinfo:
@@ -44,7 +44,7 @@ class TestFoglampProcess:
 
     def test_constructor_good(self):
         class FoglampProcessImp(FoglampProcess):
-            def run():
+            def run(self):
                 pass
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -64,7 +64,7 @@ class TestFoglampProcess:
 
     def test_get_services_from_core(self):
         class FoglampProcessImp(FoglampProcess):
-            def run():
+            def run(self):
                 pass
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -77,7 +77,7 @@ class TestFoglampProcess:
 
     def test_register_service_with_core(self):
         class FoglampProcessImp(FoglampProcess):
-            def run():
+            def run(self):
                 pass
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -90,7 +90,7 @@ class TestFoglampProcess:
 
     def test_unregister_service_with_core(self):
         class FoglampProcessImp(FoglampProcess):
-            def run():
+            def run(self):
                 pass
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:

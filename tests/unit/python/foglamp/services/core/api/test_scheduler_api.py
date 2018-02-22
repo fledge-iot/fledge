@@ -209,3 +209,36 @@ class TestSchedules:
             resp = await client.put('/foglamp/schedule/{}/disable'.format(self._random_uuid))
             assert response_code == resp.status
             assert response_message == resp.reason
+
+    async def test_start_schedule(self, client):
+        async def mock_coro():
+            return ""
+
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'get_schedule', return_value=mock_coro()) as mock_get_schedule:
+            with patch.object(server.Server.scheduler, 'queue_task', return_value=mock_coro()) as mock_queue_task:
+                resp = await client.post('/foglamp/schedule/start/{}'.format(self._random_uuid))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': 'Schedule started successfully',
+                        'id': '{}'.format(self._random_uuid)} == json_response
+                mock_queue_task.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
+            mock_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
+
+    async def test_start_schedule_bad_data(self, client):
+            resp = await client.post('/foglamp/schedule/start/{}'.format("bla"))
+            assert 404 == resp.status
+            assert 'Invalid Schedule ID bla' == resp.reason
+
+    @pytest.mark.parametrize("excep, response_code, response_message", [
+        (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
+        (NotReadyError(), 404, None),
+        (ValueError, 404, None),
+    ])
+    async def test_start_schedule_exceptions(self, client, excep, response_code, response_message):
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'get_schedule', side_effect=excep):
+            resp = await client.post('/foglamp/schedule/start/{}'.format(self._random_uuid))
+            assert response_code == resp.status
+            assert response_message == resp.reason

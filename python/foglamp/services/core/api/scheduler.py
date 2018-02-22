@@ -9,7 +9,7 @@ import uuid
 from aiohttp import web
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
-from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError
+from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError, NotReadyError
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -386,9 +386,6 @@ async def start_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -400,7 +397,7 @@ async def start_schedule(request):
         await server.Server.scheduler.queue_task(uuid.UUID(schedule_id))
 
         return web.json_response({'id': schedule_id, 'message': 'Schedule started successfully'})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ValueError, ScheduleNotFoundError, NotReadyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
 

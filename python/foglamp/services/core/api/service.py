@@ -50,6 +50,13 @@ async def add_service(request):
 
         storage = connect.get_storage()
 
+        # Check that the process is not already registered
+        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        result = storage.query_tbl_with_payload('scheduled_processes', payload)
+        count = result['count']
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A service with that name already exists')
+
         # First create the scheduled process entry for our new service
         if service_type == 'south':
             script = '["services/south"]'
@@ -73,6 +80,13 @@ async def add_service(request):
         config_mgr = ConfigurationManager(storage)
         await config_mgr.create_category(category_name=name, category_description=category_desc,
                                      category_value=new_category, keep_original_items=False)
+
+        # Check that the process is not already registered
+        payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', name]).payload()
+        result = storage.query_tbl_with_payload('schedules', payload)
+        count = result['count']
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A schedule with that name already exists')
 
         # Finally add a schedule to run the new service at startup
         schedule = StartUpSchedule()

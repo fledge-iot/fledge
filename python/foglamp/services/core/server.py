@@ -113,7 +113,10 @@ class Server:
     """ FogLAMP REST API port """
 
     is_rest_server_http_enabled = False
-    """ a Flag to decide to enable FogLAMP REST API on HTTP on restart"""
+    """ a Flag to decide to enable FogLAMP REST API on HTTP on restart """
+
+    cert_file_name = ''
+    """ cert file name """
 
     _REST_API_DEFAULT_CONFIG = {
         'httpPort': {
@@ -136,6 +139,11 @@ class Server:
                            'for the interface',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }'
+        },
+        'certificateName': {
+            'description': 'Certificate file name',
+            'type': 'string',
+            'default': 'foglamp'
         }
     }
 
@@ -155,13 +163,13 @@ class Server:
     """ Instance of audit logger(singleton) """
 
     _pidfile = None
-    """ The PID file anme """
+    """ The PID file name """
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
 
-    @staticmethod
-    def get_certificates():
+    @classmethod
+    def get_certificates(cls):
         # TODO: FOGL-780
         if _FOGLAMP_DATA:
             certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
@@ -214,8 +222,8 @@ class Server:
         """
         # use pem file?
         # file name will be WHAT? *using foglamp for now*
-        cert = certs_dir + '/foglamp.cert'
-        key = certs_dir + '/foglamp.key'
+        cert = certs_dir + '/{}.cert'.format(cls.cert_file_name)
+        key = certs_dir + '/{}.key'.format(cls.cert_file_name)
         # remove these asserts and put in try-except block with logging
         assert os.path.isfile(cert)
         assert os.path.isfile(key)
@@ -234,6 +242,8 @@ class Server:
 
             await cls._configuration_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
             config = await cls._configuration_manager.get_category_all_items(category)
+
+            cls.cert_file_name = config['certificateName']['value']
 
             try:
                 cls.is_rest_server_http_enabled = False if config['enableHttp']['value'] == 'false' else True

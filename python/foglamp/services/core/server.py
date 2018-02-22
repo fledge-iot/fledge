@@ -220,13 +220,16 @@ class Server:
         Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/data/etc/certs or /usr/local/foglamp/data/etc/certs
         
         """
-        # use pem file?
-        # file name will be WHAT? *using foglamp for now*
         cert = certs_dir + '/{}.cert'.format(cls.cert_file_name)
         key = certs_dir + '/{}.key'.format(cls.cert_file_name)
-        # remove these asserts and put in try-except block with logging
-        assert os.path.isfile(cert)
-        assert os.path.isfile(key)
+
+        if not os.path.isfile(cert) or not os.path.isfile(key):
+            _logger.warning("%s certificate files are missing. Hence using default certificate.", cls.cert_file_name)
+            cert = certs_dir + '/foglamp.cert'
+            key = certs_dir + '/foglamp.key'
+            if not os.path.isfile(cert) or not os.path.isfile(key):
+                _logger.error("Certificates are missing")
+                raise RuntimeError
 
         return cert, key
 
@@ -243,7 +246,11 @@ class Server:
             await cls._configuration_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
             config = await cls._configuration_manager.get_category_all_items(category)
 
-            cls.cert_file_name = config['certificateName']['value']
+            try:
+                cls.cert_file_name = config['certificateName']['value']
+            except KeyError:
+                _logger.error("error in retrieving certificateName info")
+                raise
 
             try:
                 cls.is_rest_server_http_enabled = False if config['enableHttp']['value'] == 'false' else True

@@ -26,13 +26,13 @@ _logger = logger.setup(__name__)
 
 
 class ArgumentParserError(Exception):
-    """ Overwrite default exception to not terminate application """
+    """ Override default exception to not terminate application """
     pass
 
 class SilentArgParse(argparse.ArgumentParser):
 
     def error(self, message):
-        """ Overwrite default error functionality to not terminate application """
+        """ Override default error functionality to not terminate application """
         raise ArgumentParserError(message)
 
     def silent_arg_parse(self, argument_name):

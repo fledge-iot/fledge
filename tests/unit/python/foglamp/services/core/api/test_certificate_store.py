@@ -63,8 +63,8 @@ class TestCertificateStore:
         assert 'foglamp.key and foglamp.cert have been uploaded successfully' == json_response['result']
 
     async def test_file_upload_with_different_names(self, client, certs_path):
-        files = {'key': open(str(certs_path / 'certs/server.key'), 'rb'),
-                 'cert': open(str(certs_path / 'certs/foglamp.cert'), 'rb')}
+        files = {'key': open(str(certs_path / 'certs/foglamp.key'), 'rb'),
+                 'cert': open(str(certs_path / 'certs/server.cert'), 'rb')}
         resp = await client.post('/foglamp/certificate', data=files)
         assert 400 == resp.status
         assert 'key and certs file name should match' == resp.reason
@@ -126,26 +126,35 @@ class TestCertificateStore:
         assert actual_code == resp.status
         assert actual_reason == resp.reason
 
-    # async def test_bad_delete_cert_if_in_use(self, client, certs_path):
-    #     async def async_mock():
-    #         return {'value': 'test'}
-    #
-    #     storage_client_mock = MagicMock(StorageClient)
-    #     c_mgr = ConfigurationManager(storage_client_mock)
-    #     with patch('os.path.isfile', return_value=True):
-    #         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-    #             with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
-    #                 resp = await client.delete('/foglamp/certificate/blah')
-    #                 assert 200 == resp.status
+    async def test_bad_delete_cert_if_in_use(self, client):
+        async def async_mock():
+            return {'value': 'foglamp'}
 
+        storage_client_mock = MagicMock(StorageClient)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch('os.path.isfile', return_value=True):
+            with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+                with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
+                    resp = await client.delete('/foglamp/certificate/foglamp')
+                    assert 409 == resp.status
+                    assert 'Certificate with name foglamp is already in use, you can not delete' == resp.reason
+                assert 1 == patch_cfg.call_count
+                args, kwargs = patch_cfg.call_args
+                assert ({'item_name': 'certificateName', 'category_name': 'rest_api'}) == kwargs
 
+    async def test_delete_cert(self, client):
+        async def async_mock():
+            return {'value': 'test'}
 
-    # async def test_delete_cert(self, client, certs_path):
-    #     with patch('os.path.expanduser', return_value=str(certs_path / 'certs/foglamp.key')):
-    #         with patch('os.path.isfile', return_value=True):
-    #             with patch('os.remove', return_value=True):
-    #                 resp = await client.delete('/foglamp/certificate/{}'.format('foglamp.key'))
-    #                 assert 200 == resp.status
-    #                 result = await resp.text()
-    #                 json_response = json.loads(result)
-    #                 assert {"message": "'foglamp.key' certificate is deleted successfully"} == json_response
+        storage_client_mock = MagicMock(StorageClient)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_item', return_value=async_mock()):
+                with patch('os.path.isfile', return_value=True):
+                    with patch('os.remove', return_value=True) as patch_remove:
+                        resp = await client.delete('/foglamp/certificate/foglamp')
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert 'foglamp.key, foglamp.cert have been deleted successfully' == json_response['result']
+                    assert 2 == patch_remove.call_count

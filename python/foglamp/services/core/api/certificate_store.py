@@ -7,6 +7,8 @@
 import os
 from aiohttp import web
 from foglamp.common import logger
+from foglamp.services.core import connect
+from foglamp.common.configuration_manager import ConfigurationManager
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -23,16 +25,17 @@ _logger = logger.setup(__name__, level=20)
 _help = """
     -------------------------------------------------------------------------------
     | POST             | /foglamp/certificate                                     |
-    | DELETE           | /foglamp/certificate/{cert_name}                         |
+    | DELETE           | /foglamp/certificate/{name}                              |
     -------------------------------------------------------------------------------
 """
+
 
 async def upload(request):
     """ Upload a certificate
 
     :Example:
         curl -F "key=@filename.key" -F "cert=@filename.cert" http://localhost:8081/foglamp/certificate
-
+        curl -F "key=@filename.key" -F "cert=@filename.cert" -F "overwrite=1" http://localhost:8081/foglamp/certificate
     """
     data = await request.post()
 
@@ -40,9 +43,12 @@ async def upload(request):
     key_file = data.get('key')
     cert_file = data.get('cert')
 
-    # TODO: handle overwrite if file with the same name already exists?
-    allow_overwrite = data.get('overwrite', 0)
-    should_overwrite = True if allow_overwrite == 1 else False
+    # accepted values for overwrite are '0 and 1'
+    allow_overwrite = data.get('overwrite', '0')
+    if allow_overwrite in ('0', '1'):
+        should_overwrite = True if int(allow_overwrite) == 1 else False
+    else:
+        raise web.HTTPBadRequest(reason="Accepted value for overwrite is 0 or 1")
 
     if not key_file or not cert_file:
         raise web.HTTPBadRequest(reason="key or certs file is missing")
@@ -55,22 +61,19 @@ async def upload(request):
     if not cert_filename.endswith(valid_extensions) or not key_filename.endswith(valid_extensions):
         raise web.HTTPBadRequest(reason="Accepted file extensions are .key and .cert")
 
-    # certs and key filenames should match
+    # certs and key filename should match
     if cert_filename and key_filename:
         if cert_filename.split(".")[0] != key_filename.split(".")[0]:
             raise web.HTTPBadRequest(reason="key and certs file name should match")
 
-    if _FOGLAMP_DATA:
-        certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
-    else:
-        certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
+    # Get certs directory path
+    certs_dir = _get_certs_dir()
+    found_files = _find_file(cert_filename, certs_dir)
+    is_found = True if len(found_files) else False
+    if is_found and should_overwrite is False:
+        raise web.HTTPBadRequest(reason="Certificate with the same name already exists. "
+                                        "To overwrite set the overwrite to 1")
 
-    # TODO: if should_overwrite
-    # check certs dir has file with the same name?
-    # if yes then only overwrite if should_overwrite
-
-    # .file contains the actual file data that needs to be stored somewhere
-    # write file contents to cert path on the basis of os env variable
     if key_file:
         key_file_data = data['key'].file
         key_file_content = key_file_data.read()
@@ -96,24 +99,58 @@ async def delete_certificate(request):
     """ Delete a certificate
 
     :Example:
-          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.cert
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp
     """
-    cert_name = request.match_info.get('cert_name', None)
+    cert_name = request.match_info.get('name', None)
 
-    # accepted extensions are '.key and .cert'
-    valid_extensions = ('.key', '.cert')
-    if not cert_name.endswith(valid_extensions):
-        raise web.HTTPBadRequest(reason="Accepted file extensions are .key and .cert")
+    certs_dir = _get_certs_dir()
+    cert_file = certs_dir + '/{}.cert'.format(cert_name)
+    key_file = certs_dir + '/{}.key'.format(cert_name)
 
+    if not os.path.isfile(cert_file) and not os.path.isfile(key_file):
+        raise web.HTTPNotFound(reason='Certificate with name {} does not exist'.format(cert_name))
+
+    # read config
+    # if cert_name == set in config
+    cf_mgr = ConfigurationManager(connect.get_storage())
+    result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
+    print(result)
+    if cert_name == result['value']:
+        raise web.HTTPConflict(reason='Certificate with name {} is already in use, you can not delete'
+                               .format(cert_name))
+
+    msg = ''
+    cert_file_found_and_removed = False
+    if os.path.isfile(cert_file):
+        os.remove(cert_file)
+        msg = "{}.cert has been deleted successfully".format(cert_name)
+        cert_file_found_and_removed = True
+
+    key_file_found_and_removed = False
+    if os.path.isfile(key_file):
+        os.remove(key_file)
+        msg = "{}.key has been deleted successfully".format(cert_name)
+        key_file_found_and_removed = True
+
+    if key_file_found_and_removed and cert_file_found_and_removed:
+        msg = "{}.key, {}.cert have been deleted successfully".format(cert_name, cert_name)
+
+    return web.json_response({'result': msg})
+
+
+def _get_certs_dir():
     if _FOGLAMP_DATA:
         certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
     else:
         certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
 
-    cert_path = certs_dir + '/{}'.format(cert_name)
+    return certs_dir
 
-    if os.path.isfile(cert_path):
-        os.remove(cert_path)
-        return web.json_response({'message': "'{}' certificate is deleted successfully".format(cert_name)})
-    else:
-        raise web.HTTPNotFound(reason='{} does not exist'.format(cert_name))
+
+def _find_file(name, path):
+    result = []
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            result.append(os.path.join(root, name))
+
+    return result

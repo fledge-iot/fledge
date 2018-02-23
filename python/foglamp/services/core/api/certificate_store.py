@@ -22,12 +22,13 @@ _logger = logger.setup(__name__, level=20)
 
 _help = """
     -------------------------------------------------------------------------------
-    | POST             | /foglamp/certificate                                          |
+    | POST             | /foglamp/certificate                                     |
+    | DELETE           | /foglamp/certificate/{cert_name}                         |
     -------------------------------------------------------------------------------
 """
 
 async def upload(request):
-    """
+    """ Upload a certificate
 
     :Example:
         curl -F "key=@filename.key" -F "cert=@filename.cert" http://localhost:8081/foglamp/certificate
@@ -89,3 +90,30 @@ async def upload(request):
     # and reboot
     return web.json_response({"result": "{} and {} have been uploaded successfully"
                              .format(key_filename, cert_filename)})
+
+
+async def delete_certificate(request):
+    """ Delete a certificate
+
+    :Example:
+          curl -X DELETE http://localhost:8081/foglamp/certificate/foglamp.cert
+    """
+    cert_name = request.match_info.get('cert_name', None)
+
+    # accepted extensions are '.key and .cert'
+    valid_extensions = ('.key', '.cert')
+    if not cert_name.endswith(valid_extensions):
+        raise web.HTTPBadRequest(reason="Accepted file extensions are .key and .cert")
+
+    if _FOGLAMP_DATA:
+        certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
+    else:
+        certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
+
+    cert_path = certs_dir + '/{}'.format(cert_name)
+
+    if os.path.isfile(cert_path):
+        os.remove(cert_path)
+        return web.json_response({'message': "'{}' certificate is deleted successfully".format(cert_name)})
+    else:
+        raise web.HTTPNotFound(reason='{} does not exist'.format(cert_name))

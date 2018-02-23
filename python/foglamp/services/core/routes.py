@@ -78,8 +78,9 @@ def setup(app):
     # Package Update on demand
     app.router.add_route('PUT', '/foglamp/update', update.update_package)
 
-    # certs upload
+    # certs store
     app.router.add_route('POST', '/foglamp/certificate', certificate_store.upload)
+    app.router.add_route('DELETE', '/foglamp/certificate/{cert_name}', certificate_store.delete_certificate)
 
     # enable cors support
     enable_cors(app)

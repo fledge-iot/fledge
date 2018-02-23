@@ -8,6 +8,8 @@
 import json
 import pathlib
 
+from unittest.mock import patch
+
 from aiohttp import web
 import pytest
 
@@ -77,3 +79,24 @@ class TestCertificateStore:
         resp = await client.post('/foglamp/certificate', data=files)
         assert 500 == resp.status
         assert 'Internal Server Error' == resp.reason
+
+    @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
+        ('', 404, "Not Found"),
+        ('blah', 400, "Accepted file extensions are .key and .cert"),
+        ('blah.blah', 400, "Accepted file extensions are .key and .cert"),
+        ('blah.cert', 404, "blah.cert does not exist"),
+    ])
+    async def test_bad_delete_cert(self, client, cert_name, actual_code, actual_reason):
+        resp = await client.delete('/foglamp/certificate/{}'.format(cert_name))
+        assert actual_code == resp.status
+        assert actual_reason == resp.reason
+
+    async def test_delete_cert(self, client, certs_path):
+        with patch('os.path.expanduser', return_value=str(certs_path / 'certs/foglamp.key')):
+            with patch('os.path.isfile', return_value=True):
+                with patch('os.remove', return_value=True):
+                    resp = await client.delete('/foglamp/certificate/{}'.format('foglamp.key'))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": "'foglamp.key' certificate is deleted successfully"} == json_response

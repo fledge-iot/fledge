@@ -44,6 +44,7 @@ async def ping(request):
     # TODO: FOGL-790 - ping method should return more data
     return web.json_response({'uptime': since_started})
 
+
 async def shutdown(request):
     """
     Args:
@@ -56,7 +57,7 @@ async def shutdown(request):
     """
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = request.loop
         loop.call_later(2, do_shutdown, loop)
 
         return web.json_response({'message': 'FogLAMP shutdown has been scheduled. '
@@ -66,7 +67,8 @@ async def shutdown(request):
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
 
-def do_shutdown(loop):
+
+def do_shutdown(loop=None):
     _logger.info("Executing controlled shutdown")
     if loop is None:
         loop = asyncio.get_event_loop()

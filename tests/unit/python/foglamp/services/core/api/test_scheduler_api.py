@@ -8,8 +8,9 @@
 import json
 from unittest.mock import MagicMock, patch
 from aiohttp import web
+import asyncio
 import pytest
-from datetime import timedelta
+from datetime import timedelta, datetime
 import uuid
 from foglamp.services.core import routes
 from foglamp.services.core import connect
@@ -242,3 +243,200 @@ class TestSchedules:
             resp = await client.post('/foglamp/schedule/start/{}'.format(self._random_uuid))
             assert response_code == resp.status
             assert response_message == resp.reason
+
+    @pytest.mark.parametrize("request_data, expected_response", [
+        ({"type": 1, "name": "foo", "process_name": "bar"},
+         {'schedule': {'type': 'STARTUP', 'day': None, 'name': 'foo', 'exclusive': True, 'enabled': True,
+                       'id': '{}'.format(_random_uuid), 'processName': 'bar', 'time': 0, 'repeat': 0}}),
+        ({"type": 2, "day": 1, "time": 10, "name": "foo", "process_name": "bar"},
+         {'schedule': {'name': 'foo', 'processName': 'bar', 'time': 10, 'enabled': True,
+                       'id': '{}'.format(_random_uuid), 'repeat': 0, 'exclusive': True, 'day': 1,
+                       'type': 'TIMED'}}),
+        ({"type": 3, "repeat": 15, "name": "foo", "process_name": "bar"},
+         {'schedule': {'day': None, 'type': 'INTERVAL', 'exclusive': True, 'enabled': True, 'time': 0, 'repeat': 15.0,
+                       'name': 'foo', 'id': '{}'.format(_random_uuid), 'processName': 'bar'}}),
+        ({"type": 4, "name": "foo", "process_name": "bar"},
+         {'schedule': {'day': None, 'enabled': True, 'repeat': 0, 'id': '{}'.format(_random_uuid),
+                       'type': 'MANUAL', 'name': 'foo', 'exclusive': True, 'processName': 'bar', 'time': 0}}),
+        ])
+    async def test_post_schedule(self, client, request_data, expected_response):
+        async def mock_coro():
+            return ""
+
+        async def mock_schedule(_type):
+            if _type == 1:
+                schedule = StartUpSchedule()
+                schedule.repeat = None
+                schedule.time = None
+                schedule.day = None
+            elif _type == 2:
+                schedule = TimedSchedule()
+                schedule.repeat = None
+                schedule.time = datetime(1, 1, 1, 0, 0, 10)
+                schedule.day = 1
+            elif _type == 3:
+                schedule = IntervalSchedule()
+                schedule.repeat = timedelta(seconds=15)
+                schedule.time = None
+                schedule.day = None
+            else:
+                schedule = ManualSchedule()
+                schedule.repeat = None
+                schedule.time = None
+                schedule.day = None
+            schedule.schedule_id = self._random_uuid
+            schedule.exclusive = True
+            schedule.enabled = True
+            schedule.name = "foo"
+            schedule.process_name = "bar"
+            return schedule
+        storage_client_mock = MagicMock(StorageClient)
+        response = {'rows': [{'name': 'p1'}], 'count': 1}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()):
+                    with patch.object(server.Server.scheduler, 'get_schedule',
+                                      return_value=mock_schedule(request_data["type"])) as patch_get_schedule:
+                        resp = await client.post('/foglamp/schedule', data=json.dumps(request_data))
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert expected_response == json_response
+                        # patch_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
+
+    async def test_post_schedule_bad_param(self, client):
+        resp = await client.post('/foglamp/schedule', data=json.dumps({'schedule_id': 'bla'}))
+        assert 400 == resp.status
+        assert 'Schedule ID not needed for new Schedule.' == resp.reason
+
+    @pytest.mark.parametrize("request_data, response_code, error_message, storage_return", [
+        ({"type": 'bla'}, 400, "Error in type: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"day": 'bla'}, 400, "Error in day: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"time": 'bla'}, 400, "Error in time: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"repeat": 'bla'}, 400, "Error in repeat: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 2, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: Schedule day and time cannot be empty for TIMED schedule. 1",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: Day must be an integer and in range 1-7. 1",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 2, "day": 5, "time": -1, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: Time must be an integer and in range 0-86399. 1",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 200}, 404,
+         "Errors in request: Schedule type error: 200,Schedule name and Process name cannot be empty. 2",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 1, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: No such Scheduled Process name: p1 1",
+         {'rows': [], 'count': 0}),
+    ])
+    async def test_post_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
+        storage_client_mock = MagicMock(StorageClient)
+        response = storage_return
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                resp = await client.post('/foglamp/schedule', data=json.dumps(request_data))
+                assert response_code == resp.status
+                assert error_message == resp.reason
+
+    async def test_update_schedule(self, client):
+        pass
+
+    async def test_update_schedule_bad_param(self, client):
+        resp = await client.put('/foglamp/schedule/{}'.format("bla"), data=json.dumps({"a": 1}))
+        assert 404 == resp.status
+        assert 'Invalid Schedule ID bla' == resp.reason
+
+    async def test_update_schedule_data_not_exist(self, client):
+        async def mock_coro():
+            return ""
+        with patch.object(server.Server.scheduler, 'get_schedule',
+                          return_value=mock_coro()) as patch_get_schedule:
+            resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid), data=json.dumps({"a": 1}))
+            assert 404 == resp.status
+            assert 'No such Schedule: {}.'.format(self._random_uuid) == resp.reason
+        patch_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
+
+    @pytest.mark.parametrize("request_data, response_code, error_message, storage_return", [
+        ({"type": 'bla'}, 400, "Error in type: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"day": 'bla'}, 400, "Error in day: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"time": 'bla'}, 400, "Error in time: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"repeat": 'bla'}, 400, "Error in repeat: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 2, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: Schedule day and time cannot be empty for TIMED schedule.",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: Day must be an integer and in range 1-7.",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 2, "day": 5, "time": -1, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: Time must be an integer and in range 0-86399.",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 200}, 404,
+         "Errors in request: Schedule type error: 200",
+         {'rows': [{'name': 'bla'}], 'count': 1}),
+        ({"type": 1, "name": "sch1", "process_name": "p1"}, 404,
+         "Errors in request: No such Scheduled Process name: p1",
+         {'rows': [], 'count': 0}),
+    ])
+    async def test_update_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
+        async def mock_coro():
+            schedule = StartUpSchedule()
+            schedule.schedule_id = self._random_uuid
+            schedule.exclusive = True
+            schedule.enabled = True
+            schedule.name = "foo"
+            schedule.process_name = "bar"
+            schedule.repeat = timedelta(seconds=30)
+            schedule.time = None
+            schedule.day = None
+            return schedule
+
+        storage_client_mock = MagicMock(StorageClient)
+        response = storage_return
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                with patch.object(server.Server.scheduler, 'get_schedule',
+                                  return_value=mock_coro()) as patch_get_schedule:
+                    resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid), data=json.dumps(request_data))
+                    assert response_code == resp.status
+                    assert error_message == resp.reason
+
+    async def test_delete_schedule(self, client):
+        async def mock_coro():
+            return True, "Schedule deleted successfully."
+
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'delete_schedule', return_value=mock_coro()):
+            resp = await client.delete('/foglamp/schedule/{}'.format(self._random_uuid))
+            assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {'id': '{}'.format(self._random_uuid),
+                    'message': 'Schedule deleted successfully.'} == json_response
+
+    async def test_delete_schedule_bad_data(self, client):
+            resp = await client.delete('/foglamp/schedule/{}'.format("bla"))
+            assert 404 == resp.status
+            assert 'Invalid Schedule ID bla' == resp.reason
+
+    @pytest.mark.parametrize("excep, response_code, response_message", [
+        (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
+        (NotReadyError(), 404, None),
+        (ValueError, 404, None),
+    ])
+    async def test_delete_schedule_exceptions(self, client, excep, response_code, response_message):
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'delete_schedule', side_effect=excep):
+            resp = await client.delete('/foglamp/schedule/{}'.format(self._random_uuid))
+            assert response_code == resp.status
+            assert response_message == resp.reason
+
+    async def test_get_schedule_type(self, client):
+        resp = await client.get('/foglamp/schedule/type')
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {'scheduleType': [{'name': 'STARTUP', 'index': 1},
+                                 {'name': 'TIMED', 'index': 2},
+                                 {'name': 'INTERVAL', 'index': 3},
+                                 {'name': 'MANUAL', 'index': 4}]} == json_response

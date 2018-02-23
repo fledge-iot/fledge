@@ -117,7 +117,7 @@ def _extract_args(data, curr_value):
         s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value['schedule_time'] else 0
         _schedule['schedule_time'] = int(s_time)
 
-        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat']else 0
+        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat'] else 0
         _schedule['schedule_repeat'] = int(s_repeat)
 
         _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
@@ -171,7 +171,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
     if _schedule.get('schedule_type') == Schedule.Type.INTERVAL:
         if 'schedule_repeat' not in _schedule:
             _errors.append('Repeat is required for INTERVAL Schedule type.')
-        elif not isinstance(int(_schedule.get('schedule_repeat')), int):
+        elif not isinstance(_schedule.get('schedule_repeat'), int):
             _errors.append('Repeat must be an integer.')
 
     # Raise error if day is non integer
@@ -183,7 +183,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Time must be an integer.')
 
     # Raise error if repeat is non integer
-    if not isinstance(int(_schedule.get('schedule_repeat')), int):
+    if not isinstance(_schedule.get('schedule_repeat'), int):
         _errors.append('Repeat must be an integer.')
 
     # Raise error if name and process_name are missing for a new schedule
@@ -453,9 +453,6 @@ async def update_schedule(request):
         data = await request.json()
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -512,9 +509,6 @@ async def delete_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -523,7 +517,7 @@ async def delete_schedule(request):
         retval, message = await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
         return web.json_response({'message': message, 'id': schedule_id})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ValueError, ScheduleNotFoundError, NotReadyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
 

@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("api", "core")
+@pytest.allure.story("core", "api", "schedule")
 class TestScheduledProcesses:
 
     @pytest.fixture
@@ -50,6 +50,7 @@ class TestScheduledProcesses:
         server.Server.scheduler = Scheduler(None, None)
         with patch.object(server.Server.scheduler, 'get_scheduled_processes', return_value=mock_coro()):
             resp = await client.get('/foglamp/schedule/process')
+            assert 200 == resp.status
             result = await resp.text()
             json_response = json.loads(result)
         assert {'processes': ['foo']} == json_response

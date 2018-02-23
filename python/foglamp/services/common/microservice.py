@@ -75,8 +75,8 @@ class FoglampMicroservice(FoglampProcess):
 
     def _run_microservice_management_app(self, loop):
         # run microservice_management_app
-        core = loop.create_server(self._microservice_management_handler, '0.0.0.0', 0)
-        self._microservice_management_server = loop.run_until_complete(core)
+        coro = loop.create_server(self._microservice_management_handler, '0.0.0.0', 0)
+        self._microservice_management_server = loop.run_until_complete(coro)
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()
 

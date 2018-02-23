@@ -1,0 +1,102 @@
+# -*- coding: utf-8 -*-
+
+import pytest
+
+from unittest.mock import patch
+
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
+from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
+
+
+__author__ = "Ashwin Gopalakrishnan"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
+
+@pytest.allure.feature("unit")
+@pytest.allure.story("common", "foglamp-process")
+class TestFoglampProcess:
+
+    def test_constructor_abstract_method_run(self):
+        with pytest.raises(TypeError):
+            fp = FoglampProcess()
+        with pytest.raises(TypeError):
+            class FoglampProcessImp(FoglampProcess):
+                pass
+            fp = FoglampProcessImp()
+
+    @pytest.mark.parametrize('argslist',
+                             [([ArgumentParserError()]),
+                              (['corehost', ArgumentParserError()]),
+                              (['corehost', 0, ArgumentParserError()])
+                              ])
+    def test_constructor_missing_args(self, argslist):
+        class FoglampProcessImp(FoglampProcess):
+            def run(self):
+                pass
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=argslist):
+            with pytest.raises(ArgumentParserError) as excinfo:
+                fp = FoglampProcessImp()
+        assert '' in str(
+            excinfo.value)
+
+    def test_constructor_good(self):
+        class FoglampProcessImp(FoglampProcess):
+            def run(self):
+                pass
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
+                    with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
+                        fp = FoglampProcessImp()
+        mmc_patch.assert_called_once_with('corehost', 0)
+        rsc_patch.assert_called_once_with('corehost', 0)
+        sc_patch.assert_called_once_with('corehost', 0)
+        assert fp._core_management_host is 'corehost'
+        assert fp._core_management_port is 0
+        assert fp._name is 'sname'
+        assert hasattr(fp, '_core_microservice_management_client')
+        assert hasattr(fp, '_readings_storage')
+        assert hasattr(fp, '_storage')
+        assert hasattr(fp, '_start_time')
+
+    def test_get_services_from_core(self):
+        class FoglampProcessImp(FoglampProcess):
+            def run(self):
+                pass
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
+                    with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
+                        with patch.object(MicroserviceManagementClient, 'get_services', return_value=None) as get_patch:
+                            fp = FoglampProcessImp()
+                            fp.get_services_from_core('foo', 'bar')
+        get_patch.assert_called_once_with('foo', 'bar')
+
+    def test_register_service_with_core(self):
+        class FoglampProcessImp(FoglampProcess):
+            def run(self):
+                pass
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
+                    with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
+                        with patch.object(MicroserviceManagementClient, 'register_service', return_value=None) as register_patch:
+                            fp = FoglampProcessImp()
+                            fp.register_service_with_core('payload')
+        register_patch.assert_called_once_with('payload')
+
+    def test_unregister_service_with_core(self):
+        class FoglampProcessImp(FoglampProcess):
+            def run(self):
+                pass
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
+                    with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
+                        with patch.object(MicroserviceManagementClient, 'unregister_service', return_value=None) as unregister_patch:
+                            fp = FoglampProcessImp()
+                            fp.unregister_service_with_core('id')
+        unregister_patch.assert_called_once_with('id')

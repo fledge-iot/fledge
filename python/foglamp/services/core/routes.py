@@ -12,6 +12,7 @@ from foglamp.services.core.api import scheduler as api_scheduler
 from foglamp.services.core.api import statistics as api_statistics
 from foglamp.services.core.api import backup_restore
 from foglamp.services.core.api import update
+from foglamp.services.core.api import service
 from foglamp.services.core.api import certificate_store
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
@@ -54,6 +55,9 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/task/latest', api_scheduler.get_tasks_latest)
     app.router.add_route('GET', '/foglamp/task/{task_id}', api_scheduler.get_task)
     app.router.add_route('PUT', '/foglamp/task/cancel/{task_id}', api_scheduler.cancel_task)
+
+    # Service
+    app.router.add_route('POST', '/foglamp/service', service.add_service)
 
     browser.setup(app)
 

@@ -658,7 +658,6 @@ class Server:
     async def _stop_scheduler(cls):
         try:
             await cls.scheduler.stop()
-            cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
             raise e

@@ -21,8 +21,10 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@asyncio.coroutine
-def mock_process():
+async def mock_task():
+    return ""
+
+async def mock_process():
     m = MagicMock()
     m.pid = 9999
     m.terminate = lambda: True
@@ -39,9 +41,9 @@ class TestScheduler:
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_paused', False)
         mocker.patch.object(scheduler, '_process_scripts', return_value="North Readings to PI")
-        mocker.patch.object(scheduler, '_wait_for_task_completion', return_value=mock_process())
+        mocker.patch.object(scheduler, '_wait_for_task_completion', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_terminate_child_processes')
-        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=mock_process())
+        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=asyncio.ensure_future(mock_process()))
 
         await scheduler._get_schedules()
 
@@ -165,8 +167,8 @@ class TestScheduler:
         await scheduler.queue_task(schedule.id)
         assert isinstance(scheduler._schedule_executions[schedule.id], scheduler._ScheduleExecution)
 
-        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=mock_process())
-        mocker.patch.object(asyncio, 'ensure_future', return_value=mock_process())
+        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=asyncio.ensure_future(mock_process()))
+        mocker.patch.object(asyncio, 'ensure_future', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_resume_check_schedules')
         mocker.patch.object(scheduler, '_process_scripts', return_value="North Readings to PI")
         mocker.patch.object(scheduler, '_wait_for_task_completion')
@@ -197,14 +199,15 @@ class TestScheduler:
         assert scheduler._purge_tasks_task is None
         assert scheduler._last_task_purge_time is not None
 
-    def test__check_purge_tasks(self, mocker):
+    @pytest.mark.asyncio
+    async def test__check_purge_tasks(self, mocker):
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = Storage(core_management_host=None, core_management_port=None)
         mocker.patch.multiple(scheduler, _purge_tasks_task=None,
                               _last_task_purge_time=None)
-        mocker.patch.object(scheduler, 'purge_tasks', return_value=mock_process())
+        mocker.patch.object(scheduler, 'purge_tasks', return_value=asyncio.ensure_future(mock_task()))
 
         # WHEN
         scheduler._check_purge_tasks()
@@ -222,7 +225,7 @@ class TestScheduler:
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
         await scheduler._get_schedules()
-        mocker.patch.object(scheduler, '_start_task', return_value=mock_process())
+        mocker.patch.object(scheduler, '_start_task', return_value=asyncio.ensure_future(mock_task()))
 
         # WHEN
         earliest_start_time = await scheduler._check_schedules()
@@ -283,6 +286,7 @@ class TestScheduler:
         # THEN
         assert time_after_call > time_before_call
 
+    @pytest.mark.asyncio
     async def test__schedule_first_task(self, mocker):
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
@@ -378,7 +382,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = Storage(core_management_host=None, core_management_port=None)
-        cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_process())
+        cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=asyncio.ensure_future(mock_task()))
 
         # WHEN
         assert scheduler._max_running_tasks is None
@@ -398,13 +402,13 @@ class TestScheduler:
         scheduler._storage = Storage(core_management_host=None, core_management_port=None)
         current_time = time.time()
         mocker.patch.object(scheduler, '_schedule_first_task')
-        mocker.patch.object(scheduler, '_scheduler_loop', return_value=mock_process())
+        mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.multiple(scheduler, _core_management_port=9999,
                               _core_management_host="0.0.0.0",
                               current_time=current_time - 3600)
 
         # TODO: Remove after implementation of above test test__read_config()
-        mocker.patch.object(scheduler, '_read_config', return_value=mock_process())
+        mocker.patch.object(scheduler, '_read_config', return_value=asyncio.ensure_future(mock_task()))
 
         assert scheduler._ready is False
 
@@ -422,10 +426,10 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = Storage(core_management_host=None, core_management_port=None)
-        mocker.patch.object(scheduler, '_scheduler_loop', return_value=mock_process())
-        mocker.patch.object(scheduler, '_resume_check_schedules', return_value=mock_process())
-        mocker.patch.object(scheduler, '_purge_tasks_task', return_value=mock_process())
-        mocker.patch.object(scheduler, '_scheduler_loop_task', return_value=mock_process())
+        mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_resume_check_schedules', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_purge_tasks_task', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_scheduler_loop_task', return_value=asyncio.ensure_future(mock_task()))
         current_time = time.time()
         mocker.patch.multiple(scheduler, _core_management_port=9999,
                               _core_management_host="0.0.0.0",
@@ -460,7 +464,8 @@ class TestScheduler:
         # THEN
         assert len(scheduler._storage.scheduled_processes) == len(processes)
 
-    def test_schedule_row_to_schedule(self, mocker):
+    @pytest.mark.asyncio
+    async def test_schedule_row_to_schedule(self, mocker):
         # GIVEN
         scheduler = Scheduler()
         schedule_id = uuid.uuid4()
@@ -513,7 +518,7 @@ class TestScheduler:
         assert isinstance(schedule, Schedule)
         assert schedule.schedule_id == schedule_id
         assert schedule.name == "purge"
-        assert schedule.schedule_type == Schedule.Type.INTERVAL
+        assert schedule.schedule_type == Schedule.Type.MANUAL
         assert schedule.repeat == datetime.timedelta(0, 3600)
         assert schedule.exclusive is True
         assert schedule.enabled is True
@@ -534,7 +539,7 @@ class TestScheduler:
     async def test_save_schedule_new(self, mocker):
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=mock_process())
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
         log_info = mocker.patch.object(scheduler._logger, "info")
@@ -569,7 +574,7 @@ class TestScheduler:
     async def test_save_schedule_update(self, mocker):
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=mock_process())
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
         log_info = mocker.patch.object(scheduler._logger, "info")
@@ -671,7 +676,7 @@ class TestScheduler:
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_task_processes')
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=mock_process())
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         log_info = mocker.patch.object(scheduler._logger, "info")
         sch_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
 
@@ -743,8 +748,8 @@ class TestScheduler:
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
         sch_id = uuid.UUID("d1631422-9ec6-11e7-abc4-cec278b6b50a")  # backup
-        queue_task = mocker.patch.object(scheduler, 'queue_task', return_value=mock_process())
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=mock_process())
+        queue_task = mocker.patch.object(scheduler, 'queue_task', return_value=asyncio.ensure_future(mock_task()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
 
         # WHEN
         status, message = await scheduler.enable_schedule(sch_id)
@@ -766,7 +771,7 @@ class TestScheduler:
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
         sch_id = uuid.UUID("ada12840-68d3-11e7-907b-a6006ad3dba0")  #Coap
-        mocker.patch.object(scheduler, 'queue_task', return_value=mock_process())
+        mocker.patch.object(scheduler, 'queue_task', return_value=asyncio.ensure_future(mock_task()))
 
         # WHEN
         status, message = await scheduler.enable_schedule(sch_id)
@@ -802,7 +807,7 @@ class TestScheduler:
         mocker.patch.object(scheduler, '_schedule_first_task')
         log_info = mocker.patch.object(scheduler._logger, "info")
         await scheduler._get_schedules()
-        sch_id = uuid.UUID("d1631422-9ec6-11e7-abc4-cec278b6b50a")  # backup
+        sch_id = uuid.UUID("cea17db8-6ccc-11e7-907b-a6006ad3dba0")  # backup
 
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_resume_check_schedules')
@@ -817,7 +822,7 @@ class TestScheduler:
         # THEN
         assert isinstance(scheduler._schedule_executions[sch_id], scheduler._ScheduleExecution)
         assert 1 == log_info.call_count
-        log_params = "Queued schedule '%s' for execution", 'backup hourly'
+        log_params = "Queued schedule '%s' for execution", 'purge'
         log_info.assert_called_with(*log_params)
 
     @pytest.mark.asyncio
@@ -1025,6 +1030,7 @@ class TestScheduler:
         assert tasks[0].end_time is not None
         assert tasks[0].exit_code is '0'
 
+    @pytest.mark.asyncio
     async def test_get_tasks_exception(self, mocker):
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
@@ -1122,7 +1128,8 @@ class TestScheduler:
             await scheduler.cancel_task(uuid.uuid4())
 
     @pytest.mark.skip("_terminate_child_processes() not fit for unit test.")
-    def test__terminate_child_processes(self, mocker):
+    @pytest.mark.asyncio
+    async def test__terminate_child_processes(self, mocker):
         pass
 
 
@@ -1132,7 +1139,7 @@ class Storage(StorageClient):
             "id": "cea17db8-6ccc-11e7-907b-a6006ad3dba0",
             "process_name": "purge",
             "schedule_name": "purge",
-            "schedule_type": "3",
+            "schedule_type": "4",
             "schedule_interval": "01:00:00",
             "schedule_time": "",
             "schedule_day": "",

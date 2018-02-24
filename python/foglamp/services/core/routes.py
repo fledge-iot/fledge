@@ -55,6 +55,10 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/task/{task_id}', api_scheduler.get_task)
     app.router.add_route('PUT', '/foglamp/task/cancel/{task_id}', api_scheduler.cancel_task)
 
+    # Service
+    app.router.add_route('POST', '/foglamp/service', service.add_service)
+    app.router.add_route('GET', '/foglamp/service', service.get_health)
+
     browser.setup(app)
 
     # Statistics - As per doc
@@ -77,9 +81,6 @@ def setup(app):
 
     # Package Update on demand
     app.router.add_route('PUT', '/foglamp/update', update.update_package)
-
-    # Service Registry Health Monitor
-    app.router.add_route('GET', '/foglamp/service', service.get_health)
 
     # enable cors support
     enable_cors(app)

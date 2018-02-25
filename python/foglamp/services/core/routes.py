@@ -13,6 +13,7 @@ from foglamp.services.core.api import statistics as api_statistics
 from foglamp.services.core.api import backup_restore
 from foglamp.services.core.api import update
 from foglamp.services.core.api import service
+from foglamp.services.core.api import certificate_store
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -80,6 +81,10 @@ def setup(app):
 
     # Package Update on demand
     app.router.add_route('PUT', '/foglamp/update', update.update_package)
+
+    # certs store
+    app.router.add_route('POST', '/foglamp/certificate', certificate_store.upload)
+    app.router.add_route('DELETE', '/foglamp/certificate/{name}', certificate_store.delete_certificate)
 
     # enable cors support
     enable_cors(app)

@@ -68,6 +68,7 @@ class TestMiddleware:
         resp = await client.get('/test-web-ex1')
 
         assert 409 == resp.status
+        assert "foo" == resp.reason
         txt = await resp.text()
         assert {'key': 'conflict'} == json.loads(txt)
 
@@ -75,6 +76,7 @@ class TestMiddleware:
         resp = await client.get('/test-web-ex1?trace=1')
 
         assert 409 == resp.status
+        assert "foo" == resp.reason
         txt = await resp.text()
         assert {'key': 'conflict'} == json.loads(txt)
 
@@ -82,5 +84,6 @@ class TestMiddleware:
         resp = await client.get('/test-web-ex2')
 
         assert 404 == resp.status
+        assert "Not Found" == resp.reason
         txt = await resp.text()
         assert {'key': 'not found'} == json.loads(txt)

@@ -8,8 +8,10 @@ import datetime
 import uuid
 from aiohttp import web
 from foglamp.services.core import server
-from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
-from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError, NotReadyError
+from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, \
+    ManualSchedule, Task
+from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError, \
+    NotReadyError
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -24,7 +26,7 @@ _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/schedule/process                                 |
     | GET             | /foglamp/schedule/process/{scheduled_process_name}        |
-    
+
     | GET POST        | /foglamp/schedule                                         |
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
     | PUT             | /foglamp/schedule/{schedule_id}/enable                    |
@@ -111,23 +113,31 @@ def _extract_args(data, curr_value):
         s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
         _schedule['schedule_type'] = int(s_type)
 
-        s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value['schedule_day'] else 0
+        s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value[
+            'schedule_day'] else 0
         _schedule['schedule_day'] = int(s_day)
 
-        s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value['schedule_time'] else 0
+        s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value[
+            'schedule_time'] else 0
         _schedule['schedule_time'] = int(s_time)
 
-        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat'] else 0
+        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and \
+                                                                                                curr_value[
+                                                                                                    'schedule_repeat'] else 0
         _schedule['schedule_repeat'] = int(s_repeat)
 
-        _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
+        _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value[
+            'schedule_name'] if curr_value else None
 
-        _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
+        _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value[
+            'schedule_process_name'] if curr_value else None
 
-        _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value['schedule_exclusive'] if curr_value else 'True'
+        _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value[
+            'schedule_exclusive'] if curr_value else 'True'
         _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
 
-        _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value['schedule_enabled'] if curr_value else 'True'
+        _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value[
+            'schedule_enabled'] if curr_value else 'True'
         _schedule['schedule_enabled'] = 'True' if _schedule['schedule_enabled'] else 'False'
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
@@ -162,9 +172,11 @@ async def _check_schedule_post_parameters(data, curr_value=None):
     if _schedule.get('schedule_type') == Schedule.Type.TIMED:
         if not _schedule.get('schedule_day'):
             _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-        elif not isinstance(_schedule.get('schedule_day'), int) or (_schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7):
+        elif not isinstance(_schedule.get('schedule_day'), int) or (
+                _schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7):
             _errors.append('Day must be an integer and in range 1-7.')
-        elif not isinstance(_schedule.get('schedule_time'), int) or (_schedule.get('schedule_time') < 0 or _schedule.get('schedule_time') > 86399):
+        elif not isinstance(_schedule.get('schedule_time'), int) or (
+                _schedule.get('schedule_time') < 0 or _schedule.get('schedule_time') > 86399):
             _errors.append('Time must be an integer and in range 0-86399.')
 
     # Raise error if repeat is missing or is non integers
@@ -661,7 +673,8 @@ async def get_tasks_latest(request):
 
               curl -X GET  http://localhost:8081/foglamp/task/latest?name=xxx
     """
-    payload = PayloadBuilder().SELECT(("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
+    payload = PayloadBuilder().SELECT(
+        ("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
         .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]).payload()
 
     if 'name' in request.query and request.query['name'] != '':

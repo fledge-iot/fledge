@@ -6,7 +6,7 @@
 
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from aiohttp import web
 import asyncio
 import pytest
@@ -291,11 +291,14 @@ class TestSchedules:
             schedule.name = "foo"
             schedule.process_name = "bar"
             return schedule
+
         storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
         response = {'rows': [{'name': 'p1'}], 'count': 1}
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
-                with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()):
+                with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()) \
+                        as patch_save_schedule:
                     with patch.object(server.Server.scheduler, 'get_schedule',
                                       return_value=mock_schedule(request_data["type"])) as patch_get_schedule:
                         resp = await client.post('/foglamp/schedule', data=json.dumps(request_data))
@@ -303,7 +306,8 @@ class TestSchedules:
                         result = await resp.text()
                         json_response = json.loads(result)
                         assert expected_response == json_response
-                        # patch_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
+                        patch_get_schedule.called_once_with()
+                    patch_save_schedule.called_once_with()
 
     async def test_post_schedule_bad_param(self, client):
         resp = await client.post('/foglamp/schedule', data=json.dumps({'schedule_id': 'bla'}))
@@ -340,8 +344,49 @@ class TestSchedules:
                 assert response_code == resp.status
                 assert error_message == resp.reason
 
-    async def test_update_schedule(self, client):
-        pass
+    @pytest.mark.parametrize("request_data, expected_response", [
+        ({"name": "new"},
+         {'schedule': {'id': '{}'.format(_random_uuid), 'time': 0, 'processName': 'bar', 'repeat': 30.0,
+                       'exclusive': True, 'enabled': True, 'type': 'STARTUP', 'day': None, 'name': 'new'}}),
+        ])
+    async def test_update_schedule(self, client, request_data, expected_response):
+        async def mock_coro():
+            return ""
+
+        async def mock_schedule(*args):
+            schedule = StartUpSchedule()
+            schedule.schedule_id = self._random_uuid
+            schedule.exclusive = True
+            schedule.enabled = True
+            schedule.process_name = "bar"
+            schedule.repeat = timedelta(seconds=30)
+            schedule.time = None
+            schedule.day = None
+            if args[0] == 1:
+                schedule.name = "foo"
+            else:
+                schedule.name = "new"
+            return schedule
+
+        storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
+        response = {'rows': [{'name': 'p1'}], 'count': 1}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()) \
+                        as patch_save_schedule:
+                    with patch.object(server.Server.scheduler, 'get_schedule',
+                                      side_effect=mock_schedule) as patch_get_schedule:
+                        resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid),
+                                                data=json.dumps(request_data))
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert expected_response == json_response
+                        assert 2 == patch_get_schedule.call_count
+                        assert call(uuid.UUID(str(self._random_uuid))) == patch_get_schedule.call_args
+                args, kwargs = patch_save_schedule.call_args
+                assert isinstance(args[0], StartUpSchedule)
 
     async def test_update_schedule_bad_param(self, client):
         resp = await client.put('/foglamp/schedule/{}'.format("bla"), data=json.dumps({"a": 1}))
@@ -351,6 +396,8 @@ class TestSchedules:
     async def test_update_schedule_data_not_exist(self, client):
         async def mock_coro():
             return ""
+
+        server.Server.scheduler = Scheduler(None, None)
         with patch.object(server.Server.scheduler, 'get_schedule',
                           return_value=mock_coro()) as patch_get_schedule:
             resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid), data=json.dumps({"a": 1}))
@@ -393,14 +440,17 @@ class TestSchedules:
             return schedule
 
         storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
         response = storage_return
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
                 with patch.object(server.Server.scheduler, 'get_schedule',
                                   return_value=mock_coro()) as patch_get_schedule:
-                    resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid), data=json.dumps(request_data))
+                    resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid),
+                                            data=json.dumps(request_data))
                     assert response_code == resp.status
                     assert error_message == resp.reason
+                    patch_get_schedule.assert_called_once_with(uuid.UUID(str(self._random_uuid)))
 
     async def test_delete_schedule(self, client):
         async def mock_coro():
@@ -424,6 +474,7 @@ class TestSchedules:
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
         (NotReadyError(), 404, None),
         (ValueError, 404, None),
+        pytest.param(ValueError, 409, "Enabled Schedule cannot be deleted.", marks=pytest.mark.xfail(reason="FOGL-1135")),
     ])
     async def test_delete_schedule_exceptions(self, client, excep, response_code, response_message):
         server.Server.scheduler = Scheduler(None, None)
@@ -441,3 +492,5 @@ class TestSchedules:
                                  {'name': 'TIMED', 'index': 2},
                                  {'name': 'INTERVAL', 'index': 3},
                                  {'name': 'MANUAL', 'index': 4}]} == json_response
+
+

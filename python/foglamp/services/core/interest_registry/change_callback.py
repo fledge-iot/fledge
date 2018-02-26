@@ -51,16 +51,19 @@ async def run(category_name):
         try: 
             service_record = ServiceRegistry.get(idx=i._microservice_uuid)[0]
         except service_registry_exceptions.DoesNotExist:
+            _LOGGER.exception("Unable to notify microservice with uuid %s as it is not found in the service registry", i._microservice_uuid)
             continue
         url = "{}://{}:{}/foglamp/change".format(service_record._protocol, service_record._address, service_record._management_port)
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
+                async with session.post(url, data=json.dumps(payload, sort_keys=True), headers=headers) as resp:
                     result = await resp.text()
                     status_code = resp.status
                     if status_code in range(400, 500):
                         _LOGGER.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
                     if status_code in range(500, 600):
                         _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
-            except:
+            except Exception as ex:
+                _LOGGER.exception("Unable to notify microservice with uuid %s due to exception: %s", i._microservice_uuid, str(ex))
                 continue
+

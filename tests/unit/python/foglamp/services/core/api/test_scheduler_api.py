@@ -214,7 +214,7 @@ class TestSchedules:
 
     async def test_start_schedule(self, client):
         async def mock_coro():
-            return ""
+            return True
 
         server.Server.scheduler = Scheduler(None, None)
         with patch.object(server.Server.scheduler, 'get_schedule', return_value=mock_coro()) as mock_get_schedule:

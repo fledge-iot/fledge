@@ -113,7 +113,10 @@ class Server:
     """ FogLAMP REST API port """
 
     is_rest_server_http_enabled = False
-    """ a Flag to decide to enable FogLAMP REST API on HTTP on restart"""
+    """ a Flag to decide to enable FogLAMP REST API on HTTP on restart """
+
+    cert_file_name = ''
+    """ cert file name """
 
     _REST_API_DEFAULT_CONFIG = {
         'httpPort': {
@@ -136,6 +139,11 @@ class Server:
                            'for the interface',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }'
+        },
+        'certificateName': {
+            'description': 'Certificate file name',
+            'type': 'string',
+            'default': 'foglamp'
         }
     }
 
@@ -155,13 +163,13 @@ class Server:
     """ Instance of audit logger(singleton) """
 
     _pidfile = None
-    """ The PID file anme """
+    """ The PID file name """
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
 
-    @staticmethod
-    def get_certificates():
+    @classmethod
+    def get_certificates(cls):
         # TODO: FOGL-780
         if _FOGLAMP_DATA:
             certs_dir = os.path.expanduser(_FOGLAMP_DATA + '/etc/certs')
@@ -212,13 +220,16 @@ class Server:
         Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/data/etc/certs or /usr/local/foglamp/data/etc/certs
         
         """
-        # use pem file?
-        # file name will be WHAT? *using foglamp for now*
-        cert = certs_dir + '/foglamp.cert'
-        key = certs_dir + '/foglamp.key'
-        # remove these asserts and put in try-except block with logging
-        assert os.path.isfile(cert)
-        assert os.path.isfile(key)
+        cert = certs_dir + '/{}.cert'.format(cls.cert_file_name)
+        key = certs_dir + '/{}.key'.format(cls.cert_file_name)
+
+        if not os.path.isfile(cert) or not os.path.isfile(key):
+            _logger.warning("%s certificate files are missing. Hence using default certificate.", cls.cert_file_name)
+            cert = certs_dir + '/foglamp.cert'
+            key = certs_dir + '/foglamp.key'
+            if not os.path.isfile(cert) or not os.path.isfile(key):
+                _logger.error("Certificates are missing")
+                raise RuntimeError
 
         return cert, key
 
@@ -234,6 +245,12 @@ class Server:
 
             await cls._configuration_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
             config = await cls._configuration_manager.get_category_all_items(category)
+
+            try:
+                cls.cert_file_name = config['certificateName']['value']
+            except KeyError:
+                _logger.error("error in retrieving certificateName info")
+                raise
 
             try:
                 cls.is_rest_server_http_enabled = False if config['enableHttp']['value'] == 'false' else True
@@ -658,7 +675,6 @@ class Server:
     async def _stop_scheduler(cls):
         try:
             await cls.scheduler.stop()
-            cls.scheduler = None
         except TimeoutError as e:
             _logger.exception('Unable to stop the scheduler')
             raise e

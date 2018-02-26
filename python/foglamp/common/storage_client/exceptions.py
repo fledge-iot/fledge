@@ -18,7 +18,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance', 'InvalidReadingsPurgeFlagParameters', 'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize')
+__all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance', 'InvalidReadingsPurgeFlagParameters',
+           'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize', 'StorageServerError')
 
 
 class StorageClientException(Exception):
@@ -86,5 +87,14 @@ class PurgeOneOfAgeAndSize(BadRequest):
         self.code = 400
         self.message = "Purge must specify one of age or size"
 
-# TODO: add more specific exceptions
 
+class StorageServerError(Exception):
+
+    def __init__(self, code, reason, error):
+        self.code = code
+        self.reason = reason
+        self.error = error
+
+    def __str__(self):
+        fmt_msg = "code: %d, reason:%s, error:%s" % (self.code, self.reason, self.error)
+        return fmt_msg

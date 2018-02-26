@@ -59,6 +59,7 @@ def plugin_info():
             'config': _DEFAULT_CONFIG
     }
 
+
 def plugin_init(config):
     """Registers HTTP Listener handler to accept sensor readings
 
@@ -70,6 +71,7 @@ def plugin_init(config):
     """
     handle = config
     return handle
+
 
 def plugin_start(data):
     try:
@@ -98,6 +100,7 @@ def plugin_start(data):
         future.add_done_callback(f_callback)
     except Exception as e:
         _LOGGER.exception(str(e))
+
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin
@@ -128,6 +131,7 @@ def plugin_reconfigure(handle, new_config):
         new_handle['restart'] = 'no'
     return new_handle
 
+
 def _plugin_stop(handle):
     """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
@@ -150,6 +154,7 @@ def _plugin_stop(handle):
     except Exception as e:
         _LOGGER.exception(str(e))
         raise
+
 
 def plugin_shutdown(handle):
     """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
@@ -191,53 +196,42 @@ class HttpSouthIngest(object):
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        increment_discarded_counter = False
-
         # TODO: Decide upon the correct format of message
         message = {'result': 'success'}
-        code = web.HTTPOk.status_code
-
         try:
             if not Ingest.is_available():
-                increment_discarded_counter = True
+                Ingest.increment_discarded_readings()
                 message = {'busy': True}
-            else:
-                payload = await request.json()
+                raise web.HTTPServiceUnavailable(reason=message)
 
-                if not isinstance(payload, dict):
-                    raise ValueError('Payload must be a dictionary')
+            payload = await request.json()
+            if not isinstance(payload, dict):
+                raise ValueError('Payload must be a dictionary')
 
-                asset = payload.get('asset')
-                timestamp = payload.get('timestamp')
-                key = payload.get('key')
+            asset = payload['asset']
+            timestamp = payload['timestamp']
+            key = payload['key']
 
-                # readings and sensor_readings are optional
-                try:
-                    readings = payload.get('readings')
-                except KeyError:
-                    readings = payload.get('sensor_values')  # sensor_values is deprecated
+            # readings or sensor_values are optional
+            try:
+                readings = payload.get('readings')
+            except KeyError:
+                readings = payload.get('sensor_values')  # sensor_values is deprecated
 
-                if not isinstance(readings, dict):
-                    raise ValueError('readings must be a dictionary')
+            # if optional then
+            # TODO: confirm, do we want to check this?
+            if not isinstance(readings, dict):
+                raise ValueError('readings must be a dictionary')
 
-                await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
-        except (ValueError, TypeError) as e:
-            increment_discarded_counter = True
-            code = web.HTTPBadRequest.status_code
-            message = {'error': str(e)}
-            _LOGGER.exception(str(e))
-        except Exception as e:
-            increment_discarded_counter = True
-            code = web.HTTPInternalServerError.status_code
-            message = {'error': str(e)}
-            _LOGGER.exception(str(e))
+            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 
-        if increment_discarded_counter:
+        except (KeyError, ValueError, TypeError) as e:
             Ingest.increment_discarded_readings()
-
-        # expect keys in response:
-        # (code = 2xx) result Or busy
-        # (code = 4xx, 5xx) error
-        message['status'] = code
+            _LOGGER.exception("%d: %s", web.HTTPBadRequest.status_code, str(e))
+            raise web.HTTPBadRequest(reason=str(e))
+        except Exception as ex:
+            Ingest.increment_discarded_readings()
+            _LOGGER.exception("%d: %s", web.HTTPInternalServerError.status_code, str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
         return web.json_response(message)

@@ -42,9 +42,8 @@ async def get_statistics(request):
     """
     payload = PayloadBuilder().SELECT(("key", "description", "value")).ORDER_BY(["key"]).payload()
     storage_client = connect.get_storage()
-    results = storage_client.query_tbl_with_payload('statistics', payload)
-
-    return web.json_response(results['rows'])
+    result = storage_client.query_tbl_with_payload('statistics', payload)
+    return web.json_response(result['rows'])
 
 
 async def get_statistics_history(request):
@@ -67,8 +66,8 @@ async def get_statistics_history(request):
             if limit < 0:
                 raise ValueError
             # FIXME: Hack straight away multiply the LIMIT by the group count
-            # i.e. there are 8 records per distinct (stats_key), so if limit supplied is 2
-            # then internally, we should calculate LIMIT *8
+            # i.e. if there are 8 records per distinct (stats_key), and limit supplied is 2
+            # then internally, actual LIMIT = 2*8
             # TODO: FOGL-663 Need support for "subquery" from storage service
             # Remove python side handling date_trunc and use
             # SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts
@@ -81,6 +80,15 @@ async def get_statistics_history(request):
 
         except ValueError:
             raise web.HTTPBadRequest(reason="Limit must be a positive integer")
+
+    scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(['process_name', '=', 'stats collector']).payload()
+    result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
+    if len(result['rows']) > 0:
+        time_str = result['rows'][0]['schedule_interval']
+        ftr = [3600, 60, 1]
+        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+    else:
+        raise web.HTTPNotFound(reason="No stats collector schedule found")
 
     result_from_storage = storage_client.query_tbl_with_payload('statistics_history', payload)
 
@@ -110,15 +118,5 @@ async def get_statistics_history(request):
 
     # Append the last set of records which do not get appended above
     results.append(temp_dict)
-
-    # SELECT schedule_interval FROM schedules WHERE process_name='stats collector'
-    payload = PayloadBuilder().SELECT("schedule_interval").WHERE(['process_name', '=', 'stats collector']).payload()
-    result = storage_client.query_tbl_with_payload('schedules', payload)
-    if len(result['rows']) > 0:
-        time_str = result['rows'][0]['schedule_interval']
-        ftr = [3600, 60, 1]
-        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
-    else:
-        raise web.HTTPBadRequest(reason="No stats collector schedule found")
 
     return web.json_response({"interval": interval_in_secs, 'statistics': results})

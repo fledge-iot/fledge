@@ -111,12 +111,6 @@ class TestIngest:
             },
         }
 
-    def teardown_method(self):
-        pending = asyncio.Task.all_tasks()
-        for task in pending:
-            task.cancel()
-            asyncio.get_event_loop().run_until_complete(asyncio.sleep(.1))
-
     @pytest.mark.asyncio
     async def test_read_config(self, mocker):
         # GIVEN

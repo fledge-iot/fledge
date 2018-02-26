@@ -212,19 +212,26 @@ class TestSchedules:
             assert response_code == resp.status
             assert response_message == resp.reason
 
-    async def test_start_schedule(self, client):
+    @pytest.mark.parametrize("return_queue_task, expected_response", [
+        (True, {'message': 'Schedule started successfully', 'id': '{}'.format(_random_uuid)}),
+        (False, {'message': 'Schedule could not be started', 'id': '{}'.format(_random_uuid)}),
+    ])
+    async def test_start_schedule(self, client, return_queue_task, expected_response):
         async def mock_coro():
-            return True
+            return ""
+
+        async def patch_queue_task(_resp):
+            return _resp
 
         server.Server.scheduler = Scheduler(None, None)
         with patch.object(server.Server.scheduler, 'get_schedule', return_value=mock_coro()) as mock_get_schedule:
-            with patch.object(server.Server.scheduler, 'queue_task', return_value=mock_coro()) as mock_queue_task:
+            with patch.object(server.Server.scheduler, 'queue_task', return_value=patch_queue_task(return_queue_task)) \
+                    as mock_queue_task:
                 resp = await client.post('/foglamp/schedule/start/{}'.format(self._random_uuid))
                 assert 200 == resp.status
                 result = await resp.text()
                 json_response = json.loads(result)
-                assert {'message': 'Schedule started successfully',
-                        'id': '{}'.format(self._random_uuid)} == json_response
+                assert expected_response == json_response
                 mock_queue_task.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
             mock_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
 

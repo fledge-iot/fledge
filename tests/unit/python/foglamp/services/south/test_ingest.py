@@ -20,77 +20,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-_core_management_host = ""
-_core_management_port = 0
-readings_storage = None  # type: Readings
-storage = None  # type: Storage
-_readings_stats = 0  # type: int
-_discarded_readings_stats = 0  # type: int
-_sensor_stats = {}  # type: dict
-_write_statistics_task = None  # type: asyncio.Task
-_write_statistics_sleep_task = None  # type: asyncio.Task
-_stop = False
-_started = False
-_readings_lists = None  # type: List
-_current_readings_list_index = 0
-_insert_readings_tasks = None  # type: List[asyncio.Task]
-_readings_list_batch_size_reached = None  # type: List[asyncio.Event]
-_readings_list_not_empty = None  # type: List[asyncio.Event]
-_readings_lists_not_full = None  # type: asyncio.Event
-_insert_readings_wait_tasks = None  # type: List[asyncio.Task]
-_last_insert_time = 0  # type: int
-_readings_list_size = 0  # type: int
-_write_statistics_frequency_seconds = 5
-_readings_buffer_size = 500
-_max_concurrent_readings_inserts = 5
-_readings_insert_batch_size = 100
-_readings_insert_batch_timeout_seconds = 1
-_max_readings_insert_batch_connection_idle_seconds = 60
-_max_readings_insert_batch_reconnect_wait_seconds = 10
-category = 'South'
-default_config = {
-    "write_statistics_frequency_seconds": {
-        "description": "The number of seconds to wait before writing readings-related "
-                       "statistics to storage",
-        "type": "integer",
-        "default": str(_write_statistics_frequency_seconds)
-    },
-    "readings_buffer_size": {
-        "description": "The maximum number of readings to buffer in memory",
-        "type": "integer",
-        "default": str(_readings_buffer_size)
-    },
-    "max_concurrent_readings_inserts": {
-        "description": "The maximum number of concurrent processes that send batches of "
-                       "readings to storage",
-        "type": "integer",
-        "default": str(_max_concurrent_readings_inserts)
-    },
-    "readings_insert_batch_size": {
-        "description": "The maximum number of readings in a batch of inserts",
-        "type": "integer",
-        "default": str(_readings_insert_batch_size)
-    },
-    "readings_insert_batch_timeout_seconds": {
-        "description": "The number of seconds to wait for a readings list to reach the "
-                       "minimum batch size",
-        "type": "integer",
-        "default": str(_readings_insert_batch_timeout_seconds)
-    },
-    "max_readings_insert_batch_connection_idle_seconds": {
-        "description": "Close storage connections used to insert readings when idle for "
-                       "this number of seconds",
-        "type": "integer",
-        "default": str(_max_readings_insert_batch_connection_idle_seconds)
-    },
-    "max_readings_insert_batch_reconnect_wait_seconds": {
-        "description": "The maximum number of seconds to wait before reconnecting to "
-                       "storage when inserting readings",
-        "type": "integer",
-        "default": str(_max_readings_insert_batch_reconnect_wait_seconds)
-    },
-}
-
 @asyncio.coroutine
 def mock_coro():
     yield from false_coro()
@@ -144,41 +73,41 @@ class TestIngest:
                 "description": "The number of seconds to wait before writing readings-related "
                                "statistics to storage",
                 "type": "integer",
-                "default": str(_write_statistics_frequency_seconds)
+                "default": str(Ingest._write_statistics_frequency_seconds)
             },
             "readings_buffer_size": {
                 "description": "The maximum number of readings to buffer in memory",
                 "type": "integer",
-                "default": str(_readings_buffer_size)
+                "default": str(Ingest._readings_buffer_size)
             },
             "max_concurrent_readings_inserts": {
                 "description": "The maximum number of concurrent processes that send batches of "
                                "readings to storage",
                 "type": "integer",
-                "default": str(_max_concurrent_readings_inserts)
+                "default": str(Ingest._max_concurrent_readings_inserts)
             },
             "readings_insert_batch_size": {
                 "description": "The maximum number of readings in a batch of inserts",
                 "type": "integer",
-                "default": str(_readings_insert_batch_size)
+                "default": str(Ingest._readings_insert_batch_size)
             },
             "readings_insert_batch_timeout_seconds": {
                 "description": "The number of seconds to wait for a readings list to reach the "
                                "minimum batch size",
                 "type": "integer",
-                "default": str(_readings_insert_batch_timeout_seconds)
+                "default": str(Ingest._readings_insert_batch_timeout_seconds)
             },
             "max_readings_insert_batch_connection_idle_seconds": {
                 "description": "Close storage connections used to insert readings when idle for "
                                "this number of seconds",
                 "type": "integer",
-                "default": str(_max_readings_insert_batch_connection_idle_seconds)
+                "default": str(Ingest._max_readings_insert_batch_connection_idle_seconds)
             },
             "max_readings_insert_batch_reconnect_wait_seconds": {
                 "description": "The maximum number of seconds to wait before reconnecting to "
                                "storage when inserting readings",
                 "type": "integer",
-                "default": str(_max_readings_insert_batch_reconnect_wait_seconds)
+                "default": str(Ingest._max_readings_insert_batch_reconnect_wait_seconds)
             },
         }
 
@@ -194,7 +123,7 @@ class TestIngest:
         Ingest.storage = MagicMock(spec=StorageClient)
         Ingest.readings_storage = MagicMock(spec=ReadingsStorageClient)
         create_cfg = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_coro())
-        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(default_config))
+        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(Ingest.default_config))
 
         # WHEN
         await Ingest._read_config()
@@ -202,7 +131,7 @@ class TestIngest:
         # THEN
         assert 1 == create_cfg.call_count
         assert 1 == get_cfg.call_count
-        new_config = await get_cat(default_config)
+        new_config = await get_cat(Ingest.default_config)
         assert Ingest._write_statistics_frequency_seconds == \
                int(new_config['write_statistics_frequency_seconds']['value'])
         assert Ingest._readings_buffer_size == int(new_config['readings_buffer_size']['value'])
@@ -223,7 +152,7 @@ class TestIngest:
         mocker.patch.object(ReadingsStorageClient, "__init__", return_value=None)
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
         create_cfg = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_coro())
-        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(default_config))
+        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
 
@@ -252,7 +181,7 @@ class TestIngest:
         mocker.patch.object(ReadingsStorageClient, "__init__", return_value=None)
         log_exception = mocker.patch.object(ingest._LOGGER, "exception")
         create_cfg = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_coro())
-        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(default_config))
+        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
 

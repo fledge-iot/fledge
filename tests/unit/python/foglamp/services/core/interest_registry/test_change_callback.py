@@ -208,7 +208,41 @@ class TestChangeCallback:
 
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=async_mock(None)) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
-                await cb.run('catname1')
+                with patch.object(cb._LOGGER, 'exception') as exception_patch:
+                    await cb.run('catname1')
         cm_get_patch.assert_called_once_with('catname1')
+        exception_patch.assert_called_once_with('Unable to notify microservice with uuid %s as it is not found in the service registry', 'fakeid')
         post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'}), call(
             'http://saddress2:2/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])
+
+    @pytest.mark.asyncio
+    async def test_run_general_exception(self, reset_state):
+        storage_client_mock = MagicMock(spec=StorageClient)
+        cfg_mgr = ConfigurationManager(storage_client_mock)
+
+        s_id_1 = ServiceRegistry.register(
+            'sname1', 'Storage', 'saddress1', 1, 1, 'http')
+        i_reg = InterestRegistry(cfg_mgr)
+        id_1_1 = i_reg.register(s_id_1, 'catname1')
+
+        # used to mock client session context manager
+        async def async_mock(return_value):
+            return return_value
+
+        class AsyncSessionContextManagerMock(MagicMock):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            async def __aenter__(self):
+                raise Exception
+
+            async def __aexit__(self, *args):
+                return None
+
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=async_mock(None)) as cm_get_patch:
+            with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
+                with patch.object(cb._LOGGER, 'exception') as exception_patch:
+                    await cb.run('catname1')
+        cm_get_patch.assert_called_once_with('catname1')
+        exception_patch.assert_called_once_with('Unable to notify microservice with uuid %s due to exception: %s', s_id_1, '')
+        post_patch.assert_has_calls([call('http://saddress1:1/foglamp/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])

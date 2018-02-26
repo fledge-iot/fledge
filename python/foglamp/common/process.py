@@ -26,9 +26,19 @@ _logger = logger.setup(__name__)
 
 
 class ArgumentParserError(Exception):
-    """ Overwrite default exception to not terminate application """
+    """ Override default exception to not terminate application """
     pass
 
+class SilentArgParse(argparse.ArgumentParser):
+
+    def error(self, message):
+        """ Override default error functionality to not terminate application """
+        raise ArgumentParserError(message)
+
+    def silent_arg_parse(self, argument_name):
+        self.add_argument(argument_name)
+        parser_result = self.parse_known_args()
+        return list(vars(parser_result[0]).values())[0]
 
 class FoglampProcess(ABC):
     """ FoglampProcess for all non-core python processes.
@@ -105,19 +115,9 @@ class FoglampProcess(ABC):
             Known Exceptions:
             ArgumentParserError
         """
-        class SilentArgParse(argparse.ArgumentParser):
-            def error(self, message):
-                raise ArgumentParserError(message)
-        
         parser = SilentArgParse()
-        parser.add_argument(argument_name)
-        try:
-            parser_result = parser.parse_known_args()
-        except ArgumentParserError:
-            raise
-        else:
-            return list(vars(parser_result[0]).values())[0]
-
+        return parser.silent_arg_parse(argument_name)
+        
     def get_services_from_core(self, name=None, _type=None):
         return self._core_microservice_management_client.get_services(name, _type)
 

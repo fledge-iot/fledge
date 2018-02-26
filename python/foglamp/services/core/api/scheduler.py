@@ -8,8 +8,10 @@ import datetime
 import uuid
 from aiohttp import web
 from foglamp.services.core import server
-from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, ManualSchedule, Task
-from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError
+from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, \
+    ManualSchedule, Task
+from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError, \
+    NotReadyError
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -24,7 +26,7 @@ _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/schedule/process                                 |
     | GET             | /foglamp/schedule/process/{scheduled_process_name}        |
-    
+
     | GET POST        | /foglamp/schedule                                         |
     | GET PUT DELETE  | /foglamp/schedule/{schedule_id}                           |
     | PUT             | /foglamp/schedule/{schedule_id}/enable                    |
@@ -75,9 +77,6 @@ async def get_scheduled_process(request):
 
     scheduled_process_name = request.match_info.get('scheduled_process_name', None)
 
-    if not scheduled_process_name:
-        raise web.HTTPBadRequest(reason='No Scheduled Process Name given')
-
     payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", scheduled_process_name]).payload()
     _storage = connect.get_storage()
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
@@ -114,23 +113,31 @@ def _extract_args(data, curr_value):
         s_type = data.get('type') if 'type' in data else curr_value['schedule_type'] if curr_value else 0
         _schedule['schedule_type'] = int(s_type)
 
-        s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value['schedule_day'] else 0
+        s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value[
+            'schedule_day'] else 0
         _schedule['schedule_day'] = int(s_day)
 
-        s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value['schedule_time'] else 0
+        s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value[
+            'schedule_time'] else 0
         _schedule['schedule_time'] = int(s_time)
 
-        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and curr_value['schedule_repeat']else 0
+        s_repeat = data.get('repeat') if 'repeat' in data else curr_value['schedule_repeat'] if curr_value and \
+                                                                                                curr_value[
+                                                                                                    'schedule_repeat'] else 0
         _schedule['schedule_repeat'] = int(s_repeat)
 
-        _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value['schedule_name'] if curr_value else None
+        _schedule['schedule_name'] = data.get('name') if 'name' in data else curr_value[
+            'schedule_name'] if curr_value else None
 
-        _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value['schedule_process_name'] if curr_value else None
+        _schedule['schedule_process_name'] = data.get('process_name') if 'process_name' in data else curr_value[
+            'schedule_process_name'] if curr_value else None
 
-        _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value['schedule_exclusive'] if curr_value else 'True'
+        _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value[
+            'schedule_exclusive'] if curr_value else 'True'
         _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
 
-        _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value['schedule_enabled'] if curr_value else 'True'
+        _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value[
+            'schedule_enabled'] if curr_value else 'True'
         _schedule['schedule_enabled'] = 'True' if _schedule['schedule_enabled'] else 'False'
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
@@ -165,16 +172,18 @@ async def _check_schedule_post_parameters(data, curr_value=None):
     if _schedule.get('schedule_type') == Schedule.Type.TIMED:
         if not _schedule.get('schedule_day'):
             _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-        elif not isinstance(_schedule.get('schedule_day'), int) or (_schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7):
+        elif not isinstance(_schedule.get('schedule_day'), int) or (
+                _schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7):
             _errors.append('Day must be an integer and in range 1-7.')
-        elif not isinstance(_schedule.get('schedule_time'), int) or (_schedule.get('schedule_time') < 0 or _schedule.get('schedule_time') > 86399):
+        elif not isinstance(_schedule.get('schedule_time'), int) or (
+                _schedule.get('schedule_time') < 0 or _schedule.get('schedule_time') > 86399):
             _errors.append('Time must be an integer and in range 0-86399.')
 
     # Raise error if repeat is missing or is non integers
     if _schedule.get('schedule_type') == Schedule.Type.INTERVAL:
         if 'schedule_repeat' not in _schedule:
             _errors.append('Repeat is required for INTERVAL Schedule type.')
-        elif not isinstance(int(_schedule.get('schedule_repeat')), int):
+        elif not isinstance(_schedule.get('schedule_repeat'), int):
             _errors.append('Repeat must be an integer.')
 
     # Raise error if day is non integer
@@ -186,7 +195,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
         _errors.append('Time must be an integer.')
 
     # Raise error if repeat is non integer
-    if not isinstance(int(_schedule.get('schedule_repeat')), int):
+    if not isinstance(_schedule.get('schedule_repeat'), int):
         _errors.append('Repeat must be an integer.')
 
     # Raise error if name and process_name are missing for a new schedule
@@ -296,9 +305,6 @@ async def get_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -334,9 +340,6 @@ async def enable_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -365,9 +368,6 @@ async def disable_schedule(request):
 
     try:
         schedule_id = request.match_info.get('schedule_id', None)
-
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         try:
             assert uuid.UUID(schedule_id)
@@ -398,9 +398,6 @@ async def start_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -409,10 +406,14 @@ async def start_schedule(request):
         await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
 
         # Start schedule
-        await server.Server.scheduler.queue_task(uuid.UUID(schedule_id))
+        resp = await server.Server.scheduler.queue_task(uuid.UUID(schedule_id))
 
-        return web.json_response({'id': schedule_id, 'message': 'Schedule started successfully'})
-    except (ValueError, ScheduleNotFoundError) as ex:
+        if resp is True:
+            return web.json_response({'id': schedule_id, 'message': 'Schedule started successfully'})
+        else:
+            return web.json_response({'id': schedule_id, 'message': 'Schedule could not be started'})
+
+    except (ValueError, ScheduleNotFoundError, NotReadyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
 
@@ -467,9 +468,6 @@ async def update_schedule(request):
     try:
         data = await request.json()
         schedule_id = request.match_info.get('schedule_id', None)
-
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
 
         try:
             assert uuid.UUID(schedule_id)
@@ -527,9 +525,6 @@ async def delete_schedule(request):
     try:
         schedule_id = request.match_info.get('schedule_id', None)
 
-        if not schedule_id:
-            raise web.HTTPBadRequest(reason='Schedule ID is required.')
-
         try:
             assert uuid.UUID(schedule_id)
         except ValueError as ex:
@@ -538,7 +533,7 @@ async def delete_schedule(request):
         retval, message = await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
         return web.json_response({'message': message, 'id': schedule_id})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ValueError, ScheduleNotFoundError, NotReadyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
 
@@ -578,9 +573,6 @@ async def get_task(request):
 
     try:
         task_id = request.match_info.get('task_id', None)
-
-        if not task_id:
-            raise web.HTTPBadRequest(reason='Task ID is required.')
 
         try:
             assert uuid.UUID(task_id)
@@ -682,7 +674,8 @@ async def get_tasks_latest(request):
 
               curl -X GET  http://localhost:8081/foglamp/task/latest?name=xxx
     """
-    payload = PayloadBuilder().SELECT(("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
+    payload = PayloadBuilder().SELECT(
+        ("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
         .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]).payload()
 
     if 'name' in request.query and request.query['name'] != '':
@@ -733,9 +726,6 @@ async def cancel_task(request):
     """
     try:
         task_id = request.match_info.get('task_id', None)
-
-        if not task_id:
-            raise web.HTTPBadRequest(reason='Task ID is required.')
 
         try:
             assert uuid.UUID(task_id)

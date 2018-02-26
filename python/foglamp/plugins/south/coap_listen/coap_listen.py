@@ -8,10 +8,10 @@
 
 import asyncio
 import copy
-import json
 import logging
 
 import aiocoap.resource
+import aiocoap.error
 import cbor2
 
 from foglamp.common import logger
@@ -64,6 +64,7 @@ def plugin_info():
             'config': _DEFAULT_CONFIG
             }
 
+
 def plugin_init(config):
     """ Registers CoAP handler to accept sensor readings
 
@@ -75,6 +76,7 @@ def plugin_init(config):
     """
     handle = config
     return handle
+
 
 def plugin_start(handle):
     """ Starts the South device ingress process.
@@ -90,6 +92,7 @@ def plugin_start(handle):
     port = handle['port']['value']
     asyncio.ensure_future(_start_aiocoap(uri, port))
 
+
 async def _start_aiocoap(uri, port):
     root = aiocoap.resource.Site()
 
@@ -101,6 +104,7 @@ async def _start_aiocoap(uri, port):
     global aiocoap_ctx
     aiocoap_ctx = await aiocoap.Context().create_server_context(root, bind=('::', int(port)))
     _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
+
 
 def plugin_reconfigure(handle, new_config):
     """  Reconfigures the plugin
@@ -131,6 +135,7 @@ def plugin_reconfigure(handle, new_config):
         new_handle['restart'] = 'no'
     return new_handle
 
+
 def _plugin_stop(handle):
     """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
 
@@ -139,11 +144,13 @@ def _plugin_stop(handle):
     Returns:
     Raises:
     """
+    _LOGGER.info('Stopping South COAP plugin...')
     try:
         asyncio.ensure_future(aiocoap_ctx.shutdown())
     except Exception as ex:
         _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
         raise
+
 
 def plugin_shutdown(handle):
     """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
@@ -193,44 +200,43 @@ class CoAPIngest(aiocoap.resource.Resource):
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
-        increment_discarded_counter = True
+        code = aiocoap.numbers.codes.Code.VALID
+        # TODO: Decide upon the correct format of message
         message = ''
-
         try:
             if not Ingest.is_available():
                 message = '{"busy": true}'
-            else:
+                raise aiocoap.error.CommunicationKilled(message)
+
+            try:
                 payload = cbor2.loads(request.payload)
+            except Exception:
+                raise ValueError('Payload must be a dictionary')
 
-                if not isinstance(payload, dict):
-                    raise ValueError('Payload must be a dictionary')
+            asset = payload['asset']
+            timestamp = payload['timestamp']
+            key = payload['key']
 
-                asset = payload.get('asset')
-                timestamp = payload.get('timestamp')
+            # readings or sensor_values are optional
+            try:
+                readings = payload['readings']
+            except KeyError:
+                readings = payload['sensor_values']  # sensor_values is deprecated
 
-                key = payload.get('key')
+            # if optional then
+            # TODO: confirm, do we want to check this?
+            if not isinstance(readings, dict):
+                raise ValueError('readings must be a dictionary')
 
-                # readings and sensor_readings are optional
-                try:
-                    readings = payload['readings']
-                except KeyError:
-                    readings = payload.get('sensor_values')  # sensor_values is deprecated
+            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 
-                increment_discarded_counter = False
-
-                await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,
-                                          readings=readings)
-
-                # Success
-                code = aiocoap.numbers.codes.Code.VALID
-        except (ValueError, TypeError) as e:
-            code = aiocoap.numbers.codes.Code.BAD_REQUEST
-            message = json.dumps({message: str(e)})
-        except Exception:
-            _LOGGER.exception('Add readings failed')
-
-        if increment_discarded_counter:
+        except (KeyError, ValueError, TypeError) as e:
             Ingest.increment_discarded_readings()
+            _LOGGER.exception("%d: %s", aiocoap.numbers.codes.Code.BAD_REQUEST, str(e))
+            raise aiocoap.error.BadRequest(str(e))
+        except Exception as ex:
+            Ingest.increment_discarded_readings()
+            _LOGGER.exception("%d: %s", aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR, str(ex))
+            raise aiocoap.error.ConstructionRenderableError(str(ex))
 
         return aiocoap.Message(payload=message.encode('utf-8'), code=code)

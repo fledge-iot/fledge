@@ -7,6 +7,8 @@
 """Services Registry class"""
 
 import uuid
+import asyncio
+import time
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
@@ -68,9 +70,48 @@ class ServiceRegistry:
         :return: service_id on successful deregistration
         """
         services = cls.get(idx=service_id)
+        service_name = services[0]._name
         cls._registry.remove(services[0])
         cls._logger.info("Unregistered {}".format(str(services[0])))
+        cls._remove_from_scheduler_records(service_name)
         return service_id
+
+    @classmethod
+    def _remove_from_scheduler_records(cls, service_name):
+        """ removes service aka STARTUP from Scheduler internal records
+
+        :param service_name
+        :return:
+        """
+        if service_name in ("FogLAMP Storage", "FogLAMP Core"):
+            return
+
+        # Require a local import in order to avoid circular import references
+        from foglamp.services.core import server
+
+        if server.Server.scheduler is None:
+            return
+
+        future = asyncio.ensure_future(server.Server.scheduler.remove_service_from_task_processes(service_name))
+
+        def get_future_status():
+            return future.done()
+
+        this_time = time.time()
+        future_status = False
+
+        # Wait for future to be completed or timeout whichever is earlier
+        while time.time() - this_time <= 5.0:
+            # We need to fetch status of "future" via event loop only
+            future_status = asyncio.get_event_loop().call_soon(get_future_status)
+            if future_status is True:
+                break
+
+        if future_status is False:
+            cls._logger.exception("Timeout exception in Scheduler cleanup during shutdown of {}".format(service_name))
+            raise TimeoutError("Timeout exception in Scheduler cleanup during shutdown of {}".format(service_name))
+
+        return
 
     @classmethod
     def all(cls):

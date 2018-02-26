@@ -12,7 +12,6 @@ import time
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
-from foglamp.services.core import server
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -85,6 +84,12 @@ class ServiceRegistry:
         :return:
         """
         if service_name in ("FogLAMP Storage", "FogLAMP Core"):
+            return
+
+        # Require a local import in order to avoid circular import references
+        from foglamp.services.core import server
+
+        if server.Server.scheduler is None:
             return
 
         future = asyncio.ensure_future(server.Server.scheduler.remove_service_from_task_processes(service_name))

@@ -1105,3 +1105,5 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
 INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', now() );
 INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, now() );
 
+-- FogLAMP DB version
+CREATE TABLE foglamp.version (id CHAR(10));

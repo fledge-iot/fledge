@@ -501,3 +501,150 @@ class TestSchedules:
                                  {'name': 'MANUAL', 'index': 4}]} == json_response
 
 
+class TestTasks:
+    _random_uuid = uuid.uuid4()
+
+    @pytest.fixture
+    def client(self, loop, test_client):
+        app = web.Application(loop=loop)
+        # fill the routes table
+        routes.setup(app)
+        return loop.run_until_complete(test_client(app))
+
+    async def test_get_task(self, client):
+        async def mock_coro():
+            task = Task()
+            task.task_id = self._random_uuid
+            task.state = Task.State.RUNNING
+            task.start_time = None
+            task.process_name = "bar"
+            task.end_time = None
+            task.exit_code = 0
+            task.reason = None
+            return task
+
+        server.Server.scheduler = Scheduler(None, None)
+        storage_client_mock = MagicMock(StorageClient)
+        response = {'count': 1, 'rows': [{'process_name': 'bla'}]}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
+                    resp = await client.get('/foglamp/task/{}'.format(self._random_uuid))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'startTime': 'None', 'reason': None,
+                            'endTime': 'None', 'state': 'Running',
+                            'name': 'bar', 'exitCode': 0,
+                            'id': '{}'.format(self._random_uuid)} == json_response
+
+    async def test_get_task_bad_data(self, client):
+            resp = await client.get('/foglamp/task/{}'.format("bla"))
+            assert 404 == resp.status
+            assert 'Invalid Task ID bla' == resp.reason
+
+    @pytest.mark.parametrize("excep, response_code, response_message", [
+        (TaskNotFoundError(_random_uuid), 404, 'Task not found: {}'.format(_random_uuid)),
+        (ValueError, 404, None),
+    ])
+    async def test_get_task_exceptions(self, client, excep, response_code, response_message):
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'get_task', side_effect=excep):
+            resp = await client.get('/foglamp/task/{}'.format(self._random_uuid))
+            assert response_code == resp.status
+            assert response_message == resp.reason
+
+    @pytest.mark.parametrize("request_params", [
+        '',
+        '?limit=1',
+        '?name=bla',
+        '?state=running',
+        '?limit=1&name=bla&state=running',
+    ])
+    async def test_get_tasks(self, client, request_params):
+
+        async def patch_get_tasks():
+            tasks = []
+            task = Task()
+            task.task_id = self._random_uuid
+            task.state = Task.State.RUNNING
+            task.start_time = None
+            task.process_name = "bla"
+            task.end_time = None
+            task.exit_code = 0
+            task.reason = None
+            tasks.append(task)
+            return tasks
+
+        storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
+        response = {'count': 1, 'rows': [{'process_name': 'bla'}]}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                with patch.object(server.Server.scheduler, 'get_tasks', return_value=patch_get_tasks()):
+                    resp = await client.get('/foglamp/task{}'.format(request_params))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'tasks': [{'state': 'Running', 'id': '{}'.format(self._random_uuid),
+                                       'endTime': 'None', 'exitCode': 0,
+                                       'startTime': 'None', 'reason': None, 'name': 'bla'}]} == json_response
+
+    @pytest.mark.parametrize("request_params, response_code, response_message", [
+        ('?limit=invalid', 400, "Limit must be a positive integer"),
+        ('?limit=-1', 400, "Limit must be a positive integer"),
+        ('?state=BLA', 400, "This state value 'BLA' not permitted."),
+    ])
+    async def test_get_tasks_exceptions(self, client, request_params, response_code, response_message):
+        resp = await client.get('/foglamp/task{}'.format(request_params))
+        assert response_code == resp.status
+        assert response_message == resp.reason
+
+    async def test_get_tasks_no_task_exception(self, client):
+        async def patch_get_tasks():
+            tasks = []
+            return tasks
+
+        storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
+        response = {'count': 0, 'rows': []}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                with patch.object(server.Server.scheduler, 'get_tasks', return_value=patch_get_tasks()):
+                    resp = await client.get('/foglamp/task{}'.format('?name=bla&state=running'))
+                    assert 404 == resp.status
+                    assert "No Tasks found" == resp.reason
+
+    @pytest.mark.parametrize("request_params", [
+        '',
+        '?name=bla',
+    ])
+    async def test_get_tasks_latest(self, client, request_params):
+        storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
+        response = {'count': 2, 'rows': [
+            {'pid': '1', 'reason': '', 'exit_code': '0', 'id': '1',
+             'process_name': 'bla', 'end_time': '2018', 'start_time': '2018', 'state': '2'}]}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                resp = await client.get('/foglamp/task/latest{}'.format(request_params))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'tasks': [{'reason': '', 'name': 'bla',
+                                   'state': 'Complete', 'exitCode': '0', 'endTime': '2018',
+                                   'pid': '1', 'startTime': '2018', 'id': '1'}]} == json_response
+
+    @pytest.mark.parametrize("request_params", [
+        '',
+        '?name=not_exist',
+    ])
+    async def test_get_tasks_latest_no_task_exception(self, client, request_params):
+        storage_client_mock = MagicMock(StorageClient)
+        server.Server.scheduler = Scheduler(None, None)
+        response = {'count': 0, 'rows': []}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+                resp = await client.get('/foglamp/task/latest{}'.format(request_params))
+                assert 404 == resp.status
+                assert "No Tasks found" == resp.reason

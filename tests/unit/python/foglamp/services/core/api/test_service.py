@@ -21,7 +21,7 @@ __version__ = "${VERSION}"
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "service")
-class TestAudit:
+class TestService:
     @pytest.fixture
     def reset_service_registry(self):
         del ServiceRegistry._registry[:]

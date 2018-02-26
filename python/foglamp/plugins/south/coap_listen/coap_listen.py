@@ -144,6 +144,7 @@ def _plugin_stop(handle):
     Returns:
     Raises:
     """
+    _LOGGER.info('Stopping South COAP plugin...')
     try:
         asyncio.ensure_future(aiocoap_ctx.shutdown())
     except Exception as ex:
@@ -204,12 +205,12 @@ class CoAPIngest(aiocoap.resource.Resource):
         message = ''
         try:
             if not Ingest.is_available():
-                Ingest.increment_discarded_readings()
                 message = '{"busy": true}'
                 raise aiocoap.error.CommunicationKilled(message)
 
-            payload = cbor2.loads(request.payload)
-            if not isinstance(payload, dict):
+            try:
+                payload = cbor2.loads(request.payload)
+            except Exception:
                 raise ValueError('Payload must be a dictionary')
 
             asset = payload['asset']
@@ -218,14 +219,14 @@ class CoAPIngest(aiocoap.resource.Resource):
 
             # readings or sensor_values are optional
             try:
-                readings = payload.get('readings')
+                readings = payload['readings']
             except KeyError:
-                readings = payload.get('sensor_values')  # sensor_values is deprecated
+                readings = payload['sensor_values']  # sensor_values is deprecated
 
             # if optional then
             # TODO: confirm, do we want to check this?
-            # if not isinstance(readings, dict):
-            #     raise ValueError('readings must be a dictionary')
+            if not isinstance(readings, dict):
+                raise ValueError('readings must be a dictionary')
 
             await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 

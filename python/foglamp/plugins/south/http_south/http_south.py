@@ -140,6 +140,7 @@ def _plugin_stop(handle):
     Returns:
     Raises:
     """
+    _LOGGER.info('Stopping South HTTP plugin.')
     try:
         app = handle['app']
         handler = handle['handler']
@@ -151,6 +152,7 @@ def _plugin_stop(handle):
             asyncio.ensure_future(app.shutdown())
             asyncio.ensure_future(handler.shutdown(60.0))
             asyncio.ensure_future(app.cleanup())
+            _LOGGER.info('Closed/Shutdown http_south server, handler, app.')
     except Exception as e:
         _LOGGER.exception(str(e))
         raise
@@ -200,12 +202,12 @@ class HttpSouthIngest(object):
         message = {'result': 'success'}
         try:
             if not Ingest.is_available():
-                Ingest.increment_discarded_readings()
                 message = {'busy': True}
                 raise web.HTTPServiceUnavailable(reason=message)
 
-            payload = await request.json()
-            if not isinstance(payload, dict):
+            try:
+                payload = await request.json()
+            except Exception:
                 raise ValueError('Payload must be a dictionary')
 
             asset = payload['asset']
@@ -214,9 +216,9 @@ class HttpSouthIngest(object):
 
             # readings or sensor_values are optional
             try:
-                readings = payload.get('readings')
+                readings = payload['readings']
             except KeyError:
-                readings = payload.get('sensor_values')  # sensor_values is deprecated
+                readings = payload['sensor_values']  # sensor_values is deprecated
 
             # if optional then
             # TODO: confirm, do we want to check this?
@@ -224,7 +226,6 @@ class HttpSouthIngest(object):
                 raise ValueError('readings must be a dictionary')
 
             await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
-
         except (KeyError, ValueError, TypeError) as e:
             Ingest.increment_discarded_readings()
             _LOGGER.exception("%d: %s", web.HTTPBadRequest.status_code, str(e))

@@ -62,7 +62,8 @@ def test_plugin_init(mocker):
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("plugin", "south", "coap")
-def test_plugin_start(mocker, unused_port):
+@pytest.mark.asyncio
+async def test_plugin_start(mocker, unused_port, loop):
     # GIVEN
     port = {
         'description': 'Port to listen on',
@@ -77,9 +78,8 @@ def test_plugin_start(mocker, unused_port):
     assert coap_listen.aiocoap_ctx is None
 
     # WHEN
-    loop = asyncio.get_event_loop()
     loop.call_soon(coap_listen.plugin_start(config))
-    loop.run_until_complete(asyncio.sleep(.5))  # required to allow ensure_future task to complete
+    await asyncio.sleep(.5)  # required to allow ensure_future task to complete
 
     # THEN
     assert coap_listen.aiocoap_ctx is not None
@@ -142,7 +142,8 @@ def test_plugin_reconfigure_else(mocker, unused_port):
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("plugin", "south", "coap")
-def test_plugin__stop(mocker, unused_port):
+@pytest.mark.asyncio
+async def test_plugin__stop(mocker, unused_port, loop):
     # GIVEN
     port = {
         'description': 'Port to listen on',
@@ -156,9 +157,8 @@ def test_plugin__stop(mocker, unused_port):
     log_info = mocker.patch.object(coap_listen._LOGGER, "info")
 
     # WHEN
-    loop = asyncio.get_event_loop()
     loop.call_soon(coap_listen.plugin_start(config))
-    loop.run_until_complete(asyncio.sleep(.5))  # required to allow ensure_future task to complete
+    await asyncio.sleep(.5)  # required to allow ensure_future task to complete
     coap_listen._plugin_stop(config)
 
     # THEN
@@ -171,7 +171,8 @@ def test_plugin__stop(mocker, unused_port):
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("plugin", "south", "coap")
-def test_plugin_shutdown(mocker, unused_port):
+@pytest.mark.asyncio
+async def test_plugin_shutdown(mocker, unused_port, loop):
     # GIVEN
     port = {
         'description': 'Port to listen on',
@@ -185,9 +186,8 @@ def test_plugin_shutdown(mocker, unused_port):
     log_info = mocker.patch.object(coap_listen._LOGGER, "info")
 
     # WHEN
-    loop = asyncio.get_event_loop()
     loop.call_soon(coap_listen.plugin_start(config))
-    loop.run_until_complete(asyncio.sleep(.5))  # required to allow ensure_future task to complete
+    await asyncio.sleep(.5)  # required to allow ensure_future task to complete
     coap_listen.plugin_shutdown(config)
 
     # THEN

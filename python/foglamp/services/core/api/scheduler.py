@@ -727,9 +727,6 @@ async def cancel_task(request):
     try:
         task_id = request.match_info.get('task_id', None)
 
-        if not task_id:
-            raise web.HTTPBadRequest(reason='Task ID is required.')
-
         try:
             assert uuid.UUID(task_id)
         except ValueError as ex:

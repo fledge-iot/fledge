@@ -648,3 +648,49 @@ class TestTasks:
                 resp = await client.get('/foglamp/task/latest{}'.format(request_params))
                 assert 404 == resp.status
                 assert "No Tasks found" == resp.reason
+
+    async def test_cancel_task(self, client):
+        async def mock_coro():
+            return "some valid values"
+
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
+            with patch.object(server.Server.scheduler, 'cancel_task', return_value=mock_coro()):
+                resp = await client.put('/foglamp/task/cancel/{}'.format(self._random_uuid))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'id': '{}'.format(self._random_uuid),
+                        'message': 'Task cancelled successfully'} == json_response
+
+    async def test_cancel_task_bad_data(self, client):
+            resp = await client.put('/foglamp/task/cancel/{}'.format("bla"))
+            assert 404 == resp.status
+            assert 'Invalid Task ID {}'.format("bla") == resp.reason
+
+    @pytest.mark.parametrize("excep, response_code, response_message", [
+        (TaskNotFoundError(_random_uuid), 404, 'Task not found: {}'.format(_random_uuid)),
+        (TaskNotRunningError(_random_uuid), 404, 'Task is not running: {}'.format(_random_uuid)),
+        (ValueError, 404, None),
+    ])
+    async def test_cancel_task_exceptions(self, client, excep, response_code, response_message):
+        async def mock_coro():
+            return ""
+
+        server.Server.scheduler = Scheduler(None, None)
+        with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
+            with patch.object(server.Server.scheduler, 'cancel_task', side_effect=excep):
+                resp = await client.put('/foglamp/task/cancel/{}'.format(self._random_uuid))
+                assert response_code == resp.status
+                assert response_message == resp.reason
+
+    async def test_get_task_state(self, client):
+        resp = await client.get('/foglamp/task/state')
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {'taskState': [
+            {'name': 'Running', 'index': 1},
+            {'name': 'Complete', 'index': 2},
+            {'name': 'Canceled', 'index': 3},
+            {'name': 'Interrupted', 'index': 4}]} == json_response

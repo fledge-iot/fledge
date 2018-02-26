@@ -6,16 +6,12 @@
 
 from aiohttp import web
 import json
-import sys, traceback
+import traceback
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
-
-def json_error(message):
-    return web.Response(body=json.dumps({'error': message}).encode('utf-8'), content_type='application/json')
 
 
 async def error_middleware(app, handler):
@@ -25,7 +21,7 @@ async def error_middleware(app, handler):
         try:
             response = await handler(request)
             return response
-        except (web.HTTPException, web.HTTPBadRequest, web.HTTPNotFound) as ex:
+        except web.HTTPException:
             raise
         # Below Exception must come last as it is the super class of all exceptions
         except Exception as ex:
@@ -35,15 +31,10 @@ async def error_middleware(app, handler):
 
 
 def handle_api_exception(ex, _class=None, if_trace=0):
-    if not isinstance(ex, Exception):
-        err_msg = ex
-    else:
-        _msg = str(ex)
-
-        scode = 500
-        err_msg = {"code": scode, "message": '['+_class+']'+_msg}
+    err_msg = {"message": "[{}] {}".format(_class,  str(ex))}
 
     if if_trace:
         err_msg.update({"exception": _class, "traceback": traceback.format_exc()})
 
-    return json_error(err_msg)
+    return web.Response(status=500, body=json.dumps({'error': err_msg}).encode('utf-8'),
+                        content_type='application/json')

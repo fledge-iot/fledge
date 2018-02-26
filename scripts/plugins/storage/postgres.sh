@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Copyright (c) 2017 OSIsoft, LLC
+## Copyright (c) 2017-2018 OSIsoft, LLC
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -75,6 +75,8 @@ pg_start() {
             if [[ "$MANAGED" = false ]]; then
                 if [[ "$1" == "noisy" ]]; then
                     postgres_log "info" "Unable to start PostgreSQL. The server is not managed by FogLAMP." "all" "pretty"
+                else
+                    postgres_log "info" "Unable to start PostgreSQL. The server is not managed by FogLAMP." "logonly" "pretty"
                 fi
                 exit 2
             fi
@@ -112,6 +114,8 @@ pg_start() {
         pg_reset "$1" "immediate" 
     fi
 
+    # FogLAMP DB schema update: FogLAMP version is $2
+    pg_schema_update $2
 }
 
 
@@ -306,6 +310,49 @@ pg_status() {
 
 }
 
+## PostgreSQL schema update entry point
+#
+pg_schema_update() {
+    # Current starting FogLAMP version
+    NEW_VERSION=$1
+    # DB table
+    VERSION_TABLE="foglamp.version"
+    # Check first if the version table exists
+    CURR_VERR=`${PG_SQL} -d foglamp -q -A -t -c "SELECT to_regclass('${VERSION_TABLE}')"`
+    ret_code=$?
+    if [ ! "${CURR_VERR}" ] || [ "${ret_code}" -ne 0 ]; then
+        postgres_log "error" "Error checking FogLAMP DB schema version: "\
+"the table '${VERSION_TABLE}' doesn't exist. Exiting" "all" "pretty"
+        return 1
+    fi
+
+    # Fetch FogLAMP DB version
+    CURR_VERR=`${PG_SQL} -d foglamp -q -A -t -c "SELECT id FROM ${VERSION_TABLE}" | tr -d ' '`
+    if [ ! "${CURR_VERR}" ]; then
+        # No version found set DB version now
+        CURR_VERR=`${PG_SQL} -d foglamp -q -A -t -c "INSERT INTO ${VERSION_TABLE} (id) VALUES('${NEW_VERSION}')"`
+        SET_VERSION_MSG="FogLAMP DB version not found in '${VERSION_TABLE}', setting version [${NEW_VERSION}]"
+        if [[ "$1" == "noisy" ]]; then
+            postgres_log "info" "${SET_VERSION_MSG}" "all" "pretty"
+        else 
+            postgres_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
+        fi
+    else
+        # Only if DB version is not equal to starting FogLAMP version we try schema update
+        if [ "${CURR_VERR}" != "${NEW_VERSION}" ]; then
+            postgres_log "info" "Detected FogLAMP DB schema change from version [${CURR_VERR}]"\
+" to [${NEW_VERSION}], applying Upgrade/Downgrade ..." "all" "pretty"
+            # Call the schema update script
+            $FOGLAMP_ROOT/scripts/plugins/storage/postgres/schema_update.sh "${CURR_VERR}" "${NEW_VERSION}" "${PG_SQL}"
+            update_code=$?
+            return ${update_code}
+        else
+            # Just log up-to-date
+            postgres_log "info" "FogLAMP DB schema is up to date to version [${CURR_VERR}]" "logonly" "pretty"
+            return 0
+        fi
+    fi
+}
 
 ## PostgreSQL Help
 pg_help() {
@@ -431,7 +478,7 @@ fi
 # Main case
 case "$1" in
     start)
-        pg_start "$print_output"
+        pg_start "$print_output" "$2"
         ;;
     stop)
         pg_stop "$print_output"
@@ -452,4 +499,3 @@ esac
 
 # Exit cannot be used because the script may be "sourced"
 #exit $?
-

@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
@@ -91,7 +91,6 @@ foglamp_reset() {
 
 ## FogLAMP Start
 foglamp_start() {
-
     # Check the storage management script
     check_storage_management_script "start"
 
@@ -104,7 +103,8 @@ foglamp_start() {
     # Execute the Storage Plugin Script
     # NOTE: this script prepares the storage,
     #       but it does not start the microservice
-    source "$FOGLAMP_ROOT/scripts/storage" start
+    # Pass FOGLAMP_SCHEMA to 'storage' script
+    source "$FOGLAMP_ROOT/scripts/storage" start ${FOGLAMP_SCHEMA}
 
     result=`foglamp_status "silent"`
     case "$result" in
@@ -121,7 +121,7 @@ foglamp_start() {
 
         "2")
             #FogLAMP not running
-            echo -n "Starting FogLAMP."
+            echo -n "Starting FogLAMP v${FOGLAMP_VERSION}."
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
             if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -297,7 +297,7 @@ foglamp_status() {
                 echo "0"
             else
                 tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
-                foglamp_log "info" "FogLAMP running." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
 
                 # Show Services
@@ -332,12 +332,32 @@ foglamp_status() {
     esac
 }
 
+## Print FogLAMP Version
+foglamp_print_version() {
+    echo "FogLAMP version ${FOGLAMP_VERSION}, DB schema version ${FOGLAMP_SCHEMA}"
+}
+
+## Get FogLAMP version from VERSION file
+get_foglamp_version() {
+    FOGLAMP_VERSION_FILE="${FOGLAMP_ROOT}/VERSION"
+    FOGLAMP_VERSION=`cat ${FOGLAMP_VERSION_FILE} | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+    FOGLAMP_SCHEMA=`cat ${FOGLAMP_VERSION_FILE} | tr -d ' ' | grep -i "FOGLAMP_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+
+    if [ ! "${FOGLAMP_VERSION}" ]; then
+        echo "Error FOGLAMP_VERSION is not set, check [${FOGLAMP_VERSION_FILE}]. Exiting."
+        return  1
+    fi
+    if [ ! "${FOGLAMP_SCHEMA}" ]; then
+        echo "Error FOGLAMP_SCHEMA is not set, check [${FOGLAMP_VERSION_FILE}]. Exiting."
+        return 1
+    fi
+}
 
 ## FogLAMP Script Help
 foglamp_help() {
 
     echo "${USAGE}
-FogLAMP admin script
+FogLAMP v${FOGLAMP_VERSION} admin script
 The script is used to start FogLAMP
 Arguments:
  start   - Start FogLAMP core (core will start other services).
@@ -346,8 +366,8 @@ Arguments:
  status  - Show the status for the FogLAMP services
  reset   - Restore FogLAMP factory settings
            WARNING! This command will destroy all your data!
+ version - Print FogLAMP version
  help    - This text"
-
 }
 
 
@@ -382,6 +402,10 @@ if [[ ! `command -v curl` ]]; then
     exit 1
 fi
 
+# Get FogLAMP version
+get_foglamp_version
+
+# Handle commands
 case "$1" in
     reset)
         foglamp_reset
@@ -397,6 +421,9 @@ case "$1" in
         ;;
     status)
         foglamp_status
+        ;;
+    version)
+        foglamp_print_version 
         ;;
     help)
         foglamp_help

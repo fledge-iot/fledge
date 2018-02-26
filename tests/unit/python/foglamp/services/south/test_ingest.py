@@ -212,14 +212,14 @@ class TestIngest:
         # THEN
         assert 1 == Ingest._discarded_readings_stats
 
+    @pytest.mark.skip("This method uses a while True loop. Investigate as to how to write unit test for an infinite loop.")
     @pytest.mark.asyncio
     async def test__insert_readings(self, mocker):
-        # TODO: This method uses a while True loop. Investigate as to how to write unit test for an infinite loop.
         pass
 
+    @pytest.mark.skip("This method uses a while True loop. Investigate as to how to write unit test for an infinite loop.")
     @pytest.mark.asyncio
-    async def _write_statistics(self, mocker):
-        # TODO: This method uses a while True loop. Investigate as to how to write unit test for an infinite loop.
+    async def test_write_statistics(self, mocker):
         pass
 
     @pytest.mark.asyncio

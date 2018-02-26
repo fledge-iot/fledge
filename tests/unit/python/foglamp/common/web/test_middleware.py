@@ -34,12 +34,16 @@ class TestMiddleware:
         async def handler2(request):
             raise web.HTTPNotFound(text='{"key": "not found"}')
 
+        async def handler4(request):
+            return web.json_response({"key": "Okay"})
+
         app = web.Application(loop=loop, middlewares=[middleware.error_middleware])
         # fill the routes table
         routes.setup(app)
         app.router.add_route('GET', '/test', handler0)
         app.router.add_route('GET', '/test-web-ex1', handler1)
         app.router.add_route('GET', '/test-web-ex2', handler2)
+        app.router.add_route('GET', '/test-okay', handler4)
 
         server = loop.run_until_complete(test_server(app))
         server.start_server(loop=loop)
@@ -87,3 +91,11 @@ class TestMiddleware:
         assert "Not Found" == resp.reason
         txt = await resp.text()
         assert {'key': 'not found'} == json.loads(txt)
+
+    async def test_http_ok(self, client):
+        resp = await client.get('/test-okay')
+
+        assert 200 == resp.status
+        assert "OK" == resp.reason
+        txt = await resp.text()
+        assert {'key': 'Okay'} == json.loads(txt)

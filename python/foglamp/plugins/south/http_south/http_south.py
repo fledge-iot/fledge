@@ -152,7 +152,6 @@ def _plugin_stop(handle):
             asyncio.ensure_future(app.shutdown())
             asyncio.ensure_future(handler.shutdown(60.0))
             asyncio.ensure_future(app.cleanup())
-            _LOGGER.info('Closed/Shutdown http_south server, handler, app.')
     except Exception as e:
         _LOGGER.exception(str(e))
         raise

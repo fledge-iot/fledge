@@ -203,9 +203,8 @@ async def test_plugin__stop(mocker, unused_port, loop):
     http_south._plugin_stop(config)
 
     # THEN
-    assert 2 == log_info.call_count
-    calls = [call('Stopping South HTTP plugin.'),
-             call('Closed/Shutdown http_south server, handler, app.')]
+    assert 1 == log_info.call_count
+    calls = [call('Stopping South HTTP plugin.')]
     log_info.assert_has_calls(calls, any_order=True)
     assert 0 == log_exception.call_count
 
@@ -233,9 +232,8 @@ async def test_plugin_shutdown(mocker, unused_port, loop):
     http_south.plugin_shutdown(config)
 
     # THEN
-    assert 3 == log_info.call_count
+    assert 2 == log_info.call_count
     calls = [call('Stopping South HTTP plugin.'),
-             call('Closed/Shutdown http_south server, handler, app.'),
              call('South HTTP plugin shut down.')]
     log_info.assert_has_calls(calls, any_order=True)
     assert 0 == log_exception.call_count

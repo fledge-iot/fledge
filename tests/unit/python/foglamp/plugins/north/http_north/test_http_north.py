@@ -24,9 +24,6 @@ _PORT = unused_port()
 _URL = 'http://{}:{}/ingress/messages'.format(_HOST, _PORT)
 
 
-# TODO: negative tests coverage later on
-# as code needs some refactoring as well on the basis of HTTP status code
-# raise exceptions
 class FakeServer:
 
     def __init__(self, *, loop):
@@ -70,6 +67,20 @@ async def test_send_payload(event_loop):
     assert 2, 2 == (last_id, num_count)
 
     await fake_server.stop()
+
+
+@pytest.allure.feature("unit")
+@pytest.allure.story("plugin", "north", "http")
+@pytest.mark.skip(reason='FOGL-1144')
+async def test_send_bad_payload():
+    pass
+
+
+@pytest.allure.feature("unit")
+@pytest.allure.story("plugin", "north", "http")
+@pytest.mark.skip(reason='FOGL-1144')
+async def test_send_payload_server_error():
+    pass
 
 
 @pytest.allure.feature("unit")

@@ -767,12 +767,10 @@ class Scheduler(object):
                 storage_service = found_services[0]
                 self._storage = StorageClient(self._core_management_host, self._core_management_port,
                                               svc=storage_service)
-                # print("Storage Service: ", type(self._storage))
 
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
                     Exception) as ex:
                 # traceback.print_exc()
-                # print(_ENV, self._core_management_host, self._core_management_port, str(ex))
                 await asyncio.sleep(5)
         # **************
 
@@ -1324,9 +1322,6 @@ class Scheduler(object):
         except KeyError:
             schedule_execution = self._ScheduleExecution()
             self._schedule_executions[schedule_row.id] = schedule_execution
-
-        now = self.current_time if self.current_time else time.time()
-        self._schedule_first_task(schedule_row, now)
 
         schedule_execution.start_now = True
 

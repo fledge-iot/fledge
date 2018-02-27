@@ -11,7 +11,7 @@ import pytest
 import time
 from unittest.mock import MagicMock, call, Mock
 from foglamp.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
-from foglamp.services.core.scheduler.entities import Task, Schedule
+from foglamp.services.core.scheduler.entities import *
 from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.storage_client import StorageClient
 

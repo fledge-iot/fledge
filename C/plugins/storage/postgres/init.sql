@@ -836,9 +836,10 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
 
 -- Core Tasks
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge',           '["tasks/purge"]'      );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'stats collector', '["tasks/statistics"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'FogLAMPUpdater',  '["tasks/update"]'     );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'      );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'FogLAMPUpdater',      '["tasks/update"]'     );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
 
 -- Storage Tasks
 --
@@ -898,6 +899,19 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 true                                    -- enabled
               );
 
+
+-- Check for expired certificates
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '2176eb68-7303-11e7-8cf7-a6107ad3db21', -- id
+                'certificate checker',                  -- schedule_name
+                'certificate checker',                  -- process_name
+                2,                                      -- schedule_type (interval)
+                '00:05:00',                             -- schedule_time
+                '12:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
 
 -- Storage Tasks
 --
@@ -1091,3 +1105,5 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
 INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', now() );
 INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, now() );
 
+-- FogLAMP DB version
+CREATE TABLE foglamp.version (id CHAR(10));

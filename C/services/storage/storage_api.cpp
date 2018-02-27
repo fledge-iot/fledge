@@ -1,11 +1,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include "client_http.hpp"
 #include "server_http.hpp"
@@ -13,6 +13,7 @@
 #include "storage_stats.h"
 #include "management_api.h"
 #include "logger.h"
+#include "plugin_exception.h"
 
 
 // Added for the default_resource example
@@ -635,8 +636,20 @@ string        flags;
 		}
 		string responsePayload = purged;
 		respond(response, responsePayload);
-	} catch (exception ex) {
+	}
+	/** Handle PluginNotImplementedException exception here */
+	catch (PluginNotImplementedException& ex) {
+		string payload = "{ \"error\" : \"";
+		payload += ex.what();
+		payload += "\" }";
+		/** Return HTTP code 400 with message from storage plugin */
+		respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+		return;
+	}
+	/** Handle general exception */
+	catch (exception ex) {
 		internalError(response, ex);
+		return;
 	}
 }
 

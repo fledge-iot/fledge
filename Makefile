@@ -58,13 +58,17 @@ SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
+# DB schema update
+POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/postgres/schema_update.sh
+POSTGRES_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/postgres
+
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC         := scripts/common
-POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
+POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres.sh
 SOUTH_SCRIPT_SRC           := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
 STORAGE_SCRIPT_SRC         := scripts/storage
@@ -74,9 +78,11 @@ STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
 BACKUP_POSTGRES            := scripts/tasks/backup_postgres
 RESTORE_POSTGRES           := scripts/tasks/restore_postgres
 
-
 # FOGBENCH 
 FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
+
+# FogLAMP Version file
+FOGLAMP_VERSION_FILE       := VERSION
 
 ###############################################################################
 ################################### OTHER VARS ################################
@@ -90,9 +96,24 @@ PACKAGE_NAME=FogLAMP
 # default
 # compile any code that must be compiled
 # generally prepare the development tree to allow for core to be run
-default : generate_selfcertificate \
+default : apply_version \
+	generate_selfcertificate \
 	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
+
+apply_version :
+# VERSION : this file contains FogLAMP app version and FogLAMP DB schema revision
+#
+# Example:
+# foglamp_version=1.2
+# foglamp_schema=3
+#
+# Note: variable names are case insensitive, all spaces are removed
+	$(eval FOGLAMP_VERSION := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
+	$(eval FOGLAMP_SCHEMA := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
+	$(if $(FOGLAMP_VERSION),,$(error FOGLAMP_VERSION is not set, check VERSION file))
+	$(if $(FOGLAMP_SCHEMA),,$(error FOGLAMP_SCHEMA is not set, check VERSION file))
+	@echo "Building ${PACKAGE_NAME} version ${FOGLAMP_VERSION}"
 
 # install
 # Creates a deployment structure in the default destination, /usr/local/foglamp
@@ -170,6 +191,10 @@ $(PYTHON_INSTALL_DIR) :
 python_install : python_build $(PYTHON_INSTALL_DIR)
 	$(CP_DIR) $(PYTHON_LIB_DIR)/* $(PYTHON_INSTALL_DIR)
 
+# copy FogLAMP version info file into install dir
+foglamp_version_file_install :
+	$(CP) $(FOGLAMP_VERSION_FILE) $(INSTALL_DIR)
+
 ###############################################################################
 ###################### SCRIPTS INSTALL TARGETS ################################
 ###############################################################################
@@ -185,6 +210,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_script \
 	install_backup_postgres_script \
 	install_restore_postgres_script \
+	foglamp_version_file_install
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -194,8 +220,12 @@ install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.py $(SCRIPT_COMMON_INSTALL_DIR)
 	
-install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
+install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
+	$(POSTGRES_SCHEMA_UPDATE_DIR) $(POSTGRES_SCRIPT_SRC) $(POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
+	$(CP) $(POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC) $(POSTGRES_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/postgres/upgrade $(POSTGRES_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/postgres/downgrade $(POSTGRES_SCHEMA_UPDATE_DIR)
 	
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
@@ -235,6 +265,11 @@ $(SCRIPT_STORAGE_INSTALL_DIR) :
 
 $(SCRIPT_TASKS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+$(POSTGRES_SCHEMA_UPDATE_DIR) :
+	$(MKDIR_PATH) $@
+	$(MKDIR_PATH) $@/upgrade
+	$(MKDIR_PATH) $@/downgrade
 
 ###############################################################################
 ########################## BIN INSTALL TARGETS ################################
@@ -303,4 +338,3 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
-

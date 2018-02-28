@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Copyright (c) 2017 OSIsoft, LLC
+## Copyright (c) 2017-2018 OSIsoft, LLC
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -24,9 +24,7 @@
 
 #set -x
 
-
 PLUGIN_TO_USE=""
-
 
 # Logger wrapper
 storage_log() {
@@ -89,7 +87,7 @@ if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
 
 fi
 
-PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE"
+PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE.sh"
 if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 
     # Missing storage plugin script
@@ -99,7 +97,8 @@ if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 
 fi
 
-source "$PLUGIN_SCRIPT" $1
+# Pass action in $1 and FOGLAMP_VERSION in $2
+source "$PLUGIN_SCRIPT" $1 $2
 
 # exit cannot be used because the script is sourced.
 #exit $?

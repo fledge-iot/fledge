@@ -533,7 +533,7 @@ async def delete_schedule(request):
         retval, message = await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
         return web.json_response({'message': message, 'id': schedule_id})
-    except TypeError:
+    except RuntimeWarning:
         raise web.HTTPConflict(reason="Enabled Schedule {} cannot be deleted.".format(schedule_id))
     except (ValueError, ScheduleNotFoundError, NotReadyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))

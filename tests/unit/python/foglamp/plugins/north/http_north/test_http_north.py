@@ -46,8 +46,8 @@ class FakeServer:
         await self.handler.shutdown()
         await self.app.cleanup()
 
-    def send_payload(self, request):
-        body = yield from request.json()
+    async def send_payload(self, request):
+        body = await request.json()
         return web.json_response(body)
 
 

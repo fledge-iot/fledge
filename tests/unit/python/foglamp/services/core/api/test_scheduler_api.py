@@ -479,7 +479,7 @@ class TestSchedules:
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
         (NotReadyError(), 404, None),
         (ValueError, 404, None),
-        pytest.param(ValueError, 409, "Enabled Schedule cannot be deleted.", marks=pytest.mark.xfail(reason="FOGL-1135")),
+        (RuntimeWarning, 409, "Enabled Schedule {} cannot be deleted.".format(str(_random_uuid))),
     ])
     async def test_delete_schedule_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'delete_schedule', side_effect=exception_name):

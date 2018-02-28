@@ -709,7 +709,10 @@ CREATE TABLE foglamp.backups (
     exit_code  integer,                                                                                         -- Process exit status code
     CONSTRAINT backups_pkey PRIMARY KEY (id) );
 
+-- FogLAMP DB version
+CREATE TABLE foglamp.version (id CHAR(10));
 
+-- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 
 
@@ -1104,6 +1107,3 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
 -- Readings to OMF to OCS
 INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', now() );
 INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, now() );
-
--- FogLAMP DB version
-CREATE TABLE foglamp.version (id CHAR(10));

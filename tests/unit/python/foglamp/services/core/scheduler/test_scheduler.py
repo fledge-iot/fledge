@@ -36,7 +36,7 @@ async def mock_process():
 class TestScheduler:
     async def scheduler_fixture(self, mocker):
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_paused', False)
@@ -70,7 +70,7 @@ class TestScheduler:
     async def test__resume_check_schedules(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
 
         # WHEN
         # Check IF part
@@ -92,7 +92,7 @@ class TestScheduler:
     async def test__wait_for_task_completion(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
 
         mock_schedules = dict()
         mock_schedule = scheduler._ScheduleRow(
@@ -141,7 +141,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
 
@@ -188,7 +188,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.multiple(scheduler, _ready=True, _paused=False)
         mocker.patch.object(scheduler, '_max_completed_task_age', datetime.datetime.now())
 
@@ -204,7 +204,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.multiple(scheduler, _purge_tasks_task=None,
                               _last_task_purge_time=None)
         mocker.patch.object(scheduler, 'purge_tasks', return_value=asyncio.ensure_future(mock_task()))
@@ -220,7 +220,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
@@ -243,7 +243,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
@@ -268,7 +268,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
@@ -291,7 +291,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         current_time = time.time()
         curr_time = datetime.datetime.fromtimestamp(current_time)
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
@@ -313,7 +313,7 @@ class TestScheduler:
     async def test__get_process_scripts(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
 
         # WHEN
         await scheduler._get_process_scripts()
@@ -325,7 +325,7 @@ class TestScheduler:
     async def test__get_process_scripts_exception(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         log_debug = mocker.patch.object(scheduler._logger, "debug", side_effect=Exception())
 
         # WHEN
@@ -337,7 +337,7 @@ class TestScheduler:
     async def test__get_schedules(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
 
         # WHEN
@@ -350,7 +350,7 @@ class TestScheduler:
     async def test__get_schedules_exception(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task', side_effect=Exception())
 
         # WHEN
@@ -362,7 +362,7 @@ class TestScheduler:
     async def test__read_storage(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
 
         # WHEN
@@ -379,10 +379,27 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test__read_config(self, mocker):
+        async def get_cat():
+            return {
+                    "max_running_tasks": {
+                        "description": "The maximum number of tasks that can be running at any given time",
+                        "type": "integer",
+                        "default": str(Scheduler._DEFAULT_MAX_RUNNING_TASKS),
+                        "value": str(Scheduler._DEFAULT_MAX_RUNNING_TASKS)
+                    },
+                    "max_completed_task_age_days": {
+                        "description": "The maximum age, in days (based on the start time), for a rows "
+                                       "in the tasks table that do not have a status of running",
+                        "type": "integer",
+                        "default": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS),
+                        "value": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
+                    },
+            }
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=asyncio.ensure_future(mock_task()))
+        get_cat = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat())
 
         # WHEN
         assert scheduler._max_running_tasks is None
@@ -391,6 +408,7 @@ class TestScheduler:
 
         # THEN
         assert 1 == cr_cat.call_count
+        assert 1 == get_cat.call_count
         assert scheduler._max_running_tasks is not None
         assert scheduler._max_completed_task_age is not None
 
@@ -399,7 +417,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         current_time = time.time()
         mocker.patch.object(scheduler, '_schedule_first_task')
         mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
@@ -425,7 +443,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_resume_check_schedules', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_purge_tasks_task', return_value=asyncio.ensure_future(mock_task()))
@@ -454,7 +472,7 @@ class TestScheduler:
     async def test_get_scheduled_processes(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         await scheduler._get_process_scripts()
         mocker.patch.object(scheduler, '_ready', True)
 
@@ -671,7 +689,7 @@ class TestScheduler:
     async def test_disable_schedule(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
@@ -703,7 +721,7 @@ class TestScheduler:
     async def test_disable_schedule_wrong_schedule_id(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
@@ -723,7 +741,7 @@ class TestScheduler:
     async def test_disable_schedule_already_disabled(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
@@ -803,7 +821,7 @@ class TestScheduler:
     async def test_queue_task(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         log_info = mocker.patch.object(scheduler._logger, "info")
         await scheduler._get_schedules()
@@ -829,7 +847,7 @@ class TestScheduler:
     async def test_queue_task_schedule_not_found(self, mocker):
         # GIVEN
         scheduler = Scheduler()
-        scheduler._storage = Storage(core_management_host=None, core_management_port=None)
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_resume_check_schedules')
@@ -1134,7 +1152,7 @@ class TestScheduler:
         pass
 
 
-class Storage(StorageClient):
+class MockStorage(StorageClient):
     schedules = [
         {
             "id": "cea17db8-6ccc-11e7-907b-a6006ad3dba0",
@@ -1287,27 +1305,6 @@ class Storage(StorageClient):
         if table_name == "schedules":
             return {"count": 1}
 
-        if table_name == 'configuration':
-            return {
-                "count": 1,
-                "rows": [{"value": {
-                    "max_running_tasks": {
-                        "description": "The maximum number of tasks that can be running at any given time",
-                        "type": "integer",
-                        "default": str(Scheduler._DEFAULT_MAX_RUNNING_TASKS),
-                        "value": str(Scheduler._DEFAULT_MAX_RUNNING_TASKS)
-                    },
-                    "max_completed_task_age_days": {
-                        "description": "The maximum age, in days (based on the start time), for a rows "
-                                       "in the tasks table that do not have a status of running",
-                        "type": "integer",
-                        "default": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS),
-                        "value": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
-                    },
-                }
-                }]
-            }
-
     @classmethod
     def delete_from_tbl(cls, table_name, condition=None):
         pass
@@ -1316,40 +1313,20 @@ class Storage(StorageClient):
     def query_tbl_with_payload(cls, table_name, query_payload):
         if table_name == 'tasks':
             return {
-                "count": len(Storage.tasks),
-                "rows": Storage.tasks
-            }
-        if table_name == 'configuration':
-            return {
-                "count": 1,
-                "rows": [{"value": {
-                            "max_running_tasks": {
-                                "description": "The maximum number of tasks that can be running at any given time",
-                                "type": "integer",
-                                "default": str(Scheduler._DEFAULT_MAX_RUNNING_TASKS),
-                                "value": str(Scheduler._DEFAULT_MAX_RUNNING_TASKS)
-                            },
-                            "max_completed_task_age_days": {
-                                "description": "The maximum age, in days (based on the start time), for a rows "
-                                               "in the tasks table that do not have a status of running",
-                                "type": "integer",
-                                "default": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS),
-                                "value": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
-                            },
-                        }
-                }]
+                "count": len(MockStorage.tasks),
+                "rows": MockStorage.tasks
             }
 
     @classmethod
     def query_tbl(cls, table_name, query=None):
         if table_name == 'schedules':
             return {
-                "count": len(Storage.schedules),
-                "rows": Storage.schedules
+                "count": len(MockStorage.schedules),
+                "rows": MockStorage.schedules
             }
 
         if table_name == 'scheduled_processes':
             return {
-                "count": len(Storage.scheduled_processes),
-                "rows": Storage.scheduled_processes
+                "count": len(MockStorage.scheduled_processes),
+                "rows": MockStorage.scheduled_processes
             }

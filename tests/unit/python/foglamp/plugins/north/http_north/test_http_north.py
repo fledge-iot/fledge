@@ -30,7 +30,7 @@ class FakeServer:
         self.loop = loop
         self.app = web.Application(loop=loop)
         self.app.router.add_routes([
-            web.post('/ingress/messages', self.send_payload)
+            web.post('/ingress/messages', self.receive_payload)
         ])
         self.handler = None
         self.server = None
@@ -46,7 +46,7 @@ class FakeServer:
         await self.handler.shutdown()
         await self.app.cleanup()
 
-    async def send_payload(self, request):
+    async def receive_payload(self, request):
         body = await request.json()
         return web.json_response(body)
 
@@ -58,13 +58,13 @@ async def test_send_payload(event_loop):
     fake_server = FakeServer(loop=event_loop)
     await fake_server.start()
 
-    payloads = [{'id': 1, 'asset_code': 'fogbench/temperature', 'read_key': '31e5ccbb-3e45-4038-95e9-7920834d0852', 'user_ts': '2018-02-26 12:12:54.171949+00', 'reading': {'ambient': 7, 'object': 28}}, {'id': 2, 'asset_code': 'fogbench/luxometer', 'read_key': '9b5beb10-5d87-4cd9-803e-02df7942139d', 'user_ts': '2018-02-27 11:46:57.368753+00', 'reading': {'lux': 92748.668}}]
+    payloads = [{'id': 1, 'asset_code': 'fogbench/temperature', 'read_key': '31e5ccbb-3e45-4038-95e9-7920834d0852', 'user_ts': '2018-02-26 12:12:54.171949+00', 'reading': {'ambient': 7, 'object': 28}}, {'id': 46, 'asset_code': 'fogbench/luxometer', 'read_key': '9b5beb10-5d87-4cd9-803e-02df7942139d', 'user_ts': '2018-02-27 11:46:57.368753+00', 'reading': {'lux': 92748.668}}]
     http_north.http_north = HttpNorthPlugin()
     http_north.http_north.event_loop = event_loop
     http_north.config = http_north._DEFAULT_CONFIG
     http_north.config['url']['value'] = _URL
     last_id, num_count = await http_north.http_north._send_payloads(payloads)
-    assert 2, 2 == (last_id, num_count)
+    assert (46, 2) == (last_id, num_count)
 
     await fake_server.stop()
 

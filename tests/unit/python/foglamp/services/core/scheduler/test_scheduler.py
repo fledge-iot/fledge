@@ -7,9 +7,9 @@
 import asyncio
 import datetime
 import uuid
-import pytest
 import time
 from unittest.mock import MagicMock, call, Mock
+import pytest
 from foglamp.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
 from foglamp.services.core.scheduler.entities import *
 from foglamp.services.core.scheduler.exceptions import *
@@ -872,7 +872,8 @@ class TestScheduler:
 
         # WHEN
         # Now delete schedule
-        await scheduler.delete_schedule(sch_id)
+        with pytest.raises(RuntimeWarning):
+            await scheduler.delete_schedule(sch_id)
 
         # THEN
         # Now confirm no schedule is deleted

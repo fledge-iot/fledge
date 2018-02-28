@@ -1351,7 +1351,7 @@ class Scheduler(object):
             schedule = self._schedules[schedule_id]
             if schedule.enabled is True:
                 self._logger.exception('Attempt to delete an enabled Schedule %s. Not deleted.', str(schedule_id))
-                return False, "Enabled Schedule cannot be deleted."
+                raise TypeError("Enabled Schedule {} cannot be deleted.".format(str(schedule_id)))
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
 

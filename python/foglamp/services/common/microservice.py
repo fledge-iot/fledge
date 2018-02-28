@@ -10,6 +10,7 @@ import asyncio
 from aiohttp import web
 
 from foglamp.services.common.microservice_management import routes
+from foglamp.common import logger
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware
 from abc import abstractmethod
@@ -20,6 +21,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+_logger = logger.setup(__name__)
 
 class FoglampMicroservice(FoglampProcess):
     """ FoglampMicroservice class for all non-core python microservices
@@ -49,20 +51,14 @@ class FoglampMicroservice(FoglampProcess):
 
     def __init__(self):
         super().__init__()
-
         try:
             self._make_microservice_management_app()
-        except Exception:
-            raise
-        try:
             loop = asyncio.get_event_loop()
             self._run_microservice_management_app(loop)
-        except Exception:
-            raise
-        try:
             res = self.register_service_with_core(self._get_service_registration_payload())
             self._microservice_id = res["id"]
-        except Exception:
+        except Exception as ex:
+            _logger.exception('Unable to intialize FoglampMicroservice due to exception %s', str(ex))
             raise
 
     def _make_microservice_management_app(self):
@@ -75,8 +71,8 @@ class FoglampMicroservice(FoglampProcess):
 
     def _run_microservice_management_app(self, loop):
         # run microservice_management_app
-        core = loop.create_server(self._microservice_management_handler, '0.0.0.0', 0)
-        self._microservice_management_server = loop.run_until_complete(core)
+        coro = loop.create_server(self._microservice_management_handler, '0.0.0.0', 0)
+        self._microservice_management_server = loop.run_until_complete(coro)
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()
 

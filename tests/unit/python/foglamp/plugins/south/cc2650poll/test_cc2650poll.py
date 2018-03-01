@@ -196,8 +196,8 @@ def test_plugin_poll_data_retrieval_error(mocker):
         data = cc2650poll.plugin_poll(returned_config)
 
     # THEN
-    log_exception.assert_called_once_with("SensorTagCC2650 B0:91:22:EA:79:04 exception: 'SensorTagCC2650' object has no attribute 'con'")
     log_info.assert_called_once_with('SensorTagCC2650 B0:91:22:EA:79:04 Polling initialized')
+    log_exception.assert_called_once_with("SensorTagCC2650 B0:91:22:EA:79:04 exception: 'NoneType' object has no attribute 'sendline'")
 
 
 @pytest.allure.feature("unit")

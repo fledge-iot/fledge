@@ -134,6 +134,7 @@ class SensorTagCC2650(object):
     """
     reading_iterations = 1  # number of iterations to read data from the TAG
     is_connected = False
+    con = None  # Connection
 
     def __init__(self, bluetooth_adr, timeout):
         try:

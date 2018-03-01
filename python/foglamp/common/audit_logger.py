@@ -6,6 +6,7 @@
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.exceptions import StorageServerError
 
 from foglamp.common import logger
 
@@ -58,18 +59,9 @@ class AuditLogger(AuditLoggerSingleton):
             else:
                 payload = PayloadBuilder().INSERT(code=code, level=level, log=log).payload()
 
-            # Get the JSON result of the insert
-            res = self._storage.insert_into_tbl("log", payload)
+            self._storage.insert_into_tbl("log", payload)
 
-            # Check if storage output is a dict (JSON data)
-            if type(res) is dict:
-                # Is error message present?
-                err_msg = res.get('message', None)
-
-                # Raise a Exception
-                if err_msg is not None:
-                    raise Exception(str(err_msg))
-        except Exception as ex:
+        except (StorageServerError, Exception) as ex:
             _logger.exception("Failed to log audit trail entry '%s': %s", code, str(ex))
             raise ex
 

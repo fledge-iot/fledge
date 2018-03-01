@@ -7,7 +7,6 @@
 """Unit test for foglamp.plugins.south.cc2650async.cc2650async.py"""
 import copy
 import pexpect
-import asyncio
 import pytest
 from unittest.mock import call, Mock
 from foglamp.plugins.south.common.sensortag_cc2650 import SensorTagCC2650
@@ -41,7 +40,6 @@ _NEW_CONFIG = {
         'default': '10'
     }
 }
-
 
 
 @pytest.allure.feature("unit")
@@ -108,8 +106,8 @@ async def test_plugin_start(mocker, loop):
     mocker.patch.object(returned_config['tag'], "hex_lux_to_lux", return_value=None)
     mocker.patch.object(returned_config['tag'], "hex_humidity_to_rel_humidity", return_value=(None, None))
     mocker.patch.object(returned_config['tag'], "hex_pressure_to_pressure", return_value=None)
-    mocker.patch.object(returned_config['tag'], "hex_movement_to_movement", return_value=
-        (None, None, None, None, None, None, None, None, None, None))
+    mocker.patch.object(returned_config['tag'], "hex_movement_to_movement", return_value=(
+        None, None, None, None, None, None, None, None, None, None))
     mocker.patch.object(returned_config['tag'], "get_battery_level", return_value=None)
 
     # WHEN
@@ -278,7 +276,6 @@ def test_plugin__stop(mocker):
     cc2650async._plugin_stop(returned_config)
 
     # THEN
-    assert 2 == log_info.call_count
     calls = [call('SensorTagCC2650 (async) {} Disconnected.'.format(config['bluetoothAddress']['value'])),
              call('SensorTagCC2650 {} async fetching initialized'.format(config['bluetoothAddress']['value']))]
     log_info.assert_has_calls(calls, any_order=True)
@@ -307,7 +304,6 @@ def test_plugin_shutdown(mocker):
     cc2650async.plugin_shutdown(returned_config)
 
     # THEN
-    assert 3 == log_info.call_count
     calls = [call('SensorTagCC2650 (async) {} Disconnected.'.format(config['bluetoothAddress']['value'])),
              call('CC2650 async plugin shut down.'),
              call('SensorTagCC2650 {} async fetching initialized'.format(config['bluetoothAddress']['value']))]

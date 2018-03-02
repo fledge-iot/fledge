@@ -190,7 +190,7 @@ foglamp_stop() {
     exit 0
   fi
 
-  result=`curl -s -X PUT ${REST_API_URL}/foglamp/shutdown`
+  result=`curl -k -s -X PUT ${REST_API_URL}/foglamp/shutdown`
 
   if [[ "${result}" =~ "FogLAMP shutdown has been scheduled" ]]; then
     echo -n "Stopping FogLAMP."
@@ -289,11 +289,9 @@ foglamp_kill() {
 #
 foglamp_status() {
 
-    # FIXME:
-    result=`curl -s ${REST_API_URL}/foglamp/ping || true`
-
-    echo DBG var :${result}: > /dev/tty
-    exit 0
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    result=`curl -k -s ${REST_API_URL}/foglamp/ping || true`
 
     case "$result" in
 
@@ -364,15 +362,9 @@ get_rest_api_url() {
     pid_file=${FOGLAMP_DATA}/var/run/foglamp.core.pid
     export PYTHONPATH=${FOGLAMP_ROOT}
 
-    echo "DBG 1"
-
-    # FIXME:
     if [[ -f ${pid_file} ]]; then
 
-        echo "PI Exists"
         REST_API_URL=`cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid`
-
-        echo DBG rest_api_url :${REST_API_URL}: > /dev/tty
     fi
 
     # Sets a default value if it not possible to determine the proper value using the pid file
@@ -436,10 +428,7 @@ fi
 get_foglamp_version
 
 # Get FogLAMP rest API URL
-# FIXME:
 get_rest_api_url
-echo DBG REST_API_URL :${REST_API_URL}: > /dev/tty
-
 
 # Handle commands
 case "$1" in

@@ -190,7 +190,7 @@ foglamp_stop() {
     exit 0
   fi
 
-  result=`curl -s -X PUT http://localhost:8081/foglamp/shutdown`
+  result=`curl -k -s -X PUT ${REST_API_URL}/foglamp/shutdown`
 
   if [[ "${result}" =~ "FogLAMP shutdown has been scheduled" ]]; then
     echo -n "Stopping FogLAMP."
@@ -289,7 +289,10 @@ foglamp_kill() {
 #
 foglamp_status() {
 
-    result=`curl -s http://localhost:8081/foglamp/ping || true`
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    result=`curl -k -s ${REST_API_URL}/foglamp/ping || true`
+
     case "$result" in
 
         *uptime*)
@@ -353,6 +356,25 @@ get_foglamp_version() {
     fi
 }
 
+# Get FogLAMP rest API URL
+get_rest_api_url() {
+
+    pid_file=${FOGLAMP_DATA}/var/run/foglamp.core.pid
+    export PYTHONPATH=${FOGLAMP_ROOT}
+
+    if [[ -f ${pid_file} ]]; then
+
+        REST_API_URL=`cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid`
+    fi
+
+    # Sets a default value if it not possible to determine the proper value using the pid file
+    if [ ! "${REST_API_URL}" ]; then
+
+        export REST_API_URL=http://localhost:8081
+    fi
+}
+
+
 ## FogLAMP Script Help
 foglamp_help() {
 
@@ -404,6 +426,9 @@ fi
 
 # Get FogLAMP version
 get_foglamp_version
+
+# Get FogLAMP rest API URL
+get_rest_api_url
 
 # Handle commands
 case "$1" in

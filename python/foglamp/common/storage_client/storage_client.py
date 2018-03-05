@@ -96,8 +96,6 @@ class StorageClient(AbstractStorage):
         conn.request('GET', url='/foglamp/service?name=FogLAMP%20Storage')
         r = conn.getresponse()
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 500):
             _LOGGER.error("Get Service: Client error code: %d, %s", r.status. r.reason)
         if r.status in range(500, 600):
@@ -160,12 +158,10 @@ class StorageClient(AbstractStorage):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.info("POST %s, with payload: %s", post_url, data)
             _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -209,12 +205,10 @@ class StorageClient(AbstractStorage):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.info("PUT %s, with payload: %s", put_url, data)
             _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -251,12 +245,10 @@ class StorageClient(AbstractStorage):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
             _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -288,12 +280,10 @@ class StorageClient(AbstractStorage):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.info("GET %s", get_url)
             _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -332,12 +322,10 @@ class StorageClient(AbstractStorage):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
             _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -394,12 +382,10 @@ class ReadingsStorageClient(StorageClient):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
                           '/storage/reading', readings, r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -436,11 +422,9 @@ class ReadingsStorageClient(StorageClient):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", get_url, r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -478,12 +462,10 @@ class ReadingsStorageClient(StorageClient):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
         if r.status in range(400, 600):
             _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
                           '/storage/reading/query', query_payload, r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
         return jdoc
 
@@ -544,11 +526,9 @@ class ReadingsStorageClient(StorageClient):
         conn.close()
         jdoc = json.loads(res, strict=False)
 
-        # TODO: FOGL-615
-        # log error with message if status is 4xx or 5xx
+        # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
         if r.status in range(400, 600):
             _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, r.status, r.reason, jdoc)
-            # raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
         return jdoc

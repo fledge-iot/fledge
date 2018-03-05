@@ -185,7 +185,7 @@ pg_stop() {
 pg_reset() {
 
     if [[ `pg_status silent` -eq 2 ]]; then
-       pg_start "$1"
+       pg_start "$1" "$2"
     fi
 
     if [[ $2 != "immediate" ]]; then
@@ -484,7 +484,7 @@ case "$1" in
         pg_stop "$print_output"
         ;;
     reset)
-        pg_reset "$print_output"
+        pg_reset "$print_output" "$2"
         ;;
     status)
         pg_status "$print_output"

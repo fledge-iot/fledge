@@ -109,17 +109,44 @@ apply_version :
 # foglamp_schema=3
 #
 # Note: variable names are case insensitive, all spaces are removed
+# Get variables and export FOGLAMP_VERSION and FOGLAMP_SCHEMA
 	$(eval FOGLAMP_VERSION := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
 	$(eval FOGLAMP_SCHEMA := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
-	$(if $(FOGLAMP_VERSION),,$(error FOGLAMP_VERSION is not set, check VERSION file))
-	$(if $(FOGLAMP_SCHEMA),,$(error FOGLAMP_SCHEMA is not set, check VERSION file))
-	@echo "Building ${PACKAGE_NAME} version ${FOGLAMP_VERSION}"
+	$(if $(FOGLAMP_VERSION),$(eval FOGLAMP_VERSION=$(FOGLAMP_VERSION)),$(error FOGLAMP_VERSION is not set, check VERSION file))
+	$(if $(FOGLAMP_SCHEMA),$(eval FOGLAMP_SCHEMA=$(FOGLAMP_SCHEMA)),$(error FOGLAMP_SCHEMA is not set, check VERSION file))
+
+# Print build or install message based on MAKECMDGOALS var
+ifeq ($(MAKECMDGOALS),install)
+	$(eval ACTION="Installing")
+else
+	$(eval ACTION="Building")
+endif
+	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
+
+# Check where this FogLAMP can be installed over an existing one:
+schema_check : apply_version
+###
+# Call check_schema_update.sh (param 1 is installed FogLAMP VERSION file path, param2 is the new VERSION file path)
+# and grab it's output
+# Note: DATA_INSTALL_DIR is passed to the called script via export
+###
+	@$(eval SCHEMA_CHANGE_OUTPUT=$(shell export DATA_INSTALL_DIR=$(DATA_INSTALL_DIR); scripts/common/check_schema_update.sh "$(INSTALL_DIR)/${FOGLAMP_VERSION_FILE}" "${FOGLAMP_VERSION_FILE}"))
+
+# Check for "error" "warning"
+	@$(eval SCHEMA_CHANGE_ERROR=$(shell echo $(SCHEMA_CHANGE_OUTPUT) | grep -i error))
+	@$(eval SCHEMA_CHANGE_WARNING=$(shell echo $(SCHEMA_CHANGE_OUTPUT) | grep -i warning))
+
+# Abort, print warning or info message
+	$(if $(SCHEMA_CHANGE_ERROR),$(error FogLAMP DB schema cannot be performed as pre-install task: $(SCHEMA_CHANGE_ERROR)),)
+	$(if $(SCHEMA_CHANGE_WARNING),$(warning $(SCHEMA_CHANGE_WARNING)),$(info -- FogLAMP DB schema check OK: $(SCHEMA_CHANGE_OUTPUT)))
 
 # install
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
 install : $(INSTALL_DIR) \
+	schema_check \
+	foglamp_version_file_install \
 	c_install \
 	python_install \
 	python_requirements \
@@ -209,8 +236,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_statistics_script \
 	install_storage_script \
 	install_backup_postgres_script \
-	install_restore_postgres_script \
-	foglamp_version_file_install
+	install_restore_postgres_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :

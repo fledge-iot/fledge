@@ -1,0 +1,30 @@
+#ifndef _READING_H
+#define _READING_H
+/*
+ * FogLAMP storage client.
+ *
+ * Copyright (c) 2018 OSisoft, LLC
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
+#include <datapoint.h>
+#include <string>
+#include <ctime>
+#include <vector>
+
+class Reading {
+	public:
+		Reading(const std::string& asset, Datapoint *value);
+		~Reading();
+		void		addDatapoint(Datapoint *value);
+		std::string	toJSON();
+	private:
+		const std::string		m_asset;
+		const std::time_t		m_timestamp;
+		std::vector<Datapoint *>	m_values;
+		std::string			m_uuid;
+};
+#endif
+

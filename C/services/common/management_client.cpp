@@ -120,6 +120,53 @@ bool ManagementClient::unregisterService()
 }
 
 /**
+ * Get the specified service
+ */
+bool ManagementClient::getService(ServiceRecord& service)
+{
+string payload;
+
+	try {
+		string url = "/foglamp/service";
+		if (!service.getType().empty())
+		{
+			url += "?type=" + service.getType();
+		}
+		else if (!service.getName().empty())
+		{
+			url += "?name=" + service.getName();
+		}
+		auto res = m_client->request("GET", url);
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetching service record: %s\n",
+				res->content.string().c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register service: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			Value& serviceRecord = doc[0];
+			service.setAddress(serviceRecord["address"].GetString());
+			service.setPort(serviceRecord["port"].GetInt());
+			service.setProtocol(serviceRecord["protocol"].GetString());
+			service.setManagementPort(serviceRecord["management_port"].GetInt());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get service failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
  * Register interest in a configuration category
  */
 bool ManagementClient::registerCategory(const string& category)

@@ -84,6 +84,7 @@ def setup(app):
     app.router.add_route('PUT', '/foglamp/update', update.update_package)
 
     # certs store
+    app.router.add_route('GET', '/foglamp/certificate', certificate_store.get_certs)
     app.router.add_route('POST', '/foglamp/certificate', certificate_store.upload)
     app.router.add_route('DELETE', '/foglamp/certificate/{name}', certificate_store.delete_certificate)
 

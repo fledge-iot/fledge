@@ -93,6 +93,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
 
         mock_schedules = dict()
         mock_schedule = scheduler._ScheduleRow(
@@ -135,6 +136,9 @@ class TestScheduler:
         # After task completion, sleep above, no task processes should be left pending
         assert 0 == len(scheduler._task_processes)
         assert 0 == len(scheduler._schedule_executions[mock_schedule.id].task_processes)
+        args, kwargs = log_info.call_args_list[0]
+        assert 'OMF to PI north' in args
+        assert 'North Readings to PI' in args
 
     @pytest.mark.asyncio
     async def test__start_task(self, mocker):
@@ -142,6 +146,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
 
@@ -182,6 +187,12 @@ class TestScheduler:
         # THEN
         # Confirm that task has started
         assert 1 == len(scheduler._schedule_executions[schedule.id].task_processes)
+        assert 2 == log_info.call_count
+        assert call("Queued schedule '%s' for execution", 'OMF to PI north') == log_info.call_args_list[0]
+        args, kwargs = log_info.call_args_list[1]
+        assert "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s" in args
+        assert 'OMF to PI north' in args
+        assert 'North Readings to PI' in args
 
     @pytest.mark.asyncio
     async def test_purge_tasks(self, mocker):
@@ -221,6 +232,8 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
+
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
@@ -232,6 +245,13 @@ class TestScheduler:
 
         # THEN
         assert earliest_start_time is not None
+        assert 3 == log_info.call_count
+        args0, kwargs0 = log_info.call_args_list[0]
+        args1, kwargs1 = log_info.call_args_list[1]
+        args2, kwargs2 = log_info.call_args_list[2]
+        assert 'stats collection' in args0
+        assert 'COAP listener south' in args1
+        assert 'OMF to PI north' in args2
 
     @pytest.mark.asyncio
     @pytest.mark.skip("_scheduler_loop() not suitable for unit testing. Will be tested during System tests.")
@@ -244,6 +264,8 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
+
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
@@ -262,6 +284,13 @@ class TestScheduler:
 
         # THEN
         assert time_after_call > time_before_call
+        assert 3 == log_info.call_count
+        args0, kwargs0 = log_info.call_args_list[0]
+        args1, kwargs1 = log_info.call_args_list[1]
+        args2, kwargs2 = log_info.call_args_list[2]
+        assert 'stats collection' in args0
+        assert 'COAP listener south' in args1
+        assert 'OMF to PI north' in args2
 
     @pytest.mark.asyncio
     async def test__schedule_next_task(self, mocker):
@@ -269,6 +298,8 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
+
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time - 3600)
@@ -285,6 +316,15 @@ class TestScheduler:
 
         # THEN
         assert time_after_call > time_before_call
+        assert 4 == log_info.call_count
+        args0, kwargs0 = log_info.call_args_list[0]
+        args1, kwargs1 = log_info.call_args_list[1]
+        args2, kwargs2 = log_info.call_args_list[2]
+        args3, kwargs3 = log_info.call_args_list[3]
+        assert 'stats collection' in args0
+        assert 'COAP listener south' in args1
+        assert 'OMF to PI north' in args2
+        assert 'stats collection' in args3
 
     @pytest.mark.asyncio
     async def test__schedule_first_task(self, mocker):
@@ -292,6 +332,8 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
+
         current_time = time.time()
         curr_time = datetime.datetime.fromtimestamp(current_time)
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
@@ -308,6 +350,15 @@ class TestScheduler:
 
         # THEN
         assert time_after_call > time.mktime(curr_time.timetuple())
+        assert 4 == log_info.call_count
+        args0, kwargs0 = log_info.call_args_list[0]
+        args1, kwargs1 = log_info.call_args_list[1]
+        args2, kwargs2 = log_info.call_args_list[2]
+        args3, kwargs3 = log_info.call_args_list[3]
+        assert 'stats collection' in args0
+        assert 'COAP listener south' in args1
+        assert 'OMF to PI north' in args2
+        assert 'stats collection' in args3
 
     @pytest.mark.asyncio
     async def test__get_process_scripts(self, mocker):
@@ -327,11 +378,15 @@ class TestScheduler:
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         log_debug = mocker.patch.object(scheduler._logger, "debug", side_effect=Exception())
+        log_exception = mocker.patch.object(scheduler._logger, "exception")
 
         # WHEN
         # THEN
         with pytest.raises(Exception):
             await scheduler._get_process_scripts()
+
+        log_args = 'Query failed: %s', 'scheduled_processes'
+        log_exception.assert_called_once_with(*log_args)
 
     @pytest.mark.asyncio
     async def test__get_schedules(self, mocker):
@@ -351,12 +406,17 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_debug = mocker.patch.object(scheduler._logger, "debug", side_effect=Exception())
+        log_exception = mocker.patch.object(scheduler._logger, "exception")
         mocker.patch.object(scheduler, '_schedule_first_task', side_effect=Exception())
 
         # WHEN
         # THEN
         with pytest.raises(Exception):
             await scheduler._get_schedules()
+
+        log_args = 'Query failed: %s', 'schedules'
+        log_exception.assert_called_once_with(*log_args)
 
     @pytest.mark.asyncio
     async def test__read_storage(self, mocker):
@@ -418,6 +478,9 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_debug = mocker.patch.object(scheduler._logger, "debug")
+        log_info = mocker.patch.object(scheduler._logger, "info")
+
         current_time = time.time()
         mocker.patch.object(scheduler, '_schedule_first_task')
         mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
@@ -437,6 +500,12 @@ class TestScheduler:
         assert scheduler._ready is True
         assert len(scheduler._storage.scheduled_processes) == len(scheduler._process_scripts)
         assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        calls = [call('Starting'),
+                 call('Starting Scheduler: Management port received is %d', 9999)]
+        log_info.assert_has_calls(calls, any_order=True)
+        calls = [call('Database command: %s', 'scheduled_processes'),
+                 call('Database command: %s', 'schedules')]
+        log_debug.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio
     async def test_stop(self, mocker):
@@ -444,10 +513,13 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        log_info = mocker.patch.object(scheduler._logger, "info")
+        log_exception = mocker.patch.object(scheduler._logger, "exception")
+
         mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_resume_check_schedules', return_value=asyncio.ensure_future(mock_task()))
-        mocker.patch.object(scheduler, '_purge_tasks_task', return_value=asyncio.ensure_future(mock_task()))
-        mocker.patch.object(scheduler, '_scheduler_loop_task', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_purge_tasks_task', return_value=asyncio.ensure_future(asyncio.sleep(.1)))
+        mocker.patch.object(scheduler, '_scheduler_loop_task', return_value=asyncio.ensure_future(asyncio.sleep(.1)))
         current_time = time.time()
         mocker.patch.multiple(scheduler, _core_management_port=9999,
                               _core_management_host="0.0.0.0",
@@ -467,6 +539,13 @@ class TestScheduler:
         assert scheduler._ready is False
         assert scheduler._paused is False
         assert scheduler._start_time is None
+        calls = [call('Processing stop request'), call('Stopped')]
+        log_info.assert_has_calls(calls, any_order=True)
+
+        # TODO: Find why these exceptions are being raised despite mocking _purge_tasks_task, _scheduler_loop_task
+        calls = [call('An exception was raised by Scheduler._purge_tasks %s', "object MagicMock can't be used in 'await' expression"),
+                 call('An exception was raised by Scheduler._scheduler_loop %s', "object MagicMock can't be used in 'await' expression")]
+        log_exception.assert_has_calls(calls)
 
     @pytest.mark.asyncio
     async def test_get_scheduled_processes(self, mocker):
@@ -507,6 +586,8 @@ class TestScheduler:
         assert schedule.schedule_id == schedule_row[0]
         assert schedule.name == schedule_row[1]
         assert schedule.schedule_type == schedule_row[2]
+        assert schedule_row[3] is 0  # 0 for Interval Schedule
+        assert schedule_row[4] is 0  # 0 for Interval Schedule
         assert schedule.repeat == schedule_row[5]
         assert schedule.exclusive == schedule_row[7]
         assert schedule.enabled == schedule_row[8]
@@ -686,6 +767,11 @@ class TestScheduler:
         assert str(ex).endswith('day must be between 1 and 7')
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be done")
+    async def test_remove_service_from_task_processes(self):
+        pass
+
+    @pytest.mark.asyncio
     async def test_disable_schedule(self, mocker):
         # GIVEN
         scheduler = Scheduler()
@@ -733,7 +819,6 @@ class TestScheduler:
         await scheduler.disable_schedule(random_schedule_id)
 
         # THEN
-        assert 1 == log_exception.call_count
         log_params = "No such Schedule %s", str(random_schedule_id)
         log_exception.assert_called_with(*log_params)
 
@@ -757,7 +842,6 @@ class TestScheduler:
         assert message == "Schedule {} already disabled".format(str(sch_id))
         assert (scheduler._schedules[sch_id]).id == sch_id
         assert (scheduler._schedules[sch_id]).enabled is False
-        assert 1 == log_info.call_count
         log_params = "Schedule %s already disabled", str(sch_id)
         log_info.assert_called_with(*log_params)
 
@@ -799,7 +883,6 @@ class TestScheduler:
         assert message == "Schedule is already enabled"
         assert (scheduler._schedules[sch_id]).id == sch_id
         assert (scheduler._schedules[sch_id]).enabled is True
-        assert 1 == log_info.call_count
         log_params = "Schedule %s already enabled", str(sch_id)
         log_info.assert_called_with(*log_params)
 
@@ -813,7 +896,6 @@ class TestScheduler:
         await scheduler.enable_schedule(random_schedule_id)
 
         # THEN
-        assert 1 == log_exception.call_count
         log_params = "No such Schedule %s", str(random_schedule_id)
         log_exception.assert_called_with(*log_params)
 
@@ -839,7 +921,6 @@ class TestScheduler:
 
         # THEN
         assert isinstance(scheduler._schedule_executions[sch_id], scheduler._ScheduleExecution)
-        assert 1 == log_info.call_count
         log_params = "Queued schedule '%s' for execution", 'purge'
         log_info.assert_called_with(*log_params)
 
@@ -1009,11 +1090,13 @@ class TestScheduler:
 
         # WHEN
         # THEN
+        task_id = uuid.uuid4()
         with pytest.raises(Exception) as excinfo:
-            tasks = await scheduler.get_task(uuid.uuid4())
+            await scheduler.get_task(task_id)
 
         # THEN
-        assert 1 == log_exception.call_count
+        log_args = 'Query failed: %s', '{"where": {"column": "id", "condition": "=", "value": "'+str(task_id)+'"}}'
+        log_exception.assert_called_once_with(*log_args)
 
     @pytest.mark.asyncio
     async def test_get_tasks(self, mocker):
@@ -1061,7 +1144,8 @@ class TestScheduler:
             tasks = await scheduler.get_tasks()
 
         # THEN
-        assert 1 == log_exception.call_count
+        log_args = 'Query failed: %s', '{"limit": 100}'
+        log_exception.assert_called_once_with(*log_args)
 
     @pytest.mark.asyncio
     async def test_cancel_task_all_ok(self, mocker):
@@ -1093,6 +1177,16 @@ class TestScheduler:
         # THEN
         assert scheduler._schedule_executions[schedule.id].task_processes[task_id].cancel_requested is not None
         assert 3 == log_info.call_count
+        args, kwargs = log_info.call_args_list[0]
+        assert ("Queued schedule '%s' for execution", 'OMF to PI north') == args
+        args, kwargs = log_info.call_args_list[1]
+        assert "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s" in args
+        assert 'OMF to PI north' in args
+        assert 'North Readings to PI' in args
+        args, kwargs = log_info.call_args_list[2]
+        assert "Stopping process: Schedule '%s' process '%s' task %s pid %s\n%s" in args
+        assert 'OMF to PI north' in args
+        assert 'North Readings to PI' in args
 
     @pytest.mark.asyncio
     async def test_cancel_task_exception(self, mocker):

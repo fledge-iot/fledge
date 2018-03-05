@@ -9,10 +9,12 @@ import json
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
+
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClient
-
+from foglamp.services.core.api import audit
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -138,3 +140,48 @@ class TestAudit:
         resp = await client.get('/foglamp/audit')
         assert 500 == resp.status
         assert 'Internal Server Error' == resp.reason
+
+    async def test_create_audit_entry(self, client):
+        request_data = {"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}
+        response = {'details': {'message': 'Engine oil pressure low'}, 'source': 'LMTR',
+                    'timestamp': '2018-03-05 07:36:52.823', 'severity': 'warning'}
+        storage_mock = MagicMock(spec=StorageClient)
+        AuditLogger(storage_mock)
+        resp = await client.post('/foglamp/audit', data=json.dumps(request_data))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert response['details'] == json_response['details']
+        assert response['source'] == json_response['source']
+        assert response['severity'] == json_response['severity']
+        assert 'timestamp' in json_response
+
+    @pytest.mark.parametrize("request_data, expected_response", [
+        ({"source": "LMTR", "severity": "", "details": {"message": "Engine oil pressure low"}}, "Missing required parameter severity"),
+        ({"source": "LMTR", "severity": None, "details": {"message": "Engine oil pressure low"}}, "Missing required parameter severity"),
+        ({"source": "", "severity": "WARNING", "details": {"message": "Engine oil pressure low"}}, "Missing required parameter source"),
+        ({"source": None, "severity": "WARNING", "details": {"message": "Engine oil pressure low"}}, "Missing required parameter source"),
+        ({"source": "LMTR", "severity": "WARNING", "details": None}, "Missing required parameter details"),
+        ({"source": "LMTR", "severity": "WARNING", "details": ""}, "Details should be a valid json object"),
+    ])
+    async def test_create_audit_entry_with_bad_data(self, client, request_data, expected_response):
+        resp = await client.post('/foglamp/audit', data=json.dumps(request_data))
+        assert 400 == resp.status
+        assert expected_response == resp.reason
+
+    async def test_create_audit_entry_with_attribute_error(self, client):
+        request_data = {"source": "LMTR", "severity": "blah", "details": {"message": "Engine oil pressure low"}}
+        with patch.object(audit._logger, "error", return_value=None) as audit_logger_patch:
+            with patch.object(AuditLogger, "__init__", return_value=None):
+                resp = await client.post('/foglamp/audit', data=json.dumps(request_data))
+                assert 404 == resp.status
+                assert 'severity type blah is not supported' == resp.reason
+        args, kwargs = audit_logger_patch.call_args
+        assert ('Error in create_audit_entry(): %s | %s', 'severity type blah is not supported', "'AuditLogger' object has no attribute 'blah'") == args
+
+    async def test_create_audit_entry_with_exception(self, client):
+        request_data = {"source": "LMTR", "severity": "blah", "details": {"message": "Engine oil pressure low"}}
+        with patch.object(AuditLogger, "__init__", return_value=""):
+            resp = await client.post('/foglamp/audit', data=json.dumps(request_data))
+            assert 500 == resp.status
+            assert "__init__() should return None, not 'str'" == resp.reason

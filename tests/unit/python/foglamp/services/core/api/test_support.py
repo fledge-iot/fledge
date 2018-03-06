@@ -38,8 +38,8 @@ class TestBundleSupport:
         return pathlib.Path(__file__).parent
 
     @pytest.mark.parametrize("data, expected_content, expected_count", [
-        (['support-180301-13:35:23.tar.gz', 'support-180301-13:25:23.tar.gz'], {'bundles': ['support-180301-13:35:23.tar.gz', 'support-180301-13:25:23.tar.gz']}, 2),
-        (['support-180301-13:35:23.tar.gz', 'foglamp.txt'], {'bundles': ['support-180301-13:35:23.tar.gz']}, 1),
+        (['support-180301-13-35-23.tar.gz', 'support-180301-13-13-13.tar.gz'], {'bundles': ['support-180301-13-35-23.tar.gz', 'support-180301-13-13-13.tar.gz']}, 2),
+        (['support-180301-15-25-02.tar.gz', 'foglamp.txt'], {'bundles': ['support-180301-15-25-02.tar.gz']}, 1),
         (['foglamp.txt'], {'bundles': []}, 0),
         ([], {'bundles': []}, 0)
     ])
@@ -56,10 +56,9 @@ class TestBundleSupport:
                 assert expected_content == jdict
             mockwalk.assert_called_once_with(path)
 
-    # FIXME: issue with URL having colon in it even after encoded with %3A manually or urllib parser
     async def test_get_support_bundle_by_name(self, client, support_bundles_dir_path):
         path = support_bundles_dir_path / 'support'
-        bundle_name = 'support-180301-133523.tar.gz'
+        bundle_name = 'support-180301-13-35-23.tar.gz'
         with patch.object(support, '_get_support_dir', return_value=path):
             with patch('os.path.isdir', return_value=True):
                 with patch('os.walk') as mockwalk:
@@ -70,8 +69,8 @@ class TestBundleSupport:
             mockwalk.assert_called_once_with(path)
 
     @pytest.mark.parametrize("data, request_bundle_name", [
-        (['support-180301-133523.tar.gz'], 'xsupport-180301-133523.tar.gz'),
-        ([], 'support-180301-133523.tar.gz')
+        (['support-180301-13-35-23.tar.gz'], 'xsupport-180301-01-15-13.tar.gz'),
+        ([], 'support-180301-13-13-13.tar.gz')
     ])
     async def test_get_support_bundle_by_name_not_found(self, client, support_bundles_dir_path, data, request_bundle_name):
         path = support_bundles_dir_path / 'support'
@@ -85,7 +84,7 @@ class TestBundleSupport:
             mockwalk.assert_called_once_with(path)
 
     async def test_get_support_bundle_by_name_bad_request(self, client):
-        resp = await client.get('/foglamp/support/support-180301-133523.tar')
+        resp = await client.get('/foglamp/support/support-180301-13-35-23.tar')
         assert 400 == resp.status
         assert 'Bundle file extension is invalid' == resp.reason
 

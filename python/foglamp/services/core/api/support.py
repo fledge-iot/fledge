@@ -46,9 +46,10 @@ async def fetch_support_bundle(request):
 
 
 async def fetch_support_bundle_item(request):
-    """
+    """ check existence of a bundle support by name
+
     :Example:
-        curl -X GET http://localhost:8081/foglamp/support/support-180301-13%3A35%3A23.tar.gz
+        curl -X GET http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
     """
     bundle_name = request.match_info.get('bundle', None)
 

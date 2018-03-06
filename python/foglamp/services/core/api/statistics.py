@@ -58,8 +58,19 @@ async def get_statistics_history(request):
             curl -X GET http://localhost:8081/foglamp/statistics/history?limit=1
     """
     storage_client = connect.get_storage()
-    payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).payload()
 
+    # To find the interval in secs from stats collector schedule
+    scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(
+        ['process_name', '=', 'stats collector']).payload()
+    result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
+    if len(result['rows']) > 0:
+        time_str = result['rows'][0]['schedule_interval']
+        ftr = [3600, 60, 1]
+        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+    else:
+        raise web.HTTPNotFound(reason="No stats collector schedule found")
+
+    stats_history_chain_payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).ORDER_BY(['history_ts', 'desc']).chain_payload()
     if 'limit' in request.query and request.query['limit'] != '':
         try:
             limit = int(request.query['limit'])
@@ -72,39 +83,26 @@ async def get_statistics_history(request):
             # Remove python side handling date_trunc and use
             # SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts
 
-            payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
-            result = storage_client.query_tbl_with_payload("statistics", payload)
+            count_payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
+            result = storage_client.query_tbl_with_payload("statistics", count_payload)
             key_count = result['rows'][0]['count_*']
 
-            payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).LIMIT(limit * key_count).payload()
-
+            stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).LIMIT(limit * key_count).chain_payload()
         except ValueError:
             raise web.HTTPBadRequest(reason="Limit must be a positive integer")
 
-    scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(['process_name', '=', 'stats collector']).payload()
-    result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
-    if len(result['rows']) > 0:
-        time_str = result['rows'][0]['schedule_interval']
-        ftr = [3600, 60, 1]
-        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
-    else:
-        raise web.HTTPNotFound(reason="No stats collector schedule found")
-
-    result_from_storage = storage_client.query_tbl_with_payload('statistics_history', payload)
-
+    stats_history_payload = PayloadBuilder(stats_history_chain_payload).payload()
+    result_from_storage = storage_client.query_tbl_with_payload('statistics_history', stats_history_payload)
     result_without_microseconds = []
     for row in result_from_storage['rows']:
         # Remove microseconds
         new_dict = {'history_ts': row['history_ts'][:-13], row['key']: row['value']}
         result_without_microseconds.append(new_dict)
 
-    # sorted on history_ts
-    sorted_result = sorted(result_without_microseconds, key=lambda k: k['history_ts'])
-
     results = []
     temp_dict = {}
     previous_ts = None
-    for row in sorted_result:
+    for row in result_without_microseconds:
         # first time or when history_ts changes
         if previous_ts is None or previous_ts != row['history_ts']:
             if previous_ts is not None:

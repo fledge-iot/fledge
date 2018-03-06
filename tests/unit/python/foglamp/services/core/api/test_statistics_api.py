@@ -60,13 +60,11 @@ class TestStatistics:
                 assert "Internal Server Error" == resp.reason
 
     async def test_get_statistics_history(self, client):
-        output = {"interval": 60, 'statistics': [
-            {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09"},
-            {"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24"}]
-                  }
-
-        p1 = {"return": ["history_ts", "key", "value"]}
-        p2 = {"return": ["schedule_interval"], "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09"}]}
+        p1 = {'return': ['history_ts', 'key', 'value'], 'sort': {'direction': 'desc', 'column': 'history_ts'}}
+        p2 = {"return": ["schedule_interval"],
+              "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
         def q_result(*args):
             table = args[0]
@@ -74,10 +72,10 @@ class TestStatistics:
 
             if table == 'statistics_history':
                 assert p1 == json.loads(payload)
-                return {"rows": [{"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"}]}
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
 
             if table == 'schedules':
                 assert p2 == json.loads(payload)
@@ -94,13 +92,13 @@ class TestStatistics:
         assert 2 == query_patch.call_count
 
     async def test_get_statistics_history_limit(self, client):
-        output = {"interval": 60, 'statistics': [
-            {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09"},
-            {"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24"}]}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09"}]}
 
         p1 = {"aggregate": {"operation": "count", "column": "*"}}
         # payload limit will be request limit*2 i.e. via p1 query
-        p2 = {"limit": 2, "return": ["history_ts", "key", "value"]}
+        p2 = {'limit': 2, 'sort': {'direction': 'desc', 'column': 'history_ts'},
+              'return': ['history_ts', 'key', 'value']}
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -114,10 +112,10 @@ class TestStatistics:
 
             if table == 'statistics_history':
                 assert p2 == json.loads(payload)
-                return {"rows": [{"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"}]}
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
 
             if table == 'schedules':
                 assert p3 == json.loads(payload)
@@ -136,14 +134,16 @@ class TestStatistics:
     @pytest.mark.parametrize("request_limit", [-1, 'blah'])
     async def test_get_statistics_history_bad_limit(self, client, request_limit):
         mockedStorageClient = MagicMock(StorageClient)
+        result = {"rows": [{"schedule_interval": "00:01:00"}]}
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=None):
+            with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result):
                 resp = await client.get("/foglamp/statistics/history?limit={}".format(request_limit))
             assert 400 == resp.status
             assert "Limit must be a positive integer" == resp.reason
 
     async def test_get_statistics_history_no_stats_collector(self, client):
-        p1 = {"return": ["schedule_interval"], "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
+        p1 = {"return": ["schedule_interval"],
+              "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
         def q_result(*args):
             table = args[0]

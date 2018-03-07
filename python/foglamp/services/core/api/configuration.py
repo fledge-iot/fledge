@@ -59,9 +59,6 @@ async def get_category(request):
     """
     category_name = request.match_info.get('category_name', None)
 
-    if not category_name:
-        raise web.HTTPBadRequest(reason="Category name is required")
-
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
     category = await cf_mgr.get_category_all_items(category_name)
@@ -74,7 +71,6 @@ async def get_category(request):
 
 async def create_category(request):
     """
-
     Args:
          request: A JSON object that defines the category
 
@@ -129,15 +125,12 @@ async def get_category_item(request):
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
 
-    if not category_name or not config_item:
-        raise web.HTTPBadRequest(reason="Both Category name and Config items are required")
-
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
 
     if category_item is None:
-        raise web.HTTPNotFound(reason="No Category item found")
+        raise web.HTTPNotFound(reason="No such Category item found for {}".format(config_item))
 
     return web.json_response(category_item)
 
@@ -166,14 +159,17 @@ async def set_configuration_item(request):
 
     try:
         value = data['value']
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
-        result = await cf_mgr.get_category_item(category_name, config_item)
-
-        if result is None:
-            raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
-
     except KeyError:
         raise web.HTTPBadRequest(reason='Missing required value for {}'.format(config_item))
+
+    try:
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
+    except ValueError:
+        raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+
+    result = await cf_mgr.get_category_item(category_name, config_item)
+    if result is None:
+        raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
 
     return web.json_response(result)
 
@@ -196,12 +192,13 @@ async def delete_configuration_item_value(request):
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
 
-    if not category_name or not config_item:
-        raise web.HTTPBadRequest(reason="Both Category name and Config items are required")
-
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
-    await cf_mgr.set_category_item_value_entry(category_name, config_item, '')
+    try:
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, '')
+    except ValueError:
+        raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+
     result = await cf_mgr.get_category_item(category_name, config_item)
 
     if result is None:

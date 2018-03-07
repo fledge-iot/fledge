@@ -55,7 +55,7 @@ Random *random = new Random();
 }
 
 /**
- * Start the Async handlign for the plugin
+ * Start the Async handling for the plugin
  */
 void plugin_start(PLUGIN_HANDLE *handle)
 {

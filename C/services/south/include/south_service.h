@@ -1,7 +1,7 @@
-#ifndef _STORAGE_SERVICE_H
-#define _STORAGE_SERVICE_H
+#ifndef _SOUTH_SERVICE_H
+#define _SOUTH_SERVICE_H
 /*
- * FogLAMP storage service.
+ * FogLAMP south service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

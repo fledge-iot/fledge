@@ -72,6 +72,10 @@ string payload;
 			m_logger->error("Failed to register service: %s.",
 				doc["message"].GetString());
 		}
+		else
+		{
+			m_logger->error("Unexpected result from service registration %s", res->content.string().c_str());
+		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Register service failed %s.", e.what());
 		return false;
@@ -128,15 +132,15 @@ string payload;
 
 	try {
 		string url = "/foglamp/service";
-		if (!service.getType().empty())
-		{
-			url += "?type=" + service.getType();
-		}
-		else if (!service.getName().empty())
+		if (!service.getName().empty())
 		{
 			url += "?name=" + service.getName();
 		}
-		auto res = m_client->request("GET", url);
+		else if (!service.getType().empty())
+		{
+			url += "?type=" + service.getType();
+		}
+		auto res = m_client->request("GET", url.c_str());
 		Document doc;
 		doc.Parse(res->content.string().c_str());
 		if (doc.HasParseError())
@@ -153,11 +157,12 @@ string payload;
 		}
 		else
 		{
-			Value& serviceRecord = doc[0];
+			Value& serviceRecord = doc["services"][0];
 			service.setAddress(serviceRecord["address"].GetString());
-			service.setPort(serviceRecord["port"].GetInt());
+			service.setPort(serviceRecord["service_port"].GetInt());
 			service.setProtocol(serviceRecord["protocol"].GetString());
 			service.setManagementPort(serviceRecord["management_port"].GetInt());
+			return true;
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get service failed %s.", e.what());

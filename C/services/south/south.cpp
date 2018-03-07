@@ -25,7 +25,7 @@ extern int makeDaemon(void);
 using namespace std;
 
 /**
- * Storage service main entry point
+ * South service main entry point
  */
 int main(int argc, char *argv[])
 {
@@ -116,14 +116,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 {
 	if (!loadPlugin())
 	{
-		logger->fatal("Failed to load storage plugin.");
+		logger->fatal("Failed to load south plugin.");
 		return;
 	}
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
-	logger->info("Starting service...");
+	logger->info("Starting south service...");
 	management.registerService(this);
 
+	// Listen for incomming managment requests
 	management.start();
 
 	// Allow time for the listeners to start before we register
@@ -133,9 +134,12 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record(m_name, "South", "http", "localhost", 0, managementListener);
+		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
-		client->registerService(record);
+		if (!client->registerService(record))
+		{
+			logger->error("Failed to register service %s", m_name.c_str());
+		}
 		unsigned int retryCount = 0;
 		while (client->registerCategory(m_name) == false && ++retryCount < 10)
 		{
@@ -143,8 +147,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Get a handle on the storage layer
-		ServiceRecord storageRecord("Storage");
-		client->getService(storageRecord);
+		ServiceRecord storageRecord("FogLAMP%20Storage");
+		if (!client->getService(storageRecord))
+		{
+			logger->fatal("Unable to find storage service");
+			return;
+		}
+		logger->info("Connect to storage on %s:%d",
+				storageRecord.getAddress().c_str(),
+				storageRecord.getPort());
+
 		
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
@@ -168,7 +180,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
-	logger->info("Stopping service...\n");
+	logger->info("Stopping south service...\n");
 }
 
 /**

@@ -14,9 +14,16 @@
 #include <ctime>
 #include <vector>
 
+/**
+ * An asset reading represented as a class.
+ *
+ * Each asset reading may have multiple datapoints to represent the
+ * multiple values that maybe held within a complex asset.
+ */
 class Reading {
 	public:
 		Reading(const std::string& asset, Datapoint *value);
+		Reading(const Reading& orig);
 		~Reading();
 		void		addDatapoint(Datapoint *value);
 		std::string	toJSON();

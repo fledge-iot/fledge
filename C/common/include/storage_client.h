@@ -13,14 +13,19 @@
 #include <reading.h>
 #include <logger.h>
 #include <string>
+#include <vector>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
+/**
+ * Client for accessing the storage service
+ */
 class StorageClient {
 	public:
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
 		bool readingAppend(Reading& reading);
+		bool readingAppend(const std::vector<Reading *> & readings);
 	private:
 		HttpClient		*m_client;
 		Logger			*m_logger;

@@ -1,7 +1,7 @@
-#ifndef _STORAGE_PLUGIN
-#define _STORAGE_PLUGIN
+#ifndef _SOUTH_PLUGIN
+#define _SOUTH_PLUGIN
 /*
- * FogLAMP storage service.
+ * FogLAMP south service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *

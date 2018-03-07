@@ -30,6 +30,15 @@ async def error_middleware(app, handler):
     return middleware_handler
 
 
+def auth_middleware(request):
+    # if `rest_api` config has `authentication` set to mandatory then:
+    #   request must carry auth header or should reuturn 403: Forbidden,
+    #   actual header will be checked too and if bad then 401: unauthorized will be returned
+    # else
+    #   no action required here
+    pass
+
+
 def handle_api_exception(ex, _class=None, if_trace=0):
     err_msg = {"message": "[{}] {}".format(_class,  str(ex))}
 

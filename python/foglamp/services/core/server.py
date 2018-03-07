@@ -144,6 +144,17 @@ class Server:
             'description': 'Certificate file name',
             'type': 'string',
             'default': 'foglamp'
+        },
+        'authentication': {
+            'description': 'To make the authentication mandatory or optional for API calls',
+            'type': 'string',
+            'default': 'mandatory'
+        },
+        'allowPing': {
+            'description': 'To allow access to the ping, regardless of the authentication required and'
+                           ' authentication header',
+            'type': 'boolean',
+            'default': 'true'
         }
     }
 

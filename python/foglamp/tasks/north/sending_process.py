@@ -33,11 +33,10 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.statistics import Statistics
 from foglamp.common.jqfilter import JQFilter
-from foglamp.common.audit_logger import AuditLogger
 
 
-__author__ = "Stefano Simonelli, Mark Riddoch"
-__copyright__ = "Copyright (c) 2017,2018 OSIsoft, LLC"
+__author__ = "Stefano Simonelli"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -204,6 +203,44 @@ def handling_input_parameters():
     return param_mgt_name, param_mgt_port, param_mgt_address, stream_id, log_performance, log_debug_level
 
 
+class LogStorage(object):
+    """ Logs operations in the Storage layer """
+
+    LOG_CODE = "STRMN"
+    """ Process name for logging the operations """
+
+    class Severity(object):
+        """ Log severity level """
+        SUCCESS = 0
+        FAILURE = 1
+        WARNING = 2
+        INFO = 4
+
+    def __init__(self, storage):
+        self._storage = storage
+        """ Reference to the Storage Layer """
+
+    def write(self, level, log):
+        """ Logs an operation in the Storage layer
+        Args:
+            level: {SUCCESS|FAILURE|WARNING|INFO}
+            log: message to log as a dict
+        Returns:
+        Raises:
+            Logs in the syslog in case of an error but the exception is not propagated
+        """
+        try:
+            payload = payload_builder.PayloadBuilder() \
+                .INSERT(code=LogStorage.LOG_CODE,
+                        level=level,
+                        log=log) \
+                .payload()
+            self._storage.insert_into_tbl("log", payload)
+        except Exception as _ex:
+            _message = _MESSAGES_LIST["e000024"].format(_ex)
+            _LOGGER.error(_message)
+
+
 class SendingProcess:
     """ SendingProcess """
 
@@ -222,9 +259,6 @@ class SendingProcess:
     _DATA_SOURCE_READINGS = "readings"
     _DATA_SOURCE_STATISTICS = "statistics"
     _DATA_SOURCE_AUDIT = "audit"
-
-    # Audit code to use
-    _AUDIT_CODE = "STRMN"
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'SEND_PR'
@@ -314,7 +348,7 @@ class SendingProcess:
         self._storage = None
         self._readings = None
         """" Interfaces to the FogLAMP Storage Layer """
-        self._audit = None
+        self._log_storage = None
         """" Used to log operations in the Storage Layer """
 
         self.input_stream_id = None
@@ -655,7 +689,7 @@ class SendingProcess:
                     # Updates reached position, statistics and logs the operation within the Storage Layer
                     self._last_object_id_update(new_last_object_id, stream_id)
                     self._update_statistics(num_sent, stream_id)
-                    self._audit.information(_AUDIT_CODE, {"sentRows": num_sent})
+                    self._log_storage.write(LogStorage.Severity.INFO, {"sentRows": num_sent})
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
             SendingProcess._logger.error(_message)
@@ -699,7 +733,7 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
             SendingProcess._logger.error(_message)
-            self._audit.failure(_AUDIT_CODE, {"error - on send_data": _message})
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on send_data": _message})
             raise
 
     def _update_statistics(self, num_sent, stream_id):
@@ -830,7 +864,7 @@ class SendingProcess:
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000004"].format(str(_ex))
             SendingProcess._logger.error(_message)
-            self._audit.failure(_AUDIT_CODE, {"error - on start": _message})
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on start": _message})
             raise
         return exec_sending_process
 
@@ -855,7 +889,7 @@ class SendingProcess:
         try:
             self._storage = StorageClient(self._mgt_address, self._mgt_port)
             self._readings = ReadingsStorageClient(self._mgt_address, self._mgt_port)
-            self._audit = AuditLogger(self._storage)
+            self._log_storage = LogStorage(self._storage)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -902,7 +936,7 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
             SendingProcess._logger.error(_message)
-            self._audit.failure(_AUDIT_CODE, {"error - on stop": _message})
+            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on stop": _message})
             raise
 
 

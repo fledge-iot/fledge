@@ -340,7 +340,7 @@ pg_schema_update() {
     else
         # Only if DB version is not equal to starting FogLAMP version we try schema update
         if [ "${CURR_VERR}" != "${NEW_VERSION}" ]; then
-            postgres_log "info" "Detected FogLAMP DB schema change from version [${CURR_VERR}]"\
+            postgres_log "info" "Detected '${PLUGIN}' FogLAMP DB schema change from version [${CURR_VERR}]"\
 " to [${NEW_VERSION}], applying Upgrade/Downgrade ..." "all" "pretty"
             # Call the schema update script
             $FOGLAMP_ROOT/scripts/plugins/storage/postgres/schema_update.sh "${CURR_VERR}" "${NEW_VERSION}" "${PG_SQL}"
@@ -467,8 +467,8 @@ if [[ -e "$FOGLAMP_ROOT/plugins/storage/postgres/init.sql" ]]; then
     INIT_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/init.sql"
 else
     # Attempt 2: development path
-    if [[ -e "$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql" ]]; then
-        INIT_SQL="$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql"
+    if [[ -e "$FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql" ]]; then
+        INIT_SQL="$FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql"
     else
         postgres_log "err" "Missing initialization file init.sql." "all" "pretty"
         exit 1

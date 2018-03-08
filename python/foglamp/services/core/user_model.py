@@ -9,8 +9,9 @@
 
 """
 
-#  import storage, payload builder
 from foglamp.services.core import connect
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -50,13 +51,8 @@ class User:
 
     class objects:
 
-        _storage = []#connect.get_storage()
+        _storage = []
         _max_id = 0
-
-        # @classmethod
-        # def create_admin(cls):
-        #     cls.create("admin", "foglamp", is_admin=True)
-        #     cls.create("admin2", "foglamp2", is_admin=True)
 
         @classmethod
         def create(cls, username, password, is_admin=False):
@@ -81,15 +77,33 @@ class User:
         # utility
         @classmethod
         def all(cls):
-            return cls._storage
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().SELECT("id", "uname", "role_id").payload()
+            result = storage_client.query_tbl_with_payload('users', payload)
+            return result['rows']
 
         @classmethod
         def filter(cls, **kwargs):
-            users = cls._storage
-            for k, v in kwargs.items():
-                if v:
-                    users = [u for u in users if getattr(u, k, None) == v]
-            return users
+            user_id = kwargs['uid']
+            user_name = kwargs['username']
+
+            payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['1', '=', '1'])
+            if user_id is not None:
+                payload.AND_WHERE(['id', '=', user_id])
+
+            if user_name is not None:
+                payload.AND_WHERE(['uname', '=', user_name])
+
+            _and_where_payload = payload.chain_payload()
+
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder(_and_where_payload).payload()
+            result = storage_client.query_tbl_with_payload('users', payload)
+            # for k, v in kwargs.items():
+            #     print(k, v)
+            #     if v:
+            #         users = [u for u in users if getattr(u, k, None) == v]
+            return result['rows']
 
         @classmethod
         def get(cls, uid=None, username=None):

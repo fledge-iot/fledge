@@ -6,6 +6,7 @@
 
 """ auth routes """
 from datetime import datetime, timedelta
+from collections import OrderedDict
 
 from aiohttp import web
 import jwt
@@ -20,14 +21,11 @@ __version__ = "${VERSION}"
 
 _help = """
     ------------------------------------------------------------------------------------
-    | GET             | /foglamp/user                                                  |
-    | POST            | /foglamp/login                                                 |
-    | PUT             | /foglamp/logout                                                |
+    | GET  POST PUT DELETE       | /foglamp/user                                       |
+    | POST                       | /foglamp/login                                      |
+    | PUT                        | /foglamp/logout                                     |
     ------------------------------------------------------------------------------------
 """
-
-# do it via init.sql
-#User.objects.create_admin()
 
 # move to common  / config
 JWT_SECRET = 'f0gl@mp'
@@ -77,17 +75,45 @@ async def logout(request):
 
 
 async def get_user(request):
+    """ get user info
+
+    :Example:
+            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=x
+            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?uname=admin
+            curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&uname=admin"
     """
+    user_id = None
+    user_name = None
 
-    :param request:
-    :return:
+    if 'id' in request.query and request.query['id'] != '':
+        try:
+            user_id = int(request.query['id'])
+            if user_id <= 0:
+                raise ValueError
+        except ValueError:
+            raise web.HTTPBadRequest(reason="Bad user id")
 
-    curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=x
-    """
-    # if id, return single user
-    # else all
-    users = User.objects.all()
+    if 'uname' in request.query and request.query['uname'] != '':
+        user_name = request.query['uname']
 
-    temp = [str(u) for u in users]
+    if user_id or user_name:
+        try:
+            user = User.objects.get(user_id, user_name)
+            user['userId'] = user.pop('id')
+            user['userName'] = user.pop('uname')
+            user['roleId'] = user.pop('role_id')
+            result = user
+        except User.DoesNotExist as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+    else:
+        users = User.objects.all()
+        res = []
+        for row in users:
+            u = OrderedDict()
+            u["userId"] = row["id"]
+            u["userName"] = row["uname"]
+            u["roleId"] = row["role_id"]
+            res.append(u)
+        result = {'users': res}
 
-    return web.json_response({'users': temp})
+    return web.json_response(result)

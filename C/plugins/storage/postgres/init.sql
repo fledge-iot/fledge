@@ -555,7 +555,7 @@ CREATE INDEX fki_role_asset_permissions_fk2
 -- 2 - Public Key
 CREATE TABLE foglamp.users (
        id            integer                NOT NULL DEFAULT nextval('foglamp.users_id_seq'::regclass),
-       uid           character varying(80)  NOT NULL COLLATE pg_catalog."default",
+       uname         character varying(80)  NOT NULL COLLATE pg_catalog."default",
        role_id       integer                NOT NULL,
        description   character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
        pwd           character varying(255) COLLATE pg_catalog."default",
@@ -571,15 +571,17 @@ CREATE INDEX fki_users_fk1
     ON foglamp.users USING btree (role_id);
 
 CREATE UNIQUE INDEX users_ix1
-    ON foglamp.users USING btree (uid COLLATE pg_catalog."default");
+    ON foglamp.users USING btree (uname COLLATE pg_catalog."default");
 
 -- User Login table
 -- List of logins executed by the users.
 CREATE TABLE foglamp.user_logins (
-       id      integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
-       user_id integer                     NOT NULL,
-       ip      inet                        NOT NULL,
-       ts      timestamp(6) with time zone NOT NULL,
+       id               integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
+       user_id          integer                     NOT NULL,
+       ip               inet                        NOT NULL,
+       ts               timestamp(6) with time zone NOT NULL,
+       token            character varying(255)      NOT NULL,
+       token_expiration timestamp(6) with time zone NOT NULL,
        CONSTRAINT user_logins_pkey PRIMARY KEY (id),
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)
        REFERENCES foglamp.users (id) MATCH SIMPLE
@@ -720,6 +722,22 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 ----------------------------------------------------------------------
 -- Initialization phase - DML
 ----------------------------------------------------------------------
+
+-- Roles
+DELETE FROM foglamp.roles;
+INSERT INTO foglamp.roles (name)
+     VALUES ('admin'),
+            ('user');
+
+-- Users
+DELETE FROM foglamp.users;
+INSERT INTO foglamp.users ( uname, pwd, role_id )
+     VALUES ('admin', 'foglamp', 1),
+            ('user', 'foglamp', 2);
+
+-- User logins
+DELETE FROM foglamp.user_logins;
+
 
 -- Log Codes
 DELETE FROM foglamp.log_codes;

@@ -10,6 +10,7 @@
 """
 
 #  import storage, payload builder
+from foglamp.services.core import connect
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -49,13 +50,13 @@ class User:
 
     class objects:
 
-        _storage = []
+        _storage = []#connect.get_storage()
         _max_id = 0
 
-        @classmethod
-        def create_admin(cls):
-            cls.create("admin", "foglamp", is_admin=True)
-            cls.create("admin2", "foglamp2", is_admin=True)
+        # @classmethod
+        # def create_admin(cls):
+        #     cls.create("admin", "foglamp", is_admin=True)
+        #     cls.create("admin2", "foglamp2", is_admin=True)
 
         @classmethod
         def create(cls, username, password, is_admin=False):

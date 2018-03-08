@@ -27,7 +27,7 @@ _help = """
 """
 
 # do it via init.sql
-User.objects.create_admin()
+#User.objects.create_admin()
 
 # move to common  / config
 JWT_SECRET = 'f0gl@mp'

@@ -14,7 +14,7 @@ from aiohttp import web
 import pytest
 
 from foglamp.services.core import routes
-from foglamp.services.core.api import support
+from foglamp.services.core.support import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -98,6 +98,21 @@ class TestBundleSupport:
             mockisdir.assert_called_once_with(path)
 
     async def test_create_support_bundle(self, client):
-        resp = await client.post('/foglamp/support')
-        assert 501 == resp.status
-        assert 'Create support bundle method is not implemented yet' == resp.reason
+        async def mock_build():
+            return 'support-180301-13-35-23.tar.gz'
+
+        with patch.object(SupportBuilder, "__init__", return_value=None):
+            with patch.object(SupportBuilder, "build", return_value=mock_build()):
+                resp = await client.post('/foglamp/support')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
+
+    async def test_create_support_bundle_exception(self, client):
+        with patch.object(SupportBuilder, "__init__", return_value=None):
+            with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
+                resp = await client.post('/foglamp/support')
+                res = await resp.text()
+                assert 500 == resp.status
+                assert "Support bundle could not be created. blah" == resp.reason

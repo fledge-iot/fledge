@@ -7,7 +7,7 @@
 import os
 from aiohttp import web
 from foglamp.common import logger
-
+from foglamp.services.core.support import SupportBuilder
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -67,8 +67,19 @@ async def fetch_support_bundle_item(request):
 
 
 async def create_support_bundle(request):
-    # TODO: FOGL-1126
-    raise web.HTTPNotImplemented(reason='Create support bundle method is not implemented yet')
+    """ Create a support bundle by name
+
+    :Example:
+        curl -X POST http://localhost:8081/foglamp/support
+    """
+    support_dir = _get_support_dir()
+    base_url = "{}://{}:{}/foglamp".format(request.url.scheme, request.url.host, request.url.port)
+    try:
+        bundle_name = await SupportBuilder(support_dir, base_url).build()
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
+
+    return web.json_response({"bundle created": bundle_name})
 
 
 def _get_support_dir():

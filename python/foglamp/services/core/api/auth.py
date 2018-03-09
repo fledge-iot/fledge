@@ -7,12 +7,9 @@
 """ auth routes """
 
 import re
-from datetime import datetime, timedelta
 from collections import OrderedDict
 
 from aiohttp import web
-import jwt
-
 from foglamp.services.core.user_model import User
 
 __author__ = "Praveen Garg"
@@ -23,7 +20,8 @@ __version__ = "${VERSION}"
 
 _help = """
     ------------------------------------------------------------------------------------
-    | GET  POST PUT DELETE       | /foglamp/user                                       |
+    | GET  POST PUT              | /foglamp/user                                       |
+    | DELETE                     | /foglamp/user/{id}                                  |
     
     | POST                       | /foglamp/login                                      |
     | PUT                        | /foglamp/logout                                     |
@@ -37,31 +35,28 @@ JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 
 async def login(request):
+    """ Validate user with its username and password
+
+    :Example:
+            curl -X POST -d '{"username": "user", "password": "User@123"}' http://localhost:8081/foglamp/login
     """
 
-    :param request:
-    :return:
+    data = await request.json()
 
-    curl -X POST -d '{"username": "admin", "password": "foglamp"}' http://localhost:8081/foglamp/login
-    """
+    username = data.get('username')
+    password = data.get('password')
 
-    req = await request.json()
+    if not username or not password:
+        raise web.HTTPBadRequest(reason="Username and password is missing")
 
     try:
-        user = User.Objects.get(username=req.get("username"))
-        user.match_password(req.get("password"))
+        user = User.Objects.login(username, password)
+    except (User.DoesNotExist, User.PasswordDoesNotMatch) as ex:
+        return web.HTTPBadRequest(reason=str(ex))
+    except ValueError as exc:
+        return web.HTTPBadRequest(reason=str(exc))
 
-    except (User.DoesNotExist, User.PasswordDoesNotMatch):
-        return web.HTTPBadRequest()
-
-    payload = {
-        'uid': user.uid,
-        'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
-    }
-    jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
-
-    # save this token, login time, expiration in DB
-    return web.json_response({'token': jwt_token.decode('utf-8')})
+    return web.json_response({"message": "Logged in successfully", "info": user})
 
 
 async def logout(request):

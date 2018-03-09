@@ -578,8 +578,8 @@ CREATE UNIQUE INDEX users_ix1
 CREATE TABLE foglamp.user_logins (
        id               integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
        user_id          integer                     NOT NULL,
-       ip               inet                        NOT NULL,
-       ts               timestamp(6) with time zone NOT NULL,
+       ip               inet                        NOT NULL DEFAULT '0.0.0.0'::inet,
+       ts               timestamp(6) with time zone NOT NULL DEFAULT now(),
        token            character varying(255)      NOT NULL,
        token_expiration timestamp(6) with time zone NOT NULL,
        CONSTRAINT user_logins_pkey PRIMARY KEY (id),

@@ -81,6 +81,7 @@ class SupportBuilder:
             _LOGGER.error("Error in creating Support .tar.gz file: %s ", str(ex))
             raise RuntimeError(str(ex))
 
+        self.check_and_delete_temp_files(self._interim_file_path)
         _LOGGER.info("Support bundle %s successfully created.", tar_file_name)
         return tar_file_name
 
@@ -92,6 +93,7 @@ class SupportBuilder:
                 if os.path.isfile(f):
                     os.remove(os.path.join(support_dir, f))
 
+    def check_and_delete_temp_files(self, support_dir):
         # Delete all non *.tar.gz files
         for f in os.listdir(support_dir):
             if not fnmatch.fnmatch(f, 'support*.tar.gz'):
@@ -114,7 +116,7 @@ class SupportBuilder:
 
     def add_syslog_storage(self, pyz, file_spec):
         # The contents of the syslog file that relate to the database layer (postgres)
-        temp_file = self._interim_file_path + "/" + "storage-{}".format(file_spec)
+        temp_file = self._interim_file_path + "/" + "syslogStorage-{}".format(file_spec)
         logs = syslog_parser.main(filter_by="FogLAMP Storage")
         data = {
             "about": "Syslog for FogLAMP Storage Layer",

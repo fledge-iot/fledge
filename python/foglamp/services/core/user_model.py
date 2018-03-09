@@ -8,10 +8,12 @@
 """ FogLAMP user entity class with CRUD operations to Storage layer
 
 """
+import uuid
+import hashlib
 
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
-
+from foglamp.common.storage_client.exceptions import StorageServerError
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -49,15 +51,23 @@ class User:
     class PasswordDoesNotMatch(BaseException):
         pass
 
-    class objects:
-
+    class Objects:
         _storage = []
-        _max_id = 0
 
         @classmethod
-        def create(cls, username, password, is_admin=False):
-            cls._max_id += 1
-            cls._storage.append(User(cls._max_id, username, password, is_admin))
+        # TODO: remove hard-coded '2' role_id
+        def create(cls, username, password, is_admin=2):
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
+                                              role_id=is_admin).payload()
+            result = {}
+            try:
+                result = storage_client.insert_into_tbl("users", payload)
+            except StorageServerError as ex:
+                err_response = ex.error
+                if not err_response["retryable"]:
+                    raise ValueError(err_response['message'])
+            return result
 
         @classmethod
         def delete(cls, user_id=None, username=None):
@@ -99,10 +109,6 @@ class User:
             storage_client = connect.get_storage()
             payload = PayloadBuilder(_and_where_payload).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
-            # for k, v in kwargs.items():
-            #     print(k, v)
-            #     if v:
-            #         users = [u for u in users if getattr(u, k, None) == v]
             return result['rows']
 
         @classmethod
@@ -111,3 +117,14 @@ class User:
             if len(users) == 0:
                 raise User.DoesNotExist
             return users[0]
+
+        @classmethod
+        def hash_password(cls, password):
+            # uuid is used to generate a random number
+            salt = uuid.uuid4().hex
+            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt
+
+        @classmethod
+        def check_password(cls, hashed_password, user_password):
+            password, salt = hashed_password.split(':')
+            return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()

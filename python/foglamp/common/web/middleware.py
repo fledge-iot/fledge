@@ -55,7 +55,7 @@ async def auth_middleware(app, handler):
             except (jwt.DecodeError, jwt.ExpiredSignatureError):
                 raise web.HTTPUnauthorized()
 
-            request.user = User.objects.get(uid=payload['uid'])
+            request.user = User.Objects.get(uid=payload['uid'])
         else:
             # TODO: bypass ping route based on allowPing=>True
 

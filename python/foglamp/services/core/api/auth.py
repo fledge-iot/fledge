@@ -5,6 +5,8 @@
 # FOGLAMP_END
 
 """ auth routes """
+
+import re
 from datetime import datetime, timedelta
 from collections import OrderedDict
 
@@ -22,6 +24,7 @@ __version__ = "${VERSION}"
 _help = """
     ------------------------------------------------------------------------------------
     | GET  POST PUT DELETE       | /foglamp/user                                       |
+    
     | POST                       | /foglamp/login                                      |
     | PUT                        | /foglamp/logout                                     |
     ------------------------------------------------------------------------------------
@@ -45,7 +48,7 @@ async def login(request):
     req = await request.json()
 
     try:
-        user = User.objects.get(username=req.get("username"))
+        user = User.Objects.get(username=req.get("username"))
         user.match_password(req.get("password"))
 
     except (User.DoesNotExist, User.PasswordDoesNotMatch):
@@ -78,9 +81,10 @@ async def get_user(request):
     """ get user info
 
     :Example:
-            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=x
-            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?uname=admin
-            curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&uname=admin"
+            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
+            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
+            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
+            curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
     """
     user_id = None
     user_name = None
@@ -93,20 +97,21 @@ async def get_user(request):
         except ValueError:
             raise web.HTTPBadRequest(reason="Bad user id")
 
-    if 'uname' in request.query and request.query['uname'] != '':
-        user_name = request.query['uname']
+    if 'username' in request.query and request.query['username'] != '':
+        user_name = request.query['username']
 
     if user_id or user_name:
         try:
-            user = User.objects.get(user_id, user_name)
-            user['userId'] = user.pop('id')
-            user['userName'] = user.pop('uname')
-            user['roleId'] = user.pop('role_id')
-            result = user
+            user = User.Objects.get(user_id, user_name)
+            u = OrderedDict()
+            u['userId'] = user.pop('id')
+            u['userName'] = user.pop('uname')
+            u['roleId'] = user.pop('role_id')
+            result = u
         except User.DoesNotExist as ex:
             raise web.HTTPNotFound(reason=str(ex))
     else:
-        users = User.objects.all()
+        users = User.Objects.all()
         res = []
         for row in users:
             u = OrderedDict()
@@ -117,3 +122,59 @@ async def get_user(request):
         result = {'users': res}
 
     return web.json_response(result)
+
+
+async def create_user(request):
+    """ create user
+
+    :Example:
+        curl -X POST -d '{"username": "admin", "password": "F0@glamp"}' http://localhost:8081/foglamp/user
+        curl -X POST -d '{"username": "ajadmin", "password": "User@123", "role": 1}' http://localhost:8081/foglamp/user
+    """
+    data = await request.json()
+
+    username = data.get('username')
+    password = data.get('password')
+    # TODO: more elegant way
+    # role_id = 2 is a normal user
+    role = int(data.get('role')) if data.get('role') else 2
+
+    if not username or not password:
+        raise web.HTTPBadRequest(reason="Username and password is missing")
+
+    # TODO:
+    # 1) username regex?
+    # 2) confirm password?
+    # 3) or any signup field attribute?
+    if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{8,8})', password):
+        raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
+                                        "one lowercase, one uppercase, "
+                                        "one special symbol and "
+                                        "length is exactly of 8 characters")
+
+    # TODO: Get role_id range from DB
+    if role not in range(1, 3):
+        raise web.HTTPBadRequest(reason="Bad role")
+
+    try:
+        result = User.Objects.create(username, password, role)
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+
+    # if user inserted then fetch user info
+    u = OrderedDict()
+    if result['rows_affected']:
+        user = User.Objects.get(username=username)
+        u['userId'] = user.pop('id')
+        u['userName'] = user.pop('uname')
+        u['roleId'] = user.pop('role_id')
+
+    return web.json_response({'message': 'User has been created successfully', 'userInfo': u})
+
+
+async def update_user(request):
+    pass
+
+
+async def delete_user(request):
+    pass

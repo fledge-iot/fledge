@@ -27,12 +27,16 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/ping', api_common.ping)
     app.router.add_route('PUT', '/foglamp/shutdown', api_common.shutdown)
 
-    # auth
+    # user
     app.router.add_route('GET', '/foglamp/user', auth.get_user)
     app.router.add_route('POST', '/foglamp/user', auth.create_user)
     app.router.add_route('PUT', '/foglamp/user', auth.update_user)
     app.router.add_route('DELETE', '/foglamp/user/{id}', auth.delete_user)
 
+    # role
+    app.router.add_route('GET', '/foglamp/user/role', auth.get_roles)
+
+    # auth
     app.router.add_route('POST', '/foglamp/login', auth.login)
     app.router.add_route('PUT', '/foglamp/logout', auth.logout)
 

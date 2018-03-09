@@ -62,6 +62,12 @@ class User:
     class Objects:
 
         @classmethod
+        def roles(cls):
+            storage_client = connect.get_storage()
+            result = storage_client.query_tbl('roles')
+            return result
+
+        @classmethod
         # TODO: remove hard-coded '2' role_id
         def create(cls, username, password, is_admin=2):
             """

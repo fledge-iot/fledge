@@ -72,6 +72,16 @@ async def logout(request):
     return web.json_response({"logout": True})
 
 
+async def get_roles(request):
+    """ get roles
+
+       :Example:
+            curl -X GET http://localhost:8081/foglamp/user/role
+    """
+    result = User.Objects.roles()
+    return web.json_response({'roles': result['rows']})
+
+
 async def get_user(request):
     """ get user info
 

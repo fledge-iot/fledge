@@ -732,7 +732,7 @@ INSERT INTO foglamp.roles (name)
 -- Users
 DELETE FROM foglamp.users;
 INSERT INTO foglamp.users ( uname, pwd, role_id )
-     VALUES ('admin', 'c6063f741c16d894aa40391534ebe373d2d7c330ca4bd60fda2b51c6e69fd67f:178910feea9249dbbee0e8f5e0492681', 1),
+     VALUES ('admin', '65a0d059df006ce016dd81af793753eee47462a931f36fc6c481844e46aef608:90fc83ffa252467e829634321ca0448d', 1),
             ('user', '301cb8d5a53a71680238087bddc1754db3f04ee303c2ea05345581eb988917ed:a8f5ea0fc40d4f0786f142421ea06165', 2);
 
 -- User logins

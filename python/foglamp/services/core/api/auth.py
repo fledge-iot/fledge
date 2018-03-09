@@ -128,7 +128,7 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -X POST -d '{"username": "admin", "password": "F0@glamp"}' http://localhost:8081/foglamp/user
+        curl -X POST -d '{"username": "admin", "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user
         curl -X POST -d '{"username": "ajadmin", "password": "User@123", "role": 1}' http://localhost:8081/foglamp/user
     """
     data = await request.json()
@@ -146,7 +146,7 @@ async def create_user(request):
     # 1) username regex?
     # 2) confirm password?
     # 3) or any signup field attribute?
-    if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{8,8})', password):
+    if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{8}$)', password):
         raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
                                         "one lowercase, one uppercase, "
                                         "one special symbol and "
@@ -163,11 +163,14 @@ async def create_user(request):
 
     # if user inserted then fetch user info
     u = OrderedDict()
-    if result['rows_affected']:
-        user = User.Objects.get(username=username)
-        u['userId'] = user.pop('id')
-        u['userName'] = user.pop('uname')
-        u['roleId'] = user.pop('role_id')
+    try:
+        if result['rows_affected']:
+            user = User.Objects.get(username=username)
+            u['userId'] = user.pop('id')
+            u['userName'] = user.pop('uname')
+            u['roleId'] = user.pop('role_id')
+    except Exception as exc:
+        raise web.HTTPInternalServerError(reason=str(exc))
 
     return web.json_response({'message': 'User has been created successfully', 'userInfo': u})
 
@@ -177,4 +180,25 @@ async def update_user(request):
 
 
 async def delete_user(request):
-    pass
+    """ Delete a user from users table
+
+    :Example:
+            curl -X DELETE  http://localhost:8081/foglamp/user/1
+    """
+
+    # TODO: soft delete?
+
+    try:
+        user_id = request.match_info.get('id')
+        result = User.Objects.delete(user_id)
+        if not result['rows_affected']:
+            raise User.DoesNotExist
+
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except User.DoesNotExist:
+        raise web.HTTPBadRequest(reason="User does not exist")
+    except Exception as exc:
+        raise web.HTTPInternalServerError(reason=str(exc))
+
+    return web.json_response({'message': "User has been deleted successfully"})

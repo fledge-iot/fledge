@@ -70,19 +70,21 @@ class User:
             return result
 
         @classmethod
-        def delete(cls, user_id=None, username=None):
-            if not user_id and not username:
-                raise ValueError("Either user id or name is required")
-
-            if user_id and username:
-                raise ValueError("Only one of user id or name is required")
-
-            if user_id == 1 or username == "foglamp":
+        def delete(cls, user_id=None):
+            # TODO: any admin role?
+            if int(user_id) == 1:
                 raise ValueError("Admin user can not be deleted")
 
-            cls.get(uid=user_id, username=username)
-            # remove from storage
-            pass
+            payload = PayloadBuilder().DELETE("users").WHERE(['id', '=', user_id]).payload()
+            storage_client = connect.get_storage()
+            result = {}
+            try:
+                result = storage_client.delete_from_tbl("users", payload)
+            except StorageServerError as ex:
+                err_response = ex.error
+                if not err_response["retryable"]:
+                    raise ValueError(err_response['message'])
+            return result
 
         # utility
         @classmethod

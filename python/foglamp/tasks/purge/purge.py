@@ -116,9 +116,10 @@ class Purge(FoglampProcess):
                 unsent_retained = result['unsentRetained']
         except ValueError:
             self._logger.error("Configuration item age {} should be integer!".format(config['age']['value']))
-            raise ValueError
 
-        except StorageServerError:
+        except StorageServerError as ex:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
             pass
 
         try:
@@ -131,9 +132,10 @@ class Purge(FoglampProcess):
                 unsent_retained += result['unsentRetained']
         except ValueError:
             self._logger.error("Configuration item size {} should be integer!".format(config['size']['value']))
-            raise ValueError
 
-        except StorageServerError:
+        except StorageServerError as ex:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
             pass
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))

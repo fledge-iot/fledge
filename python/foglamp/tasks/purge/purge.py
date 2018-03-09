@@ -30,6 +30,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
+from foglamp.common.storage_client.exceptions import *
 from foglamp.common.process import FoglampProcess
 
 
@@ -109,30 +110,33 @@ class Purge(FoglampProcess):
 
                 result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-                if "message" in result.keys() and "409 Conflict" in result["message"]:
-                    self._logger.error("Purge failed: %s", result["message"])
-                else:
-                    total_count = result['readings']
-                    total_rows_removed = result['removed']
-                    unsent_rows_removed = result['unsentPurged']
-                    unsent_retained = result['unsentRetained']
+                total_count = result['readings']
+                total_rows_removed = result['removed']
+                unsent_rows_removed = result['unsentPurged']
+                unsent_retained = result['unsentRetained']
         except ValueError:
             self._logger.error("Configuration item age {} should be integer!".format(config['age']['value']))
-            raise ValueError
+
+        except StorageServerError as ex:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
+            pass
+
         try:
             if int(config['size']['value']) != 0:
                 result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
-                if "message" in result.keys() and "409 Conflict" in result["message"]:
-                    self._logger.error("Purge failed: %s", result["message"])
-                else:
-                    total_count += result['readings']
-                    total_rows_removed += result['removed']
-                    unsent_rows_removed += result['unsentPurged']
-                    unsent_retained += result['unsentRetained']
+                total_count += result['readings']
+                total_rows_removed += result['removed']
+                unsent_rows_removed += result['unsentPurged']
+                unsent_retained += result['unsentRetained']
         except ValueError:
             self._logger.error("Configuration item size {} should be integer!".format(config['size']['value']))
-            raise ValueError
+
+        except StorageServerError as ex:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
+            pass
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 

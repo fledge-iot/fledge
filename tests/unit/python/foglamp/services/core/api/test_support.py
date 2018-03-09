@@ -14,6 +14,7 @@ from aiohttp import web
 import pytest
 
 from foglamp.services.core import routes
+from foglamp.services.core.api import support
 from foglamp.services.core.support import *
 
 __author__ = "Ashish Jabble"

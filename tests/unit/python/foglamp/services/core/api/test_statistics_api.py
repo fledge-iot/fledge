@@ -60,8 +60,8 @@ class TestStatistics:
                 assert "Internal Server Error" == resp.reason
 
     async def test_get_statistics_history(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09"}]}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
         p1 = {'return': ['history_ts', 'key', 'value'], 'sort': {'direction': 'desc', 'column': 'history_ts'}}
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
@@ -92,8 +92,8 @@ class TestStatistics:
         assert 2 == query_patch.call_count
 
     async def test_get_statistics_history_limit(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09"}]}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
 
         p1 = {"aggregate": {"operation": "count", "column": "*"}}
         # payload limit will be request limit*2 i.e. via p1 query

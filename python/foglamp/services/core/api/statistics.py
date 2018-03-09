@@ -93,16 +93,15 @@ async def get_statistics_history(request):
 
     stats_history_payload = PayloadBuilder(stats_history_chain_payload).payload()
     result_from_storage = storage_client.query_tbl_with_payload('statistics_history', stats_history_payload)
-    result_without_microseconds = []
+    group_dict = []
     for row in result_from_storage['rows']:
-        # Remove microseconds
-        new_dict = {'history_ts': row['history_ts'][:-13], row['key']: row['value']}
-        result_without_microseconds.append(new_dict)
+        new_dict = {'history_ts': row['history_ts'], row['key']: row['value']}
+        group_dict.append(new_dict)
 
     results = []
     temp_dict = {}
     previous_ts = None
-    for row in result_without_microseconds:
+    for row in group_dict:
         # first time or when history_ts changes
         if previous_ts is None or previous_ts != row['history_ts']:
             if previous_ts is not None:

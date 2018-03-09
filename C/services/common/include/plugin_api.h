@@ -3,7 +3,7 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017,2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
@@ -36,4 +36,5 @@ typedef void * PLUGIN_HANDLE;
  * Plugin types
  */
 #define PLUGIN_TYPE_STORAGE     "storage"
+#define PLUGIN_TYPE_SOUTH       "south"
 #endif

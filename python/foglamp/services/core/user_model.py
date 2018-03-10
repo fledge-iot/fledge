@@ -124,6 +124,11 @@ class User:
                 raise ValueError(ex.error['message'])
             return res_del_user
 
+        @classmethod
+        def update(cls, user_id, user):
+            # TODO: make storage update call
+            pass
+
         # utility
         @classmethod
         def all(cls):
@@ -198,7 +203,7 @@ class User:
                   return token
 
             """
-            payload = PayloadBuilder().SELECT("pwd", "id").WHERE(['uname', '=', username]).payload()
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id").WHERE(['uname', '=', username]).payload()
             storage_client = connect.get_storage()
 
             result = storage_client.query_tbl_with_payload('users', payload)
@@ -215,11 +220,7 @@ class User:
 
             # fetch user info
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
-            # jwt token
-            p = {'uid': found_user['id'],
-                 'exp': exp
-                 }
-
+            p = {'uid': found_user['id'], 'exp': exp}
             jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
 
             payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token,
@@ -233,7 +234,25 @@ class User:
                     pass  # retry INSERT
                 raise ValueError(ex.error['message'])
 
-            return jwt_token
+            # TODO remove hard code role id to return is_admin info
+            if int(found_user['role_id']) == 1:
+                return jwt_token, True
+
+            return jwt_token, False
+
+        @classmethod
+        def logout(cls, user_id=None):
+
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
+            try:
+                res = storage_client.delete_from_tbl("user_logins", payload)
+            except StorageServerError as ex:
+                if not ex.error["retryable"]:
+                    pass
+                raise ValueError(ex.error['message'])
+
+            return res
 
         @classmethod
         def hash_password(cls, password):

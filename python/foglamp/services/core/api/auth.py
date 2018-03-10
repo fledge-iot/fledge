@@ -33,6 +33,8 @@ JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
+PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
+
 
 async def login(request):
     """ Validate user with its username and password
@@ -50,13 +52,13 @@ async def login(request):
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
     try:
-        token = User.Objects.login(username, password)
+        token, is_admin = User.Objects.login(username, password)
     except (User.DoesNotExist, User.PasswordDoesNotMatch) as ex:
         return web.HTTPBadRequest(reason=str(ex))
     except ValueError as exc:
         return web.HTTPBadRequest(reason=str(exc))
 
-    return web.json_response({"message": "Logged in successfully", "token": token})
+    return web.json_response({"message": "Logged in successfully", "token": token, "admin": is_admin})
 
 
 async def logout(request):
@@ -68,7 +70,18 @@ async def logout(request):
         curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
 
     """
-    # invalidate token in DB
+    # TODO: request.user is only available when auth is mandatory
+    # or we can have uid in request as query param in optional case
+    # e.g. curl PUT http://localhost:8081/foglamp/<user_id>/logout
+
+    logged_in_user = request.user
+    print(logged_in_user)
+
+    if logged_in_user:
+        result = User.Objects.logout(logged_in_user["id"])
+        if not result['rows_affected']:
+            raise web.HTTPBadRequest()
+
     return web.json_response({"logout": True})
 
 
@@ -147,18 +160,12 @@ async def create_user(request):
 
     # TODO:
     # 1) username regex? is email allowed?
-    # 2) confirm password?
-    if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)', password):
+    if not re.match(PASSWORD_REGEX_PATTERN, password):
         raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
                                         "one lowercase, one uppercase & one special character and "
                                         "length of minimum 6 characters")
 
-    roles = [int(r["id"]) for r in User.Objects.get_roles()]
-    try:
-        role = int(role_id)
-        if role not in roles:
-            raise ValueError
-    except ValueError:
+    if not is_valid_role(role_id):
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
     try:
@@ -170,7 +177,7 @@ async def create_user(request):
 
     u = dict()
     try:
-        is_admin = True if role == 1 else False
+        is_admin = True if int(role_id) == 1 else False
         result = User.Objects.create(username, password, is_admin)
         if result['rows_affected']:
             # FIXME: we should not do get again!
@@ -188,7 +195,35 @@ async def create_user(request):
 
 
 async def update_user(request):
-    pass
+    data = await request.json()
+
+    # we don't have any profile yet, let's allow to update role or password only
+
+    role_id = data.get('role')
+    if not is_valid_role(role_id):
+        return web.HTTPBadRequest(reason="Invalid or bad role id")
+
+    password = data.get('password')
+    if not re.match(PASSWORD_REGEX_PATTERN, password):
+        raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
+                                        "one lowercase, one uppercase & one special character and "
+                                        "length of minimum 6 characters")
+
+    logged_in_user = request.user
+    print(logged_in_user)
+
+    updated_user = logged_in_user
+    updated_user["role_id"] = int(role_id)
+    updated_user["password"] = User.Objects.hash_password(password)
+
+    User.Objects.update(user_id=logged_in_user["id"], user=updated_user)
+
+    u = dict()
+    u['userId'] = updated_user.pop('id')
+    u['userName'] = updated_user.pop('uname')
+    u['roleId'] = updated_user('role_id')
+
+    return web.json_response({'message': 'User has been updated successfully', 'user': u})
 
 
 async def delete_user(request):
@@ -217,3 +252,14 @@ async def delete_user(request):
         raise web.HTTPInternalServerError(reason=str(exc))
 
     return web.json_response({'message': "User has been deleted successfully"})
+
+
+def is_valid_role(role_id):
+    roles = [int(r["id"]) for r in User.Objects.get_roles()]
+    try:
+        role = int(role_id)
+        if role not in roles:
+            raise ValueError
+    except ValueError:
+        return False
+    return True

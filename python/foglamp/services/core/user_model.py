@@ -46,17 +46,19 @@ class User:
     def __str__(self):
         return self.__repr__()
 
-    def match_password(self, password):
-        if password != self.password:
-            raise User.PasswordDoesNotMatch
-
-    class DoesNotExist(BaseException):
+    class DoesNotExist(Exception):
         pass
 
-    class UserAlreadyExists(BaseException):
+    class UserAlreadyExists(Exception):
         pass
 
-    class PasswordDoesNotMatch(BaseException):
+    class PasswordDoesNotMatch(Exception):
+        pass
+
+    class InvalidToken(Exception):
+        pass
+
+    class TokenExpired(Exception):
         pass
 
     class Objects:
@@ -65,11 +67,10 @@ class User:
         def roles(cls):
             storage_client = connect.get_storage()
             result = storage_client.query_tbl('roles')
-            return result
+            return result["rows"]
 
         @classmethod
-        # TODO: remove hard-coded '2' role_id
-        def create(cls, username, password, is_admin=2):
+        def create(cls, username, password, is_admin=False):
             """
             Args:
                 username: user name
@@ -80,16 +81,20 @@ class User:
             Returns:
                    user json info
             """
+
+            # be careful
+            role_id = 2 if is_admin is False else 1
+
             storage_client = connect.get_storage()
             payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
-                                              role_id=is_admin).payload()
-            result = {}
+                                              role_id=role_id).payload()
             try:
                 result = storage_client.insert_into_tbl("users", payload)
             except StorageServerError as ex:
-                err_response = ex.error
-                if not err_response["retryable"]:
-                    raise ValueError(err_response['message'])
+                if ex.error["retryable"]:
+                    pass  # retry INSERT
+
+                raise ValueError(ex.error['message'])
             return result
 
         @classmethod
@@ -107,13 +112,12 @@ class User:
 
             payload = PayloadBuilder().DELETE("users").WHERE(['id', '=', user_id]).payload()
             storage_client = connect.get_storage()
-            result = {}
             try:
                 result = storage_client.delete_from_tbl("users", payload)
             except StorageServerError as ex:
-                err_response = ex.error
-                if not err_response["retryable"]:
-                    raise ValueError(err_response['message'])
+                if ex.error["retryable"]:
+                    pass  # retry INSERT
+                raise ValueError(ex.error['message'])
             return result
 
         # utility
@@ -129,18 +133,17 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['1', '=', '1'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['1', '=', '1'])
+
             if user_id is not None:
-                payload.AND_WHERE(['id', '=', user_id])
+                q = q.AND_WHERE(['id', '=', user_id])
 
             if user_name is not None:
-                payload.AND_WHERE(['uname', '=', user_name])
-
-            _and_where_payload = payload.chain_payload()
+                q = q.AND_WHERE(['uname', '=', user_name])
 
             storage_client = connect.get_storage()
-            payload = PayloadBuilder(_and_where_payload).payload()
-            result = storage_client.query_tbl_with_payload('users', payload)
+            q_payload = PayloadBuilder(q.chain_payload()).payload()
+            result = storage_client.query_tbl_with_payload('users', q_payload)
             return result['rows']
 
         @classmethod
@@ -151,6 +154,36 @@ class User:
             return users[0]
 
         @classmethod
+        def validate_token(cls, token):
+            """ check existence and validity of token
+                    * exists in user_logins table
+                    * its not expired
+            :param token:
+            :return:
+            """
+
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().SELECT("token_expiration").WHERE(['token', '=', token]).payload()
+            result = storage_client.query_tbl_with_payload('user_logins', payload)
+
+            if len(result['rows']) == 0:
+                raise User.InvalidToken("Token appears to be invalid")
+
+            r = result['rows'][0]
+            token_expiry = r["token_expiration"][:-6]
+
+            curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+            fmt = "%Y-%m-%d %H:%M:%S.%f"
+            diff = datetime.strptime(token_expiry, fmt) - datetime.strptime(curr_time, fmt)
+
+            if diff.seconds < 0:
+                raise User.TokenExpired("The token has expired, login again")
+
+            user_payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            return user_payload["uid"]
+
+        @classmethod
         def login(cls, username, password):
             """
             Args:
@@ -158,43 +191,45 @@ class User:
                 password: password
 
             Returns:
-                  user json info with jwt token and expiration token
+                  return token
 
             """
             payload = PayloadBuilder().SELECT("pwd", "id").WHERE(['uname', '=', username]).payload()
             storage_client = connect.get_storage()
-            result = storage_client.query_tbl_with_payload('users', payload)
-            if result['rows']:
-                # Validate password
-                is_valid_pwd = cls.check_password(result['rows'][0]['pwd'], password)
-                if is_valid_pwd:
-                    # fetch user info
-                    u = cls.get(uid=result['rows'][0]['id'])
-                    if u['id']:
-                        # jwt token
-                        p = {'uid': u['id'],
-                             'exp': str(datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS))}
-                        jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM)
-                        payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token.decode("utf-8"),
-                                                          token_expiration=p['exp']).payload()
 
-                        # Insert token, uid, expiration into user_login table
-                        try:
-                            # TODO: allow multiple user login?
-                            r = storage_client.insert_into_tbl("user_logins", payload)
-                            d = {"token": jwt_token.decode("utf-8"), "expiration": p['exp']}
-                            if r['rows_affected']:
-                                result = cls.get(username=username)
-                                result.update(d)
-                        except StorageServerError as ex:
-                            err_response = ex.error
-                            if not err_response["retryable"]:
-                                raise ValueError(err_response['message'])
-                else:
-                    raise User.PasswordDoesNotMatch('Username and Password do not match')
-            else:
+            result = storage_client.query_tbl_with_payload('users', payload)
+
+            if len(result['rows']) == 0:
                 raise User.DoesNotExist('User does not exist')
-            return result
+
+            found_user = result['rows'][0]
+
+            is_valid_pwd = cls.check_password(found_user['pwd'], password)
+
+            if not is_valid_pwd:
+                raise User.PasswordDoesNotMatch('Username or Password do not match')
+
+            # fetch user info
+            exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+            # jwt token
+            p = {'uid': found_user['id'],
+                 'exp': exp
+                 }
+
+            jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
+
+            payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token,
+                                              token_expiration=str(exp)).payload()
+
+            # Insert token, uid, expiration into user_login table
+            try:
+                storage_client.insert_into_tbl("user_logins", payload)
+            except StorageServerError as ex:
+                if ex.error["retryable"]:
+                    pass  # retry INSERT
+                raise ValueError(ex.error['message'])
+
+            return jwt_token
 
         @classmethod
         def hash_password(cls, password):

@@ -17,9 +17,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
-
 async def error_middleware(app, handler):
     async def middleware_handler(request):
         if_trace = request.query.get('trace') if 'trace' in request.query and request.query.get('trace') == '1' else None
@@ -48,14 +45,18 @@ async def auth_middleware(app, handler):
 
         # need to check, how to
 
-        jwt_token = request.headers.get('authorization', None)
-        if jwt_token:
+        token = request.headers.get('authorization', None)
+        if token:
             try:
-                payload = jwt.decode(jwt_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            except (jwt.DecodeError, jwt.ExpiredSignatureError):
-                raise web.HTTPUnauthorized()
-
-            request.user = User.Objects.get(uid=payload['uid'])
+                uid = User.Objects.validate_token(token)
+                # if uid
+                # extend the token expiry
+                # now
+                request.user = User.Objects.get(uid=uid)
+            except(User.InvalidToken, User.TokenExpired) as e:
+                raise web.HTTPUnauthorized(reason=e)
+            except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
+                raise web.HTTPUnauthorized(reason=e)
         else:
             # TODO: bypass ping route based on allowPing=>True
 

@@ -47,16 +47,16 @@ async def login(request):
     password = data.get('password')
 
     if not username or not password:
-        raise web.HTTPBadRequest(reason="Username and password is missing")
+        raise web.HTTPBadRequest(reason="Username or password is missing")
 
     try:
-        user = User.Objects.login(username, password)
+        token = User.Objects.login(username, password)
     except (User.DoesNotExist, User.PasswordDoesNotMatch) as ex:
         return web.HTTPBadRequest(reason=str(ex))
     except ValueError as exc:
         return web.HTTPBadRequest(reason=str(exc))
 
-    return web.json_response({"message": "Logged in successfully", "info": user})
+    return web.json_response({"message": "Logged in successfully", "token": token})
 
 
 async def logout(request):
@@ -79,7 +79,7 @@ async def get_roles(request):
             curl -X GET http://localhost:8081/foglamp/user/role
     """
     result = User.Objects.roles()
-    return web.json_response({'roles': result['rows']})
+    return web.json_response({'roles': result})
 
 
 async def get_user(request):
@@ -94,7 +94,7 @@ async def get_user(request):
     user_id = None
     user_name = None
 
-    if 'id' in request.query and request.query['id'] != '':
+    if 'id' in request.query:
         try:
             user_id = int(request.query['id'])
             if user_id <= 0:
@@ -140,44 +140,46 @@ async def create_user(request):
 
     username = data.get('username')
     password = data.get('password')
-    # TODO: more elegant way
-    # role_id = 2 is a normal user
-    role = int(data.get('role')) if data.get('role') else 2
+
+    # TODO: map 2 with normal user role id in db
+    role_id = data.get('role', 2)
+    role = int(role_id)
 
     if not username or not password:
-        raise web.HTTPBadRequest(reason="Username and password is missing")
+        raise web.HTTPBadRequest(reason="Username or password is missing")
 
     # TODO:
-    # 1) username regex?
+    # 1) username regex? is email allowed?
     # 2) confirm password?
-    # 3) or any signup field attribute?
-    if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{8}$)', password):
+    if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)', password):
         raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
                                         "one lowercase, one uppercase, "
-                                        "one special symbol and "
-                                        "length is exactly of 8 characters")
+                                        "one special character and "
+                                        "length of minimum 6 characters")
 
     # TODO: Get role_id range from DB
-    if role not in range(1, 3):
-        raise web.HTTPBadRequest(reason="Bad role")
+    roles = [int(r["id"]) for r in User.Objects.roles]
 
+    if role not in roles:
+        raise web.HTTPBadRequest(reason="Bad Role Id")
+
+    u = dict()
     try:
         result = User.Objects.create(username, password, role)
-    except ValueError as ex:
-        raise web.HTTPBadRequest(reason=str(ex))
-
-    # if user inserted then fetch user info
-    u = OrderedDict()
-    try:
+        # if user inserted then fetch user info
         if result['rows_affected']:
+            # we should not do get again!
+            # we just need uid, uname and role_id we have
             user = User.Objects.get(username=username)
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
     except Exception as exc:
         raise web.HTTPInternalServerError(reason=str(exc))
 
-    return web.json_response({'message': 'User has been created successfully', 'userInfo': u})
+    return web.json_response({'message': 'User has been created successfully', 'user': u})
 
 
 async def update_user(request):
@@ -196,6 +198,7 @@ async def delete_user(request):
     try:
         user_id = request.match_info.get('id')
         result = User.Objects.delete(user_id)
+
         if not result['rows_affected']:
             raise User.DoesNotExist
 

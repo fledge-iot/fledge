@@ -64,7 +64,7 @@ class User:
     class Objects:
 
         @classmethod
-        def roles(cls):
+        def get_roles(cls):
             storage_client = connect.get_storage()
             result = storage_client.query_tbl('roles')
             return result["rows"]
@@ -93,7 +93,6 @@ class User:
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
-
                 raise ValueError(ex.error['message'])
             return result
 
@@ -106,19 +105,24 @@ class User:
             Returns:
                   json response
             """
-            # TODO: any admin role?
+
+            # either keep 1 admin user or just reserve id:1 for superuser
             if int(user_id) == 1:
                 raise ValueError("Admin user can not be deleted")
 
-            payload = PayloadBuilder().DELETE("users").WHERE(['id', '=', user_id]).payload()
             storage_client = connect.get_storage()
             try:
-                result = storage_client.delete_from_tbl("users", payload)
+                # first delete the active login references
+                payload = PayloadBuilder().DELETE("user_logins").WHERE(['user_id', '=', user_id]).payload()
+                res_del_user_active_login_ref = storage_client.delete_from_tbl("user_logins", payload)
+
+                payload = PayloadBuilder().DELETE("users").WHERE(['id', '=', user_id]).payload()
+                res_del_user = storage_client.delete_from_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
                 raise ValueError(ex.error['message'])
-            return result
+            return res_del_user
 
         # utility
         @classmethod

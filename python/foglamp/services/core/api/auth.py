@@ -78,7 +78,7 @@ async def get_roles(request):
        :Example:
             curl -X GET http://localhost:8081/foglamp/user/role
     """
-    result = User.Objects.roles()
+    result = User.Objects.get_roles()
     return web.json_response({'roles': result})
 
 
@@ -140,10 +140,7 @@ async def create_user(request):
 
     username = data.get('username')
     password = data.get('password')
-
-    # TODO: map 2 with normal user role id in db
     role_id = data.get('role', 2)
-    role = int(role_id)
 
     if not username or not password:
         raise web.HTTPBadRequest(reason="Username or password is missing")
@@ -153,23 +150,31 @@ async def create_user(request):
     # 2) confirm password?
     if not re.match('((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)', password):
         raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
-                                        "one lowercase, one uppercase, "
-                                        "one special character and "
+                                        "one lowercase, one uppercase & one special character and "
                                         "length of minimum 6 characters")
 
-    # TODO: Get role_id range from DB
-    roles = [int(r["id"]) for r in User.Objects.roles]
+    roles = [int(r["id"]) for r in User.Objects.get_roles()]
+    try:
+        role = int(role_id)
+        if role not in roles:
+            raise ValueError
+    except ValueError:
+        return web.HTTPBadRequest(reason="Invalid or bad role id")
 
-    if role not in roles:
-        raise web.HTTPBadRequest(reason="Bad Role Id")
+    try:
+        User.Objects.get(username=username)
+    except User.DoesNotExist:
+        pass
+    else:
+        raise web.HTTPConflict(reason="User with the requested username already exists")
 
     u = dict()
     try:
-        result = User.Objects.create(username, password, role)
-        # if user inserted then fetch user info
+        is_admin = True if role == 1 else False
+        result = User.Objects.create(username, password, is_admin)
         if result['rows_affected']:
-            # we should not do get again!
-            # we just need uid, uname and role_id we have
+            # FIXME: we should not do get again!
+            # we just need inserted user id; insert call should return that
             user = User.Objects.get(username=username)
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
@@ -194,18 +199,20 @@ async def delete_user(request):
     """
 
     # TODO: soft delete?
-
     try:
+        # Requester should not be able to delete her/himself
+        # Requester should have role admin
+        # raise web.HTTPUnauthorized(reason="Only admin can delete the user")
+
         user_id = request.match_info.get('id')
         result = User.Objects.delete(user_id)
-
         if not result['rows_affected']:
             raise User.DoesNotExist
 
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
-        raise web.HTTPBadRequest(reason="User does not exist")
+        raise web.HTTPNotFound(reason="User with id:<{}> does not exist".format(user_id))
     except Exception as exc:
         raise web.HTTPInternalServerError(reason=str(exc))
 

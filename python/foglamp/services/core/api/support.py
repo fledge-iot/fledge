@@ -49,7 +49,10 @@ async def fetch_support_bundle_item(request):
     """ check existence of a bundle support by name
 
     :Example:
-        curl -X GET http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
+        curl -O http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
+
+        curl -X GET http://localhost:8081/foglamp/support/support-180311-18-0336.tar.gz
+        -H "Accept-Encoding: gzip" --write-out "size_download=%{size_download}\n" --compressed
     """
     bundle_name = request.match_info.get('bundle', None)
 
@@ -63,7 +66,7 @@ async def fetch_support_bundle_item(request):
         if str(bundle_name) not in files:
             raise web.HTTPNotFound(reason='{} not found'.format(bundle_name))
 
-    return web.json_response()
+    return web.FileResponse(path=_get_support_dir() + "/" + str(bundle_name))
 
 
 async def create_support_bundle(request):

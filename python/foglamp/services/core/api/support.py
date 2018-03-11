@@ -54,7 +54,7 @@ async def fetch_support_bundle_item(request):
     :Example:
         curl -O http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
 
-        curl -X GET http://localhost:8081/foglamp/support/support-180311-18-0336.tar.gz
+        curl -X GET http://localhost:8081/foglamp/support/support-180311-18-03-36.tar.gz
         -H "Accept-Encoding: gzip" --write-out "size_download=%{size_download}\n" --compressed
     """
     bundle_name = request.match_info.get('bundle', None)

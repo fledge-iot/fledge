@@ -5,7 +5,10 @@
 # FOGLAMP_END
 
 import os
+from pathlib import Path
+
 from aiohttp import web
+
 from foglamp.common import logger
 from foglamp.services.core.support import SupportBuilder
 
@@ -66,7 +69,8 @@ async def fetch_support_bundle_item(request):
         if str(bundle_name) not in files:
             raise web.HTTPNotFound(reason='{} not found'.format(bundle_name))
 
-    return web.FileResponse(path=_get_support_dir() + "/" + str(bundle_name))
+    p = Path(_get_support_dir()) / str(bundle_name)
+    return web.FileResponse(path=p)
 
 
 async def create_support_bundle(request):

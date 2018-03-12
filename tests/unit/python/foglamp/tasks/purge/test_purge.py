@@ -14,6 +14,7 @@ from foglamp.tasks.purge.purge import Purge
 from foglamp.common.process import FoglampProcess
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.audit_logger import AuditLogger
+from foglamp.common.storage_client.exceptions import *
 
 
 __author__ = "Vaibhav Singhal"
@@ -83,7 +84,7 @@ class TestPurge:
     @pytest.fixture()
     def store_purge(self, **kwargs):
         if kwargs.get('age') == '-1' or kwargs.get('size') == '-1':
-            return {"message": "409 Conflict"}
+            raise StorageServerError(400, "Bla", "Some Error")
         return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7}
 
     config = {"purgeAgeSize": {"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "20"}},
@@ -181,7 +182,6 @@ class TestPurge:
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
                     with patch.object(audit, 'information', return_value=mock_audit_info()):
                         assert expected_return == p.purge_data(conf)
-                        p._logger.error.assert_called_with('Purge failed: %s', '409 Conflict')
 
     @pytest.mark.parametrize("conf, expected_error_key",
                              [({"retainUnsent": {"value": "True"}, "age": {"value": "bla"}, "size": {"value": "0"}},
@@ -210,8 +210,7 @@ class TestPurge:
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
                     with patch.object(audit, 'information', return_value=mock_audit_info()):
                         # Test the code block when purge failed because of invalid configuration
-                        with pytest.raises(ValueError):
-                            p.purge_data(conf)
+                        p.purge_data(conf)
                         p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
                                                            format(expected_error_key))
 

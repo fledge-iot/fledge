@@ -33,6 +33,11 @@ class Server(FoglampMicroservice):
             'description': 'Python module name of the plugin to load',
             'type': 'string',
             'default': 'coap_listen'
+        },
+        'management_host': {
+            'description': 'Management host',
+            'type': 'string',
+            'default': '127.0.0.1',
         }
     }
 
@@ -64,6 +69,9 @@ class Server(FoglampMicroservice):
     _type = "Southbound"
 
     _task_main = None
+
+    def __init__(self):
+        super().__init__(self._DEFAULT_CONFIG)
 
     async def _start(self, loop) -> None:
         error = None

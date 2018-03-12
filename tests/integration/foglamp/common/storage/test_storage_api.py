@@ -35,7 +35,7 @@ def create_init_data():
     file_path = py.path.local(_dir).join('../../data/foglamp_test_storage_init.sql')
     os.system("psql < {} > /dev/null 2>&1".format(file_path))
     yield
-    os.system("psql < $FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql > /dev/null 2>&1")
+    os.system("psql < $FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql > /dev/null 2>&1")
 
 
 @pytest.allure.feature("api")

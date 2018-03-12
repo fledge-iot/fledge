@@ -7,14 +7,16 @@
 
 import json
 import pathlib
+from pathlib import PosixPath
 
-from unittest.mock import patch
+from unittest.mock import patch, mock_open, Mock, MagicMock
 
 from aiohttp import web
 import pytest
 
 from foglamp.services.core import routes
 from foglamp.services.core.api import support
+from foglamp.services.core.support import *
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -57,16 +59,32 @@ class TestBundleSupport:
             mockwalk.assert_called_once_with(path)
 
     async def test_get_support_bundle_by_name(self, client, support_bundles_dir_path):
-        path = support_bundles_dir_path / 'support'
+        gz_filepath = Mock()
+        gz_filepath.open = mock_open()
+        gz_filepath.is_file.return_value = True
+        gz_filepath.stat.return_value = MagicMock()
+        gz_filepath.stat.st_size = 1024
+
         bundle_name = 'support-180301-13-35-23.tar.gz'
-        with patch.object(support, '_get_support_dir', return_value=path):
-            with patch('os.path.isdir', return_value=True):
-                with patch('os.walk') as mockwalk:
-                    mockwalk.return_value = [(path, [], [bundle_name])]
-                    resp = await client.get('/foglamp/support/{}'.format(bundle_name))
-                    assert 200 == resp.status
-                    assert 'OK' == resp.reason
-            mockwalk.assert_called_once_with(path)
+
+        filepath = Mock()
+        filepath.name = bundle_name
+        filepath.open = mock_open()
+        filepath.with_name.return_value = gz_filepath
+
+        with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=filepath)) as f_res:
+            path = support_bundles_dir_path / 'support'
+            with patch.object(support, '_get_support_dir', return_value=path):
+                with patch('os.path.isdir', return_value=True):
+                    with patch('os.walk') as mockwalk:
+                        mockwalk.return_value = [(path, [], [bundle_name])]
+                        resp = await client.get('/foglamp/support/{}'.format(bundle_name))
+                        assert 200 == resp.status
+                        assert 'OK' == resp.reason
+                mockwalk.assert_called_once_with(path)
+                args, kwargs = f_res.call_args
+                assert {'path': PosixPath(pathlib.Path(path) / str(bundle_name))} == kwargs
+                assert 1 == f_res.call_count
 
     @pytest.mark.parametrize("data, request_bundle_name", [
         (['support-180301-13-35-23.tar.gz'], 'xsupport-180301-01-15-13.tar.gz'),
@@ -98,6 +116,21 @@ class TestBundleSupport:
             mockisdir.assert_called_once_with(path)
 
     async def test_create_support_bundle(self, client):
-        resp = await client.post('/foglamp/support')
-        assert 501 == resp.status
-        assert 'Create support bundle method is not implemented yet' == resp.reason
+        async def mock_build():
+            return 'support-180301-13-35-23.tar.gz'
+
+        with patch.object(SupportBuilder, "__init__", return_value=None):
+            with patch.object(SupportBuilder, "build", return_value=mock_build()):
+                resp = await client.post('/foglamp/support')
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert 200 == resp.status
+                assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
+
+    async def test_create_support_bundle_exception(self, client):
+        with patch.object(SupportBuilder, "__init__", return_value=None):
+            with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
+                resp = await client.post('/foglamp/support')
+                res = await resp.text()
+                assert 500 == resp.status
+                assert "Support bundle could not be created. blah" == resp.reason

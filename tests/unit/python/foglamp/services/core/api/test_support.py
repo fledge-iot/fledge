@@ -7,8 +7,9 @@
 
 import json
 import pathlib
+from pathlib import PosixPath
 
-from unittest.mock import patch
+from unittest.mock import patch, mock_open, Mock, MagicMock
 
 from aiohttp import web
 import pytest
@@ -58,16 +59,32 @@ class TestBundleSupport:
             mockwalk.assert_called_once_with(path)
 
     async def test_get_support_bundle_by_name(self, client, support_bundles_dir_path):
-        path = support_bundles_dir_path / 'support'
+        gz_filepath = Mock()
+        gz_filepath.open = mock_open()
+        gz_filepath.is_file.return_value = True
+        gz_filepath.stat.return_value = MagicMock()
+        gz_filepath.stat.st_size = 1024
+
         bundle_name = 'support-180301-13-35-23.tar.gz'
-        with patch.object(support, '_get_support_dir', return_value=path):
-            with patch('os.path.isdir', return_value=True):
-                with patch('os.walk') as mockwalk:
-                    mockwalk.return_value = [(path, [], [bundle_name])]
-                    resp = await client.get('/foglamp/support/{}'.format(bundle_name))
-                    assert 200 == resp.status
-                    assert 'OK' == resp.reason
-            mockwalk.assert_called_once_with(path)
+
+        filepath = Mock()
+        filepath.name = bundle_name
+        filepath.open = mock_open()
+        filepath.with_name.return_value = gz_filepath
+
+        with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=filepath)) as f_res:
+            path = support_bundles_dir_path / 'support'
+            with patch.object(support, '_get_support_dir', return_value=path):
+                with patch('os.path.isdir', return_value=True):
+                    with patch('os.walk') as mockwalk:
+                        mockwalk.return_value = [(path, [], [bundle_name])]
+                        resp = await client.get('/foglamp/support/{}'.format(bundle_name))
+                        assert 200 == resp.status
+                        assert 'OK' == resp.reason
+                mockwalk.assert_called_once_with(path)
+                args, kwargs = f_res.call_args
+                assert {'path': PosixPath(pathlib.Path(path) / str(bundle_name))} == kwargs
+                assert 1 == f_res.call_count
 
     @pytest.mark.parametrize("data, request_bundle_name", [
         (['support-180301-13-35-23.tar.gz'], 'xsupport-180301-01-15-13.tar.gz'),

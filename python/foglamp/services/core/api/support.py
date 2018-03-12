@@ -5,7 +5,10 @@
 # FOGLAMP_END
 
 import os
+from pathlib import Path
+
 from aiohttp import web
+
 from foglamp.common import logger
 from foglamp.services.core.support import SupportBuilder
 
@@ -49,7 +52,10 @@ async def fetch_support_bundle_item(request):
     """ check existence of a bundle support by name
 
     :Example:
-        curl -X GET http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
+        curl -O http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
+
+        curl -X GET http://localhost:8081/foglamp/support/support-180311-18-03-36.tar.gz
+        -H "Accept-Encoding: gzip" --write-out "size_download=%{size_download}\n" --compressed
     """
     bundle_name = request.match_info.get('bundle', None)
 
@@ -63,7 +69,8 @@ async def fetch_support_bundle_item(request):
         if str(bundle_name) not in files:
             raise web.HTTPNotFound(reason='{} not found'.format(bundle_name))
 
-    return web.json_response()
+    p = Path(_get_support_dir()) / str(bundle_name)
+    return web.FileResponse(path=p)
 
 
 async def create_support_bundle(request):

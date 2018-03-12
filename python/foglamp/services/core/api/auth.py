@@ -151,6 +151,9 @@ async def create_user(request):
         curl -H "authorization: <token>" -X POST -d '{"username": "any", "password": "User@123"}' http://localhost:8081/foglamp/user
         curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role": 1}' http://localhost:8081/foglamp/user
     """
+    if not has_admin_permissions(request):
+        raise web.HTTPUnauthorized(reason="only admin can create the user")
+
     data = await request.json()
 
     username = data.get('username')
@@ -222,6 +225,9 @@ async def update_user(request):
     if not re.match(PASSWORD_REGEX_PATTERN, password):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
+    if role_id and not has_admin_permissions(request):
+        raise web.HTTPUnauthorized(reason="only admin can update the role for a user")
+
     check_authorization(request, user_id, "update")
 
     try:
@@ -249,7 +255,7 @@ async def delete_user(request):
 
         # TODO: we should not prevent this, when we have at-least 1 admin (super) user
         if user_id == 1:
-            return web.HTTPNotAcceptable(reason="super admin can not be deleted")
+            raise web.HTTPNotAcceptable(reason="super admin can not be deleted")
 
         # Requester should not be able to delete her/himself
         if request.is_auth_optional is False:
@@ -283,7 +289,15 @@ def is_valid_role(role_id):
     return True
 
 
+def has_admin_permissions(request):
+    if request.is_auth_optional is False:  # auth is mandatory
+        if int(request.user["role_id"]) != ADMIN_ROLE_ID:
+            return False
+    return True
+
+
 def check_authorization(request, user_id, action):
+    # use if has_admin_permissions(request):
     if request.is_auth_optional is False:  # auth is mandatory
         if int(request.user["role_id"]) != ADMIN_ROLE_ID and user_id != request.user["id"]:
             # requester is not an admin but trying to take action for another user

@@ -111,17 +111,17 @@ char_enable = '01'
 char_disable = '00'
 """
 movement_enable setting
-Bits	Usage
-0	Gyroscope z axis enable
-1	Gyroscope y axis enable
-2	Gyroscope x axis enable
-3	Accelerometer z axis enable
-4	Accelerometer y axis enable
-5	Accelerometer x axis enable
-6	Magnetometer enable (all axes)
-7	Wake-On-Motion Enable
-8:9	Accelerometer range (0=2G, 1=4G, 2=8G, 3=16G)
-10:15	Not used
+Bits   Usage
+0      Gyroscope z axis enable
+1      Gyroscope y axis enable
+2      Gyroscope x axis enable
+3      Accelerometer z axis enable
+4      Accelerometer y axis enable
+5      Accelerometer x axis enable
+6      Magnetometer enable (all axes)
+7      Wake-On-Motion Enable
+8:9    Accelerometer range (0=2G, 1=4G, 2=8G, 3=16G)
+10:15  Not used
 """
 movement_enable = 'FF80'
 movement_disable = '0000'
@@ -135,12 +135,19 @@ class SensorTagCC2650(object):
     reading_iterations = 1  # number of iterations to read data from the TAG
     is_connected = False
     con = None  # Connection
+    _NOTIFICATION_HANDLES_SLEEP = 5
+    _CHAR_HANDLE_TIMEOUT = 3
 
     def __init__(self, bluetooth_adr, timeout):
         try:
             self.bluetooth_adr = bluetooth_adr
 
-            self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
+            # If "con" var is set at class level, pick that one else create a new instance
+            if SensorTagCC2650.con is None:
+                self.con = pexpect.spawn('gatttool -b ' + bluetooth_adr + ' --interactive')
+            else:
+                self.con = SensorTagCC2650.con
+
             self.con.expect('\[LE\]>', timeout=int(timeout))
 
             msg_debug = 'SensorTagCC2650 {} Connecting... If nothing happens, please press the power button.'.\
@@ -176,7 +183,7 @@ class SensorTagCC2650(object):
             _LOGGER.exception('SensorTagCC2650 {} connection failure. {}'.format(self.bluetooth_adr, str(ex)))
 
     def get_char_handle(self, uuid):
-        timeout = 3
+        timeout = SensorTagCC2650._CHAR_HANDLE_TIMEOUT
         max_time = time.time() + timeout
         rval = '0x0000'
         while time.time() < max_time:
@@ -200,7 +207,7 @@ class SensorTagCC2650(object):
         try:
             cmd = 'char-read-uuid %s' % notification_uuid
             self.con.sendline(cmd)
-            time.sleep(5)
+            time.sleep(SensorTagCC2650._NOTIFICATION_HANDLES_SLEEP)
             self.con.expect('.*{}.* \r'.format(cmd))
             reading = self.con.after
             lines = reading.decode()

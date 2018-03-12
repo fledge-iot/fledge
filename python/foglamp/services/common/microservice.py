@@ -8,7 +8,7 @@
 
 import asyncio
 from aiohttp import web
-
+from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.common.microservice_management import routes
 from foglamp.common import logger
 from foglamp.common.process import FoglampProcess
@@ -49,12 +49,22 @@ class FoglampMicroservice(FoglampProcess):
     _protocol = "http"
     """ communication protocol """
 
-    def __init__(self):
+    def __init__(self, default_config):
         super().__init__()
         try:
-            self._make_microservice_management_app()
             loop = asyncio.get_event_loop()
-            self._run_microservice_management_app(loop)
+
+            # ----- Ref: FOGL-1155. We need to fetch host from configuration of plugin
+            category = self._name
+            config_descr = '{} Service'.format(self._name)
+            cfg_manager = ConfigurationManager(self._storage)
+            loop.run_until_complete(cfg_manager.create_category(category, default_config, config_descr, True))
+            config = loop.run_until_complete(cfg_manager.get_category_all_items(category))
+            host = config['management_host']['value']
+            # -----
+
+            self._make_microservice_management_app()
+            self._run_microservice_management_app(loop, host)
             res = self.register_service_with_core(self._get_service_registration_payload())
             self._microservice_id = res["id"]
         except Exception as ex:
@@ -69,9 +79,9 @@ class FoglampMicroservice(FoglampProcess):
         # create http protocol factory for handling requests
         self._microservice_management_handler = self._microservice_management_app.make_handler()
 
-    def _run_microservice_management_app(self, loop):
+    def _run_microservice_management_app(self, loop, host='127.0.0.1'):
         # run microservice_management_app
-        coro = loop.create_server(self._microservice_management_handler, '0.0.0.0', 0)
+        coro = loop.create_server(self._microservice_management_handler, host, 0)
         self._microservice_management_server = loop.run_until_complete(coro)
         self._microservice_management_host, self._microservice_management_port = \
             self._microservice_management_server.sockets[0].getsockname()

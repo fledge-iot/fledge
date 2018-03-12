@@ -5,9 +5,12 @@
 # FOGLAMP_END
 
 import os
-from aiohttp import web
-from foglamp.common import logger
+from pathlib import Path
 
+from aiohttp import web
+
+from foglamp.common import logger
+from foglamp.services.core.support import SupportBuilder
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -49,7 +52,10 @@ async def fetch_support_bundle_item(request):
     """ check existence of a bundle support by name
 
     :Example:
-        curl -X GET http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
+        curl -O http://localhost:8081/foglamp/support/support-180301-13-35-23.tar.gz
+
+        curl -X GET http://localhost:8081/foglamp/support/support-180311-18-03-36.tar.gz
+        -H "Accept-Encoding: gzip" --write-out "size_download=%{size_download}\n" --compressed
     """
     bundle_name = request.match_info.get('bundle', None)
 
@@ -63,12 +69,24 @@ async def fetch_support_bundle_item(request):
         if str(bundle_name) not in files:
             raise web.HTTPNotFound(reason='{} not found'.format(bundle_name))
 
-    return web.json_response()
+    p = Path(_get_support_dir()) / str(bundle_name)
+    return web.FileResponse(path=p)
 
 
 async def create_support_bundle(request):
-    # TODO: FOGL-1126
-    raise web.HTTPNotImplemented(reason='Create support bundle method is not implemented yet')
+    """ Create a support bundle by name
+
+    :Example:
+        curl -X POST http://localhost:8081/foglamp/support
+    """
+    support_dir = _get_support_dir()
+    base_url = "{}://{}:{}/foglamp".format(request.url.scheme, request.url.host, request.url.port)
+    try:
+        bundle_name = await SupportBuilder(support_dir, base_url).build()
+    except Exception as ex:
+        raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
+
+    return web.json_response({"bundle created": bundle_name})
 
 
 def _get_support_dir():

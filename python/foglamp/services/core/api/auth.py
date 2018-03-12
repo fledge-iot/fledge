@@ -26,7 +26,7 @@ _help = """
     | GET                        | /foglamp/user/role                                  |
     
     | POST                       | /foglamp/login                                      |
-    | PUT                        | /foglamp/{id}/logout                                |
+    | PUT                        | /foglamp/{user_id}/logout                                |
     ------------------------------------------------------------------------------------
 """
 
@@ -219,14 +219,13 @@ async def update_user(request):
 
     if role_id and not is_valid_role(role_id):
         raise web.HTTPBadRequest(reason="Invalid or bad role id")
+    if role_id and not has_admin_permissions(request):
+        raise web.HTTPUnauthorized(reason="only admin can update the role for a user")
 
     if password and not isinstance(password, str):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-    if not re.match(PASSWORD_REGEX_PATTERN, password):
+    if password and not re.match(PASSWORD_REGEX_PATTERN, password):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
-    if role_id and not has_admin_permissions(request):
-        raise web.HTTPUnauthorized(reason="only admin can update the role for a user")
 
     check_authorization(request, user_id, "update")
 

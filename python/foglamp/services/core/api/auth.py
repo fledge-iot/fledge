@@ -37,7 +37,11 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
-PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character and length of minimum 6 characters'
+PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
+                     'and length of minimum 6 characters'
+
+ADMIN_ROLE_ID = 1
+DEFAULT_ROLE_ID = 2
 
 
 async def login(request):
@@ -65,35 +69,29 @@ async def login(request):
     return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
 
 
-async def logout_unauthorized_user(request):
-    """ log out with user id
-
-    :Example:
-            curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/<id>/logout
-
-    """
-
-    user_id = request.match_info.get('id')
-    result = User.Objects.logout(user_id)
-    if not result['rows_affected']:
-        raise web.HTTPNotFound()
-
-    return web.json_response({"logout": True})
-
-
 async def logout(request):
     """ log out user
 
     :Example:
-            curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
+        curl -H "authorization: <token>" -d {"id": <user id>} -X PUT http://localhost:8081/foglamp/logout
 
     """
-    # request.user is only available when auth is mandatory
-    logged_in_user = request.user
-    if logged_in_user:
-        result = User.Objects.logout(logged_in_user["id"])
-        if not result['rows_affected']:
-            raise web.HTTPNotFound()
+
+    data = await request.json()
+    user_id = data.get('id', None)
+
+    if not user_id or not request.user:
+        raise web.HTTPBadRequest()
+
+    user_id = user_id or request.user["id"]
+
+    if request.is_auth_optional is False and request.user["role_id"] != ADMIN_ROLE_ID:
+        user_id = request.user["id"]
+
+    result = User.Objects.logout(user_id)
+
+    if not result['rows_affected']:
+        raise web.HTTPNotFound()
 
     return web.json_response({"logout": True})
 
@@ -166,7 +164,7 @@ async def create_user(request):
 
     username = data.get('username')
     password = data.get('password')
-    role_id = data.get('role', 2)
+    role_id = data.get('role', DEFAULT_ROLE_ID)
 
     if not username or not password:
         raise web.HTTPBadRequest(reason="Username or password is missing")
@@ -174,8 +172,7 @@ async def create_user(request):
     if not isinstance(password, str):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
-    # TODO:
-    # 1) username regex? is email allowed?
+    # TODO: username regex? is email allowed?
     if not re.match(PASSWORD_REGEX_PATTERN, password):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 

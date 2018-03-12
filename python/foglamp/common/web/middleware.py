@@ -33,17 +33,21 @@ async def error_middleware(app, handler):
     return middleware_handler
 
 
+async def optional_auth_middleware(app, handler):
+    async def middleware(request):
+        request.is_auth_optional = True
+        return await handler(request)
+    return middleware
+
+
 async def auth_middleware(app, handler):
     async def middleware(request):
         # if `rest_api` config has `authentication` set to mandatory then:
         #   request must carry auth header or should reuturn 403: Forbidden,
         #   actual header will be checked too and if bad then 401: unauthorized will be returned
-        # else
-        #   no action required here
 
+        request.is_auth_optional = False
         request.user = None
-
-        # need to check, how to
 
         token = request.headers.get('authorization', None)
         if token:

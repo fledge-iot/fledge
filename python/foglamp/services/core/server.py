@@ -328,7 +328,7 @@ class Server:
         """
         app = web.Application(middlewares=[middleware.error_middleware, middleware.auth_middleware])
         if not auth_required:
-            app = web.Application(middlewares=[middleware.error_middleware])
+            app = web.Application(middlewares=[middleware.error_middleware, middleware.optional_auth_middleware])
         admin_routes.setup(app)
         return app
 

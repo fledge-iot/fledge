@@ -392,14 +392,13 @@ class TestSensortagCc2650:
         reading = b'510481aa00f0'
 
         # WHEN
-        retval = sensortag.hex_temp_to_celsius(reading)
+        retval = sensortag.hex_pressure_to_pressure(reading)
 
         # THEN
-        assert (8.625, 341.0) == retval
-        calls = [
-            call('SensorTagCC2650 B0:91:22:EA:79:04 Connecting... If nothing happens, please press the power button.'),
-            call('SensorTagCC2650 B0:91:22:EA:79:04 connected successfully'),
-            call('SensorTagCC2650 B0:91:22:EA:79:04 object: 8.625 ambient: 341.0')]
+        assert 157288.1 == retval
+        calls = [call('SensorTagCC2650 B0:91:22:EA:79:04 Connecting... If nothing happens, please press the power button.'),
+                 call('SensorTagCC2650 B0:91:22:EA:79:04 connected successfully'),
+                 call('SensorTagCC2650 B0:91:22:EA:79:04 pressure: 157288.1')]
         log_debug.assert_has_calls(calls, any_order=True)
 
     def test_hex_lux_to_lux(self, mocker):

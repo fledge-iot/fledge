@@ -48,10 +48,12 @@ async def auth_middleware(app, handler):
         token = request.headers.get('authorization', None)
         if token:
             try:
+                # validate the token and get user id
                 uid = User.Objects.validate_token(token)
-                # if uid
-                # extend the token expiry
-                # now
+                # extend the token expiry, as token is valid
+                # and no bad token exception raised
+                User.Objects.refresh_token_expiry(token)
+                # set the user to request object
                 request.user = User.Objects.get(uid=uid)
             except(User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)

@@ -163,6 +163,13 @@ class User:
             return users[0]
 
         @classmethod
+        def refresh_token_expiry(cls, token):
+            storage_client = connect.get_storage()
+            exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+            payload = PayloadBuilder().SET(token_expiration=str(exp)).WHERE(['token', '=', token]).payload()
+            storage_client.update_tbl("user_logins", payload)
+
+        @classmethod
         def validate_token(cls, token):
             """ check existence and validity of token
                     * exists in user_logins table
@@ -189,7 +196,10 @@ class User:
             if diff.seconds < 0:
                 raise User.TokenExpired("The token has expired, login again")
 
-            user_payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            # verification of expiry set to false,
+            # as we want to refresh token on each successful request
+            # and extend it to keep session alive
+            user_payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={'verify_exp': False})
             return user_payload["uid"]
 
         @classmethod
@@ -220,7 +230,8 @@ class User:
 
             # fetch user info
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
-            p = {'uid': found_user['id'], 'exp': exp}
+            uid = found_user['id']
+            p = {'uid': uid, 'exp': exp}
             jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
 
             payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token,
@@ -236,12 +247,12 @@ class User:
 
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
-                return jwt_token, True
+                return uid, jwt_token, True
 
-            return jwt_token, False
+            return uid, jwt_token, False
 
         @classmethod
-        def logout(cls, user_id=None):
+        def logout(cls, user_id):
 
             storage_client = connect.get_storage()
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()

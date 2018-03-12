@@ -52,13 +52,31 @@ async def login(request):
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
     try:
-        token, is_admin = User.Objects.login(username, password)
+        uid, token, is_admin = User.Objects.login(username, password)
     except (User.DoesNotExist, User.PasswordDoesNotMatch) as ex:
         return web.HTTPBadRequest(reason=str(ex))
     except ValueError as exc:
         return web.HTTPBadRequest(reason=str(exc))
 
-    return web.json_response({"message": "Logged in successfully", "token": token, "admin": is_admin})
+    return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
+
+
+async def logout_unauthorized_user(request):
+    """
+
+        :param request:
+        :return:
+
+            curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/<user id>/logout
+
+        """
+
+    user_id = request.match_info.get('user_id')
+    result = User.Objects.logout(user_id)
+    if not result['rows_affected']:
+        raise web.HTTPNotFound()
+
+    return web.json_response({"logout": True})
 
 
 async def logout(request):
@@ -70,17 +88,12 @@ async def logout(request):
         curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
 
     """
-    # TODO: request.user is only available when auth is mandatory
-    # or we can have uid in request as query param in optional case
-    # e.g. curl PUT http://localhost:8081/foglamp/<user_id>/logout
-
+    # request.user is only available when auth is mandatory
     logged_in_user = request.user
-    print(logged_in_user)
-
     if logged_in_user:
         result = User.Objects.logout(logged_in_user["id"])
         if not result['rows_affected']:
-            raise web.HTTPBadRequest()
+            raise web.HTTPNotFound()
 
     return web.json_response({"logout": True})
 

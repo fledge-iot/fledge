@@ -560,6 +560,7 @@ CREATE TABLE foglamp.users (
        description   character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
        pwd           character varying(255) COLLATE pg_catalog."default",
        public_key    character varying(255) COLLATE pg_catalog."default",
+       enabled       boolean                NOT NULL DEFAULT TRUE,
        access_method smallint               NOT NULL DEFAULT 0,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
@@ -725,15 +726,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 
 -- Roles
 DELETE FROM foglamp.roles;
-INSERT INTO foglamp.roles (name)
-     VALUES ('admin'),
-            ('user');
+INSERT INTO foglamp.roles ( name, description )
+     VALUES ('admin', 'for the users having all CRUD privileges including other admin users'),
+            ('user', 'all CRUD operations and self profile management');
 
 -- Users
 DELETE FROM foglamp.users;
-INSERT INTO foglamp.users ( uname, pwd, role_id )
-     VALUES ('admin', '65a0d059df006ce016dd81af793753eee47462a931f36fc6c481844e46aef608:90fc83ffa252467e829634321ca0448d', 1),
-            ('user', '301cb8d5a53a71680238087bddc1754db3f04ee303c2ea05345581eb988917ed:a8f5ea0fc40d4f0786f142421ea06165', 2);
+INSERT INTO foglamp.users ( uname, pwd, role_id, description )
+     VALUES ('admin', '3a86096e7a7c123ba0bc3dfb7a1d350541649f1ff1aff1f37e0dc1ee4175b112:3759bf3302f5481e8c9cc9472c6088ac', 1, 'admin user'),
+            ('user', '3a86096e7a7c123ba0bc3dfb7a1d350541649f1ff1aff1f37e0dc1ee4175b112:3759bf3302f5481e8c9cc9472c6088ac', 2, 'normal user');
 
 -- User logins
 DELETE FROM foglamp.user_logins;

@@ -74,8 +74,8 @@ class User:
             """
             Args:
                 username: user name
-                password: Password must contain at least one digit, one lowercase, one uppercase,
-                          one special symbol and length is exactly of 8 characters
+                password: Password must contain at least one digit, one lowercase, one uppercase &
+                          one special character and length of minimum 6 characters
                 is_admin: Role (by default normal 'user' role whose id is 2)
 
             Returns:
@@ -97,7 +97,7 @@ class User:
             return result
 
         @classmethod
-        def delete(cls, user_id=None):
+        def delete(cls, user_id):
             """
             Args:
                 user_id: user id to delete
@@ -113,10 +113,10 @@ class User:
             storage_client = connect.get_storage()
             try:
                 # first delete the active login references
-                payload = PayloadBuilder().DELETE("user_logins").WHERE(['user_id', '=', user_id]).payload()
+                payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
                 res_del_user_active_login_ref = storage_client.delete_from_tbl("user_logins", payload)
 
-                payload = PayloadBuilder().DELETE("users").WHERE(['id', '=', user_id]).payload()
+                payload = PayloadBuilder().WHERE(['id', '=', user_id]).payload()
                 res_del_user = storage_client.delete_from_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
@@ -125,9 +125,36 @@ class User:
             return res_del_user
 
         @classmethod
-        def update(cls, user_id, user):
-            # TODO: make storage update call
-            pass
+        def update(cls, user_id, user_data):
+            """
+            Args:
+                 user_id: logged user id
+                 user_data: user dict
+
+            Returns:
+                  updated user info dict
+            """
+
+            kwargs = dict()
+            if 'role_id' in user_data:
+                kwargs.update({"role_id": user_data['role_id']})
+
+            if 'password' in user_data:
+                hashed_pwd = cls.hash_password(user_data['password'])
+                kwargs.update({"pwd": hashed_pwd})
+
+            payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).payload()
+            storage_client = connect.get_storage()
+            try:
+                result = storage_client.update_tbl("users", payload)
+                if result['rows_affected']:
+                    return True
+            except StorageServerError as ex:
+                if ex.error["retryable"]:
+                    pass  # retry UPDATE
+                raise ValueError(ex.error['message'])
+            except Exception:
+                raise
 
         # utility
         @classmethod
@@ -159,7 +186,15 @@ class User:
         def get(cls, uid=None, username=None):
             users = cls.filter(uid=uid, username=username)
             if len(users) == 0:
-                raise User.DoesNotExist
+                msg = ''
+                if uid:
+                    msg = "User with id:<{}> does not exist".format(uid)
+                if username:
+                    msg = "User with name:<{}> does not exist".format(username)
+                if uid and username:
+                    msg = "User with id:<{}> and name:<{}> does not exist".format(uid, username)
+
+                raise User.DoesNotExist(msg)
             return users[0]
 
         @classmethod
@@ -253,7 +288,6 @@ class User:
 
         @classmethod
         def logout(cls, user_id):
-
             storage_client = connect.get_storage()
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
             try:

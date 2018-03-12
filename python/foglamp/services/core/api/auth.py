@@ -20,11 +20,14 @@ __version__ = "${VERSION}"
 
 _help = """
     ------------------------------------------------------------------------------------
-    | GET  POST PUT              | /foglamp/user                                       |
-    | DELETE                     | /foglamp/user/{id}                                  |
+    | GET  POST                  | /foglamp/user                                       |
+    | PUT DELETE                 | /foglamp/user/{id}                                  |
+
+    | GET                        | /foglamp/user/role                                  |
     
     | POST                       | /foglamp/login                                      |
     | PUT                        | /foglamp/logout                                     |
+    | PUT                        | /foglamp/{id}/logout                                |
     ------------------------------------------------------------------------------------
 """
 
@@ -34,6 +37,7 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
+PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character and length of minimum 6 characters'
 
 
 async def login(request):
@@ -62,16 +66,14 @@ async def login(request):
 
 
 async def logout_unauthorized_user(request):
+    """ log out with user id
+
+    :Example:
+            curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/<id>/logout
+
     """
 
-        :param request:
-        :return:
-
-            curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/<user id>/logout
-
-        """
-
-    user_id = request.match_info.get('user_id')
+    user_id = request.match_info.get('id')
     result = User.Objects.logout(user_id)
     if not result['rows_affected']:
         raise web.HTTPNotFound()
@@ -80,12 +82,10 @@ async def logout_unauthorized_user(request):
 
 
 async def logout(request):
-    """
+    """ log out user
 
-    :param request:
-    :return:
-
-        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
+    :Example:
+            curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
 
     """
     # request.user is only available when auth is mandatory
@@ -159,8 +159,8 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -X POST -d '{"username": "admin", "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user
-        curl -X POST -d '{"username": "ajadmin", "password": "User@123", "role": 1}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin", "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "ajadmin", "password": "User@123", "role": 1}' http://localhost:8081/foglamp/user
     """
     data = await request.json()
 
@@ -171,12 +171,13 @@ async def create_user(request):
     if not username or not password:
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
+    if not isinstance(password, str):
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+
     # TODO:
     # 1) username regex? is email allowed?
     if not re.match(PASSWORD_REGEX_PATTERN, password):
-        raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
-                                        "one lowercase, one uppercase & one special character and "
-                                        "length of minimum 6 characters")
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     if not is_valid_role(role_id):
         return web.HTTPBadRequest(reason="Invalid or bad role id")
@@ -208,42 +209,49 @@ async def create_user(request):
 
 
 async def update_user(request):
-    data = await request.json()
+    """ update user
+
+    :Example:
+           curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/user/<id>
+           curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
+           curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
+    """
 
     # we don't have any profile yet, let's allow to update role or password only
+    user_id = request.match_info.get('id')
 
-    role_id = data.get('role')
-    if not is_valid_role(role_id):
-        return web.HTTPBadRequest(reason="Invalid or bad role id")
-
+    data = await request.json()
+    role_id = data.get('role_id')
     password = data.get('password')
+
+    if not role_id and not password:
+        raise web.HTTPBadRequest(reason="Nothing to update the user")
+
+    if role_id and not is_valid_role(role_id):
+        raise web.HTTPBadRequest(reason="Invalid or bad role id")
+
+    if password and not isinstance(password, str):
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
     if not re.match(PASSWORD_REGEX_PATTERN, password):
-        raise web.HTTPBadRequest(reason="Password must contain at least one digit, "
-                                        "one lowercase, one uppercase & one special character and "
-                                        "length of minimum 6 characters")
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
-    logged_in_user = request.user
-    print(logged_in_user)
+    try:
+        User.Objects.update(user_id, data)
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except User.DoesNotExist:
+        raise web.HTTPNotFound(reason="User with id:<{}> does not exist".format(user_id))
+    except Exception as exc:
+        raise web.HTTPInternalServerError(reason=str(exc))
 
-    updated_user = logged_in_user
-    updated_user["role_id"] = int(role_id)
-    updated_user["password"] = User.Objects.hash_password(password)
-
-    User.Objects.update(user_id=logged_in_user["id"], user=updated_user)
-
-    u = dict()
-    u['userId'] = updated_user.pop('id')
-    u['userName'] = updated_user.pop('uname')
-    u['roleId'] = updated_user('role_id')
-
-    return web.json_response({'message': 'User has been updated successfully', 'user': u})
+    return web.json_response({'message': 'User with id:<{}> updated successfully'.format(user_id)})
 
 
 async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
-            curl -X DELETE  http://localhost:8081/foglamp/user/1
+            curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
 
     # TODO: soft delete?

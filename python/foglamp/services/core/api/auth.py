@@ -20,18 +20,16 @@ __version__ = "${VERSION}"
 
 _help = """
     ------------------------------------------------------------------------------------
-    | GET  POST                  | /foglamp/user                                       |
+    | GET POST                   | /foglamp/user                                       |
     | PUT DELETE                 | /foglamp/user/{id}                                  |
 
     | GET                        | /foglamp/user/role                                  |
     
     | POST                       | /foglamp/login                                      |
-    | PUT                        | /foglamp/logout                                     |
     | PUT                        | /foglamp/{id}/logout                                |
     ------------------------------------------------------------------------------------
 """
 
-# move to common  / config
 JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
@@ -40,6 +38,7 @@ PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
 
+# TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
 DEFAULT_ROLE_ID = 2
 
@@ -48,7 +47,7 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-            curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
+        curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
     """
 
     data = await request.json()
@@ -61,10 +60,8 @@ async def login(request):
 
     try:
         uid, token, is_admin = User.Objects.login(username, password)
-    except (User.DoesNotExist, User.PasswordDoesNotMatch) as ex:
+    except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
         return web.HTTPBadRequest(reason=str(ex))
-    except ValueError as exc:
-        return web.HTTPBadRequest(reason=str(exc))
 
     return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
 
@@ -79,11 +76,9 @@ async def logout(request):
 
     user_id = request.match_info.get('user_id')
 
-    if request.is_auth_optional is False:  # auth is mandatory
-        if int(request.user["role_id"]) != ADMIN_ROLE_ID and user_id != request.user["id"]:
-            # requester is not an admin but trying to logout another user
-            raise web.HTTPUnauthorized(reason="admin privileges are required to logout other user")
+    check_authorization(request, user_id, "logout")
 
+    # TODO: logout should be token based only; to allow multiple device session
     result = User.Objects.logout(user_id)
 
     if not result['rows_affected']:
@@ -184,8 +179,7 @@ async def create_user(request):
 
     u = dict()
     try:
-        is_admin = True if int(role_id) == 1 else False
-        result = User.Objects.create(username, password, is_admin)
+        result = User.Objects.create(username, password, role_id)
         if result['rows_affected']:
             # FIXME: we should not do get again!
             # we just need inserted user id; insert call should return that
@@ -210,7 +204,7 @@ async def update_user(request):
            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
     """
 
-    # we don't have any profile yet, let's allow to update role or password only
+    # we don't have any user profile info yet, let's allow to update role or password only
     user_id = request.match_info.get('id')
 
     data = await request.json()
@@ -227,6 +221,8 @@ async def update_user(request):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
     if not re.match(PASSWORD_REGEX_PATTERN, password):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+
+    check_authorization(request, user_id, "update")
 
     try:
         User.Objects.update(user_id, data)
@@ -247,13 +243,21 @@ async def delete_user(request):
             curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
 
-    # TODO: soft delete?
+    # TODO: do a soft delete, set user->enabled to False
     try:
-        # Requester should not be able to delete her/himself
-        # Requester should have role admin
-        # raise web.HTTPUnauthorized(reason="Only admin can delete the user")
-
         user_id = request.match_info.get('id')
+
+        # TODO: we should not prevent this, when we have at-least 1 admin (super) user
+        if user_id == 1:
+            return web.HTTPNotAcceptable(reason="super admin can not be deleted")
+
+        # Requester should not be able to delete her/himself
+        if request.is_auth_optional is False:
+            if user_id == request.user["id"]:
+                raise web.HTTPBadRequest(reason="ask admin to disable account")
+
+        check_authorization(request, user_id, "delete")
+
         result = User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist
@@ -276,4 +280,12 @@ def is_valid_role(role_id):
             raise ValueError
     except ValueError:
         return False
+    return True
+
+
+def check_authorization(request, user_id, action):
+    if request.is_auth_optional is False:  # auth is mandatory
+        if int(request.user["role_id"]) != ADMIN_ROLE_ID and user_id != request.user["id"]:
+            # requester is not an admin but trying to take action for another user
+            raise web.HTTPUnauthorized(reason="admin privileges are required to {} other user".format(action))
     return True

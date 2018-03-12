@@ -70,20 +70,17 @@ class User:
             return result["rows"]
 
         @classmethod
-        def create(cls, username, password, is_admin=False):
+        def create(cls, username, password, role_id):
             """
             Args:
                 username: user name
                 password: Password must contain at least one digit, one lowercase, one uppercase &
                           one special character and length of minimum 6 characters
-                is_admin: Role (by default normal 'user' role whose id is 2)
+                role_id: Role (by default normal 'user' role whose id is 2)
 
             Returns:
                    user json info
             """
-
-            # be careful
-            role_id = 2 if is_admin is False else 1
 
             storage_client = connect.get_storage()
             payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),

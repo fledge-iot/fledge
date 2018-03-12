@@ -60,6 +60,8 @@ async def auth_middleware(app, handler):
                 User.Objects.refresh_token_expiry(token)
                 # set the user to request object
                 request.user = User.Objects.get(uid=uid)
+                # set the token to request
+                request.token = token
             except(User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:

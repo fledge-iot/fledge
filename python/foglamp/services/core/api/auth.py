@@ -48,7 +48,7 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-            curl -X POST -d '{"username": "user", "password": "User@123"}' http://localhost:8081/foglamp/login
+            curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
     """
 
     data = await request.json()
@@ -79,9 +79,10 @@ async def logout(request):
 
     user_id = request.match_info.get('user_id')
 
-    if request.is_auth_optional is False:
-        if request.user["role_id"] != ADMIN_ROLE_ID and user_id != request.user["id"]:
-            raise web.HTTPUnauthorized(reason="admin privileges are required to delete other user")
+    if request.is_auth_optional is False:  # auth is mandatory
+        if int(request.user["role_id"]) != ADMIN_ROLE_ID and user_id != request.user["id"]:
+            # requester is not an admin but trying to logout another user
+            raise web.HTTPUnauthorized(reason="admin privileges are required to logout other user")
 
     result = User.Objects.logout(user_id)
 
@@ -152,8 +153,8 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin", "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user
-        curl -H "authorization: <token>" -X POST -d '{"username": "ajadmin", "password": "User@123", "role": 1}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "any", "password": "User@123"}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role": 1}' http://localhost:8081/foglamp/user
     """
     data = await request.json()
 

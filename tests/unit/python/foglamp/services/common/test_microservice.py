@@ -10,7 +10,6 @@ from foglamp.common.storage_client.storage_client import ReadingsStorageClient, 
 from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.services.common.microservice import FoglampMicroservice, _logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
-from foglamp.services.core import connect
 
 
 __author__ = "Ashwin Gopalakrishnan"

@@ -36,6 +36,7 @@ async def error_middleware(app, handler):
 async def optional_auth_middleware(app, handler):
     async def middleware(request):
         request.is_auth_optional = True
+        request.user = None
         return await handler(request)
     return middleware
 

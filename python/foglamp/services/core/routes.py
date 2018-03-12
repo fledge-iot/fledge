@@ -38,7 +38,7 @@ def setup(app):
 
     # auth
     app.router.add_route('POST', '/foglamp/login', auth.login)
-    app.router.add_route('PUT', '/foglamp/logout', auth.logout)
+    app.router.add_route('PUT', '/foglamp/{user_id}/logout', auth.logout)
 
     # Configuration
     app.router.add_route('GET', '/foglamp/category', api_configuration.get_categories)

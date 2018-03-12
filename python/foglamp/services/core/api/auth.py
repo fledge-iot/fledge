@@ -73,20 +73,15 @@ async def logout(request):
     """ log out user
 
     :Example:
-        curl -H "authorization: <token>" -d {"id": <user id>} -X PUT http://localhost:8081/foglamp/logout
+        curl -H "authorization: <token>"-X PUT http://localhost:8081/foglamp/{user_id}/logout
 
     """
 
-    data = await request.json()
-    user_id = data.get('id', None)
+    user_id = request.match_info.get('user_id')
 
-    if not user_id or not request.user:
-        raise web.HTTPBadRequest()
-
-    user_id = user_id or request.user["id"]
-
-    if request.is_auth_optional is False and request.user["role_id"] != ADMIN_ROLE_ID:
-        user_id = request.user["id"]
+    if request.is_auth_optional is False:
+        if request.user["role_id"] != ADMIN_ROLE_ID and user_id != request.user["id"]:
+            raise web.HTTPUnauthorized(reason="admin privileges are required to delete other user")
 
     result = User.Objects.logout(user_id)
 

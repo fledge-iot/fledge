@@ -58,8 +58,12 @@ async def login(request):
     if not username or not password:
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
+    peername = request.transport.get_extra_info('peername')
+    host = '0.0.0.0'
+    if peername is not None:
+        host, port = peername
     try:
-        uid, token, is_admin = User.Objects.login(username, password)
+        uid, token, is_admin = User.Objects.login(username, password, host)
     except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
         return web.HTTPBadRequest(reason=str(ex))
 

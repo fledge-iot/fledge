@@ -236,7 +236,7 @@ class User:
             return user_payload["uid"]
 
         @classmethod
-        def login(cls, username, password):
+        def login(cls, username, password, host):
             """
             Args:
                 username: username
@@ -268,7 +268,7 @@ class User:
             jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
 
             payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token,
-                                              token_expiration=str(exp)).payload()
+                                              token_expiration=str(exp), ip=host).payload()
 
             # Insert token, uid, expiration into user_login table
             try:

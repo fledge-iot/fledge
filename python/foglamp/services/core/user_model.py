@@ -137,8 +137,9 @@ class User:
                 kwargs.update({"role_id": user_data['role_id']})
 
             if 'password' in user_data:
-                hashed_pwd = cls.hash_password(user_data['password'])
-                kwargs.update({"pwd": hashed_pwd})
+                if len(user_data['password']):
+                    hashed_pwd = cls.hash_password(user_data['password'])
+                    kwargs.update({"pwd": hashed_pwd})
 
             payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).payload()
             storage_client = connect.get_storage()

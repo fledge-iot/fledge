@@ -118,7 +118,7 @@ async def get_user(request):
             raise web.HTTPBadRequest(reason="Bad user id")
 
     if 'username' in request.query and request.query['username'] != '':
-        user_name = request.query['username']
+        user_name = request.query['username'].lower()
 
     if user_id or user_name:
         try:
@@ -173,6 +173,7 @@ async def create_user(request):
     if not is_valid_role(role_id):
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
+    username = username.lower()
     try:
         User.Objects.get(username=username)
     except User.DoesNotExist:

@@ -1308,7 +1308,7 @@ class MockStorage(StorageClient):
             "process_name": "North Readings to OCS",
             "schedule_name": "OMF to OCS north",
             "schedule_type": "3",
-            "schedule_interval": "00:00:30",
+            "schedule_interval": "1 day 00:00:40",
             "schedule_time": "",
             "schedule_day": "",
             "exclusive": "t",

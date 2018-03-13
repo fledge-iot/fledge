@@ -651,8 +651,19 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
             for row in res['rows']:
-                s_interval = datetime.datetime.strptime(row.get('schedule_interval'), "%H:%M:%S")
-                interval = datetime.timedelta(hours=s_interval.hour, minutes=s_interval.minute,
+                if 'days' in row.get('schedule_interval'):
+                    interval_split = row.get('schedule_interval').split('days')
+                    interval_days = interval_split[0].strip()
+                    interval_time = interval_split[1].strip()
+                elif 'day' in row.get('schedule_interval'):
+                    interval_split = row.get('schedule_interval').split('day')
+                    interval_days = interval_split[0].strip()
+                    interval_time = interval_split[1].strip()
+                else:
+                    interval_days = 0
+                    interval_time = row.get('schedule_interval')
+                s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+                interval = datetime.timedelta(hours=s_interval.hour+(int(interval_days)*24), minutes=s_interval.minute,
                                               seconds=s_interval.second)
 
                 repeat_seconds = None

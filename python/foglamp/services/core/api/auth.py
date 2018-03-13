@@ -149,7 +149,7 @@ async def create_user(request):
 
     :Example:
         curl -H "authorization: <token>" -X POST -d '{"username": "any", "password": "User@123"}' http://localhost:8081/foglamp/user
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role": 1}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
     """
     if not has_admin_permissions(request):
         raise web.HTTPUnauthorized(reason="only admin can create the user")
@@ -158,7 +158,7 @@ async def create_user(request):
 
     username = data.get('username')
     password = data.get('password')
-    role_id = data.get('role', DEFAULT_ROLE_ID)
+    role_id = data.get('role_id', DEFAULT_ROLE_ID)
 
     if not username or not password:
         raise web.HTTPBadRequest(reason="Username or password is missing")

@@ -9,6 +9,8 @@ import datetime
 import uuid
 import time
 from unittest.mock import MagicMock, call, Mock
+
+import copy
 import pytest
 from foglamp.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
 from foglamp.services.core.scheduler.entities import *
@@ -389,17 +391,35 @@ class TestScheduler:
         log_exception.assert_called_once_with(*log_args)
 
     @pytest.mark.asyncio
-    async def test__get_schedules(self, mocker):
+    @pytest.mark.parametrize("test_interval, is_exception", [
+        ('"Blah" 0 days', True),
+        ('12:30:11', False),
+        ('0 day 12:30:11', False),
+        ('1 day 12:40:11', False),
+        ('2 days', True),
+        ('2 days 00:00:59', False),
+        ('00:25:61', True)
+    ])
+    async def test__get_schedules(self, test_interval, is_exception, mocker):
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
+        log_exception = mocker.patch.object(scheduler._logger, "exception")
+
+        new_schedules = copy.deepcopy(MockStorage.schedules)
+        new_schedules[5]['schedule_interval'] = test_interval
+        mocker.patch.object(MockStorage, 'schedules', new_schedules)
 
         # WHEN
-        await scheduler._get_schedules()
-
         # THEN
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        if is_exception is True:
+            with pytest.raises(Exception):
+                await scheduler._get_schedules()
+                assert 1 == log_exception.call_count
+        else:
+            await scheduler._get_schedules()
+            assert len(scheduler._storage.schedules) == len(scheduler._schedules)
 
     @pytest.mark.asyncio
     async def test__get_schedules_exception(self, mocker):

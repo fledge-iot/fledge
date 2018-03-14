@@ -238,7 +238,7 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time)
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_start_task', return_value=asyncio.ensure_future(mock_task()))
 
@@ -247,6 +247,7 @@ class TestScheduler:
 
         # THEN
         assert earliest_start_time is not None
+        print(log_info.call_args_list)
         assert 3 == log_info.call_count
         args0, kwargs0 = log_info.call_args_list[0]
         args1, kwargs1 = log_info.call_args_list[1]
@@ -270,7 +271,7 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time)
         await scheduler._get_schedules()
 
         sch_id = uuid.UUID("2176eb68-7303-11e7-8cf7-a6006ad3dba0")  # stat collector
@@ -304,7 +305,7 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time-3600)
         await scheduler._get_schedules()
 
         sch_id = uuid.UUID("2176eb68-7303-11e7-8cf7-a6006ad3dba0")  # stat collector
@@ -326,6 +327,8 @@ class TestScheduler:
         assert 'stats collection' in args0
         assert 'COAP listener south' in args1
         assert 'OMF to PI north' in args2
+        # As part of scheduler._get_schedules(), scheduler._schedule_first_task() also gets executed, hence
+        # "stat collector" appears twice in this list.
         assert 'stats collection' in args3
 
     @pytest.mark.asyncio
@@ -339,7 +342,7 @@ class TestScheduler:
         current_time = time.time()
         curr_time = datetime.datetime.fromtimestamp(current_time)
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time)
         await scheduler._get_schedules()
 
         sch_id = uuid.UUID("2176eb68-7303-11e7-8cf7-a6006ad3dba0")  # stat collector
@@ -360,6 +363,8 @@ class TestScheduler:
         assert 'stats collection' in args0
         assert 'COAP listener south' in args1
         assert 'OMF to PI north' in args2
+        # As part of scheduler._get_schedules(), scheduler._schedule_first_task() also gets executed, hence
+        # "stat collector" appears twice in this list.
         assert 'stats collection' in args3
 
     @pytest.mark.asyncio

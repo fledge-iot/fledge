@@ -247,7 +247,6 @@ class TestScheduler:
 
         # THEN
         assert earliest_start_time is not None
-        print(log_info.call_args_list)
         assert 3 == log_info.call_count
         args0, kwargs0 = log_info.call_args_list[0]
         args1, kwargs1 = log_info.call_args_list[1]

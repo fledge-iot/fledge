@@ -75,7 +75,7 @@ async def logout(request):
     """ log out user
 
     :Example:
-        curl -H "authorization: <token>"-X PUT http://localhost:8081/foglamp/{user_id}/logout
+        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/{user_id}/logout
 
     """
 
@@ -95,8 +95,8 @@ async def logout(request):
 async def get_roles(request):
     """ get roles
 
-       :Example:
-            curl -X GET http://localhost:8081/foglamp/user/role
+    :Example:
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user/role
     """
     result = User.Objects.get_roles()
     return web.json_response({'roles': result})
@@ -106,10 +106,10 @@ async def get_user(request):
     """ get user info
 
     :Example:
-            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
-            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
-            curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
-            curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
+        curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
     """
     user_id = None
     user_name = None
@@ -206,9 +206,9 @@ async def update_user(request):
     """ update user
 
     :Example:
-           curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/user/<id>
-           curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
-           curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
+        curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/user/<id>
+        curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
+        curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
     """
 
     # we don't have any user profile info yet, let's allow to update role or password only
@@ -249,7 +249,7 @@ async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
-            curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
+        curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
 
     # TODO: do a soft delete, set user->enabled to False

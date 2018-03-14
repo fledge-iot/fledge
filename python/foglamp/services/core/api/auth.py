@@ -11,6 +11,7 @@ from collections import OrderedDict
 
 from aiohttp import web
 from foglamp.services.core.user_model import User
+from foglamp.common.web.middleware import has_permission
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -148,6 +149,7 @@ async def get_user(request):
     return web.json_response(result)
 
 
+@has_permission("admin")
 async def create_user(request):
     """ create user
 
@@ -155,9 +157,6 @@ async def create_user(request):
         curl -H "authorization: <token>" -X POST -d '{"username": "any", "password": "User@123"}' http://localhost:8081/foglamp/user
         curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
     """
-    if not has_admin_permissions(request):
-        raise web.HTTPUnauthorized(reason="only admin can create the user")
-
     data = await request.json()
 
     username = data.get('username')

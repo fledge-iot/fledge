@@ -70,6 +70,13 @@ class User:
             return result["rows"]
 
         @classmethod
+        def get_role_id_by_name(cls, name):
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().SELECT("id").WHERE(['name', '=', name]).payload()
+            result = storage_client.query_tbl_with_payload('roles', payload)
+            return result["rows"]
+
+        @classmethod
         def create(cls, username, password, role_id):
             """
             Args:

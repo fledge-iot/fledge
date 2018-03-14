@@ -4,11 +4,13 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from aiohttp import web
+from functools import wraps
 import json
 import traceback
 
+from aiohttp import web
 import jwt
+
 from foglamp.services.core.user_model import User
 
 __author__ = "Praveen Garg"
@@ -78,6 +80,34 @@ async def auth_middleware(app, handler):
 
         return await handler(request)
     return middleware
+
+
+def has_permission(permission):
+    """Decorator that restrict access only for authorized users with correct permissions (role_name)
+
+    if user is authorized and does not have permission raises HTTPForbidden.
+    """
+    def wrapper(fn):
+        @wraps(fn)
+        async def wrapped(*args, **kwargs):
+            request = args[-1]
+            if not isinstance(request, web.BaseRequest):
+                msg = ("Incorrect decorator usage. "
+                       "Expecting `def handler(request)` "
+                       "or `def handler(self, request)`.")
+                raise RuntimeError(msg)
+
+            if request.is_auth_optional is False:  # auth is mandatory
+                roles_id = [int(r["id"]) for r in User.Objects.get_role_id_by_name(permission)]
+                if int(request.user["role_id"]) not in roles_id:
+                    raise web.HTTPForbidden
+
+            ret = await fn(*args, **kwargs)
+            return ret
+
+        return wrapped
+
+    return wrapper
 
 
 def handle_api_exception(ex, _class=None, if_trace=0):

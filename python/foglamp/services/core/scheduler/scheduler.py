@@ -667,7 +667,7 @@ class Scheduler(object):
                                               seconds=s_interval.second)
 
                 repeat_seconds = None
-                if interval is not None:
+                if interval is not None and interval != datetime.timedelta(0):
                     repeat_seconds = interval.total_seconds()
 
                 s_ti = row.get('schedule_time') if row.get('schedule_time') else '00:00:00'

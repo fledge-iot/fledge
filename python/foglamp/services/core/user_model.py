@@ -112,7 +112,7 @@ class User:
 
             # either keep 1 admin user or just reserve id:1 for superuser
             if int(user_id) == 1:
-                raise ValueError("Admin user can not be deleted")
+                raise ValueError("Super admin user can not be deleted")
 
             storage_client = connect.get_storage()
             try:
@@ -248,7 +248,7 @@ class User:
             Args:
                 username: username
                 password: password
-
+                host:     host address
             Returns:
                   return token
 

@@ -172,7 +172,8 @@ async def restore_backup(request):
         raise web.HTTPBadRequest(reason='Backup id is required')
 
     try:
-        backup_id = int(backup_id, 10)
+        # FIXME:
+        # backup_id = int(backup_id, 10)
         restore = Restore(connect.get_storage())
         status = restore.restore_backup(backup_id)
         return web.json_response({'status': status})

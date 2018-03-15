@@ -681,7 +681,7 @@ class Scheduler(object):
                     id=schedule_id,
                     name=row.get('schedule_name'),
                     type=int(row.get('schedule_type')),
-                    day=int(row.get('schedule_day')) if row.get('schedule_day').strip() else 0,
+                    day=int(row.get('schedule_day')) if row.get('schedule_day').strip() else None,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,
@@ -1087,7 +1087,7 @@ class Scheduler(object):
             await audit.information('SCHAD', {'schedule': schedule.toDict()})
 
         repeat_seconds = None
-        if schedule.repeat is not None:
+        if schedule.repeat is not None and schedule.repeat != datetime.timedelta(0):
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(

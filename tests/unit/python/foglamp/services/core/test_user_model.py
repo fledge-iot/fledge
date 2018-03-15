@@ -183,7 +183,7 @@ class TestUserModel:
     def test_delete_admin_user(self):
         with pytest.raises(ValueError) as excinfo:
             User.Objects.delete(1)
-        assert str(excinfo.value) == 'Admin user can not be deleted'
+        assert str(excinfo.value) == 'Super admin user can not be deleted'
 
     def test_delete_user_exception(self):
         expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}

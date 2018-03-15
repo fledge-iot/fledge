@@ -12,12 +12,15 @@ from collections import OrderedDict
 from aiohttp import web
 from foglamp.services.core.user_model import User
 from foglamp.common.web.middleware import has_permission
+from foglamp.common import logger
+
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+_logger = logger.setup(__name__)
 
 _help = """
     ------------------------------------------------------------------------------------
@@ -57,6 +60,7 @@ async def login(request):
     password = data.get('password')
 
     if not username or not password:
+        _logger.warning("Username and password are required to login")
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
     peername = request.transport.get_extra_info('peername')
@@ -66,7 +70,10 @@ async def login(request):
     try:
         uid, token, is_admin = User.Objects.login(username, password, host)
     except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
+        _logger.warning(str(ex))
         return web.HTTPBadRequest(reason=str(ex))
+
+    _logger.info("User with username:<{}> has been logged in successfully".format(username))
 
     return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
 
@@ -87,7 +94,10 @@ async def logout(request):
     result = User.Objects.logout(user_id)
 
     if not result['rows_affected']:
+        _logger.warning("Logout requested with bad user")
         raise web.HTTPNotFound()
+
+    _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
 
     return web.json_response({"logout": True})
 
@@ -120,6 +130,7 @@ async def get_user(request):
             if user_id <= 0:
                 raise ValueError
         except ValueError:
+            _logger.warning("Get user requested with bad user id")
             raise web.HTTPBadRequest(reason="Bad user id")
 
     if 'username' in request.query and request.query['username'] != '':
@@ -134,6 +145,7 @@ async def get_user(request):
             u['roleId'] = user.pop('role_id')
             result = u
         except User.DoesNotExist as ex:
+            _logger.warning(str(ex))
             raise web.HTTPNotFound(reason=str(ex))
     else:
         users = User.Objects.all()
@@ -164,16 +176,20 @@ async def create_user(request):
     role_id = data.get('role_id', DEFAULT_ROLE_ID)
 
     if not username or not password:
+        _logger.warning("Username and password are required to create user")
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
     if not isinstance(password, str):
+        _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     # TODO: username regex? is email allowed?
     if not re.match(PASSWORD_REGEX_PATTERN, password):
+        _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     if not is_valid_role(role_id):
+        _logger.warning("Create user requested with bad role id")
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
     username = username.lower()
@@ -182,6 +198,7 @@ async def create_user(request):
     except User.DoesNotExist:
         pass
     else:
+        _logger.warning("Can not create a user, username already exists")
         raise web.HTTPConflict(reason="User with the requested username already exists")
 
     u = dict()
@@ -195,9 +212,13 @@ async def create_user(request):
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
     except ValueError as ex:
+        _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as exc:
+        _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
+
+    _logger.info("User has been created successfully")
 
     return web.json_response({'message': 'User has been created successfully', 'user': u})
 
@@ -214,21 +235,33 @@ async def update_user(request):
     # we don't have any user profile info yet, let's allow to update role or password only
     user_id = request.match_info.get('id')
 
+    if (request.is_auth_optional is True) and int(user_id) == 1:
+        msg = "Super admin user can not be updated without authentication"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)  # auth is optional
+
     data = await request.json()
     role_id = data.get('role_id')
     password = data.get('password')
 
     if not role_id and not password:
-        raise web.HTTPBadRequest(reason="Nothing to update the user")
+        msg = "Nothing to update the user"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
 
     if role_id and not is_valid_role(role_id):
+        _logger.warning("Update user requested with bad role id")
         raise web.HTTPBadRequest(reason="Invalid or bad role id")
     if role_id and not has_admin_permissions(request):
-        raise web.HTTPUnauthorized(reason="only admin can update the role for a user")
+        msg = "Only admin can update the role for a user"
+        _logger.warning(msg)
+        raise web.HTTPUnauthorized(reason=msg)
 
     if password and not isinstance(password, str):
+        _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
     if password and not re.match(PASSWORD_REGEX_PATTERN, password):
+        _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     check_authorization(request, user_id, "update")
@@ -236,11 +269,17 @@ async def update_user(request):
     try:
         User.Objects.update(user_id, data)
     except ValueError as ex:
+        _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
-        raise web.HTTPNotFound(reason="User with id:<{}> does not exist".format(user_id))
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        _logger.warning(msg)
+        raise web.HTTPNotFound(reason=msg)
     except Exception as exc:
+        _logger.warning(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
+
+    _logger.info("User with id:<{}> has been updated successfully".format(int(user_id)))
 
     return web.json_response({'message': 'User with id:<{}> updated successfully'.format(user_id)})
 
@@ -257,13 +296,17 @@ async def delete_user(request):
         user_id = request.match_info.get('id')
 
         # TODO: we should not prevent this, when we have at-least 1 admin (super) user
-        if user_id == 1:
-            raise web.HTTPNotAcceptable(reason="super admin can not be deleted")
+        if int(user_id) == 1:
+            msg = "Super admin user can not be deleted"
+            _logger.warning(msg)
+            raise web.HTTPNotAcceptable(reason=msg)
 
         # Requester should not be able to delete her/himself
         if request.is_auth_optional is False:
             if user_id == request.user["id"]:
-                raise web.HTTPBadRequest(reason="ask admin to disable account")
+                msg = "Only admin can disable or delete the account"
+                _logger.warning(msg)
+                raise web.HTTPBadRequest(reason=msg)
 
         check_authorization(request, user_id, "delete")
 
@@ -272,11 +315,17 @@ async def delete_user(request):
             raise User.DoesNotExist
 
     except ValueError as ex:
+        _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
-        raise web.HTTPNotFound(reason="User with id:<{}> does not exist".format(user_id))
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        _logger.warning(msg)
+        raise web.HTTPNotFound(reason=msg)
     except Exception as exc:
+        _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
+
+    _logger.info("User with id:<{}> has been deleted successfully.".format(int(user_id)))
 
     return web.json_response({'message': "User has been deleted successfully"})
 

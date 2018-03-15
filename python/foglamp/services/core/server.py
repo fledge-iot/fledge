@@ -115,6 +115,9 @@ class Server:
     is_rest_server_http_enabled = False
     """ a Flag to decide to enable FogLAMP REST API on HTTP on restart """
 
+    is_auth_required = True
+    """ a var to decide to make authentication mandatory / optional for FogLAMP Admin/ User REST API"""
+
     cert_file_name = ''
     """ cert file name """
 
@@ -148,7 +151,7 @@ class Server:
         'authentication': {
             'description': 'To make the authentication mandatory or optional for API calls',
             'type': 'string',
-            'default': 'mandatory'
+            'default': 'optional'  # make mandatory
         },
         'allowPing': {
             'description': 'To allow access to the ping, regardless of the authentication required and'
@@ -280,6 +283,12 @@ class Server:
                               port_from_config, type(port_from_config))
                 raise
 
+            try:
+                cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
+            except KeyError:
+                _logger.error("error in retrieving authentication info")
+                raise
+
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -312,12 +321,14 @@ class Server:
             raise
 
     @staticmethod
-    def _make_app():
+    def _make_app(auth_required=True):
         """Creates the REST server
 
         :rtype: web.Application
         """
-        app = web.Application(middlewares=[middleware.error_middleware])
+        app = web.Application(middlewares=[middleware.error_middleware, middleware.auth_middleware])
+        if not auth_required:
+            app = web.Application(middlewares=[middleware.error_middleware, middleware.optional_auth_middleware])
         admin_routes.setup(app)
         return app
 
@@ -500,10 +511,8 @@ class Server:
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
-            cls.service_app = cls._make_app()
-
             loop.run_until_complete(cls.rest_api_config())
-
+            cls.service_app = cls._make_app(auth_required=cls.is_auth_required)
             # ssl context
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:

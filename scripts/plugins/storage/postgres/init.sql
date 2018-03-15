@@ -555,11 +555,12 @@ CREATE INDEX fki_role_asset_permissions_fk2
 -- 2 - Public Key
 CREATE TABLE foglamp.users (
        id            integer                NOT NULL DEFAULT nextval('foglamp.users_id_seq'::regclass),
-       uid           character varying(80)  NOT NULL COLLATE pg_catalog."default",
+       uname         character varying(80)  NOT NULL COLLATE pg_catalog."default",
        role_id       integer                NOT NULL,
        description   character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
        pwd           character varying(255) COLLATE pg_catalog."default",
        public_key    character varying(255) COLLATE pg_catalog."default",
+       enabled       boolean                NOT NULL DEFAULT TRUE,
        access_method smallint               NOT NULL DEFAULT 0,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
@@ -571,15 +572,17 @@ CREATE INDEX fki_users_fk1
     ON foglamp.users USING btree (role_id);
 
 CREATE UNIQUE INDEX users_ix1
-    ON foglamp.users USING btree (uid COLLATE pg_catalog."default");
+    ON foglamp.users USING btree (uname COLLATE pg_catalog."default");
 
 -- User Login table
 -- List of logins executed by the users.
 CREATE TABLE foglamp.user_logins (
-       id      integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
-       user_id integer                     NOT NULL,
-       ip      inet                        NOT NULL,
-       ts      timestamp(6) with time zone NOT NULL,
+       id               integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
+       user_id          integer                     NOT NULL,
+       ip               inet                        NOT NULL DEFAULT '0.0.0.0'::inet,
+       ts               timestamp(6) with time zone NOT NULL DEFAULT now(),
+       token            character varying(255)      NOT NULL,
+       token_expiration timestamp(6) with time zone NOT NULL,
        CONSTRAINT user_logins_pkey PRIMARY KEY (id),
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)
        REFERENCES foglamp.users (id) MATCH SIMPLE
@@ -720,6 +723,22 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 ----------------------------------------------------------------------
 -- Initialization phase - DML
 ----------------------------------------------------------------------
+
+-- Roles
+DELETE FROM foglamp.roles;
+INSERT INTO foglamp.roles ( name, description )
+     VALUES ('admin', 'for the users having all CRUD privileges including other admin users'),
+            ('user', 'all CRUD operations and self profile management');
+
+-- Users
+DELETE FROM foglamp.users;
+INSERT INTO foglamp.users ( uname, pwd, role_id, description )
+     VALUES ('admin', '3a86096e7a7c123ba0bc3dfb7a1d350541649f1ff1aff1f37e0dc1ee4175b112:3759bf3302f5481e8c9cc9472c6088ac', 1, 'admin user'),
+            ('user', '3a86096e7a7c123ba0bc3dfb7a1d350541649f1ff1aff1f37e0dc1ee4175b112:3759bf3302f5481e8c9cc9472c6088ac', 2, 'normal user');
+
+-- User logins
+DELETE FROM foglamp.user_logins;
+
 
 -- Log Codes
 DELETE FROM foglamp.log_codes;

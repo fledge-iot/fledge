@@ -266,7 +266,7 @@ class BackupRestoreLib(object):
         "e000018": "It is not possible to read data from Postgres"
                    " - command |{0}| - exit code |{1}| - output |{2}|",
         "e000019": "The command is not available using the managed approach"
-                   " - command |{0}|",
+                   " - command |{0}| - full command |{1}|",
 
     }
     """ Messages used for Information, Warning and Error notice """
@@ -544,7 +544,7 @@ class BackupRestoreLib(object):
             if os.path.exists(cmd_managed):
                 cmd_identified = cmd_managed
             else:
-                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify)
+                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify, cmd_managed)
                 self._logger.error("{0}".format(_message))
 
                 raise exceptions.PgCommandUnAvailable(_message)
@@ -631,7 +631,7 @@ class BackupRestoreLib(object):
                                                                             output=output))
 
             if _exit_code != 0:
-                _message = self._MESSAGES_LIST["e000017"].format(cmd_to_test, output)
+                _message = self._MESSAGES_LIST["e000017"].format(cmd, output)
                 self._logger.error("{0}".format(_message))
 
                 raise exceptions.PgCommandUnAvailable(_message)

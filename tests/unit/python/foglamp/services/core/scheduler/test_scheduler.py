@@ -9,6 +9,8 @@ import datetime
 import uuid
 import time
 from unittest.mock import MagicMock, call, Mock
+
+import copy
 import pytest
 from foglamp.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
 from foglamp.services.core.scheduler.entities import *
@@ -236,7 +238,7 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time)
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_start_task', return_value=asyncio.ensure_future(mock_task()))
 
@@ -268,7 +270,7 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time)
         await scheduler._get_schedules()
 
         sch_id = uuid.UUID("2176eb68-7303-11e7-8cf7-a6006ad3dba0")  # stat collector
@@ -302,7 +304,7 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time-3600)
         await scheduler._get_schedules()
 
         sch_id = uuid.UUID("2176eb68-7303-11e7-8cf7-a6006ad3dba0")  # stat collector
@@ -324,6 +326,8 @@ class TestScheduler:
         assert 'stats collection' in args0
         assert 'COAP listener south' in args1
         assert 'OMF to PI north' in args2
+        # As part of scheduler._get_schedules(), scheduler._schedule_first_task() also gets executed, hence
+        # "stat collector" appears twice in this list.
         assert 'stats collection' in args3
 
     @pytest.mark.asyncio
@@ -337,7 +341,7 @@ class TestScheduler:
         current_time = time.time()
         curr_time = datetime.datetime.fromtimestamp(current_time)
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
-                              _start_time=current_time - 3600)
+                              _start_time=current_time)
         await scheduler._get_schedules()
 
         sch_id = uuid.UUID("2176eb68-7303-11e7-8cf7-a6006ad3dba0")  # stat collector
@@ -358,6 +362,8 @@ class TestScheduler:
         assert 'stats collection' in args0
         assert 'COAP listener south' in args1
         assert 'OMF to PI north' in args2
+        # As part of scheduler._get_schedules(), scheduler._schedule_first_task() also gets executed, hence
+        # "stat collector" appears twice in this list.
         assert 'stats collection' in args3
 
     @pytest.mark.asyncio
@@ -389,17 +395,35 @@ class TestScheduler:
         log_exception.assert_called_once_with(*log_args)
 
     @pytest.mark.asyncio
-    async def test__get_schedules(self, mocker):
+    @pytest.mark.parametrize("test_interval, is_exception", [
+        ('"Blah" 0 days', True),
+        ('12:30:11', False),
+        ('0 day 12:30:11', False),
+        ('1 day 12:40:11', False),
+        ('2 days', True),
+        ('2 days 00:00:59', False),
+        ('00:25:61', True)
+    ])
+    async def test__get_schedules(self, test_interval, is_exception, mocker):
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
+        log_exception = mocker.patch.object(scheduler._logger, "exception")
+
+        new_schedules = copy.deepcopy(MockStorage.schedules)
+        new_schedules[5]['schedule_interval'] = test_interval
+        mocker.patch.object(MockStorage, 'schedules', new_schedules)
 
         # WHEN
-        await scheduler._get_schedules()
-
         # THEN
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        if is_exception is True:
+            with pytest.raises(Exception):
+                await scheduler._get_schedules()
+                assert 1 == log_exception.call_count
+        else:
+            await scheduler._get_schedules()
+            assert len(scheduler._storage.schedules) == len(scheduler._schedules)
 
     @pytest.mark.asyncio
     async def test__get_schedules_exception(self, mocker):
@@ -1308,7 +1332,7 @@ class MockStorage(StorageClient):
             "process_name": "North Readings to OCS",
             "schedule_name": "OMF to OCS north",
             "schedule_type": "3",
-            "schedule_interval": "00:00:30",
+            "schedule_interval": "1 day 00:00:40",
             "schedule_time": "",
             "schedule_day": "",
             "exclusive": "t",

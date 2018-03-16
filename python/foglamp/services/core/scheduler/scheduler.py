@@ -651,12 +651,24 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
             for row in res['rows']:
-                s_interval = datetime.datetime.strptime(row.get('schedule_interval'), "%H:%M:%S")
-                interval = datetime.timedelta(hours=s_interval.hour, minutes=s_interval.minute,
+                if 'days' in row.get('schedule_interval'):
+                    interval_split = row.get('schedule_interval').split('days')
+                    interval_days = interval_split[0].strip()
+                    interval_time = interval_split[1].strip()
+                elif 'day' in row.get('schedule_interval'):
+                    interval_split = row.get('schedule_interval').split('day')
+                    interval_days = interval_split[0].strip()
+                    interval_time = interval_split[1].strip()
+                else:
+                    interval_days = 0
+                    interval_time = row.get('schedule_interval')
+                s_days = int(interval_days)
+                s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+                interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
                                               seconds=s_interval.second)
 
                 repeat_seconds = None
-                if interval is not None:
+                if interval is not None and interval != datetime.timedelta(0):
                     repeat_seconds = interval.total_seconds()
 
                 s_ti = row.get('schedule_time') if row.get('schedule_time') else '00:00:00'
@@ -669,7 +681,7 @@ class Scheduler(object):
                     id=schedule_id,
                     name=row.get('schedule_name'),
                     type=int(row.get('schedule_type')),
-                    day=int(row.get('schedule_day')) if row.get('schedule_day').strip() else 0,
+                    day=int(row.get('schedule_day')) if row.get('schedule_day').strip() else None,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,
@@ -1075,7 +1087,7 @@ class Scheduler(object):
             await audit.information('SCHAD', {'schedule': schedule.toDict()})
 
         repeat_seconds = None
-        if schedule.repeat is not None:
+        if schedule.repeat is not None and schedule.repeat != datetime.timedelta(0):
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(

@@ -152,7 +152,8 @@ class SupportBuilder:
         temp_file = self._interim_file_path + "/" + "service_registry-{}".format(file_spec)
         loop = asyncio.get_event_loop() if loop is None else loop
         url_ping = self._base_url+'/service'
-        async with aiohttp.ClientSession(loop=loop) as session:
+        connector = aiohttp.TCPConnector(verify_ssl=False)
+        async with aiohttp.ClientSession(loop=loop, connector=connector) as session:
             async with session.get(url_ping) as resp:
                 r = await resp.json()
                 data = {

@@ -57,6 +57,9 @@ async def auth_middleware(app, handler):
         request.is_auth_optional = False
         request.user = None
 
+        if request.method == 'OPTIONS':
+            return await handler(request)
+
         token = request.headers.get('authorization', None)
         if token:
             try:

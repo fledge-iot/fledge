@@ -8,7 +8,8 @@
 .. |foglamp_all_round| image:: images/foglamp_all_round_solution.jpg
 
 .. Links
-.. _FogLAMP project on GitHub: https://github.com/foglamp/FogLAMP/issues
+.. _here: #id1
+.. _this section: #appendix-building-foglamp-on-centos
 
 .. Links in new tabs
 .. |FogLAMP Repo| raw:: html
@@ -80,6 +81,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - libbost-system-dev
 - libbost-thread-dev
 - libpq-dev
+- uuid-dev
 - make
 - postgresql
 - python-dbus
@@ -98,7 +100,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   Building dependency tree
   ...
   $
-  $ sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev
+  $ sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev uuid-dev
   Reading package lists... Done
   Building dependency tree
   ...
@@ -284,7 +286,8 @@ You can always use the ``git status`` command to check the branch you have check
 Building FogLAMP
 ----------------
 
-You are now ready to build your first FogLAMP project. Move to the *FogLAMP* project directory, type the ``make`` comand and let the magic happen.
+You are now ready to build your first FogLAMP project. If you want to install FogLAMP on CentOS, Fedora or Red Hat, we recommend you to read this section first and then look at `this section`_. |br| |br|
+Move to the *FogLAMP* project directory, type the ``make`` comand and let the magic happen.
 
 .. code-block:: console
 
@@ -463,4 +466,285 @@ Easy, you have learnt ``foglamp start`` and ``foglamp status``, simply type ``fo
 
 |br| |br| 
 As a next step, let's install FogLAMP!
+
+
+Appendix: Building FogLAMP on CentOS
+====================================
+
+In this section we present how to prepare a CentOS machine to build and install FogLAMP. A similar approach can be adopted to build the platform on RedHat and Fedora distributions. Here we refer to CentOS version 17.4.1708, requirements for other versions or distributions might differ.
+
+
+Pre-Requisites
+--------------
+
+Pre-requisites on CentOS are similar to the ones on other distributions, but the name of the packages may differ from Debian-based distros. Starting from a minimal installation, this is the list of packages you need to add:
+
+- libtool
+- bluez
+- git
+- cmake
+- bost-devel
+- libuuid-devel
+- gmp-devel
+- mpfr-devel
+- libmpc-devel
+- bzip2
+- jq
+
+This is the complete list of the commands to execute and the installed packages in CentoOS 17.4.1708. 
+
+.. code-block:: console
+
+  sudo yum install libtool
+  sudo yum install bluez
+  sudo yum install git
+  sudo yum install cmake
+  sudo yum install boost-devel
+  sudo yum install libuuid-devel
+  sudo yum install gmp-devel
+  sudo yum install mpfr-devel
+  sudo yum install libmpc-devel
+  sudo yum install bzip2
+  sudo yum install jq
+
+
+Building and Installing C++ 5.4
+-------------------------------
+
+FogLAMP, requires C++ 5.4, CentOS 7 provides version 4.8. These are the commands to build and install the new GCC environnment:
+
+.. code-block:: console
+
+  sudo yum install gcc-c++
+  curl https://ftp.gnu.org/gnu/gcc/gcc-5.4.0/gcc-5.4.0.tar.bz2 -O
+  bzip2 -dk gcc-5.4.0.tar.bz
+  tar xvf gcc-5.4.0.tar
+  mkdir gcc-5.4.0-build
+  cd gcc-5.4.0-build
+  ../gcc-5.4.0/configure --enable-languages=c,c++ --disable-multilib
+  make -j$(nproc)
+  sudo make install
+
+At the end of the procedure, the system will have two versions of GCC installed: 
+
+- GCC 4.8, installed in /usr/bin and /usr/lib64
+- GCC 5.4, installed in /usr/local/bin and /usr/local/lib64
+
+In order to use the latest version for FogLAMP, add the following lines at the end of your ``$HOME/.bash_profile`` script:
+
+.. code-block:: console
+
+  export CC=/usr/local/bin/gcc
+  export CXX=/usr/local/bin/g++
+  export LD_LIBRARY_PATH=/usr/local/lib64
+
+
+Installing PostgreSQL 9.6
+-------------------------
+
+CentOS provides PostgreSQL 9.2. FogLAMP has been tested with PostgreSQL 9.5, 9.6 and 10.X. The commands to install the new version of PostgreSQL are:
+
+.. code-block:: console
+
+  sudo yum install https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
+  sudo yum install postgresql96
+  sudo yum install postgresql96-server
+  sudo yum install postgresql96-devel
+  sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
+  sudo systemctl enable postgresql-9.6
+  sudo systemctl start postgresql-9.6
+
+At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
+
+.. code-block:: console
+
+  $ sudo systemctl status postgresql-9.6
+  [sudo] password for foglamp:
+  ● postgresql-9.6.service - PostgreSQL 9.6 database server
+     Loaded: loaded (/usr/lib/systemd/system/postgresql-9.6.service; enabled; vendor preset: disabled)
+     Active: active (running) since Sat 2018-03-17 06:22:52 GMT; 8min ago
+       Docs: https://www.postgresql.org/docs/9.6/static/
+    Process: 1036 ExecStartPre=/usr/pgsql-9.6/bin/postgresql96-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
+   Main PID: 1049 (postmaster)
+     CGroup: /system.slice/postgresql-9.6.service
+             ├─1049 /usr/pgsql-9.6/bin/postmaster -D /var/lib/pgsql/9.6/data/
+             ├─1077 postgres: logger process
+             ├─1087 postgres: checkpointer process
+             ├─1088 postgres: writer process
+             ├─1089 postgres: wal writer process
+             ├─1090 postgres: autovacuum launcher process
+             └─1091 postgres: stats collector process
+
+  Mar 17 06:22:52 vbox-centos-test systemd[1]: Starting PostgreSQL 9.6 database server...
+  Mar 17 06:22:52 vbox-centos-test postmaster[1049]: < 2018-03-17 06:22:52.910 GMT > LOG:  redirecting log output to logging collector process
+  Mar 17 06:22:52 vbox-centos-test postmaster[1049]: < 2018-03-17 06:22:52.910 GMT > HINT:  Future log output will appear in directory "pg_log".
+  Mar 17 06:22:52 vbox-centos-test systemd[1]: Started PostgreSQL 9.6 database server.
+  $
+
+Next, add the FogLAMP user to PostgreSQL with the command ``sudo -u postgres createuser -d <user>``, where *<user>* is your FogLAMP user.
+
+Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
+
+.. code-block:: console
+
+  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
+
+
+Installing Python 3.5
+---------------------
+
+FogLAMP requires Python 3.5, CentOS provides Python 2.7. The commands to install the new version are:
+
+.. code-block:: console
+
+  sudo yum install yum-utils
+  sudo yum groupinstall development
+  sudo yum install https://centos7.iuscommunity.org/ius-release.rpm
+  sudo yum install python35u
+  sudo yum -y install python35u-pip
+  sudo yum install python35u-devel
+
+In order to use the new version, you need to create two symbolic links in the ``/usr/bin`` directory:
+
+.. code-block:: console
+
+  cd /usr/bin
+  sudo ln -s python3.5 python3
+  sudo ln -s pip3.5 pip3
+
+
+Building FogLAMP
+----------------
+
+We are finally ready to install FogLAMP, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
+
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory. 
+
+We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
+
+- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
+- Replace the content of *python/foglamp/services/common/service_announcer.py* with this code:
+
+.. code-block:: python
+
+  # -*- coding: utf-8 -*-
+  # FOGLAMP_BEGIN
+  # See: http://foglamp.readthedocs.io/
+  # FOGLAMP_END
+  """Common FoglampMicroservice Class"""
+
+  import foglamp.services.common.avahi as avahi
+  from foglamp.common import logger
+
+  _LOGGER = logger.setup(__name__)
+
+  class ServiceAnnouncer:
+      _service_name = None
+      """ The name of the service to advertise """
+
+      _group = None
+      """ The Avahi group """
+
+      def __init__(self, name, service, port, txt):
+
+        self._service_name = name
+        _LOGGER.error("Avahi not available, continuing without service discovery available")
+
+      @property
+      def get_service_name(self):
+          return self._service_name
+
+      def unregister(self):
+          if self._group is not None:
+              self._group.Reset()
+              self._group = None
+
+Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
+
+.. code-block:: python
+
+  # import dbus
+
+  <<< In the function string_to_byte_array(s) commend: >>>
+  #    for c in s:
+  #        r.append(dbus.Byte(ord(c)))
+
+
+You are now ready to execute the ``make`` command, as described `here`_.
+ 
+
+Further Notes
+-------------
+
+Here are some extra notes for the CentOS users.
+
+**Commented code** |br| The code commented in the previous paragraph is experimental and used for auto-discovery. It has been used for tests with South Microservices running on smart sensors, separated from the Core and Storage Microservices. This means that auto-discovery, i.e. the ability for a South Microservice to automatically identify the other services of FogLAMP distributed over the network, is currently not available on CentOS.
+
+
+**foglamp start** |br| When FogLAMP starts on CentOS, it returns this message:
+
+.. code-block:: console
+
+  Starting FogLAMP v1.2.FogLAMP cannot start.
+  Check /home/foglamp/FogLAMP/data/core.err for more information.
+
+Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP running, it means that the services are up and running.
+
+.. code-block:: console
+
+  $ foglamp start
+  Starting FogLAMP v1.2.FogLAMP cannot start.
+  Check /home/foglamp/FogLAMP/data/core.err for more information.
+  $
+  $ foglamp status
+  FogLAMP v1.2 running.
+  FogLAMP uptime:  6 seconds.
+  === FogLAMP services:
+  foglamp.services.core
+  foglamp.services.south --port=38994 --address=127.0.0.1 --name=COAP
+  foglamp.services.south --port=38994 --address=127.0.0.1 --name=HTTP_SOUTH
+  === FogLAMP tasks:
+  $
+  $ cat data/core.err
+  $
+  $ ps -ef | grep foglamp
+  ...
+  foglamp   6174     1  1 08:03 pts/0    00:00:00 python3 -m foglamp.services.core
+  foglamp   6179     1  0 08:03 ?        00:00:00 /home/foglamp/FogLAMP/services/storage --address=0.0.0.0 --port=34037
+  foglamp   6197  6174  0 08:03 pts/0    00:00:00 /bin/sh services/south --port=34037 --address=127.0.0.1 --name=COAP
+  foglamp   6198  6197  0 08:03 pts/0    00:00:00 python3 -m foglamp.services.south --port=34037 --address=127.0.0.1 --name=COAP
+  foglamp   6199  6174  0 08:03 pts/0    00:00:00 /bin/sh services/south --port=34037 --address=127.0.0.1 --name=HTTP_SOUTH
+  foglamp   6200  6199  0 08:03 pts/0    00:00:00 python3 -m foglamp.services.south --port=34037 --address=127.0.0.1 --name=HTTP_SOUTH
+  foglamp   6212  6174  0 08:04 pts/0    00:00:00 /bin/sh tasks/statistics --port=34037 --address=127.0.0.1 --name=stats collector
+  foglamp   6213  6212  0 08:04 pts/0    00:00:00 python3 -m foglamp.tasks.statistics --port=34037 --address=127.0.0.1 --name=stats collector
+  ...
+  $
+
+**foglamp stop** |br| In CentOS, the command stops all the microservices with the exception of Core (with a ``ps -ef`` command you can easily check the process still running). You should execute a *stop* and a *kill* command to complete the shutdown on CentOS:
+
+.. code-block:: console
+
+  $ foglamp status
+  FogLAMP v1.2 running.
+  FogLAMP uptime:  6 seconds.
+  === FogLAMP services:
+  foglamp.services.core
+  foglamp.services.south --port=38994 --address=127.0.0.1 --name=COAP
+  foglamp.services.south --port=38994 --address=127.0.0.1 --name=HTTP_SOUTH
+  === FogLAMP tasks:
+  $ foglamp stop
+  Stopping FogLAMP.............
+  FogLAMP stopped.
+  $
+  $ ps -ef | grep foglamp
+  ...
+  foglamp   5782     1  5 07:56 pts/0    00:00:11 python3 -m foglamp.services.core
+  ...
+  $
+  $ foglamp kill
+  FogLAMP killed.
+  $ ps -ef | grep foglamp
+  ...
+  $
+
 

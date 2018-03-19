@@ -78,8 +78,29 @@ async def login(request):
     return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
 
 
-async def logout(request):
+async def logout_me(request):
     """ log out user
+
+    :Example:
+        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
+
+    """
+
+    if not request.token:
+        raise web.HTTPUnauthorized()
+
+    result = User.Objects.delete_token(request.token)
+
+    if not result['rows_affected']:
+        _logger.warning("Logout requested with bad user token")
+        raise web.HTTPNotFound()
+
+    _logger.info("User has been logged out successfully")
+    return web.json_response({"logout": True})
+
+
+async def logout(request):
+    """ log out user's all active sessions
 
     :Example:
         curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/{user_id}/logout
@@ -90,15 +111,13 @@ async def logout(request):
 
     check_authorization(request, user_id, "logout")
 
-    # TODO: logout should be token based only; to allow multiple device session
-    result = User.Objects.logout(user_id)
+    result = User.Objects.delete_user_tokens(user_id)
 
     if not result['rows_affected']:
         _logger.warning("Logout requested with bad user")
         raise web.HTTPNotFound()
 
     _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
-
     return web.json_response({"logout": True})
 
 

@@ -18,5 +18,3 @@ pexpect==4.0.1
 
 # Transformation of data, Apply JqFilter
 pyjq==2.1.0
-
-pyparsing==2.2.0

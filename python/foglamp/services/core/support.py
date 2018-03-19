@@ -17,10 +17,8 @@ import json
 import tarfile
 import asyncio
 import fnmatch
-
 import aiohttp
-
-from foglamp.services.core import syslog_parser
+import subprocess
 from foglamp.services.core.connect import *
 from foglamp.common import logger
 
@@ -31,6 +29,7 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__, level=20)
 _NO_OF_FILES_TO_RETAIN = 3
+_SYSLOG_FILE = '/var/log/syslog'
 
 
 class SupportBuilder:
@@ -107,22 +106,20 @@ class SupportBuilder:
     def add_syslog_foglamp(self, pyz, file_spec):
         # The foglamp entries from the syslog file
         temp_file = self._interim_file_path + "/" + "syslog-{}".format(file_spec)
-        logs = syslog_parser.main(filter_by="FogLAMP")
-        data = {
-            "about": "Syslog for FogLAMP",
-            "foglampLogs": logs
-        }
-        self.write_to_tar(pyz, temp_file, data)
+        try:
+            subprocess.call("grep -n '{}' {} > {}".format("FogLAMP", _SYSLOG_FILE, temp_file), shell=True)
+        except OSError as ex:
+            raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
+        pyz.add(temp_file, arcname=basename(temp_file))
 
     def add_syslog_storage(self, pyz, file_spec):
         # The contents of the syslog file that relate to the database layer (postgres)
         temp_file = self._interim_file_path + "/" + "syslogStorage-{}".format(file_spec)
-        logs = syslog_parser.main(filter_by="FogLAMP Storage")
-        data = {
-            "about": "Syslog for FogLAMP Storage Layer",
-            "storageLogs": logs
-        }
-        self.write_to_tar(pyz, temp_file, data)
+        try:
+            subprocess.call("grep -n '{}' {} > {}".format("FogLAMP Storage", _SYSLOG_FILE, temp_file), shell=True)
+        except OSError as ex:
+            raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
+        pyz.add(temp_file, arcname=basename(temp_file))
 
     def add_table_configuration(self, pyz, file_spec):
         # The contents of the configuration table from the storage layer
@@ -166,13 +163,13 @@ class SupportBuilder:
         # Details of machine resources, memory size, amount of available memory, storage size and amount of free storage
         temp_file = self._interim_file_path + "/" + "machine-{}".format(file_spec)
         total, used, free = shutil.disk_usage("/")
-        memory = os.popen('free -h').readlines()[1].split()[1:]
+        memory = subprocess.Popen('free -h', shell=True, stdout=subprocess.PIPE).stdout.readlines()[1].split()[1:]
         data = {
             "about": "Machine resources",
             "platform": sys.platform,
-            "totalMemory": memory[0],
-            "usedMemory": memory[1],
-            "freeMemory": memory[2],
+            "totalMemory": memory[0].decode(),
+            "usedMemory": memory[1].decode(),
+            "freeMemory": memory[2].decode(),
             "totalDiskSpace_MB": int(total / (1024 * 1024)),
             "usedDiskSpace_MB": int(used / (1024 * 1024)),
             "freeDiskSpace_MB": int(free / (1024 * 1024)),
@@ -182,8 +179,10 @@ class SupportBuilder:
     def add_psinfo(self, pyz, file_spec):
         # A PS listing of al the python applications running on the machine
         temp_file = self._interim_file_path + "/" + "psinfo-{}".format(file_spec)
-        a = os.popen('ps -eaf | grep python3').readlines()[:-2]
+        a = subprocess.Popen(
+            'ps -eaf | grep python3', shell=True, stdout=subprocess.PIPE).stdout.readlines()[:-2]  # remove ps command
+        c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
         data = {
-            "runningPythonProcesses": a
+            "runningPythonProcesses": c
         }
         self.write_to_tar(pyz, temp_file, data)

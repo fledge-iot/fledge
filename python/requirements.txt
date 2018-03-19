@@ -8,7 +8,6 @@ aiohttp_cors==0.5.3
 cchardet==2.1.1
 requests==2.18.4
 pyjwt==1.6.0
-pyparsing==2.2.0
 
 # CoAP South Microservice Plugin
 aiocoap==0.3

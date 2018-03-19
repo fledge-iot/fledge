@@ -38,6 +38,8 @@ def setup(app):
 
     # auth
     app.router.add_route('POST', '/foglamp/login', auth.login)
+    app.router.add_route('PUT', '/foglamp/logout', auth.logout_me)
+    # logout all active sessions
     app.router.add_route('PUT', '/foglamp/{user_id}/logout', auth.logout)
 
     # Configuration

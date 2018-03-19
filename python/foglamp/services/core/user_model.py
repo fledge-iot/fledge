@@ -117,8 +117,7 @@ class User:
             storage_client = connect.get_storage()
             try:
                 # first delete the active login references
-                payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
-                res_del_user_active_login_ref = storage_client.delete_from_tbl("user_logins", payload)
+                cls.delete_user_tokens(user_id)
 
                 payload = PayloadBuilder().WHERE(['id', '=', user_id]).payload()
                 res_del_user = storage_client.delete_from_tbl("users", payload)
@@ -292,9 +291,22 @@ class User:
             return uid, jwt_token, False
 
         @classmethod
-        def logout(cls, user_id):
+        def delete_user_tokens(cls, user_id):
             storage_client = connect.get_storage()
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
+            try:
+                res = storage_client.delete_from_tbl("user_logins", payload)
+            except StorageServerError as ex:
+                if not ex.error["retryable"]:
+                    pass
+                raise ValueError(ex.error['message'])
+
+            return res
+
+        @classmethod
+        def delete_token(cls, token):
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().WHERE(['token', '=', token]).payload()
             try:
                 res = storage_client.delete_from_tbl("user_logins", payload)
             except StorageServerError as ex:

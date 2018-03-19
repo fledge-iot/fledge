@@ -304,24 +304,24 @@ class TestUserModel:
                 check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'foglamp')
             query_tbl_patch.assert_called_once_with('users', payload)
 
-    def test_logout(self):
+    def test_delete_user_tokens(self):
         expected = {'response': 'deleted', 'rows_affected': 1}
         payload = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', return_value=expected) as delete_tbl_patch:
-                actual = User.Objects.logout(2)
+                actual = User.Objects.delete_user_tokens(2)
                 assert actual == expected
             delete_tbl_patch.assert_called_once_with('user_logins', payload)
 
-    def test_logout_exception(self):
+    def test_delete_user_tokens_exception(self):
         expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as delete_tbl_patch:
                 with pytest.raises(ValueError) as excinfo:
-                    User.Objects.logout(2)
+                    User.Objects.delete_user_tokens(2)
                 assert str(excinfo.value) == expected['message']
         delete_tbl_patch.assert_called_once_with('user_logins', payload)
 
@@ -369,3 +369,24 @@ class TestUserModel:
     @pytest.mark.skip(reason="Need to patch jwt token and datetime")
     def test_token_expiration(self):
         pass
+
+    def test_delete_token(self):
+        expected = {'response': 'deleted', 'rows_affected': 1}
+        payload = '{"where": {"column": "token", "condition": "=", "value": "eyz"}}'
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'delete_from_tbl', return_value=expected) as delete_tbl_patch:
+                actual = User.Objects.delete_token("eyz")
+                assert actual == expected
+            delete_tbl_patch.assert_called_once_with('user_logins', payload)
+
+    def test_delete_token_exception(self):
+        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
+        payload = '{"where": {"column": "token", "condition": "=", "value": "eyx"}}'
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as delete_tbl_patch:
+                with pytest.raises(ValueError) as excinfo:
+                    User.Objects.delete_token("eyx")
+                assert str(excinfo.value) == expected['message']
+        delete_tbl_patch.assert_called_once_with('user_logins', payload)

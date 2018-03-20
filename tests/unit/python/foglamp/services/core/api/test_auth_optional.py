@@ -456,26 +456,47 @@ class TestAuthOptional:
             patch_role.assert_called_once_with(request_data['role_id'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/user')
 
-    async def test_create_dupe_user_name(self, client):
-        request_data = {"username": "aj", "password": "F0gl@mp"}
+    @pytest.mark.parametrize("request_data", [
+        {"username": "bla", "password": "F0gl@mp"},
+        {"username": "  b", "password": "F0gl@mp"},
+        {"username": "b  ", "password": "F0gl@mp"},
+        {"username": "  b la", "password": "F0gl@mp"},
+        {"username": "b l A  ", "password": "F0gl@mp"},
+        {"username": "Bla", "password": "F0gl@mp"},
+        {"username": "BLA", "password": "F0gl@mp"}
+    ])
+    async def test_create_user_bad_username(self, client, request_data):
+        msg = 'Username minimum length of 4 characters'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
-                with patch.object(User.Objects, 'get', return_value={'role_id': '2', 'uname': 'aj', 'id': '2'}) as patch_get_user:
+                with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                    resp = await client.post('/foglamp/user', data=json.dumps(request_data))
+                    assert 400 == resp.status
+                    assert msg == resp.reason
+                patch_logger_warning.assert_called_once_with(msg)
+            patch_role.assert_called_once_with(2)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/user')
+
+    async def test_create_dupe_user_name(self, client):
+        request_data = {"username": "ajtest", "password": "F0gl@mp"}
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
+                with patch.object(User.Objects, 'get', return_value={'role_id': '2', 'uname': 'ajtest', 'id': '2'}) as patch_get_user:
                     with patch.object(auth._logger, 'warning') as patch_logger_warning:
                         resp = await client.post('/foglamp/user', data=json.dumps(request_data))
                         assert 409 == resp.status
                         assert 'User with the requested username already exists' == resp.reason
                     patch_logger_warning.assert_called_once_with('Can not create a user, username already exists')
                 args, kwargs = patch_get_user.call_args
-                assert {'username': 'aj'} == kwargs
+                assert {'username': 'ajtest'} == kwargs
             patch_role.assert_called_once_with(2)
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/user')
 
     async def test_create_user(self, client):
-        data = {'id': '3', 'uname': 'aj', 'role_id': '2'}
+        data = {'id': '3', 'uname': 'ajtest', 'role_id': '2'}
         expected = {}
         expected.update(data)
-        request_data = {"username": "aj", "password": "F0gl@mp"}
+        request_data = {"username": "ajtest", "password": "F0gl@mp"}
         ret_val = {"response": "inserted", "rows_affected": 1}
         msg = 'User has been created successfully'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
@@ -497,7 +518,7 @@ class TestAuthOptional:
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/user')
 
     async def test_create_user_exception(self, client):
-        request_data = {"username": "aj", "password": "F0gl@mp"}
+        request_data = {"username": "ajtest", "password": "F0gl@mp"}
         exc_msg = "'type' object is not subscriptable"
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
@@ -513,7 +534,7 @@ class TestAuthOptional:
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/user')
 
     async def test_create_user_value_error(self, client):
-        request_data = {"username": "aj", "password": "F0gl@mp"}
+        request_data = {"username": "ajtest", "password": "F0gl@mp"}
         exc_msg = "Value Error occurred"
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:

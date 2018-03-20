@@ -38,6 +38,7 @@ JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
+MAX_USERNAME_LENGTH = 4
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
@@ -202,7 +203,6 @@ async def create_user(request):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
-    # TODO: username regex? is email allowed?
     if not re.match(PASSWORD_REGEX_PATTERN, password):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
@@ -211,7 +211,13 @@ async def create_user(request):
         _logger.warning("Create user requested with bad role id")
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
-    username = username.lower()
+    # TODO: username regex? is email allowed?
+    username = username.lower().replace(" ", "")
+    if len(username) < MAX_USERNAME_LENGTH:
+        msg = "Username minimum length of 4 characters"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
     try:
         User.Objects.get(username=username)
     except User.DoesNotExist:

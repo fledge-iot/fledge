@@ -133,10 +133,10 @@ async def get_syslog_entries(request):
         cmd = __GET_SYSLOG_TOTAL_MATCHED_LINES.format(valid_source[source.lower()], _SYSLOG_FILE)
         t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         tot_lines = int(t[0].decode())
-        if offset >= tot_lines:
+        if offset >= (tot_lines - limit):
             raise ValueError
     except ValueError:
-        raise web.HTTPBadRequest(reason="Offset {} must be less than total line count {}".format(offset, tot_lines))
+        raise web.HTTPBadRequest(reason="Offset {} must be less than (total line count - limit) {}".format(offset, tot_lines - limit))
     except (OSError, Exception) as ex:
         raise web.HTTPException(reason=str(ex))
 

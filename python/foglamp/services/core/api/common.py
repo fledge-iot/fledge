@@ -6,9 +6,13 @@
 
 import asyncio
 import time
+import json
 from foglamp.common import logger
 from aiohttp import web
 from foglamp.services.core import server
+from foglamp.services.core.api.statistics import get_statistics_history
+from foglamp.services.core import connect
+from foglamp.common.configuration_manager import ConfigurationManager
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -41,8 +45,19 @@ async def ping(request):
     """
     since_started = time.time() - __start_time
 
-    # TODO: FOGL-790 - ping method should return more data
-    return web.json_response({'uptime': since_started})
+    new_request = request.clone(rel_url='foglamp/statistics/history?limit=1')
+    interim_stat = await get_statistics_history(new_request)
+    stat = json.loads(interim_stat.body.decode())
+
+    storage_client = connect.get_storage()
+
+    category_name = 'rest_api'
+    config_item = 'authentication'
+
+    cf_mgr = ConfigurationManager(storage_client)
+    category_item = await cf_mgr.get_category_item(category_name, config_item)
+
+    return web.json_response({'uptime': since_started, 'stat': stat['statistics'][0], 'auth': category_item['value']})
 
 
 async def shutdown(request):

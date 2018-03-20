@@ -258,10 +258,20 @@ class BackupRestoreLib(object):
         "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
         "e000014": "the identified path of backups doesn't exists, creation was tried "
                    "- dir |{0}| - error details |{1}|",
+        "e000015": "The command is not available neither using the unmanaged approach"
+                   " - command |{0}|",
+        "e000016": "Postgres command is not executable - command |{0}|",
+        "e000017": "The execution of the Postgres command using the -V option produce an error"
+                   " - command |{0}| - output |{1}|",
+        "e000018": "It is not possible to read data from Postgres"
+                   " - command |{0}| - exit code |{1}| - output |{2}|",
+        "e000019": "The command is not available using the managed approach"
+                   " - command |{0}| - full command |{1}|",
+
     }
     """ Messages used for Information, Warning and Error notice """
 
-    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/plsql/bin"
+    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/pgsql/bin"
     """Directory for Postgres commands in a managed configuration"""
 
     _DB_CONNECTION_STRING = "dbname='{db}'"
@@ -534,7 +544,7 @@ class BackupRestoreLib(object):
             if os.path.exists(cmd_managed):
                 cmd_identified = cmd_managed
             else:
-                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify)
+                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify, cmd_managed)
                 self._logger.error("{0}".format(_message))
 
                 raise exceptions.PgCommandUnAvailable(_message)
@@ -621,7 +631,7 @@ class BackupRestoreLib(object):
                                                                             output=output))
 
             if _exit_code != 0:
-                _message = self._MESSAGES_LIST["e000017"].format(cmd_to_test, output)
+                _message = self._MESSAGES_LIST["e000017"].format(cmd, output)
                 self._logger.error("{0}".format(_message))
 
                 raise exceptions.PgCommandUnAvailable(_message)

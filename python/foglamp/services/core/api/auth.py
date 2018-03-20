@@ -295,12 +295,12 @@ async def update_user(request):
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
     except Exception as exc:
-        _logger.warning(str(exc))
+        _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
 
     _logger.info("User with id:<{}> has been updated successfully".format(int(user_id)))
 
-    return web.json_response({'message': 'User with id:<{}> updated successfully'.format(user_id)})
+    return web.json_response({'message': 'User with id:<{}> has been updated successfully'.format(user_id)})
 
 
 async def delete_user(request):
@@ -310,25 +310,30 @@ async def delete_user(request):
         curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
 
-    # TODO: do a soft delete, set user->enabled to False
+    # TODO FOGL-1190: do a soft delete, set user->enabled to False
+
+    # TODO: we should not prevent this, when we have at-least 1 admin (super) user
     try:
-        user_id = request.match_info.get('id')
+        user_id = int(request.match_info.get('id'))
+    except ValueError as ex:
+        _logger.warning(str(ex))
+        raise web.HTTPBadRequest(reason=str(ex))
 
-        # TODO: we should not prevent this, when we have at-least 1 admin (super) user
-        if int(user_id) == 1:
-            msg = "Super admin user can not be deleted"
+    if user_id == 1:
+        msg = "Super admin user can not be deleted"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)
+
+    # Requester should not be able to delete her/himself
+    if request.is_auth_optional is False:
+        if user_id == request.user["id"]:
+            msg = "Only admin can disable or delete the account"
             _logger.warning(msg)
-            raise web.HTTPNotAcceptable(reason=msg)
+            raise web.HTTPBadRequest(reason=msg)
 
-        # Requester should not be able to delete her/himself
-        if request.is_auth_optional is False:
-            if user_id == request.user["id"]:
-                msg = "Only admin can disable or delete the account"
-                _logger.warning(msg)
-                raise web.HTTPBadRequest(reason=msg)
+    check_authorization(request, user_id, "delete")
 
-        check_authorization(request, user_id, "delete")
-
+    try:
         result = User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist

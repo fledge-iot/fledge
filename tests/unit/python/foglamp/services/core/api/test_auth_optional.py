@@ -129,7 +129,7 @@ class TestAuthOptional:
         ({"username": "blah", "password": "blah"}, User.DoesNotExist, 'User does not exist'),
         ({"username": "admin", "password": "blah"}, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": "admin", "password": 123}, User.PasswordDoesNotMatch, 'Username or Password do not match'),
-        ({"username": 1, "password": 1}, ValueError, '')
+        ({"username": 1, "password": 1}, ValueError, 'Username should be in string')
     ])
     async def test_login_exception(self, client, request_data, exception_name, msg):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
@@ -140,7 +140,7 @@ class TestAuthOptional:
                 patch_logger.assert_called_once_with(msg)
             # TODO: host arg patch transport.request.extra_info
             args, kwargs = patch_user_login.call_args
-            assert request_data['username'] == args[0]
+            assert str(request_data['username']) == args[0]
             assert request_data['password'] == args[1]
             # patch_user_login.assert_called_once_with()
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/login')

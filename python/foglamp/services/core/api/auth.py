@@ -64,6 +64,8 @@ async def login(request):
         _logger.warning("Username and password are required to login")
         raise web.HTTPBadRequest(reason="Username or password is missing")
 
+    username = str(username).lower()
+
     peername = request.transport.get_extra_info('peername')
     host = '0.0.0.0'
     if peername is not None:
@@ -186,7 +188,7 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any", "password": "User@123"}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/user
         curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
     """
     data = await request.json()

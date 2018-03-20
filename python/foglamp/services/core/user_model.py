@@ -119,13 +119,14 @@ class User:
                 # first delete the active login references
                 cls.delete_user_tokens(user_id)
 
-                payload = PayloadBuilder().WHERE(['id', '=', user_id]).payload()
-                res_del_user = storage_client.delete_from_tbl("users", payload)
+                payload = PayloadBuilder().SET(enabled="False").WHERE(['id', '=', user_id]).payload()
+                result = storage_client.update_tbl("users", payload)
+                # res_del_user = storage_client.delete_from_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
                 raise ValueError(ex.error['message'])
-            return res_del_user
+            return result
 
         @classmethod
         def update(cls, user_id, user_data):

@@ -158,27 +158,18 @@ class TestUserModel:
 
     def test_delete_user(self):
         p1 = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
-        p2 = '{"where": {"column": "id", "condition": "=", "value": 2}}'
-
-        def q_result(*args):
-            table = args[0]
-            payload = args[1]
-
-            if table == 'user_logins':
-                assert p1 == payload
-                return {'response': 'deleted', 'rows_affected': 1}
-
-            if table == 'users':
-                assert p2 == payload
-                return {'response': 'deleted', 'rows_affected': 1}
+        p2 = '{"values": {"enabled": "False"}, "where": {"column": "id", "condition": "=", "value": 2}}'
+        r1 = {'response': 'deleted', 'rows_affected': 1}
+        r2 = {'response': 'updated', 'rows_affected': 1}
 
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=q_result) as delete_tbl_patch:
-                actual = User.Objects.delete(2)
-                assert actual == {'response': 'deleted', 'rows_affected': 1}
-            assert delete_tbl_patch.called
-            assert 2 == delete_tbl_patch.call_count
+            with patch.object(storage_client_mock, 'delete_from_tbl', return_value=r1) as delete_tbl_patch:
+                with patch.object(storage_client_mock, 'update_tbl', return_value=r2) as update_tbl_patch:
+                    actual = User.Objects.delete(2)
+                    assert r2 == actual
+                update_tbl_patch.assert_called_once_with('users', p2)
+            delete_tbl_patch.assert_called_once_with('user_logins', p1)
 
     def test_delete_admin_user(self):
         with pytest.raises(ValueError) as excinfo:
@@ -187,14 +178,14 @@ class TestUserModel:
 
     def test_delete_user_exception(self):
         expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
-        payload = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
+        payload = '{"values": {"enabled": "False"}, "where": {"column": "id", "condition": "=", "value": 2}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as delete_tbl_patch:
+            with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as update_tbl_patch:
                 with pytest.raises(ValueError) as excinfo:
                     User.Objects.delete(2)
                 assert str(excinfo.value) == expected['message']
-        delete_tbl_patch.assert_called_once_with('user_logins', payload)
+        update_tbl_patch.assert_called_once_with('users', payload)
 
     @pytest.mark.parametrize("user_data, payload", [
         ({'role_id': 2}, '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2}}'),

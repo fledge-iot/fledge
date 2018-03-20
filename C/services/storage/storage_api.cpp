@@ -496,13 +496,12 @@ string  responsePayload;
  * @param response	The response stream to send the response on
  * @param request	The HTTP request
  */
-void StorageApi::readingFetch(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void StorageApi::readingFetch(shared_ptr<HttpServer::Response> response,
+			      shared_ptr<HttpServer::Request> request)
 {
 SimpleWeb::CaseInsensitiveMultimap query;
 unsigned long			   id = 0;
 unsigned long			   count = 0;
-string				   responsePayload;
-
 	stats.readingFetch++;
 	try {
 		query = request->parse_query_string();
@@ -511,7 +510,9 @@ string				   responsePayload;
 		if (search == query.end())
 		{
 			string payload = "{ \"error\" : \"Missing query parameter id\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				payload);
 			return;
 		}
 		else
@@ -522,7 +523,9 @@ string				   responsePayload;
 		if (search == query.end())
 		{
 			string payload = "{ \"error\" : \"Missing query parameter count\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				payload);
 			return;
 		}
 		else
@@ -530,9 +533,14 @@ string				   responsePayload;
 			count = (unsigned)atol(search->second.c_str());
 		}
 
-		responsePayload = plugin->readingsFetch(id, count);
+		// Get plugin data
+		char *responsePayload = plugin->readingsFetch(id, count);
+		string res = responsePayload;
 
-		respond(response, responsePayload);
+		// Reply to client
+		respond(response, res);
+		// Free plugin data
+		free(responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}

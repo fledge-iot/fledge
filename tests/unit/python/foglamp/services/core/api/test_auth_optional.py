@@ -129,7 +129,7 @@ class TestAuthOptional:
         ({"username": "blah", "password": "blah"}, User.DoesNotExist, 'User does not exist'),
         ({"username": "admin", "password": "blah"}, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": "admin", "password": 123}, User.PasswordDoesNotMatch, 'Username or Password do not match'),
-        ({"username": 1, "password": 1}, ValueError, 'Username should be in string')
+        ({"username": 1, "password": 1}, ValueError, 'Username should be a valid string')
     ])
     async def test_login_exception(self, client, request_data, exception_name, msg):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
@@ -466,7 +466,7 @@ class TestAuthOptional:
         {"username": "BLA", "password": "F0gl@mp"}
     ])
     async def test_create_user_bad_username(self, client, request_data):
-        msg = 'Username minimum length of 4 characters'
+        msg = 'Username should be of minimum 4 characters'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
                 with patch.object(auth._logger, 'warning') as patch_logger_warning:

@@ -38,7 +38,7 @@ JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
-MAX_USERNAME_LENGTH = 4
+MIN_USERNAME_LENGTH = 4
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
@@ -215,8 +215,8 @@ async def create_user(request):
 
     # TODO: username regex? is email allowed?
     username = username.lower().replace(" ", "")
-    if len(username) < MAX_USERNAME_LENGTH:
-        msg = "Username minimum length of 4 characters"
+    if len(username) < MIN_USERNAME_LENGTH:
+        msg = "Username should be of minimum 4 characters"
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
@@ -283,6 +283,11 @@ async def update_user(request):
         msg = "Only admin can update the role for a user"
         _logger.warning(msg)
         raise web.HTTPUnauthorized(reason=msg)
+
+    if (request.is_auth_optional is False) and (int(user_id) == 1 and role_id):
+        msg = "Role updation restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)  # auth is mandatory
 
     if password and not isinstance(password, str):
         _logger.warning(PASSWORD_ERROR_MSG)

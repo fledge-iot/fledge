@@ -87,7 +87,7 @@ async def logout_me(request):
     """
 
     if request.is_auth_optional:
-        # no action need
+        # no action needed
         return web.json_response({"logout": True})
 
     result = User.Objects.delete_token(request.token)

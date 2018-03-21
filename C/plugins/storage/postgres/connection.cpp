@@ -222,7 +222,9 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 				if (! jsonConstraints.isEmpty())
 				{
 					sql.append(" AND ");
-					sql.append(jsonConstraints.coalesce());
+					const char *jsonBuf =  jsonConstraints.coalesce();
+					sql.append(jsonBuf);
+					delete[] jsonBuf;
 				}
 			}
 			if (!jsonModifiers(document, sql))

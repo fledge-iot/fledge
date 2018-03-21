@@ -10,9 +10,7 @@ import json
 from foglamp.common import logger
 from aiohttp import web
 from foglamp.services.core import server
-from foglamp.services.core.api.statistics import get_statistics_history
-from foglamp.services.core import connect
-from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core.api.statistics import get_statistics
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,31 +32,34 @@ _help = """
 async def ping(request):
     """
     Args:
-        request:
+       request:
 
     Returns:
-            basic health information json payload
-            {'uptime': 32892} Time in seconds since FogLAMP started
+           basic health information json payload
+           {'uptime': 32892} Time in seconds since FogLAMP started
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/ping
+           curl -X GET http://localhost:8081/foglamp/ping
     """
     since_started = time.time() - __start_time
 
-    new_request = request.clone(rel_url='foglamp/statistics/history?limit=1')
-    interim_stat = await get_statistics_history(new_request)
+    new_request = request.clone(rel_url='foglamp/statistics')
+    interim_stat = await get_statistics(new_request)
     stat = json.loads(interim_stat.body.decode())
 
-    storage_client = connect.get_storage()
+    data_read = [a['value'] for a in stat if a['key'] == 'READINGS']
+    data_sent_1 = [a['value'] for a in stat if a['key'] == 'SENT_1']
+    data_sent_2 = [a['value'] for a in stat if a['key'] == 'SENT_2']
+    data_sent_3 = [a['value'] for a in stat if a['key'] == 'SENT_3']
+    data_sent_4 = [a['value'] for a in stat if a['key'] == 'SENT_4']
+    data_purged = [a['value'] for a in stat if a['key'] == 'PURGED']
 
-    category_name = 'rest_api'
-    config_item = 'authentication'
-
-    cf_mgr = ConfigurationManager(storage_client)
-    category_item = await cf_mgr.get_category_item(category_name, config_item)
-
-    return web.json_response({'uptime': since_started, 'stat': stat['statistics'][0], 'auth': category_item['value']})
-
+    return web.json_response({'uptime': since_started,
+                              'data.read': data_read[0],
+                              'data.sent': int(data_sent_1[0])+int(data_sent_2[0])+int(data_sent_3[0])+int(data_sent_4[0]),
+                              'data.purged': int(data_purged[0]),
+                              'auth': request.is_auth_optional
+                              })
 
 async def shutdown(request):
     """

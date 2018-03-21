@@ -427,7 +427,7 @@ class RestoreProcess(FoglampProcess):
         Raises:
         """
 
-        if 'FogLAMP running.' in text:
+        if 'FogLAMP uptime' in text:
             status = self.FogLampStatus.RUNNING
 
         elif 'FogLAMP not running.' in text:
@@ -550,9 +550,10 @@ class RestoreProcess(FoglampProcess):
         # Prepares the restore command
         pg_cmd = self._restore_lib.PG_COMMANDS[self._restore_lib.PG_COMMAND_RESTORE]
 
-        cmd = "{cmd} {options} -d {db}  {file}".format(
+        cmd = "{cmd} {options} {schema} -d {db}  {file}".format(
                                                 cmd=pg_cmd,
-                                                options="--verbose --clean --no-acl --no-owner",
+                                                options="--verbose --clean -n ",
+                                                schema=self._restore_lib.config['schema'],
                                                 db=self._restore_lib.config['database'],
                                                 file=backup_file
         )

@@ -57,9 +57,9 @@ async def test_ping_http(test_server, test_client, loop):
             content = await resp.text()
             content_dict = json.loads(content)
             assert 0.0 < content_dict["uptime"]
-            assert 2 == content_dict["data.read"]
-            assert 18 == content_dict["data.sent"]
-            assert 1 == content_dict["data.purged"]
+            assert 2 == content_dict["dataRead"]
+            assert 18 == content_dict["dataSent"]
+            assert 1 == content_dict["dataPurged"]
             assert content_dict["auth"] is True
 
 
@@ -130,9 +130,9 @@ async def test_ping_https(test_server, ssl_ctx, test_client, loop):
             content = await resp.text()
             content_dict = json.loads(content)
             assert 0.0 < content_dict["uptime"]
-            assert 2 == content_dict["data.read"]
-            assert 18 == content_dict["data.sent"]
-            assert 1 == content_dict["data.purged"]
+            assert 2 == content_dict["dataRead"]
+            assert 18 == content_dict["dataSent"]
+            assert 1 == content_dict["dataPurged"]
             assert content_dict["auth"] is True
 
 @pytest.allure.feature("unit")

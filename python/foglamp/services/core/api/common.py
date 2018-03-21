@@ -55,7 +55,7 @@ async def ping(request):
     data_purged = [a['value'] for a in stat if a['key'] == 'PURGED']
 
     return web.json_response({'uptime': since_started,
-                              'dataRead': data_read[0],
+                              'dataRead': int(data_read[0]),
                               'dataSent': int(data_sent_1[0])+int(data_sent_2[0])+int(data_sent_3[0])+int(data_sent_4[0]),
                               'dataPurged': int(data_purged[0]),
                               'auth': request.is_auth_optional

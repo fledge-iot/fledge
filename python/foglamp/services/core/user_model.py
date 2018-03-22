@@ -119,13 +119,13 @@ class User:
                 # first delete the active login references
                 cls.delete_user_tokens(user_id)
 
-                payload = PayloadBuilder().WHERE(['id', '=', user_id]).payload()
-                res_del_user = storage_client.delete_from_tbl("users", payload)
+                payload = PayloadBuilder().SET(enabled="False").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 'True']).payload()
+                result = storage_client.update_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
                 raise ValueError(ex.error['message'])
-            return res_del_user
+            return result
 
         @classmethod
         def update(cls, user_id, user_data):
@@ -147,7 +147,7 @@ class User:
                     hashed_pwd = cls.hash_password(user_data['password'])
                     kwargs.update({"pwd": hashed_pwd})
 
-            payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).payload()
+            payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 'True']).payload()
             storage_client = connect.get_storage()
             try:
                 result = storage_client.update_tbl("users", payload)
@@ -164,7 +164,7 @@ class User:
         @classmethod
         def all(cls):
             storage_client = connect.get_storage()
-            payload = PayloadBuilder().SELECT("id", "uname", "role_id").payload()
+            payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 'True']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             return result['rows']
 
@@ -173,7 +173,7 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['1', '=', '1'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 'True'])
 
             if user_id is not None:
                 q = q.AND_WHERE(['id', '=', user_id])
@@ -252,7 +252,8 @@ class User:
                   return token
 
             """
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id").WHERE(['uname', '=', username]).payload()
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id").WHERE(['uname', '=', username]).\
+                AND_WHERE(['enabled', '=', 'True']).payload()
             storage_client = connect.get_storage()
 
             result = storage_client.query_tbl_with_payload('users', payload)

@@ -264,7 +264,7 @@ async def update_user(request):
     user_id = request.match_info.get('id')
 
     if (request.is_auth_optional is True) and int(user_id) == 1:
-        msg = "Super admin user can not be updated without authentication"
+        msg = "Super admin user can not be updated"
         _logger.warning(msg)
         raise web.HTTPNotAcceptable(reason=msg)  # auth is optional
 
@@ -299,8 +299,14 @@ async def update_user(request):
 
     check_authorization(request, user_id, "update")
 
+    user_data = {}
+    if 'role_id' in data:
+        user_data.update({'role_id': data['role_id']})
+    if 'password' in data:
+        user_data.update({'password': data['password']})
+
     try:
-        User.Objects.update(user_id, data)
+        User.Objects.update(user_id, user_data)
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -323,9 +329,6 @@ async def delete_user(request):
     :Example:
         curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
-
-    # TODO FOGL-1190: do a soft delete, set user->enabled to False
-
     # TODO: we should not prevent this, when we have at-least 1 admin (super) user
     try:
         user_id = int(request.match_info.get('id'))

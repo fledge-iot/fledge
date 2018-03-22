@@ -165,18 +165,11 @@ async def restore_backup(request):
 
     # TODO: FOGL-861
     backup_id = request.match_info.get('backup_id', None)
-
-    if not backup_id:
-        raise web.HTTPBadRequest(reason='Backup id is required')
-
     try:
         backup_id = int(backup_id)
-
         restore = Restore(connect.get_storage())
         status = await restore.restore_backup(backup_id)
-
         return web.json_response({'status': status})
-
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')
     except exceptions.DoesNotExist:

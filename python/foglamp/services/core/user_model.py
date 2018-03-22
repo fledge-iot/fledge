@@ -262,7 +262,7 @@ class User:
 
             found_user = result['rows'][0]
 
-            is_valid_pwd = cls.check_password(found_user['pwd'], password)
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
 
             if not is_valid_pwd:
                 raise User.PasswordDoesNotMatch('Username or Password do not match')

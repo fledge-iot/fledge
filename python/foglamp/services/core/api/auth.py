@@ -38,6 +38,7 @@ JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
+MIN_USERNAME_LENGTH = 4
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
@@ -62,6 +63,8 @@ async def login(request):
     if not username or not password:
         _logger.warning("Username and password are required to login")
         raise web.HTTPBadRequest(reason="Username or password is missing")
+
+    username = str(username).lower()
 
     peername = request.transport.get_extra_info('peername')
     host = '0.0.0.0'
@@ -186,7 +189,7 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any", "password": "User@123"}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/user
         curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
     """
     data = await request.json()
@@ -203,7 +206,6 @@ async def create_user(request):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
-    # TODO: username regex? is email allowed?
     if not re.match(PASSWORD_REGEX_PATTERN, password):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
@@ -212,7 +214,13 @@ async def create_user(request):
         _logger.warning("Create user requested with bad role id")
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
-    username = username.lower()
+    # TODO: username regex? is email allowed?
+    username = username.lower().replace(" ", "")
+    if len(username) < MIN_USERNAME_LENGTH:
+        msg = "Username should be of minimum 4 characters"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
     try:
         User.Objects.get(username=username)
     except User.DoesNotExist:
@@ -277,6 +285,11 @@ async def update_user(request):
         _logger.warning(msg)
         raise web.HTTPUnauthorized(reason=msg)
 
+    if (request.is_auth_optional is False) and (int(user_id) == 1 and role_id):
+        msg = "Role updation restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)  # auth is mandatory
+
     if password and not isinstance(password, str):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
@@ -296,12 +309,12 @@ async def update_user(request):
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
     except Exception as exc:
-        _logger.warning(str(exc))
+        _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
 
     _logger.info("User with id:<{}> has been updated successfully".format(int(user_id)))
 
-    return web.json_response({'message': 'User with id:<{}> updated successfully'.format(user_id)})
+    return web.json_response({'message': 'User with id:<{}> has been updated successfully'.format(user_id)})
 
 
 async def delete_user(request):
@@ -311,25 +324,30 @@ async def delete_user(request):
         curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
 
-    # TODO: do a soft delete, set user->enabled to False
+    # TODO FOGL-1190: do a soft delete, set user->enabled to False
+
+    # TODO: we should not prevent this, when we have at-least 1 admin (super) user
     try:
-        user_id = request.match_info.get('id')
+        user_id = int(request.match_info.get('id'))
+    except ValueError as ex:
+        _logger.warning(str(ex))
+        raise web.HTTPBadRequest(reason=str(ex))
 
-        # TODO: we should not prevent this, when we have at-least 1 admin (super) user
-        if int(user_id) == 1:
-            msg = "Super admin user can not be deleted"
+    if user_id == 1:
+        msg = "Super admin user can not be deleted"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)
+
+    # Requester should not be able to delete her/himself
+    if request.is_auth_optional is False:
+        if user_id == request.user["id"]:
+            msg = "Only admin can disable or delete the account"
             _logger.warning(msg)
-            raise web.HTTPNotAcceptable(reason=msg)
+            raise web.HTTPBadRequest(reason=msg)
 
-        # Requester should not be able to delete her/himself
-        if request.is_auth_optional is False:
-            if user_id == request.user["id"]:
-                msg = "Only admin can disable or delete the account"
-                _logger.warning(msg)
-                raise web.HTTPBadRequest(reason=msg)
+    check_authorization(request, user_id, "delete")
 
-        check_authorization(request, user_id, "delete")
-
+    try:
         result = User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist

@@ -63,7 +63,7 @@ async def ping(request):
                               'dataRead': data_read,
                               'dataSent': data_sent_1 + data_sent_2 + data_sent_3 + data_sent_4,
                               'dataPurged': data_purged,
-                              'authenticationRequired': request.is_auth_optional
+                              'authenticationOptional': request.is_auth_optional
                               })
 
 async def shutdown(request):

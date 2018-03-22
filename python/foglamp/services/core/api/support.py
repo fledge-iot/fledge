@@ -5,10 +5,9 @@
 # FOGLAMP_END
 
 import os
+import subprocess
 from pathlib import Path
-
 from aiohttp import web
-
 from foglamp.common import logger
 from foglamp.services.core.support import SupportBuilder
 
@@ -20,7 +19,12 @@ __version__ = "${VERSION}"
 
 _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
-
+_SYSLOG_FILE = '/var/log/syslog'
+__DEFAULT_LIMIT = 20
+__DEFAULT_OFFSET = 0
+__DEFAULT_LOG_TYPE = 'FogLAMP'
+__GET_SYSLOG_CMD_TEMPLATE = "grep -n '{}\[' {} | tail -n {} | head -n {}"
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -n '{}\[' {} | wc -l"
 
 _logger = logger.setup(__name__, level=20)
 
@@ -87,6 +91,63 @@ async def create_support_bundle(request):
         raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
 
     return web.json_response({"bundle created": bundle_name})
+
+
+async def get_syslog_entries(request):
+    """ Returns a list of syslog trail entries sorted with most recent first and total count
+        (including the criteria search if applied)
+
+    :Example:
+        curl -X GET http://localhost:8081/foglamp/syslog
+        curl -X GET "http://localhost:8081/foglamp/syslog?limit=5"
+        curl -X GET "http://localhost:8081/foglamp/syslog?offset=5"
+        curl -X GET "http://localhost:8081/foglamp/syslog?source=storage"
+        curl -X GET "http://localhost:8081/foglamp/syslog?limit=5&source=storage"
+        curl -X GET "http://localhost:8081/foglamp/syslog?limit=5&offset=5&source=storage"
+    """
+
+    try:
+        limit = int(request.query['limit']) if 'limit' in request.query and request.query['limit'] != '' else __DEFAULT_LIMIT
+        if limit < 0:
+            raise ValueError
+    except (Exception, ValueError):
+        raise web.HTTPBadRequest(reason="Limit must be a positive integer")
+
+    try:
+        offset = int(request.query['offset']) if 'offset' in request.query and request.query['offset'] != '' else __DEFAULT_OFFSET
+        if offset < 0:
+            raise ValueError
+    except (Exception, ValueError):
+        raise web.HTTPBadRequest(reason="Offset must be a positive integer OR Zero")
+
+    try:
+        source = request.query['source'] if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_TYPE
+        if source.lower() not in ['foglamp', 'storage', 'foglamp storage']:
+            raise ValueError
+        valid_source = {'foglamp': "FogLAMP", 'storage': 'Storage', 'foglamp storage': 'FogLAMP Storage'}
+    except ValueError:
+        raise web.HTTPBadRequest(reason="{} is not a valid source".format(source))
+
+    try:
+        # Get total lines
+        cmd = __GET_SYSLOG_TOTAL_MATCHED_LINES.format(valid_source[source.lower()], _SYSLOG_FILE)
+        t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        tot_lines = int(t[0].decode())
+        if offset >= (tot_lines - limit):
+            raise ValueError
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Offset {} must be less than (total line count - limit) {}".format(offset, tot_lines - limit))
+    except (OSError, Exception) as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    try:
+        cmd = __GET_SYSLOG_CMD_TEMPLATE.format(valid_source[source.lower()], _SYSLOG_FILE, limit+offset, limit)
+        a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
+    except (OSError, Exception) as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response({'logs': c, 'count': tot_lines})
 
 
 def _get_support_dir():

@@ -134,3 +134,48 @@ class TestBundleSupport:
                 res = await resp.text()
                 assert 500 == resp.status
                 assert "Support bundle could not be created. blah" == resp.reason
+
+    async def test_get_syslog_entries_all_ok(self, client):
+        def mock_syslog():
+            return """
+        echo "Mar 19 14:00:53 nerd51-ThinkPad FogLAMP[18809] INFO: server: foglamp.services.core.server: start core
+        Mar 19 14:00:53 nerd51-ThinkPad FogLAMP[18809] INFO: server: foglamp.services.core.server: Management API started on http://0.0.0.0:38311
+        Mar 19 14:00:53 nerd51-ThinkPad FogLAMP[18809] INFO: server: foglamp.services.core.server: start storage, from directory /home/asinha/Development/FogLAMP/scripts
+        Mar 19 14:00:54 nerd51-ThinkPad FogLAMP[18809] INFO: service_registry: foglamp.services.core.service_registry.service_registry: Registered service instance id=479a90ec-0d1d-4845-b2c5-f1d9ce72ac8e: <FogLAMP Storage, type=Storage, protocol=http, address=localhost, service port=33395, management port=45952, status=1>
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: server: foglamp.services.core.server: start scheduler
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Starting
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Starting Scheduler: Management port received is 38311
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Scheduled task for schedule 'purge' to start at 2018-03-19 15:00:58.912532
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Scheduled task for schedule 'stats collection' to start at 2018-03-19 14:01:13.912532
+        Mar 19 14:00:58 nerd51-ThinkPad FogLAMP[18809] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Scheduled task for schedule 'certificate checker' to start at 2018-03-19 15:05:00"
+        """
+
+        with patch.object(support, "__GET_SYSLOG_CMD_TEMPLATE", mock_syslog()):
+            resp = await client.get('/foglamp/syslog')
+            res = await resp.text()
+            jdict = json.loads(res)
+            assert 200 == resp.status
+
+    async def test_get_syslog_entries_limit_exception(self, client):
+        with patch.object(support, "__DEFAULT_LIMIT", "garbage"):
+            resp = await client.get('/foglamp/syslog')
+            assert 400 == resp.status
+            assert 'Limit must be a positive integer' == resp.reason
+
+    async def test_get_syslog_entries_offset_exception(self, client):
+        with patch.object(support, "__DEFAULT_OFFSET", "garbage"):
+            resp = await client.get('/foglamp/syslog')
+            assert 400 == resp.status
+            assert 'Offset must be a positive integer OR Zero' == resp.reason
+
+    async def test_get_syslog_entries_search_exception(self, client):
+        with patch.object(support, "__DEFAULT_LOG_TYPE", "garbage"):
+            resp = await client.get('/foglamp/syslog')
+            assert 400 == resp.status
+            assert 'garbage is not a valid source' == resp.reason
+
+    async def test_get_syslog_entries_cmd_exception(self, client):
+        with patch.object(subprocess, "Popen", side_effect=Exception):
+            resp = await client.get('/foglamp/syslog')
+            assert 500 == resp.status
+            assert 'Internal Server Error' == resp.reason

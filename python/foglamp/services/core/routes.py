@@ -110,6 +110,9 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/support/{bundle}', support.fetch_support_bundle_item)
     app.router.add_route('POST', '/foglamp/support', support.create_support_bundle)
 
+    # Get Syslog
+    app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
+
     # enable cors support
     enable_cors(app)
 

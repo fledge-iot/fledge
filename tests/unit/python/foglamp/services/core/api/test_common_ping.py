@@ -60,7 +60,7 @@ async def test_ping_http(test_server, test_client, loop):
             assert 2 == content_dict["dataRead"]
             assert 18 == content_dict["dataSent"]
             assert 1 == content_dict["dataPurged"]
-            assert content_dict["auth"] is True
+            assert content_dict["authenticationRequired"] is True
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ async def test_ping_https(test_server, ssl_ctx, test_client, loop):
             assert 2 == content_dict["dataRead"]
             assert 18 == content_dict["dataSent"]
             assert 1 == content_dict["dataPurged"]
-            assert content_dict["auth"] is True
+            assert content_dict["authenticationRequired"] is True
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")

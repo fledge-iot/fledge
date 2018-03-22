@@ -41,24 +41,29 @@ async def ping(request):
     :Example:
            curl -X GET http://localhost:8081/foglamp/ping
     """
+
+    def get_stats(k):
+        v = [a['value'] for a in stats if a['key'] == k]
+        return int(v[0])
+
     since_started = time.time() - __start_time
 
-    new_request = request.clone(rel_url='foglamp/statistics')
-    interim_stat = await get_statistics(new_request)
-    stat = json.loads(interim_stat.body.decode())
+    stats_request = request.clone(rel_url='foglamp/statistics')
+    stats_res = await get_statistics(stats_request)
+    stats = json.loads( stats_res.body.decode())
 
-    data_read = [a['value'] for a in stat if a['key'] == 'READINGS']
-    data_sent_1 = [a['value'] for a in stat if a['key'] == 'SENT_1']
-    data_sent_2 = [a['value'] for a in stat if a['key'] == 'SENT_2']
-    data_sent_3 = [a['value'] for a in stat if a['key'] == 'SENT_3']
-    data_sent_4 = [a['value'] for a in stat if a['key'] == 'SENT_4']
-    data_purged = [a['value'] for a in stat if a['key'] == 'PURGED']
+    data_read = get_stats('READINGS')
+    data_sent_1 = get_stats('SENT_1')
+    data_sent_2 = get_stats('SENT_2')
+    data_sent_3 = get_stats('SENT_3')
+    data_sent_4 = get_stats('SENT_4')
+    data_purged = get_stats('PURGED')
 
     return web.json_response({'uptime': since_started,
-                              'dataRead': int(data_read[0]),
-                              'dataSent': int(data_sent_1[0])+int(data_sent_2[0])+int(data_sent_3[0])+int(data_sent_4[0]),
-                              'dataPurged': int(data_purged[0]),
-                              'auth': request.is_auth_optional
+                              'dataRead': data_read,
+                              'dataSent': data_sent_1 + data_sent_2 + data_sent_3 + data_sent_4,
+                              'dataPurged': data_purged,
+                              'authenticationRequired': request.is_auth_optional
                               })
 
 async def shutdown(request):

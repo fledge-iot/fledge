@@ -6,9 +6,11 @@
 
 import asyncio
 import time
+import json
 from foglamp.common import logger
 from aiohttp import web
 from foglamp.services.core import server
+from foglamp.services.core.api.statistics import get_statistics
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -30,20 +32,38 @@ _help = """
 async def ping(request):
     """
     Args:
-        request:
+       request:
 
     Returns:
-            basic health information json payload
-            {'uptime': 32892} Time in seconds since FogLAMP started
+           basic health information json payload
 
     :Example:
-            curl -X GET http://localhost:8081/foglamp/ping
+           curl -X GET http://localhost:8081/foglamp/ping
     """
+
+    def get_stats(k):
+        v = [a['value'] for a in stats if a['key'] == k]
+        return int(v[0])
+
     since_started = time.time() - __start_time
 
-    # TODO: FOGL-790 - ping method should return more data
-    return web.json_response({'uptime': since_started})
+    stats_request = request.clone(rel_url='foglamp/statistics')
+    stats_res = await get_statistics(stats_request)
+    stats = json.loads(stats_res.body.decode())
 
+    data_read = get_stats('READINGS')
+    data_sent_1 = get_stats('SENT_1')
+    data_sent_2 = get_stats('SENT_2')
+    data_sent_3 = get_stats('SENT_3')
+    data_sent_4 = get_stats('SENT_4')
+    data_purged = get_stats('PURGED')
+
+    return web.json_response({'uptime': since_started,
+                              'dataRead': data_read,
+                              'dataSent': data_sent_1 + data_sent_2 + data_sent_3 + data_sent_4,
+                              'dataPurged': data_purged,
+                              'authenticationOptional': request.is_auth_optional
+                              })
 
 async def shutdown(request):
     """

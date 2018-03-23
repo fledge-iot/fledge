@@ -28,7 +28,7 @@ from foglamp.common.storage_client.storage_client import StorageClient
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http(test_server, test_client, loop):
-    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
+    payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -61,15 +61,15 @@ async def test_ping_http(test_server, test_client, loop):
                 assert 18 == content_dict["dataSent"]
                 assert 1 == content_dict["dataPurged"]
                 assert content_dict["authenticationOptional"] is True
-                log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
-                logger_info.assert_called_once_with(*log_params)
-                query_patch.assert_called_once_with(*payload)
+        query_patch.assert_called_once_with('statistics', payload)
+    log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
+    logger_info.assert_called_once_with(*log_params)
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_auth_required(test_server, test_client, loop):
-    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
+    payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -102,9 +102,9 @@ async def test_ping_http_auth_required(test_server, test_client, loop):
                 assert 18 == content_dict["dataSent"]
                 assert 1 == content_dict["dataPurged"]
                 assert content_dict["authenticationOptional"] is False
-                log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
-                logger_info.assert_called_once_with(*log_params)
-                query_patch.assert_called_once_with(*payload)
+        query_patch.assert_called_once_with('statistics', payload)
+    log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
+    logger_info.assert_called_once_with(*log_params)
 
 
 @pytest.fixture
@@ -124,7 +124,7 @@ def ssl_ctx(certs_path):
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https(test_server, ssl_ctx, test_client, loop):
-    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
+    payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -179,18 +179,18 @@ async def test_ping_https(test_server, ssl_ctx, test_client, loop):
                 assert 18 == content_dict["dataSent"]
                 assert 1 == content_dict["dataPurged"]
                 assert content_dict["authenticationOptional"] is True
-                calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
-                         call('Received %s request for %s', 'GET', '/foglamp/ping')]
-                logger_info.assert_has_calls(calls)
-                calls = [call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'),
-                         call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}')]
-                query_patch.assert_has_calls(calls)
+        calls = [call('statistics', payload),
+                 call('statistics', payload)]
+        query_patch.assert_has_calls(calls)
+    calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
+             call('Received %s request for %s', 'GET', '/foglamp/ping')]
+    logger_info.assert_has_calls(calls)
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_auth_required(test_server, ssl_ctx, test_client, loop):
-    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
+    payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -245,12 +245,12 @@ async def test_ping_https_auth_required(test_server, ssl_ctx, test_client, loop)
                 assert 18 == content_dict["dataSent"]
                 assert 1 == content_dict["dataPurged"]
                 assert content_dict["authenticationOptional"] is False
-                calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
-                         call('Received %s request for %s', 'GET', '/foglamp/ping')]
-                logger_info.assert_has_calls(calls)
-                calls = [call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'),
-                         call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}')]
-                query_patch.assert_has_calls(calls)
+        calls = [call('statistics', payload),
+                 call('statistics', payload)]
+        query_patch.assert_has_calls(calls)
+    calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
+             call('Received %s request for %s', 'GET', '/foglamp/ping')]
+    logger_info.assert_has_calls(calls)
 
 
 @pytest.allure.feature("unit")

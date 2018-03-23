@@ -208,7 +208,7 @@ class TestAuthOptional:
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/111/logout')
 
     async def test_update_admin_user_without_authentication(self, client):
-        warn_msg = 'Super admin user can not be updated without authentication'
+        warn_msg = 'Super admin user can not be updated'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
                 resp = await client.put('/foglamp/user/1')
@@ -519,11 +519,11 @@ class TestAuthOptional:
 
     async def test_create_user_exception(self, client):
         request_data = {"username": "ajtest", "password": "F0gl@mp"}
-        exc_msg = "'type' object is not subscriptable"
+        exc_msg = "Something went wrong"
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
-                with patch.object(User.Objects, 'get', side_effect=[User.DoesNotExist, Exception]):
-                    with patch.object(User.Objects, 'create', return_value=Exception) as patch_create_user:
+                with patch.object(User.Objects, 'get', side_effect=User.DoesNotExist):
+                    with patch.object(User.Objects, 'create', side_effect=Exception(exc_msg)) as patch_create_user:
                         with patch.object(auth._logger, 'exception') as patch_audit_logger_exc:
                             resp = await client.post('/foglamp/user', data=json.dumps(request_data))
                             assert 500 == resp.status

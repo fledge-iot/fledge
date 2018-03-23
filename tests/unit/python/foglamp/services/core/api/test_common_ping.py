@@ -4,15 +4,14 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-""" Test rest server api forfrom foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
- python/foglamp/services/core/api/common.py
+""" Test rest server api for python/foglamp/services/core/api/common.py
 
 These 2 def shall be tested via python/foglamp/services/core/server.py
     - rest_api_config
     - get_certificates
 This test file assumes those 2 units are tested
 """
+
 import aiohttp
 from aiohttp import web
 import json

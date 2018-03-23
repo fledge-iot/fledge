@@ -12,13 +12,13 @@ These 2 def shall be tested via python/foglamp/services/core/server.py
 This test file assumes those 2 units are tested
 """
 
-import aiohttp
-from aiohttp import web
 import json
-import pytest
 import ssl
 import pathlib
 from unittest.mock import MagicMock, patch, call
+import aiohttp
+from aiohttp import web
+import pytest
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.web import middleware
@@ -28,7 +28,7 @@ from foglamp.common.storage_client.storage_client import StorageClient
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http(test_server, test_client, loop):
-    payload = {"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}
+    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -63,11 +63,13 @@ async def test_ping_http(test_server, test_client, loop):
                 assert content_dict["authenticationOptional"] is True
                 log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
                 logger_info.assert_called_once_with(*log_params)
+                query_patch.assert_called_once_with(*payload)
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_auth_required(test_server, test_client, loop):
-    payload = {"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}
+    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -102,6 +104,7 @@ async def test_ping_http_auth_required(test_server, test_client, loop):
                 assert content_dict["authenticationOptional"] is False
                 log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
                 logger_info.assert_called_once_with(*log_params)
+                query_patch.assert_called_once_with(*payload)
 
 
 @pytest.fixture
@@ -121,7 +124,7 @@ def ssl_ctx(certs_path):
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https(test_server, ssl_ctx, test_client, loop):
-    payload = {"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}
+    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -160,7 +163,7 @@ async def test_ping_https(test_server, ssl_ctx, test_client, loop):
                     # and we are not using SSL context here for client as verifier
                     connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
                     client = await test_client(server, connector=connector)
-                    resp = await client.get('/foglamp/ping')
+                    await client.get('/foglamp/ping')
                 assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                 connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
@@ -179,12 +182,15 @@ async def test_ping_https(test_server, ssl_ctx, test_client, loop):
                 calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
                          call('Received %s request for %s', 'GET', '/foglamp/ping')]
                 logger_info.assert_has_calls(calls)
+                calls = [call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'),
+                         call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}')]
+                query_patch.assert_has_calls(calls)
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_auth_required(test_server, ssl_ctx, test_client, loop):
-    payload = {"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}
+    payload = 'statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
     result = {"rows": [
                 {"value": 1, "key": "PURGED", "description": "blah6"},
                 {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -215,7 +221,7 @@ async def test_ping_https_auth_required(test_server, ssl_ctx, test_client, loop)
 
                 with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                     client = await test_client(server)
-                    resp = await client.get('/foglamp/ping')
+                    await client.get('/foglamp/ping')
                 assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                 with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
@@ -242,6 +248,9 @@ async def test_ping_https_auth_required(test_server, ssl_ctx, test_client, loop)
                 calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
                          call('Received %s request for %s', 'GET', '/foglamp/ping')]
                 logger_info.assert_has_calls(calls)
+                calls = [call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'),
+                         call('statistics', '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}')]
+                query_patch.assert_has_calls(calls)
 
 
 @pytest.allure.feature("unit")

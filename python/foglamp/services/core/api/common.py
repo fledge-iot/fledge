@@ -36,7 +36,6 @@ async def ping(request):
 
     Returns:
            basic health information json payload
-           {'uptime': 32892} Time in seconds since FogLAMP started
 
     :Example:
            curl -X GET http://localhost:8081/foglamp/ping
@@ -50,7 +49,7 @@ async def ping(request):
 
     stats_request = request.clone(rel_url='foglamp/statistics')
     stats_res = await get_statistics(stats_request)
-    stats = json.loads( stats_res.body.decode())
+    stats = json.loads(stats_res.body.decode())
 
     data_read = get_stats('READINGS')
     data_sent_1 = get_stats('SENT_1')

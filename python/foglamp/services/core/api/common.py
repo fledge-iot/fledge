@@ -46,10 +46,10 @@ async def ping(request):
     try:
         auth_token = request.token
     except AttributeError:
-        cf_mgr = ConfigurationManager(connect.get_storage())
-        category_item = await cf_mgr.get_category_item('rest_api', 'allowPing')
-        allowPing = True if category_item['value'] == 'true' else False
-        if request.is_auth_optional is False and allowPing is False:
+        cfg_mgr = ConfigurationManager(connect.get_storage())
+        category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
+        allow_ping = True if category_item['value'] == 'true' else False
+        if request.is_auth_optional is False and allow_ping is False:
             raise web.HTTPForbidden
 
     def get_stats(k):

@@ -85,9 +85,8 @@ async def create_support_bundle(request):
     """
     support_dir = _get_support_dir()
     base_url = "{}://{}:{}/foglamp".format(request.url.scheme, request.url.host, request.url.port)
-    token = request.headers.get('authorization', None)
     try:
-        bundle_name = await SupportBuilder(support_dir, base_url, token).build()
+        bundle_name = SupportBuilder(support_dir).build()
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
 

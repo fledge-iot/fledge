@@ -116,7 +116,7 @@ class TestBundleSupport:
             mockisdir.assert_called_once_with(path)
 
     async def test_create_support_bundle(self, client):
-        async def mock_build():
+        def mock_build():
             return 'support-180301-13-35-23.tar.gz'
 
         with patch.object(SupportBuilder, "__init__", return_value=None):

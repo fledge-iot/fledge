@@ -151,7 +151,7 @@ class Server:
         'authentication': {
             'description': 'To make the authentication mandatory or optional for API calls',
             'type': 'string',
-            'default': 'mandatory'
+            'default': 'optional'
         },
         'allowPing': {
             'description': 'To allow access to the ping, regardless of the authentication required and'

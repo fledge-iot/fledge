@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <reading.h>
 #include <ctime>
@@ -16,7 +16,6 @@
 
 using namespace std;
 
-
 /**
  * Reading constructor
  *
@@ -24,8 +23,7 @@ using namespace std;
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset),
-	m_timestamp(time(nullptr))
+Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset)
 {
 uuid_t	uuid;
 char	uuid_str[37];
@@ -34,6 +32,8 @@ char	uuid_str[37];
 	uuid_generate_time_safe(uuid);
 	uuid_unparse_lower(uuid, uuid_str);
 	m_uuid = string(uuid_str);
+	// Store seconds and microseconds
+	gettimeofday(&m_timestamp, NULL);
 }
 
 /**
@@ -74,14 +74,38 @@ void Reading::addDatapoint(Datapoint *value)
 string Reading::toJSON()
 {
 ostringstream convert;
-
+char date_time[DATE_TIME_BUFFER_LEN];
+char micro_s[10];
 	convert << "{ \"asset_code\" : \"";
 	convert << m_asset;
 	convert << "\", \"read_key\" : \"";
 	convert << m_uuid;
 	convert << "\", \"user_ts\" : \"";
-	string ts = std::asctime(std::localtime(&m_timestamp));
-	convert << ts.substr(0, ts.length() - 1);
+
+	// Populate tm structure
+	const struct tm *timeinfo = std::localtime(&(m_timestamp.tv_sec));
+
+	/**
+	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
+	 * this is same as Python3:
+	 * datetime.datetime.now(tz=datetime.timezone.utc)
+	 */
+
+	// Create datetime with seconds
+	std::strftime(date_time, sizeof(date_time),
+		      DEFAULT_DATE_TIME_FORMAT,
+		      timeinfo);
+
+	// Add microseconds 
+        snprintf(micro_s,
+		 sizeof(micro_s),
+		 ".%06lu",
+		 m_timestamp.tv_usec);
+
+	// Add date_time + microseconds + timezone UTC
+	convert << date_time << micro_s << "+00:00";
+
+	// Add values
 	convert << "\", \"reading\" : { ";
 	for (auto it = m_values.cbegin(); it != m_values.cend(); it++)
 	{

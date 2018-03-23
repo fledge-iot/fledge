@@ -13,6 +13,7 @@ import pytest
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
+from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
 from foglamp.plugins.storage.postgres.backup_restore import exceptions
 from foglamp.services.core.api import backup_restore
 from foglamp.common.storage_client.storage_client import StorageClient
@@ -24,7 +25,7 @@ __version__ = "${VERSION}"
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("api", "core")
+@pytest.allure.story("api", "backup")
 class TestBackup:
     """Unit test the Backup functionality
     """
@@ -177,9 +178,11 @@ class TestBackup:
                                  {'index': 6, 'name': 'RESTORED'}]} == json_response
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("api", "restore")
 class TestRestore:
-    """Unit test the Restore functionality
-    """
+    """Unit test the Restore functionality"""
+
     @pytest.fixture
     def client(self, loop, test_client):
         app = web.Application(loop=loop)
@@ -187,8 +190,27 @@ class TestRestore:
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
 
-    # TODO: FOGL-861
     async def test_restore_backup(self, client):
-        resp = await client.put('/foglamp/backup/{}/restore'.format(1))
-        assert 501 == resp.status
-        assert "Restore backup method is not implemented yet." == resp.reason
+        async def mock_restore():
+            return "running"
+
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Restore, 'restore_backup', return_value=mock_restore()):
+                resp = await client.put('/foglamp/backup/{}/restore'.format(1))
+                assert 200 == resp.status
+                r = await resp.text()
+                assert {'status': 'running'} == json.loads(r)
+
+    @pytest.mark.parametrize("backup_id, input_exception, code, message", [
+        (8, exceptions.DoesNotExist, 404, "Backup with 8 does not exist"),
+        (2, Exception, 500, "Internal Server Error"),
+        ('blah', ValueError, 400, 'Invalid backup id')
+    ])
+    async def test_restore_backup_exceptions(self, client, backup_id, input_exception, code, message):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(Restore, 'restore_backup', side_effect=input_exception):
+                resp = await client.put('/foglamp/backup/{}/restore'.format(backup_id))
+                assert code == resp.status
+                assert message == resp.reason

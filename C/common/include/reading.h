@@ -7,12 +7,15 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <datapoint.h>
 #include <string>
 #include <ctime>
 #include <vector>
+
+#define DEFAULT_DATE_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
+#define DATE_TIME_BUFFER_LEN     52
 
 /**
  * An asset reading represented as a class.
@@ -29,7 +32,7 @@ class Reading {
 		std::string	toJSON();
 	private:
 		const std::string		m_asset;
-		const std::time_t		m_timestamp;
+		struct timeval			m_timestamp;
 		std::vector<Datapoint *>	m_values;
 		std::string			m_uuid;
 };

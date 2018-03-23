@@ -135,7 +135,7 @@ class Server:
         'enableHttp': {
             'description': 'Enable or disable the connection via HTTP',
             'type': 'boolean',
-            'default': 'true'
+            'default': 'false'
         },
         'authProviders': {
             'description': 'A JSON object which is an array of authentication providers to use '
@@ -151,7 +151,7 @@ class Server:
         'authentication': {
             'description': 'To make the authentication mandatory or optional for API calls',
             'type': 'string',
-            'default': 'optional'  # make mandatory
+            'default': 'mandatory'
         },
         'allowPing': {
             'description': 'To allow access to the ping, regardless of the authentication required and'

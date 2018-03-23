@@ -85,8 +85,9 @@ async def create_support_bundle(request):
     """
     support_dir = _get_support_dir()
     base_url = "{}://{}:{}/foglamp".format(request.url.scheme, request.url.host, request.url.port)
+    token = request.headers.get('authorization', None)
     try:
-        bundle_name = await SupportBuilder(support_dir, base_url).build()
+        bundle_name = await SupportBuilder(support_dir, base_url, token).build()
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
 
@@ -133,10 +134,16 @@ async def get_syslog_entries(request):
         cmd = __GET_SYSLOG_TOTAL_MATCHED_LINES.format(valid_source[source.lower()], _SYSLOG_FILE)
         t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         tot_lines = int(t[0].decode())
-        if offset >= (tot_lines - limit):
-            raise ValueError
+        if tot_lines <= limit:
+            if offset >= tot_lines:
+                raise ValueError
+            limit = tot_lines - offset
+        else:
+            if offset >= (tot_lines - limit):
+                raise ValueError
     except ValueError:
-        raise web.HTTPBadRequest(reason="Offset {} must be less than (total line count - limit) {}".format(offset, tot_lines - limit))
+        raise web.HTTPBadRequest(reason="Offset {} must be less than (total line count({}) - limit({}) {}".format(
+            offset, tot_lines, limit, tot_lines - limit))
     except (OSError, Exception) as ex:
         raise web.HTTPException(reason=str(ex))
 

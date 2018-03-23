@@ -19,6 +19,7 @@ import asyncio
 import fnmatch
 import aiohttp
 import subprocess
+import copy
 from foglamp.services.core.connect import *
 from foglamp.common import logger
 
@@ -41,7 +42,7 @@ class SupportBuilder:
     _storage = None
     _rest_api_port = None
     
-    def __init__(self, support_dir, base_url):
+    def __init__(self, support_dir, base_url, token=None):
         try:
             if not os.path.exists(support_dir):
                 os.makedirs(support_dir)
@@ -52,6 +53,7 @@ class SupportBuilder:
             self._interim_file_path = support_dir
             self._base_url = base_url
             self._headers = {"Content-Type": 'application/json'}
+            self._token = token
             self._storage = get_storage()  # from foglamp.services.core.connect
         except (OSError, Exception) as ex:
             _LOGGER.error("Error in initializing SupportBuilder class: %s ", str(ex))
@@ -150,7 +152,10 @@ class SupportBuilder:
         loop = asyncio.get_event_loop() if loop is None else loop
         url_ping = self._base_url+'/service'
         connector = aiohttp.TCPConnector(verify_ssl=False)
-        async with aiohttp.ClientSession(loop=loop, connector=connector) as session:
+        headers = copy.deepcopy(self._headers)
+        if self._token is not None:
+            headers.update({"Authorization": self._token})
+        async with aiohttp.ClientSession(loop=loop, connector=connector, headers=headers) as session:
             async with session.get(url_ping) as resp:
                 r = await resp.json()
                 data = {

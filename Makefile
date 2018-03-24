@@ -327,6 +327,8 @@ $(FOGBENCH_PYTHON_INSTALL_DIR) :
 install_extras_scripts : $(EXTRAS_INSTALL_DIR) $(EXTRAS_SCRIPTS_SRC_DIR)
 	$(CP_DIR) $(EXTRAS_SCRIPTS_SRC_DIR) $(EXTRAS_INSTALL_DIR)
 
+	sed -i "s|export FOGLAMP_ROOT=.*|export FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/setenv.sh
+
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@

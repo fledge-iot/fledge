@@ -78,6 +78,9 @@ STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
 BACKUP_POSTGRES            := scripts/tasks/backup_postgres
 RESTORE_POSTGRES           := scripts/tasks/restore_postgres
 
+# EXTRA SCRIPTS
+EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
+
 # FOGBENCH 
 FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
 
@@ -313,13 +316,16 @@ $(BIN_INSTALL_DIR) :
 ####################### EXTRAS INSTALL TARGETS ################################
 ###############################################################################
 # install bin
-extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench
+extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts
 
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
 
 $(FOGBENCH_PYTHON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+install_extras_scripts : $(EXTRAS_INSTALL_DIR) $(EXTRAS_SCRIPTS_SRC_DIR)
+	$(CP_DIR) $(EXTRAS_SCRIPTS_SRC_DIR) $(EXTRAS_INSTALL_DIR)
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :

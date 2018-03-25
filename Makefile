@@ -328,6 +328,7 @@ install_extras_scripts : $(EXTRAS_INSTALL_DIR) $(EXTRAS_SCRIPTS_SRC_DIR)
 	$(CP_DIR) $(EXTRAS_SCRIPTS_SRC_DIR) $(EXTRAS_INSTALL_DIR)
 
 	sed -i "s|export FOGLAMP_ROOT=.*|export FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/setenv.sh
+	sed -i "s|^FOGLAMP_ROOT=.*|FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/foglamp.service
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :

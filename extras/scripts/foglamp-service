@@ -33,19 +33,19 @@ PID_FILE="${FOGLAMP_DATA}/var/run/foglamp.core.pid"
 PID=0
  
 get_pid() {
-  if [ -f $PID_FILE ]; then
-    PID=`cat foglamp.core.pid | tr -d ' ' |  grep -o '"processID":[0-9]*' | grep -o '[0-9]*'`
+  if [[ -f "$PID_FILE" ]]; then
+    PID=`cat "${PID_FILE}" | tr -d ' ' |  grep -o '"processID":[0-9]*' | grep -o '[0-9]*'`
   else
     PID=0
   fi
 }
 
 foglamp_start() {
-  "${FOGLAMP_ROOT}/bin/foglamp" start
+  "${FOGLAMP_ROOT}/bin/foglamp" start > /dev/null
 }
  
 foglamp_stop() {
-  "${FOGLAMP_ROOT}/bin/foglamp" stop
+  "${FOGLAMP_ROOT}/bin/foglamp" stop > /dev/null
 }
  
 case "$1" in

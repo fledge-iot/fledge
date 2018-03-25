@@ -329,6 +329,8 @@ You can use the same ``foglamp`` command we discussed in the previous section to
   $ foglamp status
   FogLAMP running.
   FogLAMP uptime:  16 seconds.
+  FogLAMP Records: 0 read, 0 sent, 0 purged.
+  FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
   foglamp.services.south --port=37829 --address=127.0.0.1 --name=COAP

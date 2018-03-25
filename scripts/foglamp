@@ -313,7 +313,7 @@ foglamp_status() {
 
                 foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running." "outonly" "pretty"
                 foglamp_log "info" "FogLAMP Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
-                foglamp_log "info" "FogLAMP Records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
                 
                 foglamp_log "info" "FogLAMP ${req_auth} authentication." "outonly" "pretty"
 

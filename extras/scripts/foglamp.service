@@ -31,14 +31,16 @@ fi
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
-
 #
 # This wrapper script is used to set FogLAMP as a service
 # If you have installed FogLAMP from a package, this script has been
 # automatically added to the /etc/init.d folder and the service has
 # been set with the systemctl utility.
 # If you have installed FogLAMP from source with sudo make install,
-# you may manually copy this script in /etc/init.d.
+# you may manually copy this script in /etc/init.d. We recommend to
+# change the name to foglamp, for example:
+#
+# sudo cp foglamp.service /etc/init.d/foglamp
 #
 
 
@@ -49,7 +51,7 @@ PID_FILE="${FOGLAMP_DATA}/var/run/foglamp.core.pid"
 PID=0
  
 get_pid() {
-  if [[ -f "$PID_FILE" ]]; then
+  if [ -f "$PID_FILE" ]; then
     PID=`cat "${PID_FILE}" | tr -d ' ' |  grep -o '"processID":[0-9]*' | grep -o '[0-9]*'`
   else
     PID=0
@@ -69,7 +71,7 @@ case "$1" in
   start)
 
     get_pid
-    if [[ $PID -eq 0 ]]; then
+    if [ $PID -eq 0 ]; then
       foglamp_start
     else
       echo "FogLAMP already running [$PID]"
@@ -77,7 +79,7 @@ case "$1" in
     fi
  
     get_pid
-    if [[ $PID -eq 0 ]]; then
+    if [ $PID -eq 0 ]; then
         echo "FogLAMP failed starting"
         exit 1
     else
@@ -89,7 +91,7 @@ case "$1" in
   status)
 
     get_pid
-    if [[ $PID -eq 0 ]]; then
+    if [ $PID -eq 0 ]; then
       echo "FogLAMP not running"
     else
       if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
@@ -105,7 +107,7 @@ case "$1" in
   stop)
 
     get_pid
-    if [[ $PID -eq 0 ]]; then
+    if [ $PID -eq 0 ]; then
       echo "FogLAMP not running"
     else
       if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then

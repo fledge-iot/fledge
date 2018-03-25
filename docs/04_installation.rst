@@ -231,6 +231,17 @@ You can call the script from your shell or you can add the same command to your 
   $
 
 
+The foglamp.service Script
+--------------------------
+
+Another file available in the *extras/scripts* folder is the foglamp.service script. This script can be used to set FogLAMP as a Linux service. If you wish to do so, we recommend to install the FogLAMP package, but if you have a special build or for other reasons you prefer to work with FogLAMP built from source, this script will be quite helpful.
+
+You can install FogLAMP as a service following these simple steps:
+
+- After the ``make install`` command, copy *foglamp.service* with a simple name *foglamp* in the */etc/init.d* folder.
+- You can either reboot your machine or reload the daemons using the ``systemctl daemon-reload`` command.
+
+
 Installing the Snap Package
 ===========================
 

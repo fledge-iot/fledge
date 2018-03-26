@@ -77,7 +77,6 @@ async def auth_middleware(app, handler):
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
                 raise web.HTTPUnauthorized(reason=e)
         else:
-            # TODO: bypass ping route based on allowPing=>True
             if str(handler).startswith("<function ping"):
                 pass
             elif str(handler).startswith("<function login"):

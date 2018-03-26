@@ -347,6 +347,12 @@ async def delete_user(request):
         msg = "Super admin user can not be deleted"
         _logger.warning(msg)
         raise web.HTTPNotAcceptable(reason=msg)
+    
+    # Requester should not be able to delete her/himself
+    if user_id == request.user["id"]:
+        msg = "You can not delete your own account"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
 
     try:
         result = User.Objects.delete(user_id)

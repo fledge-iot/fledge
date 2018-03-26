@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 
 # FOGLAMP_BEGIN
@@ -12,6 +13,7 @@ These 2 def shall be tested via python/foglamp/services/core/server.py
 This test file assumes those 2 units are tested
 """
 
+import asyncio
 import json
 import ssl
 import pathlib
@@ -29,7 +31,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_allow_ping_true(test_server, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "true"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -46,7 +48,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -66,6 +68,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
                     assert 18 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -74,7 +77,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_allow_ping_false(test_server, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "false"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -91,7 +94,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -111,6 +114,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
                     assert 18 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -119,7 +123,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_auth_required_allow_ping_true(test_server, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "true"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -136,7 +140,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -156,6 +160,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                     assert 18 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is False
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -164,7 +169,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_http_auth_required_allow_ping_false(test_server, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "false"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -181,7 +186,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -194,6 +199,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
                     # the tool creates TestServer implicitly for serving the application.
                     resp = await client.get('/foglamp/ping')
                     assert 403 == resp.status
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
         log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -215,7 +221,7 @@ def ssl_ctx(certs_path):
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "true"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -232,21 +238,13 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
 
                     server = await test_server(app, ssl=ssl_ctx)
                     server.start_server(loop=loop)
-
-                    url = 'https://127.0.0.1:{}/foglamp/ping'.format(server.port)
-                    async with aiohttp.ClientSession(loop=loop) as session:
-                        async with session.get(url, verify_ssl=False) as resp:
-                            assert 200 == resp.status
-                            content = await resp.text()
-                            content_dict = json.loads(content)
-                            assert 0.0 < content_dict["uptime"]
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await test_client(server)
@@ -274,18 +272,15 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     assert 18 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
-            calls = [call('statistics', payload),
-                     call('statistics', payload)]
-            query_patch.assert_has_calls(calls)
-        calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
-                 call('Received %s request for %s', 'GET', '/foglamp/ping')]
-        logger_info.assert_has_calls(calls)
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+            query_patch.assert_called_once_with('statistics', payload)
+        logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "false"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -302,21 +297,13 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
 
                     server = await test_server(app, ssl=ssl_ctx)
                     server.start_server(loop=loop)
-
-                    url = 'https://127.0.0.1:{}/foglamp/ping'.format(server.port)
-                    async with aiohttp.ClientSession(loop=loop) as session:
-                        async with session.get(url, verify_ssl=False) as resp:
-                            assert 200 == resp.status
-                            content = await resp.text()
-                            content_dict = json.loads(content)
-                            assert 0.0 < content_dict["uptime"]
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await test_client(server)
@@ -337,18 +324,15 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
                     assert 200 == resp.status
-            calls = [call('statistics', payload),
-                     call('statistics', payload)]
-            query_patch.assert_has_calls(calls)
-        calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
-                 call('Received %s request for %s', 'GET', '/foglamp/ping')]
-        logger_info.assert_has_calls(calls)
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+            query_patch.assert_called_once_with('statistics', payload)
+        logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "true"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -365,21 +349,13 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
                     routes.setup(app)
 
                     server = await test_server(app, ssl=ssl_ctx)
                     server.start_server(loop=loop)
-
-                    url = 'https://127.0.0.1:{}/foglamp/ping'.format(server.port)
-                    async with aiohttp.ClientSession(loop=loop) as session:
-                        async with session.get(url, verify_ssl=False) as resp:
-                            assert 200 == resp.status
-                            content = await resp.text()
-                            content_dict = json.loads(content)
-                            assert 0.0 < content_dict["uptime"]
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await test_client(server)
@@ -407,18 +383,15 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                     assert 18 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is False
-            calls = [call('statistics', payload),
-                     call('statistics', payload)]
-            query_patch.assert_has_calls(calls)
-        calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
-                 call('Received %s request for %s', 'GET', '/foglamp/ping')]
-        logger_info.assert_has_calls(calls)
+                    mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
+                query_patch.assert_called_once_with('statistics', payload)
+            logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "common")
 async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, test_client, loop):
-    async def mock_get_category_item(self, category_name, item_name):
+    async def mock_get_category_item():
         return {"value": "false"}
 
     payload = '{"return": ["key", "description", "value"], "sort": {"column": "key", "direction": "asc"}}'
@@ -435,18 +408,13 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", mock_get_category_item):
+                with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
                     routes.setup(app)
 
                     server = await test_server(app, ssl=ssl_ctx)
                     server.start_server(loop=loop)
-
-                    url = 'https://127.0.0.1:{}/foglamp/ping'.format(server.port)
-                    async with aiohttp.ClientSession(loop=loop) as session:
-                        async with session.get(url, verify_ssl=False) as resp:
-                            assert 403 == resp.status
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await test_client(server)
@@ -467,10 +435,9 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
                     s = resp.request_info.url.human_repr()
                     assert "https" == s[:5]
                     assert 403 == resp.status
+                mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
-        calls = [call('Received %s request for %s', 'GET', '/foglamp/ping'),
-                 call('Received %s request for %s', 'GET', '/foglamp/ping')]
-        logger_info.assert_has_calls(calls)
+        logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')
 
 
 @pytest.allure.feature("unit")

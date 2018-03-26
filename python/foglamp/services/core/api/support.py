@@ -23,7 +23,7 @@ _SYSLOG_FILE = '/var/log/syslog'
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_TYPE = 'FogLAMP'
-__GET_SYSLOG_CMD_TEMPLATE = "grep -n '{}\[' {} | tail -n {} | head -n {}"
+__GET_SYSLOG_CMD_TEMPLATE = "grep -n '{}\[' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -n '{}\[' {} | wc -l"
 
 _logger = logger.setup(__name__, level=20)
@@ -86,7 +86,7 @@ async def create_support_bundle(request):
     support_dir = _get_support_dir()
     base_url = "{}://{}:{}/foglamp".format(request.url.scheme, request.url.host, request.url.port)
     try:
-        bundle_name = await SupportBuilder(support_dir, base_url).build()
+        bundle_name = SupportBuilder(support_dir).build()
     except Exception as ex:
         raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
 
@@ -133,15 +133,9 @@ async def get_syslog_entries(request):
         cmd = __GET_SYSLOG_TOTAL_MATCHED_LINES.format(valid_source[source.lower()], _SYSLOG_FILE)
         t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         tot_lines = int(t[0].decode())
-        if offset >= (tot_lines - limit):
-            raise ValueError
-    except ValueError:
-        raise web.HTTPBadRequest(reason="Offset {} must be less than (total line count - limit) {}".format(offset, tot_lines - limit))
-    except (OSError, Exception) as ex:
-        raise web.HTTPException(reason=str(ex))
 
-    try:
-        cmd = __GET_SYSLOG_CMD_TEMPLATE.format(valid_source[source.lower()], _SYSLOG_FILE, limit+offset, limit)
+        # Get filtered lines
+        cmd = __GET_SYSLOG_CMD_TEMPLATE.format(valid_source[source.lower()], _SYSLOG_FILE, tot_lines - offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
     except (OSError, Exception) as ex:

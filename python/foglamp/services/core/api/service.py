@@ -31,17 +31,7 @@ _help = """
 #################################
 
 
-async def get_health(request):
-    """
-    Args:
-        request:
-
-    Returns:
-            health of all registered services
-
-    :Example:
-            curl -X GET http://localhost:8081/foglamp/service
-    """
+def get_service_records():
     sr_list = list()
     for service_record in ServiceRegistry.all():
         sr_list.append(
@@ -54,7 +44,22 @@ async def get_health(request):
                     'protocol' : service_record._protocol,
                     'status': 'running'
                 })
-    response = {'services' : sr_list}
+    recs = {'services' : sr_list}
+    return recs
+
+
+async def get_health(request):
+    """
+    Args:
+        request:
+
+    Returns:
+            health of all registered services
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/service
+    """
+    response = get_service_records()
     return web.json_response(response)
 
 async def add_service(request):

@@ -325,6 +325,7 @@ async def update_user(request):
     return web.json_response({'message': 'User with id:<{}> has been updated successfully'.format(user_id)})
 
 
+@has_permission("admin")
 async def delete_user(request):
     """ Delete a user from users table
 
@@ -346,14 +347,6 @@ async def delete_user(request):
         msg = "Super admin user can not be deleted"
         _logger.warning(msg)
         raise web.HTTPNotAcceptable(reason=msg)
-
-    # Requester should not be able to delete her/himself
-    if user_id == request.user["id"]:
-        msg = "Only admin can disable or delete the account"
-        _logger.warning(msg)
-        raise web.HTTPBadRequest(reason=msg)
-
-    check_authorization(request, user_id, "delete")
 
     try:
         result = User.Objects.delete(user_id)

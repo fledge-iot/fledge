@@ -110,6 +110,12 @@ Release Date: 2018-0X-XX
 New Features
 ~~~~~~~~~~~~
 
+- **Changes in the REST API**
+  - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if FogLAMP requires REST API authentication.
+- **fooglamp status**: the command now shows what the ``ping`` REST method provides.
+- **setenv script**: a new script has been added to simplify the user interaction. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *setenv.sh*.
+- **foglamp service script**: a new service script has been added to setup FogLAMP as a service. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *foglamp.service*.
+
 
 Known Issues
 ~~~~~~~~~~~~

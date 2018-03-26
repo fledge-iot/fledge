@@ -231,6 +231,52 @@ You can call the script from your shell or you can add the same command to your 
   $
 
 
+The foglamp.service Script
+--------------------------
+
+Another file available in the *extras/scripts* folder is the foglamp.service script. This script can be used to set FogLAMP as a Linux service. If you wish to do so, we recommend to install the FogLAMP package, but if you have a special build or for other reasons you prefer to work with FogLAMP built from source, this script will be quite helpful.
+
+You can install FogLAMP as a service following these simple steps:
+
+- After the ``make install`` command, copy *foglamp.service* with a simple name *foglamp* in the */etc/init.d* folder.
+- Execute the command ``systemctl enable foglamp.service`` to enable FogLAMP as a service
+- Execute the command ``systemctl start foglamp.service`` if you want to start FogLAMP
+
+.. code-block:: console
+
+  $ sudo cp /usr/local/foglamp/extras/scripts/foglamp.service /etc/init.d/foglamp
+  $ sudo systemctl status foglamp.service
+  ● foglamp.service
+     Loaded: not-found (Reason: No such file or directory)
+     Active: inactive (dead)
+  $ sudo systemctl enable foglamp.service
+  foglamp.service is not a native service, redirecting to systemd-sysv-install
+  Executing /lib/systemd/systemd-sysv-install enable foglamp
+  $ sudo systemctl status foglamp.service
+  ● foglamp.service - LSB: FogLAMP
+     Loaded: loaded (/etc/init.d/foglamp; bad; vendor preset: enabled)
+     Active: inactive (dead)
+       Docs: man:systemd-sysv-generator(8)
+  $ sudo systemctl start foglamp.service
+  $ sudo systemctl status foglamp.service
+  ● foglamp.service - LSB: FogLAMP
+     Loaded: loaded (/etc/init.d/foglamp; bad; vendor preset: enabled)
+     Active: active (running) since Sun 2018-03-25 13:03:31 BST; 2min 8s ago
+       Docs: man:systemd-sysv-generator(8)
+    Process: 1661 ExecStart=/etc/init.d/foglamp start (code=exited, status=0/SUCCESS)
+      Tasks: 14
+     Memory: 79.5M
+        CPU: 2.888s
+     CGroup: /system.slice/foglamp.service
+             ├─1759 python3 -m foglamp.services.core
+             ├─1764 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=46309
+             ├─1814 /bin/sh services/south --port=46309 --address=127.0.0.1 --name=COAP
+             ├─1815 python3 -m foglamp.services.south --port=46309 --address=127.0.0.1 --name=COAP
+             ├─1816 /bin/sh services/south --port=46309 --address=127.0.0.1 --name=HTTP_SOUTH
+             └─1817 python3 -m foglamp.services.south --port=46309 --address=127.0.0.1 --name=HTTP_SOUTH
+  $
+
+
 Installing the Snap Package
 ===========================
 
@@ -283,6 +329,8 @@ You can use the same ``foglamp`` command we discussed in the previous section to
   $ foglamp status
   FogLAMP running.
   FogLAMP uptime:  16 seconds.
+  FogLAMP Records: 0 read, 0 sent, 0 purged.
+  FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
   foglamp.services.south --port=37829 --address=127.0.0.1 --name=COAP

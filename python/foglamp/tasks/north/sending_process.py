@@ -35,7 +35,7 @@ from foglamp.common.statistics import Statistics
 from foglamp.common.jqfilter import JQFilter
 
 
-__author__ = "Stefano Simonelli"
+__author__ = "Stefano Simonelli, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -113,6 +113,41 @@ class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
     pass
 
+def applyDateFormat(inData):
+    """ This routine adds the default UTC zone format to the input date time string
+    If a timezone (strting with + or -) is found, all the following chars
+    are replaced by +00, otherwise +00 is added.
+
+    Note: if the input zone is +02:00 no date conversion is done,
+          at the time being this routine expects UTC date time values.
+
+    Examples:
+        2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
+        2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
+        2018-03-22 17:17:17.166347+00    ==> 2018-03-22 17:17:17.166347+00
+        2018-03-22 17:17:17.166347+02:00 ==> 2018-03-22 17:17:17.166347+00
+
+    Args:
+        the date time string to format
+    Returns:
+        the newly formatted datetime string
+    """
+
+    # Look for timezone start with '-' a the end of the date (-XY:WZ)
+    zoneIndex = inData.rfind("-")
+    # If index is less than 10 we don't have the trailing zone with -
+    if (zoneIndex < 10):
+        #  Look for timezone start with '+' (+XY:ZW)
+        zoneIndex = inData.rfind("+")
+
+    if zoneIndex == -1:
+        # Just add +00
+        timestamp = inData + "+00"
+    else:
+        # Remove everything after - or + and add +00
+        timestamp = inData[:zoneIndex] + "+00"
+
+    return timestamp
 
 def _performance_log(func):
     """ Logs information for performance measurement """
@@ -507,7 +542,7 @@ class SendingProcess:
                     payload[key] = plugin_common.convert_to_type(value)
 
                 # Adds timezone UTC
-                timestamp = row['user_ts'] + "+00"
+                timestamp = applyDateFormat(row['user_ts'])
 
                 new_row = {
                     'id': row['id'],
@@ -575,11 +610,11 @@ class SendingProcess:
         # and renames the columns to id, asset_code, user_ts, reading
         try:
             for row in raw_data:
+                # Adds timezone UTC
+                timestamp = applyDateFormat(row['ts'])
+
                 # Removes spaces
                 asset_code = row['key'].strip()
-
-                # Adds timezone UTC
-                timestamp = row['ts'] + "+00"
 
                 new_row = {
                     'id': row['id'],                    # Row id

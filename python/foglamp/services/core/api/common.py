@@ -11,6 +11,8 @@ from foglamp.common import logger
 from aiohttp import web
 from foglamp.services.core import server
 from foglamp.services.core.api.statistics import get_statistics
+from foglamp.services.core import connect
+from foglamp.common.configuration_manager import ConfigurationManager
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,6 +42,15 @@ async def ping(request):
     :Example:
            curl -X GET http://localhost:8081/foglamp/ping
     """
+
+    try:
+        auth_token = request.token
+    except AttributeError:
+        cfg_mgr = ConfigurationManager(connect.get_storage())
+        category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
+        allow_ping = True if category_item['value'].lower() == 'true' else False
+        if request.is_auth_optional is False and allow_ping is False:
+            raise web.HTTPForbidden
 
     def get_stats(k):
         v = [a['value'] for a in stats if a['key'] == k]

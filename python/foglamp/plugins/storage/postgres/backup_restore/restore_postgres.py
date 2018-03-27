@@ -427,10 +427,12 @@ class RestoreProcess(FoglampProcess):
         Raises:
         """
 
-        if 'FogLAMP uptime' in text:
+        text_upper = text.upper()
+
+        if 'FOGLAMP UPTIME' in text_upper:
             status = self.FogLampStatus.RUNNING
 
-        elif 'FogLAMP not running.' in text:
+        elif 'FOGLAMP NOT RUNNING.' in text_upper:
             status = self.FogLampStatus.STOPPED
 
         else:

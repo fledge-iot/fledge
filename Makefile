@@ -67,16 +67,20 @@ FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
-COMMON_SCRIPTS_SRC         := scripts/common
-POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres.sh
-SOUTH_SCRIPT_SRC           := scripts/services/south
-STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
-STORAGE_SCRIPT_SRC         := scripts/storage
-NORTH_SCRIPT_SRC           := scripts/tasks/north
-PURGE_SCRIPT_SRC           := scripts/tasks/purge
-STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
-BACKUP_POSTGRES            := scripts/tasks/backup_postgres
-RESTORE_POSTGRES           := scripts/tasks/restore_postgres
+COMMON_SCRIPTS_SRC          := scripts/common
+POSTGRES_SCRIPT_SRC         := scripts/plugins/storage/postgres.sh
+SOUTH_SCRIPT_SRC            := scripts/services/south
+STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
+STORAGE_SCRIPT_SRC          := scripts/storage
+NORTH_SCRIPT_SRC            := scripts/tasks/north
+PURGE_SCRIPT_SRC            := scripts/tasks/purge
+STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
+BACKUP_POSTGRES             := scripts/tasks/backup_postgres
+RESTORE_POSTGRES            := scripts/tasks/restore_postgres
+CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
+
+# EXTRA SCRIPTS
+EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
 
 # FOGBENCH 
 FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
@@ -236,7 +240,8 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_statistics_script \
 	install_storage_script \
 	install_backup_postgres_script \
-	install_restore_postgres_script
+	install_restore_postgres_script \
+	install_check_certificates_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -273,6 +278,9 @@ install_backup_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(BACKUP_POSTGRES)
 
 install_restore_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_POSTGRES)
 	$(CP) $(RESTORE_POSTGRES) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_check_certificates_script : $(SCRIPT_TASKS_INSTALL_DIR) $(CHECK_CERTS_TASK_SCRIPT_SRC)
+	$(CP) $(CHECK_CERTS_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
@@ -313,13 +321,19 @@ $(BIN_INSTALL_DIR) :
 ####################### EXTRAS INSTALL TARGETS ################################
 ###############################################################################
 # install bin
-extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench
+extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts
 
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
 
 $(FOGBENCH_PYTHON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+install_extras_scripts : $(EXTRAS_INSTALL_DIR) $(EXTRAS_SCRIPTS_SRC_DIR)
+	$(CP_DIR) $(EXTRAS_SCRIPTS_SRC_DIR) $(EXTRAS_INSTALL_DIR)
+
+	sed -i "s|export FOGLAMP_ROOT=.*|export FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/setenv.sh
+	sed -i "s|^FOGLAMP_ROOT=.*|FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/foglamp.service
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :

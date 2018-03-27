@@ -15,12 +15,11 @@ import sys
 import shutil
 import json
 import tarfile
-import asyncio
 import fnmatch
-import aiohttp
 import subprocess
 from foglamp.services.core.connect import *
 from foglamp.common import logger
+from foglamp.services.core.api.service import get_service_records
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -36,12 +35,9 @@ class SupportBuilder:
 
     _out_file_path = None
     _interim_file_path = None
-    _base_url = None
-    _headers = None
     _storage = None
-    _rest_api_port = None
-    
-    def __init__(self, support_dir, base_url):
+
+    def __init__(self, support_dir):
         try:
             if not os.path.exists(support_dir):
                 os.makedirs(support_dir)
@@ -50,16 +46,13 @@ class SupportBuilder:
 
             self._out_file_path = support_dir
             self._interim_file_path = support_dir
-            self._base_url = base_url
-            self._headers = {"Content-Type": 'application/json'}
             self._storage = get_storage()  # from foglamp.services.core.connect
         except (OSError, Exception) as ex:
             _LOGGER.error("Error in initializing SupportBuilder class: %s ", str(ex))
             raise RuntimeError(str(ex))
 
-    async def build(self):
+    def build(self):
         try:
-            loop = asyncio.get_event_loop()
             today = datetime.datetime.now()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
             tar_file_name = self._out_file_path+"/"+"support-{}.tar.gz".format(file_spec)
@@ -71,7 +64,7 @@ class SupportBuilder:
                 self.add_table_audit_log(pyz, file_spec)
                 self.add_table_schedules(pyz, file_spec)
                 self.add_table_scheduled_processes(pyz, file_spec)
-                await self.add_service_registry(pyz, file_spec, loop=loop)
+                self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)
             finally:
@@ -144,19 +137,13 @@ class SupportBuilder:
         data = self._storage.query_tbl("scheduled_processes")
         self.write_to_tar(pyz, temp_file, data)
 
-    async def add_service_registry(self, pyz, file_spec, loop=None):
+    def add_service_registry(self, pyz, file_spec):
         # The contents of the service registry
         temp_file = self._interim_file_path + "/" + "service_registry-{}".format(file_spec)
-        loop = asyncio.get_event_loop() if loop is None else loop
-        url_ping = self._base_url+'/service'
-        connector = aiohttp.TCPConnector(verify_ssl=False)
-        async with aiohttp.ClientSession(loop=loop, connector=connector) as session:
-            async with session.get(url_ping) as resp:
-                r = await resp.json()
-                data = {
-                    "about": "Service Registry",
-                    "serviceRegistry": r
-                }
+        data = {
+            "about": "Service Registry",
+            "serviceRegistry": get_service_records()
+        }
         self.write_to_tar(pyz, temp_file, data)
 
     def add_machine_resources(self, pyz, file_spec):

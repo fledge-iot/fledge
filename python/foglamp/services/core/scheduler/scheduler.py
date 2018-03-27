@@ -29,8 +29,8 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.common import utils
 
-__author__ = "Terris Linenbach, Amarendra K Sinha"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -677,11 +677,22 @@ class Scheduler(object):
 
                 schedule_id = uuid.UUID(row.get('id'))
 
+                #
+                # row.get('schedule_day') returns an int, say 0, from SQLite
+                # and "0", as a string, from Postgres
+                # We handle here this difference
+                #
+
+                if type(row.get('schedule_day')) is str:
+                    s_day = int(row.get('schedule_day')) if row.get('schedule_day').strip() else None
+                else:
+                    s_day = int(row.get('schedule_day'))
+
                 schedule = self._ScheduleRow(
                     id=schedule_id,
                     name=row.get('schedule_name'),
                     type=int(row.get('schedule_type')),
-                    day=int(row.get('schedule_day')) if row.get('schedule_day').strip() else None,
+                    day=s_day,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,

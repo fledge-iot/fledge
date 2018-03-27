@@ -383,3 +383,10 @@ class TestUserModel:
                     User.Objects.delete_token("eyx")
                 assert str(excinfo.value) == expected['message']
         delete_tbl_patch.assert_called_once_with('user_logins', payload)
+
+    def test_delete_all_user_tokens(self):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
+                User.Objects.delete_all_user_tokens()
+        delete_tbl_patch.assert_called_once_with('user_logins')

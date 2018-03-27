@@ -318,6 +318,11 @@ class User:
             return res
 
         @classmethod
+        def delete_all_user_tokens(cls):
+            storage_client = connect.get_storage()
+            storage_client.delete_from_tbl("user_logins")
+
+        @classmethod
         def hash_password(cls, password):
             # uuid is used to generate a random number
             salt = uuid.uuid4().hex

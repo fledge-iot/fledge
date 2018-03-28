@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
-
+ERROR_MSG = 'Something went wrong'
 
 class User:
 
@@ -97,7 +97,7 @@ class User:
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
-                raise ValueError(ex.error['message'])
+                raise ValueError(ERROR_MSG)
             return result
 
         @classmethod
@@ -124,7 +124,7 @@ class User:
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
-                raise ValueError(ex.error['message'])
+                raise ValueError(ERROR_MSG)
             return result
 
         @classmethod
@@ -156,7 +156,7 @@ class User:
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry UPDATE
-                raise ValueError(ex.error['message'])
+                raise ValueError(ERROR_MSG)
             except Exception:
                 raise
 
@@ -283,7 +283,7 @@ class User:
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
-                raise ValueError(ex.error['message'])
+                raise ValueError(ERROR_MSG)
 
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
@@ -300,7 +300,7 @@ class User:
             except StorageServerError as ex:
                 if not ex.error["retryable"]:
                     pass
-                raise ValueError(ex.error['message'])
+                raise ValueError(ERROR_MSG)
 
             return res
 
@@ -313,9 +313,14 @@ class User:
             except StorageServerError as ex:
                 if not ex.error["retryable"]:
                     pass
-                raise ValueError(ex.error['message'])
+                raise ValueError(ERROR_MSG)
 
             return res
+
+        @classmethod
+        def delete_all_user_tokens(cls):
+            storage_client = connect.get_storage()
+            storage_client.delete_from_tbl("user_logins")
 
         @classmethod
         def hash_password(cls, password):

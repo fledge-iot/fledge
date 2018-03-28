@@ -140,7 +140,7 @@ class TestUserModel:
 
     def test_create_user_exception(self):
         hashed_password = "dd7171406eaf4baa8bc805857f719bca"
-        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'insert'}
+        expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'insert'}
         payload = '{"pwd": "dd7171406eaf4baa8bc805857f719bca", "role_id": 1, "uname": "aj"}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -177,7 +177,7 @@ class TestUserModel:
         assert str(excinfo.value) == 'Super admin user can not be deleted'
 
     def test_delete_user_exception(self):
-        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
+        expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"values": {"enabled": "False"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -209,7 +209,7 @@ class TestUserModel:
                 hash_pwd_patch.assert_called_once_with(user_data['password'], )
 
     def test_update_user_storage_exception(self):
-        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'update'}
+        expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'update'}
         payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -284,7 +284,7 @@ class TestUserModel:
 
     def test_login_exception(self):
         pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1'}]}
-        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
+        expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"return": ["pwd", "id", "role_id"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -308,7 +308,7 @@ class TestUserModel:
             delete_tbl_patch.assert_called_once_with('user_logins', payload)
 
     def test_delete_user_tokens_exception(self):
-        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
+        expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -374,7 +374,7 @@ class TestUserModel:
             delete_tbl_patch.assert_called_once_with('user_logins', payload)
 
     def test_delete_token_exception(self):
-        expected = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'delete'}
+        expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"where": {"column": "token", "condition": "=", "value": "eyx"}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -383,3 +383,10 @@ class TestUserModel:
                     User.Objects.delete_token("eyx")
                 assert str(excinfo.value) == expected['message']
         delete_tbl_patch.assert_called_once_with('user_logins', payload)
+
+    def test_delete_all_user_tokens(self):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
+                User.Objects.delete_all_user_tokens()
+        delete_tbl_patch.assert_called_once_with('user_logins')

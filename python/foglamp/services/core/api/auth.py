@@ -43,6 +43,8 @@ PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
 
+FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
+
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
 DEFAULT_ROLE_ID = 2
@@ -192,8 +194,11 @@ async def create_user(request):
         curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/user
         curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
     """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+    
     data = await request.json()
-
     username = data.get('username')
     password = data.get('password')
     role_id = data.get('role_id', DEFAULT_ROLE_ID)
@@ -259,15 +264,12 @@ async def update_user(request):
         curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
         curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
     """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
 
     # we don't have any user profile info yet, let's allow to update role or password only
     user_id = request.match_info.get('id')
-
-    if (request.is_auth_optional is True) and int(user_id) == 1:
-        msg = "Super admin user can not be updated"
-        _logger.warning(msg)
-        raise web.HTTPNotAcceptable(reason=msg)  # auth is optional
-
     data = await request.json()
     role_id = data.get('role_id')
     password = data.get('password')
@@ -285,7 +287,7 @@ async def update_user(request):
         _logger.warning(msg)
         raise web.HTTPUnauthorized(reason=msg)
 
-    if (request.is_auth_optional is False) and (int(user_id) == 1 and role_id):
+    if int(user_id) == 1 and role_id:
         msg = "Role updation restricted for Super Admin user"
         _logger.warning(msg)
         raise web.HTTPNotAcceptable(reason=msg)  # auth is mandatory
@@ -323,12 +325,17 @@ async def update_user(request):
     return web.json_response({'message': 'User with id:<{}> has been updated successfully'.format(user_id)})
 
 
+@has_permission("admin")
 async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
         curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
     """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
     # TODO: we should not prevent this, when we have at-least 1 admin (super) user
     try:
         user_id = int(request.match_info.get('id'))
@@ -340,15 +347,12 @@ async def delete_user(request):
         msg = "Super admin user can not be deleted"
         _logger.warning(msg)
         raise web.HTTPNotAcceptable(reason=msg)
-
+    
     # Requester should not be able to delete her/himself
-    if request.is_auth_optional is False:
-        if user_id == request.user["id"]:
-            msg = "Only admin can disable or delete the account"
-            _logger.warning(msg)
-            raise web.HTTPBadRequest(reason=msg)
-
-    check_authorization(request, user_id, "delete")
+    if user_id == request.user["id"]:
+        msg = "You can not delete your own account"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
 
     try:
         result = User.Objects.delete(user_id)

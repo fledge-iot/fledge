@@ -113,7 +113,7 @@ class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
     pass
 
-def applyDateFormat(inData):
+def apply_date_format(in_data):
     """ This routine adds the default UTC zone format to the input date time string
     If a timezone (strting with + or -) is found, all the following chars
     are replaced by +00, otherwise +00 is added.
@@ -134,18 +134,18 @@ def applyDateFormat(inData):
     """
 
     # Look for timezone start with '-' a the end of the date (-XY:WZ)
-    zoneIndex = inData.rfind("-")
+    zone_index = in_data.rfind("-")
     # If index is less than 10 we don't have the trailing zone with -
-    if (zoneIndex < 10):
+    if (zone_index < 10):
         #  Look for timezone start with '+' (+XY:ZW)
-        zoneIndex = inData.rfind("+")
+        zone_index = in_data.rfind("+")
 
-    if zoneIndex == -1:
+    if zone_index == -1:
         # Just add +00
-        timestamp = inData + "+00"
+        timestamp = in_data + "+00"
     else:
         # Remove everything after - or + and add +00
-        timestamp = inData[:zoneIndex] + "+00"
+        timestamp = in_data[:zone_index] + "+00"
 
     return timestamp
 
@@ -542,7 +542,7 @@ class SendingProcess:
                     payload[key] = plugin_common.convert_to_type(value)
 
                 # Adds timezone UTC
-                timestamp = applyDateFormat(row['user_ts'])
+                timestamp = apply_date_format(row['user_ts'])
 
                 new_row = {
                     'id': row['id'],
@@ -611,7 +611,7 @@ class SendingProcess:
         try:
             for row in raw_data:
                 # Adds timezone UTC
-                timestamp = applyDateFormat(row['ts'])
+                timestamp = apply_date_format(row['ts'])
 
                 # Removes spaces
                 asset_code = row['key'].strip()

@@ -134,18 +134,18 @@ def apply_date_format(in_data):
     """
 
     # Look for timezone start with '-' a the end of the date (-XY:WZ)
-    zoneIndex = in_data.rfind("-")
+    zone_index = in_data.rfind("-")
     # If index is less than 10 we don't have the trailing zone with -
-    if (zoneIndex < 10):
+    if (zone_index < 10):
         #  Look for timezone start with '+' (+XY:ZW)
-        zoneIndex = in_data.rfind("+")
+        zone_index = in_data.rfind("+")
 
-    if zoneIndex == -1:
+    if zone_index == -1:
         # Just add +00
         timestamp = in_data + "+00"
     else:
         # Remove everything after - or + and add +00
-        timestamp = in_data[:zoneIndex] + "+00"
+        timestamp = in_data[:zone_index] + "+00"
 
     return timestamp
 

@@ -1,0 +1,7 @@
+{
+	"where" : {
+		"column" : "ts",
+		"condition" : "older",
+		"value" : 600
+		}
+}

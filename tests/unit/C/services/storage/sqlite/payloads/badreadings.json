@@ -1,0 +1,10 @@
+{
+   "noreadings" : [
+		{
+			"asset_code": "MyAsset",
+			"read_key" : "f1cfff7a-3769-4f47-9ded-00f0975d66f5",
+			"reading" : { "rate" : 90 },
+			"user_ts" : "2017-10-11 15:10:51.927191906"
+		}
+	]
+}

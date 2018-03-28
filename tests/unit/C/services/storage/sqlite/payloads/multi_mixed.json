@@ -1,0 +1,17 @@
+{
+	"where" : {
+			"column" : "id",
+			"condition" : "<",
+			"value" : "3",
+			"or" : {
+				"column" : "id",
+				"condition" : ">",
+				"value" : "7",
+				"and" : {
+					"column" : "description",
+					"condition" : "=",
+					"value" : "A test row"
+				}
+			}
+		}
+}

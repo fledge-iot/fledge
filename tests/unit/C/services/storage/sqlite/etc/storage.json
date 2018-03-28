@@ -1,0 +1,15 @@
+{
+	"plugin" : {
+			"value":"sqlite"
+		   },
+	"threads":
+		   {
+			"value":"1"
+		   },
+	"port":    {
+			"value":"8080"
+		   },
+	"managementPort": {
+			"value":"1081"
+			  }
+}

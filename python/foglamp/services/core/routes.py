@@ -31,6 +31,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/user', auth.get_user)
     app.router.add_route('POST', '/foglamp/user', auth.create_user)
     app.router.add_route('PUT', '/foglamp/user/{id}', auth.update_user)
+    app.router.add_route('PUT', '/foglamp/user/{id}/password', auth.update_password)
     app.router.add_route('DELETE', '/foglamp/user/{id}', auth.delete_user)
 
     # role

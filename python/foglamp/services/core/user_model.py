@@ -18,7 +18,7 @@ from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
 
-__author__ = "Praveen Garg"
+__author__ = "Praveen Garg, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -28,7 +28,7 @@ JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
-MAX_PASSWORD_HISTORY_LEN = 3
+USED_PASSWORD_HISTORY_COUNT = 3
 
 
 class User:
@@ -57,7 +57,7 @@ class User:
     class PasswordDoesNotMatch(Exception):
         pass
 
-    class PasswordAlreadyInUse(Exception):
+    class PasswordAlreadyUsed(Exception):
         pass
 
     class InvalidToken(Exception):
@@ -154,7 +154,8 @@ class User:
             if 'password' in user_data:
                 if len(user_data['password']):
                     hashed_pwd = cls.hash_password(user_data['password'])
-                    kwargs.update({"pwd": hashed_pwd})
+                    current_datetime = datetime.now()
+                    kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history
                     payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
@@ -162,28 +163,27 @@ class User:
                     for row in result['rows']:
                         is_valid = cls.check_password(row['pwd'], user_data['password'])
                         if is_valid:
-                            raise User.PasswordAlreadyInUse
+                            raise User.PasswordAlreadyUsed
                         pwd_history_list.append(row['pwd'])
-
-            # update the password
             try:
                 payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 'True']).payload()
                 result = storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
-                    current_datetime = datetime.now()
-                    # update the pwd_last_changed field in users table
-                    payload = PayloadBuilder().SET(pwd_last_changed=str(current_datetime)).WHERE(['id', '=', user_id]).payload()
-                    result = storage_client.update_tbl("users", payload)
+                    # FIXME: FOGL-1226 active session delete only in case of role_id and password updation
 
-                    # delete oldest password for user
-                    if len(pwd_history_list) >= MAX_PASSWORD_HISTORY_LEN:
-                        payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).AND_WHERE(['pwd', '=', pwd_history_list[-1]]).payload()
-                        storage_client.delete_from_tbl("user_pwd_history", payload)
+                    # delete all active sessions
+                    cls.delete_user_tokens(user_id)
 
-                    # insert into password history table
-                    payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
-                    storage_client.insert_into_tbl("user_pwd_history", payload)
+                    if 'password' in user_data:
+                        # delete oldest password for user, as storage result in sorted order so its safe to delete its last index from pwd_history_list
+                        if len(pwd_history_list) >= USED_PASSWORD_HISTORY_COUNT:
+                            payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).AND_WHERE(['pwd', '=', pwd_history_list[-1]]).payload()
+                            storage_client.delete_from_tbl("user_pwd_history", payload)
+
+                        # insert into password history table
+                        payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
+                        storage_client.insert_into_tbl("user_pwd_history", payload)
                     return True
             except StorageServerError as ex:
                 if ex.error["retryable"]:
@@ -191,6 +191,14 @@ class User:
                 raise ValueError(ERROR_MSG)
             except Exception:
                 raise
+
+        @classmethod
+        def is_password_exists(cls, user_id, password):
+            storage_client = connect.get_storage()
+            payload = PayloadBuilder().SELECT("pwd").WHERE(['id', '=', user_id]).payload()
+            result = storage_client.query_tbl_with_payload('users', payload)
+            is_valid = cls.check_password(result['rows'][0]['pwd'], str(password))
+            return is_valid
 
         # utility
         @classmethod

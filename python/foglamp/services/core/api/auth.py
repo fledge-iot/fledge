@@ -15,7 +15,7 @@ from foglamp.common.web.middleware import has_permission
 from foglamp.common import logger
 
 
-__author__ = "Praveen Garg"
+__author__ = "Praveen Garg, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -26,11 +26,12 @@ _help = """
     ------------------------------------------------------------------------------------
     | GET POST                   | /foglamp/user                                       |
     | PUT DELETE                 | /foglamp/user/{id}                                  |
+    | PUT                        | /foglamp/user/{id}/password                         |     
 
     | GET                        | /foglamp/user/role                                  |
     
     | POST                       | /foglamp/login                                      |
-    | PUT                        | /foglamp/{user_id}/logout                                |
+    | PUT                        | /foglamp/{user_id}/logout                           |
     ------------------------------------------------------------------------------------
 """
 
@@ -261,20 +262,17 @@ async def update_user(request):
 
     :Example:
         curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/user/<id>
-        curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
-        curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    # we don't have any user profile info yet, let's allow to update role or password only
+    # we don't have any user profile info yet, let's allow to update role only
     user_id = request.match_info.get('id')
     data = await request.json()
     role_id = data.get('role_id')
-    password = data.get('password')
 
-    if not role_id and not password:
+    if not role_id:
         msg = "Nothing to update the user"
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
@@ -290,22 +288,11 @@ async def update_user(request):
     if int(user_id) == 1 and role_id:
         msg = "Role updation restricted for Super Admin user"
         _logger.warning(msg)
-        raise web.HTTPNotAcceptable(reason=msg)  # auth is mandatory
-
-    if password and not isinstance(password, str):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-    if password and not re.match(PASSWORD_REGEX_PATTERN, password):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
-    check_authorization(request, user_id, "update")
+        raise web.HTTPNotAcceptable(reason=msg)
 
     user_data = {}
     if 'role_id' in data:
         user_data.update({'role_id': data['role_id']})
-    if 'password' in data:
-        user_data.update({'password': data['password']})
 
     try:
         User.Objects.update(user_id, user_data)
@@ -316,7 +303,61 @@ async def update_user(request):
         msg = "User with id:<{}> does not exist".format(int(user_id))
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
-    except User.PasswordAlreadyInUse:
+    except Exception as exc:
+        _logger.exception(str(exc))
+        raise web.HTTPInternalServerError(reason=str(exc))
+
+    _logger.info("User profile for id:<{}> has been updated successfully".format(int(user_id)))
+
+    return web.json_response({'message': 'User profile for id:<{}> has been updated successfully'.format(int(user_id))})
+
+
+async def update_password(request):
+    """ update password
+
+        :Example:
+             curl -H "authorization: <token>" -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/foglamp/user/<id>/password
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('id')
+    data = await request.json()
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    if not current_password or not new_password:
+        msg = "Either current or new password key is missing"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
+    if new_password and not isinstance(new_password, str):
+        _logger.warning(PASSWORD_ERROR_MSG)
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if new_password and not re.match(PASSWORD_REGEX_PATTERN, new_password):
+        _logger.warning(PASSWORD_ERROR_MSG)
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+
+    if current_password == new_password:
+        raise web.HTTPBadRequest(reason="New password should not be same as current password")
+
+    # FIXME: check user_id and its current password, if matched then move ahead
+    is_valid = User.Objects.is_password_exists(user_id, current_password)
+    if not is_valid:
+        msg = 'Current password does not match'
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
+    try:
+        User.Objects.update(int(user_id), {'password': new_password})
+    except ValueError as ex:
+        _logger.warning(str(ex))
+        raise web.HTTPBadRequest(reason=str(ex))
+    except User.DoesNotExist:
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        _logger.warning(msg)
+        raise web.HTTPNotFound(reason=msg)
+    except User.PasswordAlreadyUsed:
         msg = "The new password should be different from previous 3 used"
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
@@ -324,9 +365,9 @@ async def update_user(request):
         _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
 
-    _logger.info("User with id:<{}> has been updated successfully".format(int(user_id)))
+    _logger.info("Password has been updated successfully for user id:<{}>".format(int(user_id)))
 
-    return web.json_response({'message': 'User with id:<{}> has been updated successfully'.format(user_id)})
+    return web.json_response({'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
 
 
 @has_permission("admin")

@@ -1,0 +1,34 @@
+{
+	"where" : {
+				"column" : "asset_code",
+				"condition" : "=",
+				"value" : "MyAsset"
+			},
+	"aggregate" : [
+			{
+				"operation" : "min",
+				"json" : {
+						"column" : "reading",
+						"properties" : "rate"
+					 },
+				"alias" : "min"
+			},
+			{
+				"operation" : "max",
+				"json" : {
+						"column" : "reading",
+						"properties" : "rate"
+					 },
+				"alias" : "max"
+			},
+			{
+				"operation" : "avg",
+				"json" : {
+						"column" : "reading",
+						"properties" : "rate"
+					 },
+				"alias" : "average"
+			}
+		      ],
+	"group" : "asset_code"
+}

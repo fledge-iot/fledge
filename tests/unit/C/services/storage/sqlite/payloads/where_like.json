@@ -1,0 +1,12 @@
+{
+	"where" : {
+				"column" : "description",
+				"condition" : "like",
+				"value" : "%row%",
+				"and" : {
+					"column" : "key",
+					"condition" : "!=",
+					"value" : "T2NOW"
+					}
+			}
+}

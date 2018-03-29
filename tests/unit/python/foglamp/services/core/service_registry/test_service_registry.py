@@ -111,11 +111,14 @@ class TestServiceRegistry:
         with patch.object(ServiceRegistry._logger, 'info') as log_i:
             s_id = ServiceRegistry.unregister(reg_id)
             assert 36 == len(s_id)  # uuid version 4 len
-            assert 0 == len(ServiceRegistry._registry)
+            assert 1 == len(ServiceRegistry._registry)
+            s = ServiceRegistry.get(idx=s_id)
+            assert s[0]._status == 2
+
         args, kwargs = log_i.call_args
         assert args[0].startswith('Unregistered service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
-                                ' management port=4321, status=1>')
+                                ' management port=4321, status=2>')
         assert 1 == log_i.call_count
 
     def test_unregister_non_existing_service_record(self):

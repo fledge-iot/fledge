@@ -38,12 +38,18 @@ class ServiceRegistry:
         :return: registered services' uuid
         """
 
+        new_service = True
         try:
-            cls.get(name=name)
+            current_service = cls.get(name=name)
         except service_registry_exceptions.DoesNotExist:
             pass
         else:
-            raise service_registry_exceptions.AlreadyExistsWithTheSameName
+            # Re: FOGL-1183
+            if current_service[0]._status in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
+                raise service_registry_exceptions.AlreadyExistsWithTheSameName
+            else:
+                new_service = False
+                current_service_id = current_service[0]._id
 
         if port is not None and cls.check_address_and_port(address, port):
             raise service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort
@@ -56,7 +62,7 @@ class ServiceRegistry:
         if not isinstance(management_port, int):
             raise service_registry_exceptions.NonNumericPortError
 
-        service_id = str(uuid.uuid4())
+        service_id = str(uuid.uuid4()) if new_service is True else current_service_id
         registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
@@ -71,7 +77,9 @@ class ServiceRegistry:
         """
         services = cls.get(idx=service_id)
         service_name = services[0]._name
-        cls._registry.remove(services[0])
+        # Re: FOGL-1183
+        if services[0]._status != ServiceRecord.Status.Failed:
+            services[0]._status = ServiceRecord.Status.Unregistered
         cls._logger.info("Unregistered {}".format(str(services[0])))
         cls._remove_from_scheduler_records(service_name)
         return service_id

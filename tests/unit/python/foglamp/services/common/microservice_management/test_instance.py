@@ -76,9 +76,8 @@ class TestInstance:
         t = Service.unregister(idx)
         assert idx == t
 
-        with pytest.raises(DoesNotExist) as excinfo:
-            Service.get(idx)
-        assert str(excinfo).endswith('DoesNotExist')
+        s = Service.get(idx)
+        assert s[0]._status == 2  # Unregistered
 
     async def test_get(self):
         s = Service.register("StorageService", "Storage", "localhost", 8881, 1888)

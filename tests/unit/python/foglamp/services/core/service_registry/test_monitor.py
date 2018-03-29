@@ -4,17 +4,11 @@ import pytest
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
-from unittest.mock import call
 import aiohttp
-import json
-import asyncio
-from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.storage_client.storage_client import StorageClient
-from foglamp.common.audit_logger import AuditLogger
-from foglamp.services.core import connect
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.common.service_record import ServiceRecord
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -59,6 +53,7 @@ class TestMonitor:
             'sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
         monitor = Monitor()
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
+        monitor._max_attempts = Monitor._DEFAULT_MAX_ATTEMPTS
 
         # throw the TestMonitorException when sleep is called (end of infinite loop)
         with patch.object(Monitor, '_sleep', side_effect=TestMonitorException()):
@@ -67,7 +62,7 @@ class TestMonitor:
                     await monitor._monitor_loop()
         # service is good, so it should remain in the service registry
         assert len(ServiceRegistry.get(idx=s_id_1)) is 1
-        assert ServiceRegistry.get(idx=s_id_1)[0]._status is 1
+        assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Running
 
     @pytest.mark.asyncio
     async def test__monitor_exceed_attempts(self, reset_service_registry):
@@ -94,6 +89,8 @@ class TestMonitor:
             'sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
         monitor = Monitor()
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
+        monitor._max_attempts = Monitor._DEFAULT_MAX_ATTEMPTS
+
         sleep_side_effect_list = list()
         # _MAX_ATTEMPTS is 15
         # throw exception on the 16th time sleep is called - the first 15 sleeps are used during retries
@@ -104,6 +101,5 @@ class TestMonitor:
             with patch.object(aiohttp.ClientSession, 'get', return_value=AsyncSessionContextManagerMock()):
                 with pytest.raises(TestMonitorException) as excinfo:
                     await monitor._monitor_loop()
-        # service is bad, so it would be removed from the service registry
-        with pytest.raises(service_registry_exceptions.DoesNotExist) as excinfo:
-            assert len(ServiceRegistry.get(idx=s_id_1)) is 0
+
+        assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Failed

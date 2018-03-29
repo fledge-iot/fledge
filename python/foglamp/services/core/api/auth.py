@@ -316,6 +316,10 @@ async def update_user(request):
         msg = "User with id:<{}> does not exist".format(int(user_id))
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
+    except User.PasswordAlreadyInUse:
+        msg = "The new password should be different from previous 3 used"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
         _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))

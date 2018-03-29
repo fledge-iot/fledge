@@ -28,6 +28,8 @@ JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
+MAX_PASSWORD_HISTORY_LEN = 3
+
 
 class User:
 
@@ -53,6 +55,9 @@ class User:
         pass
 
     class PasswordDoesNotMatch(Exception):
+        pass
+
+    class PasswordAlreadyInUse(Exception):
         pass
 
     class InvalidToken(Exception):
@@ -142,16 +147,43 @@ class User:
             if 'role_id' in user_data:
                 kwargs.update({"role_id": user_data['role_id']})
 
+            storage_client = connect.get_storage()
+
+            hashed_pwd = None
+            pwd_history_list = []
             if 'password' in user_data:
                 if len(user_data['password']):
                     hashed_pwd = cls.hash_password(user_data['password'])
                     kwargs.update({"pwd": hashed_pwd})
 
-            payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 'True']).payload()
-            storage_client = connect.get_storage()
+                    # get password history
+                    payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
+                    result = storage_client.query_tbl_with_payload("user_pwd_history", payload)
+                    for row in result['rows']:
+                        is_valid = cls.check_password(row['pwd'], user_data['password'])
+                        if is_valid:
+                            raise User.PasswordAlreadyInUse
+                        pwd_history_list.append(row['pwd'])
+
+            # update the password
             try:
+                payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
+                    ['enabled', '=', 'True']).payload()
                 result = storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
+                    current_datetime = datetime.now()
+                    # update the pwd_last_changed field in users table
+                    payload = PayloadBuilder().SET(pwd_last_changed=str(current_datetime)).WHERE(['id', '=', user_id]).payload()
+                    result = storage_client.update_tbl("users", payload)
+
+                    # delete oldest password for user
+                    if len(pwd_history_list) >= MAX_PASSWORD_HISTORY_LEN:
+                        payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).AND_WHERE(['pwd', '=', pwd_history_list[-1]]).payload()
+                        storage_client.delete_from_tbl("user_pwd_history", payload)
+
+                    # insert into password history table
+                    payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
+                    storage_client.insert_into_tbl("user_pwd_history", payload)
                     return True
             except StorageServerError as ex:
                 if ex.error["retryable"]:

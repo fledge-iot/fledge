@@ -161,7 +161,7 @@ class Server:
             'default': 'true'
         },
         'passwordChange': {
-            'description': 'No. of days which a password must be changed',
+            'description': 'Number of days which a password must be changed',
             'type': 'integer',
             'default': '0'
         }

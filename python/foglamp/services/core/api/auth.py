@@ -26,7 +26,7 @@ _help = """
     ------------------------------------------------------------------------------------
     | GET POST                   | /foglamp/user                                       |
     | PUT DELETE                 | /foglamp/user/{id}                                  |
-    | PUT                        | /foglamp/user/{id}/password                         |     
+    | PUT                        | /foglamp/user/{username}/password                   |     
 
     | GET                        | /foglamp/user/role                                  |
     
@@ -59,7 +59,6 @@ async def login(request):
     """
 
     data = await request.json()
-
     username = data.get('username')
     password = data.get('password')
 
@@ -77,7 +76,7 @@ async def login(request):
         uid, token, is_admin = User.Objects.login(username, password, host)
     except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
         _logger.warning(str(ex))
-        return web.HTTPBadRequest(reason=str(ex))
+        return web.HTTPNotFound(reason=str(ex))
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
 
@@ -316,13 +315,13 @@ async def update_password(request):
     """ update password
 
         :Example:
-             curl -H "authorization: <token>" -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/foglamp/user/<id>/password
+             curl -H "authorization: <token>" -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/foglamp/user/<username>/password
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    user_id = request.match_info.get('id')
+    username = request.match_info.get('username')
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -341,12 +340,11 @@ async def update_password(request):
     if current_password == new_password:
         raise web.HTTPBadRequest(reason="New password should not be same as current password")
 
-    # FIXME: check user_id and its current password, if matched then move ahead
-    is_valid = User.Objects.is_password_exists(user_id, current_password)
-    if not is_valid:
-        msg = 'Current password does not match'
+    user_id = User.Objects.is_user_exists(username, current_password)
+    if not user_id:
+        msg = 'Username or Password do not match'
         _logger.warning(msg)
-        raise web.HTTPBadRequest(reason=msg)
+        raise web.HTTPNotFound(reason=msg)
 
     try:
         User.Objects.update(int(user_id), {'password': new_password})

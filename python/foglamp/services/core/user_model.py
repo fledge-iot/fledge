@@ -193,12 +193,16 @@ class User:
                 raise
 
         @classmethod
-        def is_password_exists(cls, user_id, password):
+        def is_user_exists(cls, username, password):
+            payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(['enabled', '=', 'True']).payload()
             storage_client = connect.get_storage()
-            payload = PayloadBuilder().SELECT("pwd").WHERE(['id', '=', user_id]).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
-            is_valid = cls.check_password(result['rows'][0]['pwd'], str(password))
-            return is_valid
+            if len(result['rows']) == 0:
+                return None
+
+            found_user = result['rows'][0]
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            return result['rows'][0]['id'] if is_valid_pwd else None
 
         # utility
         @classmethod

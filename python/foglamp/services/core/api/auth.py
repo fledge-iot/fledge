@@ -73,10 +73,13 @@ async def login(request):
     if peername is not None:
         host, port = peername
     try:
-        uid, token, is_admin = User.Objects.login(username, password, host)
+        uid, token, is_admin = await User.Objects.login(username, password, host)
     except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
         _logger.warning(str(ex))
         return web.HTTPNotFound(reason=str(ex))
+    except User.PasswordExpired as ex:
+        _logger.warning(str(ex))
+        return web.HTTPBadRequest(reason=str(ex))
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
 

@@ -17,6 +17,7 @@ import jwt
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.common.configuration_manager import ConfigurationManager
 
 __author__ = "Praveen Garg, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -58,6 +59,9 @@ class User:
         pass
 
     class PasswordAlreadyUsed(Exception):
+        pass
+
+    class PasswordExpired(Exception):
         pass
 
     class InvalidToken(Exception):
@@ -286,29 +290,41 @@ class User:
             return user_payload["uid"]
 
         @classmethod
-        def login(cls, username, password, host):
+        async def login(cls, username, password, host):
             """
             Args:
                 username: username
                 password: password
-                host:     host address
+                host:     IP address
             Returns:
                   return token
 
             """
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id").WHERE(['uname', '=', username]).\
+            # check password change configuration
+            cfg_mgr = ConfigurationManager(connect.get_storage())
+            category_item = await cfg_mgr.get_category_item('rest_api', 'passwordChange')
+            age = int(category_item['value'])
+
+            # get user info on the basis of username
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "pwd_last_changed").WHERE(['uname', '=', username]).\
                 AND_WHERE(['enabled', '=', 'True']).payload()
             storage_client = connect.get_storage()
-
             result = storage_client.query_tbl_with_payload('users', payload)
-
             if len(result['rows']) == 0:
                 raise User.DoesNotExist('User does not exist')
 
             found_user = result['rows'][0]
 
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            # check age of password
+            t1 = datetime.now()
+            t2 = datetime.strptime(found_user['pwd_last_changed'][:-6], "%Y-%m-%d %H:%M:%S.%f") # ignore timezone
+            delta = t1 - t2
 
+            if age > delta.days:
+                raise User.PasswordExpired('Your password has been expired. Please set your password again.')
+
+            # validate password
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
             if not is_valid_pwd:
                 raise User.PasswordDoesNotMatch('Username or Password do not match')
 

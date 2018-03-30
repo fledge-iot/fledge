@@ -129,18 +129,20 @@ class TestAuthOptional:
             patch_logger.assert_called_once_with('Username and password are required to login')
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/login')
 
-    @pytest.mark.parametrize("request_data, exception_name, msg", [
-        ({"username": "blah", "password": "blah"}, User.DoesNotExist, 'User does not exist'),
-        ({"username": "admin", "password": "blah"}, User.PasswordDoesNotMatch, 'Username or Password do not match'),
-        ({"username": "admin", "password": 123}, User.PasswordDoesNotMatch, 'Username or Password do not match'),
-        ({"username": 1, "password": 1}, ValueError, 'Username should be a valid string')
+    @pytest.mark.parametrize("request_data, status_code, exception_name, msg", [
+        ({"username": "blah", "password": "blah"}, 404, User.DoesNotExist, 'User does not exist'),
+        ({"username": "admin", "password": "blah"}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
+        ({"username": "admin", "password": 123}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
+        ({"username": 1, "password": 1}, 404, ValueError, 'Username should be a valid string'),
+        ({"username": "user", "password": "foglamp"}, 401, User.PasswordExpired, 'Password has been expired')
     ])
-    async def test_login_exception(self, client, request_data, exception_name, msg):
+    async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
                 with patch.object(auth._logger, 'warning') as patch_logger:
                     resp = await client.post('/foglamp/login', data=json.dumps(request_data))
-                    assert 400 == resp.status
+                    assert status_code == resp.status
+                    assert msg == resp.reason
                 patch_logger.assert_called_once_with(msg)
             # TODO: host arg patch transport.request.extra_info
             args, kwargs = patch_user_login.call_args
@@ -154,8 +156,11 @@ class TestAuthOptional:
         ({"username": "user", "password": "foglamp"}, (2, "token2", False))
     ])
     async def test_login(self, client, request_data, ret_val):
+        async def async_mock():
+            return ret_val
+
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'login', return_value=ret_val) as patch_user_login:
+            with patch.object(User.Objects, 'login', return_value=async_mock()) as patch_user_login:
                 with patch.object(auth._logger, 'info') as patch_logger:
                     resp = await client.post('/foglamp/login', data=json.dumps(request_data))
                     assert 200 == resp.status
@@ -165,11 +170,11 @@ class TestAuthOptional:
                     assert ret_val[1] == actual['token']
                     assert ret_val[2] == actual['admin']
                 patch_logger.assert_called_once_with('User with username:<{}> has been logged in successfully'.format(request_data['username']))
-                # TODO: host arg patch transport.request.extra_info
-                args, kwargs = patch_user_login.call_args
-                assert request_data['username'] == args[0]
-                assert request_data['password'] == args[1]
-                # patch_user_login.assert_called_once_with()
+            # TODO: host arg patch transport.request.extra_info
+            args, kwargs = patch_user_login.call_args
+            assert request_data['username'] == args[0]
+            assert request_data['password'] == args[1]
+            # patch_user_login.assert_called_once_with()
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/login')
 
     async def test_logout(self, client):

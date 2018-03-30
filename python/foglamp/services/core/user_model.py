@@ -290,14 +290,14 @@ class User:
 
             """
             # check password change configuration
-            cfg_mgr = ConfigurationManager(connect.get_storage())
+            storage_client = connect.get_storage()
+            cfg_mgr = ConfigurationManager(storage_client)
             category_item = await cfg_mgr.get_category_item('rest_api', 'passwordChange')
             age = int(category_item['value'])
 
             # get user info on the basis of username
             payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "pwd_last_changed").WHERE(['uname', '=', username]).\
                 AND_WHERE(['enabled', '=', 'True']).payload()
-            storage_client = connect.get_storage()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
                 raise User.DoesNotExist('User does not exist')
@@ -313,7 +313,7 @@ class User:
                 pass
             elif age <= delta.days:
                 # user will be forced to change their password.
-                raise User.PasswordExpired('Your password has been expired. Please set your password again.')
+                raise User.PasswordExpired('Your password has been expired. Please set your password again')
 
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))

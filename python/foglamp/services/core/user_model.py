@@ -161,14 +161,8 @@ class User:
                     current_datetime = datetime.now()
                     kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
-                    # get password history
-                    payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
-                    result = storage_client.query_tbl_with_payload("user_pwd_history", payload)
-                    for row in result['rows']:
-                        is_valid = cls.check_password(row['pwd'], user_data['password'])
-                        if is_valid:
-                            raise User.PasswordAlreadyUsed
-                        pwd_history_list.append(row['pwd'])
+                    # get password history list
+                    pwd_history_list = cls._get_password_history(user_id, storage_client, user_data)
             try:
                 payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 'True']).payload()
@@ -180,14 +174,9 @@ class User:
                     cls.delete_user_tokens(user_id)
 
                     if 'password' in user_data:
-                        # delete oldest password for user, as storage result in sorted order so its safe to delete its last index from pwd_history_list
-                        if len(pwd_history_list) >= USED_PASSWORD_HISTORY_COUNT:
-                            payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).AND_WHERE(['pwd', '=', pwd_history_list[-1]]).payload()
-                            storage_client.delete_from_tbl("user_pwd_history", payload)
+                        # insert pwd history and delete oldest pwd if USED_PASSWORD_HISTORY_COUNT exceeds
+                        cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client, user_id, hashed_pwd, pwd_history_list)
 
-                        # insert into password history table
-                        payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
-                        storage_client.insert_into_tbl("user_pwd_history", payload)
                     return True
             except StorageServerError as ex:
                 if ex.error["retryable"]:
@@ -317,10 +306,13 @@ class User:
 
             # check age of password
             t1 = datetime.now()
-            t2 = datetime.strptime(found_user['pwd_last_changed'][:-6], "%Y-%m-%d %H:%M:%S.%f") # ignore timezone
+            t2 = datetime.strptime(found_user['pwd_last_changed'][:-6], "%Y-%m-%d %H:%M:%S.%f")  # ignore timezone
             delta = t1 - t2
-
-            if age > delta.days:
+            if age == 0:
+                # user will not be forced to change their password.
+                pass
+            elif age <= delta.days:
+                # user will be forced to change their password.
                 raise User.PasswordExpired('Your password has been expired. Please set your password again.')
 
             # validate password
@@ -392,3 +384,26 @@ class User:
         def check_password(cls, hashed_password, user_password):
             password, salt = hashed_password.split(':')
             return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
+
+        @classmethod
+        def _get_password_history(cls, storage_client, user_id, user_data):
+            pwd_history_list = []
+            payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
+            result = storage_client.query_tbl_with_payload("user_pwd_history", payload)
+            for row in result['rows']:
+                if cls.check_password(row['pwd'], user_data['password']):
+                    raise User.PasswordAlreadyUsed
+                pwd_history_list.append(row['pwd'])
+            return pwd_history_list
+
+        @classmethod
+        def _insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(cls, storage_client, user_id, hashed_pwd, pwd_history_list):
+            # delete oldest password for user, as storage result in sorted order so its safe to delete its last index from pwd_history_list
+            if len(pwd_history_list) >= USED_PASSWORD_HISTORY_COUNT:
+                payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).AND_WHERE(
+                    ['pwd', '=', pwd_history_list[-1]]).payload()
+                storage_client.delete_from_tbl("user_pwd_history", payload)
+
+            # insert into password history table
+            payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
+            storage_client.insert_into_tbl("user_pwd_history", payload)

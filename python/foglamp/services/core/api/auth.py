@@ -79,7 +79,7 @@ async def login(request):
         return web.HTTPNotFound(reason=str(ex))
     except User.PasswordExpired as ex:
         _logger.warning(str(ex))
-        return web.HTTPBadRequest(reason=str(ex))
+        return web.HTTPUnauthorized(reason=str(ex))
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
 
@@ -329,7 +329,7 @@ async def update_password(request):
     current_password = data.get('current_password')
     new_password = data.get('new_password')
     if not current_password or not new_password:
-        msg = "Either current or new password key is missing"
+        msg = "Current or new password is missing"
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 

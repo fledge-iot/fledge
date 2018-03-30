@@ -52,6 +52,10 @@ docs/.cache/
 
 .cache/
 
+# Backup
+data/backup
+data/etc/backup_postgres_configuration_cache.json
+
 # test
 .pytest_cache
 .coverage

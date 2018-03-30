@@ -32,6 +32,8 @@ _help = """
     
     | POST                       | /foglamp/login                                      |
     | PUT                        | /foglamp/{user_id}/logout                           |
+    
+    | PUT                        | /foglamp/admin/{user_id}/reset                      |
     ------------------------------------------------------------------------------------
 """
 
@@ -260,59 +262,12 @@ async def create_user(request):
 
 
 async def update_user(request):
-    """ update user
-
-    :Example:
-        curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/user/<id>
-    """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    # we don't have any user profile info yet, let's allow to update role only
-    user_id = request.match_info.get('id')
-    data = await request.json()
-    role_id = data.get('role_id')
-
-    if not role_id:
-        msg = "Nothing to update the user"
-        _logger.warning(msg)
-        raise web.HTTPBadRequest(reason=msg)
-
-    if role_id and not is_valid_role(role_id):
-        _logger.warning("Update user requested with bad role id")
-        raise web.HTTPBadRequest(reason="Invalid or bad role id")
-    if role_id and not has_admin_permissions(request):
-        msg = "Only admin can update the role for a user"
-        _logger.warning(msg)
-        raise web.HTTPUnauthorized(reason=msg)
-
-    if int(user_id) == 1 and role_id:
-        msg = "Role updation restricted for Super Admin user"
-        _logger.warning(msg)
-        raise web.HTTPNotAcceptable(reason=msg)
-
-    user_data = {}
-    if 'role_id' in data:
-        user_data.update({'role_id': data['role_id']})
-
-    try:
-        User.Objects.update(user_id, user_data)
-    except ValueError as ex:
-        _logger.warning(str(ex))
-        raise web.HTTPBadRequest(reason=str(ex))
-    except User.DoesNotExist:
-        msg = "User with id:<{}> does not exist".format(int(user_id))
-        _logger.warning(msg)
-        raise web.HTTPNotFound(reason=msg)
-    except Exception as exc:
-        _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
-
-    _logger.info("User profile for id:<{}> has been updated successfully".format(int(user_id)))
-
-    return web.json_response({'message': 'User profile for id:<{}> has been updated successfully'.format(int(user_id))})
-
+    # TODO: FOGL-1226 we don't have any user profile info yet except password, role
+    raise web.HTTPNotImplemented(reason='FOGL-1226')
 
 async def update_password(request):
     """ update password
@@ -369,6 +324,64 @@ async def update_password(request):
     _logger.info("Password has been updated successfully for user id:<{}>".format(int(user_id)))
 
     return web.json_response({'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
+
+
+@has_permission("admin")
+async def reset(request):
+    """ reset user (only role and password)
+        :Example:
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+    if int(user_id) == 1:
+        msg = "Restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)
+
+    data = await request.json()
+    password = data.get('password')
+    role_id = data.get('role_id')
+
+    if not role_id and not password:
+        msg = "Nothing to update the user"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
+    if password and not isinstance(password, str):
+        _logger.warning(PASSWORD_ERROR_MSG)
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if password and not re.match(PASSWORD_REGEX_PATTERN, password):
+        _logger.warning(PASSWORD_ERROR_MSG)
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+
+    user_data = {}
+    if 'role_id' in data:
+        user_data.update({'role_id': data['role_id']})
+    if 'password' in data:
+        user_data.update({'password': data['password']})
+
+    try:
+        User.Objects.update(user_id, user_data)
+    except ValueError as ex:
+        _logger.warning(str(ex))
+        raise web.HTTPBadRequest(reason=str(ex))
+    except User.DoesNotExist:
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        _logger.warning(msg)
+        raise web.HTTPNotFound(reason=msg)
+    except Exception as exc:
+        _logger.exception(str(exc))
+        raise web.HTTPInternalServerError(reason=str(exc))
+
+    _logger.info("User with id:<{}> has been updated successfully".format(int(user_id)))
+
+    return web.json_response({'message': 'User with id:<{}> has been updated successfully'.format(user_id)})
 
 
 @has_permission("admin")

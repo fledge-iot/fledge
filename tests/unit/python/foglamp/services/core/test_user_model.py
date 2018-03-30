@@ -227,7 +227,7 @@ class TestUserModel:
                     assert args[0] == 'users'
                     # FIXME: payload ordering issue
                     # update_tbl_patch.assert_called_once_with('users', payload)
-                pwd_list_patch.assert_called_once_with(2, storage_client_mock, user_data)
+                pwd_list_patch.assert_called_once_with(storage_client_mock, 2, user_data)
             hash_pwd_patch.assert_called_once_with(user_data['password'])
 
     def test_update_user_storage_exception(self):

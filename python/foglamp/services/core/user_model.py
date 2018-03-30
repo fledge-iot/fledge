@@ -162,7 +162,7 @@ class User:
                     kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
-                    pwd_history_list = cls._get_password_history(user_id, storage_client, user_data)
+                    pwd_history_list = cls._get_password_history(storage_client, user_id, user_data)
             try:
                 payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 'True']).payload()

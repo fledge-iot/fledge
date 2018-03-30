@@ -265,7 +265,6 @@ class TestAuthMandatory:
         {},
         {"invalid": 1},
         {"role": 1},
-        {"pwd": "blah"},
         {"role": 1, "pwd": 12}
     ])
     async def test_update_user_with_bad_data(self, client, mocker, request_data):
@@ -345,25 +344,19 @@ class TestAuthMandatory:
         request_data = {'role_id': 2}
         ret_val = {'response': 'updated', 'rows_affected': 1}
         user_id = 2
-        msg = 'User with id:<{}> has been updated successfully'.format(user_id)
+        msg = 'User profile for id:<{}> has been updated successfully'.format(user_id)
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
 
         with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
             with patch.object(auth, 'has_admin_permissions', return_value=True) as patch_admin_permission:
-                with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-                    with patch.object(User.Objects, 'update', return_value=ret_val) as patch_user_update:
-                        with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                            resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
-                            assert 200 == resp.status
-                            r = await resp.text()
-                            assert {'message': msg} == json.loads(r)
-                        patch_auth_logger_info.assert_called_once_with(msg)
-                    patch_user_update.assert_called_once_with(str(user_id), request_data)
-                # patch_check_authorization.assert_called_once_with()
-                # TODO: Request patch VERB and Url
-                args, kwargs = patch_check_authorization.call_args
-                assert str(user_id) == args[1]
-                assert 'update' == args[2]
+                with patch.object(User.Objects, 'update', return_value=ret_val) as patch_user_update:
+                    with patch.object(auth._logger, 'info') as patch_auth_logger_info:
+                        resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        assert {'message': msg} == json.loads(r)
+                    patch_auth_logger_info.assert_called_once_with(msg)
+                patch_user_update.assert_called_once_with(str(user_id), request_data)
             # TODO: Request patch VERB and Url
             # patch_admin_permission.assert_called_once_with()
         patch_role.assert_called_once_with(request_data['role_id'])
@@ -372,67 +365,27 @@ class TestAuthMandatory:
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/user/2')
 
-    @pytest.mark.parametrize("request_data", [
-        {'password': 1},
-        {'password': "blah"}
-    ])
-    async def test_update_bad_password(self, client, mocker, request_data):
-        msg = 'Password must contain at least one digit, one lowercase, one uppercase & one special character and length of minimum 6 characters'
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
-        with patch.object(auth._logger, 'warning') as patch_logger_warning:
-            resp = await client.put('/foglamp/user/2', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
-            assert 400 == resp.status
-            assert msg == resp.reason
-        patch_logger_warning.assert_called_once_with(msg)
-        patch_user_get.assert_called_once_with(uid=1)
-        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/user/2')
-
-    async def test_update_user(self, client, mocker):
-        ret_val = {'response': 'updated', 'rows_affected': 1}
-        user_id = 2
-        msg = 'User with id:<{}> has been updated successfully'.format(user_id)
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
-        with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-            with patch.object(User.Objects, 'update', return_value=ret_val) as patch_user_update:
-                with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                    resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps({'password': 'F0gl@mp'}), headers=ADMIN_USER_HEADER)
-                    assert 200 == resp.status
-                    r = await resp.text()
-                    assert {'message': msg} == json.loads(r)
-                patch_user_update.assert_called_once_with(str(user_id), {'password': 'F0gl@mp'})
-            patch_auth_logger_info.assert_called_once_with(msg)
-        # TODO: Request patch VERB and Url
-        args, kwargs = patch_check_authorization.call_args
-        assert str(user_id) == args[1]
-        assert 'update' == args[2]
-        # patch_check_authorization.assert_called_once_with()
-        patch_user_get.assert_called_once_with(uid=1)
-        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/user/{}'.format(user_id))
-
     @pytest.mark.parametrize("exception_name, code, msg", [
         (ValueError, 400, 'None'),
         (User.DoesNotExist, 404, 'User with id:<2> does not exist')
     ])
     async def test_update_user_custom_exception(self, client, mocker, exception_name, code, msg):
         user_id = 2
+        user_data = {'role_id': '2'}
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
-        with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-            with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_user_update:
-                with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
-                    resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps({'password': 'F0gl@mp'}), headers=ADMIN_USER_HEADER)
-                    assert code == resp.status
-                    assert msg == resp.reason
-                patch_user_update.assert_called_once_with(str(user_id), {'password': 'F0gl@mp'})
-                patch_auth_logger_warn.assert_called_once_with(msg)
-        # TODO: Request patch VERB and Url
-        args, kwargs = patch_check_authorization.call_args
-        assert str(user_id) == args[1]
-        assert 'update' == args[2]
-        # patch_check_authorization.assert_called_once_with()
+
+        with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
+            with patch.object(auth, 'has_admin_permissions', return_value=True) as patch_admin_permission:
+                with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_user_update:
+                    with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
+                        resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps(user_data), headers=ADMIN_USER_HEADER)
+                        assert code == resp.status
+                        assert msg == resp.reason
+                    patch_auth_logger_warn.assert_called_once_with(msg)
+                patch_user_update.assert_called_once_with(str(user_id), user_data)
+            # TODO: Request patch VERB and Url
+            # patch_admin_permission.assert_called_once_with()
+        patch_role.assert_called_once_with(user_data['role_id'])
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -440,22 +393,22 @@ class TestAuthMandatory:
 
     async def test_update_user_exception(self, client, mocker):
         user_id = 2
+        user_data = {'role_id': '2'}
         msg = 'Something went wrong'
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
 
-        with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-            with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_user_update:
-                with patch.object(auth._logger, 'exception') as patch_auth_logger_warn:
-                    resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps({'password': 'F0gl@mp'}), headers=ADMIN_USER_HEADER)
-                    assert 500 == resp.status
-                    assert msg == resp.reason
-                patch_auth_logger_warn.assert_called_once_with(msg)
-            patch_user_update.assert_called_once_with(str(user_id), {'password': 'F0gl@mp'})
-        # TODO: Request patch VERB and Url
-        args, kwargs = patch_check_authorization.call_args
-        assert str(user_id) == args[1]
-        assert 'update' == args[2]
-        # patch_check_authorization.assert_called_once_with()
+        with patch.object(auth, 'is_valid_role', return_value=True) as patch_role:
+            with patch.object(auth, 'has_admin_permissions', return_value=True) as patch_admin_permission:
+                with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_user_update:
+                    with patch.object(auth._logger, 'exception') as patch_auth_logger_warn:
+                        resp = await client.put('/foglamp/user/{}'.format(user_id), data=json.dumps(user_data), headers=ADMIN_USER_HEADER)
+                        assert 500 == resp.status
+                        assert msg == resp.reason
+                    patch_auth_logger_warn.assert_called_once_with(msg)
+                patch_user_update.assert_called_once_with(str(user_id), user_data)
+            # TODO: Request patch VERB and Url
+            # patch_admin_permission.assert_called_once_with()
+        patch_role.assert_called_once_with(user_data['role_id'])
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])

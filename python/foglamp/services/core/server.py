@@ -11,7 +11,6 @@ import asyncio
 import os
 import subprocess
 import sys
-
 import ssl
 import time
 import uuid
@@ -22,11 +21,13 @@ import json
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
+
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.storage_client import StorageClient
 
 from foglamp.services.core import routes as admin_routes
+from foglamp.services.core.api import configuration as conf_api
 from foglamp.services.common.microservice_management import routes as management_routes
 
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
@@ -54,6 +55,7 @@ _SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 # PID dir and filename
 _FOGLAMP_PID_DIR= "/var/run"
 _FOGLAMP_PID_FILE = "foglamp.core.pid"
+
 
 class Server:
     """ FOGLamp core server.
@@ -340,7 +342,7 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        management_routes.setup(app, cls)
+        management_routes.setup(app, cls, True)
         return app
 
     @classmethod
@@ -998,3 +1000,27 @@ class Server:
     @classmethod
     async def change(cls, request):
         pass
+
+    @classmethod
+    async def get_configuration_categories(cls, request):
+        return conf_api.get_categories(request)
+
+    @classmethod
+    async def create_configuration_category(cls, request):
+        return conf_api.create_category(request)
+
+    @classmethod
+    async def get_configuration_category(cls, request):
+        return conf_api.get_category(request)
+
+    @classmethod
+    async def get_configuration_item(cls, request):
+        return conf_api.get_category_item(request)
+
+    @classmethod
+    async def update_configuration_item(cls, request):
+        return conf_api.set_configuration_item(request)
+
+    @classmethod
+    async def delete_configuration_item(cls, request):
+        return conf_api.delete_configuration_item_value(request)

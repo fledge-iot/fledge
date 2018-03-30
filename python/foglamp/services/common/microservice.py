@@ -23,6 +23,7 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__)
 
+
 class FoglampMicroservice(FoglampProcess):
     """ FoglampMicroservice class for all non-core python microservices
         All microservices will inherit from FoglampMicroservice and implement pure virtual method run()
@@ -111,21 +112,3 @@ class FoglampMicroservice(FoglampProcess):
         """
         since_started = time.time() - self._start_time
         return web.json_response({'uptime': since_started})
-
-    async def register(self, request):
-        raise web.HTTPBadRequest(reason='Service registration requests are handled by core microservice, not by {} microservice'.format(self._name))
-
-    async def unregister(self, request):
-        raise web.HTTPBadRequest(reason='Service registration requests are handled by core microservice, not by {} microservice'.format(self._name))
-
-    async def get_service(self, request):
-        raise web.HTTPBadRequest(reason='Service registration requests are handled by core microservice, not by {} microservice'.format(self._name))
-
-    async def register_interest(self, request):
-        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))
-
-    async def unregister_interest(self, request):
-        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))
-
-    async def get_interest(self, request):
-        raise web.HTTPBadRequest(reason='Interest registration requests are handled by core microservice, not by {} microservice'.format(self._name))

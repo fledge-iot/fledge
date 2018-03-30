@@ -177,7 +177,7 @@ class MicroserviceManagementClient(object):
         :param category_name:
         :return:
         """
-        url = '/foglamp/category'
+        url = '/foglamp/service/category'
 
         if category_name:
             url = "{}/{}".format(url, category_name)
@@ -202,7 +202,7 @@ class MicroserviceManagementClient(object):
         :param config_item:
         :return:
         """
-        url = "/foglamp/category/{}/{}".format(category_name, config_item)
+        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
 
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
@@ -223,7 +223,7 @@ class MicroserviceManagementClient(object):
         :param category_data: e.g. '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}'
         :return:
         """
-        url = '/foglamp/category'
+        url = '/foglamp/service/category'
 
         self._management_client_conn.request(method='POST', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
@@ -245,7 +245,7 @@ class MicroserviceManagementClient(object):
         :param config_item:
         :return:
         """
-        url = "/foglamp/category/{}/{}".format(category_name, config_item)
+        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
 
         self._management_client_conn.request(method='PUT', url=url)
         r = self._management_client_conn.getresponse()
@@ -267,7 +267,7 @@ class MicroserviceManagementClient(object):
         :param config_item:
         :return:
         """
-        url = "/foglamp/category/{}/{}".format(category_name, config_item)
+        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
 
         self._management_client_conn.request(method='DELETE', url=url)
         r = self._management_client_conn.getresponse()

@@ -269,6 +269,7 @@ async def update_user(request):
     # TODO: FOGL-1226 we don't have any user profile info yet except password, role
     raise web.HTTPNotImplemented(reason='FOGL-1226')
 
+
 async def update_password(request):
     """ update password
 
@@ -352,6 +353,10 @@ async def reset(request):
         msg = "Nothing to update the user"
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
+
+    if not is_valid_role(role_id):
+        _logger.warning("Create user requested with bad role id")
+        return web.HTTPBadRequest(reason="Invalid or bad role id")
 
     if password and not isinstance(password, str):
         _logger.warning(PASSWORD_ERROR_MSG)

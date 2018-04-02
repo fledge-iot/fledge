@@ -354,7 +354,7 @@ async def reset(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    if not is_valid_role(role_id):
+    if role_id and not is_valid_role(role_id):
         _logger.warning("Create user requested with bad role id")
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
@@ -380,6 +380,10 @@ async def reset(request):
         msg = "User with id:<{}> does not exist".format(int(user_id))
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
+    except User.PasswordAlreadyUsed:
+        msg = "The new password should be different from previous 3 used"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
         _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))

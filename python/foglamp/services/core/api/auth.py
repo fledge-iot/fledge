@@ -24,8 +24,8 @@ _logger = logger.setup(__name__)
 
 _help = """
     ------------------------------------------------------------------------------------
-    | GET POST                   | /foglamp/user                                       |
-    | PUT DELETE                 | /foglamp/user/{id}                                  |
+    | GET                        | /foglamp/user                                       |
+    | PUT                        | /foglamp/user/{id}                                  |
     | PUT                        | /foglamp/user/{username}/password                   |     
 
     | GET                        | /foglamp/user/role                                  |
@@ -33,7 +33,9 @@ _help = """
     | POST                       | /foglamp/login                                      |
     | PUT                        | /foglamp/{user_id}/logout                           |
     
+    | POST                       | /foglamp/admin/user                                 |
     | PUT                        | /foglamp/admin/{user_id}/reset                      |
+    | DELETE                     | /foglamp/admin/{user_id}/delete                     |
     ------------------------------------------------------------------------------------
 """
 
@@ -57,7 +59,7 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-        curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
+        curl -X POST -d '{"username": "user", "password": "foglamp"}' https://localhost:1995/foglamp/login --insecure
     """
 
     data = await request.json()
@@ -92,7 +94,7 @@ async def logout_me(request):
     """ log out user
 
     :Example:
-        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
+        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/logout --insecure
 
     """
 
@@ -114,7 +116,7 @@ async def logout(request):
     """ log out user's all active sessions
 
     :Example:
-        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/{user_id}/logout
+        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/{user_id}/logout --insecure
 
     """
 
@@ -136,7 +138,7 @@ async def get_roles(request):
     """ get roles
 
     :Example:
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user/role
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user/role --insecure
     """
     result = User.Objects.get_roles()
     return web.json_response({'roles': result})
@@ -146,10 +148,10 @@ async def get_user(request):
     """ get user info
 
     :Example:
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
-        curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user --insecure
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?id=2 --insecure
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?username=admin --insecure
+        curl -H "authorization: <token>" -X GET "https://localhost:1995/foglamp/user?id=1&username=admin" --insecure
     """
     user_id = None
     user_name = None
@@ -196,8 +198,8 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/user
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' https://localhost:1995/foglamp/admin/user --insecure
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' https://localhost:1995/foglamp/admin/user --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -274,7 +276,7 @@ async def update_password(request):
     """ update password
 
         :Example:
-             curl -H "authorization: <token>" -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/foglamp/user/<username>/password
+             curl -H "authorization: <token>" -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' https://localhost:1995/foglamp/user/<username>/password --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -331,9 +333,9 @@ async def update_password(request):
 async def reset(request):
     """ reset user (only role and password)
         :Example:
-            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/admin/{user_id}/reset
-            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
-            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -398,7 +400,7 @@ async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
-        curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
+        curl -H "authorization: <token>" -X DELETE  https://localhost:1995/foglamp/admin/{user_id}/delete --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -406,7 +408,7 @@ async def delete_user(request):
 
     # TODO: we should not prevent this, when we have at-least 1 admin (super) user
     try:
-        user_id = int(request.match_info.get('id'))
+        user_id = int(request.match_info.get('user_id'))
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))

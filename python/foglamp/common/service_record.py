@@ -29,7 +29,7 @@ class ServiceRecord(object):
         """Enumeration for Service Status"""
 
         Running = 1
-        Unregistered = 2
+        Stopped = 2
         Failed = 3
         Doubtful = 4
 

@@ -83,7 +83,7 @@ class ServiceRegistry:
         """
         services = cls.get(idx=service_id)
         service_name = services[0]._name
-        services[0]._status = ServiceRecord.Status.Unregistered
+        services[0]._status = ServiceRecord.Status.Stopped
         cls._remove_from_scheduler_records(service_name)
 
         # Remove interest registry records, if any
@@ -91,7 +91,7 @@ class ServiceRegistry:
         for interest_rec in interest_recs:
             InterestRegistry().unregister(interest_rec._registration_id)
 
-        cls._logger.info("Unregistered {}".format(str(services[0])))
+        cls._logger.info("Stopped {}".format(str(services[0])))
         return service_id
 
     @classmethod

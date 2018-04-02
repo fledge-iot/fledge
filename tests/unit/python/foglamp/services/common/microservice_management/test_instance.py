@@ -6,10 +6,10 @@
 
 import uuid
 import pytest
-
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry as Service
 from foglamp.services.core.service_registry.exceptions import *
 from foglamp.common.service_record import ServiceRecord
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -20,7 +20,6 @@ __version__ = "${VERSION}"
 @pytest.allure.feature("unit")
 @pytest.allure.story("service-registry instance")
 class TestInstance:
-
     def setup_method(self):
         Service._registry = []
 
@@ -67,10 +66,13 @@ class TestInstance:
             Service.register("StorageService2", "Core", "127.0.0.1", 8888, "199a")
         assert str(excinfo).endswith('NonNumericPortError')
 
-    async def test_unregister(self):
+    async def test_unregister(self, mocker):
         # register a service
         idx = Service.register("StorageService2", "Storage", "127.0.0.1", 8888, 1888)
         assert str(uuid.UUID(idx, version=4)) == idx
+
+        mocker.patch.object(InterestRegistry, '__init__', return_value=None)
+        mocker.patch.object(InterestRegistry, 'get', return_value=list())
 
         # deregister the same
         t = Service.unregister(idx)

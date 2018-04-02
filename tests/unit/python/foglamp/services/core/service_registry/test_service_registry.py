@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry.exceptions import *
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -104,7 +105,10 @@ class TestServiceRegistry:
         assert excinfo.type is NonNumericPortError
         assert 0 == len(ServiceRegistry._registry)
 
-    def test_unregister(self):
+    def test_unregister(selfd, mocker):
+        mocker.patch.object(InterestRegistry, '__init__', return_value=None)
+        mocker.patch.object(InterestRegistry, 'get', return_value=list())
+
         reg_id = ServiceRegistry.register("A name", "Storage", "127.0.0.1", 1234, 4321, 'http')
         assert 1 == len(ServiceRegistry._registry)
 

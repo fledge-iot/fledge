@@ -19,13 +19,16 @@ __version__ = "${VERSION}"
 _LOGGER = logger.setup(__name__)
 NOTIFY_CHANGE_CALLBACK = "foglamp.services.core.interest_registry.change_callback"
 
+
 class InterestRegistrySingleton(object):
     """This class is used to provide singlton functionality to InterestRegistry
     """
 
     _shared_state = {}
+
     def __init__(self):
         self.__dict__ = self._shared_state
+
 
 class InterestRegistry(InterestRegistrySingleton):
     """Used by core to manage microservices' interests in configuration changes.
@@ -39,7 +42,6 @@ class InterestRegistry(InterestRegistrySingleton):
 
     _configuration_manager = None
     """ ConfigurationManager used by InterestRegistry """
-
 
     def __init__(self, configuration_manager=None):
         """ Used to create InterestRegistry object
@@ -67,7 +69,7 @@ class InterestRegistry(InterestRegistrySingleton):
     def get(self, registration_id=None, category_name=None, microservice_uuid=None):
         """ Used to filter InterestRecord objects based on attribute values.
         Args:
-	    registration_id (str): registration_id uuid as a string (optional)
+            registration_id (str): registration_id uuid as a string (optional)
             category_name (str): category of interest (optional)
             microservice_uuid (str): interested party - microservice uuid as a string (optional)
         """
@@ -76,16 +78,15 @@ class InterestRegistry(InterestRegistrySingleton):
             raise interest_registry_exceptions.DoesNotExist
         return interest_records
 
-
     def register(self, microservice_uuid, category_name):
         """ Used to add an entry to the InterestRegistry
         Args:
             category_name (str): category of interest (required)
-            microservice_uuid (str): interested party - microservice uuid as a string (required)
-	Note:
-	    category_name, microservice_uuid pair must be unique
-	Returns:
-	    registration id of new InterestRegistration entry
+            microservice_uuid (str): interested party - microservice_uuid as a string (required)
+        Note:
+            category_name, microservice_uuid pair must be unique
+        Returns:
+            registration id of new InterestRegistration entry
         Raises:
             foglamp.services.core.interest_registry.exceptions.ErrorInterestRegistrationAlreadyExists
                 in the event that the microservice_uuid, category_name pair is already registered
@@ -100,7 +101,13 @@ class InterestRegistry(InterestRegistrySingleton):
         except interest_registry_exceptions.DoesNotExist:
             pass
         else:
-            raise interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists
+            # In this condition, we should return the already existing registration_id. This "else" part will be
+            # reached when a already existing interest record is re-attempted for creation. This condition will
+            # usually arise when a service fails for some reason and is restarted after proper diagnosis.
+            # Raising interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists, as was being done
+            # previosuly, is not correct, hence removed.
+            existing_recs = self.get(microservice_uuid=microservice_uuid)
+            return existing_recs[0]._registration_id
 
         # register callback with configuration manager
         self._configuration_manager.register_interest(category_name, NOTIFY_CHANGE_CALLBACK)
@@ -117,8 +124,8 @@ class InterestRegistry(InterestRegistrySingleton):
         """ Used to remove an entry from the InterestRegistry
         Args:
             registration_id (str): id (uuid as a string) of InterestRegistration entry to remove
-	Returns:
-	    registration id of removed interest record
+        Returns:
+            registration id of removed interest record
         Raises:
             foglamp.services.core.interest_registry.exceptions.DoesNotExist
                 in the event that the registration id does not have a corresponding entry in the registry

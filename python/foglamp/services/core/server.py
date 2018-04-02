@@ -654,8 +654,12 @@ class Server:
             found_services = ServiceRegistry.get()
             services_to_stop = list()
 
+            from foglamp.common.service_record import ServiceRecord
+
             for fs in found_services:
                 if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
+                    continue
+                if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
                     continue
                 services_to_stop.append(fs)
 

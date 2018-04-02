@@ -12,6 +12,7 @@ import time
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -44,7 +45,7 @@ class ServiceRegistry:
         except service_registry_exceptions.DoesNotExist:
             pass
         else:
-            # Re: FOGL-1183
+            # Re: FOGL-1123
             if current_service[0]._status in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
                 raise service_registry_exceptions.AlreadyExistsWithTheSameName
             else:
@@ -59,8 +60,13 @@ class ServiceRegistry:
 
         if port is not None and (not isinstance(port, int)):
             raise service_registry_exceptions.NonNumericPortError
+
         if not isinstance(management_port, int):
             raise service_registry_exceptions.NonNumericPortError
+
+        if new_service is False:
+            # Remove current service to enable the service to register with new management port etc
+            cls.remove_from_registry(current_service_id)
 
         service_id = str(uuid.uuid4()) if new_service is True else current_service_id
         registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
@@ -77,12 +83,43 @@ class ServiceRegistry:
         """
         services = cls.get(idx=service_id)
         service_name = services[0]._name
-        # Re: FOGL-1183
-        if services[0]._status != ServiceRecord.Status.Failed:
-            services[0]._status = ServiceRecord.Status.Unregistered
-        cls._logger.info("Unregistered {}".format(str(services[0])))
+        services[0]._status = ServiceRecord.Status.Unregistered
         cls._remove_from_scheduler_records(service_name)
+
+        # Remove interest registry records, if any
+        interest_recs = InterestRegistry().get(microservice_uuid=service_id)
+        for interest_rec in interest_recs:
+            InterestRegistry().unregister(interest_rec._registration_id)
+
+        cls._logger.info("Unregistered {}".format(str(services[0])))
         return service_id
+
+    @classmethod
+    def mark_as_failed(cls, service_id):
+        """ marks the service instance as failed
+
+        :param service_id: a uuid of registered service
+        :return: service_id on successful deregistration
+        """
+        services = cls.get(idx=service_id)
+        service_name = services[0]._name
+        services[0]._status = ServiceRecord.Status.Failed
+        cls._remove_from_scheduler_records(service_name)
+
+        # Here, we do not remove interest_registry recs as this service may be restarted after diagnosis and as
+        # such, retaining interest_registry recs may prove beneficial.
+
+        cls._logger.info("Mark as failed {}".format(str(services[0])))
+        return service_id
+
+    @classmethod
+    def remove_from_registry(cls, service_id):
+        """ remove service_id from service_registry.
+
+        :param service_id: a uuid of registered service
+        """
+        services = cls.get(idx=service_id)
+        cls._registry.remove(services[0])
 
     @classmethod
     def _remove_from_scheduler_records(cls, service_name):

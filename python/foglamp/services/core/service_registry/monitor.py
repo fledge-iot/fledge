@@ -52,39 +52,39 @@ class Monitor(object):
     async def _monitor_loop(self):
         """async Monitor loop to monitor registered services"""
         # check health of all micro-services every N seconds
-
+        round_cnt = 0
         while True:
-            self._logger.info("Starting next round of service monitoring, sleep/i:{} ping/t:{} max/a:{}".format(
-                self._sleep_interval, self._ping_timeout, self._max_attempts))
+            round_cnt += 1
+            self._logger.info("Starting next round#{} of service monitoring, sleep/i:{} ping/t:{} max/a:{}".format(
+                round_cnt, self._sleep_interval, self._ping_timeout, self._max_attempts))
             for service_record in ServiceRegistry.all():
-                # No need to try ping if service status is either Unregistered or Failed
-                if service_record._status in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
-                    try:
-                        url = "{}://{}:{}/foglamp/service/ping".format(
-                            service_record._protocol, service_record._address, service_record._management_port)
-                        async with aiohttp.ClientSession() as session:
-                            async with session.get(url, timeout=self._ping_timeout) as resp:
-                                text = await resp.text()
-                                res = json.loads(text)
-                                if res["uptime"] is None:
-                                    raise ValueError('Improper Response')
-                    except:  # TODO: Fix too broad exception clause
-                        service_record._status = ServiceRecord.Status.Doubtful
-                        service_record._check_count += 1
-                        self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
-                    else:
-                        service_record._status = ServiceRecord.Status.Running
-                        service_record._check_count = 1
+                # Try ping if service status is either running or doubtful (i.e. give service a chance to recover)
+                if service_record._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
+                    continue
+                try:
+                    url = "{}://{}:{}/foglamp/service/ping".format(
+                        service_record._protocol, service_record._address, service_record._management_port)
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url, timeout=self._ping_timeout) as resp:
+                            text = await resp.text()
+                            res = json.loads(text)
+                            if res["uptime"] is None:
+                                raise ValueError('Improper Response')
+                except:  # TODO: Fix too broad exception clause
+                    service_record._status = ServiceRecord.Status.Doubtful
+                    service_record._check_count += 1
+                    self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
+                else:
+                    service_record._status = ServiceRecord.Status.Running
+                    service_record._check_count = 1
 
-                    if service_record._check_count > self._max_attempts:
-                        service_record._status = ServiceRecord.Status.Failed
-                        ServiceRegistry.unregister(service_record._id)
-                        self._logger.info("Marked as failed micro-service %s", service_record.__repr__())
-                        try:
-                            audit = AuditLogger(connect.get_storage())
-                            await audit.failure('SRVFL', {'name':service_record._name})
-                        except Exception as ex:
-                            self._logger.info("Failed to audit service failure %s", str(ex));
+                if service_record._check_count > self._max_attempts:
+                    ServiceRegistry.mark_as_failed(service_record._id)
+                    try:
+                        audit = AuditLogger(connect.get_storage())
+                        await audit.failure('SRVFL', {'name':service_record._name})
+                    except Exception as ex:
+                        self._logger.info("Failed to audit service failure %s", str(ex));
             await self._sleep(self._sleep_interval)
 
     async def _read_config(self):

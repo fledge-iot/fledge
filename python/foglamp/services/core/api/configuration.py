@@ -95,8 +95,12 @@ async def create_category(request):
         category_desc = data.get('description')
         category_value = data.get('value')
 
+        should_keep_original_items = data.get('keep_original_items', False)
+        if not isinstance(should_keep_original_items, bool):
+            raise web.HTTPBadRequest(reason="keep_original_items should be boolean true | false")
+
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
-                                     category_value=category_value, keep_original_items=False)
+                                     category_value=category_value, keep_original_items=should_keep_original_items)
 
         category_info = await cf_mgr.get_category_all_items(category_name=category_name)
         if category_info is None:

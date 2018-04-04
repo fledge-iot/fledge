@@ -11,6 +11,7 @@ from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.services.core.user_model import User
+from foglamp.common.configuration_manager import ConfigurationManager
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -190,23 +191,44 @@ class TestUserModel:
 
     @pytest.mark.parametrize("user_data, payload", [
         ({'role_id': 2}, '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2}}'),
-        ({'password': "Test@123"}, '{"values": {"pwd": "HASHED_PASSWORD"}, "where": {"column": "id", "condition": "=", "value": 2}}'),
-        ({'password': "Test@123", "role_id": 2}, '{"values": {"role_id": 2, "pwd": "HASHED_PASSWORD"}, "where": {"column": "id", "condition": "=", "value": 2}}')
+        ({'role_id': '2'}, '{"values": {"role_id": "2"}, "where": {"column": "id", "condition": "=", "value": 2}}')
     ])
-    def test_update_user(self, user_data, payload):
-        hashed_password = "HASHED_PASSWORD"
+    def test_update_user_role(self, user_data, payload):
         expected = {'response': 'updated', 'rows_affected': 1}
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(User.Objects, 'hash_password', return_value=hashed_password) as hash_pwd_patch:
-                with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
+            with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
+                with patch.object(User.Objects, 'delete_user_tokens') as delete_token_patch:
                     actual = User.Objects.update(2, user_data)
                     assert actual is True
-                args, kwargs = update_tbl_patch.call_args
-                assert args[0] == 'users'
-                # update_tbl_patch.assert_called_once_with('users', payload)
-            if 'password' in user_data:
-                hash_pwd_patch.assert_called_once_with(user_data['password'], )
+                delete_token_patch.assert_called_once_with(2)
+            args, kwargs = update_tbl_patch.call_args
+            assert args[0] == 'users'
+            # FIXME: payload ordering issue
+            # update_tbl_patch.assert_called_once_with('users', payload)
+
+    @pytest.mark.parametrize("user_data, payload", [
+        ({'password': "Test@123"}, '{"values": {"pwd": "HASHED_PASSWORD"}, "where": {"column": "id", "condition": "=", "value": 2}}')
+    ])
+    def test_update_user_password(self, user_data, payload):
+        expected = {'response': 'updated', 'rows_affected': 1}
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(User.Objects, 'hash_password', return_value='HASHED_PWD') as hash_pwd_patch:
+                with patch.object(User.Objects, '_get_password_history', return_value=['HASHED_PWD']) as pwd_list_patch:
+                    with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
+                        with patch.object(User.Objects, 'delete_user_tokens') as delete_token_patch:
+                            with patch.object(User.Objects, '_insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds') as pwd_history_patch:
+                                actual = User.Objects.update(2, user_data)
+                                assert actual is True
+                            pwd_history_patch.assert_called_once_with(storage_client_mock, 2, 'HASHED_PWD', ['HASHED_PWD'])
+                        delete_token_patch.assert_called_once_with(2)
+                    args, kwargs = update_tbl_patch.call_args
+                    assert args[0] == 'users'
+                    # FIXME: payload ordering issue
+                    # update_tbl_patch.assert_called_once_with('users', payload)
+                pwd_list_patch.assert_called_once_with(storage_client_mock, 2, user_data)
+            hash_pwd_patch.assert_called_once_with(user_data['password'])
 
     def test_update_user_storage_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'update'}
@@ -220,82 +242,121 @@ class TestUserModel:
         update_tbl_patch.assert_called_once_with('users', payload)
 
     def test_update_user_exception(self):
-        payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"values": {"role_id": "blah"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        msg = 'Bad role id'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'update_tbl', return_value=Exception) as update_tbl_patch:
+            with patch.object(storage_client_mock, 'update_tbl', side_effect=ValueError(msg)) as update_tbl_patch:
                 with pytest.raises(Exception) as excinfo:
-                    User.Objects.update(2, {'role_id': 2})
-                assert excinfo.type is TypeError
-                assert str(excinfo.value) == "'type' object is not subscriptable"
+                    User.Objects.update(2, {'role_id': 'blah'})
+                assert excinfo.type is ValueError
+                assert str(excinfo.value) == msg
             update_tbl_patch.assert_called_once_with('users', payload)
 
-    def test_login_if_no_user_exists(self):
-        payload = '{"return": ["pwd", "id", "role_id"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': [], 'count': 0}) as query_tbl_patch:
-                with pytest.raises(Exception) as excinfo:
-                    User.Objects.login('admin', 'blah', '0.0.0.0')
-                assert str(excinfo.value) == 'User does not exist'
-                assert excinfo.type is User.DoesNotExist
-                assert issubclass(excinfo.type, Exception)
-            query_tbl_patch.assert_called_once_with('users', payload)
+    async def test_login_if_no_user_exists(self):
+        async def mock_get_category_item():
+            return {"value": "0"}
 
-    def test_login_if_invalid_password(self):
-        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2'}]}
-        payload = '{"return": ["pwd", "id", "role_id"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
-                with patch.object(User.Objects, 'check_password', return_value=False) as check_pwd_patch:
+            with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': [], 'count': 0}) as query_tbl_patch:
                     with pytest.raises(Exception) as excinfo:
-                        User.Objects.login('user', 'blah', '0.0.0.0')
-                    assert str(excinfo.value) == 'Username or Password do not match'
-                    assert excinfo.type is User.PasswordDoesNotMatch
+                        await User.Objects.login('admin', 'blah', '0.0.0.0')
+                    assert str(excinfo.value) == 'User does not exist'
+                    assert excinfo.type is User.DoesNotExist
                     assert issubclass(excinfo.type, Exception)
-                check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah')
-            query_tbl_patch.assert_called_once_with('users', payload)
+                query_tbl_patch.assert_called_once_with('users', payload)
+            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+
+    async def test_login_if_invalid_password(self):
+        async def mock_get_category_item():
+            return {"value": "0"}
+
+        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
+                    with patch.object(User.Objects, 'check_password', return_value=False) as check_pwd_patch:
+                        with pytest.raises(Exception) as excinfo:
+                            await User.Objects.login('user', 'blah', '0.0.0.0')
+                        assert str(excinfo.value) == 'Username or Password do not match'
+                        assert excinfo.type is User.PasswordDoesNotMatch
+                        assert issubclass(excinfo.type, Exception)
+                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah')
+                query_tbl_patch.assert_called_once_with('users', payload)
+            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+
+    async def test_login_age_pwd_expiration(self):
+        async def mock_get_category_item():
+            return {"value": "30"}
+
+        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159+05:30'}]}
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
+                    with pytest.raises(Exception) as excinfo:
+                        await User.Objects.login('user', 'foglamp', '0.0.0.0')
+                    assert pwd_result['rows'][0]['id'] == str(excinfo.value)
+                    assert excinfo.type is User.PasswordExpired
+                    assert issubclass(excinfo.type, Exception)
+                query_tbl_patch.assert_called_once_with('users', payload)
+            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
 
     @pytest.mark.parametrize("user_data", [
-        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True}]}),
-        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False}]})
+        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}),
+        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False, 'pwd_last_changed': '2018-03-29 05:05:08.216159+05:30'}]})
     ])
-    def test_login(self, user_data):
-        payload = '{"return": ["pwd", "id", "role_id"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+    async def test_login(self, user_data):
+        async def mock_get_category_item():
+            return {"value": "0"}
+
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=user_data) as query_tbl_patch:
-                with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=True) as insert_tbl_patch:
-                        uid, jwt_token, is_admin = User.Objects.login('user', 'foglamp', '0.0.0.0')
-                        expected = user_data['rows'][0]
-                        assert uid == expected['id']
-                        assert is_admin == expected['is_admin']
-                        # FIXME: token patch
-                        # assert jwt_token
+            with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=user_data) as query_tbl_patch:
+                    with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=True) as insert_tbl_patch:
+                            uid, jwt_token, is_admin = await User.Objects.login('user', 'foglamp', '0.0.0.0')
+                            expected = user_data['rows'][0]
+                            assert uid == expected['id']
+                            assert is_admin == expected['is_admin']
+                            # FIXME: token patch
+                            # assert jwt_token
 
-                    # FIXME: payload ordering issue and datetime.now() patch
-                    # insert_tbl_patch.assert_called_once_with('user_logins', )
-                    args, kwargs = insert_tbl_patch.call_args
-                    assert args[0] == 'user_logins'
-                check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'foglamp')
-            query_tbl_patch.assert_called_once_with('users', payload)
+                        # FIXME: payload ordering issue and datetime.now() patch
+                        # insert_tbl_patch.assert_called_once_with('user_logins', )
+                        args, kwargs = insert_tbl_patch.call_args
+                        assert args[0] == 'user_logins'
+                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'foglamp')
+                query_tbl_patch.assert_called_once_with('users', payload)
+            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
 
-    def test_login_exception(self):
-        pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1'}]}
+    async def test_login_exception(self):
+        async def mock_get_category_item():
+            return {"value": "0"}
+
+        pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
-        payload = '{"return": ["pwd", "id", "role_id"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
-                with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)):
-                        with pytest.raises(ValueError) as excinfo:
-                            User.Objects.login('user', 'foglamp', '0.0.0.0')
-                        assert str(excinfo.value) == expected['message']
-                check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'foglamp')
-            query_tbl_patch.assert_called_once_with('users', payload)
+            with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
+                    with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
+                        with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)):
+                            with pytest.raises(ValueError) as excinfo:
+                                await User.Objects.login('user', 'foglamp', '0.0.0.0')
+                            assert str(excinfo.value) == expected['message']
+                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'foglamp')
+                query_tbl_patch.assert_called_once_with('users', payload)
+            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
 
     def test_delete_user_tokens(self):
         expected = {'response': 'deleted', 'rows_affected': 1}
@@ -390,3 +451,83 @@ class TestUserModel:
             with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
                 User.Objects.delete_all_user_tokens()
         delete_tbl_patch.assert_called_once_with('user_logins')
+
+    def test_no_user_exists(self):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': []}) as query_tbl_patch:
+                result = User.Objects.is_user_exists('blah', 'blah')
+                assert result is None
+            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "blah", "and": {"column": "enabled", "condition": "=", "value": "True"}}}')
+
+    @pytest.mark.parametrize("ret_val_check_pwd, expected", [(True, 1), (False, None)])
+    def test_user_exists(self, ret_val_check_pwd, expected):
+        storage_client_mock = MagicMock(StorageClient)
+        ret_val = {'rows': [{'id': 1, 'pwd': 'HASHED_PWD'}]}
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=ret_val) as query_tbl_patch:
+                with patch.object(User.Objects, 'check_password', return_value=ret_val_check_pwd) as check_pwd_patch:
+                    actual = User.Objects.is_user_exists('admin', 'admin')
+                    assert expected == actual
+                check_pwd_patch.assert_called_once_with(ret_val['rows'][0]['pwd'], 'admin')
+            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "True"}}}')
+
+    def test__get_password_history(self):
+        storage_client_mock = MagicMock(StorageClient)
+        user_data = {'password': 'HASHED_PWD'}
+        ret_val = {'rows': [{'id': 1, 'user_id': 2, 'pwd': 'HASHED_PWD'}]}
+        row = ret_val['rows'][0]
+        with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=ret_val) as query_tbl_patch:
+            with patch.object(User.Objects, 'check_password', return_value=False) as check_pwd_patch:
+                result = User.Objects._get_password_history(storage_client_mock, row['user_id'], user_data)
+                assert [user_data['password']] == result
+            check_pwd_patch.assert_called_once_with(row['pwd'], user_data['password'])
+        query_tbl_patch.assert_called_once_with('user_pwd_history', '{"where": {"column": "user_id", "condition": "=", "value": 2}}')
+
+    def test__get_password_history_exception(self):
+        storage_client_mock = MagicMock(StorageClient)
+        user_data = {'password': 'HASHED_PWD'}
+        ret_val = {'rows': [{'id': 1, 'user_id': 2, 'pwd': 'HASHED_PWD'}]}
+        row = ret_val['rows'][0]
+        with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=ret_val) as query_tbl_patch:
+            with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
+                with pytest.raises(Exception) as excinfo:
+                    User.Objects._get_password_history(storage_client_mock, row['user_id'], user_data)
+                assert str(excinfo.value) == ''
+                assert excinfo.type is User.PasswordAlreadyUsed
+                assert issubclass(excinfo.type, Exception)
+            check_pwd_patch.assert_called_once_with(row['pwd'], user_data['password'])
+        query_tbl_patch.assert_called_once_with('user_pwd_history', '{"where": {"column": "user_id", "condition": "=", "value": 2}}')
+
+    @pytest.mark.parametrize("hashed_pwd, pwd_history_list, payload", [
+        ('HASHED_PWD_1', ['HASHED_PWD_1'], '{"pwd": "HASHED_PWD_1", "user_id": 2}'),
+        ('HASHED_PWD_2', ['HASHED_PWD_2', 'HASHED_PWD_1'], '{"pwd": "HASHED_PWD_2", "user_id": 2}')
+    ])
+    def test__insert_pwd_history(self, hashed_pwd, pwd_history_list, payload):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(storage_client_mock, 'insert_into_tbl') as insert_tbl_patch:
+            User.Objects._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client_mock, 2, hashed_pwd, pwd_history_list)
+
+        # FIXME: payload ordering issue
+        # insert_tbl_patch.assert_called_once_with('user_pwd_history', payload)
+        args, kwargs = insert_tbl_patch.call_args
+        assert args[0] == 'user_pwd_history'
+
+    @pytest.mark.parametrize("hashed_pwd, pwd_history_list", [
+        ('HASHED_PWD_4', ['HASHED_PWD_3', 'HASHED_PWD_2', 'HASHED_PWD_1'])
+    ])
+    def test__insert_pwd_history_and_delete_oldest_pwd_if_count_exceeds(self, hashed_pwd, pwd_history_list):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
+            with patch.object(storage_client_mock, 'insert_into_tbl') as insert_tbl_patch:
+                User.Objects._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client_mock, 2, hashed_pwd, pwd_history_list)
+
+            # FIXME: payload ordering issue
+            # insert_tbl_patch.assert_called_once_with('user_pwd_history', '{"pwd": "HASHED_PWD_4", "user_id": 2}')
+            args, kwargs = insert_tbl_patch.call_args
+            assert args[0] == 'user_pwd_history'
+
+        # FIXME: payload ordering issue
+        #  delete_tbl_patch.assert_called_once_with('user_pwd_history', '{"where": {"column": "user_id", "condition": "=", "value": 2, "and": {"column": "pwd", "condition": "=", "value": "HASHED_PWD_1"}}}')
+        args, kwargs = delete_tbl_patch.call_args
+        assert args[0] == 'user_pwd_history'

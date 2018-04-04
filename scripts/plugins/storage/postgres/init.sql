@@ -140,6 +140,13 @@ CREATE SEQUENCE foglamp.streams_id_seq
     MAXVALUE 9223372036854775807
     CACHE 1;
 
+CREATE SEQUENCE foglamp.user_pwd_history_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE SEQUENCE foglamp.user_logins_id_seq
     INCREMENT 1
     START 1
@@ -554,14 +561,15 @@ CREATE INDEX fki_role_asset_permissions_fk2
 -- 1 - PWD
 -- 2 - Public Key
 CREATE TABLE foglamp.users (
-       id            integer                NOT NULL DEFAULT nextval('foglamp.users_id_seq'::regclass),
-       uname         character varying(80)  NOT NULL COLLATE pg_catalog."default",
-       role_id       integer                NOT NULL,
-       description   character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-       pwd           character varying(255) COLLATE pg_catalog."default",
-       public_key    character varying(255) COLLATE pg_catalog."default",
-       enabled       boolean                NOT NULL DEFAULT TRUE,
-       access_method smallint               NOT NULL DEFAULT 0,
+       id                integer                     NOT NULL DEFAULT nextval('foglamp.users_id_seq'::regclass),
+       uname             character varying(80)       NOT NULL COLLATE pg_catalog."default",
+       role_id           integer                     NOT NULL,
+       description       character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
+       pwd               character varying(255)      COLLATE pg_catalog."default",
+       public_key        character varying(255)      COLLATE pg_catalog."default",
+       enabled           boolean                     NOT NULL DEFAULT TRUE,
+       pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
+       access_method smallint                        NOT NULL DEFAULT 0,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES foglamp.roles (id) MATCH SIMPLE
@@ -591,6 +599,22 @@ CREATE TABLE foglamp.user_logins (
 
 CREATE INDEX fki_user_logins_fk1
     ON foglamp.user_logins USING btree (user_id);
+
+
+-- User Password History table
+-- Maintains a history of passwords
+CREATE TABLE foglamp.user_pwd_history (
+       id               integer                     NOT NULL DEFAULT nextval('foglamp.user_pwd_history_id_seq'::regclass),
+       user_id          integer                     NOT NULL,
+       pwd              character varying(255)      COLLATE pg_catalog."default",
+       CONSTRAINT user_pwd_history_pkey PRIMARY KEY (id),
+       CONSTRAINT user_pwd_history_fk1 FOREIGN KEY (user_id)
+       REFERENCES foglamp.users (id) MATCH SIMPLE
+               ON UPDATE NO ACTION
+               ON DELETE NO ACTION );
+
+CREATE INDEX fki_user_pwd_history_fk1
+    ON foglamp.user_pwd_history USING btree (user_id);
 
 
 -- User Resource Permissions table
@@ -730,11 +754,16 @@ INSERT INTO foglamp.roles ( name, description )
      VALUES ('admin', 'for the users having all CRUD privileges including other admin users'),
             ('user', 'all CRUD operations and self profile management');
 
+
 -- Users
 DELETE FROM foglamp.users;
 INSERT INTO foglamp.users ( uname, pwd, role_id, description )
      VALUES ('admin', '3a86096e7a7c123ba0bc3dfb7a1d350541649f1ff1aff1f37e0dc1ee4175b112:3759bf3302f5481e8c9cc9472c6088ac', 1, 'admin user'),
             ('user', '3a86096e7a7c123ba0bc3dfb7a1d350541649f1ff1aff1f37e0dc1ee4175b112:3759bf3302f5481e8c9cc9472c6088ac', 2, 'normal user');
+
+-- User password history
+DELETE FROM foglamp.user_pwd_history;
+
 
 -- User logins
 DELETE FROM foglamp.user_logins;

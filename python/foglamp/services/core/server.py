@@ -1003,24 +1003,30 @@ class Server:
 
     @classmethod
     async def get_configuration_categories(cls, request):
-        return conf_api.get_categories(request)
+        res = await conf_api.get_categories(request)
+        return res
 
     @classmethod
     async def create_configuration_category(cls, request):
-        return conf_api.create_category(request)
+        res = await conf_api.create_category(request)
+        return res
 
     @classmethod
     async def get_configuration_category(cls, request):
-        return conf_api.get_category(request)
+        res = await conf_api.get_category(request)
+        return res
 
     @classmethod
     async def get_configuration_item(cls, request):
-        return conf_api.get_category_item(request)
+        res = await conf_api.get_category_item(request)
+        return res
 
     @classmethod
     async def update_configuration_item(cls, request):
-        return conf_api.set_configuration_item(request)
+        res =await conf_api.set_configuration_item(request)
+        return res
 
     @classmethod
     async def delete_configuration_item(cls, request):
-        return conf_api.delete_configuration_item_value(request)
+        res = await conf_api.delete_configuration_item_value(request)
+        return res

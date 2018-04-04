@@ -159,6 +159,11 @@ class Server:
                            ' authentication header',
             'type': 'boolean',
             'default': 'true'
+        },
+        'passwordChange': {
+            'description': 'Number of days which a password must be changed',
+            'type': 'integer',
+            'default': '0'
         }
     }
 

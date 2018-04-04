@@ -15,7 +15,7 @@ from foglamp.common.web.middleware import has_permission
 from foglamp.common import logger
 
 
-__author__ = "Praveen Garg"
+__author__ = "Praveen Garg, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -24,13 +24,18 @@ _logger = logger.setup(__name__)
 
 _help = """
     ------------------------------------------------------------------------------------
-    | GET POST                   | /foglamp/user                                       |
-    | PUT DELETE                 | /foglamp/user/{id}                                  |
+    | GET                        | /foglamp/user                                       |
+    | PUT                        | /foglamp/user/{id}                                  |
+    | PUT                        | /foglamp/user/{username}/password                   |     
 
     | GET                        | /foglamp/user/role                                  |
     
     | POST                       | /foglamp/login                                      |
-    | PUT                        | /foglamp/{user_id}/logout                                |
+    | PUT                        | /foglamp/{user_id}/logout                           |
+    
+    | POST                       | /foglamp/admin/user                                 |
+    | PUT                        | /foglamp/admin/{user_id}/reset                      |
+    | DELETE                     | /foglamp/admin/{user_id}/delete                     |
     ------------------------------------------------------------------------------------
 """
 
@@ -54,11 +59,10 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-        curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
+        curl -X POST -d '{"username": "user", "password": "foglamp"}' https://localhost:1995/foglamp/login --insecure
     """
 
     data = await request.json()
-
     username = data.get('username')
     password = data.get('password')
 
@@ -73,10 +77,17 @@ async def login(request):
     if peername is not None:
         host, port = peername
     try:
-        uid, token, is_admin = User.Objects.login(username, password, host)
+        uid, token, is_admin = await User.Objects.login(username, password, host)
     except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
         _logger.warning(str(ex))
-        return web.HTTPBadRequest(reason=str(ex))
+        return web.HTTPNotFound(reason=str(ex))
+    except User.PasswordExpired as ex:
+        # delete all user token for this user
+        User.Objects.delete_user_tokens(str(ex))
+
+        msg = 'Your password has been expired. Please set your password again'
+        _logger.warning(msg)
+        return web.HTTPUnauthorized(reason=msg)
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
 
@@ -87,7 +98,7 @@ async def logout_me(request):
     """ log out user
 
     :Example:
-        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
+        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/logout --insecure
 
     """
 
@@ -109,7 +120,7 @@ async def logout(request):
     """ log out user's all active sessions
 
     :Example:
-        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/{user_id}/logout
+        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/{user_id}/logout --insecure
 
     """
 
@@ -131,7 +142,7 @@ async def get_roles(request):
     """ get roles
 
     :Example:
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user/role
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user/role --insecure
     """
     result = User.Objects.get_roles()
     return web.json_response({'roles': result})
@@ -141,10 +152,10 @@ async def get_user(request):
     """ get user info
 
     :Example:
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
-        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
-        curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user --insecure
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?id=2 --insecure
+        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?username=admin --insecure
+        curl -H "authorization: <token>" -X GET "https://localhost:1995/foglamp/user?id=1&username=admin" --insecure
     """
     user_id = None
     user_name = None
@@ -191,8 +202,8 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/user
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' https://localhost:1995/foglamp/admin/user --insecure
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' https://localhost:1995/foglamp/admin/user --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -257,22 +268,94 @@ async def create_user(request):
 
 
 async def update_user(request):
-    """ update user
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
 
-    :Example:
-        curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/user/<id>
-        curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
-        curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/user/<id>
+    # TODO: FOGL-1226 we don't have any user profile info yet except password, role
+    raise web.HTTPNotImplemented(reason='FOGL-1226')
+
+
+async def update_password(request):
+    """ update password
+
+        :Example:
+             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' https://localhost:1995/foglamp/user/<username>/password --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    # we don't have any user profile info yet, let's allow to update role or password only
-    user_id = request.match_info.get('id')
+    username = request.match_info.get('username')
     data = await request.json()
-    role_id = data.get('role_id')
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    if not current_password or not new_password:
+        msg = "Current or new password is missing"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
+    if new_password and not isinstance(new_password, str):
+        _logger.warning(PASSWORD_ERROR_MSG)
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if new_password and not re.match(PASSWORD_REGEX_PATTERN, new_password):
+        _logger.warning(PASSWORD_ERROR_MSG)
+        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+
+    if current_password == new_password:
+        msg = "New password should not be same as current password"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+
+    user_id = User.Objects.is_user_exists(username, current_password)
+    if not user_id:
+        msg = 'Invalid current password'
+        _logger.warning(msg)
+        raise web.HTTPNotFound(reason=msg)
+
+    try:
+        User.Objects.update(int(user_id), {'password': new_password})
+    except ValueError as ex:
+        _logger.warning(str(ex))
+        raise web.HTTPBadRequest(reason=str(ex))
+    except User.DoesNotExist:
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        _logger.warning(msg)
+        raise web.HTTPNotFound(reason=msg)
+    except User.PasswordAlreadyUsed:
+        msg = "The new password should be different from previous 3 used"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
+    except Exception as exc:
+        _logger.exception(str(exc))
+        raise web.HTTPInternalServerError(reason=str(exc))
+
+    _logger.info("Password has been updated successfully for user id:<{}>".format(int(user_id)))
+
+    return web.json_response({'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
+
+
+@has_permission("admin")
+async def reset(request):
+    """ reset user (only role and password)
+        :Example:
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+    if int(user_id) == 1:
+        msg = "Restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg)
+
+    data = await request.json()
     password = data.get('password')
+    role_id = data.get('role_id')
 
     if not role_id and not password:
         msg = "Nothing to update the user"
@@ -280,17 +363,9 @@ async def update_user(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if role_id and not is_valid_role(role_id):
-        _logger.warning("Update user requested with bad role id")
-        raise web.HTTPBadRequest(reason="Invalid or bad role id")
-    if role_id and not has_admin_permissions(request):
-        msg = "Only admin can update the role for a user"
+        msg = "Invalid or bad role id"
         _logger.warning(msg)
-        raise web.HTTPUnauthorized(reason=msg)
-
-    if int(user_id) == 1 and role_id:
-        msg = "Role updation restricted for Super Admin user"
-        _logger.warning(msg)
-        raise web.HTTPNotAcceptable(reason=msg)  # auth is mandatory
+        return web.HTTPBadRequest(reason=msg)
 
     if password and not isinstance(password, str):
         _logger.warning(PASSWORD_ERROR_MSG)
@@ -298,8 +373,6 @@ async def update_user(request):
     if password and not re.match(PASSWORD_REGEX_PATTERN, password):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
-    check_authorization(request, user_id, "update")
 
     user_data = {}
     if 'role_id' in data:
@@ -316,6 +389,10 @@ async def update_user(request):
         msg = "User with id:<{}> does not exist".format(int(user_id))
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
+    except User.PasswordAlreadyUsed:
+        msg = "The new password should be different from previous 3 used"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
         _logger.exception(str(exc))
         raise web.HTTPInternalServerError(reason=str(exc))
@@ -330,7 +407,7 @@ async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
-        curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/user/1
+        curl -H "authorization: <token>" -X DELETE  https://localhost:1995/foglamp/admin/{user_id}/delete --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -338,7 +415,7 @@ async def delete_user(request):
 
     # TODO: we should not prevent this, when we have at-least 1 admin (super) user
     try:
-        user_id = int(request.match_info.get('id'))
+        user_id = int(request.match_info.get('user_id'))
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))

@@ -268,7 +268,7 @@ class MicroserviceManagementClient(object):
         :param config_item:
         :return:
         """
-        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
+        url = "/foglamp/service/category/{}/{}/value".format(category_name, config_item)
 
         self._management_client_conn.request(method='DELETE', url=url)
         r = self._management_client_conn.getresponse()

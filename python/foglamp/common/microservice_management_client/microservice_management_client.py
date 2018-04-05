@@ -238,16 +238,17 @@ class MicroserviceManagementClient(object):
         response = json.loads(res)
         return response
 
-    def update_configuration_item(self, category_name, config_item):
+    def update_configuration_item(self, category_name, config_item, category_data):
         """
 
         :param category_name:
         :param config_item:
+        :param category_data: e.g. '{"value": "true"}'
         :return:
         """
         url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
 
-        self._management_client_conn.request(method='PUT', url=url)
+        self._management_client_conn.request(method='PUT', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)

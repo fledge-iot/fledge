@@ -69,6 +69,21 @@ class DatapointValue {
 			}
 		};
 		/**
+		 * Assignment Operator
+		 */
+		DatapointValue& operator=(const DatapointValue& rhs)
+		{
+			m_type = rhs.m_type;
+			switch (m_type)
+			{
+			case T_STRING:
+				m_value.str = new std::string(*(rhs.m_value.str));
+			default:
+				m_value = rhs.m_value;
+			}
+			return *this;
+		}
+		/**
 		 * Return the value as a string
 		 */
 		std::string	toString() const

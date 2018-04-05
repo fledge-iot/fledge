@@ -8,8 +8,6 @@
 
 from abc import ABC, abstractmethod
 import argparse
-import http.client
-import json
 import time
 
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
@@ -29,6 +27,7 @@ class ArgumentParserError(Exception):
     """ Override default exception to not terminate application """
     pass
 
+
 class SilentArgParse(argparse.ArgumentParser):
 
     def error(self, message):
@@ -39,6 +38,7 @@ class SilentArgParse(argparse.ArgumentParser):
         self.add_argument(argument_name)
         parser_result = self.parse_known_args()
         return list(vars(parser_result[0]).values())[0]
+
 
 class FoglampProcess(ABC):
     """ FoglampProcess for all non-core python processes.
@@ -155,4 +155,54 @@ class FoglampProcess(ABC):
         # cat name
         # self.microservice_id
         raise NotImplementedError
+
+    def get_configuration_categories(self):
+        """
+
+        :return:
+        """
+        return self._core_microservice_management_client.get_configuration_category()
+
+    def get_configuration_category(self, category_name=None):
+        """
+
+        :param category_name:
+        :return:
+        """
+        return self._core_microservice_management_client.get_configuration_category(category_name)
+
+    def get_configuration_item(self, category_name, config_item):
+        """
+
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        return self._core_microservice_management_client.get_configuration_item(category_name, config_item)
+
+    def create_configuration_category(self, category_data):
+        """
+
+        :param category_data:
+        :return:
+        """
+        return self._core_microservice_management_client.create_configuration_category(category_data)
+
+    def update_configuration_item(self, category_name, config_item):
+        """
+
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        return self._core_microservice_management_client.update_configuration_item(category_name, config_item)
+
+    def delete_configuration_item(self, category_name, config_item):
+        """
+
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        return self._core_microservice_management_client.delete_configuration_item(category_name, config_item)
 

@@ -319,7 +319,7 @@ class SendingProcess:
         "blockSize": {
             "description": "The size of a block of readings to send in each transmission.",
             "type": "integer",
-            "default": "5000"
+            "default": "500"
         },
         "sleepInterval": {
             "description": "A period of time, expressed in seconds, "

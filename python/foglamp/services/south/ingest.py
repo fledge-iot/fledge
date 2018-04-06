@@ -11,10 +11,7 @@ import datetime
 import time
 import uuid
 from typing import List, Union
-
-# import dateutil.parser
 import json
-
 from foglamp.common import logger
 from foglamp.common.statistics import Statistics
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient

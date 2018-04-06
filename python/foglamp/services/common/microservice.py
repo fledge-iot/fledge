@@ -6,15 +6,15 @@
 
 """Common FoglampMicroservice Class"""
 
-import asyncio
 from aiohttp import web
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.common.microservice_management import routes
 from foglamp.common import logger
 from foglamp.common.process import FoglampProcess
 from foglamp.common.web import middleware
 from abc import abstractmethod
 import time
+import json
+import asyncio
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -57,10 +57,16 @@ class FoglampMicroservice(FoglampProcess):
 
             # ----- Ref: FOGL-1155. We need to fetch host from configuration of plugin
             category = self._name
-            config_descr = '{} Service'.format(self._name)
-            cfg_manager = ConfigurationManager(self._storage)
-            loop.run_until_complete(cfg_manager.create_category(category, default_config, config_descr, True))
-            config = loop.run_until_complete(cfg_manager.get_category_all_items(category))
+            config = default_config
+            config_descr = '{} Device'.format(self._name)
+            config_payload = json.dumps({
+                "key": category,
+                "description": config_descr,
+                "value": config,
+                "keep_original_items": True
+            })
+            self._core_microservice_management_client.create_configuration_category(config_payload)
+            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
             host = config['management_host']['value']
             # -----
 

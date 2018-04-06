@@ -12,6 +12,7 @@ import pytest
 from unittest.mock import MagicMock
 from foglamp.services.south.ingest import *
 from foglamp.services.south import ingest
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 
 __author__ = "Amarendra K Sinha"
@@ -27,7 +28,7 @@ def mock_coro():
 async def false_coro():
     return True
 
-async def get_cat(old_config):
+def get_cat(old_config):
     new_config = {}
     for key, value in old_config.items():
         new_value = copy.deepcopy(value)
@@ -116,8 +117,10 @@ class TestIngest:
         # GIVEN
         Ingest.storage = MagicMock(spec=StorageClient)
         Ingest.readings_storage = MagicMock(spec=ReadingsStorageClient)
-        create_cfg = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_coro())
-        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
+        create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
+        get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        Ingest._parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
 
         # WHEN
         await Ingest._read_config()
@@ -125,7 +128,7 @@ class TestIngest:
         # THEN
         assert 1 == create_cfg.call_count
         assert 1 == get_cfg.call_count
-        new_config = await get_cat(Ingest.default_config)
+        new_config = get_cat(Ingest.default_config)
         assert Ingest._write_statistics_frequency_seconds == \
                int(new_config['write_statistics_frequency_seconds']['value'])
         assert Ingest._readings_buffer_size == int(new_config['readings_buffer_size']['value'])
@@ -145,13 +148,15 @@ class TestIngest:
         mocker.patch.object(StorageClient, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClient, "__init__", return_value=None)
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
-        create_cfg = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_coro())
-        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
+        create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
+        get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
 
         # WHEN
-        await Ingest.start(core_mgt_host=None, core_mgt_port=None)
+        await Ingest.start(core_mgt_host=None, core_mgt_port=None, parent=parent_service)
 
         # THEN
         assert 1 == create_cfg.call_count
@@ -174,13 +179,15 @@ class TestIngest:
         mocker.patch.object(StorageClient, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClient, "__init__", return_value=None)
         log_exception = mocker.patch.object(ingest._LOGGER, "exception")
-        create_cfg = mocker.patch.object(ConfigurationManager, "create_category", return_value=mock_coro())
-        get_cfg = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat(Ingest.default_config))
+        mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
+        create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
+        get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
+        parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
         mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
         mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
 
         # WHEN
-        await Ingest.start(core_mgt_host=None, core_mgt_port=None)
+        await Ingest.start(core_mgt_host=None, core_mgt_port=None, parent=parent_service)
         await asyncio.sleep(1)
         await Ingest.stop()
 

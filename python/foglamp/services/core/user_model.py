@@ -128,7 +128,7 @@ class User:
                 # first delete the active login references
                 cls.delete_user_tokens(user_id)
 
-                payload = PayloadBuilder().SET(enabled="False").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 'True']).payload()
+                payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 't']).payload()
                 result = storage_client.update_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
@@ -165,7 +165,7 @@ class User:
                     pwd_history_list = cls._get_password_history(storage_client, user_id, user_data)
             try:
                 payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
-                    ['enabled', '=', 'True']).payload()
+                    ['enabled', '=', 't']).payload()
                 result = storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
                     # FIXME: FOGL-1226 active session delete only in case of role_id and password updation
@@ -187,7 +187,7 @@ class User:
 
         @classmethod
         def is_user_exists(cls, username, password):
-            payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(['enabled', '=', 'True']).payload()
+            payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(['enabled', '=', 't']).payload()
             storage_client = connect.get_storage()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
@@ -201,7 +201,7 @@ class User:
         @classmethod
         def all(cls):
             storage_client = connect.get_storage()
-            payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 'True']).payload()
+            payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 't']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             return result['rows']
 
@@ -210,7 +210,7 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 'True'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 't'])
 
             if user_id is not None:
                 q = q.AND_WHERE(['id', '=', user_id])
@@ -297,7 +297,7 @@ class User:
 
             # get user info on the basis of username
             payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "pwd_last_changed").WHERE(['uname', '=', username]).\
-                AND_WHERE(['enabled', '=', 'True']).payload()
+                AND_WHERE(['enabled', '=', 't']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
                 raise User.DoesNotExist('User does not exist')

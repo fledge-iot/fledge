@@ -17,7 +17,6 @@ import json
 
 from foglamp.common import logger
 from foglamp.common.statistics import Statistics
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.common.storage_client.exceptions import StorageServerError
 
@@ -44,6 +43,7 @@ class Ingest(object):
 
     _core_management_host = ""
     _core_management_port = 0
+    _parent_service = None
 
     readings_storage = None  # type: Readings
     storage = None  # type: Storage
@@ -171,11 +171,16 @@ class Ingest(object):
         }
 
         # Create configuration category and any new keys within it
-        cfg_manager = ConfigurationManager(cls.storage)
-        await cfg_manager.create_category(category, default_config, 'South server configuration')
+        config_payload = json.dumps({
+            "key": category,
+            "description": 'South server configuration',
+            "value": default_config,
+            "keep_original_items": False
+        })
+        cls._parent_service._core_microservice_management_client.create_configuration_category(config_payload)
 
         # Read configuration
-        config = await cfg_manager.get_category_all_items(category)
+        config = cls._parent_service._core_microservice_management_client.get_configuration_category(category_name=category)
 
         cls._write_statistics_frequency_seconds = int(config['write_statistics_frequency_seconds']
                                                       ['value'])
@@ -193,13 +198,14 @@ class Ingest(object):
             config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
 
     @classmethod
-    async def start(cls, core_mgt_host, core_mgt_port):
+    async def start(cls, core_mgt_host, core_mgt_port, parent):
         """Starts the server"""
         if cls._started:
             return
 
         cls._core_management_host = core_mgt_host
         cls._core_management_port = core_mgt_port
+        cls._parent_service = parent
 
         cls.readings_storage = ReadingsStorageClient(cls._core_management_host, cls._core_management_port)
         cls.storage = StorageClient(cls._core_management_host, cls._core_management_port)

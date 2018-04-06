@@ -16,9 +16,12 @@
 #include <iostream>
 #include <unistd.h>
 
-static const char *defaultConfiguration = " { \"plugin\" : { "
-" \"value\" : \"postgres\" }, \"threads\" : { \"value\" : \"1\" },"
-"  \"port\" : { \"value\" : \"0\" }, \"managementPort\" : { \"value\" : \"0\" } }";
+static const char *defaultConfiguration =
+" { \"plugin\" : { \"value\" : \"postgres\", \"description\" : \"The storage plugin to load\"},"
+" \"threads\" : { \"value\" : \"1\", \"description\" : \"The number of threads to run\" },"
+" \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if FogLAMP should manage the storage provider\" },"
+" \"port\" : { \"value\" : \"0\", \"description\" : \"The port to listen on\" },"
+" \"managementPort\" : { \"value\" : \"0\", \"description\" : \"The management port to listen on.\" } }";
 
 using namespace std;
 using namespace rapidjson;

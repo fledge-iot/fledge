@@ -65,7 +65,7 @@ class TestUserModel:
 
     def test_get_all(self):
         expected = {'rows': [], 'count': 0}
-        payload = '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "True"}}'
+        payload = '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=expected) as query_tbl_patch:
@@ -74,10 +74,10 @@ class TestUserModel:
             query_tbl_patch.assert_called_once_with('users', payload)
 
     @pytest.mark.parametrize("kwargs, payload", [
-        ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "True"}}'),
-        ({'username': None, 'uid': 1}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "True", "and": {"column": "id", "condition": "=", "value": 1}}}'),
-        ({'username': 'aj', 'uid': None}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "True", "and": {"column": "uname", "condition": "=", "value": "aj"}}}'),
-        ({'username': 'aj', 'uid': 1}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "True", "and": {"column": "id", "condition": "=", "value": 1, "and": {"column": "uname", "condition": "=", "value": "aj"}}}}')
+        ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),
+        ({'username': None, 'uid': 1}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1}}}'),
+        ({'username': 'aj', 'uid': None}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "uname", "condition": "=", "value": "aj"}}}'),
+        ({'username': 'aj', 'uid': 1}, '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1, "and": {"column": "uname", "condition": "=", "value": "aj"}}}}')
     ])
     def test_get_filter(self, kwargs, payload):
         expected = {'rows': [], 'count': 0}
@@ -159,7 +159,7 @@ class TestUserModel:
 
     def test_delete_user(self):
         p1 = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
-        p2 = '{"values": {"enabled": "False"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        p2 = '{"values": {"enabled": "f"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         r1 = {'response': 'deleted', 'rows_affected': 1}
         r2 = {'response': 'updated', 'rows_affected': 1}
 
@@ -179,7 +179,7 @@ class TestUserModel:
 
     def test_delete_user_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
-        payload = '{"values": {"enabled": "False"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"values": {"enabled": "f"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(code=400, reason="blah",
@@ -232,7 +232,7 @@ class TestUserModel:
 
     def test_update_user_storage_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'update'}
-        payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as update_tbl_patch:
@@ -242,7 +242,7 @@ class TestUserModel:
         update_tbl_patch.assert_called_once_with('users', payload)
 
     def test_update_user_exception(self):
-        payload = '{"values": {"role_id": "blah"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"values": {"role_id": "blah"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         msg = 'Bad role id'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -257,7 +257,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -275,7 +275,7 @@ class TestUserModel:
             return {"value": "0"}
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -295,7 +295,7 @@ class TestUserModel:
             return {"value": "30"}
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159+05:30'}]}
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -316,7 +316,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -344,7 +344,7 @@ class TestUserModel:
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "True"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -458,7 +458,7 @@ class TestUserModel:
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': []}) as query_tbl_patch:
                 result = User.Objects.is_user_exists('blah', 'blah')
                 assert result is None
-            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "blah", "and": {"column": "enabled", "condition": "=", "value": "True"}}}')
+            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "blah", "and": {"column": "enabled", "condition": "=", "value": "t"}}}')
 
     @pytest.mark.parametrize("ret_val_check_pwd, expected", [(True, 1), (False, None)])
     def test_user_exists(self, ret_val_check_pwd, expected):
@@ -470,7 +470,7 @@ class TestUserModel:
                     actual = User.Objects.is_user_exists('admin', 'admin')
                     assert expected == actual
                 check_pwd_patch.assert_called_once_with(ret_val['rows'][0]['pwd'], 'admin')
-            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "True"}}}')
+            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}')
 
     def test__get_password_history(self):
         storage_client_mock = MagicMock(StorageClient)

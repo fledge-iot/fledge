@@ -257,7 +257,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -275,7 +275,7 @@ class TestUserModel:
             return {"value": "0"}
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -295,7 +295,7 @@ class TestUserModel:
             return {"value": "30"}
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159'}]}
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -316,7 +316,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -344,7 +344,7 @@ class TestUserModel:
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
-        payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
@@ -395,7 +395,7 @@ class TestUserModel:
 
     def test_invalid_token(self):
         storage_client_mock = MagicMock(StorageClient)
-        payload = '{"return": ["token_expiration"], "where": {"column": "token", "condition": "=", "value": "blah"}}'
+        payload = '{"return": [{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "token_expiration"}], "where": {"column": "token", "condition": "=", "value": "blah"}}'
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': [], 'count': 0}) as query_tbl_patch:
                 with pytest.raises(Exception) as excinfo:

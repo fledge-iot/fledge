@@ -568,7 +568,7 @@ CREATE TABLE foglamp.users (
        pwd               character varying(255)      COLLATE pg_catalog."default",
        public_key        character varying(255)      COLLATE pg_catalog."default",
        enabled           boolean                     NOT NULL DEFAULT TRUE,
-       pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
+       pwd_last_changed  timestamp(6) without time zone NOT NULL DEFAULT now(),
        access_method smallint                        NOT NULL DEFAULT 0,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
@@ -588,9 +588,9 @@ CREATE TABLE foglamp.user_logins (
        id               integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
        user_id          integer                     NOT NULL,
        ip               inet                        NOT NULL DEFAULT '0.0.0.0'::inet,
-       ts               timestamp(6) with time zone NOT NULL DEFAULT now(),
+       ts               timestamp(6) without time zone NOT NULL DEFAULT now(),
        token            character varying(255)      NOT NULL,
-       token_expiration timestamp(6) with time zone NOT NULL,
+       token_expiration timestamp(6) without time zone NOT NULL,
        CONSTRAINT user_logins_pkey PRIMARY KEY (id),
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)
        REFERENCES foglamp.users (id) MATCH SIMPLE

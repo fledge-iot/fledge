@@ -262,7 +262,7 @@ class User:
                 raise User.InvalidToken("Token appears to be invalid")
 
             r = result['rows'][0]
-            token_expiry = r["token_expiration"][:-6]
+            token_expiry = r["token_expiration"]
 
             curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
@@ -306,7 +306,7 @@ class User:
 
             # check age of password
             t1 = datetime.now()
-            t2 = datetime.strptime(found_user['pwd_last_changed'][:-6], "%Y-%m-%d %H:%M:%S.%f")  # ignore timezone
+            t2 = datetime.strptime(found_user['pwd_last_changed'], "%Y-%m-%d %H:%M:%S.%f")
             delta = t1 - t2
             if age == 0:
                 # user will not be forced to change their password.

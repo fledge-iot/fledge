@@ -274,7 +274,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}
+        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
         payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -294,7 +294,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "30"}
 
-        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159+05:30'}]}
+        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159'}]}
         payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
@@ -309,8 +309,8 @@ class TestUserModel:
             mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
 
     @pytest.mark.parametrize("user_data", [
-        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}),
-        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False, 'pwd_last_changed': '2018-03-29 05:05:08.216159+05:30'}]})
+        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}),
+        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False, 'pwd_last_changed': '2018-03-29 05:05:08.216159'}]})
     ])
     async def test_login(self, user_data):
         async def mock_get_category_item():
@@ -342,7 +342,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159+05:30'}]}
+        pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"return": ["pwd", "id", "role_id", "pwd_last_changed"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClient)
@@ -406,7 +406,7 @@ class TestUserModel:
             query_tbl_patch.assert_called_once_with('user_logins', payload)
 
     def test_validate_token(self):
-        valid_token_result = {'rows': [{"token_expiration": "2017-03-14 15:09:19.800648+05:30"}], 'count': 1}
+        valid_token_result = {'rows': [{"token_expiration": "2017-03-14 15:09:19.800648"}], 'count': 1}
         storage_client_mock = MagicMock(StorageClient)
         payload = '{"return": ["token_expiration"], "where": {"column": "token", "condition": "=", "value": "foglamp"}}'
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):

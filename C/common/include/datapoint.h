@@ -73,13 +73,19 @@ class DatapointValue {
 		 */
 		DatapointValue& operator=(const DatapointValue& rhs)
 		{
+			if (m_type == T_STRING)
+			{
+				delete m_value.str;
+			}
 			m_type = rhs.m_type;
 			switch (m_type)
 			{
 			case T_STRING:
 				m_value.str = new std::string(*(rhs.m_value.str));
+				break;
 			default:
 				m_value = rhs.m_value;
+				break;
 			}
 			return *this;
 		}

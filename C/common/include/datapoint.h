@@ -54,8 +54,10 @@ class DatapointValue {
 			{
 			case T_STRING:
 				m_value.str = new std::string(*(obj.m_value.str));
+				break;
 			default:
 				m_value = obj.m_value;
+				break;
 			}
 		}
 		/**

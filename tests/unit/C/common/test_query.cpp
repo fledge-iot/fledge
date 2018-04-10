@@ -204,7 +204,5 @@ string json;
 string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"returns\" : [ \"c1\", \"c2\", \"c3\" ] }");
 
 	json = query.toJSON();
-printf("Expected: %s\n", expected.c_str());
-printf("Got:      %s\n", json.c_str());
 	ASSERT_EQ(json.compare(expected), 0);
 }

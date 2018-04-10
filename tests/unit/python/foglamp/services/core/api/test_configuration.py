@@ -329,12 +329,10 @@ class TestConfiguration:
                             r = await resp.text()
                             json_response = json.loads(r)
                             assert result == json_response
-                    val = {new_config_item: data}
-                    if 'value' not in data:
-                        temp_dict = data
-                        temp_dict.update({'value': temp_dict.get('default')})
-                        val = {new_config_item: temp_dict}
 
+                    if 'value' not in data:
+                        data.update({'value': data.get('default')})
+                    val = {new_config_item: data}
                     audit_details = {'category': category_name, 'item': new_config_item, 'value': val}
                     args, kwargs = audit_info_patch.call_args
                     assert 'CONAD' == args[0]

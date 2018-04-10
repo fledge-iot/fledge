@@ -19,9 +19,8 @@ _help = """
     -------------------------------------------------------------------------------
     | GET POST        | /foglamp/category                                         |
     | GET             | /foglamp/category/{category_name}                         |
-    | GET PUT         | /foglamp/category/{category_name}/{config_item}           |
+    | GET POST PUT    | /foglamp/category/{category_name}/{config_item}           |
     | DELETE          | /foglamp/category/{category_name}/{config_item}/value     |
-    | POST            | /foglamp/category/{category_name}/{add_config_item}       |
     -------------------------------------------------------------------------------
 """
 
@@ -195,7 +194,7 @@ async def add_configuration_item(request):
         curl -d '{"default": "true", "description": "Test description", "type": "boolean", "value": "false"}' -X POST https://localhost:1995/foglamp/category/test_cat/{new_config_item} --insecure
     """
     category_name = request.match_info.get('category_name', None)
-    new_config_item = request.match_info.get('add_config_item', None)
+    new_config_item = request.match_info.get('config_item', None)
 
     try:
         storage_client = connect.get_storage()
@@ -209,9 +208,8 @@ async def add_configuration_item(request):
         # else update the data payload with value key and set its value to default value and validate
         val = data.get('value', None)
         if val is None:
-            temp_dict = data
-            temp_dict.update({'value': temp_dict.get('default')})
-            config_item_dict = {new_config_item: temp_dict}
+            data.update({'value': data.get('default')})
+            config_item_dict = {new_config_item: data}
         else:
             config_item_dict = {new_config_item: data}
 
@@ -240,14 +238,14 @@ async def add_configuration_item(request):
         audit_details = {'category': category_name, 'item': new_config_item, 'value': config_item_dict}
         await audit.information('CONAD', audit_details)
 
-        return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
-
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except NameError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
+
+    return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
 
 
 async def delete_configuration_item_value(request):

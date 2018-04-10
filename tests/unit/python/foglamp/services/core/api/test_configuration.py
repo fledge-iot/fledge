@@ -243,6 +243,39 @@ class TestConfiguration:
             patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
                                                      category_value=info, keep_original_items=False)
 
+    async def test_create_category_invalid_key(self, client, name="test_cat", desc="Test desc"):
+        info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
+        payload = {"key": name, "description": desc, "value": info, "keep_original_items": "bla"}
+
+        storage_client_mock = MagicMock(StorageClient)
+        ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            resp = await client.post('/foglamp/category', data=json.dumps(payload))
+            assert 400 == resp.status
+            assert "keep_original_items should be boolean true | false" == resp.reason
+
+    async def test_create_category_invalid_category(self, client, name="test_cat", desc="Test desc"):
+        info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
+        payload = {"key": name, "description": desc, "value": info}
+
+        async def async_mock_create_cat():
+            return None
+
+        async def async_mock():
+            return None
+
+        storage_client_mock = MagicMock(StorageClient)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'create_category', return_value=async_mock_create_cat()) as patch_create_cat:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_cat_all_item:
+                    resp = await client.post('/foglamp/category', data=json.dumps(payload))
+                    assert 404 == resp.status
+                    assert 'No such test_cat found' == resp.reason
+                patch_cat_all_item.assert_called_once_with(category_name=name)
+            patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
+                                                     category_value=info, keep_original_items=False)
+
     async def test_create_category_http_exception(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
         payload = {"key": name, "description": desc, "value": info}

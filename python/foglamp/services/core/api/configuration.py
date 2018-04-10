@@ -7,6 +7,8 @@
 from aiohttp import web
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -19,6 +21,7 @@ _help = """
     | GET             | /foglamp/category/{category_name}                         |
     | GET PUT         | /foglamp/category/{category_name}/{config_item}           |
     | DELETE          | /foglamp/category/{category_name}/{config_item}/value     |
+    | POST            | /foglamp/category/{category_name}/{add_config_item}       |
     -------------------------------------------------------------------------------
 """
 
@@ -176,6 +179,75 @@ async def set_configuration_item(request):
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
 
     return web.json_response(result)
+
+
+async def add_configuration_item(request):
+    """
+    Args:
+        request: A JSON object that defines the config item and has key-pair
+                 (default, type, description, value[optional])
+
+    Returns:
+        Json response with message key
+
+    :Example:
+        curl -d '{"default": "true", "description": "Test description", "type": "boolean"}' -X POST https://localhost:1995/foglamp/category/{new_config_item} --insecure
+        curl -d '{"default": "true", "description": "Test description", "type": "boolean", "value": "false"}' -X POST https://localhost:1995/foglamp/category/test_cat/{new_config_item} --insecure
+    """
+    category_name = request.match_info.get('category_name', None)
+    new_config_item = request.match_info.get('add_config_item', None)
+
+    try:
+        storage_client = connect.get_storage()
+        cf_mgr = ConfigurationManager(storage_client)
+
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
+
+        # if value key is in data then go ahead with data payload and validate
+        # else update the data payload with value key and set its value to default value and validate
+        val = data.get('value', None)
+        if val is None:
+            temp_dict = data
+            temp_dict.update({'value': temp_dict.get('default')})
+            config_item_dict = {new_config_item: temp_dict}
+        else:
+            config_item_dict = {new_config_item: data}
+
+        # validate configuration category value
+        await cf_mgr._validate_category_val(category_val=config_item_dict, set_value_val_from_default_val=False)
+
+        # validate category
+        category = await cf_mgr.get_category_all_items(category_name)
+        if category is None:
+            raise NameError("No such Category found for {}".format(category_name))
+
+        # check if config item is already in use
+        if new_config_item in category.keys():
+            raise KeyError("Config item is already in use for {}".format(category_name))
+
+        # merge category values with keep_original_items True
+        merge_cat_val = await cf_mgr._merge_category_vals(config_item_dict, category, keep_original_items=True)
+
+        # update category value in storage
+        payload = PayloadBuilder().SET(value=merge_cat_val).WHERE(["key", "=", category_name]).payload()
+        result = storage_client.update_tbl("configuration", payload)
+        response = result['response']
+
+        # logged audit new config item for category
+        audit = AuditLogger(storage_client)
+        audit_details = {'category': category_name, 'item': new_config_item, 'value': config_item_dict}
+        await audit.information('CONAD', audit_details)
+
+        return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
+
+    except (KeyError, ValueError, TypeError) as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except NameError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
 
 
 async def delete_configuration_item_value(request):

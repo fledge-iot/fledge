@@ -14,6 +14,7 @@ from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -247,5 +248,106 @@ class TestConfiguration:
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
         payload = {"key": name, "description": desc, "value": info}
         resp = await client.post('/foglamp/category', data=json.dumps(payload))
+        assert 500 == resp.status
+        assert 'Internal Server Error' == resp.reason
+
+    @pytest.mark.parametrize("payload, message", [
+        # FIXME: keys order mismatch assertion
+        # ({"default": "1"}, "Missing entry_name"),
+        # ({"value": "0"}, "Missing entry_name"),
+        # ({"description": "1", "type": "Integer"}, "Invalid entry_val for entry_name \"type\" for item_name info. valid: ['IPv4', 'IPv6', 'JSON', 'X509 certificate', 'boolean', 'integer', 'password', 'string']")
+        ("blah", "Data payload must be a dictionary"),
+        ({}, "entry_val must be a string for item_name info and entry_name value"),
+        ({"description": "Test desc"}, "entry_val must be a string for item_name info and entry_name value"),
+        ({"type": "integer"}, "entry_val must be a string for item_name info and entry_name value"),
+        ({"default": "1", "description": "Test desc"}, "Missing entry_name type for item_name info"),
+        ({"default": "1", "type": "integer"}, "Missing entry_name description for item_name info"),
+        ({"description": "1", "type": "integer"}, "entry_val must be a string for item_name info and entry_name value")
+    ])
+    async def test_validate_data_for_add_config_item(self, client, payload, message):
+        storage_client_mock = MagicMock(StorageClient)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            resp = await client.post('/foglamp/category/{}/{}'.format("cat", "info"), data=json.dumps(payload))
+            assert 400 == resp.status
+            assert message == resp.reason
+
+    async def test_invalid_cat_for_add_config_item(self, client):
+        async def async_mock():
+            return None
+
+        category_name = 'blah'
+        payload = {"default": "1", "description": "Test description", "type": "integer"}
+        storage_client_mock = MagicMock(StorageClient)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.post('/foglamp/category/{}/{}'.format(category_name, "info"), data=json.dumps(payload))
+                assert 404 == resp.status
+                assert 'No such Category found for {}'.format(category_name) == resp.reason
+            patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_config_item_in_use_for_add_config_item(self, client):
+        async def async_mock():
+            return {"info": {"default": "1", "description": "Test description", "type": "integer"}}
+
+        category_name = 'cat'
+        payload = {"default": "1", "description": "Test description", "type": "integer"}
+        storage_client_mock = MagicMock(StorageClient)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.post('/foglamp/category/{}/{}'.format(category_name, "info"), data=json.dumps(payload))
+                assert 400 == resp.status
+                assert "'Config item is already in use for {}'".format(category_name) == resp.reason
+            patch_get_all_items.assert_called_once_with(category_name)
+
+    @pytest.mark.parametrize("data", [
+        {"default": "true", "description": "Test description", "type": "boolean"},
+        {"default": "true", "description": "Test description", "type": "boolean", "value": "false"}
+    ])
+    async def test_add_config_item(self, client, data):
+        async def async_mock():
+            return {"info": {"default": "1", "description": "Test description", "type": "integer"}}
+
+        async def async_audit_mock(return_value):
+            return return_value
+
+        category_name = 'cat'
+        new_config_item = 'info1'
+        payload = '{"values": {"value": {"info1": {"type": "boolean", "description": "Test description", "default": "true", "value": "true"}, "info": {"type": "integer", "description": "Test description", "default": "1"}}}, "where": {"column": "key", "condition": "=", "value": "cat"}}'
+        expected = {'rows_affected': 1, "response": "updated"}
+        result = {'message': '{} config item has been saved for {} category'.format(new_config_item, category_name)}
+        storage_client_mock = MagicMock(StorageClient)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_get_all_items:
+                with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=async_audit_mock(None)) as audit_info_patch:
+                            resp = await client.post('/foglamp/category/{}/{}'.format(category_name, new_config_item), data=json.dumps(data))
+                            assert 200 == resp.status
+                            r = await resp.text()
+                            json_response = json.loads(r)
+                            assert result == json_response
+                    val = {new_config_item: data}
+                    if 'value' not in data:
+                        temp_dict = data
+                        temp_dict.update({'value': temp_dict.get('default')})
+                        val = {new_config_item: temp_dict}
+
+                    audit_details = {'category': category_name, 'item': new_config_item, 'value': val}
+                    args, kwargs = audit_info_patch.call_args
+                    assert 'CONAD' == args[0]
+                    assert audit_details == args[1]
+                # FIXME: payload order assertion
+                args, kwargs = update_tbl_patch.call_args
+                assert args[0] == 'configuration'
+                # assert args[1] in payload
+                # update_tbl_patch.assert_called_once_with('configuration', payload)
+            patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_unknown_exception_for_add_config_item(self, client):
+        data = {"default": "d", "description": "Test description", "type": "boolean"}
+        resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
         assert 500 == resp.status
         assert 'Internal Server Error' == resp.reason

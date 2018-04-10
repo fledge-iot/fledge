@@ -53,6 +53,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/category/{category_name}', api_configuration.get_category)
     app.router.add_route('GET', '/foglamp/category/{category_name}/{config_item}', api_configuration.get_category_item)
     app.router.add_route('PUT', '/foglamp/category/{category_name}/{config_item}', api_configuration.set_configuration_item)
+    app.router.add_route('POST', '/foglamp/category/{category_name}/{add_config_item}', api_configuration.add_configuration_item)
     app.router.add_route('DELETE', '/foglamp/category/{category_name}/{config_item}/value', api_configuration.delete_configuration_item_value)
 
     # Scheduler

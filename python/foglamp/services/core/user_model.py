@@ -255,8 +255,8 @@ class User:
             """
 
             storage_client = connect.get_storage()
-            token_expiration_format = '{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "token_expiration"}'
-            payload = PayloadBuilder().SELECT(token_expiration_format).WHERE(['token', '=', token]).payload()
+            token_expiration = '{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "token_expiration"}'
+            payload = PayloadBuilder().SELECT(token_expiration).WHERE(['token', '=', token]).payload()
             result = storage_client.query_tbl_with_payload('user_logins', payload)
 
             if len(result['rows']) == 0:
@@ -297,8 +297,8 @@ class User:
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            pwd_last_changed_format = '{"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "pwd_last_changed"}'
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", pwd_last_changed_format).WHERE(['uname', '=', username]).\
+            pwd_last_changed = '{"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "pwd_last_changed"}'
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", pwd_last_changed).WHERE(['uname', '=', username]).\
                 AND_WHERE(['enabled', '=', 't']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:

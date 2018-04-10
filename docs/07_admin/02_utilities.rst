@@ -78,10 +78,8 @@ Checking the Status of FogLAMP
 .. code-block:: console
 
   $ foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP running.
   FogLAMP uptime:  2034 seconds.
-  FogLAMP Records: 10 read, 0 sent, 0 purged.
-  FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
   foglamp.services.south --port=33074 --address=127.0.0.1 --name=HTTP_SOUTH

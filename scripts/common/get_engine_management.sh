@@ -26,7 +26,7 @@ get_engine_management() {
   storage=`echo $storage_info | cut -d' ' -f1`
   managed=`echo $storage_info | cut -d' ' -f2`
 
-  if [ "$storage" := "$1" ]; then
+  if [ "$storage" != "$1" ]; then
     echo ""
   else
     echo "$managed"

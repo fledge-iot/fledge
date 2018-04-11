@@ -30,7 +30,12 @@ NEW_VERSION_DIR=$(dirname ${THIS_VERSION_FILE})
 #echo "Checking installed foglamp in [${INSTALLED_DIR}] and new installing version [${NEW_VERSION_DIR}]"
 
 # Include common code
-FILE_TO_SOURCE="${FOGLAMP_ROOT}/scripts/common/get_storage_plugin.sh"
+if [ ! "${FOGLAMP_ROOT}" ]; then
+    # Use source path
+    FILE_TO_SOURCE="scripts/common/get_storage_plugin.sh"
+else
+    FILE_TO_SOURCE="${FOGLAMP_ROOT}/scripts/common/get_storage_plugin.sh"
+fi
 
 source ${FILE_TO_SOURCE} 2> /dev/null
 RET_CODE=$?

@@ -188,7 +188,7 @@ async def get_audit_entries(request):
     try:
         # HACK: This way when we can more future we do not get an exponential
         # explosion of if statements
-        payload = PayloadBuilder().WHERE(['1', '=', '1'])
+        payload = PayloadBuilder().WHERE(['1', '=', 1])
         if source is not None:
             payload.AND_WHERE(['code', '=', source])
 

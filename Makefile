@@ -59,8 +59,10 @@ SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
 # DB schema update
+SQLITE_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/sqlite/schema_update.sh
 POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/postgres/schema_update.sh
 POSTGRES_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/postgres
+SQLITE_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlite
 
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
@@ -69,6 +71,7 @@ FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
 COMMON_SCRIPTS_SRC          := scripts/common
 POSTGRES_SCRIPT_SRC         := scripts/plugins/storage/postgres.sh
+SQLITE_SCRIPT_SRC           := scripts/plugins/storage/sqlite.sh
 SOUTH_SCRIPT_SRC            := scripts/services/south
 STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
@@ -233,6 +236,7 @@ foglamp_version_file_install :
 scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_common_scripts \
 	install_postgres_script \
+	install_sqlite_script \
 	install_south_script \
 	install_storage_service_script \
 	install_north_script \
@@ -257,7 +261,14 @@ install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
 	$(CP) $(POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC) $(POSTGRES_SCHEMA_UPDATE_DIR)
 	$(CP_DIR) scripts/plugins/storage/postgres/upgrade $(POSTGRES_SCHEMA_UPDATE_DIR)
 	$(CP_DIR) scripts/plugins/storage/postgres/downgrade $(POSTGRES_SCHEMA_UPDATE_DIR)
-	
+
+install_sqlite_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
+	$(SQLITE_SCHEMA_UPDATE_DIR) $(SQLITE_SCRIPT_SRC) $(SQLITE_SCHEMA_UPDATE_SCRIPT_SRC)
+	$(CP) $(SQLITE_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
+	$(CP) $(SQLITE_SCHEMA_UPDATE_SCRIPT_SRC) $(SQLITE_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/sqlite/upgrade $(SQLITE_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/sqlite/downgrade $(SQLITE_SCHEMA_UPDATE_DIR)
+
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
@@ -301,6 +312,11 @@ $(SCRIPT_TASKS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
 $(POSTGRES_SCHEMA_UPDATE_DIR) :
+	$(MKDIR_PATH) $@
+	$(MKDIR_PATH) $@/upgrade
+	$(MKDIR_PATH) $@/downgrade
+
+$(SQLITE_SCHEMA_UPDATE_DIR) :
 	$(MKDIR_PATH) $@
 	$(MKDIR_PATH) $@/upgrade
 	$(MKDIR_PATH) $@/downgrade

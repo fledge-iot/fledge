@@ -53,11 +53,16 @@ class Monitor(object):
         """async Monitor loop to monitor registered services"""
         # check health of all micro-services every N seconds
         round_cnt = 0
+        check_count = {}  # dict to hold current count of current status.
+                          # In case of ok and running status, count will always be 1.
+                          # In case of of non running statuses, count shows since when this status is set.
         while True:
             round_cnt += 1
             self._logger.info("Starting next round#{} of service monitoring, sleep/i:{} ping/t:{} max/a:{}".format(
                 round_cnt, self._sleep_interval, self._ping_timeout, self._max_attempts))
             for service_record in ServiceRegistry.all():
+                if service_record._id not in check_count:
+                    check_count.update({service_record._id: 1})
                 # Try ping if service status is either running or doubtful (i.e. give service a chance to recover)
                 if service_record._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
                     continue
@@ -72,14 +77,15 @@ class Monitor(object):
                                 raise ValueError('Improper Response')
                 except:  # TODO: Fix too broad exception clause
                     service_record._status = ServiceRecord.Status.Doubtful
-                    service_record._check_count += 1
+                    check_count[service_record._id] += 1
                     self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
                 else:
                     service_record._status = ServiceRecord.Status.Running
-                    service_record._check_count = 1
+                    check_count[service_record._id] = 1
 
-                if service_record._check_count > self._max_attempts:
+                if check_count[service_record._id] > self._max_attempts:
                     ServiceRegistry.mark_as_failed(service_record._id)
+                    check_count[service_record._id] = 0
                     try:
                         audit = AuditLogger(connect.get_storage())
                         await audit.failure('SRVFL', {'name':service_record._name})

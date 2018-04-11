@@ -109,6 +109,13 @@ class ServiceRegistry:
         # Here, we do not remove interest_registry recs as this service may be restarted after diagnosis and as
         # such, retaining interest_registry recs may prove beneficial.
 
+        # TODO: Above intention is not working due to some error in line#99-110 of interest_registry.py.
+        #       Investigate and remove below 4 lines.
+        # Remove interest registry records, if any
+        interest_recs = InterestRegistry().get(microservice_uuid=service_id)
+        for interest_rec in interest_recs:
+            InterestRegistry().unregister(interest_rec._registration_id)
+
         cls._logger.info("Mark as failed {}".format(str(services[0])))
         return service_id
 

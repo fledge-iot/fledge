@@ -1469,7 +1469,7 @@ long numReadings = 0;
 	retainedBuffer.append("SELECT count(*) FROM foglamp.readings WHERE id > ");
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
-	const char *query1 = retainedBuffer.coalesce();
+	const char *query = retainedBuffer.coalesce();
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
@@ -1480,7 +1480,7 @@ long numReadings = 0;
 			  &zErrMsg);
 
 	// Release memory for 'query' var
-	delete[] query1;
+	delete[] query;
 
 	if (rc == SQLITE_OK)
 	{

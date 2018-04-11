@@ -16,8 +16,10 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
+
 __author__="Massimiliano Pinto"
 __version__="1.0"
+
 
 ## Get the default storage database plugin from the foglamp config file
 get_default_storage_plugin() {
@@ -30,13 +32,18 @@ get_default_storage_plugin() {
     echo `echo $json_foglamp | grep -o '"default storage plugin" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
 }
 
+
 # Get the storage database plugin from the Storage microservice cache file
 get_plugin_from_storage() {
+
+    $FOGLAMP_ROOT/scripts/services/storage --plugin | cut -d' ' -f1
+
+
     # Remove new lines and store in a variable
-    json_storage=`tr -d '\n' < $1`
+#    json_storage=`tr -d '\n' < $1`
 
     # Remove tabs
-    json_storage=`echo $json_storage | tr -d '\t'`
+#    json_storage=`echo $json_storage | tr -d '\t'`
 
-    echo `echo $json_storage | grep -o '"plugin" *: *{.*' | grep -o '{.*' | grep -o '"value" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
+#    echo `echo $json_storage | grep -o '"plugin" *: *{.*' | grep -o '{.*' | grep -o '"value" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
 }

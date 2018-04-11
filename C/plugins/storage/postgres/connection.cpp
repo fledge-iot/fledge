@@ -558,7 +558,7 @@ int		col = 0;
 					else
 					{
 						sql.append("'\"");
-						sql.append(str);
+						sql.append(escape(str));
 						sql.append("\"'");
 					}
 				}

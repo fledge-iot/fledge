@@ -340,7 +340,7 @@ case "$engine_management" in
 
         # Unexpected value from the configuration file
         sqlite_log "err" "FogLAMP cannot start." "all" "pretty"
-        sqlite_log "err" "Missing plugin information the storage microservice" "all" "pretty"
+        sqlite_log "err" "Missing plugin information from the storage microservice" "all" "pretty"
         exit 1
         ;;
 

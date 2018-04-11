@@ -39,7 +39,6 @@ storage_log() {
 #############
 
 
-# Check if the storage cache file exists
 PLUGIN_TO_USE=`get_storage_plugin`
 if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
     storage_log "err" "Missing plugin from FogLAMP storage service" "all" "pretty"

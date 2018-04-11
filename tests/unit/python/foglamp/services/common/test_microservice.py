@@ -5,7 +5,6 @@ import time
 from unittest.mock import patch, MagicMock
 from aiohttp import web
 import asyncio
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.services.common.microservice import FoglampMicroservice, _logger
@@ -83,12 +82,6 @@ class TestFoglampMicroservice:
             async def shutdown(self):
                 pass
 
-        async def async_mock():
-            return None
-
-        async def config_mock():
-            return _DEFAULT_CONFIG
-
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
             with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -100,11 +93,7 @@ class TestFoglampMicroservice:
                                          with patch.object(FoglampMicroservice, '_run_microservice_management_app', side_effect=None) as run_patch:
                                              with patch.object(FoglampProcess, 'register_service_with_core', return_value={'id':'bla'}) as reg_patch:
                                                  with patch.object(FoglampMicroservice, '_get_service_registration_payload', return_value=None) as payload_patch:
-                                                    storage_client_mock = MagicMock(StorageClient)
-                                                    c_mgr = ConfigurationManager(storage_client_mock)
-                                                    with patch.object(c_mgr, 'create_category', return_value=async_mock()):
-                                                        with patch.object(c_mgr, 'get_category_all_items', return_value=config_mock()):
-                                                            fm = FoglampMicroserviceImp()
+                                                    fm = FoglampMicroserviceImp()
         # from FoglampProcess
         assert fm._core_management_host is 'corehost'
         assert fm._core_management_port is 0
@@ -135,12 +124,6 @@ class TestFoglampMicroservice:
             async def shutdown(self):
                 pass
 
-        async def async_mock():
-            return None
-
-        async def config_mock():
-            return _DEFAULT_CONFIG
-
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
             with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -151,12 +134,7 @@ class TestFoglampMicroservice:
                                     with patch.object(FoglampMicroservice, '_make_microservice_management_app', side_effect=Exception()) as make_patch:
                                         with patch.object(_logger, 'exception') as logger_patch:
                                             with pytest.raises(Exception) as excinfo:
-                                                storage_client_mock = MagicMock(StorageClient)
-                                                c_mgr = ConfigurationManager(storage_client_mock)
-                                                with patch.object(c_mgr, 'create_category', return_value=async_mock()):
-                                                    with patch.object(c_mgr, 'get_category_all_items',
-                                                                      return_value=config_mock()):
-                                                        fm = FoglampMicroserviceImp()
+                                                fm = FoglampMicroserviceImp()
         logger_patch.assert_called_once_with('Unable to intialize FoglampMicroservice due to exception %s', '')
 
     @pytest.mark.asyncio
@@ -172,12 +150,6 @@ class TestFoglampMicroservice:
             async def shutdown(self):
                 pass
 
-        async def async_mock():
-            return None
-
-        async def config_mock():
-            return _DEFAULT_CONFIG
-
         with patch.object(asyncio, 'get_event_loop', return_value=loop):
             with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
@@ -192,12 +164,6 @@ class TestFoglampMicroservice:
                                                      with patch.object(web, 'json_response', return_value=None) as response_patch:
                                                          # called once on FoglampProcess init for _start_time, once for ping
                                                          with patch.object(time, 'time', return_value=1) as time_patch:
-                                                             storage_client_mock = MagicMock(StorageClient)
-                                                             c_mgr = ConfigurationManager(storage_client_mock)
-                                                             with patch.object(c_mgr, 'create_category',
-                                                                               return_value=async_mock()):
-                                                                 with patch.object(c_mgr, 'get_category_all_items',
-                                                                                   return_value=config_mock()):
-                                                                     fm = FoglampMicroserviceImp()
-                                                                     await fm.ping(None)
+                                                             fm = FoglampMicroserviceImp()
+                                                             await fm.ping(None)
         response_patch.assert_called_once_with({'uptime': 0})

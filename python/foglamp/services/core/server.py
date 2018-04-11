@@ -30,6 +30,7 @@ from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
 from foglamp.services.common.microservice_management import routes as management_routes
 
+from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
@@ -660,8 +661,6 @@ class Server:
         try:
             found_services = ServiceRegistry.get()
             services_to_stop = list()
-
-            from foglamp.common.service_record import ServiceRecord
 
             for fs in found_services:
                 if fs._name in ("FogLAMP Storage", "FogLAMP Core"):

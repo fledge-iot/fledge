@@ -1,0 +1,16 @@
+Place SQLite3 downgrade sql files here.
+  
+File name:
+
+X.sql, where X is the SQLite3 schema id
+
+Example:
+
+'9.sql' file is read by FogLAMP app which has SQLite3 schema version set to 10
+'8.sql' file is read either by FogLAMP app which has SQLite3 schema version set to 9
+either by FogLAMP app downgrading schema from 10 to 8
+
+Note:
+- whenever VERSION file in $FOGLAMP_ROOT has a new schema in 'foglamp_schema',
+  the corresponding sql file must be placed here for downgrade.
+- file id must exist even if empty

@@ -81,17 +81,18 @@ _CONFIG_DEFAULT_OMF = {
     "OMFMaxRetry": {
         "description": "Max number of retries for the communication with the OMF PI Connector Relay",
         "type": "integer",
-        "default": "5"
+        "default": "3"
     },
     "OMFRetrySleepTime": {
-        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay, "
+                       "NOTE : the time is doubled at each attempt.",
         "type": "integer",
         "default": "1"
     },
     "OMFHttpTimeout": {
         "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
         "type": "integer",
-        "default": "30"
+        "default": "10"
     },
     "StaticData": {
         "description": "Static data to include in each sensor reading sent to OMF.",
@@ -218,6 +219,7 @@ def _performance_log(_function):
             print("ERROR - {func} - error details |{error}|".format(
                                                                         func="_performance_log",
                                                                         error=ex), file=sys.stderr)
+            raise
 
     return wrapper
 
@@ -645,10 +647,12 @@ class OmfNorthPlugin(object):
                       'omfversion': '1.0'}
         omf_data_json = json.dumps(omf_data)
 
+        self._logger.debug("OMF message length |{0}| ".format(len(omf_data_json)))
+
         if _log_debug_level == 3:
             self._logger.debug("OMF message : |{0}| |{1}| " .format(message_type, omf_data_json))
 
-        while num_retry < self._config['OMFMaxRetry']:
+        while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
                 response = requests.post(self._config['URL'],
@@ -658,6 +662,7 @@ class OmfNorthPlugin(object):
                                          timeout=self._config['OMFHttpTimeout'])
             except Exception as e:
                 _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
+                _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
             else:
                 # Evaluate the HTTP status codes
                 if not str(response.status_code).startswith('2'):

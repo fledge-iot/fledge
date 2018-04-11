@@ -1,16 +1,20 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
 import http.client
 import json
 from foglamp.common import logger
 from foglamp.common.microservice_management_client import exceptions as client_exceptions
 
+__author__ = "Ashwin Gopalakrishnan"
+__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
 _logger = logger.setup(__name__)
-_help = """
-    -------------------------------------------------------------------------------
-    | GET, POST       | /foglamp/service   (GET allows type | name filter)        |
-    | DELETE          | /foglamp/service/{service-id}                             |
-    | POST, DELETE    | /foglamp/interest                                         |
-    -------------------------------------------------------------------------------
-"""
 
 
 class MicroserviceManagementClient(object):
@@ -147,7 +151,7 @@ class MicroserviceManagementClient(object):
             delimeter = '&'
         if service_type:
             url = '{}{}type={}'.format(url, delimeter, service_type)
-            delimeter = '&'
+
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
@@ -165,4 +169,116 @@ class MicroserviceManagementClient(object):
             _logger.exception("Could not find the micro-service for requested url %s, Reason: %s", url, str(ex))
             raise
 
+        return response
+
+    def get_configuration_category(self, category_name=None):
+        """
+
+        :param category_name:
+        :return:
+        """
+        url = '/foglamp/service/category'
+
+        if category_name:
+            url = "{}/{}".format(url, category_name)
+
+        self._management_client_conn.request(method='GET', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def get_configuration_item(self, category_name, config_item):
+        """
+
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
+
+        self._management_client_conn.request(method='GET', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def create_configuration_category(self, category_data):
+        """
+
+        :param category_data: e.g. '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}'
+        :return:
+        """
+        url = '/foglamp/service/category'
+
+        self._management_client_conn.request(method='POST', url=url, body=category_data)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def update_configuration_item(self, category_name, config_item, category_data):
+        """
+
+        :param category_name:
+        :param config_item:
+        :param category_data: e.g. '{"value": "true"}'
+        :return:
+        """
+        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
+
+        self._management_client_conn.request(method='PUT', url=url, body=category_data)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def delete_configuration_item(self, category_name, config_item):
+        """
+
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        url = "/foglamp/service/category/{}/{}/value".format(category_name, config_item)
+
+        self._management_client_conn.request(method='DELETE', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
         return response

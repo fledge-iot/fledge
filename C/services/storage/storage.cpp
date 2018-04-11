@@ -17,6 +17,7 @@
 #include <plugin.h>
 #include <logger.h>
 #include <iostream>
+#include <string>
 
 extern int makeDaemon(void);
 
@@ -31,6 +32,7 @@ unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
+bool           returnPlugin = false;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -50,16 +52,27 @@ string	       myName = SERVICE_NAME;
 		{
 			coreAddress = &argv[i][10];
 		}
+		else if (!strncmp(argv[i], "--plugin", 8))
+		{
+			returnPlugin = true;
+		}
 	}
 
-	if (daemonMode && makeDaemon() == -1)
+	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
 	{
 		// Failed to run in daemon mode
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
 	StorageService *service = new StorageService(myName);
-	service->start(coreAddress, corePort);
+	if (returnPlugin)
+	{
+		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
+	}
+	else
+	{
+		service->start(coreAddress, corePort);
+	}
 	return 0;
 }
 
@@ -231,4 +244,20 @@ void StorageService::configChange(const string& categoryName, const string& cate
 	{
 		config->updateCategory(category);
 	}
+}
+
+/**
+ * Return the name of the configured storage service
+ */
+string StorageService::getPluginName()
+{
+	return string(config->getValue("plugin"));
+}
+
+/**
+ * Return the managed status of the storage plugin
+ */
+string StorageService::getPluginManagedStatus()
+{
+	return string(config->getValue("managedStatus"));
 }

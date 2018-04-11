@@ -93,13 +93,13 @@ class TestAudit:
             log_code_patch.assert_called_once_with('log_codes')
 
     @pytest.mark.parametrize("request_params, payload", [
-        ('', '{"where": {"column": "1", "condition": "=", "value": "1"}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
-        ('?source=PURGE', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "code", "condition": "=", "value": "PURGE"}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
-        ('?skip=1', '{"where": {"column": "1", "condition": "=", "value": "1"}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20, "skip": 1}'),
-        ('?severity=failure', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 1}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
-        ('?severity=FAILURE&limit=1', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 1}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1}'),
-        ('?severity=INFORMATION&limit=1&skip=1', '{"where": {"column": "1", "condition": "=", "value": "1", "and": {"column": "level", "condition": "=", "value": 4}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1, "skip": 1}'),
-        ('?source=&severity=&limit=&skip=', '{"where": {"column": "1", "condition": "=", "value": "1"}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}')
+        ('', '{"where": {"column": "1", "condition": "=", "value": 1}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
+        ('?source=PURGE', '{"where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "code", "condition": "=", "value": "PURGE"}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
+        ('?skip=1', '{"where": {"column": "1", "condition": "=", "value": 1}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20, "skip": 1}'),
+        ('?severity=failure', '{"where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "level", "condition": "=", "value": 1}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}'),
+        ('?severity=FAILURE&limit=1', '{"where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "level", "condition": "=", "value": 1}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1}'),
+        ('?severity=INFORMATION&limit=1&skip=1', '{"where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "level", "condition": "=", "value": 4}}, "sort": {"column": "ts", "direction": "desc"}, "limit": 1, "skip": 1}'),
+        ('?source=&severity=&limit=&skip=', '{"where": {"column": "1", "condition": "=", "value": 1}, "sort": {"column": "ts", "direction": "desc"}, "limit": 20}')
     ])
     async def test_get_audit_with_params(self, client, request_params, payload, get_log_codes):
         storage_client_mock = MagicMock(StorageClient)

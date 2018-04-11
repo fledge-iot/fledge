@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------
--- Copyright (c) 2017 OSIsoft, LLC
+-- Copyright (c) 2018 OSIsoft, LLC
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -17,13 +17,18 @@
 --
 -- init.sql
 --
--- PostgreSQL script to create the FogLAMP persistent Layer 
+-- SQLite script to create the FogLAMP persistent Layer 
 --
 
 -- NOTE:
--- This script must be launched with:
--- psql -U postgres -d postgres -f init.sql
-
+-- 
+-- This schema has to be used with Sqlite3 JSON1 extension
+-- 
+-- This script must be launched with sqlite3 commamd line tool:
+--  sqlite3 /path/foglamp.db
+--   > ATTACH DATABASE '/path/foglamp.db' AS 'foglamp'
+--   > .read init.sql
+--   > .quit
 
 ----------------------------------------------------------------------
 -- DDL CONVENTIONS
@@ -31,7 +36,6 @@
 -- Tables:
 -- * Names are in plural, terms are separated by _
 -- * Columns are, when possible, not null and have a default value.
---   For example, jsonb columns are '{}' by default.
 -- 
 -- Columns:
 -- id      : It is commonly the PK of the table, a smallint, integer or bigint.
@@ -40,136 +44,11 @@
 -- ts      : The timestamp with microsec precision and tz. It is updated at
 --           every change.
 
-
--- This first part of the script must be executed by the postgres user
-
--- Disable the NOTICE notes
-SET client_min_messages TO WARNING;
-
--- Dropping objects
-DROP SCHEMA IF EXISTS foglamp CASCADE;
-DROP DATABASE IF EXISTS foglamp;
-
-
--- Create the foglamp database
-CREATE DATABASE foglamp WITH
-    ENCODING = 'UTF8';
-
-GRANT CONNECT ON DATABASE foglamp TO PUBLIC;
-
-
--- Connect to foglamp database
-\connect foglamp
-
 ----------------------------------------------------------------------
 -- SCHEMA CREATION
 ----------------------------------------------------------------------
 
--- Create the foglamp schema
-CREATE SCHEMA foglamp;
-GRANT USAGE ON SCHEMA foglamp TO PUBLIC;
-
------- SEQUENCES
-CREATE SEQUENCE foglamp.asset_messages_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.asset_status_changes_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.asset_status_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.asset_types_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.assets_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.destinations_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.links_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.resources_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.roles_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.streams_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.user_pwd_history_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.user_logins_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.users_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-CREATE SEQUENCE foglamp.backups_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
-
------ TABLES & SEQUENCES
+----- TABLES
 
 -- Log Codes Table
 -- List of tasks that log info into foglamp.log.
@@ -178,262 +57,218 @@ CREATE TABLE foglamp.log_codes (
        description character varying(80) NOT NULL,
        CONSTRAINT log_codes_pkey PRIMARY KEY (code) );
 
-
 -- Generic Log Table
 -- General log table for FogLAMP.
-CREATE SEQUENCE foglamp.log_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE TABLE foglamp.log (
-       id    bigint                      NOT NULL DEFAULT nextval('foglamp.log_id_seq'::regclass),
-       code  character(5)                NOT NULL,                                                -- The process that logged the action
-       level smallint                    NOT NULL DEFAULT 0,                                      -- 0 Success - 1 Failure - 2 Warning - 4 Info
-       log   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                            -- Generic log structure
-       ts    timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT log_pkey PRIMARY KEY (id),
+       id    INTEGER                PRIMARY KEY AUTOINCREMENT,
+       code  CHARACTER(5)           NOT NULL,                  -- The process that logged the action
+       level SMALLINT               NOT NULL,                  -- 0 Success - 1 Failure - 2 Warning - 4 Info
+       log   JSON                   NOT NULL DEFAULT '{}',     -- Generic log structure
+       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
        CONSTRAINT log_fk1 FOREIGN KEY (code)
-       REFERENCES foglamp.log_codes (code) MATCH SIMPLE
+       REFERENCES log_codes (code) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-ALTER SEQUENCE foglamp.log_id_seq OWNED BY foglamp.log.id;
-
 -- Index: log_ix1 - For queries by code
 CREATE INDEX log_ix1
-    ON foglamp.log USING btree (code, ts, level);
-
+    ON log(code, ts, level);
 
 -- Asset status
 -- List of status an asset can have.
 CREATE TABLE foglamp.asset_status (
-       id          integer                NOT NULL DEFAULT nextval('foglamp.asset_status_id_seq'::regclass),
-       descriprion character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-        CONSTRAINT asset_status_pkey PRIMARY KEY (id) );
-
+       id          INTEGER                PRIMARY KEY AUTOINCREMENT,
+       descriprion character varying(255) NOT NULL DEFAULT '' );
 
 -- Asset Types
 -- Type of asset (for example south, sensor etc.)
 CREATE TABLE foglamp.asset_types (
-       id          integer                NOT NULL DEFAULT nextval('foglamp.asset_types_id_seq'::regclass),
-       description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", 
-        CONSTRAINT asset_types_pkey PRIMARY KEY (id) );
-
+       id          INTEGER                PRIMARY KEY AUTOINCREMENT,
+       description character varying(255) NOT NULL DEFAULT '' );
 
 -- Assets table
 -- This table is used to list the assets used in FogLAMP
 -- Reading do not necessarily have an asset, but whenever possible this
 -- table provides information regarding the data collected.
 CREATE TABLE foglamp.assets (
-       id           integer                     NOT NULL DEFAULT nextval('foglamp.assets_id_seq'::regclass),         -- The internal PK for assets
-       code         character varying(50),                                                                           -- A unique code  (AK) used to match readings and assets. It can be anything.
-       description  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- A brief description of the asset
-       type_id      integer                     NOT NULL,                                                            -- FK for the type of asset
-       address      inet                        NOT NULL DEFAULT '0.0.0.0'::inet,                                    -- An IPv4 or IPv6 address, if needed. Default means "any address"
-       status_id    integer                     NOT NULL,                                                            -- Status of the asset, FK to the asset_status table
-       properties   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                        -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the south devices or data to the cloud
-       has_readings boolean                     NOT NULL DEFAULT false,                                              -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
-       ts           timestamp(6) with time zone NOT NULL DEFAULT now(),
-         CONSTRAINT assets_pkey PRIMARY KEY (id),
-         CONSTRAINT assets_fk1 FOREIGN KEY (status_id)
-         REFERENCES foglamp.asset_status (id) MATCH SIMPLE
+       id           INTEGER                     PRIMARY KEY AUTOINCREMENT,
+       code         character varying(50),                                  -- A unique code  (AK) used to match readings and assets. It can be anything.
+       description  character varying(255)      NOT NULL DEFAULT '',        -- A brief description of the asset
+       type_id      integer                     NOT NULL,                   -- FK for the type of asset
+       address      inet                        NOT NULL DEFAULT '0.0.0.0', -- An IPv4 or IPv6 address, if needed. Default means "any address"
+       status_id    integer                     NOT NULL,                   -- Status of the asset, FK to the asset_status table
+       properties   JSON                        NOT NULL DEFAULT '{}',      -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the south devices or data to the cloud
+       has_readings boolean                     NOT NULL DEFAULT 'f',       -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
+       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       CONSTRAINT assets_fk1 FOREIGN KEY (status_id)
+       REFERENCES asset_status (id) MATCH SIMPLE
                  ON UPDATE NO ACTION
                  ON DELETE NO ACTION,
-         CONSTRAINT assets_fk2 FOREIGN KEY (type_id)
-         REFERENCES foglamp.asset_types (id) MATCH SIMPLE
+       CONSTRAINT assets_fk2 FOREIGN KEY (type_id)
+       REFERENCES asset_types (id) MATCH SIMPLE
                  ON UPDATE NO ACTION
                  ON DELETE NO ACTION );
 
 -- Index: fki_assets_fk1
 CREATE INDEX fki_assets_fk1
-    ON foglamp.assets USING btree (status_id);
+    ON assets (status_id);
 
 -- Index: fki_assets_fk2
 CREATE INDEX fki_assets_fk2
-    ON foglamp.assets USING btree (type_id);
+    ON assets (type_id);
 
 -- Index: assets_ix1
 CREATE UNIQUE INDEX assets_ix1
-    ON foglamp.assets USING btree (code);
-
+    ON assets (code);
 
 -- Asset Status Changes
 -- When an asset changes its status, the previous status is added here.
--- tart_ts contains the value of ts of the row in the asset table.
+-- start_ts contains the value of ts of the row in the asset table.
 CREATE TABLE foglamp.asset_status_changes (
-       id         bigint                      NOT NULL DEFAULT nextval('foglamp.asset_status_changes_id_seq'::regclass),
+       id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
        asset_id   integer                     NOT NULL,
        status_id  integer                     NOT NULL,
-       log        jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-       start_ts   timestamp(6) with time zone NOT NULL,
-       ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT asset_status_changes_pkey PRIMARY KEY (id),
+       log        JSON                        NOT NULL DEFAULT '{}',
+       start_ts   DATETIME NOT NULL,
+       ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
        CONSTRAINT asset_status_changes_fk1 FOREIGN KEY (asset_id)
-       REFERENCES foglamp.assets (id) MATCH SIMPLE
+       REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION,
        CONSTRAINT asset_status_changes_fk2 FOREIGN KEY (status_id)
-       REFERENCES foglamp.asset_status (id) MATCH SIMPLE
+       REFERENCES asset_status (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
 CREATE INDEX fki_asset_status_changes_fk1
-    ON foglamp.asset_status_changes USING btree (asset_id);
+    ON asset_status_changes (asset_id);
 
 CREATE INDEX fki_asset_status_changes_fk2
-    ON foglamp.asset_status_changes USING btree (status_id);
+    ON asset_status_changes (status_id);
 
 
 -- Links table
 -- Links among assets in 1:M relationships.
 CREATE TABLE foglamp.links (
-       id         integer                     NOT NULL DEFAULT nextval('foglamp.links_id_seq'::regclass),
+       id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
        asset_id   integer                     NOT NULL,
-       properties jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-       ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT links_pkey PRIMARY KEY (id),
+       properties JSON                        NOT NULL DEFAULT '{}',
+       ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
        CONSTRAINT links_fk1 FOREIGN KEY (asset_id)
-       REFERENCES foglamp.assets (id) MATCH SIMPLE
+       REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
 CREATE INDEX fki_links_fk1
-    ON foglamp.links USING btree (asset_id);
-
+    ON links (asset_id);
 
 -- Assets Linked table
 -- In links, relationship between an asset and other assets.
 CREATE TABLE foglamp.asset_links (
        link_id  integer                     NOT NULL,
        asset_id integer                     NOT NULL,
-       ts       timestamp(6) with time zone NOT NULL DEFAULT now(),
+       ts      DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
        CONSTRAINT asset_links_pkey PRIMARY KEY (link_id, asset_id) );
 
 CREATE INDEX fki_asset_links_fk1
-    ON foglamp.asset_links USING btree (link_id);
+    ON asset_links (link_id);
 
 CREATE INDEX fki_asset_link_fk2
-    ON foglamp.asset_links USING btree (asset_id);
-
+    ON asset_links (asset_id);
 
 -- Asset Message Status table
 -- Status of the messages to send South
-CREATE SEQUENCE foglamp.asset_message_status_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE TABLE foglamp.asset_message_status (
-       id          integer                NOT NULL DEFAULT nextval('foglamp.asset_message_status_id_seq'::regclass),
-       description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-        CONSTRAINT asset_message_status_pkey PRIMARY KEY (id) );
-
+       id          INTEGER                PRIMARY KEY AUTOINCREMENT,
+       description character varying(255) NOT NULL DEFAULT '' );
 
 -- Asset Messages table
 -- Messages directed to the south devices.
 CREATE TABLE foglamp.asset_messages (
-       id        bigint                      NOT NULL DEFAULT nextval('foglamp.asset_messages_id_seq'::regclass),
+       id        INTEGER                     PRIMARY KEY AUTOINCREMENT,
        asset_id  integer                     NOT NULL,
        status_id integer                     NOT NULL,
-       message   jsonb                       NOT NULL DEFAULT '{}'::jsonb,
-       ts        timestamp(6) with time zone NOT NULL DEFAULT now(),
-       CONSTRAINT asset_messages_pkey PRIMARY KEY (id),
+       message   JSON                        NOT NULL DEFAULT '{}',
+       ts        DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
        CONSTRAINT asset_messages_fk1 FOREIGN KEY (asset_id)
-       REFERENCES foglamp.assets (id) MATCH SIMPLE
+       REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION,
        CONSTRAINT asset_messages_fk2 FOREIGN KEY (status_id)
-       REFERENCES foglamp.asset_message_status (id) MATCH SIMPLE
+       REFERENCES asset_message_status (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
 CREATE INDEX fki_asset_messages_fk1
-    ON foglamp.asset_messages USING btree (asset_id);
+    ON asset_messages (asset_id);
 
 CREATE INDEX fki_asset_messages_fk2
-    ON foglamp.asset_messages USING btree (status_id);
-
+    ON asset_messages (status_id);
 
 -- Readings table
 -- This tables contains the readings for assets.
 -- An asset can be a south with multiple sensor, a single sensor,
 -- a software or anything that generates data that is sent to FogLAMP
-CREATE SEQUENCE foglamp.readings_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE TABLE foglamp.readings (
-    id         bigint                      NOT NULL DEFAULT nextval('foglamp.readings_id_seq'::regclass),
-    asset_code character varying(50)       NOT NULL,                      -- The provided asset code. Not necessarily located in the
-                                                                          -- assets table.
-    read_key   uuid                        UNIQUE,                        -- An optional unique key used to avoid double-loading.
-    reading    jsonb                       NOT NULL DEFAULT '{}'::jsonb,  -- The json object received
-    user_ts    timestamp(6) with time zone NOT NULL DEFAULT now(),        -- The user timestamp extracted by the received message
-    ts         timestamp(6) with time zone NOT NULL DEFAULT now(),
-    CONSTRAINT readings_pkey PRIMARY KEY (id) );
+    id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
+    asset_code character varying(50)       NOT NULL,                         -- The provided asset code. Not necessarily located in the
+                                                                             -- assets table.
+    read_key   uuid                        UNIQUE,                           -- An optional unique key used to avoid double-loading.
+    reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
+    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))
+);
 
 CREATE INDEX fki_readings_fk1
-    ON foglamp.readings USING btree (asset_code);
+    ON readings (asset_code);
 
 CREATE INDEX readings_ix1
-    ON foglamp.readings USING btree (read_key);
-
+    ON readings (read_key);
 
 -- Destinations table
 -- Multiple destinations are allowed, for example multiple PI servers.
 CREATE TABLE foglamp.destinations (
-       id            integer                     NOT NULL DEFAULT nextval('foglamp.destinations_id_seq'::regclass),   -- Sequence ID
-       type          smallint                    NOT NULL DEFAULT 1,                                                  -- Enum : 1: OMF, 2: Elasticsearch
-       description   character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- A brief description of the destination entry
-       properties    jsonb                       NOT NULL DEFAULT '{ "streaming" : "all" }'::jsonb,                   -- A generic set of properties
-       active_window jsonb                       NOT NULL DEFAULT '[ "always" ]'::jsonb,                              -- The window of operations
-       active        boolean                     NOT NULL DEFAULT true,                                               -- When false, all streams to this destination stop and are inactive
-       ts            timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Creation or last update
-       CONSTRAINT destination_pkey PRIMARY KEY (id) );
+    id            INTEGER                     PRIMARY KEY AUTOINCREMENT,                  -- Sequence ID
+    type          smallint                    NOT NULL DEFAULT 1,                         -- Enum : 1: OMF, 2: Elasticsearch
+    description   character varying(255)      NOT NULL DEFAULT '',                        -- A brief description of the destination entry
+    properties    JSON                        NOT NULL DEFAULT '{ "streaming" : "all" }', -- A generic set of properties
+    active_window JSON                        NOT NULL DEFAULT '[ "always" ]',            -- The window of operations
+    active        boolean                     NOT NULL DEFAULT 't',                       -- When false, all streams to this destination stop and are inactive
+    ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')));         -- Creation or last update
 
 
 -- Streams table
 -- List of the streams to the Cloud.
 CREATE TABLE foglamp.streams (
-       id             integer                     NOT NULL DEFAULT nextval('foglamp.streams_id_seq'::regclass),         -- Sequence ID
-       destination_id integer                     NOT NULL,                                                             -- FK to foglamp.destinations
-       description    character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",  -- A brief description of the stream entry
-       properties     jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- A generic set of properties
-       object_stream  jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- Definition of what must be streamed
-       object_block   jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- Definition of how the stream must be organised
-       object_filter  jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- Any filter involved in selecting the data to stream
-       active_window  jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- The window of operations
-       active         boolean                     NOT NULL DEFAULT true,                                                -- When false, all data to this stream stop and are inactive
-       last_object    bigint                      NOT NULL DEFAULT 0,                                                   -- The ID of the last object streamed (asset or reading, depending on the object_stream)
-       ts             timestamp(6) with time zone NOT NULL DEFAULT now(),                                               -- Creation or last update
-       CONSTRAINT strerams_pkey PRIMARY KEY (id),
-       CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
-       REFERENCES foglamp.destinations (id) MATCH SIMPLE
-               ON UPDATE NO ACTION
-               ON DELETE NO ACTION );
+    id            INTEGER                      PRIMARY KEY AUTOINCREMENT,         -- Sequence ID
+    destination_id integer                     NOT NULL,                          -- FK to foglamp.destinations
+    description    character varying(255)      NOT NULL DEFAULT '',               -- A brief description of the stream entry
+    properties     JSON                        NOT NULL DEFAULT '{}',             -- A generic set of properties
+    object_stream  JSON                        NOT NULL DEFAULT '{}',             -- Definition of what must be streamed
+    object_block   JSON                        NOT NULL DEFAULT '{}',             -- Definition of how the stream must be organised
+    object_filter  JSON                        NOT NULL DEFAULT '{}',             -- Any filter involved in selecting the data to stream
+    active_window  JSON                        NOT NULL DEFAULT '{}',             -- The window of operations
+    active         boolean                     NOT NULL DEFAULT 't',              -- When false, all data to this stream stop and are inactive
+    last_object    bigint                      NOT NULL DEFAULT 0,                -- The ID of the last object streamed (asset or reading, depending on the object_stream)
+    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- Creation or last update
+    CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
+    REFERENCES destinations (id) MATCH SIMPLE
+            ON UPDATE NO ACTION
+            ON DELETE NO ACTION );
 
 CREATE INDEX fki_streams_fk1
-    ON foglamp.streams USING btree (destination_id);
-
+    ON streams (destination_id);
 
 -- Configuration table
 -- The configuration in JSON format.
 -- The PK is also used in the REST API
--- Values is a jsonb column
+-- Values is a JSON column
 -- ts is set by default with now().
 CREATE TABLE foglamp.configuration (
-       key         character varying(255)      NOT NULL COLLATE pg_catalog."default", -- Primary key
-       description character varying(255)      NOT NULL,                              -- Description, in plain text
-       value       jsonb                       NOT NULL DEFAULT '{}'::jsonb,          -- JSON object containing the configuration values
-       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
+       key         character varying(255)      NOT NULL,                          -- Primary key
+       description character varying(255)      NOT NULL,                          -- Description, in plain text
+       value       JSON                        NOT NULL DEFAULT '{}',             -- JSON object containing the configuration values
+       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- Timestamp, updated at every change
        CONSTRAINT configuration_pkey PRIMARY KEY (key) );
 
 
@@ -441,42 +276,35 @@ CREATE TABLE foglamp.configuration (
 -- This table has the same structure of foglamp.configuration, plus the timestamp that identifies the time it has changed
 -- The table is used to keep track of the changes in the "value" column
 CREATE TABLE foglamp.configuration_changes (
-       key                 character varying(255)      NOT NULL COLLATE pg_catalog."default",
-       configuration_ts    timestamp(6) with time zone NOT NULL,
-       configuration_value jsonb                       NOT NULL,
-       ts                  timestamp(6) with time zone NOT NULL DEFAULT now(),
+       key                 character varying(255)      NOT NULL,
+       configuration_ts    DATETIME                    NOT NULL,
+       configuration_value JSON                        NOT NULL DEFAULT '{}',
+       ts                  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
        CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts) );
-
 
 -- Statistics table
 -- The table is used to keep track of the statistics for FogLAMP
 CREATE TABLE foglamp.statistics (
-       key         character varying(56)       NOT NULL COLLATE pg_catalog."default", -- Primary key, all uppercase
-       description character varying(255)      NOT NULL,                              -- Description, in plan text
-       value       bigint                      NOT NULL DEFAULT 0,                    -- Integer value, the statistics
-       previous_value       bigint             NOT NULL DEFAULT 0,                    -- Integer value, the prev stat to be updated by metrics collector
-       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                -- Timestamp, updated at every change
-       CONSTRAINT statistics_pkey PRIMARY KEY (key) );
-
+       key                 character varying(56)       NOT NULL,                           -- Primary key, all uppercase
+       description         character varying(255)      NOT NULL,                           -- Description, in plan text
+       value               bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the statistics
+       previous_value      bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the prev stat to be updated by metrics collector
+       ts                  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))); -- Timestamp, updated at every change
+CREATE UNIQUE INDEX statistics_ix1
+    ON statistics(key);
 
 -- Statistics history
 -- Keeps history of the statistics in foglamp.statistics
 -- The table is updated at startup
-CREATE SEQUENCE foglamp.statistics_history_id_seq
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 9223372036854775807
-    CACHE 1;
-
 CREATE TABLE foglamp.statistics_history (
-       id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass), 
-       key         character varying(56)       NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
-       history_ts  timestamp(6) with time zone NOT NULL,                                                      -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
-       value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
-       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                                        -- Timestamp, updated at every change
-       CONSTRAINT statistics_history_pkey PRIMARY KEY (key, history_ts) );
+       id          INTEGER                     PRIMARY KEY AUTOINCREMENT,          -- Sequence ID
+       key         character varying(56)       NOT NULL,                           -- Coumpund primary key, all uppercase
+       history_ts  DATETIME NOT NULL,                                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
+       value       bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the statistics
+       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))); -- Timestamp, updated at every change
 
+CREATE UNIQUE INDEX statistics_history_ix1
+    ON statistics_history (key, history_ts);
 
 -- Resources table
 -- A resource and be anything that is available or can be done in FogLAMP. Examples: 
@@ -484,47 +312,44 @@ CREATE TABLE foglamp.statistics_history (
 -- - Access to readings
 -- - Access to streams
 CREATE TABLE foglamp.resources (
-    id          bigint                 NOT NULL DEFAULT nextval('foglamp.resources_id_seq'::regclass),
-    code        character(10)          NOT NULL COLLATE pg_catalog."default",
-    description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-    CONSTRAINT  resources_pkey PRIMARY KEY (id) );
+    id          INTEGER                PRIMARY KEY AUTOINCREMENT,  -- Sequence ID
+    code        character(10)          NOT NULL,
+    description character varying(255) NOT NULL DEFAULT '' );
 
 CREATE UNIQUE INDEX resource_ix1
-    ON foglamp.resources USING btree (code COLLATE pg_catalog."default");
-
+    ON resources (code);
 
 -- Roles table
 CREATE TABLE foglamp.roles (
-    id          integer                NOT NULL DEFAULT nextval('foglamp.roles_id_seq'::regclass),
-    name        character varying(25)  NOT NULL COLLATE pg_catalog."default",
-    description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-    CONSTRAINT  roles_pkey PRIMARY KEY (id) );
+    id          INTEGER   PRIMARY KEY AUTOINCREMENT,
+    name        character varying(25)  NOT NULL,
+    description character varying(255) NOT NULL DEFAULT '' );
+
 
 CREATE UNIQUE INDEX roles_ix1
-    ON foglamp.roles USING btree (name COLLATE pg_catalog."default");
-
+    ON roles (name);
 
 -- Roles, Resources and Permssions table
 -- For each role there are resources associated, with a given permission.
 CREATE TABLE foglamp.role_resource_permission (
        role_id     integer NOT NULL,
        resource_id integer NOT NULL,
-       access      jsonb   NOT NULL DEFAULT '{}'::jsonb,
+       access      JSON    NOT NULL DEFAULT '{}',
        CONSTRAINT role_resource_permission_pkey PRIMARY KEY (role_id, resource_id),
        CONSTRAINT role_resource_permissions_fk1 FOREIGN KEY (role_id)
-       REFERENCES foglamp.roles (id) MATCH SIMPLE
+       REFERENCES roles (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION,
        CONSTRAINT role_resource_permissions_fk2 FOREIGN KEY (resource_id)
-       REFERENCES foglamp.resources (id) MATCH SIMPLE
+       REFERENCES resources (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
 CREATE INDEX fki_role_resource_permissions_fk1
-    ON foglamp.role_resource_permission USING btree (role_id);
+    ON role_resource_permission (role_id);
 
 CREATE INDEX fki_role_resource_permissions_fk2
-    ON foglamp.role_resource_permission USING btree (resource_id);
+    ON role_resource_permission (resource_id);
 
 
 -- Roles Assets Permissions table
@@ -532,27 +357,26 @@ CREATE INDEX fki_role_resource_permissions_fk2
 CREATE TABLE foglamp.role_asset_permissions (
     role_id    integer NOT NULL,
     asset_id   integer NOT NULL,
-    access     jsonb   NOT NULL DEFAULT '{}'::jsonb,
+    access     JSON    NOT NULL DEFAULT '{}',
     CONSTRAINT role_asset_permissions_pkey PRIMARY KEY (role_id, asset_id),
     CONSTRAINT role_asset_permissions_fk1 FOREIGN KEY (role_id)
-    REFERENCES foglamp.roles (id) MATCH SIMPLE
+    REFERENCES roles (id) MATCH SIMPLE
             ON UPDATE NO ACTION
             ON DELETE NO ACTION,
     CONSTRAINT role_asset_permissions_fk2 FOREIGN KEY (asset_id)
-    REFERENCES foglamp.assets (id) MATCH SIMPLE
+    REFERENCES assets (id) MATCH SIMPLE
             ON UPDATE NO ACTION
             ON DELETE NO ACTION,
     CONSTRAINT user_asset_permissions_fk1 FOREIGN KEY (role_id)
-    REFERENCES foglamp.roles (id) MATCH SIMPLE
+    REFERENCES roles (id) MATCH SIMPLE
             ON UPDATE NO ACTION
             ON DELETE NO ACTION );
 
 CREATE INDEX fki_role_asset_permissions_fk1
-    ON foglamp.role_asset_permissions USING btree (role_id);
+    ON role_asset_permissions (role_id);
 
 CREATE INDEX fki_role_asset_permissions_fk2
-    ON foglamp.role_asset_permissions USING btree (asset_id);
-
+    ON role_asset_permissions (asset_id);
 
 -- Users table
 -- FogLAMP users table.
@@ -561,60 +385,56 @@ CREATE INDEX fki_role_asset_permissions_fk2
 -- 1 - PWD
 -- 2 - Public Key
 CREATE TABLE foglamp.users (
-       id                integer                     NOT NULL DEFAULT nextval('foglamp.users_id_seq'::regclass),
-       uname             character varying(80)       NOT NULL COLLATE pg_catalog."default",
-       role_id           integer                     NOT NULL,
-       description       character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
-       pwd               character varying(255)      COLLATE pg_catalog."default",
-       public_key        character varying(255)      COLLATE pg_catalog."default",
-       enabled           boolean                     NOT NULL DEFAULT TRUE,
-       pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
-       access_method smallint                        NOT NULL DEFAULT 0,
-          CONSTRAINT users_pkey PRIMARY KEY (id),
+       id                INTEGER   PRIMARY KEY AUTOINCREMENT,
+       uname             character varying(80)  NOT NULL,
+       role_id           integer                NOT NULL,
+       description       character varying(255) NOT NULL DEFAULT '',
+       pwd               character varying(255) ,
+       public_key        character varying(255) ,
+       enabled           boolean                NOT NULL DEFAULT 't',
+       pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+       access_method     smallint               NOT NULL DEFAULT 0,
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
-          REFERENCES foglamp.roles (id) MATCH SIMPLE
+          REFERENCES roles (id) MATCH SIMPLE
                   ON UPDATE NO ACTION
                   ON DELETE NO ACTION );
 
 CREATE INDEX fki_users_fk1
-    ON foglamp.users USING btree (role_id);
+    ON users (role_id);
 
 CREATE UNIQUE INDEX users_ix1
-    ON foglamp.users USING btree (uname COLLATE pg_catalog."default");
+    ON users (uname);
 
 -- User Login table
 -- List of logins executed by the users.
 CREATE TABLE foglamp.user_logins (
-       id               integer                     NOT NULL DEFAULT nextval('foglamp.user_logins_id_seq'::regclass),
-       user_id          integer                     NOT NULL,
-       ip               inet                        NOT NULL DEFAULT '0.0.0.0'::inet,
-       ts               timestamp(6) with time zone NOT NULL DEFAULT now(),
+       id               INTEGER   PRIMARY KEY AUTOINCREMENT,
+       user_id          integer   NOT NULL,
+       ip               inet      NOT NULL DEFAULT '0.0.0.0',
+       ts               DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
        token            character varying(255)      NOT NULL,
-       token_expiration timestamp(6) with time zone NOT NULL,
-       CONSTRAINT user_logins_pkey PRIMARY KEY (id),
+       token_expiration DATETIME NOT NULL,
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)
-       REFERENCES foglamp.users (id) MATCH SIMPLE
+       REFERENCES users (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
-CREATE INDEX fki_user_logins_fk1
-    ON foglamp.user_logins USING btree (user_id);
-
+ CREATE INDEX fki_user_logins_fk1
+     ON user_logins (user_id);
 
 -- User Password History table
 -- Maintains a history of passwords
 CREATE TABLE foglamp.user_pwd_history (
-       id               integer                     NOT NULL DEFAULT nextval('foglamp.user_pwd_history_id_seq'::regclass),
-       user_id          integer                     NOT NULL,
-       pwd              character varying(255)      COLLATE pg_catalog."default",
-       CONSTRAINT user_pwd_history_pkey PRIMARY KEY (id),
+       id               INTEGER   PRIMARY KEY AUTOINCREMENT,
+       user_id          integer   NOT NULL,
+       pwd              character varying(255),
        CONSTRAINT user_pwd_history_fk1 FOREIGN KEY (user_id)
-       REFERENCES foglamp.users (id) MATCH SIMPLE
+       REFERENCES users (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
 CREATE INDEX fki_user_pwd_history_fk1
-    ON foglamp.user_pwd_history USING btree (user_id);
+    ON user_pwd_history (user_id);
 
 
 -- User Resource Permissions table
@@ -622,99 +442,96 @@ CREATE INDEX fki_user_pwd_history_fk1
 CREATE TABLE foglamp.user_resource_permissions (
        user_id     integer NOT NULL,
        resource_id integer NOT NULL,
-       access      jsonb NOT NULL DEFAULT '{}'::jsonb,
-        CONSTRAINT user_resource_permissions_pkey PRIMARY KEY (user_id, resource_id),
-        CONSTRAINT user_resource_permissions_fk1 FOREIGN KEY (user_id)
-        REFERENCES foglamp.users (id) MATCH SIMPLE
-                ON UPDATE NO ACTION
-                ON DELETE NO ACTION,
-        CONSTRAINT user_resource_permissions_fk2 FOREIGN KEY (resource_id)
-        REFERENCES foglamp.resources (id) MATCH SIMPLE
-                ON UPDATE NO ACTION
-                ON DELETE NO ACTION );
+       access      JSON NOT NULL DEFAULT '{}',
+       CONSTRAINT user_resource_permissions_pkey PRIMARY KEY (user_id, resource_id),
+       CONSTRAINT user_resource_permissions_fk1 FOREIGN KEY (user_id)
+       REFERENCES users (id) MATCH SIMPLE
+               ON UPDATE NO ACTION
+               ON DELETE NO ACTION,
+       CONSTRAINT user_resource_permissions_fk2 FOREIGN KEY (resource_id)
+       REFERENCES resources (id) MATCH SIMPLE
+               ON UPDATE NO ACTION
+               ON DELETE NO ACTION );
 
 CREATE INDEX fki_user_resource_permissions_fk1
-    ON foglamp.user_resource_permissions USING btree (user_id);
+    ON user_resource_permissions (user_id);
 
 CREATE INDEX fki_user_resource_permissions_fk2
-    ON foglamp.user_resource_permissions USING btree (resource_id);
-
+    ON user_resource_permissions (resource_id);
 
 -- User Asset Permissions table
 -- Association of users with assets
 CREATE TABLE foglamp.user_asset_permissions (
        user_id    integer NOT NULL,
        asset_id   integer NOT NULL,
-       access     jsonb NOT NULL DEFAULT '{}'::jsonb,
+       access     JSON NOT NULL DEFAULT '{}',
        CONSTRAINT user_asset_permissions_pkey PRIMARY KEY (user_id, asset_id),
        CONSTRAINT user_asset_permissions_fk1 FOREIGN KEY (user_id)
-       REFERENCES foglamp.users (id) MATCH SIMPLE
+       REFERENCES users (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION,
        CONSTRAINT user_asset_permissions_fk2 FOREIGN KEY (asset_id)
-       REFERENCES foglamp.assets (id) MATCH SIMPLE
+       REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
                ON DELETE NO ACTION );
 
 CREATE INDEX fki_user_asset_permissions_fk1
-    ON foglamp.user_asset_permissions USING btree (user_id);
+    ON user_asset_permissions (user_id);
 
 CREATE INDEX fki_user_asset_permissions_fk2
-    ON foglamp.user_asset_permissions USING btree (asset_id);
+    ON user_asset_permissions (asset_id);
 
 
 -- List of scheduled Processes
 CREATE TABLE foglamp.scheduled_processes (
              name   character varying(255)  NOT NULL, -- Name of the process
-             script jsonb,                            -- Full path of the process
-  CONSTRAINT scheduled_processes_pkey PRIMARY KEY ( name ) );
-
+             script JSON,                             -- Full path of the process
+             CONSTRAINT scheduled_processes_pkey PRIMARY KEY ( name ) );
 
 -- List of schedules
 CREATE TABLE foglamp.schedules (
              id                uuid                   NOT NULL, -- PK
              process_name      character varying(255) NOT NULL, -- FK process name
              schedule_name     character varying(255) NOT NULL, -- schedule name
-             schedule_type     smallint               NOT NULL, -- 1 = startup,  2 = timed
+             schedule_type     INTEGER                NOT NULL, -- 1 = startup,  2 = timed
                                                                 -- 3 = interval, 4 = manual
-             schedule_interval interval,                        -- Repeat interval
-             schedule_time     time,                            -- Start time
-             schedule_day      smallint,                        -- ISO day 1 = Monday, 7 = Sunday
-             exclusive         boolean not null default true,   -- true = Only one task can run
+             schedule_interval INTEGER,                         -- Repeat interval
+             schedule_time     INTEGER,                         -- Start time
+             schedule_day      INTEGER,                         -- ISO day 1 = Monday, 7 = Sunday
+             exclusive         boolean NOT NULL DEFAULT 't',    -- true = Only one task can run
                                                                 -- at any given time
-             enabled           boolean not null default false,  -- false = A given schedule is disabled by default
+             enabled           boolean NOT NULL DEFAULT 'f',    -- false = A given schedule is disabled by default
   CONSTRAINT schedules_pkey PRIMARY KEY  ( id ),
   CONSTRAINT schedules_fk1  FOREIGN KEY  ( process_name )
-  REFERENCES foglamp.scheduled_processes ( name ) MATCH SIMPLE
+  REFERENCES scheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
-
 -- List of tasks
 CREATE TABLE foglamp.tasks (
-             id           uuid                        NOT NULL,               -- PK
-             process_name character varying(255)      NOT NULL,               -- Name of the task
-             state        smallint                    NOT NULL,               -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
-             start_time   timestamp(6) with time zone NOT NULL DEFAULT now(), -- The date and time the task started
-             end_time     timestamp(6) with time zone,                        -- The date and time the task ended
-             reason       character varying(255),                             -- The reason why the task ended
-             pid          integer                     NOT NULL,               -- Linux process id
-             exit_code    integer,                                            -- Process exit status code (negative means exited via signal)
+             id           uuid                        NOT NULL,                          -- PK
+             process_name character varying(255)      NOT NULL,                          -- Name of the task
+             state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
+             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- The date and time the task started
+             end_time     DATETIME,                                                      -- The date and time the task ended
+             reason       character varying(255),                                        -- The reason why the task ended
+             pid          integer                     NOT NULL,                          -- Linux process id
+             exit_code    integer,                                                       -- Process exit status code (negative means exited via signal)
   CONSTRAINT tasks_pkey PRIMARY KEY ( id ),
   CONSTRAINT tasks_fk1 FOREIGN KEY  ( process_name )
-  REFERENCES foglamp.scheduled_processes ( name ) MATCH SIMPLE
+  REFERENCES fscheduled_processes ( name ) MATCH SIMPLE
              ON UPDATE NO ACTION
              ON DELETE NO ACTION );
 
 
 -- Tracks types already created into PI Server
 CREATE TABLE foglamp.omf_created_objects (
-    configuration_key character varying(255)	NOT NULL,            -- FK to foglamp.configuration
-    type_id           integer           	    NOT NULL,            -- Identifies the specific PI Server type
-    asset_code        character varying(50)   NOT NULL,
+    configuration_key character varying(255)    NOT NULL,            -- FK to foglamp.configuration
+    type_id           integer                   NOT NULL,            -- Identifies the specific PI Server type
+    asset_code        character varying(50)     NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
-    REFERENCES foglamp.configuration (key) MATCH SIMPLE
+    REFERENCES configuration (key) MATCH SIMPLE
             ON UPDATE NO ACTION
             ON DELETE NO ACTION );
 
@@ -722,26 +539,22 @@ CREATE TABLE foglamp.omf_created_objects (
 -- Backups information
 -- Stores information about executed backups
 CREATE TABLE foglamp.backups (
-    id         bigint                      NOT NULL DEFAULT nextval('foglamp.backups_id_seq'::regclass),
-    file_name  character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", -- Backup file name, expressed as absolute path
-    ts         timestamp(6) with time zone NOT NULL DEFAULT now(),                                              -- Backup creation timestamp
-    type       integer           	         NOT NULL,                                                            -- Backup type : 1-Full, 2-Incremental
-    status     integer           	         NOT NULL,                                                            -- Backup status :
-                                                                                                                --   1-Running
-                                                                                                                --   2-Completed
-                                                                                                                --   3-Cancelled
-                                                                                                                --   4-Interrupted
-                                                                                                                --   5-Failed
-                                                                                                                --   6-Restored backup
-    exit_code  integer,                                                                                         -- Process exit status code
-    CONSTRAINT backups_pkey PRIMARY KEY (id) );
+    id         INTEGER                 PRIMARY KEY AUTOINCREMENT,
+    file_name  character varying(255)  NOT NULL DEFAULT '',                   -- Backup file name, expressed as absolute path
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- Backup creation timestamp
+    type       integer                 NOT NULL,                              -- Backup type : 1-Full, 2-Incremental
+    status     integer                 NOT NULL,                              -- Backup status :
+                                                                              --   1-Running
+                                                                              --   2-Completed
+                                                                              --   3-Cancelled
+                                                                              --   4-Interrupted
+                                                                              --   5-Failed
+                                                                              --   6-Restored backup
+    exit_code  integer );                                                     -- Process exit status code
 
--- FogLAMP DB version
+
+-- FogLAMP DB version: keeps the schema version id
 CREATE TABLE foglamp.version (id CHAR(10));
-
--- Grants to foglamp schema
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
-
 
 
 ----------------------------------------------------------------------
@@ -754,7 +567,6 @@ INSERT INTO foglamp.roles ( name, description )
      VALUES ('admin', 'for the users having all CRUD privileges including other admin users'),
             ('user', 'all CRUD operations and self profile management');
 
-
 -- Users
 DELETE FROM foglamp.users;
 INSERT INTO foglamp.users ( uname, pwd, role_id, description )
@@ -764,10 +576,8 @@ INSERT INTO foglamp.users ( uname, pwd, role_id, description )
 -- User password history
 DELETE FROM foglamp.user_pwd_history;
 
-
 -- User logins
 DELETE FROM foglamp.user_logins;
-
 
 -- Log Codes
 DELETE FROM foglamp.log_codes;
@@ -828,7 +638,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } '
             );
 
-
 -- South plugins
 
 -- POLL: South Microservice - POLL Plugin template
@@ -877,7 +686,6 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
             ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0 );
-
 
 --
 -- Scheduled processes
@@ -933,8 +741,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '01:00:00',                             -- schedule_interval (evey hour)
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
 
 -- Statistics collection
@@ -946,10 +754,9 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:15',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
-
 
 -- Check for expired certificates
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
@@ -960,8 +767,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 2,                                      -- schedule_type (interval)
                 '00:05:00',                             -- schedule_time
                 '12:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
 
 -- Storage Tasks
@@ -976,8 +783,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '01:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
 
 -- On demand Backup
@@ -989,10 +796,10 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 4,                                      -- schedule_type (manual)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
-  
+
 -- On demand Restore
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
@@ -1002,8 +809,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 4,                                      -- schedule_type (manual)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
 
 
@@ -1019,8 +826,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 1,                                      -- schedule_type (startup)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
 
 ---- HTTP Listener
@@ -1032,8 +839,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 1,                                      -- schedule_type (startup)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
 
 -- COAP Listener
@@ -1045,8 +852,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 1,                                      -- schedule_type (startup)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
+                't',                                   -- exclusive
+                't'                                    -- enabled
               );
 
 -- TI CC2650 Poll
@@ -1058,9 +865,10 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 1,                                      -- schedule_type (startup)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
+
 
 -- TI CC2650 Async
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
@@ -1071,8 +879,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 1,                                      -- schedule_type (startup)
                 NULL,                                   -- schedule_time
                 '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
 
 
@@ -1088,8 +896,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
 
 -- Readings OMF to PI
@@ -1101,8 +909,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
 
 -- Readings OMF to OCS
@@ -1114,9 +922,10 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
+
 
 -- Statistics OMF to PI
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
@@ -1127,8 +936,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
+                't',                                   -- exclusive
+                'f'                                   -- disabled
               );
 
 
@@ -1138,20 +947,21 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 
 -- Readings to OMF to PI
 INSERT INTO foglamp.destinations ( id, description, ts )
-       VALUES ( 1, 'OMF', now() );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts ) 
-       VALUES ( 1, 1, 'OMF north', 0, now() );
+       VALUES ( 1, 'OMF', datetime('now') );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts )
+       VALUES ( 1, 1, 'OMF north', 0, datetime('now') );
 
 -- Stats to OMF to PI
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts ) 
-       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0, now() );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts )
+       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0, datetime('now') );
 
 -- Readings to HTTP
-INSERT INTO foglamp.destinations ( id, description, ts ) 
-       VALUES ( 2, 'HTTP_TR', now() );
+INSERT INTO foglamp.destinations ( id, description, ts )
+       VALUES ( 2, 'HTTP_TR', datetime('now') );
 INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
-       VALUES ( 3, 2, 'HTTP north', 0, now() );
+       VALUES ( 3, 2, 'HTTP north', 0, datetime('now') );
 
 -- Readings to OMF to OCS
-INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', now() );
-INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, now() );
+INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', datetime('now') );
+INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, datetime('now') );
+

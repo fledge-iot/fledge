@@ -430,16 +430,6 @@ if [[ ! -d ${FOGLAMP_DATA} ]]; then
     exit 1
 fi
 
-# Check if the configuration file exists
-if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
-
-    # Missing configuration file
-    foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
-    foglamp_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
-    exit 1
-
-fi
-
 # Check if curl is present
 if [[ ! `command -v curl` ]]; then
     foglamp_log "err" "Missing dependency: curl." "all" "pretty"

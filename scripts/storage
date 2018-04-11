@@ -45,30 +45,6 @@ if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
     storage_log "err" "Missing plugin from FogLAMP storage service" "all" "pretty"
 fi
 
-#if [[ -e "$FOGLAMP_DATA/etc/storage.json" ]]; then
-#
-    # Extract plugin
-#    PLUGIN_TO_USE=`get_plugin_from_storage "$FOGLAMP_DATA/etc/storage.json"`
-
-    # Check if the plugin has been found
-#    if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-#        storage_log "err" "Missing plugin in FogLAMP storage cache file storage.json" "all" "pretty"
-#    fi
-
-#fi
-
-#if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-
-    # Extract the default storage plugin from the configuration file
-#    PLUGIN_TO_USE=`get_default_storage_plugin "$FOGLAMP_DATA/etc/foglamp.json"`
-#    if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-#        storage_log "err" "FogLAMP cannot start." "all" "pretty"
-#        storage_log "err" "Missing default plugin in FogLAMP configuration file foglamp.json" "all" "pretty"
-#        exit 1
-#    fi
-
-#fi
-
 PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE.sh"
 if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 

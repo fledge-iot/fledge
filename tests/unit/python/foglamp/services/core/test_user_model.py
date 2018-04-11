@@ -134,7 +134,7 @@ class TestUserModel:
                 assert 1 == insert_tbl_patch.call_count
                 assert insert_tbl_patch.called is True
                 args, kwargs = insert_tbl_patch.call_args
-                assert args[0] == 'users'
+                assert 'users' == args[0]
                 p = json.loads(args[1])
                 assert payload == p
             hash_pwd_patch.assert_called_once_with('foglamp',)
@@ -203,7 +203,6 @@ class TestUserModel:
                 delete_token_patch.assert_called_once_with(2)
             args, kwargs = update_tbl_patch.call_args
             assert 'users' == args[0]
-            print(args[1])
             p = json.loads(args[1])
             assert payload == p
 
@@ -346,7 +345,7 @@ class TestUserModel:
                 args1, kwargs1 = query_tbl_patch.call_args
                 assert 'users' == args1[0]
                 p = json.loads(args1[1])
-                assert p == payload
+                assert payload == p
             mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
 
     async def test_login_exception(self):
@@ -369,7 +368,7 @@ class TestUserModel:
                 args, kwargs = query_tbl_patch.call_args
                 assert 'users' == args[0]
                 p = json.loads(args[1])
-                assert p == payload
+                assert payload == p
             mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
 
     def test_delete_user_tokens(self):
@@ -401,10 +400,9 @@ class TestUserModel:
         with patch.object(connect, 'get_storage', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
                 User.Objects.refresh_token_expiry(token)
-            # FIXME: datetime.now() patch
+            # FIXME: datetime.now() patch and then payload assertion
             args, kwargs = update_tbl_patch.call_args
             assert 'user_logins' == args[0]
-            # payload assertion after datetime patch
 
     def test_invalid_token(self):
         storage_client_mock = MagicMock(StorageClient)
@@ -534,6 +532,7 @@ class TestUserModel:
     ])
     def test__insert_pwd_history_and_delete_oldest_pwd_if_count_exceeds(self, hashed_pwd, pwd_history_list):
         storage_client_mock = MagicMock(StorageClient)
+        payload = {"where": {"column": "user_id", "condition": "=", "value": 2, "and": {"column": "pwd", "condition": "=", "value": "HASHED_PWD_1"}}}
         with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
             with patch.object(storage_client_mock, 'insert_into_tbl') as insert_tbl_patch:
                 User.Objects._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client_mock, 2, hashed_pwd, pwd_history_list)
@@ -544,4 +543,4 @@ class TestUserModel:
         args1, kwargs1 = delete_tbl_patch.call_args
         assert 'user_pwd_history' == args1[0]
         p = json.loads(args1[1])
-        assert {"where": {"column": "user_id", "condition": "=", "value": 2, "and": {"column": "pwd", "condition": "=", "value": "HASHED_PWD_1"}}} == p
+        assert payload == p

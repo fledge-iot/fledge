@@ -21,20 +21,8 @@ __author__="Massimiliano Pinto"
 __version__="1.0"
 
 
-# Get the default storage database plugin from the foglamp config file
-get_default_storage_plugin() {
-    # Remove new lines and store in a variable
-    json_foglamp=`tr -d '\n' < $1`
-
-    # Remove tabs
-    json_foglamp=`echo $json_foglamp | tr -d '\t'`
-
-    echo `echo $json_foglamp | grep -o '"default storage plugin" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
-}
-
-
 # Get the storage database plugin from the Storage microservice cache file
-get_plugin_from_storage() {
+get_storage_plugin() {
 
     $FOGLAMP_ROOT/scripts/services/storage --plugin | cut -d' ' -f1
 

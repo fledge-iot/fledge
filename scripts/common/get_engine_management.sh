@@ -17,9 +17,7 @@
 ##--------------------------------------------------------------------
 
 ##
-## write_log
 ## This script is used to get information regarding the Storage Plugin
-## from the FogLAMP configuration file $FOGLAMP_DATA/etc/foglamp.json
 
 
 get_engine_management() {

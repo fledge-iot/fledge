@@ -255,14 +255,15 @@ class User:
             """
 
             storage_client = connect.get_storage()
-            payload = PayloadBuilder().SELECT("token_expiration").WHERE(['token', '=', token]).payload()
+            token_expiration = '{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "token_expiration"}'
+            payload = PayloadBuilder().SELECT(token_expiration).WHERE(['token', '=', token]).payload()
             result = storage_client.query_tbl_with_payload('user_logins', payload)
 
             if len(result['rows']) == 0:
                 raise User.InvalidToken("Token appears to be invalid")
 
             r = result['rows'][0]
-            token_expiry = r["token_expiration"][:-6]
+            token_expiry = r["token_expiration"]
 
             curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
@@ -296,7 +297,8 @@ class User:
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "pwd_last_changed").WHERE(['uname', '=', username]).\
+            pwd_last_changed = '{"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "pwd_last_changed"}'
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", pwd_last_changed).WHERE(['uname', '=', username]).\
                 AND_WHERE(['enabled', '=', 't']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
@@ -306,7 +308,7 @@ class User:
 
             # check age of password
             t1 = datetime.now()
-            t2 = datetime.strptime(found_user['pwd_last_changed'][:-6], "%Y-%m-%d %H:%M:%S.%f")  # ignore timezone
+            t2 = datetime.strptime(found_user['pwd_last_changed'], "%Y-%m-%d %H:%M:%S.%f")
             delta = t1 - t2
             if age == 0:
                 # user will not be forced to change their password.

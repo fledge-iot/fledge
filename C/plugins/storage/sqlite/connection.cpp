@@ -1399,7 +1399,7 @@ long numReadings = 0;
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < date('now', '-");
+		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < datetime('now', '-");
 		unsentBuffer.append(age);
 		unsentBuffer.append(" hours') AND id > ");
 		unsentBuffer.append(sent);
@@ -1431,7 +1431,7 @@ long numReadings = 0;
 		}
 	}
 	
-	sql.append("DELETE FROM foglamp.readings WHERE user_ts < date('now', '-");
+	sql.append("DELETE FROM foglamp.readings WHERE user_ts < datetime('now', '-");
 	sql.append(age);
 	sql.append(" hours')");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
@@ -1494,7 +1494,7 @@ long numReadings = 0;
 
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
-	rc = sqlite3_exec(dbHandle, "SELECT count(*) FROM readings",
+	rc = sqlite3_exec(dbHandle, "SELECT count(*) FROM foglamp.readings",
 			  countCallback,
 			  &readings_num,
 			  &zErrMsg);

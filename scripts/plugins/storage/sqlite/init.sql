@@ -392,7 +392,7 @@ CREATE TABLE foglamp.users (
        pwd               character varying(255) ,
        public_key        character varying(255) ,
        enabled           boolean                NOT NULL DEFAULT 't',
-       pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
        access_method     smallint               NOT NULL DEFAULT 0,
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES roles (id) MATCH SIMPLE
@@ -411,7 +411,7 @@ CREATE TABLE foglamp.user_logins (
        id               INTEGER   PRIMARY KEY AUTOINCREMENT,
        user_id          integer   NOT NULL,
        ip               inet      NOT NULL DEFAULT '0.0.0.0',
-       ts               DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts               DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
        token            character varying(255)      NOT NULL,
        token_expiration DATETIME NOT NULL,
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)

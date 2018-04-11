@@ -190,8 +190,8 @@ async def add_configuration_item(request):
         Json response with message key
 
     :Example:
-        curl -d '{"default": "true", "description": "Test description", "type": "boolean"}' -X POST https://localhost:1995/foglamp/category/{new_config_item} --insecure
-        curl -d '{"default": "true", "description": "Test description", "type": "boolean", "value": "false"}' -X POST https://localhost:1995/foglamp/category/test_cat/{new_config_item} --insecure
+        curl -d '{"default": "true", "description": "Test description", "type": "boolean"}' -X POST https://localhost:1995/foglamp/category/{category_name}/{new_config_item} --insecure
+        curl -d '{"default": "true", "description": "Test description", "type": "boolean", "value": "false"}' -X POST https://localhost:1995/foglamp/category/{category_name}/{new_config_item} --insecure
     """
     category_name = request.match_info.get('category_name', None)
     new_config_item = request.match_info.get('config_item', None)

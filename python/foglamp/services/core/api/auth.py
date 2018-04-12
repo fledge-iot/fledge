@@ -303,7 +303,9 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     if current_password == new_password:
-        raise web.HTTPBadRequest(reason="New password should not be same as current password")
+        msg = "New password should not be same as current password"
+        _logger.warning(msg)
+        raise web.HTTPBadRequest(reason=msg)
 
     user_id = User.Objects.is_user_exists(username, current_password)
     if not user_id:
@@ -361,8 +363,9 @@ async def reset(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if role_id and not is_valid_role(role_id):
-        _logger.warning("Create user requested with bad role id")
-        return web.HTTPBadRequest(reason="Invalid or bad role id")
+        msg = "Invalid or bad role id"
+        _logger.warning(msg)
+        return web.HTTPBadRequest(reason=msg)
 
     if password and not isinstance(password, str):
         _logger.warning(PASSWORD_ERROR_MSG)

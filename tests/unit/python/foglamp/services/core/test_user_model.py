@@ -302,7 +302,7 @@ class TestUserModel:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
                     with pytest.raises(Exception) as excinfo:
                         await User.Objects.login('user', 'foglamp', '0.0.0.0')
-                    assert str(excinfo.value) == 'Your password has been expired. Please set your password again'
+                    assert pwd_result['rows'][0]['id'] == str(excinfo.value)
                     assert excinfo.type is User.PasswordExpired
                     assert issubclass(excinfo.type, Exception)
                 query_tbl_patch.assert_called_once_with('users', payload)

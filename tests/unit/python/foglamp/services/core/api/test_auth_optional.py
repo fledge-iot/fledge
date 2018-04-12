@@ -134,16 +134,19 @@ class TestAuthOptional:
         ({"username": "admin", "password": "blah"}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": "admin", "password": 123}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": 1, "password": 1}, 404, ValueError, 'Username should be a valid string'),
-        ({"username": "user", "password": "foglamp"}, 401, User.PasswordExpired, 'Password has been expired')
+        ({"username": "user", "password": "foglamp"}, 401, User.PasswordExpired, 'Your password has been expired. Please set your password again')
     ])
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
-                with patch.object(auth._logger, 'warning') as patch_logger:
-                    resp = await client.post('/foglamp/login', data=json.dumps(request_data))
-                    assert status_code == resp.status
-                    assert msg == resp.reason
-                patch_logger.assert_called_once_with(msg)
+                with patch.object(User.Objects, 'delete_user_tokens', return_value=[]) as patch_delete_token:
+                    with patch.object(auth._logger, 'warning') as patch_logger:
+                        resp = await client.post('/foglamp/login', data=json.dumps(request_data))
+                        assert status_code == resp.status
+                        assert msg == resp.reason
+                    patch_logger.assert_called_once_with(msg)
+                if status_code == 401:
+                    patch_delete_token.assert_called_once_with(msg)
             # TODO: host arg patch transport.request.extra_info
             args, kwargs = patch_user_login.call_args
             assert str(request_data['username']) == args[0]
@@ -216,6 +219,15 @@ class TestAuthOptional:
             # patch_check_authorization.assert_called_once_with('<Request PUT /foglamp/1/logout >', '1', 'logout')
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/111/logout')
 
+    async def test_update_password(self, client):
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/foglamp/user/admin/password')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/user/admin/password')
+
     async def test_update_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
@@ -228,21 +240,30 @@ class TestAuthOptional:
     async def test_delete_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
-                resp = await client.delete('/foglamp/user/1')
+                resp = await client.delete('/foglamp/admin/1/delete')
                 assert 403 == resp.status
                 assert FORBIDDEN == resp.reason
             patch_auth_logger_warn.assert_called_once_with(WARN_MSG)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE', '/foglamp/user/1')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE', '/foglamp/admin/1/delete')
 
     async def test_create_user(self, client):
         request_data = {"username": "ajtest", "password": "F0gl@mp"}
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.post('/foglamp/user', data=json.dumps(request_data))
+                resp = await client.post('/foglamp/admin/user', data=json.dumps(request_data))
                 assert 403 == resp.status
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/user')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/admin/user')
+
+    async def test_reset(self, client):
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/foglamp/admin/2/reset')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/admin/2/reset')
 
     @pytest.mark.parametrize("role_id, expected", [
         (1, True),

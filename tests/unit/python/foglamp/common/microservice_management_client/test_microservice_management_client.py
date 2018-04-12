@@ -420,6 +420,42 @@ class TestMicroserviceManagementClient:
                 with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
                     ret_value = ms_mgt_client.create_configuration_category(test_dict)
 
+    def test_create_configuration_category_keep_original(self):
+        microservice_management_host = 'host1'
+        microservice_management_port = 1
+        ms_mgt_client = MicroserviceManagementClient(
+            microservice_management_host, microservice_management_port)
+        response_mock = MagicMock(type=HTTPResponse)
+        undecoded_data_mock = MagicMock()
+        response_mock.read.return_value = undecoded_data_mock
+        test_dict = {
+            'key': 'TEST',
+            'description': 'description',
+            'value': {
+                'ping_timeout': {
+                    'type': 'integer',
+                    'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                    'value': '1',
+                    'default': '1'},
+                'sleep_interval': {
+                    'type': 'integer',
+                    'description': 'The time (in seconds) to sleep between health checks. (must be greater than 5)',
+                    'value': '5',
+                    'default': '5'
+                }
+            },
+            'keep_original_items': True
+        }
+
+        undecoded_data_mock.decode.return_value = json.dumps(test_dict)
+        response_mock.status = 200
+        with patch.object(HTTPConnection, 'request') as request_patch:
+            with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
+                ret_value = ms_mgt_client.create_configuration_category(test_dict)
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='POST', url='/foglamp/service/category', body=test_dict)
+        assert ret_value == test_dict
+
     def test_update_configuration_item(self):
         microservice_management_host = 'host1'
         microservice_management_port = 1

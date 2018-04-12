@@ -24,7 +24,9 @@ __version__ = "${VERSION}"
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "server")
 class TestServer:
-
+    """Tests the calls to configuration manager via core management api
+    No negative tests added since these are already covered in
+    foglamp/services/core/api/test_configuration.py"""
     @pytest.fixture
     def client(self, loop, test_client):
         app = web.Application(middlewares=[middleware.error_middleware])

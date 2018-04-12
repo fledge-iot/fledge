@@ -75,15 +75,15 @@ class ServiceRegistry:
         return service_id
 
     @classmethod
-    def unregister(cls, service_id):
-        """ deregisters the service instance
+    def _expunge(cls, service_id, service_status):
+        """ removes the service instance
 
         :param service_id: a uuid of registered service
         :return: service_id on successful deregistration
         """
         services = cls.get(idx=service_id)
         service_name = services[0]._name
-        services[0]._status = ServiceRecord.Status.Stopped
+        services[0]._status = service_status
         cls._remove_from_scheduler_records(service_name)
 
         # Remove interest registry records, if any
@@ -91,7 +91,17 @@ class ServiceRegistry:
         for interest_rec in interest_recs:
             InterestRegistry().unregister(interest_rec._registration_id)
 
-        cls._logger.info("Stopped {}".format(str(services[0])))
+        return services[0]
+
+    @classmethod
+    def unregister(cls, service_id):
+        """ deregisters the service instance
+
+        :param service_id: a uuid of registered service
+        :return: service_id on successful deregistration
+        """
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Stopped)
+        cls._logger.info("Stopped {}".format(str(expunged_service)))
         return service_id
 
     @classmethod
@@ -101,22 +111,8 @@ class ServiceRegistry:
         :param service_id: a uuid of registered service
         :return: service_id on successful deregistration
         """
-        services = cls.get(idx=service_id)
-        service_name = services[0]._name
-        services[0]._status = ServiceRecord.Status.Failed
-        cls._remove_from_scheduler_records(service_name)
-
-        # Here, we do not remove interest_registry recs as this service may be restarted after diagnosis and as
-        # such, retaining interest_registry recs may prove beneficial.
-
-        # TODO: Above intention is not working due to some error in line#99-110 of interest_registry.py.
-        #       Investigate and remove below 4 lines.
-        # Remove interest registry records, if any
-        interest_recs = InterestRegistry().get(microservice_uuid=service_id)
-        for interest_rec in interest_recs:
-            InterestRegistry().unregister(interest_rec._registration_id)
-
-        cls._logger.info("Mark as failed {}".format(str(services[0])))
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Failed)
+        cls._logger.info("Mark as failed {}".format(str(expunged_service)))
         return service_id
 
     @classmethod

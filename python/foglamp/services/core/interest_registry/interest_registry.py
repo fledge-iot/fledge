@@ -101,13 +101,7 @@ class InterestRegistry(InterestRegistrySingleton):
         except interest_registry_exceptions.DoesNotExist:
             pass
         else:
-            # In this condition, we should return the already existing registration_id. This "else" part will be
-            # reached when a already existing interest record is re-attempted for creation. This condition will
-            # usually arise when a service fails for some reason and is restarted after proper diagnosis.
-            # Raising interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists, as was being done
-            # previosuly, is not correct, hence removed.
-            existing_recs = self.get(microservice_uuid=microservice_uuid)
-            return existing_recs[0]._registration_id
+            raise interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists
 
         # register callback with configuration manager
         self._configuration_manager.register_interest(category_name, NOTIFY_CHANGE_CALLBACK)

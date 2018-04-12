@@ -313,7 +313,7 @@ class User:
                 pass
             elif age <= delta.days:
                 # user will be forced to change their password.
-                raise User.PasswordExpired('Your password has been expired. Please set your password again')
+                raise User.PasswordExpired(found_user['id'])
 
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))

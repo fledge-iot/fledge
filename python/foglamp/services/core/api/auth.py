@@ -82,8 +82,12 @@ async def login(request):
         _logger.warning(str(ex))
         return web.HTTPNotFound(reason=str(ex))
     except User.PasswordExpired as ex:
-        _logger.warning(str(ex))
-        return web.HTTPUnauthorized(reason=str(ex))
+        # delete all user token for this user
+        User.Objects.delete_user_tokens(str(ex))
+
+        msg = 'Your password has been expired. Please set your password again'
+        _logger.warning(msg)
+        return web.HTTPUnauthorized(reason=msg)
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
 
@@ -276,7 +280,7 @@ async def update_password(request):
     """ update password
 
         :Example:
-             curl -H "authorization: <token>" -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' https://localhost:1995/foglamp/user/<username>/password --insecure
+             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' https://localhost:1995/foglamp/user/<username>/password --insecure
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)

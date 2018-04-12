@@ -76,9 +76,10 @@ class ServiceRegistry:
 
     @classmethod
     def _expunge(cls, service_id, service_status):
-        """ removes the service instance
+        """ removes the service instance from action
 
         :param service_id: a uuid of registered service
+        :param service_status: service status to be marked
         :return: service_id on successful deregistration
         """
         services = cls.get(idx=service_id)

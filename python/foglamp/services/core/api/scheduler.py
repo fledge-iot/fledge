@@ -681,8 +681,10 @@ async def get_tasks_latest(request):
 
               curl -X GET  http://localhost:8081/foglamp/task/latest?name=xxx
     """
+    start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
+    end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
     payload = PayloadBuilder().SELECT(
-        ("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
+        ("id", "process_name", "state", start_ts, end_ts, "reason", "pid", "exit_code")) \
         .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]).payload()
 
     if 'name' in request.query and request.query['name'] != '':

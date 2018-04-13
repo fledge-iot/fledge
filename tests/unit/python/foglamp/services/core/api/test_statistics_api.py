@@ -60,9 +60,9 @@ class TestStatistics:
                 assert "Internal Server Error" == resp.reason
 
     async def test_get_statistics_history(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
-        p1 = {'return': ['history_ts', 'key', 'value'], 'sort': {'direction': 'desc', 'column': 'history_ts'}}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
+        p1 = {"return": [{"alias": "history_ts", "column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}}
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -72,10 +72,10 @@ class TestStatistics:
 
             if table == 'statistics_history':
                 assert p1 == json.loads(payload)
-                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
             if table == 'schedules':
                 assert p2 == json.loads(payload)
@@ -92,13 +92,12 @@ class TestStatistics:
         assert 2 == query_patch.call_count
 
     async def test_get_statistics_history_limit(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
         p1 = {"aggregate": {"operation": "count", "column": "*"}}
         # payload limit will be request limit*2 i.e. via p1 query
-        p2 = {'limit': 2, 'sort': {'direction': 'desc', 'column': 'history_ts'},
-              'return': ['history_ts', 'key', 'value']}
+        p2 = {"return": [{"column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "history_ts"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "limit": 2}
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -112,10 +111,10 @@ class TestStatistics:
 
             if table == 'statistics_history':
                 assert p2 == json.loads(payload)
-                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
             if table == 'schedules':
                 assert p3 == json.loads(payload)

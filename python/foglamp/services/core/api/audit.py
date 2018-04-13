@@ -188,7 +188,8 @@ async def get_audit_entries(request):
     try:
         # HACK: This way when we can more future we do not get an exponential
         # explosion of if statements
-        payload = PayloadBuilder().WHERE(['1', '=', 1])
+        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "timestamp"}'
+        payload = PayloadBuilder().SELECT("code", "level", "log", ts).WHERE(['1', '=', 1])
         if source is not None:
             payload.AND_WHERE(['code', '=', source])
 
@@ -225,7 +226,7 @@ async def get_audit_entries(request):
             severity_level = int(row["level"])
             r["severity"] = Severity(severity_level).name if severity_level in (0, 1, 2, 4) else "UNKNOWN"
             r["source"] = row["code"]
-            r["timestamp"] = row["ts"]
+            r["timestamp"] = row["timestamp"]
 
             res.append(r)
 

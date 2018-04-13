@@ -17,20 +17,18 @@
 ##--------------------------------------------------------------------
 
 ##
-## write_log
 ## This script is used to get information regarding the Storage Plugin
-## from the FogLAMP configuration file $FOGLAMP_DATA/etc/foglamp.json
+
 
 get_engine_management() {
 
-    # Remove new lines and store in a variable
-    json_foglamp=`tr -d '\n' < $FOGLAMP_DATA/etc/foglamp.json`
+  storage_info=( $($FOGLAMP_ROOT/scripts/services/storage --plugin) )
 
-    # Remove tabs
-    json_foglamp=`echo $json_foglamp | tr -d '\t'`
-
-    middle_grep="\"plugin\" *: *\"${1}\" *, *\"managed\" *:.*"
-    echo `echo $json_foglamp | grep -o "\"storage plugins\" *: *\[ *{.*" | grep -o "$middle_grep" | grep -o -e "true" -e "false"`
+  if [ "${storage_info[0]}" != "$1" ]; then
+    echo ""
+  else
+    echo "${storage_info[1]}"
+  fi
 
 }
 

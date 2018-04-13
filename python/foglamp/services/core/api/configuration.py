@@ -99,17 +99,20 @@ async def create_category(request):
 
         should_keep_original_items = data.get('keep_original_items', False)
         if not isinstance(should_keep_original_items, bool):
-            raise web.HTTPBadRequest(reason="keep_original_items should be boolean true | false")
+            raise TypeError('keep_original_items should be boolean true | false')
 
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
                                      category_value=category_value, keep_original_items=should_keep_original_items)
 
         category_info = await cf_mgr.get_category_all_items(category_name=category_name)
         if category_info is None:
-            raise web.HTTPNotFound(reason="No such {} found".format(category_info))
+            raise LookupError('No such %s found' % category_name)
 
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
+
+    except LookupError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
 
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))

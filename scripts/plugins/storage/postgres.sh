@@ -391,12 +391,6 @@ if [[ ! -d ${FOGLAMP_DATA} ]]; then
     exit 1
 fi
 
-# Check if the Configuration file exists
-if [[ ! -e ${FOGLAMP_DATA}/etc/foglamp.json ]]; then
-    postgres_log "err" "Missing FogLAMP configuration file ${FOGLAMP_DATA}/etc/foglamp.json" "all" "pretty"
-    exit 1
-fi
-
 # Extract plugin
 engine_management=`get_engine_management $PLUGIN`
 # Settings if the database is managed by FogLAMP
@@ -455,7 +449,7 @@ case "$engine_management" in
 
         # Unexpected value from the configuration file
         postgres_log "err" "FogLAMP cannot start." "all" "pretty"
-        postgres_log "err" "Missing plugin information in FogLAMP configuration file foglamp.json" "all" "pretty"
+        postgres_log "err" "Missing plugin information from the storage microservice" "all" "pretty"
         exit 1
         ;;
 

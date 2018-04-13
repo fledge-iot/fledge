@@ -40,7 +40,7 @@ fi
 source ${FILE_TO_SOURCE} 2> /dev/null
 RET_CODE=$?
 if [ "${RET_CODE}" -ne 0 ]; then
-    echo "Error: get_storage_plugin.sh not found in '${FILE_TO_SOURCE}'"
+    echo "Error: Missing get_storage_plugin.sh"
     exit 1
 fi
 
@@ -129,13 +129,13 @@ else
     if [ ! -f "${CURRENT_FOGLAMP_VERSION_FILE}" ]; then
         # Set WARNING if VERSION file is not present in install path
         echo "Warning: FogLAMP version file [${CURRENT_FOGLAMP_VERSION_FILE}] "\
-"not found in ${INSTALLED_FOGLAMP}. It can be an old FogLAMP setup. Skipping DB schema check."
+             "not found in ${INSTALLED_FOGLAMP}. It can be an old FogLAMP setup. Skipping DB schema check."
         exit 0
     fi 
     if [ ! -s "${CURRENT_FOGLAMP_VERSION_FILE}" ]; then
         # Abort if VERSION file is empty
         echo "Error: FogLAMP version file [${CURRENT_FOGLAMP_VERSION_FILE}] is empty. "\
-"DB schema check cannot be performed. Exiting."
+             "DB schema check cannot be performed. Exiting."
         exit 1
     fi
 fi
@@ -145,44 +145,18 @@ FOGLAMP_VERSION_FILE=${THIS_VERSION_FILE}
 if [ ! -f "${FOGLAMP_VERSION_FILE}" ]; then
     # Abort on missing VERSION file
     echo "Error: FogLAMP version file [${FOGLAMP_VERSION_FILE}] not found "\
-"in new installing path. Exiting"
+         "in new installing path. Exiting"
     exit 1
 else
     if [ ! -s "${FOGLAMP_VERSION_FILE}" ]; then
         # Abort on empty VERSION file
         echo "Error: FogLAMP version file [${FOGLAMP_VERSION_FILE}] in source tree is empty. "\
-"DB schema check cannot be performed. Exiting."
+             "DB schema check cannot be performed. Exiting."
         exit 1
     fi
 fi
 
-# Set path for storage.json and foglamp.json files and get storage plugin name
-if [ ! "${DATA_INSTALL_DIR}" ]; then
-    INSTALLED_FOGLAMP_DATA="${INSTALLED_FOGLAMP}/data"
-else
-    INSTALLED_FOGLAMP_DATA="${DATA_INSTALL_DIR}"
-fi
-
-# Check if the storage cache file exists
-if [[ -e "${INSTALLED_FOGLAMP_DATA}/etc/storage.json" ]]; then
-    # Extract plugin
-    PLUGIN_TO_USE=`get_plugin_from_storage "${INSTALLED_FOGLAMP_DATA}/etc/storage.json"`
-else
-    # Extract the default storage plugin from the configuration file
-    if [[ -e "$INSTALLED_FOGLAMP_DATA/etc/foglamp.json" ]]; then
-        PLUGIN_TO_USE=`get_default_storage_plugin "$INSTALLED_FOGLAMP_DATA/etc/foglamp.json"`
-        if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-            echo "Error: cannot get default storage plugin from FogLAMP config file "\
-"'$INSTALLED_FOGLAMP_DATA/etc/foglamp.json'"
-            echo "The DATA_INSTALL_DIR var is [${INSTALLED_FOGLAMP_DATA}]"
-            exit 1
-        fi
-    else
-        echo "Error: missing FogLAMP configuration file '$INSTALLED_FOGLAMP_DATA/etc/foglamp.json'"
-        echo "The DATA_INSTALL_DIR var is [${INSTALLED_FOGLAMP_DATA}]"
-        exit 1
-    fi
-fi
+PLUGIN_TO_USE=`get_storage_plugin`
 
 ###
 # Check for required files done

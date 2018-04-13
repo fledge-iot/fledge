@@ -97,8 +97,9 @@ def _extract_args(data, curr_value):
         if 'type' in data and (not isinstance(data['type'], int) and not data['type'].isdigit()):
             raise ValueError('Error in type: {}'.format(data['type']))
 
-        if 'day' in data and (not isinstance(data['day'], int) and (data['day'].strip() != "" and not data['day'].isdigit())):
-            raise ValueError('Error in day: {}'.format(data['day']))
+        if 'day' in data:
+            if isinstance(data['day'], float) or (isinstance(data['day'], str) and (data['day'].strip() != "" and not data['day'].isdigit())):
+                raise ValueError('Error in day: {}'.format(data['day']))
 
         if 'time' in data and (not isinstance(data['time'], int) and not data['time'].isdigit()):
             raise ValueError('Error in time: {}'.format(data['time']))

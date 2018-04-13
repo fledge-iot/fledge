@@ -8,7 +8,8 @@ import asyncio
 import datetime
 import uuid
 import time
-from unittest.mock import MagicMock, call, Mock
+import json
+from unittest.mock import MagicMock, call
 
 import copy
 import pytest
@@ -1119,8 +1120,11 @@ class TestScheduler:
             await scheduler.get_task(task_id)
 
         # THEN
-        log_args = 'Query failed: %s', '{"where": {"column": "id", "condition": "=", "value": "'+str(task_id)+'"}}'
-        log_exception.assert_called_once_with(*log_args)
+        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "start_time"}, {"alias": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "end_time"}, "reason", "exit_code"], "where": {"column": "id", "condition": "=", "value": str(task_id)}}
+        args, kwargs = log_exception.call_args
+        assert 'Query failed: %s' == args[0]
+        p = json.loads(args[1])
+        assert payload == p
 
     @pytest.mark.asyncio
     async def test_get_tasks(self, mocker):
@@ -1163,13 +1167,15 @@ class TestScheduler:
         log_debug = mocker.patch.object(scheduler._logger, 'debug', side_effect=Exception())
 
         # WHEN
-        # THEN
         with pytest.raises(Exception) as excinfo:
             tasks = await scheduler.get_tasks()
 
         # THEN
-        log_args = 'Query failed: %s', '{"limit": 100}'
-        log_exception.assert_called_once_with(*log_args)
+        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"alias": "end_time", "column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "reason", "exit_code"], "limit": 100}
+        args, kwargs = log_exception.call_args
+        assert 'Query failed: %s' == args[0]
+        p = json.loads(args[1])
+        assert payload == p
 
     @pytest.mark.asyncio
     async def test_cancel_task_all_ok(self, mocker):
@@ -1392,8 +1398,8 @@ class MockStorage(StorageClient):
             "id": "259b8570-65c1-4b92-8c62-e9642631a600",
             "process_name": "North Readings to PI",
             "state": 1,
-            "start_time": "2018-02-06 13:28:14.477868+05:30",
-            "end_time": "2018-02-06 13:28:14.856375+05:30",
+            "start_time": "2018-02-06 13:28:14.477868",
+            "end_time": "2018-02-06 13:28:14.856375",
             "exit_code": "0",
             "reason": ""
         }

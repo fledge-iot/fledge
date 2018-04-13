@@ -69,8 +69,8 @@ async def get_statistics_history(request):
         interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
-
-    stats_history_chain_payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).ORDER_BY(['history_ts', 'desc']).chain_payload()
+    history_ts = '{"column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "history_ts"}'
+    stats_history_chain_payload = PayloadBuilder().SELECT((history_ts, "key", "value")).ORDER_BY(['history_ts', 'desc']).chain_payload()
     if 'limit' in request.query and request.query['limit'] != '':
         try:
             limit = int(request.query['limit'])

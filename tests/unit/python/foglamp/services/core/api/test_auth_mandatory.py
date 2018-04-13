@@ -296,7 +296,7 @@ class TestAuthMandatory:
     async def test_update_password_with_invalid_current_password(self, client):
         request_data = {"current_password": "blah", "new_password": "F0gl@mp"}
         uname = 'aj'
-        msg = 'Username or Password do not match'
+        msg = 'Invalid current password'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'is_user_exists', return_value=None) as patch_user_exists:
                 with patch.object(auth._logger, 'warning') as patch_logger_warning:

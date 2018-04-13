@@ -309,7 +309,7 @@ async def update_password(request):
 
     user_id = User.Objects.is_user_exists(username, current_password)
     if not user_id:
-        msg = 'Username or Password do not match'
+        msg = 'Invalid current password'
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
 

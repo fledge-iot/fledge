@@ -58,7 +58,7 @@ class Monitor(object):
                           # In case of of non running statuses, count shows since when this status is set.
         while True:
             round_cnt += 1
-            self._logger.info("Starting next round#{} of service monitoring, sleep/i:{} ping/t:{} max/a:{}".format(
+            self._logger.debug("Starting next round#{} of service monitoring, sleep/i:{} ping/t:{} max/a:{}".format(
                 round_cnt, self._sleep_interval, self._ping_timeout, self._max_attempts))
             for service_record in ServiceRegistry.all():
                 if service_record._id not in check_count:

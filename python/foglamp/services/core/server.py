@@ -617,10 +617,13 @@ class Server:
 
     @classmethod
     def stop(cls, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
-        loop.run_until_complete(cls._stop())
-        loop.stop()
+        try:
+            if loop is None:
+                loop = asyncio.get_event_loop()
+            loop.run_until_complete(cls._stop())
+            loop.stop()
+        except RuntimeError as ex:
+            _logger.exception("Error while stopping foglamp server: {}".format(str(ex)))
 
     @classmethod
     async def stop_rest_server(cls):

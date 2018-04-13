@@ -103,5 +103,4 @@ def do_shutdown(loop=None):
     _logger.info("Executing controlled shutdown")
     if loop is None:
         loop = asyncio.get_event_loop()
-    loop.run_until_complete(server.Server._stop())
-    loop.stop()
+    server.Server.stop(loop)

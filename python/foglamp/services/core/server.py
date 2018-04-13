@@ -115,10 +115,10 @@ class Server:
     rest_server_port = 0
     """ FogLAMP REST API port """
 
-    is_rest_server_http_enabled = False
+    is_rest_server_http_enabled = True
     """ a Flag to decide to enable FogLAMP REST API on HTTP on restart """
 
-    is_auth_required = True
+    is_auth_required = False
     """ a var to decide to make authentication mandatory / optional for FogLAMP Admin/ User REST API"""
 
     cert_file_name = ''
@@ -138,7 +138,7 @@ class Server:
         'enableHttp': {
             'description': 'Enable or disable the connection via HTTP',
             'type': 'boolean',
-            'default': 'false'
+            'default': 'true'
         },
         'authProviders': {
             'description': 'A JSON object which is an array of authentication providers to use '

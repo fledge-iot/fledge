@@ -10,8 +10,7 @@ from aiohttp import web
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, \
     ManualSchedule, Task
-from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError, \
-    NotReadyError
+from foglamp.services.core.scheduler.exceptions import *
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -210,7 +209,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
 
     if len(scheduled_process['rows']) == 0:
-        _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
+        raise ScheduleProcessNameNotFoundError('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
 
     # Raise error if exclusive is wrong
     if _schedule.get('schedule_exclusive') not in ['True', 'False']:
@@ -455,8 +454,10 @@ async def post_schedule(request):
         }
 
         return web.json_response({'schedule': schedule})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
 
 async def update_schedule(request):
@@ -478,7 +479,7 @@ async def update_schedule(request):
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
         if not sch:
-            raise ValueError('No such Schedule: {}.'.format(schedule_id))
+            raise ScheduleNotFoundError(schedule_id)
 
         curr_value = dict()
         curr_value['schedule_id'] = sch.schedule_id
@@ -512,8 +513,10 @@ async def update_schedule(request):
         }
 
         return web.json_response({'schedule': schedule})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
 
 async def delete_schedule(request):

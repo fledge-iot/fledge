@@ -54,3 +54,9 @@ class TestSchedulerExceptions:
         assert excinfo.type is ScheduleNotFoundError
         assert issubclass(excinfo.type, ValueError)
         assert str(excinfo).endswith("Schedule not found: {}".format(schedule_id))
+
+    def test_ScheduleProcessNameNotFound(self):
+        with pytest.raises(ScheduleProcessNameNotFoundError) as excinfo:
+            raise ScheduleProcessNameNotFoundError()
+        assert excinfo.type is ScheduleProcessNameNotFoundError
+        assert issubclass(excinfo.type, ValueError)

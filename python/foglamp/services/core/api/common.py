@@ -89,7 +89,7 @@ async def shutdown(request):
 
     try:
         loop = request.loop
-        loop.call_later(2, do_shutdown, loop)
+        loop.call_later(2, do_shutdown, request)
 
         return web.json_response({'message': 'FogLAMP shutdown has been scheduled. '
                                              'Wait for few seconds for process cleanup.'})
@@ -99,8 +99,10 @@ async def shutdown(request):
         raise web.HTTPException(reason=str(ex))
 
 
-def do_shutdown(loop=None):
+def do_shutdown(request):
     _logger.info("Executing controlled shutdown")
-    if loop is None:
-        loop = asyncio.get_event_loop()
-    server.Server.stop(loop)
+    try:
+        loop = request.loop
+        loop.run_until_complete(server.Server.shutdown(request))
+    except RuntimeError as ex:
+        _logger.exception("Error while stopping foglamp server: {}".format(str(ex)))

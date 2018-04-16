@@ -3,5 +3,9 @@
 			"operation" : "count",
 			"column" : "id"
 			},
-	"group" : "key"
+	"group" : "key",
+        "sort" : {
+                        "column" : "id",
+                        "direction" : "desc"
+                 }
 }

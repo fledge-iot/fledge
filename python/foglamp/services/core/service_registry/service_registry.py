@@ -12,6 +12,7 @@ import time
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -38,12 +39,18 @@ class ServiceRegistry:
         :return: registered services' uuid
         """
 
+        new_service = True
         try:
-            cls.get(name=name)
+            current_service = cls.get(name=name)
         except service_registry_exceptions.DoesNotExist:
             pass
         else:
-            raise service_registry_exceptions.AlreadyExistsWithTheSameName
+            # Re: FOGL-1123
+            if current_service[0]._status in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
+                raise service_registry_exceptions.AlreadyExistsWithTheSameName
+            else:
+                new_service = False
+                current_service_id = current_service[0]._id
 
         if port is not None and cls.check_address_and_port(address, port):
             raise service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort
@@ -53,14 +60,39 @@ class ServiceRegistry:
 
         if port is not None and (not isinstance(port, int)):
             raise service_registry_exceptions.NonNumericPortError
+
         if not isinstance(management_port, int):
             raise service_registry_exceptions.NonNumericPortError
 
-        service_id = str(uuid.uuid4())
+        if new_service is False:
+            # Remove current service to enable the service to register with new management port etc
+            cls.remove_from_registry(current_service_id)
+
+        service_id = str(uuid.uuid4()) if new_service is True else current_service_id
         registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
         return service_id
+
+    @classmethod
+    def _expunge(cls, service_id, service_status):
+        """ removes the service instance from action
+
+        :param service_id: a uuid of registered service
+        :param service_status: service status to be marked
+        :return: service_id on successful deregistration
+        """
+        services = cls.get(idx=service_id)
+        service_name = services[0]._name
+        services[0]._status = service_status
+        cls._remove_from_scheduler_records(service_name)
+
+        # Remove interest registry records, if any
+        interest_recs = InterestRegistry().get(microservice_uuid=service_id)
+        for interest_rec in interest_recs:
+            InterestRegistry().unregister(interest_rec._registration_id)
+
+        return services[0]
 
     @classmethod
     def unregister(cls, service_id):
@@ -69,12 +101,29 @@ class ServiceRegistry:
         :param service_id: a uuid of registered service
         :return: service_id on successful deregistration
         """
-        services = cls.get(idx=service_id)
-        service_name = services[0]._name
-        cls._registry.remove(services[0])
-        cls._logger.info("Unregistered {}".format(str(services[0])))
-        cls._remove_from_scheduler_records(service_name)
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Down)
+        cls._logger.info("Stopped {}".format(str(expunged_service)))
         return service_id
+
+    @classmethod
+    def mark_as_failed(cls, service_id):
+        """ marks the service instance as failed
+
+        :param service_id: a uuid of registered service
+        :return: service_id on successful deregistration
+        """
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Failed)
+        cls._logger.info("Mark as failed {}".format(str(expunged_service)))
+        return service_id
+
+    @classmethod
+    def remove_from_registry(cls, service_id):
+        """ remove service_id from service_registry.
+
+        :param service_id: a uuid of registered service
+        """
+        services = cls.get(idx=service_id)
+        cls._registry.remove(services[0])
 
     @classmethod
     def _remove_from_scheduler_records(cls, service_name):

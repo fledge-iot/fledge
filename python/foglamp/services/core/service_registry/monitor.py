@@ -83,6 +83,7 @@ class Monitor(object):
                     # Fixme: Investigate as why no exception message can appear, e.g. Apr 16 15:32:08 nerd51-ThinkPad
                     # FogLAMP[423] INFO: monitor: foglamp.services.core.service_registry.monitor: Exception occurred
                     # during monitoring:
+
                     if "" != str(ex).strip():  # i.e. if a genuine exception occurred
                         self._logger.info("Exception occurred during monitoring: %s", str(ex))
                         service_record._status = ServiceRecord.Status.Unresponsive
@@ -99,7 +100,7 @@ class Monitor(object):
                         audit = AuditLogger(connect.get_storage())
                         await audit.failure('SRVFL', {'name':service_record._name})
                     except Exception as ex:
-                        self._logger.info("Failed to audit service failure %s", str(ex));
+                        self._logger.info("Failed to audit service failure %s", str(ex))
             await self._sleep(self._sleep_interval)
 
     async def _read_config(self):

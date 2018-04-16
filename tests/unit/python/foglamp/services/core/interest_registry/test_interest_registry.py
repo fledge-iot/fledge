@@ -85,16 +85,17 @@ class TestInterestRegistry:
             ret_val, microservice_uuid, category_name)
         assert str(i_reg._registered_interests[0]) == str_val
 
-        # register an existing interest. It returns the same registration id.
-        new_ret_val = i_reg.register(microservice_uuid, category_name)
-        assert ret_val == new_ret_val
+        # register an existing interest
+        with pytest.raises(interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists) as excinfo:
+            ret_val = i_reg.register(microservice_uuid, category_name)
+        assert ret_val is not None
         assert len(i_reg._registered_interests) is 1
         assert isinstance(i_reg._registered_interests[0], InterestRecord)
-        assert i_reg._registered_interests[0]._registration_id is new_ret_val
+        assert i_reg._registered_interests[0]._registration_id is ret_val
         assert i_reg._registered_interests[0]._microservice_uuid is microservice_uuid
         assert i_reg._registered_interests[0]._category_name is category_name
         str_val = 'interest registration id={}: <microservice uuid={}, category_name={}>'.format(
-            new_ret_val, microservice_uuid, category_name)
+            ret_val, microservice_uuid, category_name)
         assert str(i_reg._registered_interests[0]) == str_val
 
         # register a second interest

@@ -66,6 +66,81 @@ Administration API Reference
 This section presents the list of administrative API methods in alphabetical order.
 
 
+ping
+----
+
+The Ping interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance if functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
+
+
+GET Ping
+~~~~~~~~
+
+``GET /foglamp/ping`` - returns liveness of FogLAMP
+
+*Authentication*: not required.
+
+
+**Response Payload**
+
+The response payload is some basic health information in a JSON object.
+
++------------------------+---------+-----------------------------------------------------------------+-------------------+
+| Name                   | Type    | Description                                                     | Example           |
++========================+=========+=================================================================+===================+
+| authenticationOptional | boolean | When true, the REST API does not require authentication. |br|   | true              |
+|                        |         | When false, users must successfully login in order to call |br| |                   |
+|                        |         | the rest API. Default is *true*                                 |                   |
++------------------------+---------+-----------------------------------------------------------------+-------------------+
+| dataPurged             | numeric | A count of the number of readings purged                        | 226               |
++------------------------+---------+-----------------------------------------------------------------+-------------------+
+| dataRead               | numeric | A count of the number of sensor readings                        | 1452              |
++------------------------+---------+-----------------------------------------------------------------+-------------------+
+| dataSent               | numeric | A count of the number of readings sent to PI                    | 347               |
++------------------------+---------+-----------------------------------------------------------------+-------------------+
+| uptime                 | numeric | Time in seconds since FogLAMP started                           | 2113.076449394226 |
++------------------------+---------+-----------------------------------------------------------------+-------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/ping
+  { "authenticationOptional": true,
+  "dataPurged": 226,
+  "dataRead": 1452,
+  "dataSent": 347,
+  "uptime": 2113.076449394226 }
+  $
+
+
+< END OF DOC> |br| |br| |br| |br| |br| |br| |br| |br|        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 audit
 -----
 
@@ -246,37 +321,6 @@ A JSON object that defines the category.
 
 
 
-
-ping
-----
-
-The Ping interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance if functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
-
-
-GET Ping
-~~~~~~~~
-
-``GET /foglamp/ping`` - returns liveness of FogLAMP
-
-
-**Response Payload**
-
-The response payload is the uptime information in a JSON object.
-
-+--------+---------+---------------------------------------+---------+
-| Name   | Type    | Description                           | Example |
-+========+=========+=======================================+=========+
-| uptime | numeric | Time in seconds since FogLAMP started | 32892   |
-+--------+---------+---------------------------------------+---------+
-
-
-**Example**
-
-.. code-block:: console
-
-  $ curl -s http://localhost:8081/foglamp/ping | jq
-  { "uptime": 14044.022489070892 }
-  $
 
 
 

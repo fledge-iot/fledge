@@ -66,18 +66,157 @@ Administration API Reference
 This section presents the list of administrative API methods in alphabetical order.
 
 
+audit
+-----
+
+The *audit* methods are used to retrieve and manage information in the audit trail, audit entries and notifications. The API interacts directly with the audit trail log tables in the storage layer with the exception of the create method which must go via the audit trail component in order that audit trail entries created via the API are treated in the same way as those created within the system.
+
+
+GET Audit Entries
+~~~~~~~~~~~~~~~~~
+
+``GET /foglamp/audit`` - returns a list of audit trail entries sorted with most recent first.
+
+**Request Parameters**
+
+- **limit** - limit the number of audit entries returned to the number specified
+- **skip** - skip the first n entries in the audit table, used with limit to implement paged interfaces
+- **source** - filter the audit entries to be only those from the specified source
+- **severity** - filter the audit entries to only those of the specified severity
+
+
+**Response Payload**
+
+The response payload is an array of JSON objects with the audit trail entries.
+
++-----------+-----------+-----------------------------------------------+--------------------------------------------------------+
+| Name      | Type      | Description                                   | Example                                                |
++===========+===========+===============================================+========================================================+
+| timestamp | timestamp | The timestamp when the audit trail |br|       | 2018-04-16 14:33:18.215                                |
+|           |           | item was written.                             |                                                        |
++-----------+-----------+-----------------------------------------------+--------------------------------------------------------+
+| source    | string    | The source of the audit trail entry.          | CoAP                                                   |
++-----------+-----------+-----------------------------------------------+--------------------------------------------------------+
+| severity  | string    | The severity of the event that triggered |br| | FAILURE                                                |
+|           |           | the audit trail entry to be written. |br|     |                                                        |
+|           |           | This will be one of SUCCESS, FAILURE, |br|    |                                                        |
+|           |           | WARNING or INFORMATION.                       |                                                        |
++-----------+-----------+-----------------------------------------------+--------------------------------------------------------+
+| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|                                     |
+|           |           | of the audit trail event.                     | "Sensor readings discarded due to malformed payload" } |
++-----------+-----------+-----------------------------------------------+--------------------------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/audit?limit=2
+  { "totalCount" : 24,
+    "audit"      : [ { "timestamp" : "2018-02-25 18:58:07.748",
+                       "source"    : "SRVRG",
+                       "details"   : { "name" : "COAP" },
+                       "severity"  : "INFORMATION" },
+                     { "timestamp" : "2018-02-25 18:58:07.742",
+                       "source"    : "SRVRG",
+                       "details"   : { "name" : "HTTP_SOUTH" },
+                       "severity"  : "INFORMATION" },
+                     { "timestamp" : "2018-02-25 18:58:07.390",
+                       "source"    : "START",
+                       "details"   : {},
+                       "severity"  : "INFORMATION" }
+                   ]
+  }
+  $ curl -s http://localhost:8081/foglamp/audit?source=SRVUN&limit=1
+  { "totalCount" : 4,
+    "audit"      : [ { "timestamp" : "2018-02-25 05:22:11.053",
+                       "source"    : "SRVUN",
+                       "details"   : { "name": "COAP" },
+                       "severity"  : "INFORMATION" }
+                   ]
+  }
+  $
+
+
+POST Audit Entries
+~~~~~~~~~~~~~~~~~~
+
+``POST /foglamp/audit`` - create a new audit trail entry.
+
+The purpose of the create method on an audit trail entry is to allow a user interface or an application that is using the FogLAMP API to utilize the FogLAMP audit trail and notification mechanism to raise user defined audit trail entries.
+
+
+**Request Payload**
+
+The request payload is a JSON object with the audit trail entry minus the timestamp..
+
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| Name      | Type      | Description                                   | Example                     |
++===========+===========+===============================================+=============================+
+| source    | string    | The source of the audit trail entry.          | LocalMonitor                |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| severity  | string    | The severity of the event that triggered |br| | FAILURE                     |
+|           |           | the audit trail entry to be written. |br|     |                             |
+|           |           | This will be one of SUCCESS, FAILURE, |br|    |                             |
+|           |           | WARNING or INFORMATION.                       |                             |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|          |
+|           |           | of the audit trail event.                     | "Engine oil pressure low" } |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+
+
+**Response Payload**
+
+The response payload is the newly created audit trail entry.
+
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| Name      | Type      | Description                                   | Example                     |
++===========+===========+===============================================+=============================+
+| timestamp | timestamp | The timestamp when the audit trail |br|       | 2018-04-16 14:33:18.215     |
+|           |           | item was written.                             |                             |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| source    | string    | The source of the audit trail entry.          | LocalMonitor                |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| severity  | string    | The severity of the event that triggered |br| | FAILURE                     |
+|           |           | the audit trail entry to be written. |br|     |                             |
+|           |           | This will be one of SUCCESS, FAILURE, |br|    |                             |
+|           |           | WARNING or INFORMATION.                       |                             |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|          |
+|           |           | of the audit trail event.                     | "Engine oil pressure low" } |
++-----------+-----------+-----------------------------------------------+-----------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X POST http://localhost:8081/foglamp/audit \
+  -H 'Content-Type: application/json' \
+  -d '{ "severity": "FAILURE", "details": { "message": "Engine oil pressure low" }, "source": "LocalMonitor" }'
+  $ curl -X GET http://vbox-dev:8081/foglamp/audit?severity=FAILURE
+  { "totalCount": 1,
+    "audit": [ { "timestamp": "2018-04-16 18:32:28.427",
+                 "source"   :    "LocalMonitor",
+                 "details"  : { "message": "Engine oil pressure low" },
+                 "severity" : "FAILURE" }
+             ]
+  }
+  $
+
+
 ping
 ----
 
-The Ping interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance if functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
+The *ping* interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance if functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
 
 
-GET Ping
+GET ping
 ~~~~~~~~
 
 ``GET /foglamp/ping`` - returns liveness of FogLAMP
 
-*Authentication*: not required.
+*NOTE:* the GET method can be executed without authentication even when authentication is required.
 
 
 **Response Payload**

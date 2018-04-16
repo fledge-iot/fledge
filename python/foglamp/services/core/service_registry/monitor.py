@@ -80,12 +80,11 @@ class Monitor(object):
                     check_count[service_record._id] += 1
                     self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
                 except Exception as ex:  # TODO: Fix too broad exception clause
-                    self._logger.info("Exception occurred during monitoring: %s", str(ex))
                     # Fixme: Investigate as why no exception message can appear, e.g. Apr 16 15:32:08 nerd51-ThinkPad
                     # FogLAMP[423] INFO: monitor: foglamp.services.core.service_registry.monitor: Exception occurred
                     # during monitoring:
-
                     if "" != str(ex).strip():  # i.e. if a genuine exception occurred
+                        self._logger.info("Exception occurred during monitoring: %s", str(ex))
                         service_record._status = ServiceRecord.Status.Unresponsive
                         check_count[service_record._id] += 1
                         self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())

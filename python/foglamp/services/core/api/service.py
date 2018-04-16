@@ -20,8 +20,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | POST            | /foglamp/service                                          |
-    | GET             | /foglamp/service                                          |
+    | GET POST            | /foglamp/service                                      |
     -------------------------------------------------------------------------------
 """
 
@@ -36,15 +35,15 @@ def get_service_records():
     for service_record in ServiceRegistry.all():
         sr_list.append(
                 {
-                    'name' : service_record._name,
-                    'type' : service_record._type,
-                    'address' : service_record._address,
-                    'management_port' : service_record._management_port,
-                    'service_port' : service_record._port,
-                    'protocol' : service_record._protocol,
+                    'name': service_record._name,
+                    'type': service_record._type,
+                    'address': service_record._address,
+                    'management_port': service_record._management_port,
+                    'service_port': service_record._port,
+                    'protocol': service_record._protocol,
                     'status': 'running'
                 })
-    recs = {'services' : sr_list}
+    recs = {'services': sr_list}
     return recs
 
 
@@ -62,6 +61,7 @@ async def get_health(request):
     response = get_service_records()
     return web.json_response(response)
 
+
 async def add_service(request):
     """
     Create a new service to run a specific plugin
@@ -72,6 +72,8 @@ async def add_service(request):
 
     try:
         data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
 
         name = data.get('name', None)
         plugin = data.get('plugin', None)
@@ -135,7 +137,6 @@ async def add_service(request):
         # Save schedule
         await server.Server.scheduler.save_schedule(schedule)
         schedule = await server.Server.scheduler.get_schedule_by_name(name)
-
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
     except ValueError as ex:

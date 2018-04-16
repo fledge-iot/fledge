@@ -665,7 +665,7 @@ class Server:
             for fs in found_services:
                 if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
                     continue
-                if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
+                if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                     continue
                 services_to_stop.append(fs)
 

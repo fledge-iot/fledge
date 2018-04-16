@@ -29,9 +29,9 @@ class ServiceRecord(object):
         """Enumeration for Service Status"""
 
         Running = 1
-        Stopped = 2
+        Down = 2
         Failed = 3
-        Doubtful = 4
+        Unresponsive = 4
 
     class InvalidServiceType(Exception):
         # TODO: tell allowed service types?

@@ -64,7 +64,7 @@ class Monitor(object):
                 if service_record._id not in check_count:
                     check_count.update({service_record._id: 1})
                 # Try ping if service status is either running or doubtful (i.e. give service a chance to recover)
-                if service_record._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
+                if service_record._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                     continue
                 try:
                     url = "{}://{}:{}/foglamp/service/ping".format(
@@ -75,8 +75,9 @@ class Monitor(object):
                             res = json.loads(text)
                             if res["uptime"] is None:
                                 raise ValueError('Improper Response')
-                except:  # TODO: Fix too broad exception clause
-                    service_record._status = ServiceRecord.Status.Doubtful
+                except (Exception, ValueError) as ex:   # TODO: Fix too broad exception clause
+                    self._logger.info("Exception occurred during monitoring: %s", str(ex))
+                    service_record._status = ServiceRecord.Status.Unresponsive
                     check_count[service_record._id] += 1
                     self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
                 else:

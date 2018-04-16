@@ -46,7 +46,7 @@ class ServiceRegistry:
             pass
         else:
             # Re: FOGL-1123
-            if current_service[0]._status in [ServiceRecord.Status.Running, ServiceRecord.Status.Doubtful]:
+            if current_service[0]._status in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                 raise service_registry_exceptions.AlreadyExistsWithTheSameName
             else:
                 new_service = False
@@ -101,7 +101,7 @@ class ServiceRegistry:
         :param service_id: a uuid of registered service
         :return: service_id on successful deregistration
         """
-        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Stopped)
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Down)
         cls._logger.info("Stopped {}".format(str(expunged_service)))
         return service_id
 

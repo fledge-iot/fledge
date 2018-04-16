@@ -88,7 +88,7 @@ class Monitor(object):
                         self._logger.info("Exception occurred during monitoring: %s", str(ex))
                         service_record._status = ServiceRecord.Status.Unresponsive
                         check_count[service_record._id] += 1
-                        self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
+                        self._logger.info("Marked as unresponsive micro-service %s", service_record.__repr__())
                 else:
                     service_record._status = ServiceRecord.Status.Running
                     check_count[service_record._id] = 1

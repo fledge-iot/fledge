@@ -859,7 +859,7 @@ class Server:
             svc["address"] = service._address
             svc["management_port"] = service._management_port
             svc["protocol"] = service._protocol
-            svc["status"] = ServiceRecord.Status(int(service._status)).name.capitalize()
+            svc["status"] = ServiceRecord.Status(int(service._status)).name.lower()
             if service._port:
                 svc["service_port"] = service._port
             services.append(svc)

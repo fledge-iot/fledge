@@ -285,7 +285,7 @@ GET category
 
 **Path Parameters**
 
-- *name* is the name of one of the categories returned from the GET /foglamp/category call.
+- **name** is the name of one of the categories returned from the GET /foglamp/category call.
 
 
 **Response Payload**
@@ -365,8 +365,8 @@ GET category item
 
 **Path Parameters**
 
-- *name* is the name of one of the categories returned from the GET /foglamp/category call.
-- *item* is the the item within the category to return.
+- **name** - the name of one of the categories returned from the GET /foglamp/category call.
+- **item** - the the item within the category to return.
 
 
 **Response Payload**
@@ -410,8 +410,8 @@ PUT category item
 
 **Path Parameters**
 
-- *name* is the name of one of the categories returned from the GET /foglamp/category call.
-- *item* is the the item within the category to set.
+- **name** - the name of one of the categories returned from the GET /foglamp/category call.
+- **item** - the the item within the category to set.
 
 
 **Request Payload**
@@ -470,8 +470,8 @@ This will result in the value being returned to the default value if one is defi
 
 **Path Parameters**
 
-- *name* is the name of one of the categories returned from the GET /foglamp/category call.
-- *item* is the the item within the category to return.
+- **name** - the name of one of the categories returned from the GET /foglamp/category call.
+- **item** - the the item within the category to return.
 
 
 **Response Payload**
@@ -604,6 +604,291 @@ The response payload is some basic health information in a JSON object.
   "dataRead": 1452,
   "dataSent": 347,
   "uptime": 2113.076449394226 }
+  $
+
+ 
+task
+----
+
+The *task* interface allow an administrative user to monitor and control FogLAMP tasks.
+
+
+GET task
+~~~~~~~~
+
+``GET /foglamp/task`` - return the list of all known task running or completed
+
+
+**Request Parameters**
+
+- **name** - an optional task name to filter on, only executions of the particular task will be reported.
+- **state** - an optional query parameter that will return only those tasks in the given state.
+
+
+**Response Payload**
+
+The response payload is a JSON object with an array of task objects.
+
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| Name      | Type      | Description                             | Example                              |
++===========+===========+=========================================+======================================+
+| id        | string    | A unique identifier for the task.  |br| | 0a787bf3-4f48-4235-ae9a-2816f8ac76cc |
+|           |           | This takes the form of a uuid and  |br| |                                      |
+|           |           | not a Linux process id as the ID’s |br| |                                      |
+|           |           | must survive restarts and failovers     |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| name      | string    | The name of the task                    | purge                                |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| state     | string    | The current state of the task           | Running                              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
+|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | not completed.                          |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| reason    | string    | An optional reason string that     |br| | No destination available |br|        |
+|           |           | describes why the task failed.          | to write backup                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X GET http://vbox-dev:8081/foglamp/task
+  { "tasks": [ { "exitCode": 0,
+                 "id": "0a787bf3-4f48-4235-ae9a-2816f8ac76cc",
+                 "state": "Complete",
+                 "reason": "",
+                 "name": "stats collector",
+                 "endTime": "2018-04-17 08:32:15.071",
+                 "startTime": "2018-04-17 08:32:14.872" }.
+               { "exitCode": 0,
+                 "id": "8cd6258e-58cc-4812-a1a7-f044377f98b7",
+                 "state": "Complete",
+                 "reason": "",
+                 "name": "stats collector",
+                 "endTime": "2018-04-17 08:32:30.069",
+                 "startTime": "2018-04-17 08:32:29.851" },
+                 ... ] }
+  $
+  $ curl -X GET http://vbox-dev:8081/foglamp/task?name=purge
+  { "tasks": [ { "exitCode": 0,
+                 "id": "bddad550-463a-485d-9247-148e952452e0",
+                 "state": "Complete",
+                 "reason": "",
+                 "name": "purge",
+                 "endTime": "2018-04-17 09:32:00.203",
+                 "startTime": "2018-04-17 09:31:59.847" },
+               { "exitCode": 0,
+                 "id": "bfe79408-9a4f-4245-bfa5-d843f171d494",
+                 "state": "Complete",
+                 "reason": "",
+                 "name": "purge",
+                 "endTime": "2018-04-17 10:32:00.188",
+                 "startTime": "2018-04-17 10:31:59.850" },
+                 ... ] }
+  $
+  $ curl -X GET http://vbox-dev:8081/foglamp/task?state=complete
+  { "tasks": [ { "exitCode": 0,
+                 "id": "0a787bf3-4f48-4235-ae9a-2816f8ac76cc",
+                 "state": "Complete",
+                 "reason": "",
+                 "name": "stats collector",
+                 "endTime": "2018-04-17 08:32:15.071",
+                 "startTime": "2018-04-17 08:32:14.872" },
+               { "exitCode": 0,
+                 "id": "8cd6258e-58cc-4812-a1a7-f044377f98b7",
+                 "state": "Complete",
+                 "reason": "",
+                 "name": "stats collector",
+                 "endTime": "2018-04-17 08:32:30.069",
+                 "startTime": "2018-04-17 08:32:29.851" },
+                 ... ] }
+   $
+
+ 
+GET task latest
+~~~~~~~~~~~~~~~
+
+``GET /foglamp/task/latest`` - return the list of most recent task execution for each name.
+
+This call is designed to allow a monitoring interface to show when each task was last run and what the status of that task was. 
+
+
+**Request Parameters**
+
+- **name** - an optional task name to filter on, only executions of the particular task will be reported.
+- **state** - an optional query parameter that will return only those tasks in the given state.
+
+
+**Response Payload**
+
+The response payload is a JSON object with an array of task objects.
+
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| Name      | Type      | Description                             | Example                              |
++===========+===========+=========================================+======================================+
+| id        | string    | A unique identifier for the task.  |br| | 0a787bf3-4f48-4235-ae9a-2816f8ac76cc |
+|           |           | This takes the form of a uuid and  |br| |                                      |
+|           |           | not a Linux process id as the ID’s |br| |                                      |
+|           |           | must survive restarts and failovers     |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| name      | string    | The name of the task                    | purge                                |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| state     | string    | The current state of the task           | Running                              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
+|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | not completed.                          |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| reason    | string    | An optional reason string that     |br| | No destination available |br|        |
+|           |           | describes why the task failed.          | to write backup                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X GET http://vbox-dev:8081/foglamp/task/latest
+  { "tasks": [ { "exitCode": 0,
+                 "id": "a3759550-43e5-46b3-8048-e906847fc565",
+                 "state": "Complete",
+                 "pid": 16293,
+                 "reason": "",
+                 "name": "certificate checker",
+                 "endTime": "2018-04-17 09:05:00.081",
+                 "startTime": "2018-04-17 09:05:00.011" },
+               { "exitCode": 0,
+                 "id": "71bbc064-bb05-46c4-8059-5d70fc534ecf",
+                 "state": "Complete",
+                 "pid": 19806,
+                 "reason": "",
+                 "name": "purge",
+                 "endTime": "2018-04-17 14:32:00.404",
+                 "startTime": "2018-04-17 14:31:59.849" },
+                 ... ] }
+  $
+  $ curl -X GET http://vbox-dev:8081/foglamp/task/latest?name=purge
+  { "tasks": [ { "exitCode": 0,
+                 "id": "71bbc064-bb05-46c4-8059-5d70fc534ecf",
+                 "state": "Complete",
+                 "pid": 19806,
+                 "reason": "",
+                 "name": "purge",
+                 "endTime": "2018-04-17 14:32:00.404622",
+                 "startTime": "2018-04-17 14:31:59.849690" ] }
+   $
+
+
+GET task by ID
+~~~~~~~~~~~~~~
+
+``GET /foglamp/task/<id>`` - return the task information for the given task
+
+
+**Path Parameters**
+
+- **id** - the uuid of the task whose data should be returned.
+
+
+**Response Payload**
+
+The response payload is a JSON object containing the task details.
+
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| Name      | Type      | Description                             | Example                              |
++===========+===========+=========================================+======================================+
+| id        | string    | A unique identifier for the task.  |br| | 0a787bf3-4f48-4235-ae9a-2816f8ac76cc |
+|           |           | This takes the form of a uuid and  |br| |                                      |
+|           |           | not a Linux process id as the ID’s |br| |                                      |
+|           |           | must survive restarts and failovers     |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| name      | string    | The name of the task                    | purge                                |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| state     | string    | The current state of the task           | Running                              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
+|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | not completed.                          |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| reason    | string    | An optional reason string that     |br| | No destination available |br|        |
+|           |           | describes why the task failed.          | to write backup                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X GET http://vbox-dev:8081/foglamp/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1
+  { "exitCode": 0,
+    "id": "0aadfb7d-73c1-4ac0-901c-81773b5583c1",
+    "state": "Complete",
+    "reason": "",
+    "name": "purge",
+    "endTime": "2018-04-17 13:32:00.243",
+    "startTime": "2018-04-17 13:31:59.848"
+  }
+  $
+
+
+Cancel task by ID
+~~~~~~~~~~~~~~~~~
+
+``POST /foglamp/task/<id>/cancel`` - cancel a task
+
+
+**Path Parameters**
+
+- **id** - the uuid of the task to cancel.
+
+
+**Response Payload**
+
+The response payload is a JSON object with the details of the cancelled task.
+
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| Name      | Type      | Description                             | Example                              |
++===========+===========+=========================================+======================================+
+| id        | string    | A unique identifier for the task.  |br| | 0a787bf3-4f48-4235-ae9a-2816f8ac76cc |
+|           |           | This takes the form of a uuid and  |br| |                                      |
+|           |           | not a Linux process id as the ID’s |br| |                                      |
+|           |           | must survive restarts and failovers     |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| name      | string    | The name of the task                    | purge                                |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| state     | string    | The current state of the task           | Running                              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| startTime | timestamp | The date and time the task started      | 2018-04-17 08:32:15.071              |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| endTime   | timestamp | The date and time the task ended   |br| | 2018-04-17 08:32:14.872              |
+|           |           | This may not exist if the tast is  |br| |                                      |
+|           |           | not completed.                          |                                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+| reason    | string    | An optional reason string that     |br| | No destination available |br|        |
+|           |           | describes why the task failed.          | to write backup                      |
++-----------+-----------+-----------------------------------------+--------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X POST http://vbox-dev:8081/foglamp/task/0aadfb7d-73c1-4ac0-901c-81773b5583c1/cancel
+  { "id": "0aadfb7d-73c1-4ac0-901c-81773b5583c1",
+    "state": "Cancelled",
+    "reason": "",
+    "name": "purge",
+    "endTime": "2018-04-17 13:32:00.243",
+    "startTime": "2018-04-17 13:31:59.848"
+  }
   $
 
 

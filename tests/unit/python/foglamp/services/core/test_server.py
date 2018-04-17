@@ -32,17 +32,21 @@ __version__ = "${VERSION}"
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("api", "server")
+@pytest.allure.story("services", "core", "server")
 class TestServer:
-    """Tests the calls to configuration manager via core management api
-    No negative tests added since these are already covered in
-    foglamp/services/core/api/test_configuration.py"""
     @pytest.fixture
     def client(self, loop, test_client):
         app = web.Application(middlewares=[middleware.error_middleware])
         management_routes.setup(app, Server, True)
         return loop.run_until_complete(test_client(app))
 
+    ############################
+    # Configuration Management
+    ############################
+    """ Tests the calls to configuration manager via core management api
+        No negative tests added since these are already covered in 
+        foglamp/services/core/api/test_configuration.py
+    """
     async def test_get_configuration_categories(self, client):
         async def async_mock():
             return web.json_response({'categories': "test"})
@@ -123,6 +127,9 @@ class TestServer:
             assert result == json_response
         assert 1 == patch_del_category_item.call_count
 
+    ############################
+    # Register Interest
+    ############################
     async def test_bad_uuid_get_interest(self, client):
         resp = await client.get('/foglamp/interest?microserviceid=X')
         assert 400 == resp.status
@@ -277,6 +284,9 @@ class TestServer:
         args1, kwargs1 = patch_get_interest_reg.call_args
         assert {'registration_id': reg_id} == kwargs1
 
+    ############################
+    # Register Service
+    ############################
     @pytest.mark.parametrize("params, obj, expected_kwargs", [
         ("", "all", {}),
         ("?name=Y", "get", {'name': 'Y'}),
@@ -418,6 +428,9 @@ class TestServer:
         args2, kwargs2 = patch_get_unregister.call_args
         assert {'idx': service_id} == kwargs2
 
+    ############################
+    # Common
+    ############################
     async def test_ping(self, client):
         resp = await client.get('/foglamp/service/ping')
         assert 200 == resp.status
@@ -426,10 +439,9 @@ class TestServer:
         assert 'uptime' in json_response
         assert 0.0 < json_response["uptime"]
 
-    # FIXME: Not sure if we need this
-    async def test_change(self, client):
-        pass
-
     # TODO: tricky one
     async def test_shutdown(self, client):
+        pass
+
+    async def test_change(self):
         pass

@@ -5,6 +5,10 @@
 
    <br />
 
+.. |ar| raw:: html
+
+   <div align="right">
+
 .. Images
 
 
@@ -75,7 +79,7 @@ The *audit* methods are used to retrieve and manage information in the audit tra
 GET Audit Entries
 ~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/audit`` - returns a list of audit trail entries sorted with most recent first.
+``GET /foglamp/audit`` - return a list of audit trail entries sorted with most recent first.
 
 **Request Parameters**
 
@@ -150,41 +154,41 @@ The purpose of the create method on an audit trail entry is to allow a user inte
 
 The request payload is a JSON object with the audit trail entry minus the timestamp..
 
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| Name      | Type      | Description                                   | Example                     |
-+===========+===========+===============================================+=============================+
-| source    | string    | The source of the audit trail entry.          | LocalMonitor                |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| severity  | string    | The severity of the event that triggered |br| | FAILURE                     |
-|           |           | the audit trail entry to be written. |br|     |                             |
-|           |           | This will be one of SUCCESS, FAILURE, |br|    |                             |
-|           |           | WARNING or INFORMATION.                       |                             |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|          |
-|           |           | of the audit trail event.                     | "Engine oil pressure low" } |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
++-----------+-----------+-----------------------------------------------+---------------------------+
+| Name      | Type      | Description                                   | Example                   |
++===========+===========+===============================================+===========================+
+| source    | string    | The source of the audit trail entry.          | LocalMonitor              |
++-----------+-----------+-----------------------------------------------+---------------------------+
+| severity  | string    | The severity of the event that triggered |br| | FAILURE                   |
+|           |           | the audit trail entry to be written. |br|     |                           |
+|           |           | This will be one of SUCCESS, FAILURE, |br|    |                           |
+|           |           | WARNING or INFORMATION.                       |                           |
++-----------+-----------+-----------------------------------------------+---------------------------+
+| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|        |
+|           |           | of the audit trail event.                     | "Internal System Error" } |
++-----------+-----------+-----------------------------------------------+---------------------------+
 
 
 **Response Payload**
 
 The response payload is the newly created audit trail entry.
 
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| Name      | Type      | Description                                   | Example                     |
-+===========+===========+===============================================+=============================+
-| timestamp | timestamp | The timestamp when the audit trail |br|       | 2018-04-16 14:33:18.215     |
-|           |           | item was written.                             |                             |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| source    | string    | The source of the audit trail entry.          | LocalMonitor                |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| severity  | string    | The severity of the event that triggered |br| | FAILURE                     |
-|           |           | the audit trail entry to be written. |br|     |                             |
-|           |           | This will be one of SUCCESS, FAILURE, |br|    |                             |
-|           |           | WARNING or INFORMATION.                       |                             |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
-| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|          |
-|           |           | of the audit trail event.                     | "Engine oil pressure low" } |
-+-----------+-----------+-----------------------------------------------+-----------------------------+
++-----------+-----------+-----------------------------------------------+---------------------------+
+| Name      | Type      | Description                                   | Example                   |
++===========+===========+===============================================+===========================+
+| timestamp | timestamp | The timestamp when the audit trail |br|       | 2018-04-16 14:33:18.215   |
+|           |           | item was written.                             |                           |
++-----------+-----------+-----------------------------------------------+---------------------------+
+| source    | string    | The source of the audit trail entry.          | LocalMonitor              |
++-----------+-----------+-----------------------------------------------+---------------------------+
+| severity  | string    | The severity of the event that triggered |br| | FAILURE                   |
+|           |           | the audit trail entry to be written. |br|     |                           |
+|           |           | This will be one of SUCCESS, FAILURE, |br|    |                           |
+|           |           | WARNING or INFORMATION.                       |                           |
++-----------+-----------+-----------------------------------------------+---------------------------+
+| details   | object    | A JSON object that describes the detail |br|  | { "message" : |br|        |
+|           |           | of the audit trail event.                     | "Internal System Error" } |
++-----------+-----------+-----------------------------------------------+---------------------------+
 
 
 **Example**
@@ -192,18 +196,368 @@ The response payload is the newly created audit trail entry.
 .. code-block:: console
 
   $ curl -X POST http://localhost:8081/foglamp/audit \
-  -H 'Content-Type: application/json' \
-  -d '{ "severity": "FAILURE", "details": { "message": "Engine oil pressure low" }, "source": "LocalMonitor" }'
+  -d '{ "severity": "FAILURE", "details": { "message": "Internal System Error" }, "source": "LocalMonitor" }'
+  { "source": "LocalMonitor",
+    "timestamp": "2018-04-17 11:49:55.480",
+    "severity": "FAILURE",
+    "details": { "message": "Internal System Error" }
+  }
+  $
   $ curl -X GET http://vbox-dev:8081/foglamp/audit?severity=FAILURE
   { "totalCount": 1,
     "audit": [ { "timestamp": "2018-04-16 18:32:28.427",
                  "source"   :    "LocalMonitor",
-                 "details"  : { "message": "Engine oil pressure low" },
+                 "details"  : { "message": "Internal System Error" },
                  "severity" : "FAILURE" }
              ]
   }
   $
 
+
+category
+--------
+
+The *category* interface is part of the Configuration Management for FogLAMP. The configuration REST API interacts with the configuration manager to create, retrieve, update and delete the configuration categories and values. Specifically all updates must go via the management layer as this is used to trigger the notifications to the components that have registered interest in configuration categories. This is the means by which the dynamic reconfiguration of FogLAMP is achieved.
+
+
+GET categor(ies)
+~~~~~~~~~~~~~~~~
+
+``GET /foglamp/category`` - return the list of known categories in the configuration database
+
+
+**Response Payload**
+
+The response payload is a JSON object with an array of JSON objects, one per valid category.
+
++-------------+--------+------------------------------------------------+------------------+
+| Name        | Type   | Description                                    | Example          |
++=============+========+================================================+==================+
+| key         | string | The category key, each category |br|           | network          |
+|             |        | has a unique textual key the defines it.       |                  |
++-------------+--------+------------------------------------------------+------------------+
+| description | string | A description of the category that may be |br| | Network Settings |
+|             |        | used for display purposes.                     |                  |
++-------------+--------+------------------------------------------------+------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X GET http://vbox-dev:8081/foglamp/category 
+  { "categories": [ { "key"         : "CC2650ASYN",
+                      "description" : "TI SensorTag CC2650 async South Plugin" },
+                    { "key"         : "CC2650POLL",
+                      "description" : "TI SensorTag CC2650 polling South Plugin" },
+                    { "key"         : "COAP",
+                      "description" : "COAP Device" },
+                    { "key"         : "HTTP_SOUTH",
+                      "description" : "HTTP_SOUTH Device" },
+                    { "key"         : "POLL",
+                      "description" : "South Plugin polling template" },
+                    { "key"         : "SCHEDULER",
+                      "description" : "Scheduler configuration" },
+                    { "key"         : "SEND_PR_1",
+                      "description" : "OMF North Plugin Configuration" },
+                    { "key"         : "SEND_PR_2",
+                      "description" : "OMF North Statistics Plugin Configuration" },
+                    { "key"         : "SEND_PR_3",
+                      "description" : "HTTP North Plugin Configuration" },
+                    { "key"         : "SEND_PR_4",
+                      "description" : "OCS North Plugin Configuration" },
+                    { "key"         : "SMNTR",
+                      "description" : "Service Monitor configuration" },
+                    { "key"         : "South",
+                      "description" : "South server configuration" },
+                    { "key"         : "rest_api",
+                      "description" : "The FogLAMP Admin and User REST API" },
+                    { "key"         : "service",
+                      "description" : "The FogLAMP service configuration" } ] }
+  $
+
+
+GET category 
+~~~~~~~~~~~~
+
+``GET /foglamp/category/<name>`` - return the configuration items in the given category.
+
+
+**Path Parameters**
+
+- *name* is the name of one of the categories returned from the GET /foglamp/category call.
+
+
+**Response Payload**
+
+The response payload is a set of configuration items within the category, each item is a JSON object with the following set of properties.
+
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| Name        | Type   | Description                                                  | Example                       |
++=============+========+==============================================================+===============================+
+| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
+|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
+|             |        | to know how to display an item.                              |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
+|             |        | This may be empty if no value has been set.                  |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X GET http://vbox-dev:8081/foglamp/category/rest_api
+  { "authentication": {
+        "type": "string",
+        "default": "optional",
+        "description": "To make the authentication mandatory or optional for API calls",
+        "value": "optional" },
+    "authProviders": {
+        "type": "JSON",
+        "default": "{\"providers\": [\"username\", \"ldap\"] }",
+        "description": "A JSON object which is an array of authentication providers to use for the interface",
+        "value": "{\"providers\": [\"username\", \"ldap\"] }" },
+    "certificateName": {
+        "type": "string",
+        "default": "foglamp",
+        "description": "Certificate file name",
+        "value": "foglamp" },
+    "enableHttp": {
+        "type": "boolean",
+        "default": "true",
+        "description": "Enable or disable the connection via HTTP",
+        "value": "true" },
+    "httpPort": {
+        "type": "integer",
+        "default": "8081",
+        "description": "The port to accept HTTP connections on",
+        "value": "8081" },
+    "httpsPort": {
+        "type": "integer",
+        "default": "1995",
+        "description": "The port to accept HTTPS connections on",
+        "value": "1995" },
+    "allowPing": {
+        "type": "boolean",
+        "default": "true",
+        "description": "To allow access to the ping, regardless of the authentication required and authentication header",
+        "value": "true" },
+    "passwordChange": {
+        "type": "integer",
+        "default": "0",
+        "description": "Number of days which a password must be changed",
+        "value": "0" }
+  }
+  $
+
+
+GET category item
+~~~~~~~~~~~~~~~~~
+
+``GET /foglamp/category/<name>/<item>`` - return the configuration item in the given category.
+
+
+**Path Parameters**
+
+- *name* is the name of one of the categories returned from the GET /foglamp/category call.
+- *item* is the the item within the category to return.
+
+
+**Response Payload**
+
+The response payload is a configuration item within the category, each item is a JSON object with the following set of properties.
+
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| Name        | Type   | Description                                                  | Example                       |
++=============+========+==============================================================+===============================+
+| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
+|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
+|             |        | to know how to display an item.                              |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
+|             |        | This may be empty if no value has been set.                  |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X GET http://vbox-dev:8081/foglamp/category/rest_api/httpsPort
+  { "type": "integer",
+    "default": "1995",
+    "description": "The port to accept HTTPS connections on",
+    "value": "1995"
+  }
+  $
+
+
+PUT category item
+~~~~~~~~~~~~~~~~~
+
+``PUT /foglamp/category/<name>/<item>`` - set the configuration item value in the given category.
+
+
+**Path Parameters**
+
+- *name* is the name of one of the categories returned from the GET /foglamp/category call.
+- *item* is the the item within the category to set.
+
+
+**Request Payload**
+
+A JSON object with the new value to assign to the configuration item.
+
++-------------+--------+------------------------------------------+--------------+
+| Name        | Type   | Description                              | Example      |
++=============+========+==========================================+==============+
+| value       | string | The new value of the configuration item. | 192.168.0.27 |
++-------------+--------+------------------------------------------+--------------+
+
+
+**Response Payload**
+
+The response payload is the newly updated configuration item within the category, the item is a JSON object object with the following set of properties.
+
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| Name        | Type   | Description                                                  | Example                       |
++=============+========+==============================================================+===============================+
+| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
+|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
+|             |        | to know how to display an item.                              |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
+|             |        | This may be empty if no value has been set.                  |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X PUT http://vbox-dev:8081/foglamp/category/rest_api/httpsPort \
+    -d '{ "value" : "1996" }'
+  { "default": "1995",
+    "type": "integer",
+    "description": "The port to accept HTTPS connections on",
+    "value": "1996"
+  }
+  $
+
+
+DELETE category item
+~~~~~~~~~~~~~~~~~~~~
+
+``DELETE /foglamp/category/<name>/<item>/value`` - unset the value of the configuration item in the given category.
+
+This will result in the value being returned to the default value if one is defined. If not the value will be blank, i.e. the value property of the JSON object will exist with an empty value.
+
+
+**Path Parameters**
+
+- *name* is the name of one of the categories returned from the GET /foglamp/category call.
+- *item* is the the item within the category to return.
+
+
+**Response Payload**
+
+The response payload is the newly updated configuration item within the category, the item is a JSON object object with the following set of properties.
+
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| Name        | Type   | Description                                                  | Example                       |
++=============+========+==============================================================+===============================+
+| description | string | A description of the configuration item |br|                 | The IPv4 network address |br| |
+|             |        | that may be used in a user interface.                        | of the FogLAMP server         |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| type        | string | A type that may be used by a user interface |br|             | IPv4                          |
+|             |        | to know how to display an item.                              |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| default     | string | An optional default value for the configuration item.        | 127.0.0.1                     |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+| value       | string | The current configured value of the configuration item. |br| | 192.168.0.27                  |
+|             |        | This may be empty if no value has been set.                  |                               |
++-------------+--------+--------------------------------------------------------------+-------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X DELETE http://vbox-dev:8081/foglamp/category/rest_api/httpsPort/value
+  { "default": "1995",
+    "type": "integer",
+    "description": "The port to accept HTTPS connections on",
+    "value": "1995"
+  }
+  $
+
+ 
+POST category
+~~~~~~~~~~~~~
+
+``POST /foglamp/category`` - creates a new category
+
+
+**Request Payload**
+
+A JSON object that defines the category.
+
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| Name               | Type   | Description                                          | Example                       |
++====================+========+======================================================+===============================+
+| key                | string | The key that identifies the category. |br|           | backup                        |
+|                    |        | If the key already exists as a category |br|         |                               |
+|                    |        | then the contents of this request |br|               |                               |
+|                    |        | is merged with the data stored.                      |                               |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| description        | string | A description of the configuration category          | Backup configuration          |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| items              | list   | An optional list of items to create in this category |                               |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| |ar| *name*        | string | The name of a configuration item                     | destination                   |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| |ar| *description* | string | A description of the configuration item              | The destination to which |br| |
+|                    |        |                                                      | the backup will be written    |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| |ar| *type*        | string | The type of the configuration item                   | string                        |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+| |ar| *default*     | string | An optional default value for the configuration item | /backup                       |
++--------------------+--------+------------------------------------------------------+-------------------------------+
+
+**NOTE:** with list we mean a list of JSON objects in the form of { obj1,obj2,etc. }, to differ from the concept of *array*, i.e. [ obj1,obj2,etc. ]
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -X POST http://vbox-dev:8081/foglamp/category \
+    -d '{ "key": "My Configuration", "description": "This is my new configuration",
+        "value": { "item one": { "description": "The first item", "type": "string", "default": "one" },
+                   "item two": { "description": "The second item", "type": "string", "default": "two" },
+                   "item three": { "description": "The third item", "type": "string", "default": "three" } } }'
+  { "description": "This is my new configuration", "key": "My Configuration", "value": {
+        "item one": { "default": "one", "type": "string", "description": "The first item", "value": "one" },
+        "item two": { "default": "two", "type": "string", "description": "The second item", "value": "two" },
+        "item three": { "default": "three", "type": "string", "description": "The third item", "value": "three" } }
+  }
+  $
+ 
 
 ping
 ----
@@ -214,7 +568,7 @@ The *ping* interface gives a basic confidence check that the FogLAMP appliance i
 GET ping
 ~~~~~~~~
 
-``GET /foglamp/ping`` - returns liveness of FogLAMP
+``GET /foglamp/ping`` - return liveness of FogLAMP
 
 *NOTE:* the GET method can be executed without authentication even when authentication is required.
 
@@ -251,217 +605,6 @@ The response payload is some basic health information in a JSON object.
   "dataSent": 347,
   "uptime": 2113.076449394226 }
   $
-
-
-< END OF DOC> |br| |br| |br| |br| |br| |br| |br| |br|        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-audit
------
-
-The audit methods are used to retrieve and manage information in the audit trail, audit entries and notifications. The API interacts directly with the audit trail log tables in the storage layer with the exception of the create method which must go via the audit trail component in order that audit trail entries created via the API are treated in the same way as those created within the system.
-
-
-GET Audit Entries
-~~~~~~~~~~~~~~~~~
-
-``GET /foglamp/audit`` - returns a list of audit trail entries sorted with most recent first.
-
-**Request Parameters**
-
-- **limit** - limit the number of audit entries returned to the number specified
-- **skip** - skip the first n entries in the audit table, used with limit to implement paged interfaces
-- **source** - filter the audit entries to be only those from the specified source
-- **severity** - filter the audit entries to only those of the specified severity
-
-
-**Response Payload**
-
-The response payload is an array of JSON objects with the audit trail entries.
-
-+-----------+-----------+------------------------------------------------+--------------------------------------------------------+
-| Name      | Type      | Description                                    | Example                                                |
-+===========+===========+================================================+========================================================+
-| timestamp | timestamp | The timestamp when the audit trail |br|        | 2018-03-01T12:00:48.219183                             |
-|           |           | item was written.                              |                                                        |
-+-----------+-----------+------------------------------------------------+--------------------------------------------------------+
-| source    | string    | The source of the audit trail entry.           | CoAP                                                   |
-+-----------+-----------+------------------------------------------------+--------------------------------------------------------+
-| severity  | string    | The severity of the event that triggered |br|  | FATAL                                                  |
-|           |           | the audit trail entry to be written. |br|      |                                                        |
-|           |           | This will be one of FATAL, ERROR, WARNING |br| |                                                        |
-|           |           | or INFORMATION.                                |                                                        |
-+-----------+-----------+------------------------------------------------+--------------------------------------------------------+
-| details   | object    | A JSON object that describes the detail |br|   | { "message" : |br|                                     |
-|           |           | of the audit trail event.                      | "Sensor readings discarded due to malformed payload" } |
-+-----------+-----------+------------------------------------------------+--------------------------------------------------------+
-
-
-**Example**
-
-.. code-block:: console
-
-  $ curl -s http://localhost:8081/foglamp/audit | jq -c '.'
-  { "totalCount" : 24,
-    "audit"      : [ { "timestamp" : "2018-02-25 18:58:07.748322+00",
-                       "source"    : "SRVRG",
-                       "details"   : { "name" : "COAP" },
-                       "severity"  : "INFORMATION" },
-                     { "timestamp" : "2018-02-25 18:58:07.742927+00",
-                       "source"    : "SRVRG",
-                       "details"   : { "name" : "HTTP_SOUTH" },
-                       "severity"  : "INFORMATION" },
-                     { "timestamp" : "2018-02-25 18:58:07.390814+00",
-                       "source"    : "START",
-                       "details"   : {},
-                       "severity"  : "INFORMATION" },
-                     ...
-                   ]
-  }
-  $ curl -s 'http://localhost:8081/foglamp/audit?limit=1&skip=1' | jq
-  { "totalCount" : 24,
-    "audit"      : [ { "timestamp" : "2018-02-25 18:58:07.742927+00",
-                       "source"    : "SRVRG",
-                       "details"   : { "name": "HTTP_SOUTH" },
-                       "severity"  : "INFORMATION" }
-                   ]
-  }
-  $ curl -s 'http://localhost:8081/foglamp/audit?source=SRVUN&limit=1' | jq
-  { "totalCount" : 4,
-    "audit"      : [ { "timestamp" : "2018-02-25 05:22:11.053845+00",
-                       "source"    : "SRVUN",
-                       "details"   : { "name": "COAP" },
-                       "severity"  : "INFORMATION" }
-                   ]
-  }
-  $
-
-
-POST Audit Entries
-~~~~~~~~~~~~~~~~~~
-
-``POST /foglamp/audit`` - create a new audit trail entry.
-
-The purpose of the create method on an audit trail entry is to allow a user interface or an application that is using the FogLAMP API to utilise the FogLAMP audit trail and notification mechanism to raise user defined audit trail entries.
-
-
-**Request Payload**
-
-The request payload is a JSON object with the audit trail entry minus the timestamp..
-
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| Name      | Type      | Description                                    | Example                     |
-+===========+===========+================================================+=============================+
-| source    | string    | The source of the audit trail entry.           | LocalMonitor                |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| severity  | string    | The severity of the event that triggered |br|  | FATAL                       |
-|           |           | the audit trail entry to be written. |br|      |                             |
-|           |           | This will be one of FATAL, ERROR, WARNING |br| |                             |
-|           |           | or INFORMATION.                                |                             |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| details   | object    | A JSON object that describes the detail |br|   | { "message" : |br|          |
-|           |           | of the audit trail event.                      | "Engine oil pressure low" } |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-
-
-**Response Payload**
-
-The response payload is the newly created audit trail entry.
-
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| Name      | Type      | Description                                    | Example                     |
-+===========+===========+================================================+=============================+
-| timestamp | timestamp | The timestamp when the audit trail |br|        | 2018-03-01T12:00:48.219183  |
-|           |           | item was written.                              |                             |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| source    | string    | The source of the audit trail entry.           | LocalMonitor                |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| severity  | string    | The severity of the event that triggered |br|  | FATAL                       |
-|           |           | the audit trail entry to be written. |br|      |                             |
-|           |           | This will be one of FATAL, ERROR, WARNING |br| |                             |
-|           |           | or INFORMATION.                                |                             |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-| details   | object    | A JSON object that describes the detail |br|   | { "message" : |br|          |
-|           |           | of the audit trail event.                      | "Engine oil pressure low" } |
-+-----------+-----------+------------------------------------------------+-----------------------------+
-
-
-**Example**
-
-.. code-block:: console
-
-  $
-
-
-category
---------
-
-The Category interface is part of the Configuration Management for FogLAMP. The configuration REST API interacts with the configuration manager to create, retrieve, update and delete the configuration categories and values. Specifically all updates must go via the management layer as this is used to trigger the notifications to the components that have registered interest in configuration categories. This is the means by which the dynamic reconfiguration of FogLAMP is achieved.
-
-
-POST Category
-~~~~~~~~~~~~~
-
-``POST /foglamp/category`` - creates a new category
-
-
-**Request Payload**
-
-A JSON object that defines the category.
-
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| Name                | Type   | Description                                    | Example                     |
-+=====================+========+================================================+=============================+
-| key                 | string | The key that identifies the category. |br|     |                             |
-|                     |        | If the key already exists as a category |br|   |                             |
-|                     |        | then the contents of this request |br|         |                             |
-|                     |        | is merged with the data stored.                |                             |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| description         | string | The severity of the event that triggered |br|  | FATAL                       |
-|                     |        | the audit trail entry to be written. |br|      |                             |
-|                     |        | This will be one of FATAL, ERROR, WARNING |br| |                             |
-|                     |        | or INFORMATION.                                |                             |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| items               | array  | A JSON object that describes the detail |br|   | { "message" : |br|          |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| items[].name        | string | A JSON object that describes the detail |br|   | { "message" : |br|          |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| items[].description | string | A JSON object that describes the detail |br|   | { "message" : |br|          |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| items[].type        | string | A JSON object that describes the detail |br|   | { "message" : |br|          |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-| items[].default     | string | A JSON object that describes the detail |br|   | { "message" : |br|          |
-+---------------------+--------+------------------------------------------------+-----------------------------+
-
-
-
-
-
-
 
 
 User API Reference

@@ -793,20 +793,17 @@ class Server:
         try:
             service_id = request.match_info.get('service_id', None)
 
-            if not service_id:
-                raise web.HTTPBadRequest(reason='Service id is required')
-
             try:
                 services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
+                raise ValueError('Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
 
             if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client)
-                    await cls._audit.information('SRVUN', { 'name' : services[0]._name })
+                    await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(str(ex))
 

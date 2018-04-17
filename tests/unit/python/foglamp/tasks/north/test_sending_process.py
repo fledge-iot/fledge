@@ -8,6 +8,8 @@ import pytest
 from unittest.mock import patch, call, MagicMock
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 
+import foglamp.plugins.north.empty as empty_module
+
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as sp_module
 
@@ -17,8 +19,93 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+STREAM_ID = 1
+
+
 class TestSendingProcess:
     """Unit tests for the sending_process.py"""
+
+    @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
+        (10, 20, 10)
+    ])
+    def test_send_data_block(self, p_last_object,  p_new_last_object_id, p_num_sent):
+        """Tests the _send_data_block, evaluating also the the last object is properly updated"""
+
+        def mock_last_object_id_read():
+            """Mocks _last_object_id_read"""
+
+            return p_last_object
+
+        def mock_load_data_into_memory():
+            """Mocks _load_data_into_memory"""
+
+            rows = {"rows": [
+                            {
+                                "id": 1,
+                                "asset_code": "test_asset_code",
+                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                "reading": {"humidity": 11, "temperature": 38},
+                                "user_ts": "16/04/2018 16:32"
+                            },
+                    ]}
+            return rows
+
+        def mock_plugin_send_ok():
+            """Mocks _plugin_send - simulating data sent"""
+
+            _data_sent = True
+            _new_last_object_id = p_new_last_object_id
+            _num_sent = p_num_sent
+
+            return _data_sent, _new_last_object_id, _num_sent
+
+        def mock_plugin_send_bad():
+            """Mocks _plugin_send - simulating no data were sent"""
+
+            _data_sent = False
+            _new_last_object_id = p_new_last_object_id
+            _num_sent = p_num_sent
+
+            return _data_sent, _new_last_object_id, _num_sent
+
+        def mock_last_object_id_update():
+            """Mocks _last_object_id_update"""
+
+        def mock_update_statistics():
+            """Mocks _update_statistics"""
+
+        sp = SendingProcess()
+
+        # Configures properly the SendingProcess
+        sp._config_from_manager = {"applyFilter": {"value": "False"}}
+        sp._log_storage = MagicMock(spec=sp_module.LogStorage)
+        sp._plugin = MagicMock()
+
+        # Good Case
+        with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):
+            with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
+
+                with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()):
+
+                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) as mocked_last_object_id_update:
+                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) as mocked_update_statistics:
+                            data_sent = sp._send_data_block(STREAM_ID)
+
+                            mocked_last_object_id_update.assert_called_once_with(p_new_last_object_id, STREAM_ID)
+                            mocked_update_statistics.assert_called_once_with(p_num_sent, STREAM_ID)
+
+        # Bad Case
+        with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):
+            with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
+
+                with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_bad()):
+
+                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) as mocked_last_object_id_update:
+                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) as mocked_update_statistics:
+                            data_sent = sp._send_data_block(STREAM_ID)
+
+                            assert not mocked_last_object_id_update.called
+                            assert not mocked_update_statistics.called
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
@@ -178,8 +265,3 @@ class TestSendingProcess:
             assert data_transformed[0]['asset_code'] == "test_asset_code"
             assert data_transformed[0]['reading'] == {"value": 20}
             assert data_transformed[0]['user_ts'] == "16/04/2018 16:32+00"
-
-    # FIXME: todo
-    @pytest.mark.skip
-    def test_send_data_block(self):
-        pass

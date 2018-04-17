@@ -179,7 +179,6 @@ class TestSendingProcess:
             assert data_transformed[0]['reading'] == {"value": 20}
             assert data_transformed[0]['user_ts'] == "16/04/2018 16:32+00"
 
-
     # FIXME: todo
     @pytest.mark.skip
     def test_send_data_block(self):

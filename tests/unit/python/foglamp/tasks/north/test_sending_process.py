@@ -20,8 +20,6 @@ __version__ = "${VERSION}"
 class TestSendingProcess:
     """Unit tests for the sending_process.py"""
 
-    # FIXME:
-    @pytest.mark.skip
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
         ("omf",        "north", "OMF North"),
@@ -49,16 +47,25 @@ class TestSendingProcess:
         assert plugin_info['type'] == plugin_type
         assert plugin_info['name'] == plugin_name
 
+    @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name, expected_result", [
+        ("omf", "north", "OMF North", True),
+        ("omf", "north", "Empty North Plugin", False),
+        ("omf", "south", "OMF North", False)
+    ])
+    def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result):
+        """Tests the possible cases of the function is_north_valid """
 
-    def test_retrieve_configuration(self):
-        pass
+        sp = SendingProcess()
 
-    # FIXME:
-    @pytest.mark.skip
-    def test_send_data_block(self):
-        pass
+        sp._config['north'] = plugin_file
+        sp._plugin_load()
 
-    @pytest.mark.skip
+        sp._plugin_info = sp._plugin.plugin_info()
+        sp._plugin_info['type'] = plugin_type
+        sp._plugin_info['name'] = plugin_name
+
+        assert sp._is_north_valid() == expected_result
+
     def test_last_object_id_read(self):
         """Tests the possible cases for the function last_object_id_read """
 
@@ -108,8 +115,6 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
-    # FIXME:
-    @pytest.mark.skip
     def test_load_data_into_memory(self):
         """Test _load_data_into_memory handling and transformations"""
 
@@ -173,3 +178,9 @@ class TestSendingProcess:
             assert data_transformed[0]['asset_code'] == "test_asset_code"
             assert data_transformed[0]['reading'] == {"value": 20}
             assert data_transformed[0]['user_ts'] == "16/04/2018 16:32+00"
+
+
+    # FIXME: todo
+    @pytest.mark.skip
+    def test_send_data_block(self):
+        pass

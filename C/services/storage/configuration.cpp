@@ -17,7 +17,7 @@
 #include <unistd.h>
 
 static const char *defaultConfiguration =
-" { \"plugin\" : { \"value\" : \"postgres\", \"description\" : \"The storage plugin to load\"},"
+" { \"plugin\" : { \"value\" : \"sqlite\", \"description\" : \"The storage plugin to load\"},"
 " \"threads\" : { \"value\" : \"1\", \"description\" : \"The number of threads to run\" },"
 " \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if FogLAMP should manage the storage provider\" },"
 " \"port\" : { \"value\" : \"0\", \"description\" : \"The port to listen on\" },"

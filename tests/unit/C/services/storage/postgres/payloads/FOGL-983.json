@@ -1,0 +1,10 @@
+{
+    "condition" : { 
+                    "column"    : "key",
+                    "condition" : "=",
+                    "value"     : "DEVICE"
+                  },
+    "values"    : {
+                    "description" : "added'some'ch'''ars'"
+                  }
+}

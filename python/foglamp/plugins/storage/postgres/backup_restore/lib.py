@@ -207,7 +207,7 @@ class BackupStatus (object):
 class BackupRestoreLib(object):
     """ Library of functionalities for the backup restore operations that requires information/state to be stored """
 
-    FOGLAMP_CFG_FILE = "/etc/foglamp.json"
+    STORAGE_EXE = "/services/storage"
 
     MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
     """" Maximum number of backup information to retrieve from the storage layer"""
@@ -267,6 +267,8 @@ class BackupRestoreLib(object):
                    " - command |{0}| - exit code |{1}| - output |{2}|",
         "e000019": "The command is not available using the managed approach"
                    " - command |{0}| - full command |{1}|",
+        "e000020": "It is not possible to evaluate if the storage is managed or unmanaged"
+                   " - storage plugin |{0}|",
 
     }
     """ Messages used for Information, Warning and Error notice """
@@ -579,7 +581,7 @@ class BackupRestoreLib(object):
         return cmd_identified
 
     def _is_plugin_managed(self, plugin_to_identify):
-        """ Identifies the type of plugin, Managed or not, looking at the foglamp.json configuration file
+        """ Identifies the type of plugin, Managed or not, inquiring the storage executable
 
         Args:
             plugin_to_identify: str - plugin to evaluate if it is managed or not
@@ -590,16 +592,35 @@ class BackupRestoreLib(object):
 
         plugin_type = False
 
-        file_full_path = self.dir_foglamp_data + self.FOGLAMP_CFG_FILE
+        # Inquires the storage
+        file_full_path = self.dir_foglamp_root + self.STORAGE_EXE
+        cmd = file_full_path + " --plugin"
 
-        with open(file_full_path) as file:
-            cfg_file = json.load(file)
+        # noinspection PyArgumentEqualDefault
+        _exit_code, output = exec_wait(
+                                        _cmd=cmd,
+                                        _output_capture=True,
+                                        _timeout=0
+                                        )
 
-        plugins = cfg_file["storage plugins"]
+        self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+            func="_is_plugin_managed",
+            cmd=cmd,
+            exit_code=_exit_code,
+            output=output))
 
-        for plugin in plugins:
-            if plugin["plugin"] == plugin_to_identify:
-                plugin_type = plugin["managed"]
+        # Evaluates the storage answer
+        if plugin_to_identify in output:
+
+            if "false" in output:
+                plugin_type = False
+            else:
+                plugin_type = True
+        else:
+            _message = self._MESSAGES_LIST["e000020"].format(plugin_to_identify)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.UndefinedStorage(_message)
 
         return plugin_type
 

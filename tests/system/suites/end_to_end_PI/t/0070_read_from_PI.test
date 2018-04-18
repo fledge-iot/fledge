@@ -1,9 +1,24 @@
 #!/bin/bash
 
+# Globals declaration
+declare SUITE_BASEDIR
+declare RESULT_DIR
+declare TEST_NAME
+
+declare PI_SERVER_UID
+declare PI_SERVER_PWD
+declare PI_SERVER_DATABASE
+declare PI_SERVER
+declare OMF_PRODUCER_TOKEN
+declare CONNECTOR_RELAY_VERSION
+declare ASSET_CODE
+
+declare RETRY_COUNT
+
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
-function pi_web_retrieves_value {
+function pi_web_retrieves_value_1x {
 
     url_assets_list=""
     url_asset=""
@@ -30,6 +45,34 @@ function pi_web_retrieves_value {
     echo ${value}
 }
 
+function pi_web_retrieves_value_2x {
+
+    url_assets_list=""
+    url_asset=""
+    value=""
+
+    # Retrieves the asset list
+    if [[ "${url_assets_list}" == "" &&  "${url_elements_list}" != "" ]]; then
+
+        url_assets_list=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_elements_list} |  jq --raw-output '.Items | .[] | select(.Name=="'${ASSET_CODE}'")  | .Links | .EndValue'`
+        echo url_assets_list :${url_assets_list}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+    fi
+
+    if [[ "${url_assets_list}" != "" ]]; then
+
+        url_asset=${url_assets_list}
+    fi
+
+    if [[ "${url_asset}" != "" ]]; then
+
+        # Retrieves the value
+        value=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_asset} |  jq --raw-output '.Items | .[] | select(.Name=="sensor") | .Value | .Value'`
+        echo value :${value}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+    fi
+
+    echo ${value}
+}
+
 #
 # MAIN
 #
@@ -37,22 +80,42 @@ function pi_web_retrieves_value {
 #
 # Drills down into PI-WEB information to extract the expected value from the PI-Server
 #
-url_databases=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k https://${PI_SERVER}/piwebapi/assetservers | jq --raw-output '.Items | .[] | .Links | .Databases '`
-echo url_Databases :${url_databases}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
-
-#
-url_elements=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_databases} |  jq --raw-output '.Items | .[] | select(.Name=="'${PI_SERVER_DATABASE}'") | .Links | .Elements'`
-echo url_Elements :${url_elements}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
-
-#
-url_elements_list=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_elements} |  jq --raw-output '.Items | .[] | .Links | .Elements'`
-echo url_Elements_list :${url_elements_list}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+url_databases=""
+url_elements=""
+url_elements_list=""
 
 # Waits until either the data is available in the PI server or it reaches the timeout
+count=0
 while [ true ]
 do
 
-    value=$(pi_web_retrieves_value)
+    if [[ "${url_databases}" == "" ]]; then
+
+        url_databases=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k https://${PI_SERVER}/piwebapi/assetservers | jq --raw-output '.Items | .[] | .Links | .Databases '`
+        echo url_Databases :${url_databases}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+    fi
+
+    if [[ "${url_elements}" == "" &&  "${url_databases}" != ""  ]]; then
+        #
+        url_elements=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_databases} |  jq --raw-output '.Items | .[] | select(.Name=="'${PI_SERVER_DATABASE}'") | .Links | .Elements'`
+        echo url_Elements :${url_elements}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+    fi
+
+    #
+    if [[ "${url_elements_list}" == "" &&  "${url_elements}" != "" ]]; then
+
+        url_elements_list=`curl -s -u  ${PI_SERVER_UID}:${PI_SERVER_PWD} -X GET -k ${url_elements} |  jq --raw-output '.Items | .[] | .Links | .Elements'`
+        echo url_Elements_list :${url_elements_list}: >> $RESULT_DIR/$TEST_NAME.1.temp 2>&1
+    fi
+
+    if [[ ${CONNECTOR_RELAY_VERSION} == "1.x" ]]; then
+
+        value=$(pi_web_retrieves_value_1x)
+
+    elif [[ ${CONNECTOR_RELAY_VERSION} == "2.x" ]]; then
+
+        value=$(pi_web_retrieves_value_2x)
+    fi
 
     if [[ "${value}" != "" && "${value}" != *"PI Point not found"* ]]; then
 

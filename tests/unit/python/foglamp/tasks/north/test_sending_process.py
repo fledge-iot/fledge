@@ -87,8 +87,10 @@ class TestSendingProcess:
 
                 with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()):
 
-                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) as mocked_last_object_id_update:
-                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) as mocked_update_statistics:
+                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) \
+                            as mocked_last_object_id_update:
+                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
+                                as mocked_update_statistics:
                             data_sent = sp._send_data_block(STREAM_ID)
 
                             mocked_last_object_id_update.assert_called_once_with(p_new_last_object_id, STREAM_ID)
@@ -100,8 +102,10 @@ class TestSendingProcess:
 
                 with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_bad()):
 
-                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) as mocked_last_object_id_update:
-                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) as mocked_update_statistics:
+                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) \
+                            as mocked_last_object_id_update:
+                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
+                                as mocked_update_statistics:
                             data_sent = sp._send_data_block(STREAM_ID)
 
                             assert not mocked_last_object_id_update.called

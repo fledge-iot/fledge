@@ -36,16 +36,15 @@ def get_service_records():
     sr_list = list()
     for service_record in ServiceRegistry.all():
         sr_list.append(
-                {
-                    'name': service_record._name,
-                    'type': service_record._type,
-                    'address': service_record._address,
-                    'management_port': service_record._management_port,
-                    'service_port': service_record._port,
-                    'protocol': service_record._protocol,
-                    'status': ServiceRecord.Status(int(service_record._status)).name.lower()
-
-        })
+            {
+                'name': service_record._name,
+                'type': service_record._type,
+                'address': service_record._address,
+                'management_port': service_record._management_port,
+                'service_port': service_record._port,
+                'protocol': service_record._protocol,
+                'status': ServiceRecord.Status(int(service_record._status)).name.lower()
+            })
     recs = {'services' : sr_list}
     return recs
 

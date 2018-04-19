@@ -453,7 +453,7 @@ class SendingProcess:
         north_ok = False
         try:
             if self._plugin_info['type'] == self._PLUGIN_TYPE and \
-               self._plugin_info['name'] != "Empty north":
+               self._plugin_info['name'] != "Empty North Plugin":
                 north_ok = True
         except Exception:
             _message = _MESSAGES_LIST["e000000"]

@@ -793,20 +793,17 @@ class Server:
         try:
             service_id = request.match_info.get('service_id', None)
 
-            if not service_id:
-                raise web.HTTPBadRequest(reason='Service id is required')
-
             try:
                 services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
+                raise ValueError('Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
 
             if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client)
-                    await cls._audit.information('SRVUN', { 'name' : services[0]._name })
+                    await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(str(ex))
 
@@ -906,7 +903,7 @@ class Server:
                 try:
                     assert uuid.UUID(microservice_uuid)
                 except:
-                    raise web.HTTPBadRequest(reason="Invalid microservice id {}".format(microservice_uuid))
+                    raise ValueError('Invalid microservice id {}'.format(microservice_uuid))
 
             try:
                 registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
@@ -921,10 +918,10 @@ class Server:
                 'message': "Interest registered successfully"
             }
 
-            return web.json_response(_response)
-
         except ValueError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
+
+        return web.json_response(_response)
 
     @classmethod
     async def unregister_interest(cls, request):
@@ -937,26 +934,24 @@ class Server:
         try:
             interest_registration_id = request.match_info.get('interest_id', None)
 
-            if not interest_registration_id:
-                raise web.HTTPBadRequest(reason='Registration id is required')
-            else:
-                try:
-                    assert uuid.UUID(interest_registration_id)
-                except:
-                    raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
+            try:
+                assert uuid.UUID(interest_registration_id)
+            except:
+                raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
 
             try:
                 cls._interest_registry.get(registration_id=interest_registration_id)
             except interest_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
+                raise ValueError('InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
 
             cls._interest_registry.unregister(interest_registration_id)
 
             _resp = {'id': str(interest_registration_id), 'message': 'Interest unregistered'}
 
-            return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+
+        return web.json_response(_resp)
 
     @classmethod
     async def get_interest(cls, request):

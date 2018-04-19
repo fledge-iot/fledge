@@ -272,7 +272,11 @@ async def delete_configuration_item_value(request):
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage())
     try:
-        await cf_mgr.set_category_item_value_entry(category_name, config_item, '')
+        category_item = await cf_mgr.get_category_item(category_name, config_item)
+        if category_item is None:
+            raise ValueError
+
+        await cf_mgr.set_category_item_value_entry(category_name, config_item, category_item['default'])
     except ValueError:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
 

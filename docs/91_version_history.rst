@@ -130,6 +130,7 @@ Known Issues
 
 - **Issues in the REST API**
 
-  - **task call response**: the ``task`` call returns a JSON object with unexpected element ``"exitCode"``
+  - **asset method response**: the ``asset`` method returns a JSON object with asset code named ``asset_code`` instead of ``assetCode``
+  - **task method response**: the ``task`` method returns a JSON object with unexpected element ``"exitCode"``
 
 

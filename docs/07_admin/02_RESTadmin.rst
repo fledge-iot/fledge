@@ -255,7 +255,7 @@ The response payload is a JSON object with an array of JSON objects, one per val
 GET category 
 ~~~~~~~~~~~~
 
-``GET /foglamp/category/<name>`` - return the configuration items in the given category.
+``GET /foglamp/category/{name}`` - return the configuration items in the given category.
 
 
 **Path Parameters**
@@ -337,7 +337,7 @@ The response payload is a set of configuration items within the category, each i
 GET category item
 ~~~~~~~~~~~~~~~~~
 
-``GET /foglamp/category/<name>/<item>`` - return the configuration item in the given category.
+``GET /foglamp/category/{name}/{item}`` - return the configuration item in the given category.
 
 
 **Path Parameters**
@@ -384,7 +384,7 @@ The response payload is a configuration item within the category, each item is a
 PUT category item
 ~~~~~~~~~~~~~~~~~
 
-``PUT /foglamp/category/<name>/<item>`` - set the configuration item value in the given category.
+``PUT /foglamp/category/{name}/{item}`` - set the configuration item value in the given category.
 
 
 **Path Parameters**
@@ -444,7 +444,7 @@ The response payload is the newly updated configuration item within the category
 DELETE category item
 ~~~~~~~~~~~~~~~~~~~~
 
-``DELETE /foglamp/category/<name>/<item>/value`` - unset the value of the configuration item in the given category.
+``DELETE /foglamp/category/{name}/{item}/value`` - unset the value of the configuration item in the given category.
 
 This will result in the value being returned to the default value if one is defined. If not the value will be blank, i.e. the value property of the JSON object will exist with an empty value.
 
@@ -735,7 +735,7 @@ The response payload is a JSON object with an array of task objects.
 GET task by ID
 ~~~~~~~~~~~~~~
 
-``GET /foglamp/task/<id>`` - return the task information for the given task
+``GET /foglamp/task/{id}`` - return the task information for the given task
 
 
 **Path Parameters**
@@ -791,7 +791,7 @@ The response payload is a JSON object containing the task details.
 Cancel task by ID
 ~~~~~~~~~~~~~~~~~
 
-``PUT /foglamp/task/<id>/cancel`` - cancel a task
+``PUT /foglamp/task/{id}/cancel`` - cancel a task
 
 
 **Path Parameters**

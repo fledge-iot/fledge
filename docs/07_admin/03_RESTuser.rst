@@ -250,6 +250,11 @@ GET timed average asset reading
 - **reading** - the sensor from the assets JSON formatted reading.
 
 
+**Request Parameters**
+
+- **limit** - set the limit of the number of readings to return. If not specified, the defaults is 20 single readings.
+
+
 **Response Payload**
 
 An array of JSON objects with a series of readings sorted in reverse chronological order.
@@ -285,6 +290,12 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
     { "timestamp": "2018-04-19 14:06:05", "max": 46, "min": 5,  "average": 27.8 },
     { "timestamp": "2018-04-19 13:45:15", "max": 10, "min": 10, "average": 10 } ]
   $
+  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
+  [ { "timestamp": "2018-04-19 14:20:59", "max": 20, "min": 20, "average": 20 },
+    { "timestamp": "2018-04-19 14:20:54", "max": 33, "min": 33, "average": 33 },
+    { "timestamp": "2018-04-19 14:20:49", "max": 35, "min": 35, "average": 35 },
+    { "timestamp": "2018-04-19 14:20:47", "max": 0,  "min": 0,  "average": 0  },
+    { "timestamp": "2018-04-19 14:20:42", "max": 37, "min": 37, "average": 37 } ]
 
 
 

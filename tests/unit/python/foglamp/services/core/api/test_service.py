@@ -6,14 +6,14 @@
 
 
 import json
-from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
-
+from unittest.mock import MagicMock, patch
 from foglamp.services.core import routes
 from foglamp.services.core import connect
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.scheduler.entities import StartUpSchedule
@@ -28,7 +28,6 @@ __version__ = "${VERSION}"
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "service")
 class TestService:
-
     def setup_method(self):
         ServiceRegistry._registry = list()
 
@@ -42,26 +41,76 @@ class TestService:
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
 
-    async def test_get_health(self, client):
+    async def test_get_health(self, mocker, client):
         # empty service registry
         resp = await client.get('/foglamp/service')
         assert 200 == resp.status
         result = await resp.text()
         json_response = json.loads(result)
         assert {'services': []} == json_response
+
+        mocker.patch.object(InterestRegistry, "__init__", return_value=None)
+        mocker.patch.object(InterestRegistry, "get", return_value=list())
+
         with patch.object(ServiceRegistry._logger, 'info') as log_patch_info:
             # populated service registry
-            ServiceRegistry.register('sname1', 'Storage', 'saddress1', 1, 1,  'protocol1')
-            ServiceRegistry.register('sname2', 'Southbound', 'saddress2', 2, 2,  'protocol2')
-            ServiceRegistry.register('sname3', 'Southbound', 'saddress3', 3, 3,  'protocol3')
+            s_id_1 = ServiceRegistry.register(
+                'name1', 'Storage', 'address1', 1, 1, 'protocol1')
+            s_id_2 = ServiceRegistry.register(
+                'name2', 'Southbound', 'address2', 2, 2, 'protocol2')
+            s_id_3 = ServiceRegistry.register(
+                'name3', 'Southbound', 'address3', 3, 3, 'protocol3')
+            s_id_4 = ServiceRegistry.register(
+                'name4', 'Southbound', 'address4', 4, 4, 'protocol4')
+
+            ServiceRegistry.unregister(s_id_3)
+            ServiceRegistry.mark_as_failed(s_id_4)
+
             resp = await client.get('/foglamp/service')
             assert 200 == resp.status
             result = await resp.text()
             json_response = json.loads(result)
-            assert {'services': [{'type': 'Storage', 'service_port': 1, 'address': 'saddress1', 'protocol': 'protocol1', 'status': 'running', 'name': 'sname1', 'management_port': 1},
-                                 {'type': 'Southbound', 'service_port': 2, 'address': 'saddress2', 'protocol': 'protocol2', 'status': 'running', 'name': 'sname2', 'management_port': 2},
-                                 {'type': 'Southbound', 'service_port': 3, 'address': 'saddress3', 'protocol': 'protocol3', 'status': 'running', 'name': 'sname3', 'management_port': 3}]} == json_response
-        assert 3 == log_patch_info.call_count
+            assert json_response == {
+                        'services': [
+                            {
+                                'type': 'Storage',
+                                'service_port': 1,
+                                'address': 'address1',
+                                'protocol': 'protocol1',
+                                'status': 'running',
+                                'name': 'name1',
+                                'management_port': 1
+                            },
+                            {
+                                'type': 'Southbound',
+                                'service_port': 2,
+                                'address': 'address2',
+                                'protocol': 'protocol2',
+                                'status': 'running',
+                                'name': 'name2',
+                                'management_port': 2
+                            },
+                            {
+                                'type': 'Southbound',
+                                'service_port': 3,
+                                'address': 'address3',
+                                'protocol': 'protocol3',
+                                'status': 'down',
+                                'name': 'name3',
+                                'management_port': 3
+                            },
+                            {
+                                'type': 'Southbound',
+                                'service_port': 4,
+                                'address': 'address4',
+                                'protocol': 'protocol4',
+                                'status': 'failed',
+                                'name': 'name4',
+                                'management_port': 4
+                            }
+                        ]
+            }
+        assert 6 == log_patch_info.call_count
 
     @pytest.mark.parametrize("payload, code, message", [
         ("blah", 404, "Data payload must be a dictionary"),

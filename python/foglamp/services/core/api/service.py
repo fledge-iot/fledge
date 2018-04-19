@@ -6,6 +6,7 @@
 
 import datetime
 from aiohttp import web
+from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -34,16 +35,16 @@ def get_service_records():
     sr_list = list()
     for service_record in ServiceRegistry.all():
         sr_list.append(
-                {
-                    'name': service_record._name,
-                    'type': service_record._type,
-                    'address': service_record._address,
-                    'management_port': service_record._management_port,
-                    'service_port': service_record._port,
-                    'protocol': service_record._protocol,
-                    'status': 'running'
-                })
-    recs = {'services': sr_list}
+            {
+                'name': service_record._name,
+                'type': service_record._type,
+                'address': service_record._address,
+                'management_port': service_record._management_port,
+                'service_port': service_record._port,
+                'protocol': service_record._protocol,
+                'status': ServiceRecord.Status(int(service_record._status)).name.lower()
+            })
+    recs = {'services' : sr_list}
     return recs
 
 

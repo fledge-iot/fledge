@@ -124,10 +124,147 @@ class TestOMF:
         with pytest.raises(Exception) as exception_info:
             config = omf.plugin_init(data)
 
+    @pytest.mark.parametrize(
+        "p_data_origin, "
+        "expected_data_to_send, "
+        "expected_is_data_available, "
+        "expected_new_position, "
+        "expected_num_sent", [
+                                # Case 1
+                                (
+                                    # Origin
+                                    [
+                                        {
+                                            "id": 10,
+                                            "asset_code": "test_asset_code",
+                                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                            "reading": {"humidity": 11, "temperature": 38},
+                                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                                        }
+                                    ],
+                                    # Transformed
+                                    [
+                                        {
+                                            "containerid": "measurement_test_asset_code",
+                                            "values": [
+                                                {
+                                                    "Time": "2018-04-20T09:38:50.163164Z",
+                                                    "humidity": 11,
+                                                    "temperature": 38
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    True, 10, 1
+                                ),
+                                # Case 2
+                                (
+                                        # Origin
+                                        [
+                                            {
+                                                "id": 11,
+                                                "asset_code": "test_asset_code",
+                                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                                "reading": {"tick": "tock"},
+                                                "user_ts": '2018-04-20 09:38:50.163164+00'
+                                            }
+                                        ],
+                                        # Transformed
+                                        [
+                                            {
+                                                "containerid": "measurement_test_asset_code",
+                                                "values": [
+                                                    {
+                                                        "Time": "2018-04-20T09:38:50.163164Z",
+                                                        "tick": "tock"
+                                                    }
+                                                ]
+                                            }
+                                        ],
+                                        True, 11, 1
+                                ),
+
+                                # Case 3 - 2 rows
+                                (
+                                        # Origin
+                                        [
+                                            {
+                                                "id": 12,
+                                                "asset_code": "test_asset_code",
+                                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                                "reading": {"pressure": 957.2},
+                                                "user_ts": '2018-04-20 09:38:50.163164+00'
+                                            },
+                                            {
+                                                "id": 20,
+                                                "asset_code": "test_asset_code",
+                                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                                "reading": {"y": 34,"z": 114,"x": -174},
+                                                "user_ts": '2018-04-20 09:38:50.163164+00'
+                                            }
+                                        ],
+                                        # Transformed
+                                        [
+                                            {
+                                                "containerid": "measurement_test_asset_code",
+                                                "values": [
+                                                    {
+                                                        "Time": "2018-04-20T09:38:50.163164Z",
+                                                        "pressure": 957.2
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "containerid": "measurement_test_asset_code",
+                                                "values": [
+                                                    {
+                                                        "Time": "2018-04-20T09:38:50.163164Z",
+                                                        "y": 34,
+                                                        "z": 114,
+                                                        "x": -174,
+                                                    }
+                                                ]
+                                            },
+                                        ],
+                                        True, 20, 2
+                                )
+
+        ])
+    def test_plugin_transform_in_memory_data(self,
+                                             p_data_origin,
+                                             expected_data_to_send,
+                                             expected_is_data_available,
+                                             expected_new_position,
+                                             expected_num_sent):
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+        generated_data_to_send = []
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(generated_data_to_send,
+                                                                                       p_data_origin)
+
+        assert generated_data_to_send == expected_data_to_send
+
+        assert is_data_available == expected_is_data_available
+        assert new_position == expected_new_position
+        assert num_sent == expected_num_sent
 
     def test_plugin_send(self):
-    # FIXME: todo
-        pass
+    # Todo:
+
+        data = {
+            "_CONFIG_CATEGORY_NAME": module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
+        }
+
+        raw_data = []
+        stream_id = 1
+        omf.plugin_send(data, raw_data, stream_id)
+
 
     def test_plugin_shutdown(self):
 
@@ -139,6 +276,7 @@ class TestOMF:
 
         omf._logger = MagicMock()
         omf.plugin_reconfigure()
+
 
 
 

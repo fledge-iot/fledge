@@ -1302,6 +1302,11 @@ class Scheduler(object):
             raise RuntimeError('Update failed: %s', update_payload)
         await asyncio.sleep(1)
 
+        # Reset schedule_execution.next_start_time
+        schedule_row = self._schedules[schedule_id]
+        now = self.current_time if self.current_time else time.time()
+        self._schedule_first_task(schedule_row, now)
+
         # Start schedule
         await self.queue_task(schedule_id)
 

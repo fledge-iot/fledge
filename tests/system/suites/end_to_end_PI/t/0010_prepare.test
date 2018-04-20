@@ -3,7 +3,7 @@
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
-if [[ ${OMF_PRODUCER_TOKEN} == "omf_north_0001" ]]
+if [[ ${PI_SERVER} == "pi-server" ]]
 then
     echo ERROR : the file suite.cfg should be modified using the appropriated values.
     exit 1

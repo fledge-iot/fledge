@@ -1238,7 +1238,14 @@ int		row = 0;
 		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
 		if (regex_match (s,e))
 		{
-			sql.append(str);
+			if (strcmp(str, "now()") == 0)
+			{
+				sql.append(SQLITE3_NOW);
+			}
+			else
+			{
+				sql.append(str);
+			}
 		}
 		else
 		{

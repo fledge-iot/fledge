@@ -1240,11 +1240,11 @@ int		row = 0;
 		{
 			if (strcmp(str, "now()") == 0)
 			{
-				values.append(SQLITE3_NOW);
+				sql.append(SQLITE3_NOW);
 			}
 			else
 			{
-				values.append(str);
+				sql.append(str);
 			}
 		}
 		else

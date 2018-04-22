@@ -928,11 +928,18 @@ Document doc;
 		Value row(kObjectType); // Create a row
 		for (j = 0; j < nFields; j++)
 		{
-			/* TODO Improve handling of Oid's */
+			/**
+			 * TODO Improve handling of Oid's
+			 *
+			 * Current OID detection is based on
+			 *
+			 * SELECT oid, typname FROM pg_type;
+			 */
+			
 			Oid oid = PQftype(res, j);
 			switch (oid) {
 
-			case 3802: // JSON type hard coded in this example
+			case 3802: // JSON type hard coded in this example: jsonb
 			{
 				Document d;
 				if (d.Parse(PQgetvalue(res, i, j)).HasParseError())
@@ -945,21 +952,37 @@ Document doc;
 				row.AddMember(name, value, allocator);
 				break;
 			}
-			case 20:
+			case 23:    //INT 4 bytes: int4
+			{
+				int32_t intVal = atoi(PQgetvalue(res, i, j));
+				Value name(PQfname(res, j), allocator);
+				row.AddMember(name, intVal, allocator);
+				break;
+			}
+			case 21:    //SMALLINT 2 bytes: int2
+			{
+				int16_t intVal = (short)atoi(PQgetvalue(res, i, j));
+				Value name(PQfname(res, j), allocator);
+				row.AddMember(name, intVal, allocator);
+				break;
+			}
+			case 20:    //BIG INT 8 bytes: int8
 			{
 				int64_t intVal = atol(PQgetvalue(res, i, j));
 				Value name(PQfname(res, j), allocator);
 				row.AddMember(name, intVal, allocator);
 				break;
 			}
-			case 710:
+			case 700: // float4
+			case 701: // float8
+			case 710: // this OID doesn't exist
 			{
 				double dblVal = atof(PQgetvalue(res, i, j));
 				Value name(PQfname(res, j), allocator);
 				row.AddMember(name, dblVal, allocator);
 				break;
 			}
-			case 1184: // Timestamp
+			case 1184: // Timestamp: timestamptz
 			{
 				char *str = PQgetvalue(res, i, j);
 				Value value(str, allocator);

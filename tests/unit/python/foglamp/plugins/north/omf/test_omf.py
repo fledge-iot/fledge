@@ -73,7 +73,7 @@ class TestOMF:
 
     @pytest.mark.parametrize("data", [
 
-            # Bad case 1 - StaticData
+            # Bad case 1 - StaticData is a python dict instead of a string containing a dict
             {
                 "stream_id": {"value": 1},
 
@@ -94,7 +94,7 @@ class TestOMF:
                 'sending_process_instance': MagicMock()
             },
 
-            # Bad case 2 - OMFMaxRetry
+            # Bad case 2 - OMFMaxRetry int instead of string
             {
                 "stream_id": {"value": 1},
 
@@ -105,11 +105,12 @@ class TestOMF:
                 "OMFRetrySleepTime": {"value": "100"},
                 "OMFHttpTimeout": {"value": "100"},
                 "StaticData": {
-                    "value":
+                    "value":json.dumps(
                         {
                             "Location": "Palo Alto",
                             "Company": "Dianomic"
                         }
+                    )
                 },
 
                 'sending_process_instance': MagicMock()
@@ -236,6 +237,7 @@ class TestOMF:
                                              expected_is_data_available,
                                              expected_new_position,
                                              expected_num_sent):
+        """Tests the plugin in memory transformations """
 
         sending_process_instance = []
         config = []
@@ -254,17 +256,74 @@ class TestOMF:
         assert new_position == expected_new_position
         assert num_sent == expected_num_sent
 
-    def test_plugin_send(self):
-    # Todo:
+    def test_plugin_send_ok(self):
+        """Tests plugin _plugin_send function, case everything went fine """
 
-        data = {
-            "_CONFIG_CATEGORY_NAME": module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
-        }
+        def dummy_ok():
+            """" """
+            return True, 1, 1
+
+        def data_send_ok():
+            """" """
+            return True
+
+        def omf_types_create():
+            """" """
+            return True
+
+        omf._logger = MagicMock()
+        omf._config_omf_types = {"type-id": {"value": "0001"}}
+        data = MagicMock()
 
         raw_data = []
         stream_id = 1
-        omf.plugin_send(data, raw_data, stream_id)
 
+        # Test good case
+        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
+            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
+                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf', return_value=data_send_ok()):
+                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
+                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
+                        omf.plugin_send(data, raw_data, stream_id)
+
+        assert not mocked_deleted_omf_types_already_created.called
+
+    def test_plugin_send_bad(self):
+        """Tests plugin _plugin_send function,
+           it tests especially if the omf objects are created again in case of a communication error
+        """
+
+        def dummy_ok():
+            """" """
+            return True, 1, 1
+
+        def data_send_ok():
+            """" """
+            return True
+
+        def omf_types_create():
+            """" """
+            return True
+
+        omf._logger = MagicMock()
+        omf._config_omf_types = {"type-id": {"value": "0001"}}
+        data = MagicMock()
+
+        raw_data = []
+        stream_id = 1
+
+        # Test bad case - send operation raise an exception
+        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
+            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
+                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf',
+                                  side_effect=KeyError('mocked object generated an exception')):
+                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
+                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
+
+                        with pytest.raises(Exception) as exception_info:
+                            omf.plugin_send(data, raw_data, stream_id)
+
+                        assert mocked_deleted_omf_types_already_created.called
 
     def test_plugin_shutdown(self):
 

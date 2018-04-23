@@ -5,11 +5,9 @@
 # FOGLAMP_END
 
 import pytest
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, MagicMock
+
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
-
-import foglamp.plugins.north.empty as empty_module
-
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as sp_module
 

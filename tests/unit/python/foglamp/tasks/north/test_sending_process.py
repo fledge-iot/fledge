@@ -117,8 +117,8 @@ class TestSendingProcess:
         ("ocs",        "north", "OCS North"),
         ("http_north", "north", "http_north")
     ])
-    def test_plugins(self, plugin_file, plugin_type, plugin_name):
-        """Tests if the defined plugins are available and loadable and if they have the required methods """
+    def test_standard_plugins(self, plugin_file, plugin_type, plugin_name):
+        """Tests if the standard plugins are available and loadable and if they have the required methods """
 
         sp = SendingProcess()
 

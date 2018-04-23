@@ -28,7 +28,7 @@ This section presents the list of administrative API methods in alphabetical ord
 Audit Trail
 ===========
 
-The audit trail API is used to interact with the audit trail log tables in the storage microservice. In FogLAMP, log information are stored in the system log where the microservice is hosted. All the relevant information used for auditing are instead stored inside FogLAMP and they are accessible through the Admin REST API. The API allow the reading but also the addition of extra audit logs, as if such logs are created within the system.
+The audit trail API is used to interact with the audit trail log tables in the storage microservice. In FogLAMP, log information is stored in the system log where the microservice is hosted. All the relevant information used for auditing are instead stored inside FogLAMP and they are accessible through the Admin REST API. The API allows the reading but also the addition of extra audit logs, as if such logs are created within the system.
 
 
 audit
@@ -115,7 +115,7 @@ The purpose of the create method on an audit trail entry is to allow a user inte
 
 **Request Payload**
 
-The request payload is a JSON object with the audit trail entry minus the timestamp..
+The request payload is a JSON object with the audit trail entry minus the timestamp.
 
 +-----------+-----------+-----------------------------------------------+---------------------------+
 | Name      | Type      | Description                                   | Example                   |
@@ -182,7 +182,7 @@ The response payload is the newly created audit trail entry.
 Configuration Management
 ========================
 
-Configuration management in an important aspect of the REST API, however due to the discoverable form of the configuration of FogLAMP the API itself is fairly small. Information of the configuration management and in particularly the types of the configuration parameters that can be supported see The FogLAMP Configuration Component.
+Configuration management in an important aspect of the REST API, however due to the discoverable form of the configuration of FogLAMP the API itself is fairly small.
 
 The configuration REST API interacts with the configuration manager to create, retrieve, update and delete the configuration categories and values. Specifically all updates must go via the management layer as this is used to trigger the notifications to the components that have registered interest in configuration categories. This is the means by which the dynamic reconfiguration of FogLAMP is achieved.
 
@@ -207,7 +207,7 @@ The response payload is a JSON object with an array of JSON objects, one per val
 | Name        | Type   | Description                                    | Example          |
 +=============+========+================================================+==================+
 | key         | string | The category key, each category |br|           | network          |
-|             |        | has a unique textual key the defines it.       |                  |
+|             |        | has a unique textual key that defines it.      |                  |
 +-------------+--------+------------------------------------------------+------------------+
 | description | string | A description of the category that may be |br| | Network Settings |
 |             |        | used for display purposes.                     |                  |
@@ -343,7 +343,7 @@ GET category item
 **Path Parameters**
 
 - **name** - the name of one of the categories returned from the GET /foglamp/category call.
-- **item** - the the item within the category to return.
+- **item** - the item within the category to return.
 
 
 **Response Payload**
@@ -850,7 +850,7 @@ Other Administrative API calls
 ping
 ----
 
-The *ping* interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance if functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
+The *ping* interface gives a basic confidence check that the FogLAMP appliance is running and the API aspect of the appliance is functional. It is designed to be a simple test that can  be applied by a user or by an HA monitoring system to test the liveness and responsiveness of the system.
 
 
 GET ping
@@ -858,7 +858,7 @@ GET ping
 
 ``GET /foglamp/ping`` - return liveness of FogLAMP
 
-*NOTE:* the GET method can be executed without authentication even when authentication is required.
+*NOTE:* the GET method can be executed without authentication even when authentication is required. This behaviour is configurable via a configuration option.
 
 
 **Response Payload**

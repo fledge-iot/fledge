@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+""" Unit tests for the omf plugin """
 
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
@@ -12,7 +13,7 @@ __version__ = "${VERSION}"
 import pytest
 import json
 
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, MagicMock
 
 
 from foglamp.plugins.north.omf import omf
@@ -122,8 +123,8 @@ class TestOMF:
 
         omf._logger = MagicMock()
 
-        with pytest.raises(Exception) as exception_info:
-            config = omf.plugin_init(data)
+        with pytest.raises(Exception):
+            omf.plugin_init(data)
 
     @pytest.mark.parametrize(
         "p_data_origin, "
@@ -200,7 +201,7 @@ class TestOMF:
                                                 "id": 20,
                                                 "asset_code": "test_asset_code",
                                                 "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                                "reading": {"y": 34,"z": 114,"x": -174},
+                                                "reading": {"y": 34, "z": 114, "x": -174},
                                                 "user_ts": '2018-04-20 09:38:50.163164+00'
                                             }
                                         ],
@@ -291,15 +292,13 @@ class TestOMF:
     def test_plugin_send_bad(self):
         """Tests plugin _plugin_send function,
            it tests especially if the omf objects are created again in case of a communication error
+           NOTE : the test will print a message to the stderr containing 'mocked object generated an exception'
+                  the message could/should be ignored.
         """
 
         def dummy_ok():
             """" """
             return True, 1, 1
-
-        def data_send_ok():
-            """" """
-            return True
 
         def omf_types_create():
             """" """
@@ -320,7 +319,7 @@ class TestOMF:
                     with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
                                       return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
 
-                        with pytest.raises(Exception) as exception_info:
+                        with pytest.raises(Exception):
                             omf.plugin_send(data, raw_data, stream_id)
 
                         assert mocked_deleted_omf_types_already_created.called
@@ -335,8 +334,3 @@ class TestOMF:
 
         omf._logger = MagicMock()
         omf.plugin_reconfigure()
-
-
-
-
-

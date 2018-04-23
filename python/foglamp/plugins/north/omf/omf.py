@@ -445,7 +445,8 @@ class OmfNorthPlugin(object):
          Raises:
          """
         asset_id = asset_code.replace(" ", "")
-        return _OMF_PREFIX_MEASUREMENT + asset_id
+        type_id = _config_omf_types['type-id']['value']
+        return type_id + _OMF_PREFIX_MEASUREMENT + asset_id
      
     def _generate_omf_typename_automatic(self, asset_code):
         """ Generates the typename associated to an asset code for the automated generation of the OMF types

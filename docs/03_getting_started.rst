@@ -490,6 +490,7 @@ Pre-requisites on CentOS are similar to the ones on other distributions, but the
 - gmp-devel
 - mpfr-devel
 - libmpc-devel
+- sqlite3
 - bzip2
 - jq
 
@@ -508,6 +509,7 @@ This is the complete list of the commands to execute and the installed packages 
   sudo yum install libmpc-devel
   sudo yum install bzip2
   sudo yum install jq
+  sudo yum install libsqlite3x-devel
 
 
 Building and Installing C++ 5.4
@@ -615,6 +617,16 @@ In order to use the new version, you need to create two symbolic links in the ``
   sudo ln -s pip3.5 pip3
 
 
+Installing SQLite3 
+------------------
+
+FogLAMP requires SQLite version 3.11 or later, CentOS provides an old version of SQLite. We must download SQLite, compile it and install it. The steps are:
+
+- Download the source code of SQLite with *wget*. If you do not have *wget* installed, install it with ``sudo yum install wget``: |br| ``wget http://www.sqlite.org/2018/sqlite-autoconf-3230100.tar.gz``
+- Extract the SQLite tarball: |br| ``tar xzvf sqlite-autoconf-3230100.tar.gz``
+- Move into the SQLite directory and execute the *configure-make-make install* commands: |br| ``cd sqlite-autoconf-3230100`` |br| ``./configure`` |br| ``make`` |br| ``sudo make install``
+
+
 Building FogLAMP
 ----------------
 
@@ -667,7 +679,7 @@ Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
 
   # import dbus
 
-  <<< In the function string_to_byte_array(s) commend: >>>
+  <<< In the function string_to_byte_array(s) comment: >>>
   #    for c in s:
   #        r.append(dbus.Byte(ord(c)))
 

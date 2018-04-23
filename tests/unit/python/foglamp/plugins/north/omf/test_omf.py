@@ -94,18 +94,18 @@ class TestOMF:
                 'sending_process_instance': MagicMock()
             },
 
-            # Bad case 2 - OMFMaxRetry int instead of string
+            # Bad case 2 - OMFMaxRetry, bad value expected an int it is a string
             {
                 "stream_id": {"value": 1},
 
                 "_CONFIG_CATEGORY_NAME": module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
-                "OMFMaxRetry": {"value": 100},
+                "OMFMaxRetry": {"value": "xxx"},
                 "OMFRetrySleepTime": {"value": "100"},
                 "OMFHttpTimeout": {"value": "100"},
                 "StaticData": {
-                    "value":json.dumps(
+                    "value": json.dumps(
                         {
                             "Location": "Palo Alto",
                             "Company": "Dianomic"

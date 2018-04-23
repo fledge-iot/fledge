@@ -12,6 +12,7 @@ __version__ = "${VERSION}"
 
 import pytest
 import json
+import sys
 
 from unittest.mock import patch, MagicMock
 
@@ -296,6 +297,13 @@ class TestOMF:
                   the message could/should be ignored.
         """
 
+        # noinspection PyPep8Naming
+        class to_dev_null(object):
+            """ Used to ignore messages sent to the stderr """
+            def to_dev_null(self, data):
+                """" """
+                pass
+
         def dummy_ok():
             """" """
             return True, 1, 1
@@ -320,6 +328,9 @@ class TestOMF:
                                       return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
+                            # To ignore messages sent to the stderr
+                            sys.stderr = to_dev_null()
+
                             omf.plugin_send(data, raw_data, stream_id)
 
                         assert mocked_deleted_omf_types_already_created.called

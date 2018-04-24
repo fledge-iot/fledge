@@ -427,6 +427,43 @@ Don't forget to add the *setenv.sh* available in the /usr/local/foglamp/extras/s
 
 ...Congratulations! This is all you need to do, now FogLAMP is ready to run.
 
+
+Upgrading or Downgrading FogLAMP
+--------------------------------
+
+Upgrading or downgrading FogLAMP, starting from version 1.2, is as easy as installing it from scratch: simply follow the instructions in the previous section regarding the installation and the package will take care of the upgrade/downgrade path. The installation will not proceed if there is not a path to upgrade or downgrade from the currently installed version. You should still check the pre-requisites before you apply the upgrade.
+
+
+Uninstalling the Debian Package
+-------------------------------
+
+Use the ``dpkg`` command to uninstall FogLAMP:
+
+.. code-block:: console
+
+  $ sudo dpkg -l | grep foglamp
+  ii  foglamp           1.2              amd64        FogLAMP, the open source platform for the Internet of Things
+  $ sudo dpkg --purge foglamp
+  (Reading database ... 115190 files and directories currently installed.)
+  Removing foglamp (1.2) ...
+  FogLAMP is currently running.
+  Stop FogLAMP service.
+  Kill FogLAMP.
+  Remove python cache files.
+  find: ‘/usr/local/foglamp/scripts/common/__pycache__’: No such file or directory
+  Disable FogLAMP service.
+  foglamp.service is not a native service, redirecting to systemd-sysv-install
+  Executing /lib/systemd/systemd-sysv-install disable foglamp
+  insserv: warning: current start runlevel(s) (empty) of script `foglamp' overrides LSB defaults (2 3 4 5).
+  insserv: warning: current stop runlevel(s) (0 1 2 3 4 5 6) of script `foglamp' overrides LSB defaults (0 1 6).
+  Remove FogLAMP service script
+  Reset systemctl
+  dpkg: warning: while removing foglamp, directory '/usr/local/foglamp' not empty so not removed
+  $ sudo dpkg --purge foglamp
+  dpkg: warning: ignoring request to remove foglamp which isn't installed
+  $
+
+
 |br|
 
 DEPRECATED: Installing the Snap Package

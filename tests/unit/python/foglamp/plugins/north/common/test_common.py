@@ -13,40 +13,41 @@ import foglamp.plugins.north.common.common as plugin_common
 class TestPluginsNorthCommon(object):
     """ Unit tests about the common code available in plugins.north.common.common """
 
-    def test_evaluate_type(self):
-        """ tests evaluate_type available in plugins.north.common.common """
-
+    @pytest.mark.parametrize("value, expected", [
         # Cases - standard
-        assert plugin_common.evaluate_type("String 1") == "string"
-        assert plugin_common.evaluate_type("1 String") == "string"
-
-        assert plugin_common.evaluate_type(-999) == "integer"
-        assert plugin_common.evaluate_type(-1) == "integer"
-        assert plugin_common.evaluate_type(0) == "integer"
-        assert plugin_common.evaluate_type(-999) == "integer"
-
-        assert plugin_common.evaluate_type(-999.0) == "number"
-        assert plugin_common.evaluate_type(-1.2) == "number"
-        assert plugin_common.evaluate_type(0.) == "number"
-        assert plugin_common.evaluate_type(1.2) == "number"
-        assert plugin_common.evaluate_type(999.0) == "number"
+        ("String 1", "string"),
+        (-999, "integer"),
+        (-1, "integer"),
+        (0, "integer"),
+        (-999, "integer"),
+        (-999.0,  "number"),
+        (-1.2,  "number"),
+        (0.,  "number"),
+        (1.2,  "number"),
+        (999.0,  "number"),
 
         # Cases - Number as string
-        assert plugin_common.evaluate_type("-1.2") == "number"
-        assert plugin_common.evaluate_type("-1.0") == "number"
-        assert plugin_common.evaluate_type(".0") == "number"
-        assert plugin_common.evaluate_type("1.0") == "number"
-        assert plugin_common.evaluate_type("1.2") == "number"
+        ("-1.2",  "number"),
+        ("-1.0",  "number"),
+        (".0",  "number"),
+        ("1.0",  "number"),
+        ("1.2",  "number"),
 
         # Cases - Integer as string
-        assert plugin_common.evaluate_type("-1") == "integer"
-        assert plugin_common.evaluate_type("0") == "integer"
-        assert plugin_common.evaluate_type("1") == "integer"
+        ("-1",  "integer"),
+        ("0",  "integer"),
+        ("1",  "integer"),
 
         # Cases - real cases generated using fogbench
-        assert plugin_common.evaluate_type(90774.998) == "number"
-        assert plugin_common.evaluate_type(41) == "integer"
-        assert plugin_common.evaluate_type(-2) == "integer"
-        assert plugin_common.evaluate_type(-159) == "integer"
-        assert plugin_common.evaluate_type("up") == "string"
-        assert plugin_common.evaluate_type("tock") == "string"
+        (90774.998,  "number"),
+        (41,  "integer"),
+        (-2,  "integer"),
+        (-159,  "integer"),
+        ("up",  "string"),
+        ("tock",  "string")
+
+    ])
+    def test_evaluate_type(self, value, expected):
+        """ tests evaluate_type available in plugins.north.common.common """
+
+        assert plugin_common.evaluate_type(value) == expected

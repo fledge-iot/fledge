@@ -290,7 +290,7 @@ def plugin_start(handle):
                             'asset': reading_key,
                             'timestamp': time_stamp,
                             'key': str(uuid.uuid4()),
-                            'readings': {reading_key: movement[reading_key]}
+                            'readings': movement[reading_key]
                         }
                         await Ingest.add_readings(asset='TI Sensortag CC2650/{}'.format(data['asset']),
                                                   timestamp=data['timestamp'], key=data['key'],

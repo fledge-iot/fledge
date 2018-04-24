@@ -431,7 +431,7 @@ Don't forget to add the *setenv.sh* available in the /usr/local/foglamp/extras/s
 Upgrading or Downgrading FogLAMP
 --------------------------------
 
-Upgrading or downgrading FogLAMP, starting from version 1.2, is as easy as installing it from scratch: simply follow the instructions in the previous section regarding the installation and the package will take care of the upgrade/downgrade path. The installation will not proceed if there is not a path to upgrade or downgrade from the currently installed version. You should still check the pre-requisites before you apply the upgrade.
+Upgrading or downgrading FogLAMP, starting from version 1.2, is as easy as installing it from scratch: simply follow the instructions in the previous section regarding the installation and the package will take care of the upgrade/downgrade path. The installation will not proceed if there is not a path to upgrade or downgrade from the currently installed version. You should still check the pre-requisites before you apply the upgrade. Clearly the old data will not be lost, there will be a schema upgrade/downgrade, if required.
 
 
 Uninstalling the Debian Package
@@ -462,6 +462,8 @@ Use the ``dpkg`` command to uninstall FogLAMP:
   $ sudo dpkg --purge foglamp
   dpkg: warning: ignoring request to remove foglamp which isn't installed
   $
+
+The command also removes the service installed, but it leaves the data directory, in case an administrator might want to analyze or reuse the data.
 
 
 |br|

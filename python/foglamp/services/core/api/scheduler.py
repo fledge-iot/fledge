@@ -731,7 +731,7 @@ async def cancel_task(request):
     """Cancel a running task from tasks table
 
     :Example:
-             curl -X PUT  http://localhost:8081/foglamp/task/cancel/{task_id}
+             curl -X PUT  http://localhost:8081/foglamp/task/{task_id}/cancel
     """
     try:
         task_id = request.match_info.get('task_id', None)

@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import asyncio
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -26,7 +27,7 @@ class TestSendingProcess:
     @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
         (10, 20, 10)
     ])
-    def test_send_data_block(self, p_last_object,  p_new_last_object_id, p_num_sent):
+    def test_send_data_block(self, p_last_object,  p_new_last_object_id, p_num_sent, event_loop):
         """Tests the _send_data_block, evaluating also the the last object is properly updated"""
 
         def mock_last_object_id_read():
@@ -72,7 +73,8 @@ class TestSendingProcess:
         def mock_update_statistics():
             """Mocks _update_statistics"""
 
-        sp = SendingProcess()
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
 
         # Configures properly the SendingProcess
         sp._config_from_manager = {"applyFilter": {"value": "False"}}
@@ -115,10 +117,11 @@ class TestSendingProcess:
         ("ocs",        "north", "OCS North"),
         ("http_north", "north", "http_north")
     ])
-    def test_standard_plugins(self, plugin_file, plugin_type, plugin_name):
+    def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """
 
-        sp = SendingProcess()
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
 
         # Try to Loads the plugin
         sp._config['north'] = plugin_file
@@ -141,10 +144,11 @@ class TestSendingProcess:
         ("omf", "north", "Empty North Plugin", False),
         ("omf", "south", "OMF North", False)
     ])
-    def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result):
+    def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
         """Tests the possible cases of the function is_north_valid """
 
-        sp = SendingProcess()
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
 
         sp._config['north'] = plugin_file
         sp._plugin_load()
@@ -155,7 +159,7 @@ class TestSendingProcess:
 
         assert sp._is_north_valid() == expected_result
 
-    def test_last_object_id_read(self):
+    def test_last_object_id_read(self, event_loop):
         """Tests the possible cases for the function last_object_id_read """
 
         def mock_query_tbl_row_1():
@@ -176,7 +180,9 @@ class TestSendingProcess:
             rows = {"rows": [{"last_object": 10}, {"last_object": 11}]}
             return rows
 
-        sp = SendingProcess()
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
         sp._storage = MagicMock(spec=StorageClient)
 
         # Good Case
@@ -204,7 +210,7 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
-    def test_load_data_into_memory(self):
+    def test_load_data_into_memory(self, event_loop):
         """Test _load_data_into_memory handling and transformations"""
 
         def mock_fetch_readings():
@@ -236,7 +242,9 @@ class TestSendingProcess:
             return rows
 
         # Checks the Readings handling
-        sp = SendingProcess()
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
         sp._config['source'] = sp._DATA_SOURCE_READINGS
 
         sp._readings = MagicMock(spec=ReadingsStorageClient)
@@ -252,7 +260,9 @@ class TestSendingProcess:
             assert data_transformed[0]['user_ts'] == "16/04/2018 16:32+00"
 
         # Checks the Statistics handling
-        sp = SendingProcess()
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
         sp._config['source'] = sp._DATA_SOURCE_STATISTICS
 
         sp._storage = MagicMock(spec=StorageClient)

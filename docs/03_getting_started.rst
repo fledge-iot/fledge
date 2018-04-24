@@ -633,6 +633,49 @@ FogLAMP requires SQLite version 3.11 or later, CentOS provides an old version of
 - Move into the SQLite directory and execute the *configure-make-make install* commands: |br| ``cd sqlite-autoconf-3230100`` |br| ``./configure`` |br| ``make`` |br| ``sudo make install``
 
 
+Changing to the PostgreSQL Engine
+---------------------------------
+
+The CentOS version of FogLAMP is optimized to work with PostgreSQL as storage engine. In order to achieve that, change the file *configuration.cpp* in the *C/services/storage* directory: line #20, word *sqlite* must be replaced with *postgres*:
+
+``" { \"plugin\" : { \"value\" : \"postgres\", \"description\" : \"The stora    ge plugin to load\"},"``
+
+
+Building FogLAMP
+----------------
+
+We are finally ready to install FogLAMP, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
+
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory. 
+
+We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
+
+- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
+- Replace the content of *python/foglamp/services/common/service_announcer.py* with this code:
+
+.. code-block:: python
+
+  # -*- coding: utf-8 -*-
+  # FOGLAMP_BEGIN
+  # See: http://foglamp.readthedocs.io/
+  # FOGLAMP_END
+  """Common FoglampMicroservice Class"""
+
+  import foglamp.services.common.avahi as avahi
+  from foglamp.common import logger
+
+  _LOGGER = logger.setup(__name__)
+
+  class ServiceAnnouncer:
+      _service_name = None
+      """ The name of the service to advertise """
+
+      _group = None
+      """ The Avahi group """
+
+      def __init__(self, name, service, port, txt):
+
+
 Building FogLAMP
 ----------------
 

@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import datetime
 from aiohttp import web
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -65,8 +66,23 @@ async def get_statistics_history(request):
     result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
     if len(result['rows']) > 0:
         time_str = result['rows'][0]['schedule_interval']
-        ftr = [3600, 60, 1]
-        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+        if 'days' in time_str:
+            interval_split = time_str.split('days')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1].strip()
+        elif 'day' in time_str:
+            interval_split = time_str.split('day')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1].strip()
+        else:
+            interval_days = 0
+            interval_time = time_str
+        s_days = int(interval_days)
+        if not interval_time:
+            interval_time = "00:00:00"
+        s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+        interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute, seconds=s_interval.second)
+        interval_in_secs = interval.total_seconds()
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
     history_ts = '{"column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "history_ts"}'

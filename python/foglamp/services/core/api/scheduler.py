@@ -37,7 +37,7 @@ _help = """
     | GET             | /foglamp/task/latest                                      |
     | GET             | /foglamp/task/{task_id}                                   |
     | GET             | /foglamp/task/state                                       |
-    | PUT             | /foglamp/task/cancel/{task_id}                            |
+    | PUT             | /foglamp/task/{task_id}/cancel                            |
     -------------------------------------------------------------------------------
 """
 

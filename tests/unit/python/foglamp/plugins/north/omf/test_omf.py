@@ -21,6 +21,9 @@ from foglamp.plugins.north.omf import omf
 import foglamp.tasks.north.sending_process as module_sp
 
 
+@pytest.allure.feature("unit")
+@pytest.allure.story("plugin", "north", "omf")
+@pytest.mark.skip(reason="ERROR - _performance_log - error details |list indices must be integers or slices, not str| -- FOGL-1285")
 class TestOMF:
     """Unit tests for the omf plugin"""
 

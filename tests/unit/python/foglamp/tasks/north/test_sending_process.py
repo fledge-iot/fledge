@@ -23,7 +23,6 @@ STREAM_ID = 1
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("tasks", "north")
-@pytest.mark.skip(reason="FOGL-1285 - when run in suite all tests are failing")
 class TestSendingProcess:
     """Unit tests for the sending_process.py"""
 

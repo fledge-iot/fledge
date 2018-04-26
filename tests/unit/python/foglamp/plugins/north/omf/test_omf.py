@@ -23,7 +23,6 @@ import foglamp.tasks.north.sending_process as module_sp
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("plugin", "north", "omf")
-@pytest.mark.skip(reason="ERROR - _performance_log - error details |list indices must be integers or slices, not str| -- FOGL-1285")
 class TestOMF:
     """Unit tests for the omf plugin"""
 
@@ -257,7 +256,7 @@ class TestOMF:
 
         omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
 
-        omf._config_omf_types = {"type-id": {"value": type_id}}
+        omf_north._config_omf_types = {"type-id": {"value": type_id}}
 
         is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(generated_data_to_send,
                                                                                        p_data_origin)

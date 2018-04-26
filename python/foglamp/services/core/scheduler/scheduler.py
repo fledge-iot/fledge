@@ -663,6 +663,8 @@ class Scheduler(object):
                     interval_days = 0
                     interval_time = row.get('schedule_interval')
                 s_days = int(interval_days)
+                if not interval_time:
+                    interval_time = "00:00:00"
                 s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
                 interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
                                               seconds=s_interval.second)

@@ -59,9 +59,14 @@ class TestStatistics:
                 assert 500 == resp.status
                 assert "Internal Server Error" == resp.reason
 
-    async def test_get_statistics_history(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
+    @pytest.mark.parametrize("interval, schedule_interval", [
+        (60, "00:01:00"),
+        (86500, "1 day 00:01:40"),
+        (172800, "2 days")
+    ])
+    async def test_get_statistics_history(self, client, interval, schedule_interval):
+        output = {"interval": interval, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                                       {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
         p1 = {"return": [{"alias": "history_ts", "column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}}
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
@@ -79,7 +84,7 @@ class TestStatistics:
 
             if table == 'schedules':
                 assert p2 == json.loads(payload)
-                return {"rows": [{"schedule_interval": "00:01:00"}]}
+                return {"rows": [{"schedule_interval": schedule_interval}]}
 
         mockedStorageClient = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):

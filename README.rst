@@ -21,7 +21,7 @@ Architecture
 
 FogLAMP is built using a microservices architecture for major component areas, these services consist of:
 
-- a **core service** responsible for the management of the other services, the external REST API's, scheduling and monitoring of activities.
+- a **Core service** responsible for the management of the other services, the external REST API's, scheduling and monitoring of activities.
 - a **South service** responsible for the communication between FogLAMP and the sensors/actuators.
 - a **Storage service** responsible for the persistance of configuration and metrics and the buffering of sensor data.
 
@@ -29,8 +29,8 @@ FogLAMP makes extensive use of plugin components in order to increase the flexib
 
 - **South plugins** are used to allow for the easy expansion of FogLAMP to deal with new South devices and South device connection buses.
 - **North plugins** are used to allow for connection to different historians
-- **datastore plugins** are used to allow FogLAMP to use different storage mechanisms for persisting meta data and the sensor data
-- **authentication provider plugins** are used to allow the authentication mechanism to be matched with enterprise requirements or provided internally by FogLAMP.
+- **Datastore plugins** are used to allow FogLAMP to use different storage mechanisms for persisting meta data and the sensor data
+- **Authentication provider plugins** are used to allow the authentication mechanism to be matched with enterprise requirements or provided internally by FogLAMP.
 
 The other paradigm that is used extensively within FogLAMP is the idea of **scheduling processes** to perform specific operations. The FogLAMP core contains a scheduler which can execute processes based on time schedules or triggered by events. This is used to start processes when an event occurs, such as FogLAMP starting, or based on a time trigger.
 
@@ -84,19 +84,9 @@ Build
 
 To build FogLAMP run the command ``make`` in the top level directory. This will compile all the components that need to be compiled and will also create a runable structure of the Python code components of FogLAMP.
 
-**NOTE:** *The GGC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
+**NOTE:** *The GCC compiler version 5.4 available in Ubuntu 16.04 LTS raises warnings. This is a known bug of the compiler and it can be ignored.*
 
 Once the *make* has completed you can decide to test FogLAMP from your development environment or you can install it. 
-|br| |br|
-
-Creating the Database Repository
-================================
-
-This version of FogLAMP relies on PostgreSQL to run. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
-::
-   sudo -u postgres createuser -d <user>
-
-where *user* is the name of the Linux user that will run FogLAMP. The FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
 Testing FogLAMP from Your Development Environment
@@ -142,4 +132,14 @@ To check if FogLAMP is running, use the command:
 
 The command returns the status of FogLAMP on the machine it has been executed.
 
+
+If You Use PostgreSQL: Creating the Database Repository
+=======================================================
+
+This version of FogLAMP relies on SQLite to run. SQLite is embedded into the Storage service, but you may want to use PostgreSQL as a buffer and metadata storage (refer to the documentation on `ReadTheDocs <http://foglamp.readthedocs.io>`_ for more info. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
+::
+   sudo -u postgres createuser -d <user>
+
+where *user* is the name of the Linux user that will run FogLAMP. The FogLAMP database user must have *createdb* privileges (i.e. the *-d* argument).
+|br| |br|
 

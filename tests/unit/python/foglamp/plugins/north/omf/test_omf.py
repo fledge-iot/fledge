@@ -21,10 +21,11 @@ from foglamp.plugins.north.omf import omf
 import foglamp.tasks.north.sending_process as module_sp
 
 
+# noinspection PyUnresolvedReferences
 @pytest.allure.feature("unit")
 @pytest.allure.story("plugin", "north", "omf")
 class TestOMF:
-    """Unit tests for the omf plugin"""
+    """Unit tests related to the public methods of the omf plugin """
 
     def test_plugin_info(self):
 
@@ -128,6 +129,98 @@ class TestOMF:
 
         with pytest.raises(Exception):
             omf.plugin_init(data)
+
+    def test_plugin_send_ok(self):
+        """Tests plugin _plugin_send function, case everything went fine """
+
+        def dummy_ok():
+            """" """
+            return True, 1, 1
+
+        def data_send_ok():
+            """" """
+            return True
+
+        def omf_types_create():
+            """" """
+            return True
+
+        omf._logger = MagicMock()
+        omf._config_omf_types = {"type-id": {"value": "0001"}}
+        data = MagicMock()
+
+        raw_data = []
+        stream_id = 1
+
+        # Test good case
+        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
+            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
+                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf', return_value=data_send_ok()):
+                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
+                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
+                        omf.plugin_send(data, raw_data, stream_id)
+
+        assert not mocked_deleted_omf_types_already_created.called
+
+    def test_plugin_send_bad(self):
+        """Tests plugin _plugin_send function,
+           it tests especially if the omf objects are created again in case of a communication error
+           NOTE : the test will print a message to the stderr containing 'mocked object generated an exception'
+                  the message could/should be ignored.
+        """
+
+        # noinspection PyPep8Naming
+        class to_dev_null(object):
+            """ Used to ignore messages sent to the stderr """
+            def to_dev_null(self, _data):
+                """" """
+                pass
+
+        def dummy_ok():
+            """" """
+            return True, 1, 1
+
+        def omf_types_create():
+            """" """
+            return True
+
+        omf._logger = MagicMock()
+        omf._config_omf_types = {"type-id": {"value": "0001"}}
+        data = MagicMock()
+
+        raw_data = []
+        stream_id = 1
+
+        # Test bad case - send operation raise an exception
+        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
+            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
+                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf',
+                                  side_effect=KeyError('mocked object generated an exception')):
+                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
+                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
+
+                        with pytest.raises(Exception):
+                            # To ignore messages sent to the stderr
+                            sys.stderr = to_dev_null()
+
+                            omf.plugin_send(data, raw_data, stream_id)
+
+                        assert mocked_deleted_omf_types_already_created.called
+
+    def test_plugin_shutdown(self):
+
+        omf._logger = MagicMock()
+        data = []
+        omf.plugin_shutdown([data])
+
+    def test_plugin_reconfigure(self):
+
+        omf._logger = MagicMock()
+        omf.plugin_reconfigure()
+
+
+class TestOmfNorthPlugin:
+    """Unit tests related to OmfNorthPlugin, methods used internally to the plugin"""
 
     @pytest.mark.parametrize(
         "p_data_origin, "
@@ -267,90 +360,7 @@ class TestOMF:
         assert new_position == expected_new_position
         assert num_sent == expected_num_sent
 
-    def test_plugin_send_ok(self):
-        """Tests plugin _plugin_send function, case everything went fine """
+    def test_create_omf_objects(self):
+        """ Unit test """
 
-        def dummy_ok():
-            """" """
-            return True, 1, 1
-
-        def data_send_ok():
-            """" """
-            return True
-
-        def omf_types_create():
-            """" """
-            return True
-
-        omf._logger = MagicMock()
-        omf._config_omf_types = {"type-id": {"value": "0001"}}
-        data = MagicMock()
-
-        raw_data = []
-        stream_id = 1
-
-        # Test good case
-        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
-            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
-                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf', return_value=data_send_ok()):
-                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
-                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
-                        omf.plugin_send(data, raw_data, stream_id)
-
-        assert not mocked_deleted_omf_types_already_created.called
-
-    def test_plugin_send_bad(self):
-        """Tests plugin _plugin_send function,
-           it tests especially if the omf objects are created again in case of a communication error
-           NOTE : the test will print a message to the stderr containing 'mocked object generated an exception'
-                  the message could/should be ignored.
-        """
-
-        # noinspection PyPep8Naming
-        class to_dev_null(object):
-            """ Used to ignore messages sent to the stderr """
-            def to_dev_null(self, data):
-                """" """
-                pass
-
-        def dummy_ok():
-            """" """
-            return True, 1, 1
-
-        def omf_types_create():
-            """" """
-            return True
-
-        omf._logger = MagicMock()
-        omf._config_omf_types = {"type-id": {"value": "0001"}}
-        data = MagicMock()
-
-        raw_data = []
-        stream_id = 1
-
-        # Test bad case - send operation raise an exception
-        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
-            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
-                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf',
-                                  side_effect=KeyError('mocked object generated an exception')):
-                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
-                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
-
-                        with pytest.raises(Exception):
-                            # To ignore messages sent to the stderr
-                            sys.stderr = to_dev_null()
-
-                            omf.plugin_send(data, raw_data, stream_id)
-
-                        assert mocked_deleted_omf_types_already_created.called
-
-    def test_plugin_shutdown(self):
-
-        omf._logger = MagicMock()
-        data = []
-        omf.plugin_shutdown([data])
-
-    def test_plugin_reconfigure(self):
-
-        omf._logger = MagicMock()
-        omf.plugin_reconfigure()
+        assert True

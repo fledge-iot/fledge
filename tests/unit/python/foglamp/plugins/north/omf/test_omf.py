@@ -360,7 +360,132 @@ class TestOmfNorthPlugin:
         assert new_position == expected_new_position
         assert num_sent == expected_num_sent
 
-    def test_create_omf_objects(self):
-        """ Unit test """
+    @pytest.mark.parametrize(
+        "p_data_origin, "
+        "expected_output ",
+        [
+            # Case 1
+            (
+                # Origin
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 10, "temperature": 20},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ]
+                , "# FIXME:"
+            )
+        ]
+    )
+    def test_create_omf_objects(self, p_data_origin, expected_output):
+        # # FIXME:
+        """ Test the creation of the OMF objects """
 
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+        generated_data_to_send = []
+
+        config_category_name = "# FIXME:"
+        type_id = "0001"
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config_omf_types = {"type-id": {"value": type_id}}
+        # omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
+
+        assert True
+
+
+    @pytest.mark.parametrize(
+        "p_test_data, "
+        "expected_output ",
+        [
+            # Case 1
+            (
+                # Origin
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 10, "temperature": 20},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ]
+                , "# FIXME:"
+            )
+        ]
+    )
+    def test_create_omf_objects_automatic(self, p_test_data, expected_output):
+        assert True
+
+    @pytest.mark.parametrize(
+        "p_test_data, "
+        "expected_output ",
+        [
+            # Case 1
+            (
+                # Origin
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 10, "temperature": 20},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ]
+                , "# FIXME:"
+            )
+        ]
+    )
+    def test_create_omf_type_automatic(self, p_test_data, expected_output):
+        # FIXME:
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+        generated_data_to_send = []
+
+        config_category_name = "# FIXME:"
+        type_id = "0001"
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config_omf_types = {"type-id": {"value": type_id}}
+
+        omf_north._create_omf_type_automatic(p_test_data)
+
+
+        assert True
+
+
+    @pytest.mark.parametrize(
+        "p_test_data, "
+        "expected_output ",
+        [
+            # Case 1
+            (
+                # Origin
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 10, "temperature": 20},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ]
+                , "# FIXME:"
+            )
+        ]
+    )
+    def test_create_omf_object_links(self, p_test_data, expected_output):
+        # FIXME:
         assert True

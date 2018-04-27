@@ -654,17 +654,18 @@ class Scheduler(object):
                 if 'days' in row.get('schedule_interval'):
                     interval_split = row.get('schedule_interval').split('days')
                     interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1].strip()
+                    interval_time = interval_split[1]
                 elif 'day' in row.get('schedule_interval'):
                     interval_split = row.get('schedule_interval').split('day')
                     interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1].strip()
+                    interval_time = interval_split[1]
                 else:
                     interval_days = 0
                     interval_time = row.get('schedule_interval')
                 s_days = int(interval_days)
                 if not interval_time:
                     interval_time = "00:00:00"
+                interval_time = interval_time.replace(",", "").strip()
                 s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
                 interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
                                               seconds=s_interval.second)

@@ -431,16 +431,11 @@ class TestOmfNorthPlugin:
             # Case 1
             (
                 # Origin
-                [
-                    {
-                        "id": 10,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 10, "temperature": 20},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    }
-                ]
+                {"asset_code": "temperature", "asset_data": 10}
+
+                # Expected
                 , "# FIXME:"
+
             )
         ]
     )

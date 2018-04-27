@@ -12,13 +12,24 @@ __version__ = "${VERSION}"
 
 import pytest
 import json
+import time
 import sys
+import requests
 
 from unittest.mock import patch, MagicMock
 
 
 from foglamp.plugins.north.omf import omf
 import foglamp.tasks.north.sending_process as module_sp
+
+
+# noinspection PyPep8Naming
+class to_dev_null(object):
+    """ Used to ignore messages sent to the stderr """
+
+    def write(self, _data):
+        """" """
+        pass
 
 
 # noinspection PyUnresolvedReferences
@@ -168,13 +179,6 @@ class TestOMF:
            NOTE : the test will print a message to the stderr containing 'mocked object generated an exception'
                   the message could/should be ignored.
         """
-
-        # noinspection PyPep8Naming
-        class to_dev_null(object):
-            """ Used to ignore messages sent to the stderr """
-            def to_dev_null(self, _data):
-                """" """
-                pass
 
         def dummy_ok():
             """" """
@@ -563,6 +567,218 @@ class TestOmfNorthPlugin:
         assert omf_type == expected_omf_type
 
         assert patched_send_in_memory_data_to_picromf.called
+
+    @pytest.mark.parametrize(
+        "p_test_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                {
+                    'dummy': 'dummy'
+                }
+            ),
+
+        ]
+    )
+    def test_send_in_memory_data_to_picromf_ok(
+                                                self,
+                                                p_test_data):
+        class Response:
+            """ Used to mock the Response object, simulating a successful communication"""
+
+            status_code = 200
+            text = "OK"
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config = dict(producerToken="dummy_producerToken")
+        omf_north._config["URL"] = "dummy_URL"
+        omf_north._config["OMFRetrySleepTime"] = 1
+        omf_north._config["OMFHttpTimeout"] = 1
+
+        # Good Case
+        omf_north._config["OMFMaxRetry"] = 1
+
+        response_ok = Response()
+        response_ok.status_code = 200
+        response_ok.text = "OK"
+
+        with patch.object(omf_north._logger, 'warning', return_value=True) \
+                as patched_logger:
+
+            with patch.object(requests, 'post', return_value=response_ok) \
+                    as patched_requests:
+
+                omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+
+        assert patched_requests.called
+        assert patched_requests.call_count == 1
+        assert not patched_logger.called
+
+    @pytest.mark.parametrize(
+        "p_test_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                {
+                    'dummy': 'dummy'
+                }
+
+            ),
+
+        ]
+    )
+    def test_send_in_memory_data_to_picromf_bad(self,
+                                                p_test_data):
+        """ Tests the behaviour  in case of communication error:
+            exception erased,
+            message logged
+            and number of retries """
+
+        class Response:
+            """ Used to mock the Response object, simulating an error"""
+
+            status_code = 400
+            text = "ERROR"
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config = dict(producerToken="dummy_producerToken")
+        omf_north._config["URL"] = "dummy_URL"
+        omf_north._config["OMFRetrySleepTime"] = 1
+        omf_north._config["OMFHttpTimeout"] = 1
+
+        # Bad Case
+        omf_north._config["OMFMaxRetry"] = 3
+
+        response_ok = Response()
+        response_ok.status_code = 400
+        response_ok.text = "ERROR"
+
+        # To avoid the wait time
+        with patch.object(time, 'sleep', return_value=True):
+
+            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
+
+                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
+
+                    # Tests the raising of the exception
+                    with pytest.raises(Exception):
+                        # To ignore messages sent to the stderr
+                        sys.stderr = to_dev_null()
+
+                        omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+
+        assert patched_requests.call_count == 3
+        assert patched_logger.called
+
+    @pytest.mark.parametrize(
+        "p_type, "
+        "p_test_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                "Type",
+                {
+                    'pressure_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0001_pressure_typename_sensor',
+                            'properties': {
+                                            'Company': {'type': 'string'},
+                                            'Name': {'isindex': True, 'type': 'string'},
+                                            'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0001_pressure_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'pressure': {'type': 'number'}
+                            },
+                            'type': 'object'
+                         }
+                    ]
+                }
+
+            ),
+
+        ]
+    )
+    def test_send_in_memory_data_to_picromf_data(
+                                                self,
+                                                p_type,
+                                                p_test_data):
+        """ Tests the data sent to the PI Server in relation of an OMF type"""
+
+        class Response:
+            """ Used to mock the Response object, simulating a successful communication"""
+            status_code = 200
+            text = "OR"
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        # Values for the test
+        test_url = "test_URL"
+        test_producer_token = "test_producerToken"
+        test_omf_http_timeout = 1
+        test_headers = {
+                        'producertoken': test_producer_token,
+                        'messagetype': p_type,
+                        'action': 'create',
+                        'messageformat': 'JSON',
+                        'omfversion': '1.0'}
+
+        omf_north._config = dict(producerToken=test_producer_token)
+        omf_north._config["URL"] = test_url
+        omf_north._config["OMFRetrySleepTime"] = 1
+        omf_north._config["OMFHttpTimeout"] = test_omf_http_timeout
+        omf_north._config["OMFMaxRetry"] = 1
+
+        response_ok = Response()
+        response_ok.status_code = 200
+        response_ok.text = "OK"
+
+        # To avoid the wait time
+        with patch.object(time, 'sleep', return_value=True):
+
+            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
+
+                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
+
+                    # To ignore messages sent to the stderr
+                    sys.stderr = to_dev_null()
+
+                    omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
+
+        assert not patched_logger.called
+
+        str_data = json.dumps(p_test_data)
+        patched_requests.assert_called_with(
+                                            test_url,
+                                            headers=test_headers,
+                                            data=str_data,
+                                            verify=False,
+                                            timeout=test_omf_http_timeout)
+        assert patched_requests.call_count == 1
 
     @pytest.mark.parametrize(
         "p_test_data, "

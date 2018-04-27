@@ -375,8 +375,8 @@ class TestOmfNorthPlugin:
                         "reading": {"humidity": 10, "temperature": 20},
                         "user_ts": '2018-04-20 09:38:50.163164+00'
                     }
-                ]
-                , "# FIXME:"
+                ],
+                "# FIXME:"
             )
         ]
     )
@@ -400,66 +400,169 @@ class TestOmfNorthPlugin:
 
         assert True
 
-
     @pytest.mark.parametrize(
         "p_test_data, "
-        "expected_output ",
+        "p_type_id, "
+        "p_static_data, "
+        "expected_typename,"
+        "expected_omf_type",
         [
-            # Case 1
+            # Case 1 - pressure / Number
             (
-                # Origin
-                [
-                    {
-                        "id": 10,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 10, "temperature": 20},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    }
-                ]
-                , "# FIXME:"
-            )
-        ]
-    )
-    def test_create_omf_objects_automatic(self, p_test_data, expected_output):
-        assert True
+                # Origin - Sensor data
+                {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
 
-    @pytest.mark.parametrize(
-        "p_test_data, "
-        "expected_output ",
-        [
-            # Case 1
-            (
-                # Origin
-                {"asset_code": "temperature", "asset_data": 10}
+                # type_id
+                "0001",
+
+                # Static Data
+                {
+                    "Location": "Palo Alto",
+                    "Company": "Dianomic"
+                },
 
                 # Expected
-                , "# FIXME:"
+                'pressure_typename',
+                {
+                    'pressure_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0001_pressure_typename_sensor',
+                            'properties': {
+                                            'Company': {'type': 'string'},
+                                            'Name': {'isindex': True, 'type': 'string'},
+                                            'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0001_pressure_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'pressure': {'type': 'number'}
+                            },
+                            'type': 'object'
+                         }
+                    ]
+                }
+            ),
+            # Case 2 - luxometer / Integer
+            (
+                    # Origin - Sensor data
+                    {"asset_code": "luxometer", "asset_data": {"lux": 20}},
+
+                    # type_id
+                    "0002",
+
+                    # Static Data
+                    {
+                        "Location": "Palo Alto",
+                        "Company": "Dianomic"
+                    },
+
+                    # Expected
+                    'luxometer_typename',
+                    {
+                        'luxometer_typename':
+                        [
+                            {
+                                'classification': 'static',
+                                'id': '0002_luxometer_typename_sensor',
+                                'properties': {
+                                    'Company': {'type': 'string'},
+                                    'Name': {'isindex': True, 'type': 'string'},
+                                    'Location': {'type': 'string'}
+                                },
+                                'type': 'object'
+                            },
+                            {
+                                'classification': 'dynamic',
+                                'id': '0002_luxometer_typename_measurement',
+                                'properties': {
+                                    'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                    'lux': {'type': 'integer'}
+                                },
+                                'type': 'object'
+                            }
+                        ]
+                    }
+
+            ),
+
+            # Case 3 - switch / string
+            (
+                # Origin - Sensor data
+                {"asset_code": "switch", "asset_data": {"button": "up"}},
+
+                # type_id
+                "0002",
+
+                # Static Data
+                {
+                    "Location": "Palo Alto",
+                    "Company": "Dianomic"
+                },
+
+                # Expected
+                'switch_typename',
+                {
+                    'switch_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0002_switch_typename_sensor',
+                            'properties': {
+                                'Company': {'type': 'string'},
+                                'Name': {'isindex': True, 'type': 'string'},
+                                'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0002_switch_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'button': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        }
+                    ]
+                }
 
             )
+
         ]
     )
-    def test_create_omf_type_automatic(self, p_test_data, expected_output):
-        # FIXME:
+    def test_create_omf_type_automatic(self,
+                                       p_test_data,
+                                       p_type_id,
+                                       p_static_data,
+                                       expected_typename,
+                                       expected_omf_type):
 
         sending_process_instance = []
         config = []
         config_omf_types = []
         logger = MagicMock()
-        generated_data_to_send = []
-
-        config_category_name = "# FIXME:"
-        type_id = "0001"
 
         omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
 
+        type_id = p_type_id
         omf_north._config_omf_types = {"type-id": {"value": type_id}}
+        omf_north._config = {"StaticData": p_static_data}
 
-        omf_north._create_omf_type_automatic(p_test_data)
+        with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) \
+                as patched_send_in_memory_data_to_picromf:
 
+            typename, omf_type = omf_north._create_omf_type_automatic(p_test_data)
 
-        assert True
+        assert typename == expected_typename
+        assert omf_type == expected_omf_type
 
+        assert patched_send_in_memory_data_to_picromf.called
 
     @pytest.mark.parametrize(
         "p_test_data, "
@@ -476,8 +579,8 @@ class TestOmfNorthPlugin:
                         "reading": {"humidity": 10, "temperature": 20},
                         "user_ts": '2018-04-20 09:38:50.163164+00'
                     }
-                ]
-                , "# FIXME:"
+                ],
+                "# FIXME:"
             )
         ]
     )

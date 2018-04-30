@@ -365,6 +365,118 @@ class TestOmfNorthPlugin:
         assert num_sent == expected_num_sent
 
     @pytest.mark.parametrize(
+        "p_data_origin, "
+        "p_stream_id, "
+        "expected_data_to_send, ",
+        [
+                # Case 1 - Two integer values
+                (
+                    # Origin
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code_1",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    },
+
+                    # p_stream_id
+                    "0001measurement_""test_asset_code_1",
+
+                    # Expected transformation
+                    [
+                        {
+                            "containerid": "0001measurement_""test_asset_code_1",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163164Z",
+                                    "humidity": 11,
+                                    "temperature": 38
+                                }
+                            ]
+                        }
+                    ]
+                ),
+                # Case 2 - String
+                (
+                    # Origin
+                    {
+                        "id": 11,
+                        "asset_code": "test_asset_code_2",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"tick": "tock"},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    },
+
+                    # p_stream_id
+                    "0001measurement_""test_asset_code_2",
+
+                    # Expected transformation
+                    [
+                        {
+                            "containerid": "0001measurement_""test_asset_code_2",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163164Z",
+                                    "tick": "tock"
+                                }
+                            ]
+                        }
+                    ]
+                ),
+
+                # Case 3 - Number 957.2
+                (
+                    # Origin
+                    {
+                        "id": 12,
+                        "asset_code": "test_asset_code_3",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"pressure": 957.2},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    },
+
+                    # p_stream_id
+                    "0001measurement_""test_asset_code_3",
+
+                    # Expected transformation
+                    [
+
+                        {
+                            "containerid": "0001measurement_""test_asset_code_3",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163164Z",
+                                    "pressure": 957.2
+                                }
+                            ]
+                        }
+                    ]
+                )
+
+        ]
+    )
+    def test_transform_in_memory_row(
+                                        self,
+                                        p_data_origin,
+                                        p_stream_id,
+                                        expected_data_to_send
+    ):
+        """Tests the in memory transformations of a single row - _transform_in_memory_row"""
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+        generated_data_to_send = []
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._transform_in_memory_row(generated_data_to_send, p_data_origin, p_stream_id)
+
+        assert generated_data_to_send == expected_data_to_send
+
+    @pytest.mark.parametrize(
         "p_creation_type, "
         "p_data_origin, "
         "p_asset_codes_already_created, "
@@ -433,7 +545,6 @@ class TestOmfNorthPlugin:
         config = []
         config_omf_types = []
         logger = MagicMock()
-        generated_data_to_send = []
 
         config_category_name = "SEND_PR"
         type_id = "0001"
@@ -955,7 +1066,6 @@ class TestOmfNorthPlugin:
                                         expected_link_data
     ):
 
-
         sending_process_instance = []
         config = []
         config_omf_types = []
@@ -977,4 +1087,3 @@ class TestOmfNorthPlugin:
         patched_send_to_picromf.assert_any_call("Container", expected_container)
         patched_send_to_picromf.assert_any_call("Data", expected_static_data)
         patched_send_to_picromf.assert_any_call("Data", expected_link_data)
-

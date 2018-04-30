@@ -1,0 +1,3 @@
+{
+  "group": {"alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts"}
+}

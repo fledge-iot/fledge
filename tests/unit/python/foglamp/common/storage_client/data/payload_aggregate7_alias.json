@@ -1,0 +1,28 @@
+{
+  "aggregate": [
+    {
+      "operation": "min",
+      "json"      : {
+                        "column"     : "values",
+                        "properties" : "rate"
+                    },
+      "alias": "Minimum"
+    },
+    {
+      "operation": "max",
+      "json"      : {
+                        "column"     : "values",
+                        "properties" : "rate"
+                    },
+      "alias": "Maximum"
+    },
+    {
+      "operation": "avg",
+      "json"      : {
+                        "column"     : "values",
+                        "properties" : "rate"
+                    },
+      "alias": "Average"
+    }
+  ]
+}

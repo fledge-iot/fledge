@@ -651,24 +651,8 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
             for row in res['rows']:
-                if 'days' in row.get('schedule_interval'):
-                    interval_split = row.get('schedule_interval').split('days')
-                    interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1]
-                elif 'day' in row.get('schedule_interval'):
-                    interval_split = row.get('schedule_interval').split('day')
-                    interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1]
-                else:
-                    interval_days = 0
-                    interval_time = row.get('schedule_interval')
-                s_days = int(interval_days)
-                if not interval_time:
-                    interval_time = "00:00:00"
-                interval_time = interval_time.replace(",", "").strip()
-                s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
-                interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
-                                              seconds=s_interval.second)
+                interval_days, interval_dt = self.extract_day_time_from_interval(row.get('schedule_interval'))
+                interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
 
                 repeat_seconds = None
                 if interval is not None and interval != datetime.timedelta(0):
@@ -1553,3 +1537,23 @@ class Scheduler(object):
         for pid_str in pids:
             if pid_str.strip():
                 os.kill(int(pid_str.strip()), signal.SIGTERM)
+
+    def extract_day_time_from_interval(self, str_interval):
+        if 'days' in str_interval:
+            interval_split = str_interval.split('days')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1]
+        elif 'day' in str_interval:
+            interval_split = str_interval.split('day')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1]
+        else:
+            interval_days = 0
+            interval_time = str_interval
+
+        if not interval_time:
+            interval_time = "00:00:00"
+        interval_time = interval_time.replace(",", "").strip()
+        interval_time = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+
+        return int(interval_days), interval_time

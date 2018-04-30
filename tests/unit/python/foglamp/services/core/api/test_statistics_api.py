@@ -61,15 +61,29 @@ class TestStatistics:
 
     @pytest.mark.parametrize("interval, schedule_interval", [
         (60, "00:01:00"),
+        (100, "0:01:40"),
+        (3660, "1:01:00"),
+        (3660, "01:01:00"),
+        (86400, "1 day"),
         (86500, "1 day, 00:01:40"),
         (86500, "1 day 00:01:40"),
         (86400, "1 day 0:00:00"),
+        (86400, "1 day, 0:00:00"),
         (172800, "2 days"),
         (172900, "2 days, 0:01:40"),
-        (100, "0 days, 0:01:40"),
+        (179999, "2 days, 01:59:59"),
+        (179940, "2 days 01:59:00"),
+        (176459, "2 days 1:00:59"),
         (0, "0 days"),
         (0, "0 days, 00:00:00"),
-        (1, "0 days, 00:00:01")
+        (0, "0 days 00:00:00"),
+        (3601, "0 days, 1:00:01"),
+        (100, "0 days 0:01:40"),
+        (864000, "10 days"),
+        (867600, "10 days, 01:00:00"),
+        (864000, "10 days 00:00:00"),
+        (864000, "10 days, 0:00:00"),
+        (867600, "10 days 1:00:00")
     ])
     async def test_get_statistics_history(self, client, interval, schedule_interval):
         output = {"interval": interval, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},

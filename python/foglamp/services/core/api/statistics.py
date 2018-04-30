@@ -9,7 +9,7 @@ from aiohttp import web
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
-
+from foglamp.services.core.scheduler.scheduler import Scheduler
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -65,24 +65,9 @@ async def get_statistics_history(request):
         ['process_name', '=', 'stats collector']).payload()
     result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
     if len(result['rows']) > 0:
-        time_str = result['rows'][0]['schedule_interval']
-        if 'days' in time_str:
-            interval_split = time_str.split('days')
-            interval_days = interval_split[0].strip()
-            interval_time = interval_split[1]
-        elif 'day' in time_str:
-            interval_split = time_str.split('day')
-            interval_days = interval_split[0].strip()
-            interval_time = interval_split[1]
-        else:
-            interval_days = 0
-            interval_time = time_str
-        s_days = int(interval_days)
-        if not interval_time:
-            interval_time = "00:00:00"
-        interval_time = interval_time.replace(",", "").strip()
-        s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
-        interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute, seconds=s_interval.second)
+        scheduler = Scheduler()
+        interval_days, interval_dt = scheduler.extract_day_time_from_interval(result['rows'][0]['schedule_interval'])
+        interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
         interval_in_secs = interval.total_seconds()
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")

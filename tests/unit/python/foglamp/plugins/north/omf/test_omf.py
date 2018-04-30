@@ -22,6 +22,8 @@ from unittest.mock import patch, MagicMock
 from foglamp.plugins.north.omf import omf
 import foglamp.tasks.north.sending_process as module_sp
 
+from foglamp.common.storage_client.storage_client import StorageClient
+
 
 # noinspection PyPep8Naming
 class to_dev_null(object):
@@ -1087,3 +1089,134 @@ class TestOmfNorthPlugin:
         patched_send_to_picromf.assert_any_call("Container", expected_container)
         patched_send_to_picromf.assert_any_call("Data", expected_static_data)
         patched_send_to_picromf.assert_any_call("Data", expected_link_data)
+
+    @pytest.mark.parametrize(
+        "p_configuration_key, "
+        "p_type_id, "
+        "p_data_from_storage, "
+        "expected_data, ",
+        [
+
+            # Case 1
+            (
+                # p_configuration_key
+                "SEND_PR1",
+                
+                # p_type_id
+                "0001",
+
+                # p_data_from_storage
+                {
+                    "rows":
+                    [
+
+                        {
+                            "configuration_key": "SEND_PR1",
+                            "type_id": "0001",
+                            "asset_code": "asset_code_1"
+                        },
+                        {
+                            "configuration_key": "SEND_PR1",
+                            "type_id": "0001",
+                            "asset_code": "asset_code_2"
+                        }
+
+                    ]
+                },
+
+                # expected_data
+                [
+                    "asset_code_1",
+                    "asset_code_2"
+                ]
+            )
+        ]
+    )
+    def test_retrieve_omf_types_already_created(
+                                                self,
+                                                p_configuration_key,
+                                                p_type_id,
+                                                p_data_from_storage,
+                                                expected_data
+    ):
+        """Tests _retrieve_omf_types_already_created """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+        payload_builder = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
+
+        with patch.object(payload_builder, 'PayloadBuilder', return_value=True):
+
+            with patch.object(omf_north._sending_process_instance._storage,
+                              'query_tbl_with_payload',
+                              return_value=p_data_from_storage):
+
+                retrieved_rows = omf_north._retrieve_omf_types_already_created(p_configuration_key, p_type_id)
+
+        assert retrieved_rows == expected_data
+
+    @pytest.mark.parametrize(
+        "p_asset_code, "
+        "expected_asset_code, ",
+        [
+            # p_asset_code   # expected_asset_code
+            ("asset_code_1 ",  "asset_code_1"),
+            (" asset_code_2 ", "asset_code_2"),
+            ("asset_ code_3",  "asset_code_3"),
+        ]
+    )
+    def test_generate_omf_asset_id(
+            self,
+            p_asset_code,
+            expected_asset_code
+    ):
+        """Tests _generate_omf_asset_id """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        generated_asset_code = omf_north._generate_omf_asset_id(p_asset_code)
+
+        assert generated_asset_code == expected_asset_code
+
+    @pytest.mark.parametrize(
+        "p_type_id, "
+        "p_asset_code, "
+        "expected_measurement_id, ",
+        [
+            # p_type_id  - p_asset_code    - expected_asset_code
+            ("0001",     "asset_code_1 ",  "0001measurement_asset_code_1"),
+            ("0002",     " asset_code_2 ", "0002measurement_asset_code_2"),
+            ("0003",     "asset_ code_3",  "0003measurement_asset_code_3"),
+        ]
+    )
+    def test_generate_omf_measurement(
+            self,
+            p_type_id,
+            p_asset_code,
+            expected_measurement_id
+    ):
+        """Tests _generate_omf_measurement """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
+
+        generated_measurement_id = omf_north._generate_omf_measurement(p_asset_code)
+
+        assert generated_measurement_id == expected_measurement_id

@@ -2147,7 +2147,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				   "The \"value\" of an \"older\" condition must be an integer");
 			return false;
 		}
-		sql.append("< date('now', '-");
+		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
 		sql.append(" seconds')");
 	}
@@ -2159,7 +2159,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				   "The \"value\" of an \"newer\" condition must be an integer");
 			return false;
 		}
-		sql.append("> date('now', '-");
+		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
 		sql.append(" seconds')");
 	}

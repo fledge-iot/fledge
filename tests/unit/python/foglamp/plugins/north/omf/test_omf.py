@@ -365,11 +365,16 @@ class TestOmfNorthPlugin:
         assert num_sent == expected_num_sent
 
     @pytest.mark.parametrize(
+        "p_creation_type, "
         "p_data_origin, "
-        "expected_output ",
+        "p_asset_codes_already_created, "
+        "p_omf_objects_configuration_based ",
         [
-            # Case 1
+            # Case 1 - automatic
             (
+                # p_creation_type
+                "automatic",
+
                 # Origin
                 [
                     {
@@ -380,13 +385,49 @@ class TestOmfNorthPlugin:
                         "user_ts": '2018-04-20 09:38:50.163164+00'
                     }
                 ],
-                "# FIXME:"
+
+                # asset_codes_already_created
+                [
+                    "test_none"
+                ],
+
+                # omf_objects_configuration_based
+                {"none": "none"}
+            ),
+            # Case 2 - configuration
+            (
+                    # p_creation_type
+                    "configuration",
+
+                    # Origin
+                    [
+                        {
+                            "id": 10,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 10, "temperature": 20},
+                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                        }
+                    ],
+
+                    # asset_codes_already_created
+                    [
+                        "test_none"
+                    ],
+
+                    # omf_objects_configuration_based
+                    {"test_asset_code": {"value": "test_asset_code"}}
             )
+
         ]
     )
-    def test_create_omf_objects(self, p_data_origin, expected_output):
-        # # FIXME:
-        """ Test the creation of the OMF objects """
+    def test_create_omf_objects_test_creation(self,
+                                              p_creation_type,
+                                              p_data_origin,
+                                              p_asset_codes_already_created,
+                                              p_omf_objects_configuration_based
+                                              ):
+        """ Tests the evaluation of the 2 ways of creating OMF objects: automatic or configuration based """
 
         sending_process_instance = []
         config = []
@@ -394,15 +435,41 @@ class TestOmfNorthPlugin:
         logger = MagicMock()
         generated_data_to_send = []
 
-        config_category_name = "# FIXME:"
+        config_category_name = "SEND_PR"
         type_id = "0001"
 
         omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
 
         omf_north._config_omf_types = {"type-id": {"value": type_id}}
-        # omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
+        omf_north._config_omf_types = p_omf_objects_configuration_based
 
-        assert True
+        with patch.object(omf_north, '_retrieve_omf_types_already_created', return_value=p_asset_codes_already_created):
+
+            with patch.object(omf_north, '_create_omf_objects_configuration_based') \
+                    as patched_create_omf_objects_configuration_based:
+
+                with patch.object(omf_north, '_create_omf_objects_automatic') \
+                        as patched_create_omf_objects_automatic:
+
+                    with patch.object(omf_north, '_flag_created_omf_type') \
+                            as patched_flag_created_omf_type:
+
+                        omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
+
+        if p_creation_type == "automatic":
+
+            assert not patched_create_omf_objects_configuration_based.called
+            assert patched_create_omf_objects_automatic.called
+            assert patched_flag_created_omf_type.called
+
+        elif p_creation_type == "configuration":
+
+            assert patched_create_omf_objects_configuration_based.called
+            assert not patched_create_omf_objects_automatic.called
+            assert patched_flag_created_omf_type.called
+
+        else:
+            raise Exception("ERROR : creation type not defined !")
 
     @pytest.mark.parametrize(
         "p_test_data, "
@@ -546,6 +613,8 @@ class TestOmfNorthPlugin:
                                        p_static_data,
                                        expected_typename,
                                        expected_omf_type):
+        """ Tests the generation of the OMF messages starting from Asset name and data
+            using Automatic OMF Type Mapping"""
 
         sending_process_instance = []
         config = []
@@ -781,25 +850,86 @@ class TestOmfNorthPlugin:
         assert patched_requests.call_count == 1
 
     @pytest.mark.parametrize(
-        "p_test_data, "
-        "expected_output ",
+        "p_asset,"
+        "p_type_id, "
+        "p_static_data, "        
+        "p_typename,"
+        "p_omf_type",
         [
-            # Case 1
+            # Case 1 - pressure / Number
             (
-                # Origin
-                [
-                    {
-                        "id": 10,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 10, "temperature": 20},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    }
-                ],
-                "# FIXME:"
+                {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
+
+                # type_id
+                "0001",
+
+                # Static Data
+                {
+                    "Location": "Palo Alto",
+                    "Company": "Dianomic"
+                },
+
+                # p_typename
+                'pressure_typename',
+                {
+                    'pressure_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0001_pressure_typename_sensor',
+                            'properties': {
+                                            'Company': {'type': 'string'},
+                                            'Name': {'isindex': True, 'type': 'string'},
+                                            'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0001_pressure_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'pressure': {'type': 'number'}
+                            },
+                            'type': 'object'
+                         }
+                    ]
+                }
             )
+
         ]
     )
-    def test_create_omf_object_links(self, p_test_data, expected_output):
-        # FIXME:
-        assert True
+    def test_create_omf_object_links(
+                                        self,
+                                        p_asset,
+                                        p_type_id,
+                                        p_static_data,
+                                        p_typename,
+                                        p_omf_type):
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        type_id = p_type_id
+        omf_north._config_omf_types = {"type-id": {"value": type_id}}
+        omf_north._config = {"StaticData": p_static_data}
+
+        with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) \
+                as patched_send_in_memory_data_to_picromf:
+
+            omf_north._create_omf_object_links(p_asset["asset_code"], p_typename, p_omf_type)
+
+        assert patched_send_in_memory_data_to_picromf.call_count == 3
+
+# self.send_in_memory_data_to_picromf("Container", containers)
+# <class 'list'>: [{'typeid': '0001_pressure_typename_measurement', 'id': '0001measurement_pressure'}]
+
+# self.send_in_memory_data_to_picromf("Data", static_data)
+# <class 'list'>: [{'typeid': '0001_pressure_typename_sensor', 'values': [{'Company': 'Dianomic', 'Location': 'Palo Alto', 'Name': 'pressure'}]}]
+
+# self.send_in_memory_data_to_picromf("Data", link_data)
+# <class 'list'>: [{'typeid': '__Link', 'values': [{'source': {'typeid': '0001_pressure_typename_sensor', 'index': '_ROOT'}, 'target': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}}, {'source': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}, 'target': {'containerid': '0001measurement_pressure'}}]}]

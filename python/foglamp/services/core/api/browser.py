@@ -31,14 +31,10 @@ Supports a number of REST API:
 
   Note seconds, minutes and hours can not be combined in a URL. If they are then only seconds
   will have an effect.
-
-  TODO: Improve error handling, use a connection pool
 """
 
-import json
 from aiohttp import web
 
-from collections import OrderedDict
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 
@@ -107,26 +103,21 @@ async def asset_counts(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/asset
     """
+    payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count"))\
+        .GROUP_BY("asset_code").payload()
 
-    # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
-    # PayloadBuilder().AGGREGATE(["count", "*"]).GROUP_BY('asset_code')
-    aggregate = {"operation": "count", "column": "*", "alias": "count"}
-    d = OrderedDict()
-    d['aggregate'] = aggregate
-    d['group'] = "asset_code"
-
-    payload = json.dumps(d)
     results = {}
     try:
         _storage = connect.get_storage()
         results = _storage.query_tbl_with_payload('readings', payload)
         response = results['rows']
+        asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
 
-    return web.json_response(response)
+    return web.json_response(asset_json)
 
 
 async def asset(request):
@@ -144,19 +135,15 @@ async def asset(request):
             curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1&skip=1"
     """
     asset_code = request.match_info.get('asset_code', '')
-
-    # TODO: FOGL-637, 640
-    timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
-    d = OrderedDict()
-    d['return'] = [timestamp, "reading"]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
+        FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+    _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
 
     # Add the order by and limit, offset clause
-    _limit_skip_payload = prepare_limit_skip_payload(request, d)
+    _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
     payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
-    
+
     results = {}
     try:
         _storage = connect.get_storage()
@@ -202,20 +189,14 @@ async def asset_reading(request):
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
 
-    # TODO: FOGL-637, 640
-    timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
-    json_property = OrderedDict()
-    json_property['json'] = {"column": "reading", "properties": reading}
-    json_property['alias'] = reading
-
-    d = OrderedDict()
-    d['return'] = [timestamp, json_property]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading]))\
+        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading))\
+        .FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+    _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
 
     # Add the order by and limit, offset clause
-    _limit_skip_payload = prepare_limit_skip_payload(request, d)
+    _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
     payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
     results = {}
@@ -258,20 +239,14 @@ async def asset_summary(request):
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
-
-    # TODO: FOGL-643
-    prop_dict = {"column": "reading", "properties": reading}
-    min_dict = {"operation": "min", "json": prop_dict, "alias": "min"}
-    max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
-    avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
-
-    d = OrderedDict()
-    d['aggregate'] = [min_dict, max_dict, avg_dict]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                            ["avg", ["reading", reading]])\
+        .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+               ('reading', 'avg', 'average')).chain_payload()
+    _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
+    payload = PayloadBuilder(_and_where).payload()
 
-    payload = json.dumps(d)
     results = {}
     try:
         _storage = connect.get_storage()
@@ -345,26 +320,19 @@ async def asset_averages(request):
         else:
             raise web.HTTPBadRequest(reason="{} is not a valid group".format(_group))
 
-    # TODO: FOGL-637, 640
-    timestamp = {"column": "user_ts", "format": ts_restraint, "alias": "timestamp"}
-    prop_dict = {"column": "reading", "properties": reading}
-    min_dict = {"operation": "min", "json": prop_dict, "alias": "min"}
-    max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
-    avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
-
-    aggregate = OrderedDict()
-    aggregate['aggregate'] = [min_dict, max_dict, avg_dict]
-    d = OrderedDict()
-    d['aggregate'] = [min_dict, max_dict, avg_dict]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                            ["avg", ["reading", reading]])\
+        .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+               ('reading', 'avg', 'average')).chain_payload()
+    _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
 
     # Add the GROUP BY
-    d['group'] = timestamp
+    _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp"))\
+        .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
 
     # Add LIMIT, OFFSET, ORDER BY timestamp DESC
-    _limit_skip_payload = prepare_limit_skip_payload(request, d)
+    _limit_skip_payload = prepare_limit_skip_payload(request, _group)
     payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
     results = {}

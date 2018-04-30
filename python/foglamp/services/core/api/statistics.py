@@ -3,7 +3,6 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
 import datetime
 from aiohttp import web
 
@@ -85,8 +84,10 @@ async def get_statistics_history(request):
         interval_in_secs = interval.total_seconds()
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
-    history_ts = '{"column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "history_ts"}'
-    stats_history_chain_payload = PayloadBuilder().SELECT((history_ts, "key", "value")).ORDER_BY(['history_ts', 'desc']).chain_payload()
+    stats_history_chain_payload = PayloadBuilder().SELECT(("history_ts", "key", "value"))\
+        .ALIAS("return", ("history_ts", 'history_ts')).FORMAT("return", ("history_ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+        .ORDER_BY(['history_ts', 'desc']).chain_payload()
+
     if 'limit' in request.query and request.query['limit'] != '':
         try:
             limit = int(request.query['limit'])

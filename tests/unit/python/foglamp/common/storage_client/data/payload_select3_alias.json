@@ -1,0 +1,12 @@
+{
+  "return": [
+              {"alias": "my_name", "column": "name"},
+              {
+                  "json" : {
+                              "column"     : "id",
+                              "properties" : "reason"
+                           },
+                  "alias" : "my_id"
+              }
+            ]
+}

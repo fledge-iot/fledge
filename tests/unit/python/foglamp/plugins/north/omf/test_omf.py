@@ -955,6 +955,7 @@ class TestOmfNorthPlugin:
                                         expected_link_data
     ):
 
+
         sending_process_instance = []
         config = []
         config_omf_types = []

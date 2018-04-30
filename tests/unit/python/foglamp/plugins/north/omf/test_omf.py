@@ -854,10 +854,14 @@ class TestOmfNorthPlugin:
         "p_type_id, "
         "p_static_data, "        
         "p_typename,"
-        "p_omf_type",
+        "p_omf_type, "
+        "expected_container, "
+        "expected_static_data, "
+        "expected_link_data ",
         [
             # Case 1 - pressure / Number
             (
+                # p_asset
                 {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
 
                 # type_id
@@ -871,6 +875,8 @@ class TestOmfNorthPlugin:
 
                 # p_typename
                 'pressure_typename',
+
+                # p_omf_type
                 {
                     'pressure_typename':
                     [
@@ -894,7 +900,45 @@ class TestOmfNorthPlugin:
                             'type': 'object'
                          }
                     ]
-                }
+                },
+
+                # expected_container
+                [
+                    {
+                        'typeid': '0001_pressure_typename_measurement',
+                        'id': '0001measurement_pressure'
+                    }
+                ],
+
+                # expected_static_data
+                [
+                    {
+                        'typeid': '0001_pressure_typename_sensor',
+                        'values': [
+                                    {
+                                        'Company': 'Dianomic',
+                                        'Location': 'Palo Alto',
+                                        'Name': 'pressure'
+                                    }
+                        ]
+                    }
+                ],
+
+                # expected_link_data
+                [
+                    {
+                        'typeid': '__Link', 'values': [
+                            {
+                                    'source': {'typeid': '0001_pressure_typename_sensor', 'index': '_ROOT'},
+                                    'target': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}
+                            },
+                            {
+                                    'source': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'},
+                                    'target': {'containerid': '0001measurement_pressure'}
+                            }
+                        ]
+                     }
+                ]
             )
 
         ]
@@ -905,7 +949,11 @@ class TestOmfNorthPlugin:
                                         p_type_id,
                                         p_static_data,
                                         p_typename,
-                                        p_omf_type):
+                                        p_omf_type,
+                                        expected_container,
+                                        expected_static_data,
+                                        expected_link_data
+    ):
 
         sending_process_instance = []
         config = []
@@ -919,17 +967,13 @@ class TestOmfNorthPlugin:
         omf_north._config = {"StaticData": p_static_data}
 
         with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) \
-                as patched_send_in_memory_data_to_picromf:
+                as patched_send_to_picromf:
 
             omf_north._create_omf_object_links(p_asset["asset_code"], p_typename, p_omf_type)
 
-        assert patched_send_in_memory_data_to_picromf.call_count == 3
+        assert patched_send_to_picromf.call_count == 3
 
-# self.send_in_memory_data_to_picromf("Container", containers)
-# <class 'list'>: [{'typeid': '0001_pressure_typename_measurement', 'id': '0001measurement_pressure'}]
+        patched_send_to_picromf.assert_any_call("Container", expected_container)
+        patched_send_to_picromf.assert_any_call("Data", expected_static_data)
+        patched_send_to_picromf.assert_any_call("Data", expected_link_data)
 
-# self.send_in_memory_data_to_picromf("Data", static_data)
-# <class 'list'>: [{'typeid': '0001_pressure_typename_sensor', 'values': [{'Company': 'Dianomic', 'Location': 'Palo Alto', 'Name': 'pressure'}]}]
-
-# self.send_in_memory_data_to_picromf("Data", link_data)
-# <class 'list'>: [{'typeid': '__Link', 'values': [{'source': {'typeid': '0001_pressure_typename_sensor', 'index': '_ROOT'}, 'target': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}}, {'source': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}, 'target': {'containerid': '0001measurement_pressure'}}]}]

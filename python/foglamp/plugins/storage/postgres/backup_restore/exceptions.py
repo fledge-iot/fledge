@@ -111,3 +111,8 @@ class InvalidFogLAMPEnvironment(RuntimeError):
     """ It is not possible to determine the environment in which the code is running
     neither Deployment nor Development """
     pass
+
+
+class UndefinedStorage(Exception):
+    """ It is not possible to evaluate if the storage is managed or unmanaged """
+    pass

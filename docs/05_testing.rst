@@ -81,6 +81,8 @@ When you have a running FogLAMP, check the extra information provided by the ``f
   $ foglamp status
   FogLAMP running.
   FogLAMP uptime:  282 seconds.
+  FogLAMP Records: 10 read, 0 sent, 0 purged.
+  FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
   foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP
@@ -92,16 +94,25 @@ When you have a running FogLAMP, check the extra information provided by the ``f
 Let's analyze the output of the command:
 
 - ``FogLAMP running.`` - The FogLAMP Core microservice is running on this machine and it is responding to the status command as *running* because other basic microservices are also running. 
-- ``FogLAMP uptime:  282 seconds.`` - This is a simple uptime in second provided by the Core microservice. It is equivalent to the ``ping`` method called via the REST API. The following lines provide a list of the modules running in this installation of FogLAMP. They are separated by dots and described in this way:
+- ``FogLAMP uptime:  282 seconds.`` - This is a simple uptime in second provided by the Core microservice. It is equivalent to the ``ping`` method called via the REST API.
+- ``FogLAMP records:`` - This is a summary of the number of records received from sensors and devices (South), sent to other services (North) and purged from the buffer.
+- ``FogLAMP authentication`` - This row describes if a user or an application must authenticate to ogLAMP in order to operate with the REST API.
+
+The following lines provide a list of the modules running in this installation of FogLAMP. They are separated by dots and described in this way:
+
   - The prefix ``foglamp`` is always present and identifies the FogLAMP modules.
   - The following term describes the type of module: *services* for microservices, *tasks* for tasks etc.
   - The following term is the name of the module: *core*, *storage*, *north*, *south*, *app*, *alert*
   - The last term is the name of the plugin executed as part of the module.
   - Extra arguments may be available: they are the arguments passed to the module by the core when it is launched.
+
 - ``=== FogLAMP services:`` - This block contains the list of microservices running in the FogLAMP plaftorm.
+
   - ``foglamp.services.core`` is the Core microservice itself
   - ``foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to FogLAMP via a CoAP protocol
+
 - ``=== FogLAMP tasks:`` - This block contains the list of tasks running in the FogLAMP platform.
+
   - ``foglamp.tasks.north.sending_process ... --name=sending process`` is a North task that prepares and sends data collected by the South modules to the OSIsoft PI System in OMF (OSIsoft Message Format).
   - ``foglamp.tasks.north.sending_process ... --name=statistics to pi`` is a North task that prepares and sends the internal statistics to the OSIsoft PI System in OMF (OSIsoft Message Format).
 
@@ -145,7 +156,7 @@ The default port for the REST API is 8081. Using curl, try this command:
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/ping ; echo
-  {"uptime": 2646.8824095726013}
+  {"dataPurged": 0, "dataRead": 10, "uptime": 2646.8824095726013, "dataSent": 0, "authenticationOptional": true}
   $
  
 The ``echo`` at the end of the line is simply used to add an extra new line to the output. 

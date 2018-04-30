@@ -35,11 +35,28 @@ from enum import IntEnum
 import sys
 import json
 
+
 # ExtractJson Class
 class ExtractJson(object):
     def __init__(self, json_input, method):
         self._json = json_input
         self._method = method
+
+    # Return REST API URL from 'FogLAMP' PID file in JSON input
+    def get_rest_api_url_from_pid(self, unused=None):
+
+        try:
+            json_data = self._json['adminAPI']
+            scheme = json_data['protocol'].lower()
+            port = str(json_data['port'])
+            if json_data['addresses'][0] == "0.0.0.0":
+                address = "127.0.0.1"
+            else:
+                address = json_data['addresses'][0]
+
+            return str(scheme + "://" + address + ":" + port)
+        except Exception as ex:
+            raise Exception(self.set_error_message("FogLAMP PID", ex))
 
     # Set error message for rasing exceptions class methods
     def set_error_message(self, name, ex):

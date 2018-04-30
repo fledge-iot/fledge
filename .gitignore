@@ -13,6 +13,11 @@
 data/etc/storage.json
 data/etc/certs/*
 data/var
+data/tmp
+
+# SQLite3 default db location and after migration
+data/*.db
+scripts/extras/*.db
 
 /etc/storage.json
 /etc/certs/*
@@ -50,6 +55,10 @@ docs/.cache/
 *.key
 
 .cache/
+
+# Backup
+data/backup
+data/etc/backup_postgres_configuration_cache.json
 
 # test
 .pytest_cache

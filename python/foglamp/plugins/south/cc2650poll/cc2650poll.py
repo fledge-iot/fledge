@@ -46,6 +46,11 @@ _DEFAULT_CONFIG = {
         'description': 'Time in seconds allowed for shutdown to complete the pending tasks',
         'type': 'integer',
         'default': '10'
+    },
+    'management_host': {
+        'description': 'Management host',
+        'type': 'string',
+        'default': '127.0.0.1',
     }
 }
 
@@ -69,6 +74,7 @@ def plugin_info():
         'interface': '1.0',
         'config': _DEFAULT_CONFIG
     }
+
 
 def plugin_init(config):
     """ Initialise the plugin.
@@ -105,6 +111,7 @@ def plugin_init(config):
         _LOGGER.info('SensorTagCC2650 {} Polling initialized'.format(bluetooth_adr))
 
     return data
+
 
 def plugin_poll(handle):
     """ Extracts data from the sensor and returns it in a JSON document as a Python dict.
@@ -244,6 +251,7 @@ def plugin_poll(handle):
     _LOGGER.debug("SensorTagCC2650 {} reading: {}".format(bluetooth_adr, json.dumps(data)))
     return data
 
+
 def plugin_reconfigure(handle, new_config):
     """  Reconfigures the plugin
 
@@ -263,15 +271,19 @@ def plugin_reconfigure(handle, new_config):
     diff = utils.get_diff(handle, new_config)
 
     # Plugin should re-initialize and restart if key configuration is changed
-    if 'bluetoothAddress' in diff:
+    if 'bluetoothAddress' in diff or 'management_host' in diff:
         _plugin_stop(handle)
         new_handle = plugin_init(new_config)
         new_handle['restart'] = 'yes'
         _LOGGER.info("Restarting CC2650POLL plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    elif 'pollInterval' in diff or 'connectionTimeout' in diff or 'shutdownThreshold' in diff:
+        new_handle = copy.deepcopy(new_config)
+        new_handle['restart'] = 'no'
     else:
         new_handle = copy.deepcopy(handle)
         new_handle['restart'] = 'no'
     return new_handle
+
 
 def _plugin_stop(handle):
     """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
@@ -286,6 +298,7 @@ def _plugin_stop(handle):
         tag = handle['tag']
         tag.disconnect()
         _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+
 
 def plugin_shutdown(handle):
     """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.

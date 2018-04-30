@@ -17,6 +17,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+__all__ = ('ScheduledProcess', 'Schedule', 'IntervalSchedule', 'TimedSchedule', 'ManualSchedule', 'StartUpSchedule', 'Task')
+
 
 class ScheduledProcess(object):
     """Represents a program that a Task can run"""

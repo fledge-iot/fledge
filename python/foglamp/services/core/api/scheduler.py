@@ -10,8 +10,7 @@ from aiohttp import web
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, \
     ManualSchedule, Task
-from foglamp.services.core.scheduler.exceptions import TaskNotFoundError, ScheduleNotFoundError, TaskNotRunningError, \
-    NotReadyError
+from foglamp.services.core.scheduler.exceptions import *
 from foglamp.services.core import connect
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -38,7 +37,7 @@ _help = """
     | GET             | /foglamp/task/latest                                      |
     | GET             | /foglamp/task/{task_id}                                   |
     | GET             | /foglamp/task/state                                       |
-    | PUT             | /foglamp/task/cancel/{task_id}                            |
+    | PUT             | /foglamp/task/{task_id}/cancel                            |
     -------------------------------------------------------------------------------
 """
 
@@ -97,8 +96,9 @@ def _extract_args(data, curr_value):
         if 'type' in data and (not isinstance(data['type'], int) and not data['type'].isdigit()):
             raise ValueError('Error in type: {}'.format(data['type']))
 
-        if 'day' in data and (not isinstance(data['day'], int) and not data['day'].isdigit()):
-            raise ValueError('Error in day: {}'.format(data['day']))
+        if 'day' in data:
+            if isinstance(data['day'], float) or (isinstance(data['day'], str) and (data['day'].strip() != "" and not data['day'].isdigit())):
+                raise ValueError('Error in day: {}'.format(data['day']))
 
         if 'time' in data and (not isinstance(data['time'], int) and not data['time'].isdigit()):
             raise ValueError('Error in time: {}'.format(data['time']))
@@ -114,8 +114,9 @@ def _extract_args(data, curr_value):
         _schedule['schedule_type'] = int(s_type)
 
         s_day = data.get('day') if 'day' in data else curr_value['schedule_day'] if curr_value and curr_value[
-            'schedule_day'] else 0
-        _schedule['schedule_day'] = int(s_day)
+            'schedule_day'] else None
+        _schedule['schedule_day'] = int(s_day) if s_day is not None and (
+            isinstance(s_day, int) or (not isinstance(s_day, int) and s_day.isdigit())) else None
 
         s_time = data.get('time') if 'time' in data else curr_value['schedule_time'] if curr_value and curr_value[
             'schedule_time'] else 0
@@ -170,12 +171,12 @@ async def _check_schedule_post_parameters(data, curr_value=None):
 
     # Raise error if day and time are missing for schedule_type = TIMED
     if _schedule.get('schedule_type') == Schedule.Type.TIMED:
-        if not _schedule.get('schedule_day'):
-            _errors.append('Schedule day and time cannot be empty for TIMED schedule.')
-        elif not isinstance(_schedule.get('schedule_day'), int) or (
-                _schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7):
-            _errors.append('Day must be an integer and in range 1-7.')
-        elif not isinstance(_schedule.get('schedule_time'), int) or (
+        if not _schedule.get('schedule_time'):
+            _errors.append('Schedule time cannot be empty for TIMED schedule.')
+        if _schedule.get('schedule_day') is not None and (not isinstance(_schedule.get('schedule_day'), int) or (
+                _schedule.get('schedule_day') < 1 or _schedule.get('schedule_day') > 7)):
+            _errors.append('Day must either be None or must be an integer and in range 1-7.')
+        if not isinstance(_schedule.get('schedule_time'), int) or (
                 _schedule.get('schedule_time') < 0 or _schedule.get('schedule_time') > 86399):
             _errors.append('Time must be an integer and in range 0-86399.')
 
@@ -187,8 +188,8 @@ async def _check_schedule_post_parameters(data, curr_value=None):
             _errors.append('Repeat must be an integer.')
 
     # Raise error if day is non integer
-    if not isinstance(_schedule.get('schedule_day'), int):
-        _errors.append('Day must be an integer.')
+    if _schedule.get('schedule_day') is not None and not isinstance(_schedule.get('schedule_day'), int):
+        _errors.append('Day must either be None or must be an integer.')
 
     # Raise error if time is non integer
     if not isinstance(_schedule.get('schedule_time'), int):
@@ -208,7 +209,7 @@ async def _check_schedule_post_parameters(data, curr_value=None):
     scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
 
     if len(scheduled_process['rows']) == 0:
-        _errors.append('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
+        raise ScheduleProcessNameNotFoundError('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
 
     # Raise error if exclusive is wrong
     if _schedule.get('schedule_exclusive') not in ['True', 'False']:
@@ -453,8 +454,10 @@ async def post_schedule(request):
         }
 
         return web.json_response({'schedule': schedule})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
 
 async def update_schedule(request):
@@ -476,7 +479,7 @@ async def update_schedule(request):
 
         sch = await server.Server.scheduler.get_schedule(uuid.UUID(schedule_id))
         if not sch:
-            raise ValueError('No such Schedule: {}.'.format(schedule_id))
+            raise ScheduleNotFoundError(schedule_id)
 
         curr_value = dict()
         curr_value['schedule_id'] = sch.schedule_id
@@ -510,8 +513,10 @@ async def update_schedule(request):
         }
 
         return web.json_response({'schedule': schedule})
-    except (ValueError, ScheduleNotFoundError) as ex:
+    except (ScheduleNotFoundError, ScheduleProcessNameNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
 
 async def delete_schedule(request):
@@ -533,6 +538,8 @@ async def delete_schedule(request):
         retval, message = await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
 
         return web.json_response({'message': message, 'id': schedule_id})
+    except RuntimeWarning:
+        raise web.HTTPConflict(reason="Enabled Schedule {} cannot be deleted.".format(schedule_id))
     except (ValueError, ScheduleNotFoundError, NotReadyError) as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
@@ -674,8 +681,10 @@ async def get_tasks_latest(request):
 
               curl -X GET  http://localhost:8081/foglamp/task/latest?name=xxx
     """
+    start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
+    end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
     payload = PayloadBuilder().SELECT(
-        ("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
+        ("id", "process_name", "state", start_ts, end_ts, "reason", "pid", "exit_code")) \
         .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]).payload()
 
     if 'name' in request.query and request.query['name'] != '':
@@ -722,7 +731,7 @@ async def cancel_task(request):
     """Cancel a running task from tasks table
 
     :Example:
-             curl -X PUT  http://localhost:8081/foglamp/task/cancel/{task_id}
+             curl -X PUT  http://localhost:8081/foglamp/task/{task_id}/cancel
     """
     try:
         task_id = request.match_info.get('task_id', None)

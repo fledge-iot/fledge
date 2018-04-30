@@ -11,14 +11,11 @@ import datetime
 import time
 import uuid
 from typing import List, Union
-
-# import dateutil.parser
 import json
-
 from foglamp.common import logger
 from foglamp.common.statistics import Statistics
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
+from foglamp.common.storage_client.exceptions import StorageServerError
 
 __author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -26,7 +23,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)  # type: logging.Logger
-
+_MAX_ATTEMPTS = 2
 
 # _LOGGER = logger.setup(__name__, level=logging.DEBUG)  # type: logging.Logger
 # _LOGGER = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
@@ -43,6 +40,7 @@ class Ingest(object):
 
     _core_management_host = ""
     _core_management_port = 0
+    _parent_service = None
 
     readings_storage = None  # type: Readings
     storage = None  # type: Storage
@@ -170,11 +168,16 @@ class Ingest(object):
         }
 
         # Create configuration category and any new keys within it
-        cfg_manager = ConfigurationManager(cls.storage)
-        await cfg_manager.create_category(category, default_config, 'South server configuration')
+        config_payload = json.dumps({
+            "key": category,
+            "description": 'South server configuration',
+            "value": default_config,
+            "keep_original_items": False
+        })
+        cls._parent_service._core_microservice_management_client.create_configuration_category(config_payload)
 
         # Read configuration
-        config = await cfg_manager.get_category_all_items(category)
+        config = cls._parent_service._core_microservice_management_client.get_configuration_category(category_name=category)
 
         cls._write_statistics_frequency_seconds = int(config['write_statistics_frequency_seconds']
                                                       ['value'])
@@ -192,13 +195,14 @@ class Ingest(object):
             config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
 
     @classmethod
-    async def start(cls, core_mgt_host, core_mgt_port):
+    async def start(cls, core_mgt_host, core_mgt_port, parent):
         """Starts the server"""
         if cls._started:
             return
 
         cls._core_management_host = core_mgt_host
         cls._core_management_port = core_mgt_port
+        cls._parent_service = parent
 
         cls.readings_storage = ReadingsStorageClient(cls._core_management_host, cls._core_management_port)
         cls.storage = StorageClient(cls._core_management_host, cls._core_management_port)
@@ -375,36 +379,34 @@ class Ingest(object):
                     payload = dict()
                     payload['readings'] = readings_list
 
-                    res = cls.readings_storage.append(json.dumps(payload))
-
                     try:
-                        if res["response"] == "appended":
-                            batch_size = len(readings_list)
-                            cls._readings_stats += batch_size
-                    except KeyError:
+                        cls.readings_storage.append(json.dumps(payload))
+                        batch_size = len(readings_list)
+                        cls._readings_stats += batch_size
+                    except StorageServerError as ex:
+                        err_response = ex.error
                         # if key error in next, it will be automatically in parent except block
-                        if res["retryable"]:  # retryable is bool
+                        if err_response["retryable"]:  # retryable is bool
                             # raise and exception handler will retry
-                            raise res["message"]
+                            _LOGGER.warning("Got %s error, retrying ...", err_response["source"])
+                            raise
                         else:
-                            # not re-tryable
-                            _LOGGER.error(res["message"])
+                            # not retryable
+                            _LOGGER.error("%s, %s", err_response["source"], err_response["message"])
                             batch_size = len(readings_list)
                             cls._discarded_readings_stats += batch_size
-                            # let the loop break
 
                     # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
                     #               list_index, batch_size)
-
                     break
-                except Exception:
+                except Exception as ex:
                     attempt += 1
 
                     # TODO logging each time is overkill
-                    _LOGGER.exception('Insert failed on attempt #%s, list index: %s',
-                                      attempt, list_index)
+                    _LOGGER.exception('Insert failed on attempt #%s, list index: %s | %s',
+                                      attempt, list_index, str(ex))
 
-                    if cls._stop and attempt >= 1:
+                    if cls._stop or attempt >= _MAX_ATTEMPTS:
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
@@ -427,9 +429,9 @@ class Ingest(object):
 
         # Register static statistics
         await stats.register('READINGS', 'The number of readings received by FogLAMP since startup')
-        await stats.register('DISCARDED', 'The number of readings discarded at the input side by FogLAMP, i.e.' +
-                                            'discarded before being  placed in the buffer. This may be due to some ' +
-                                            'error in the readings themselves.')
+        await stats.register('DISCARDED', 'The number of readings discarded at the input side by FogLAMP, i.e. '
+                                          'discarded before being  placed in the buffer. This may be due to some '
+                                          'error in the readings themselves.')
 
         while not cls._stop:
             # stop() calls _write_statistics_sleep_task.cancel().
@@ -451,21 +453,20 @@ class Ingest(object):
 
             try:
                 await stats.update('READINGS', readings)
-            except Exception:  # TODO catch real exception
+            except Exception as ex:
                 cls._readings_stats += readings
-                _LOGGER.exception('An error occurred while writing readings statistics')
+                _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
 
             readings = cls._discarded_readings_stats
             cls._discarded_readings_stats = 0
 
             try:
                 await stats.update('DISCARDED', readings)
-            # TODO catch real exception
-            except Exception:  # TODO catch real exception
+            except Exception as ex:
                 cls._discarded_readings_stats += readings
-                _LOGGER.exception('An error occurred while writing discarded statistics')
+                _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
 
-            """ Register the statistics keys as this may be the first time the key has come into existance """
+            """ Register the statistics keys as this may be the first time the key has come into existence """
             for key in cls._sensor_stats:
                 description = 'The number of readings received by FogLAMP since startup for sensor {}'.format(key)
                 await stats.register(key, description)
@@ -473,7 +474,7 @@ class Ingest(object):
                 await stats.add_update(cls._sensor_stats)
                 cls._sensor_stats = {}
             except Exception as ex:
-                _LOGGER.exception('An error occurred while writing sensor statistics, error: %s', str(ex))
+                _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
 
         _LOGGER.info('South statistics writer stopped')
 
@@ -542,11 +543,6 @@ class Ingest(object):
             if timestamp is None:
                 raise ValueError('timestamp can not be None')
 
-            # TODO: for?
-            ''' below code from node JS, works fine!
-                dt = new Date()
-                timestamp = dt.toISOString()
-            '''
             # if not isinstance(timestamp, datetime.datetime):
             #     # validate
             #     timestamp = dateutil.parser.parse(timestamp)

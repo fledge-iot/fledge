@@ -1,0 +1,14 @@
+{
+	"condition"       : {
+				"column"    : "id",
+				"condition" : "=",
+				"value"     : 4
+			    },
+	"json_properties" : [
+				{
+					"column" : "data",
+					"path"   : [ "url", "value" ],
+					"value"  : "new value"
+				}
+			    ]
+}

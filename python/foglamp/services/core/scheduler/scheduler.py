@@ -20,7 +20,7 @@ from typing import List
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
-from foglamp.services.core.scheduler.entities import ScheduledProcess, Schedule, Task, IntervalSchedule, TimedSchedule, StartUpSchedule, ManualSchedule
+from foglamp.services.core.scheduler.entities import *
 from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -29,17 +29,15 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.common import utils
 
-__author__ = "Terris Linenbach, Amarendra K Sinha"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# TODO: FOGL-510 - Prepare foglamp testing environment
-_ENV = os.getenv('FOGLAMP_ENV', 'DEV')
-
 # FOGLAMP_ROOT env variable
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
-_SCRIPTS_DIR= os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+_SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
+
 
 class Scheduler(object):
     """FogLAMP Task Scheduler
@@ -106,8 +104,8 @@ class Scheduler(object):
     """The maximum number of rows to delete in the tasks table in a single transaction"""
 
     _HOUR_SECONDS = 3600
-    _DAY_SECONDS = 3600*24
-    _WEEK_SECONDS = 3600*24*7
+    _DAY_SECONDS = 3600 * 24
+    _WEEK_SECONDS = 3600 * 24 * 7
     _ONE_HOUR = datetime.timedelta(hours=1)
     _ONE_DAY = datetime.timedelta(days=1)
 
@@ -218,12 +216,7 @@ class Scheduler(object):
             self._check_processes_pending = True
 
     async def _wait_for_task_completion(self, task_process: _TaskProcess) -> None:
-        # TODO: FOGL-1017 - Remove Foglamp test environment references from scheduler.py
-        if _ENV == 'TEST' and task_process.cancel_requested:
-            exit_code = -1
-        else:
-            exit_code = await task_process.process.wait()
-
+        exit_code = await task_process.process.wait()
         schedule = task_process.schedule
 
         self._logger.info(
@@ -313,7 +306,7 @@ class Scheduler(object):
         except EnvironmentError:
             self._logger.exception(
                 "Unable to start schedule '%s' process '%s'\n%s",
-                    schedule.name, schedule.process_name, args_to_exec)
+                schedule.name, schedule.process_name, args_to_exec)
             raise
 
         task_id = uuid.uuid4()
@@ -658,12 +651,26 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
             for row in res['rows']:
-                s_interval = datetime.datetime.strptime(row.get('schedule_interval'), "%H:%M:%S")
-                interval = datetime.timedelta(hours=s_interval.hour, minutes=s_interval.minute,
+                if 'days' in row.get('schedule_interval'):
+                    interval_split = row.get('schedule_interval').split('days')
+                    interval_days = interval_split[0].strip()
+                    interval_time = interval_split[1].strip()
+                elif 'day' in row.get('schedule_interval'):
+                    interval_split = row.get('schedule_interval').split('day')
+                    interval_days = interval_split[0].strip()
+                    interval_time = interval_split[1].strip()
+                else:
+                    interval_days = 0
+                    interval_time = row.get('schedule_interval')
+                s_days = int(interval_days)
+                if not interval_time:
+                    interval_time = "00:00:00"
+                s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+                interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
                                               seconds=s_interval.second)
 
                 repeat_seconds = None
-                if interval is not None:
+                if interval is not None and interval != datetime.timedelta(0):
                     repeat_seconds = interval.total_seconds()
 
                 s_ti = row.get('schedule_time') if row.get('schedule_time') else '00:00:00'
@@ -672,11 +679,22 @@ class Scheduler(object):
 
                 schedule_id = uuid.UUID(row.get('id'))
 
+                #
+                # row.get('schedule_day') returns an int, say 0, from SQLite
+                # and "0", as a string, from Postgres
+                # We handle here this difference
+                #
+
+                if type(row.get('schedule_day')) is str:
+                    s_day = int(row.get('schedule_day')) if row.get('schedule_day').strip() else None
+                else:
+                    s_day = int(row.get('schedule_day'))
+
                 schedule = self._ScheduleRow(
                     id=schedule_id,
                     name=row.get('schedule_name'),
                     type=int(row.get('schedule_type')),
-                    day=int(row.get('schedule_day')) if row.get('schedule_day').strip() else 0,
+                    day=s_day,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,
@@ -698,7 +716,7 @@ class Scheduler(object):
     async def _mark_tasks_interrupted(self):
         """The state for any task with a NULL end_time is set to interrupted"""
         # TODO FOGL-722 NULL can not be passed like this
-        
+
         """ # Update the task's status
         update_payload = PayloadBuilder() \
             .SET(state=int(Task.State.INTERRUPTED),
@@ -731,8 +749,7 @@ class Scheduler(object):
         }
 
         cfg_manager = ConfigurationManager(self._storage)
-        await cfg_manager.create_category('SCHEDULER', default_config,
-                                                    'Scheduler configuration')
+        await cfg_manager.create_category('SCHEDULER', default_config, 'Scheduler configuration')
 
         config = await cfg_manager.get_category_all_items('SCHEDULER')
         self._max_running_tasks = int(config['max_running_tasks']['value'])
@@ -770,17 +787,14 @@ class Scheduler(object):
 
         while storage_service is None and self._storage is None:
             try:
-                # TODO: FOGL-1017 - Remove Foglamp test environment references from scheduler.py
-                if _ENV != 'TEST':
-                    found_services = ServiceRegistry.get(name="FogLAMP Storage")
-                    storage_service = found_services[0]
+                found_services = ServiceRegistry.get(name="FogLAMP Storage")
+                storage_service = found_services[0]
+                self._storage = StorageClient(self._core_management_host, self._core_management_port,
+                                              svc=storage_service)
 
-                self._storage = StorageClient(self._core_management_host, self._core_management_port, svc=storage_service)
-                # print("Storage Service: ", type(self._storage))
-
-            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
+                    Exception) as ex:
                 # traceback.print_exc()
-                # print(_ENV, self._core_management_host, self._core_management_port, str(ex))
                 await asyncio.sleep(5)
         # **************
 
@@ -1062,7 +1076,7 @@ class Scheduler(object):
                 self._logger.exception('Update failed: %s', update_payload)
                 raise
             audit = AuditLogger(self._storage)
-            await audit.information('SCHCH', { 'schedule': schedule.toDict() })
+            await audit.information('SCHCH', {'schedule': schedule.toDict()})
 
         if is_new_schedule:
             insert_payload = PayloadBuilder() \
@@ -1083,10 +1097,10 @@ class Scheduler(object):
                 self._logger.exception('Insert failed: %s', insert_payload)
                 raise
             audit = AuditLogger(self._storage)
-            await audit.information('SCHAD', { 'schedule': schedule.toDict() })
+            await audit.information('SCHAD', {'schedule': schedule.toDict()})
 
         repeat_seconds = None
-        if schedule.repeat is not None:
+        if schedule.repeat is not None and schedule.repeat != datetime.timedelta(0):
             repeat_seconds = schedule.repeat.total_seconds()
 
         schedule_row = self._ScheduleRow(
@@ -1105,11 +1119,11 @@ class Scheduler(object):
 
         # Did the schedule change in a way that will affect task scheduling?
         if schedule.schedule_type in [Schedule.Type.INTERVAL, Schedule.Type.TIMED] and (
-                is_new_schedule or
-                prev_schedule_row.time != schedule_row.time or
-                prev_schedule_row.day != schedule_row.day or
-                prev_schedule_row.repeat_seconds != schedule_row.repeat_seconds or
-                prev_schedule_row.exclusive != schedule_row.exclusive):
+                                is_new_schedule or
+                                    prev_schedule_row.time != schedule_row.time or
+                                prev_schedule_row.day != schedule_row.day or
+                            prev_schedule_row.repeat_seconds != schedule_row.repeat_seconds or
+                        prev_schedule_row.exclusive != schedule_row.exclusive):
             now = self.current_time if self.current_time else time.time()
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
@@ -1163,12 +1177,15 @@ class Scheduler(object):
         Args: schedule_id:
         Returns:
         """
+        if self._paused or not self._ready:
+            raise NotReadyError()
+
         # Find running task for the schedule.
         # self._task_processes contains ALL tasks including STARTUP tasks.
         try:
             schedule = await self.get_schedule(schedule_id)
-        except KeyError:
-            self._logger.info("No such Schedule %s", schedule_id)
+        except ScheduleNotFoundError:
+            self._logger.exception("No such Schedule %s", str(schedule_id))
             return False, "No such Schedule"
 
         if schedule.enabled is False:
@@ -1204,7 +1221,7 @@ class Scheduler(object):
 
         if task_id is not None:
             schedule = task_process.schedule
-            if schedule.type == Schedule.Type.STARTUP: # If schedule is a service e.g. South services
+            if schedule.type == Schedule.Type.STARTUP:  # If schedule is a service e.g. South services
                 try:
                     found_services = ServiceRegistry.get(name=schedule.process_name)
                     service = found_services[0]
@@ -1251,7 +1268,7 @@ class Scheduler(object):
             schedule.process_name)
         audit = AuditLogger(self._storage)
         sch = await self.get_schedule(schedule_id)
-        await audit.information('SCHCH', { 'schedule': sch.toDict() })
+        await audit.information('SCHCH', {'schedule': sch.toDict()})
         return True, "Schedule successfully disabled"
 
     async def enable_schedule(self, schedule_id: uuid.UUID):
@@ -1261,10 +1278,13 @@ class Scheduler(object):
         Args: schedule_id:
         Returns:
         """
+        if self._paused or not self._ready:
+            raise NotReadyError()
+
         try:
             schedule = await self.get_schedule(schedule_id)
-        except KeyError:
-            self._logger.info("No such Schedule %s", str(schedule_id))
+        except ScheduleNotFoundError:
+            self._logger.exception("No such Schedule %s", str(schedule_id))
             return False, "No such Schedule"
 
         if schedule.enabled is True:
@@ -1283,6 +1303,11 @@ class Scheduler(object):
             self._logger.exception('Update failed: %s', update_payload)
             raise RuntimeError('Update failed: %s', update_payload)
         await asyncio.sleep(1)
+
+        # Reset schedule_execution.next_start_time
+        schedule_row = self._schedules[schedule_id]
+        now = self.current_time if self.current_time else time.time()
+        self._schedule_first_task(schedule_row, now)
 
         # Start schedule
         await self.queue_task(schedule_id)
@@ -1351,7 +1376,7 @@ class Scheduler(object):
             schedule = self._schedules[schedule_id]
             if schedule.enabled is True:
                 self._logger.exception('Attempt to delete an enabled Schedule %s. Not deleted.', str(schedule_id))
-                return False, "Enabled Schedule cannot be deleted."
+                raise RuntimeWarning("Enabled Schedule {} cannot be deleted.".format(str(schedule_id)))
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
 
@@ -1398,7 +1423,10 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        query_payload = PayloadBuilder().WHERE(["id", "=", str(task_id)]).payload()
+        start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
+        end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
+        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", start_ts, end_ts, "reason", "exit_code")\
+            .WHERE(["id", "=", str(task_id)]).payload()
 
         try:
             self._logger.debug('Database command: %s', query_payload)
@@ -1432,8 +1460,9 @@ class Scheduler(object):
                 A tuple of Task attributes to sort by.
                 Defaults to ("start_time", "desc")
         """
-
-        chain_payload = PayloadBuilder().LIMIT(limit).chain_payload()
+        start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
+        end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
+        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", start_ts, end_ts, "reason", "exit_code").LIMIT(limit).chain_payload()
         if offset:
             chain_payload = PayloadBuilder(chain_payload).OFFSET(offset).chain_payload()
         if where:
@@ -1516,7 +1545,8 @@ class Scheduler(object):
             await self._wait_for_task_completion(task_process)
 
     def _terminate_child_processes(self, parent_id):
-        ps_command = subprocess.Popen("ps -o pid --ppid {} --noheaders".format(parent_id), shell=True, stdout=subprocess.PIPE)
+        ps_command = subprocess.Popen("ps -o pid --ppid {} --noheaders".format(parent_id), shell=True,
+                                      stdout=subprocess.PIPE)
         ps_output, err = ps_command.communicate()
         pids = ps_output.decode().strip().split("\n")
         for pid_str in pids:

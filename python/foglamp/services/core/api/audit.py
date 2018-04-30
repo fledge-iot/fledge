@@ -25,10 +25,9 @@ __DEFAULT_OFFSET = 0
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET             | /foglamp/audit                                            |
+    | GET POST        | /foglamp/audit                                            |
     | GET             | /foglamp/audit/logcode                                    |
     | GET             | /foglamp/audit/severity                                   |
-    | POST            | /foglamp/audit                                            |
     -------------------------------------------------------------------------------
 """
 
@@ -80,33 +79,32 @@ async def create_audit_entry(request):
                         }
         }
     """
+    return_error = False
+    err_msg = "Missing required parameter"
+
+    payload = await request.json()
+
+    severity = payload.get("severity")
+    source = payload.get("source")
+    details = payload.get("details")
+
+    if severity is None or severity == "":
+        err_msg += " severity"
+        return_error = True
+    if source is None or source == "":
+        err_msg += " source"
+        return_error = True
+    if details is None:
+        err_msg += " details"
+        return_error = True
+
+    if return_error:
+        raise web.HTTPBadRequest(reason=err_msg)
+
+    if not isinstance(details, dict):
+        raise web.HTTPBadRequest(reason="Details should be a valid json object")
 
     try:
-        return_error = False
-        err_msg = "Missing required parameter"
-
-        payload = await request.json()
-
-        severity = payload.get("severity")
-        source = payload.get("source")
-        details = payload.get("details")
-
-        if severity is None or severity == "":
-            err_msg += " severity"
-            return_error = True
-        if source is None or source == "":
-            err_msg += " source"
-            return_error = True
-        if details is None:
-            err_msg += " details"
-            return_error = True
-
-        if return_error:
-            raise web.HTTPBadRequest(reason=err_msg)
-
-        if not isinstance(details, dict):
-            raise web.HTTPBadRequest(reason="details should be a valid json object")
-
         audit = AuditLogger()
         await getattr(audit, str(severity).lower())(source, details)
 
@@ -190,7 +188,8 @@ async def get_audit_entries(request):
     try:
         # HACK: This way when we can more future we do not get an exponential
         # explosion of if statements
-        payload = PayloadBuilder().WHERE(['1', '=', '1'])
+        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "timestamp"}'
+        payload = PayloadBuilder().SELECT("code", "level", "log", ts).WHERE(['1', '=', 1])
         if source is not None:
             payload.AND_WHERE(['code', '=', source])
 
@@ -227,7 +226,7 @@ async def get_audit_entries(request):
             severity_level = int(row["level"])
             r["severity"] = Severity(severity_level).name if severity_level in (0, 1, 2, 4) else "UNKNOWN"
             r["source"] = row["code"]
-            r["timestamp"] = row["ts"]
+            r["timestamp"] = row["timestamp"]
 
             res.append(r)
 

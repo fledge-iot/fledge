@@ -13,7 +13,6 @@ from foglamp.services.south import server as South
 from foglamp.services.south.server import Server
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.services.common.microservice import FoglampMicroservice
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
@@ -97,7 +96,7 @@ async def false_coro():
 @pytest.allure.story("south")
 class TestServicesSouthServer:
     def south_fixture(self, mocker):
-        async def cat_get():
+        def cat_get():
             config = _TEST_CONFIG
             config['plugin']['value'] = config['plugin']['default']
             return config
@@ -106,24 +105,27 @@ class TestServicesSouthServer:
 
         south_server = Server()
         south_server._storage = MagicMock(spec=StorageClient)
-        mocker.patch.object(south_server, '_core_microservice_management_client')
+
+        attrs = {
+                    'create_configuration_category.return_value': None,
+                    'get_configuration_category.return_value': cat_get(),
+                    'register_interest.return_value': {'id': 1234, 'message': 'all ok'}
+        }
+        south_server._core_microservice_management_client = Mock()
+        south_server._core_microservice_management_client.configure_mock(**attrs)
+
         mocker.patch.object(south_server, '_name', 'test')
 
-        cfg_mgr_create_cat = mocker.patch.object(ConfigurationManager, "create_category",
-                                                 return_value=mock_coro())
-        cfg_mgr_get_cat_all = mocker.patch.object(ConfigurationManager, "get_category_all_items",
-                                                  return_value=asyncio.ensure_future(cat_get()))
         ingest_start = mocker.patch.object(Ingest, 'start', return_value=mock_coro())
         log_exception = mocker.patch.object(South._LOGGER, "exception")
         log_info = mocker.patch.object(South._LOGGER, "info")
 
-        return cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info
+        return cat_get, south_server, ingest_start, log_exception, log_info
 
     @pytest.mark.asyncio
     async def test__start_async_plugin(self, mocker, loop):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -135,20 +137,8 @@ class TestServicesSouthServer:
         await asyncio.sleep(.5)
 
         # THEN
-        assert 2 == cfg_mgr_create_cat.call_count
-        calls = [
-            call(south_server._name, _TEST_CONFIG,
-                 '{} Device'.format(south_server._name), True),
-            call(south_server._name, plugin_attrs['plugin_init.return_value']['config'],
-                  '{} Device'.format(south_server._name))
-        ]
-        # cfg_mgr_create_cat.assert_has_calls(calls, any_order=True) TODO
-        cfg_mgr_create_cat.assert_called_with(south_server._name, plugin_attrs['plugin_init.return_value']['config'],
-                                                  '{} Device'.format(south_server._name))
-        assert 2 == cfg_mgr_get_cat_all.call_count
-        cfg_mgr_get_cat_all.assert_has_calls([call(south_server._name), call(south_server._name)])
         assert 1 == ingest_start.call_count
-        ingest_start_params = None, None
+        ingest_start_params = None, None, south_server
         ingest_start.assert_called_with(*ingest_start_params)
         assert 1 == log_info.call_count
         assert 0 == log_exception.call_count
@@ -157,7 +147,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__start_async_plugin_bad_plugin_value(self, mocker, loop):
         # GIVEN
-        async def cat_get():
+        def cat_get():
             config = _TEST_CONFIG
             config['plugin']['value'] = None
             return config
@@ -166,14 +156,10 @@ class TestServicesSouthServer:
 
         south_server = Server()
         south_server._storage = MagicMock(spec=StorageClient)
-        mocker.patch.object(south_server, '_core_microservice_management_client')
+
         mocker.patch.object(south_server, '_name', 'test')
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
 
-        cfg_mgr_create_cat = mocker.patch.object(ConfigurationManager, "create_category",
-                                                 return_value=mock_coro())
-        cfg_mgr_get_cat_all = mocker.patch.object(ConfigurationManager, "get_category_all_items",
-                                                  return_value=asyncio.ensure_future(cat_get()))
         log_exception = mocker.patch.object(South._LOGGER, "exception")
 
         # WHEN
@@ -181,16 +167,12 @@ class TestServicesSouthServer:
         await asyncio.sleep(.5)
 
         # THEN
-        assert 1 == cfg_mgr_create_cat.call_count
-        assert 1 == cfg_mgr_get_cat_all.call_count
-        assert 1 == log_exception.call_count
         log_exception.assert_called_with('Failed to initialize plugin {}'.format(south_server._name))
 
     @pytest.mark.asyncio
     async def test__start_async_plugin_bad_plugin_name(self, mocker, loop):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         sys.modules['foglamp.plugins.south.test.test'] = None
 
@@ -199,16 +181,13 @@ class TestServicesSouthServer:
         await asyncio.sleep(.5)
 
         # THEN
-        assert 1 == cfg_mgr_create_cat.call_count
-        assert 1 == cfg_mgr_get_cat_all.call_count
         assert 1 == log_exception.call_count
         log_exception.assert_called_with('Failed to initialize plugin {}'.format(south_server._name))
 
     @pytest.mark.asyncio
     async def test__start_async_plugin_bad_plugin_type(self, mocker, loop):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -222,16 +201,12 @@ class TestServicesSouthServer:
         await asyncio.sleep(.5)
 
         # THEN
-        assert 2 == cfg_mgr_create_cat.call_count
-        assert 2 == cfg_mgr_get_cat_all.call_count
-        assert 1 == log_exception.call_count
         log_exception.assert_called_with('Failed to initialize plugin {}'.format(south_server._name))
 
     @pytest.mark.asyncio
     async def test__start_poll_plugin(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         # Mocking _stop() required as we are testing poll_plugin indirectly
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
@@ -246,20 +221,8 @@ class TestServicesSouthServer:
         await asyncio.sleep(.5)
 
         # THEN
-        assert 2 == cfg_mgr_create_cat.call_count
-        calls = [
-            call(south_server._name, _TEST_CONFIG,
-                 '{} Device'.format(south_server._name), True),
-            call(south_server._name, plugin_attrs['plugin_init.return_value']['config'],
-                  '{} Device'.format(south_server._name))
-        ]
-        # cfg_mgr_create_cat.assert_has_calls(calls, any_order=True) TODO
-        cfg_mgr_create_cat.assert_called_with(south_server._name, plugin_attrs['plugin_init.return_value']['config'],
-                                                  '{} Device'.format(south_server._name))
-        assert 2 == cfg_mgr_get_cat_all.call_count
-        cfg_mgr_get_cat_all.assert_has_calls([call(south_server._name), call(south_server._name)])
         assert 1 == ingest_start.call_count
-        ingest_start_params = None, None
+        ingest_start_params = None, None, south_server
         ingest_start.assert_called_with(*ingest_start_params)
         assert 1 == log_info.call_count
         assert 1 == log_exception.call_count
@@ -268,8 +231,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__exec_plugin_async(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -291,8 +253,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__exec_plugin_poll(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         # Mocking _stop() required as we are testing poll_plugin indirectly
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
@@ -318,8 +279,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__exec_plugin_poll_exceed_retries(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -351,8 +311,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__stop(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -378,8 +337,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__stop_plugin_stop_error(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
@@ -406,8 +364,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test_shutdown(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         server_stop = mocker.patch.object(south_server, '_stop', return_value=mock_coro())
         unregister = mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
@@ -421,8 +378,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test_shutdown_error(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         server_stop = mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
         unregister = mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
@@ -440,8 +396,7 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test_change(self, loop, mocker):
         # GIVEN
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -465,8 +420,7 @@ class TestServicesSouthServer:
     async def test_change_error(self, loop, mocker):
         # GIVEN
         from foglamp.services.south import exceptions
-        cat_get, south_server, cfg_mgr_create_cat, cfg_mgr_get_cat_all, ingest_start, log_exception, log_info = \
-                self.south_fixture(mocker)
+        cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'

@@ -7,6 +7,9 @@
 """ Test foglamp/services/core/scheduler/entities.py """
 
 import pytest
+import datetime
+from enum import IntEnum
+
 from foglamp.services.core.scheduler.entities import *
 
 __author__ = "Amarendra K Sinha"

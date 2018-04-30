@@ -207,7 +207,7 @@ class BackupStatus (object):
 class BackupRestoreLib(object):
     """ Library of functionalities for the backup restore operations that requires information/state to be stored """
 
-    FOGLAMP_CFG_FILE = "/etc/foglamp.json"
+    STORAGE_EXE = "/services/storage"
 
     MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE = 9999
     """" Maximum number of backup information to retrieve from the storage layer"""
@@ -258,10 +258,22 @@ class BackupRestoreLib(object):
         "e000013": "cannot create the configuration cache file, provided path is not a directory - dir |{0}|",
         "e000014": "the identified path of backups doesn't exists, creation was tried "
                    "- dir |{0}| - error details |{1}|",
+        "e000015": "The command is not available neither using the unmanaged approach"
+                   " - command |{0}|",
+        "e000016": "Postgres command is not executable - command |{0}|",
+        "e000017": "The execution of the Postgres command using the -V option produce an error"
+                   " - command |{0}| - output |{1}|",
+        "e000018": "It is not possible to read data from Postgres"
+                   " - command |{0}| - exit code |{1}| - output |{2}|",
+        "e000019": "The command is not available using the managed approach"
+                   " - command |{0}| - full command |{1}|",
+        "e000020": "It is not possible to evaluate if the storage is managed or unmanaged"
+                   " - storage plugin |{0}|",
+
     }
     """ Messages used for Information, Warning and Error notice """
 
-    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/plsql/bin"
+    _DIR_MANAGED_FOGLAMP_PG_COMMANDS = "plugins/storage/postgres/pgsql/bin"
     """Directory for Postgres commands in a managed configuration"""
 
     _DB_CONNECTION_STRING = "dbname='{db}'"
@@ -534,7 +546,7 @@ class BackupRestoreLib(object):
             if os.path.exists(cmd_managed):
                 cmd_identified = cmd_managed
             else:
-                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify)
+                _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify, cmd_managed)
                 self._logger.error("{0}".format(_message))
 
                 raise exceptions.PgCommandUnAvailable(_message)
@@ -569,7 +581,7 @@ class BackupRestoreLib(object):
         return cmd_identified
 
     def _is_plugin_managed(self, plugin_to_identify):
-        """ Identifies the type of plugin, Managed or not, looking at the foglamp.json configuration file
+        """ Identifies the type of plugin, Managed or not, inquiring the storage executable
 
         Args:
             plugin_to_identify: str - plugin to evaluate if it is managed or not
@@ -580,16 +592,35 @@ class BackupRestoreLib(object):
 
         plugin_type = False
 
-        file_full_path = self.dir_foglamp_data + self.FOGLAMP_CFG_FILE
+        # Inquires the storage
+        file_full_path = self.dir_foglamp_root + self.STORAGE_EXE
+        cmd = file_full_path + " --plugin"
 
-        with open(file_full_path) as file:
-            cfg_file = json.load(file)
+        # noinspection PyArgumentEqualDefault
+        _exit_code, output = exec_wait(
+                                        _cmd=cmd,
+                                        _output_capture=True,
+                                        _timeout=0
+                                        )
 
-        plugins = cfg_file["storage plugins"]
+        self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
+            func="_is_plugin_managed",
+            cmd=cmd,
+            exit_code=_exit_code,
+            output=output))
 
-        for plugin in plugins:
-            if plugin["plugin"] == plugin_to_identify:
-                plugin_type = plugin["managed"]
+        # Evaluates the storage answer
+        if plugin_to_identify in output:
+
+            if "false" in output:
+                plugin_type = False
+            else:
+                plugin_type = True
+        else:
+            _message = self._MESSAGES_LIST["e000020"].format(plugin_to_identify)
+            self._logger.error("{0}".format(_message))
+
+            raise exceptions.UndefinedStorage(_message)
 
         return plugin_type
 
@@ -621,7 +652,7 @@ class BackupRestoreLib(object):
                                                                             output=output))
 
             if _exit_code != 0:
-                _message = self._MESSAGES_LIST["e000017"].format(cmd_to_test, output)
+                _message = self._MESSAGES_LIST["e000017"].format(cmd, output)
                 self._logger.error("{0}".format(_message))
 
                 raise exceptions.PgCommandUnAvailable(_message)
@@ -645,10 +676,9 @@ class BackupRestoreLib(object):
             exceptions.DoesNotExist
             exceptions.NotUniqueBackup
         """
-
-        payload = payload_builder.PayloadBuilder() \
-            .WHERE(['id', '=', backup_id]) \
-            .payload()
+        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "ts"}'
+        payload = payload_builder.PayloadBuilder().SELECT("id", "status", ts, "file_name", "type")\
+                  .WHERE(['id', '=', backup_id]).payload()
 
         backup_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
 

@@ -185,7 +185,7 @@ pg_stop() {
 pg_reset() {
 
     if [[ `pg_status silent` -eq 2 ]]; then
-       pg_start "$1"
+       pg_start "$1" "$2"
     fi
 
     if [[ $2 != "immediate" ]]; then
@@ -340,7 +340,7 @@ pg_schema_update() {
     else
         # Only if DB version is not equal to starting FogLAMP version we try schema update
         if [ "${CURR_VERR}" != "${NEW_VERSION}" ]; then
-            postgres_log "info" "Detected FogLAMP DB schema change from version [${CURR_VERR}]"\
+            postgres_log "info" "Detected '${PLUGIN}' FogLAMP DB schema change from version [${CURR_VERR}]"\
 " to [${NEW_VERSION}], applying Upgrade/Downgrade ..." "all" "pretty"
             # Call the schema update script
             $FOGLAMP_ROOT/scripts/plugins/storage/postgres/schema_update.sh "${CURR_VERR}" "${NEW_VERSION}" "${PG_SQL}"
@@ -388,12 +388,6 @@ fi
 # Check if $FOGLAMP_DATA exists
 if [[ ! -d ${FOGLAMP_DATA} ]]; then
     postgres_log "err" "FogLAMP cannot be executed: ${FOGLAMP_DATA} is not a valid directory." "all" "pretty"
-    exit 1
-fi
-
-# Check if the Configuration file exists
-if [[ ! -e ${FOGLAMP_DATA}/etc/foglamp.json ]]; then
-    postgres_log "err" "Missing FogLAMP configuration file ${FOGLAMP_DATA}/etc/foglamp.json" "all" "pretty"
     exit 1
 fi
 
@@ -455,7 +449,7 @@ case "$engine_management" in
 
         # Unexpected value from the configuration file
         postgres_log "err" "FogLAMP cannot start." "all" "pretty"
-        postgres_log "err" "Missing plugin information in FogLAMP configuration file foglamp.json" "all" "pretty"
+        postgres_log "err" "Missing plugin information from the storage microservice" "all" "pretty"
         exit 1
         ;;
 
@@ -467,8 +461,8 @@ if [[ -e "$FOGLAMP_ROOT/plugins/storage/postgres/init.sql" ]]; then
     INIT_SQL="$FOGLAMP_ROOT/plugins/storage/postgres/init.sql"
 else
     # Attempt 2: development path
-    if [[ -e "$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql" ]]; then
-        INIT_SQL="$FOGLAMP_ROOT/C/plugins/storage/postgres/init.sql"
+    if [[ -e "$FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql" ]]; then
+        INIT_SQL="$FOGLAMP_ROOT/scripts/plugins/storage/postgres/init.sql"
     else
         postgres_log "err" "Missing initialization file init.sql." "all" "pretty"
         exit 1
@@ -484,7 +478,7 @@ case "$1" in
         pg_stop "$print_output"
         ;;
     reset)
-        pg_reset "$print_output"
+        pg_reset "$print_output" "$2"
         ;;
     status)
         pg_status "$print_output"

@@ -190,7 +190,7 @@ foglamp_stop() {
     exit 0
   fi
 
-  result=`curl -s -X PUT http://localhost:8081/foglamp/shutdown`
+  result=`curl -k -s -X PUT ${REST_API_URL}/foglamp/shutdown`
 
   if [[ "${result}" =~ "FogLAMP shutdown has been scheduled" ]]; then
     echo -n "Stopping FogLAMP."
@@ -289,16 +289,33 @@ foglamp_kill() {
 #
 foglamp_status() {
 
-    result=`curl -s http://localhost:8081/foglamp/ping || true`
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    result=`curl -k -s ${REST_API_URL}/foglamp/ping || true`
+
     case "$result" in
 
         *uptime*)
             if [[ "$1" == "silent" ]]; then
                 echo "0"
             else
-                tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
+
+                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"." -f1`
+                record_read=`echo ${result} | tr -d ' ' | grep -o '"dataRead".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                auth_opt=`echo ${result} | tr -d ' ' | grep -o '"authenticationOptional".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                if [[ "${auth_opt}" == "true" ]]; then
+                  req_auth="does not require"
+                else
+                  req_auth="requires"
+                fi
+
                 foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running." "outonly" "pretty"
-                foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
+                
+                foglamp_log "info" "FogLAMP ${req_auth} authentication." "outonly" "pretty"
 
                 # Show Services
                 foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
@@ -332,12 +349,18 @@ foglamp_status() {
     esac
 }
 
+
+##
 ## Print FogLAMP Version
+##
 foglamp_print_version() {
     echo "FogLAMP version ${FOGLAMP_VERSION}, DB schema version ${FOGLAMP_SCHEMA}"
 }
 
+
+##
 ## Get FogLAMP version from VERSION file
+##
 get_foglamp_version() {
     FOGLAMP_VERSION_FILE="${FOGLAMP_ROOT}/VERSION"
     FOGLAMP_VERSION=`cat ${FOGLAMP_VERSION_FILE} | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
@@ -353,7 +376,29 @@ get_foglamp_version() {
     fi
 }
 
+
+##
+## Get FogLAMP rest API URL
+##
+get_rest_api_url() {
+
+    pid_file=${FOGLAMP_DATA}/var/run/foglamp.core.pid
+    export PYTHONPATH=${FOGLAMP_ROOT}
+
+    if [[ -f ${pid_file} ]]; then
+        REST_API_URL=`cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid`
+    fi
+
+    # Sets a default value if it not possible to determine the proper value using the pid file
+    if [ ! "${REST_API_URL}" ]; then
+        export REST_API_URL=http://localhost:8081
+    fi
+}
+
+
+##
 ## FogLAMP Script Help
+##
 foglamp_help() {
 
     echo "${USAGE}
@@ -385,16 +430,6 @@ if [[ ! -d ${FOGLAMP_DATA} ]]; then
     exit 1
 fi
 
-# Check if the configuration file exists
-if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
-
-    # Missing configuration file
-    foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
-    foglamp_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
-    exit 1
-
-fi
-
 # Check if curl is present
 if [[ ! `command -v curl` ]]; then
     foglamp_log "err" "Missing dependency: curl." "all" "pretty"
@@ -404,6 +439,9 @@ fi
 
 # Get FogLAMP version
 get_foglamp_version
+
+# Get FogLAMP rest API URL
+get_rest_api_url
 
 # Handle commands
 case "$1" in

@@ -6,9 +6,9 @@
 
 """FogLAMP South Microservice"""
 
+import json
 import asyncio
 from foglamp.services.south import exceptions
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
@@ -33,6 +33,11 @@ class Server(FoglampMicroservice):
             'description': 'Python module name of the plugin to load',
             'type': 'string',
             'default': 'coap_listen'
+        },
+        'management_host': {
+            'description': 'Management host',
+            'type': 'string',
+            'default': '127.0.0.1',
         }
     }
 
@@ -65,19 +70,24 @@ class Server(FoglampMicroservice):
 
     _task_main = None
 
+    def __init__(self):
+        super().__init__(self._DEFAULT_CONFIG)
+
     async def _start(self, loop) -> None:
         error = None
         try:
-            category = self._name
             # Configuration handling - initial configuration
+            category = self._name
             config = self._DEFAULT_CONFIG
             config_descr = '{} Device'.format(self._name)
-
-            cfg_manager = ConfigurationManager(self._storage)
-
-            await cfg_manager.create_category(category, config, config_descr, True)
-
-            config = await cfg_manager.get_category_all_items(category)
+            config_payload = json.dumps({
+                "key": category,
+                "description": config_descr,
+                "value": config,
+                "keep_original_items": True
+            })
+            self._core_microservice_management_client.create_configuration_category(config_payload)
+            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             try:
                 plugin_module_name = config['plugin']['value']
@@ -101,9 +111,14 @@ class Server(FoglampMicroservice):
             default_config = self._plugin_info['config']
 
             # Configuration handling - updates the configuration using information specific to the plugin
-            await cfg_manager.create_category(category, default_config, '{} Device'.format(self._name))
-
-            config = await cfg_manager.get_category_all_items(category)
+            config_payload = json.dumps({
+                "key": category,
+                "description": '{} Device'.format(self._name),
+                "value": default_config,
+                "keep_original_items": False
+            })
+            self._core_microservice_management_client.create_configuration_category(config_payload)
+            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             # Register interest with category and microservice_id
             result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
@@ -120,7 +135,7 @@ class Server(FoglampMicroservice):
 
             self._plugin_handle = self._plugin.plugin_init(config)
 
-            await Ingest.start(self._core_management_host, self._core_management_port)
+            await Ingest.start(self._core_management_host, self._core_management_port, self)
 
             # Executes the requested plugin type
             if self._plugin_info['mode'] == 'async':
@@ -240,8 +255,7 @@ class Server(FoglampMicroservice):
 
         try:
             # retrieve new configuration
-            cfg_manager = ConfigurationManager(self._storage)
-            new_config = await cfg_manager.get_category_all_items(self._name)
+            new_config = self._core_microservice_management_client.get_configuration_category(category_name=self._name)
 
             # plugin_reconfigure and assign new handle
             new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)

@@ -39,6 +39,61 @@ class TestCertificateStore:
     def certs_path(self):
         return pathlib.Path(__file__).parent
 
+    async def test_get_certs(self, client, certs_path):
+        response_content = [{"cert": "foglamp.cert", "key": "foglamp.key"},
+                            {"cert": "server.cert", "key": ""}]
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch('os.walk') as mockwalk:
+                mockwalk.return_value = [
+                    (certs_path / 'certs', [], ['foglamp.cert', 'foglamp.key', 'foglamp.txt', 'server.cert'])
+                ]
+                resp = await client.get('/foglamp/certificate')
+                assert 200 == resp.status
+                res = await resp.text()
+                jdict = json.loads(res)
+                result = jdict["certificates"]
+                assert 2 == len(result)
+                assert response_content[0] in result
+                assert response_content[1] in result
+            mockwalk.assert_called_once_with(certs_path / 'certs')
+
+    async def test_get_certs_if_dir_is_empty(self, client, certs_path):
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch('os.walk') as mockwalk:
+                mockwalk.return_value = [(certs_path / 'certs', [], [])]
+                resp = await client.get('/foglamp/certificate')
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 0 == len(json_response['certificates'])
+                assert {'certificates': []} == json_response
+            mockwalk.assert_called_once_with(certs_path / 'certs')
+
+    async def test_get_certs_if_bad_extension(self, client, certs_path):
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch('os.walk') as mockwalk:
+                mockwalk.return_value = [(certs_path / 'certs', [], ['foglamp.txt'])]
+                resp = await client.get('/foglamp/certificate')
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 0 == len(json_response['certificates'])
+                assert {'certificates': []} == json_response
+            mockwalk.assert_called_once_with(certs_path / 'certs')
+
+    async def test_get_certs_if_pair_is_missing(self, client, certs_path):
+        actual_response = {'certificates': [{'key': '', 'cert': 'server.cert'}]}
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch('os.walk') as mockwalk:
+                mockwalk.return_value = [(certs_path / 'certs', [], ['server.cert'])]
+                resp = await client.get('/foglamp/certificate')
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 1 == len(json_response['certificates'])
+                assert actual_response == json_response
+            mockwalk.assert_called_once_with(certs_path / 'certs')
+
     async def test_upload(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/foglamp.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/foglamp.cert'), 'rb')}

@@ -1,3 +1,0 @@
-{ "default storage plugin" : "postgres",
-  "storage plugins"        : [ { "plugin"  : "postgres", "managed" : false } ]
-}

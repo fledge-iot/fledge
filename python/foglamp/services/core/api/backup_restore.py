@@ -12,7 +12,7 @@ from collections import OrderedDict
 
 from foglamp.services.core import connect
 from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
-# from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
+from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
 from foglamp.plugins.storage.postgres.backup_restore import exceptions
 
 
@@ -163,25 +163,19 @@ async def restore_backup(request):
     :Example: curl -X PUT http://localhost:8081/foglamp/backup/1/restore
     """
 
-    raise web.HTTPNotImplemented(reason='Restore backup method is not implemented yet.')
-
     # TODO: FOGL-861
-    # backup_id = request.match_info.get('backup_id', None)
-    #
-    # if not backup_id:
-    #     raise web.HTTPBadRequest(reason='Backup id is required')
-    #
-    # try:
-    #     backup_id = int(backup_id, 10)
-    #     restore = Restore(connect.get_storage())
-    #     status = restore.restore_backup(backup_id)
-    #     return web.json_response({'status': status})
-    # except ValueError:
-    #     raise web.HTTPBadRequest(reason='Invalid backup id')
-    # except exceptions.DoesNotExist:
-    #     raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
-    # except Exception as ex:
-    #     raise web.HTTPException(reason=str(ex))
+    backup_id = request.match_info.get('backup_id', None)
+    try:
+        backup_id = int(backup_id)
+        restore = Restore(connect.get_storage())
+        status = await restore.restore_backup(backup_id)
+        return web.json_response({'status': status})
+    except ValueError:
+        raise web.HTTPBadRequest(reason='Invalid backup id')
+    except exceptions.DoesNotExist:
+        raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
 
 
 async def get_backup_status(request):

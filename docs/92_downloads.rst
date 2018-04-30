@@ -38,6 +38,10 @@
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/x86_64/foglamp_1.1.1_amd64.snap">v1.1.1</a>
 
+.. |intel 1.2| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.2-x86_64.deb">v1.2</a>
+
 .. |arm 1.0| raw:: html
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.0_armhf.snap">v1.0</a>
@@ -49,6 +53,14 @@
 .. |arm 1.1.1| raw:: html
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.1.1_armhf.snap">v1.1.1</a>
+
+.. |arm 1.2| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.2-armhf.deb">v1.2</a>
+
+.. |arm-envphat 1.2| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-south-envirophat-1.2-armhf.deb">v1.2</a>
 
 .. =============================================
 
@@ -69,10 +81,34 @@ FogLAMP and the FogLAMP tools are on GitHub. You can view and download them here
 - **PostgreSQL for FogLAMP**: If you want to build FogLAMP from source and you want to use a version of PostgreSQL that is not automatically installed with a repository manager, this project allows you to create a package containing a tailored version of PostgreSQL. |br| |postgres for foglamp|
  
 
+Debian Packages
+===============
+
+We have created Debian for Intel and ARM architectures. The packages have been tested on Ubuntu 16.04 and Raspbian Stretch.
+
+FogLAMP Debian Packages for Intel
+---------------------------------
+
+- |intel 1.2| - Released 2018-04-24
+
+
+FogLAMP Debian Packages for ARM
+-------------------------------
+
+- |arm 1.2| - Released 2018-04-24
+
+Other Debian Packages for ARM
+-----------------------------
+
+- Enviro pHAT
+
+  - |arm-envphat 1.2| - Released 2018-04-24
+
+
 Snap Packages
 =============
 
-We have created snaps for Intel and ARM architectures. The snaps have been tested on Ubuntu 16.04, Ubuntu Core 16 and Raspbian Stretch.
+Snap packages have been put on hold. You can still download packages up to version 1.1.1.
 
 Snaps for Intel
 ---------------

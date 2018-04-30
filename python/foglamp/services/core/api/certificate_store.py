@@ -24,10 +24,46 @@ _logger = logger.setup(__name__, level=20)
 
 _help = """
     -------------------------------------------------------------------------------
-    | POST             | /foglamp/certificate                                     |
+    | GET POST         | /foglamp/certificate                                     |
     | DELETE           | /foglamp/certificate/{name}                              |
     -------------------------------------------------------------------------------
 """
+
+
+async def get_certs(request):
+    """ Get the list of certs
+
+    :Example:
+        curl -X GET http://localhost:8081/foglamp/certificate
+    """
+
+    # Get certs directory path
+    certs_dir = _get_certs_dir()
+    total_files = []
+    valid_extensions = ('.key', '.cert')
+
+    for root, dirs, files in os.walk(certs_dir):
+        total_files = [f for f in files if f.endswith(valid_extensions)]
+
+    # Get filenames without extension
+    file_names = [os.path.splitext(fname)[0] for fname in total_files]
+
+    # Get unique list from file_names
+    unique_list = list(set(file_names))
+
+    def search_file(fname):
+        # Search file with extension, if found then filename with extension else empty
+        if fname in total_files:
+            return fname
+        return ''
+
+    certs = []
+    for fname in unique_list:
+        cert_pair = {'key': search_file('{}.key'.format(fname)),
+                     'cert': search_file('{}.cert'.format(fname))}
+        certs.append(cert_pair)
+
+    return web.json_response({"certificates": certs})
 
 
 async def upload(request):
@@ -111,10 +147,9 @@ async def delete_certificate(request):
         raise web.HTTPNotFound(reason='Certificate with name {} does not exist'.format(cert_name))
 
     # read config
-    # if cert_name == set in config
+    # if cert_name is currently set for 'certificateName' in config for 'rest_api'
     cf_mgr = ConfigurationManager(connect.get_storage())
     result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
-    print(result)
     if cert_name == result['value']:
         raise web.HTTPConflict(reason='Certificate with name {} is already in use, you can not delete'
                                .format(cert_name))

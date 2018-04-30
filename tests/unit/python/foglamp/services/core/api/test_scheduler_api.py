@@ -328,20 +328,20 @@ class TestSchedules:
         ({"day": 'bla'}, 400, "Error in day: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"time": 'bla'}, 400, "Error in time: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"repeat": 'bla'}, 400, "Error in repeat: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 2, "name": "sch1", "process_name": "p1"}, 404,
-         "Errors in request: Schedule day and time cannot be empty for TIMED schedule. 1",
+        ({"type": 2, "name": "sch1", "process_name": "p1"}, 400,
+         "Errors in request: Schedule time cannot be empty for TIMED schedule. 1",
          {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 404,
-         "Errors in request: Day must be an integer and in range 1-7. 1",
+        ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 400,
+         "Errors in request: Day must either be None or must be an integer and in range 1-7. 1",
          {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 2, "day": 5, "time": -1, "name": "sch1", "process_name": "p1"}, 404,
+        ({"type": 2, "day": 5, "time": -1, "name": "sch1", "process_name": "p1"}, 400,
          "Errors in request: Time must be an integer and in range 0-86399. 1",
          {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 200}, 404,
+        ({"type": 200}, 400,
          "Errors in request: Schedule type error: 200,Schedule name and Process name cannot be empty. 2",
          {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"type": 1, "name": "sch1", "process_name": "p1"}, 404,
-         "Errors in request: No such Scheduled Process name: p1 1",
+         "No such Scheduled Process name: p1",
          {'rows': [], 'count': 0}),
     ])
     async def test_post_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
@@ -409,7 +409,7 @@ class TestSchedules:
                           return_value=mock_coro()) as patch_get_schedule:
             resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid), data=json.dumps({"a": 1}))
             assert 404 == resp.status
-            assert 'No such Schedule: {}.'.format(self._random_uuid) == resp.reason
+            assert 'Schedule not found: {}'.format(self._random_uuid) == resp.reason
         patch_get_schedule.assert_called_once_with(uuid.UUID('{}'.format(self._random_uuid)))
 
     @pytest.mark.parametrize("request_data, response_code, error_message, storage_return", [
@@ -417,20 +417,20 @@ class TestSchedules:
         ({"day": 'bla'}, 400, "Error in day: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"time": 'bla'}, 400, "Error in time: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"repeat": 'bla'}, 400, "Error in repeat: bla", {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 2, "name": "sch1", "process_name": "p1"}, 404,
-         "Errors in request: Schedule day and time cannot be empty for TIMED schedule.",
+        ({"type": 2, "name": "sch1", "process_name": "p1"}, 400,
+         "Errors in request: Schedule time cannot be empty for TIMED schedule.",
          {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 404,
-         "Errors in request: Day must be an integer and in range 1-7.",
+        ({"type": 2, "day": 9, "time": 1, "name": "sch1", "process_name": "p1"}, 400,
+         "Errors in request: Day must either be None or must be an integer and in range 1-7.",
          {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 2, "day": 5, "time": -1, "name": "sch1", "process_name": "p1"}, 404,
+        ({"type": 2, "day": 5, "time": -1, "name": "sch1", "process_name": "p1"}, 400,
          "Errors in request: Time must be an integer and in range 0-86399.",
          {'rows': [{'name': 'bla'}], 'count': 1}),
-        ({"type": 200}, 404,
+        ({"type": 200}, 400,
          "Errors in request: Schedule type error: 200",
          {'rows': [{'name': 'bla'}], 'count': 1}),
         ({"type": 1, "name": "sch1", "process_name": "p1"}, 404,
-         "Errors in request: No such Scheduled Process name: p1",
+         "No such Scheduled Process name: p1",
          {'rows': [], 'count': 0}),
     ])
     async def test_update_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
@@ -479,7 +479,7 @@ class TestSchedules:
         (ScheduleNotFoundError(_random_uuid), 404, 'Schedule not found: {}'.format(_random_uuid)),
         (NotReadyError(), 404, None),
         (ValueError, 404, None),
-        pytest.param(ValueError, 409, "Enabled Schedule cannot be deleted.", marks=pytest.mark.xfail(reason="FOGL-1135")),
+        (RuntimeWarning, 409, "Enabled Schedule {} cannot be deleted.".format(str(_random_uuid))),
     ])
     async def test_delete_schedule_exceptions(self, client, exception_name, response_code, response_message):
         with patch.object(server.Server.scheduler, 'delete_schedule', side_effect=exception_name):
@@ -645,7 +645,7 @@ class TestTasks:
 
         with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
             with patch.object(server.Server.scheduler, 'cancel_task', return_value=mock_coro()):
-                resp = await client.put('/foglamp/task/cancel/{}'.format(self._random_uuid))
+                resp = await client.put('/foglamp/task/{}/cancel'.format(self._random_uuid))
                 assert 200 == resp.status
                 result = await resp.text()
                 json_response = json.loads(result)
@@ -653,7 +653,7 @@ class TestTasks:
                         'message': 'Task cancelled successfully'} == json_response
 
     async def test_cancel_task_bad_data(self, client):
-            resp = await client.put('/foglamp/task/cancel/{}'.format("bla"))
+            resp = await client.put('/foglamp/task/{}/cancel'.format("bla"))
             assert 404 == resp.status
             assert 'Invalid Task ID {}'.format("bla") == resp.reason
 
@@ -668,7 +668,7 @@ class TestTasks:
 
         with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
             with patch.object(server.Server.scheduler, 'cancel_task', side_effect=exception_name):
-                resp = await client.put('/foglamp/task/cancel/{}'.format(self._random_uuid))
+                resp = await client.put('/foglamp/task/{}/cancel'.format(self._random_uuid))
                 assert response_code == resp.status
                 assert response_message == resp.reason
 

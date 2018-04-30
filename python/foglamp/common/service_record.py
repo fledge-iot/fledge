@@ -25,8 +25,20 @@ class ServiceRecord(object):
         Core = 2
         Southbound = 3
 
+    class Status(IntEnum):
+        """Enumeration for Service Status"""
+
+        Running = 1
+        Down = 2
+        Failed = 3
+        Unresponsive = 4
+
     class InvalidServiceType(Exception):
         # TODO: tell allowed service types?
+        pass
+
+    class InvalidServiceStatus(Exception):
+        # TODO: tell allowed service status?
         pass
 
     __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
@@ -41,7 +53,7 @@ class ServiceRecord(object):
         if s_port is not None:
             self._port = int(s_port)
         self._management_port = int(m_port)
-        self._status = 1
+        self._status = ServiceRecord.Status.Running
 
     def __repr__(self):
         template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \

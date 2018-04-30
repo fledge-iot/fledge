@@ -11,7 +11,6 @@ import asyncio
 import os
 import subprocess
 import sys
-
 import ssl
 import time
 import uuid
@@ -22,13 +21,16 @@ import json
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
+
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.storage_client import StorageClient
 
 from foglamp.services.core import routes as admin_routes
+from foglamp.services.core.api import configuration as conf_api
 from foglamp.services.common.microservice_management import routes as management_routes
 
+from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
@@ -36,6 +38,7 @@ from foglamp.services.core.interest_registry import exceptions as interest_regis
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
+from foglamp.services.core.user_model import User
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
@@ -53,6 +56,7 @@ _SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 # PID dir and filename
 _FOGLAMP_PID_DIR= "/var/run"
 _FOGLAMP_PID_FILE = "foglamp.core.pid"
+
 
 class Server:
     """ FOGLamp core server.
@@ -112,8 +116,11 @@ class Server:
     rest_server_port = 0
     """ FogLAMP REST API port """
 
-    is_rest_server_http_enabled = False
+    is_rest_server_http_enabled = True
     """ a Flag to decide to enable FogLAMP REST API on HTTP on restart """
+
+    is_auth_required = False
+    """ a var to decide to make authentication mandatory / optional for FogLAMP Admin/ User REST API"""
 
     cert_file_name = ''
     """ cert file name """
@@ -144,6 +151,22 @@ class Server:
             'description': 'Certificate file name',
             'type': 'string',
             'default': 'foglamp'
+        },
+        'authentication': {
+            'description': 'To make the authentication mandatory or optional for API calls',
+            'type': 'string',
+            'default': 'optional'
+        },
+        'allowPing': {
+            'description': 'To allow access to the ping, regardless of the authentication required and'
+                           ' authentication header',
+            'type': 'boolean',
+            'default': 'true'
+        },
+        'passwordChange': {
+            'description': 'Number of days which a password must be changed',
+            'type': 'integer',
+            'default': '0'
         }
     }
 
@@ -269,6 +292,12 @@ class Server:
                               port_from_config, type(port_from_config))
                 raise
 
+            try:
+                cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
+            except KeyError:
+                _logger.error("error in retrieving authentication info")
+                raise
+
         except Exception as ex:
             _logger.exception(str(ex))
             raise
@@ -301,12 +330,14 @@ class Server:
             raise
 
     @staticmethod
-    def _make_app():
+    def _make_app(auth_required=True):
         """Creates the REST server
 
         :rtype: web.Application
         """
-        app = web.Application(middlewares=[middleware.error_middleware])
+        app = web.Application(middlewares=[middleware.error_middleware, middleware.auth_middleware])
+        if not auth_required:
+            app = web.Application(middlewares=[middleware.error_middleware, middleware.optional_auth_middleware])
         admin_routes.setup(app)
         return app
 
@@ -317,7 +348,7 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware])
-        management_routes.setup(app, cls)
+        management_routes.setup(app, cls, True)
         return app
 
     @classmethod
@@ -489,10 +520,8 @@ class Server:
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
-            cls.service_app = cls._make_app()
-
             loop.run_until_complete(cls.rest_api_config())
-
+            cls.service_app = cls._make_app(auth_required=cls.is_auth_required)
             # ssl context
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:
@@ -596,6 +625,8 @@ class Server:
 
     @classmethod
     async def stop_rest_server(cls):
+        # Delete all user tokens
+        User.Objects.delete_all_user_tokens()
         cls.service_server.close()
         await cls.service_server.wait_closed()
         await cls.service_app.shutdown()
@@ -633,6 +664,8 @@ class Server:
 
             for fs in found_services:
                 if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
+                    continue
+                if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                     continue
                 services_to_stop.append(fs)
 
@@ -760,20 +793,17 @@ class Server:
         try:
             service_id = request.match_info.get('service_id', None)
 
-            if not service_id:
-                raise web.HTTPBadRequest(reason='Service id is required')
-
             try:
                 services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
+                raise ValueError('Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
 
             if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client)
-                    await cls._audit.information('SRVUN', { 'name' : services[0]._name })
+                    await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(str(ex))
 
@@ -826,7 +856,7 @@ class Server:
             svc["address"] = service._address
             svc["management_port"] = service._management_port
             svc["protocol"] = service._protocol
-            svc["status"] = service._status
+            svc["status"] = ServiceRecord.Status(int(service._status)).name.lower()
             if service._port:
                 svc["service_port"] = service._port
             services.append(svc)
@@ -873,7 +903,7 @@ class Server:
                 try:
                     assert uuid.UUID(microservice_uuid)
                 except:
-                    raise web.HTTPBadRequest(reason="Invalid microservice id {}".format(microservice_uuid))
+                    raise ValueError('Invalid microservice id {}'.format(microservice_uuid))
 
             try:
                 registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
@@ -888,10 +918,10 @@ class Server:
                 'message': "Interest registered successfully"
             }
 
-            return web.json_response(_response)
-
         except ValueError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
+
+        return web.json_response(_response)
 
     @classmethod
     async def unregister_interest(cls, request):
@@ -904,26 +934,24 @@ class Server:
         try:
             interest_registration_id = request.match_info.get('interest_id', None)
 
-            if not interest_registration_id:
-                raise web.HTTPBadRequest(reason='Registration id is required')
-            else:
-                try:
-                    assert uuid.UUID(interest_registration_id)
-                except:
-                    raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
+            try:
+                assert uuid.UUID(interest_registration_id)
+            except:
+                raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
 
             try:
                 cls._interest_registry.get(registration_id=interest_registration_id)
             except interest_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
+                raise ValueError('InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
 
             cls._interest_registry.unregister(interest_registration_id)
 
             _resp = {'id': str(interest_registration_id), 'message': 'Interest unregistered'}
 
-            return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+
+        return web.json_response(_resp)
 
     @classmethod
     async def get_interest(cls, request):
@@ -975,3 +1003,33 @@ class Server:
     @classmethod
     async def change(cls, request):
         pass
+
+    @classmethod
+    async def get_configuration_categories(cls, request):
+        res = await conf_api.get_categories(request)
+        return res
+
+    @classmethod
+    async def create_configuration_category(cls, request):
+        res = await conf_api.create_category(request)
+        return res
+
+    @classmethod
+    async def get_configuration_category(cls, request):
+        res = await conf_api.get_category(request)
+        return res
+
+    @classmethod
+    async def get_configuration_item(cls, request):
+        res = await conf_api.get_category_item(request)
+        return res
+
+    @classmethod
+    async def update_configuration_item(cls, request):
+        res =await conf_api.set_configuration_item(request)
+        return res
+
+    @classmethod
+    async def delete_configuration_item(cls, request):
+        res = await conf_api.delete_configuration_item_value(request)
+        return res

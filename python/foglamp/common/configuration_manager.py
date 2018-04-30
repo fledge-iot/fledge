@@ -163,7 +163,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _read_all_category_names(self):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
-        payload = PayloadBuilder().SELECT(("key", "description", "value", "ts")).payload()
+        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "timestamp"}'
+        payload = PayloadBuilder().SELECT(("key", "description", "value", ts)).payload()
         results = self._storage.query_tbl_with_payload('configuration', payload)
 
         category_info = []

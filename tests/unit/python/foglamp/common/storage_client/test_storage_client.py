@@ -254,23 +254,27 @@ class TestStorageClient:
         for response in await asyncio.gather(*futures):
             assert {"k": "v"} == response["called"]
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"bad_request": "v"})
-                futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
-        log_e.assert_called_once_with('Error code: %d, reason: %s, details: %s', 400, 'bad data', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
+            log_e.assert_called_once_with('Error code: %d, reason: %s, details: %s', 400, 'bad data', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"internal_server_err": "v"})
-                futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"internal_server_err": "v"}')
-        log_e.assert_called_once_with('Error code: %d, reason: %s, details: %s', 500, 'something wrong', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.insert_into_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("POST %s, with payload: %s", '/storage/table/aTable', '{"internal_server_err": "v"}')
+            log_e.assert_called_once_with('Error code: %d, reason: %s, details: %s', 500, 'something wrong', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 
@@ -319,24 +323,28 @@ class TestStorageClient:
         for response in await asyncio.gather(*futures):
             assert {"k": "v"} == response["called"]
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"bad_request": "v"})
-                futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("PUT %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("PUT %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"internal_server_err": "v"})
-                futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("PUT %s, with payload: %s", '/storage/table/aTable',
-                                      '{"internal_server_err": "v"}')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.update_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("PUT %s, with payload: %s", '/storage/table/aTable',
+                                          '{"internal_server_err": "v"}')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 
@@ -381,24 +389,28 @@ class TestStorageClient:
         for response in await asyncio.gather(*futures):
             assert {"condition": "v"} == response["called"]
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"bad_request": "v"})
-                futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("DELETE %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("DELETE %s, with payload: %s", '/storage/table/aTable', '{"bad_request": "v"}')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"internal_server_err": "v"})
-                futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("DELETE %s, with payload: %s", '/storage/table/aTable',
-                                      '{"internal_server_err": "v"}')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.delete_from_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("DELETE %s, with payload: %s", '/storage/table/aTable',
+                                          '{"internal_server_err": "v"}')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 
@@ -435,23 +447,27 @@ class TestStorageClient:
         for response in await asyncio.gather(*futures):
             assert 'foo passed' == response["called"]
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", 'bad_foo=1'
-                futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("GET %s", '/storage/table/aTable?bad_foo=1')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", 'bad_foo=1'
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("GET %s", '/storage/table/aTable?bad_foo=1')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", 'internal_server_err_foo=1'
-                futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("GET %s", '/storage/table/aTable?internal_server_err_foo=1')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", 'internal_server_err_foo=1'
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("GET %s", '/storage/table/aTable?internal_server_err_foo=1')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 
@@ -500,25 +516,29 @@ class TestStorageClient:
         for response in await asyncio.gather(*futures):
             assert {"k": "v"} == response["called"]
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"bad_request": "v"})
-                futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("PUT %s, with query payload: %s", '/storage/table/aTable/query',
-                                      '{"bad_request": "v"}')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"bad_request": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("PUT %s, with query payload: %s", '/storage/table/aTable/query',
+                                          '{"bad_request": "v"}')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 400, 'bad data', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            with patch.object(_LOGGER, "info") as log_i:
-                args = "aTable", json.dumps({"internal_server_err": "v"})
-                futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
-                for response in await asyncio.gather(*futures):
-                    pass
-        log_i.assert_called_once_with("PUT %s, with query payload: %s", '/storage/table/aTable/query',
-                                      '{"internal_server_err": "v"}')
-        log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                with patch.object(_LOGGER, "info") as log_i:
+                    args = "aTable", json.dumps({"internal_server_err": "v"})
+                    futures = [event_loop.run_in_executor(None, sc.query_tbl_with_payload, *args)]
+                    for response in await asyncio.gather(*futures):
+                        pass
+            log_i.assert_called_once_with("PUT %s, with query payload: %s", '/storage/table/aTable/query',
+                                          '{"internal_server_err": "v"}')
+            log_e.assert_called_once_with("Error code: %d, reason: %s, details: %s", 500, 'something wrong', {'key': 'value'})
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 
@@ -567,22 +587,26 @@ class TestReadingsStorageClient:
         assert excinfo.type is TypeError
         assert "Readings payload must be a valid JSON" in str(excinfo.value)
 
-        with patch.object(_LOGGER, "error") as log_e:
-            readings_bad_payload = json.dumps({"Xreadings": []})
-            futures = [event_loop.run_in_executor(None, rsc.append, readings_bad_payload)]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
-                                      '/storage/reading', '{"Xreadings": []}', 400, 'bad data', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                readings_bad_payload = json.dumps({"Xreadings": []})
+                futures = [event_loop.run_in_executor(None, rsc.append, readings_bad_payload)]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
+                                          '/storage/reading', '{"Xreadings": []}', 400, 'bad data', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            r = '{"readings": [], "internal_server_err": 1}'
-            futures = [event_loop.run_in_executor(None, rsc.append, r)]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
-                                      '/storage/reading', '{"readings": [], "internal_server_err": 1}',
-                                      500, 'something wrong', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                r = '{"readings": [], "internal_server_err": 1}'
+                futures = [event_loop.run_in_executor(None, rsc.append, r)]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
+                                          '/storage/reading', '{"readings": [], "internal_server_err": 1}',
+                                          500, 'something wrong', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
         readings = json.dumps({"readings": []})
         futures = [event_loop.run_in_executor(None, rsc.append, readings)]
@@ -631,21 +655,24 @@ class TestReadingsStorageClient:
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
-        with patch.object(_LOGGER, "error") as log_e:
-            args = "bad_data", 3
-            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with('GET url: %s, Error code: %d, reason: %s, details: %s',
-                                      '/storage/reading?id=bad_data&count=3', 400, 'bad data', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                args = "bad_data", 3
+                futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with('GET url: %s, Error code: %d, reason: %s, details: %s',
+                                          '/storage/reading?id=bad_data&count=3', 400, 'bad data', {"key": "value"})
 
-        with patch.object(_LOGGER, "error") as log_e:
-            args = "internal_server_err", 3
-            futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with('GET url: %s, Error code: %d, reason: %s, details: %s',
-                                      '/storage/reading?id=internal_server_err&count=3', 500, 'something wrong', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                args = "internal_server_err", 3
+                futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with('GET url: %s, Error code: %d, reason: %s, details: %s',
+                                          '/storage/reading?id=internal_server_err&count=3', 500, 'something wrong', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
         args = 2, 3
         futures = [event_loop.run_in_executor(None, rsc.fetch, *args)]
@@ -688,19 +715,23 @@ class TestReadingsStorageClient:
         for response in await asyncio.gather(*futures):
             assert {"k": "v"} == response["called"]
 
-        with patch.object(_LOGGER, "error") as log_e:
-            futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"bad_request": "v"}))]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
-                                      '/storage/reading/query', '{"bad_request": "v"}', 400, 'bad data', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"bad_request": "v"}))]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
+                                          '/storage/reading/query', '{"bad_request": "v"}', 400, 'bad data', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"internal_server_err": "v"}))]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
-                                      '/storage/reading/query', '{"internal_server_err": "v"}', 500, 'something wrong', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                futures = [event_loop.run_in_executor(None, rsc.query, json.dumps({"internal_server_err": "v"}))]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
+                                          '/storage/reading/query', '{"internal_server_err": "v"}', 500, 'something wrong', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
         await fake_storage_srvr.stop()
 
@@ -786,23 +817,27 @@ class TestReadingsStorageClient:
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
-        with patch.object(_LOGGER, "error") as log_e:
-            kwargs = dict(age=-1, sent_id=1, size=None, flag='retain')
-            func = partial(rsc.purge, **kwargs)
-            futures = [event_loop.run_in_executor(None, func)]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
-                                      '/storage/reading/purge?age=-1&sent=1&flags=retain', 400, 'age should not be less than 0', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                kwargs = dict(age=-1, sent_id=1, size=None, flag='retain')
+                func = partial(rsc.purge, **kwargs)
+                futures = [event_loop.run_in_executor(None, func)]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
+                                          '/storage/reading/purge?age=-1&sent=1&flags=retain', 400, 'age should not be less than 0', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
-        with patch.object(_LOGGER, "error") as log_e:
-            kwargs = dict(age=None, sent_id=1, size=4294967296, flag='retain')
-            func = partial(rsc.purge, **kwargs)
-            futures = [event_loop.run_in_executor(None, func)]
-            for response in await asyncio.gather(*futures):
-                pass
-        log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
-                                      '/storage/reading/purge?size=4294967296&sent=1&flags=retain', 500, 'unsigned int range', {"key": "value"})
+        with pytest.raises(Exception) as excinfo:
+            with patch.object(_LOGGER, "error") as log_e:
+                kwargs = dict(age=None, sent_id=1, size=4294967296, flag='retain')
+                func = partial(rsc.purge, **kwargs)
+                futures = [event_loop.run_in_executor(None, func)]
+                for response in await asyncio.gather(*futures):
+                    pass
+            log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
+                                          '/storage/reading/purge?size=4294967296&sent=1&flags=retain', 500, 'unsigned int range', {"key": "value"})
+        assert excinfo.type is StorageServerError
 
         kwargs = dict(age=1, sent_id=1, size=0, flag='retain')
         func = partial(rsc.purge, **kwargs)

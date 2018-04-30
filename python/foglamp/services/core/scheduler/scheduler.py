@@ -650,6 +650,7 @@ class Scheduler(object):
         try:
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
+
             for row in res['rows']:
                 if 'days' in row.get('schedule_interval'):
                     interval_split = row.get('schedule_interval').split('days')
@@ -682,8 +683,8 @@ class Scheduler(object):
                 schedule = self._ScheduleRow(
                     id=schedule_id,
                     name=row.get('schedule_name'),
-                    type=int(row.get('schedule_type')),
-                    day=int(row.get('schedule_day')) if row.get('schedule_day') else None,
+                    type=row.get('schedule_type'),
+                    day=row.get('schedule_day') if row.get('schedule_day') else None,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,

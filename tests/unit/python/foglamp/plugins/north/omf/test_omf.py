@@ -1220,3 +1220,146 @@ class TestOmfNorthPlugin:
         generated_measurement_id = omf_north._generate_omf_measurement(p_asset_code)
 
         assert generated_measurement_id == expected_measurement_id
+
+    @pytest.mark.parametrize(
+        "p_asset_code, "
+        "expected_typename, ",
+        [
+            # p_asset_code     - expected_asset_code
+            ("asset_code_1 ",  "asset_code_1_typename"),
+            (" asset_code_2 ", "asset_code_2_typename"),
+            ("asset_ code_3",  "asset_code_3_typename"),
+        ]
+    )
+    def test_generate_omf_typename_automatic(
+            self,
+            p_asset_code,
+            expected_typename
+    ):
+        """Tests _generate_omf_typename_automatic """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        generated_typename = omf_north._generate_omf_typename_automatic(p_asset_code)
+
+        assert generated_typename == expected_typename
+
+    @pytest.mark.parametrize(
+        "p_type_id, "
+        "p_asset_code_omf_type, "
+        "expected_typename, "
+        "expected_omf_type, ",
+        [
+            # Case 1
+            (
+                # p_type_id
+                "0001",
+                
+                # p_asset_code_omf_type
+                {
+                    "typename": "position",
+                    "static": {
+                        "Name": {
+                            "type": "string",
+                            "isindex": True
+                        },
+                        "Location": {
+                            "type": "string"
+                        }
+                    },
+                    "dynamic": {
+                        "Time": {
+                            "type": "string",
+                            "format": "date-time",
+                            "isindex": True
+                        },
+                        "x": {
+                            "type": "number"
+                        },
+                        "y": {
+                            "type": "number"
+                        },
+                        "z": {
+                            "type": "number"
+                        }
+                    }
+                },
+
+                # expected_typename
+                "position",
+
+                # expected_omf_type
+                {
+                    "position": [
+                        {
+                            "id": "0001_position_sensor",
+                            "type": "object",
+                            "classification": "static",
+                            "properties": {
+                                "Name": {
+                                     "type": "string",
+                                     "isindex": True
+                                     },
+                                "Location": {
+                                     "type": "string"
+                                      }
+                            }
+                        },
+                        {
+                            "id": "0001_position_measurement",
+                            "type": "object",
+                            "classification": "dynamic",
+                            "properties": {
+                                "Time": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "isindex": True
+                                },
+                                "x": {
+                                    "type": "number"
+                                },
+                                "y": {
+                                    "type": "number"
+                                },
+                                "z": {
+                                    "type": "number"
+                                }
+
+                            }
+                        }
+
+                    ]
+                }
+            )
+        ]
+    )
+    def test_create_omf_type_configuration_based(
+            self,
+            p_type_id,
+            p_asset_code_omf_type,
+            expected_typename,
+            expected_omf_type
+    ):
+        """ Tests the generation of the OMF messages using Configuration Based OMF Type Mapping"""
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
+
+        with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) as patched_send_to_picromf:
+            generated_typename, generated_omf_type = omf_north._create_omf_type_configuration_based(p_asset_code_omf_type)
+
+        assert generated_typename == expected_typename
+        assert generated_omf_type == expected_omf_type
+
+        patched_send_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])

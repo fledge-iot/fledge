@@ -1423,9 +1423,9 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
-        end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
-        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", start_ts, end_ts, "reason", "exit_code")\
+        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code")\
+            .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+            .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .WHERE(["id", "=", str(task_id)]).payload()
 
         try:
@@ -1460,9 +1460,10 @@ class Scheduler(object):
                 A tuple of Task attributes to sort by.
                 Defaults to ("start_time", "desc")
         """
-        start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
-        end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
-        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", start_ts, end_ts, "reason", "exit_code").LIMIT(limit).chain_payload()
+        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code") \
+            .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+            .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .LIMIT(limit).chain_payload()
         if offset:
             chain_payload = PayloadBuilder(chain_payload).OFFSET(offset).chain_payload()
         if where:

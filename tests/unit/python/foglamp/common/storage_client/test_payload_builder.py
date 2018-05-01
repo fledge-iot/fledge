@@ -224,6 +224,24 @@ class TestPayloadBuilderRead:
                                                            ('values', 'avg', 'Average')).payload()
         assert expected == json.loads(res)
 
+    @pytest.mark.parametrize("test_input, expected", [
+        (("user_ts", "5"), _payload("data/payload_timebucket1.json")),
+        (("user_ts", "5", "DD-MM-YYYYY HH24:MI:SS"), _payload("data/payload_timebucket2.json")),
+        (("user_ts", "5", "DD-MM-YYYYY HH24:MI:SS", "bucket"), _payload("data/payload_timebucket3.json"))
+    ])
+    def test_timebucket(self, test_input, expected):
+        timestamp = test_input[0]
+        size = test_input[1]
+        format = None
+        alias = None
+        if len(test_input) == 3:
+            format = test_input[2]
+        if len(test_input) == 4:
+            format = test_input[2]
+            alias = test_input[3]
+        res = PayloadBuilder().TIMEBUCKET(timestamp, size, format, alias).payload()
+        assert expected == json.loads(res)
+
     def test_select_all_payload(self):
         res = PayloadBuilder().SELECT().payload()
         expected = {}

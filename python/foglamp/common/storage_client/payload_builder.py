@@ -561,6 +561,50 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
+    def TIMEBUCKET(cls, timestamp, size, format=None, alias=None):
+        """
+        Forms a json to return a dict of timebucket col
+
+        :param timestamp: timestamp col
+        :param size: size
+        :param format: format string
+        :param alias: alias
+        :return:
+        :example:
+        PayloadBuilder().TIMEBUCKET("user_ts", 5).payload() prints
+            "timebucket" :  {
+                               "timestamp" : "user_ts",
+                               "size"      : "5"
+                        }
+
+        PayloadBuilder().TIMEBUCKET("user_ts", 5, format="DD-MM-YYYYY HH24:MI:SS").payload() prints
+            "timebucket" :  {
+                               "timestamp" : "user_ts",
+                               "size"      : "5",
+                               "format"    : "DD-MM-YYYYY HH24:MI:SS"
+                        }
+
+        PayloadBuilder().TIMEBUCKET("user_ts", 5, format="DD-MM-YYYYY HH24:MI:SS", alias="bucket").payload() prints
+            "timebucket" :  {
+                               "timestamp" : "user_ts",
+                               "size"      : "5",
+                               "format"    : "DD-MM-YYYYY HH24:MI:SS",
+                               "alias"     : "bucket"
+                        }
+        """
+
+        timebucket = OrderedDict()
+        timebucket["timestamp"] = timestamp
+        timebucket["size"] = size
+        if format is not None:
+            timebucket["format"] = format
+        if alias is not None:
+            timebucket["alias"] = alias
+        cls.query_payload["timebucket"] = timebucket
+
+        return cls
+
+    @classmethod
     def payload(cls):
         return json.dumps(cls.query_payload, sort_keys=False)
 

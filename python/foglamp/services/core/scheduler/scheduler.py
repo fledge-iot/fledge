@@ -650,6 +650,7 @@ class Scheduler(object):
         try:
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
+
             for row in res['rows']:
                 interval_days, interval_dt = self.extract_day_time_from_interval(row.get('schedule_interval'))
                 interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
@@ -664,22 +665,11 @@ class Scheduler(object):
 
                 schedule_id = uuid.UUID(row.get('id'))
 
-                #
-                # row.get('schedule_day') returns an int, say 0, from SQLite
-                # and "0", as a string, from Postgres
-                # We handle here this difference
-                #
-
-                if type(row.get('schedule_day')) is str:
-                    s_day = int(row.get('schedule_day')) if row.get('schedule_day').strip() else None
-                else:
-                    s_day = int(row.get('schedule_day'))
-
                 schedule = self._ScheduleRow(
                     id=schedule_id,
                     name=row.get('schedule_name'),
-                    type=int(row.get('schedule_type')),
-                    day=s_day,
+                    type=row.get('schedule_type'),
+                    day=row.get('schedule_day') if row.get('schedule_day') else None,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,
@@ -1043,7 +1033,7 @@ class Scheduler(object):
         if not is_new_schedule:
             update_payload = PayloadBuilder() \
                 .SET(schedule_name=schedule.name,
-                     schedule_type=int(schedule.schedule_type),
+                     schedule_type=schedule.schedule_type,
                      schedule_interval=str(schedule.repeat),
                      schedule_day=day if day else 0,
                      schedule_time=str(schedule_time) if schedule_time else '00:00:00',
@@ -1066,7 +1056,7 @@ class Scheduler(object):
         if is_new_schedule:
             insert_payload = PayloadBuilder() \
                 .INSERT(id=str(schedule.schedule_id),
-                        schedule_type=int(schedule.schedule_type),
+                        schedule_type=schedule.schedule_type,
                         schedule_name=schedule.name,
                         schedule_interval=str(schedule.repeat),
                         schedule_day=day if day else 0,

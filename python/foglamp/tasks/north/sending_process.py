@@ -702,7 +702,8 @@ class SendingProcess:
                     # Updates reached position, statistics and logs the operation within the Storage Layer
                     self._last_object_id_update(new_last_object_id, stream_id)
                     self._update_statistics(num_sent, stream_id)
-                    self._audit.information(_AUDIT_CODE, {"sentRows": num_sent})
+                    loop = asyncio.get_event_loop()
+                    loop.run_until_complete(self._audit.information(self._AUDIT_CODE, {"sentRows": num_sent}))
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
             SendingProcess._logger.error(_message)
@@ -746,7 +747,8 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
             SendingProcess._logger.error(_message)
-            self._audit.failure(_AUDIT_CODE, {"error - on send_data": _message})
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message}))
             raise
 
     def _update_statistics(self, num_sent, stream_id):
@@ -877,7 +879,8 @@ class SendingProcess:
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000004"].format(str(_ex))
             SendingProcess._logger.error(_message)
-            self._audit.failure(_AUDIT_CODE, {"error - on start": _message})
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on start": _message}))
             raise
         return exec_sending_process
 
@@ -949,7 +952,8 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
             SendingProcess._logger.error(_message)
-            self._audit.failure(_AUDIT_CODE, {"error - on stop": _message})
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on stop": _message}))
             raise
 
 

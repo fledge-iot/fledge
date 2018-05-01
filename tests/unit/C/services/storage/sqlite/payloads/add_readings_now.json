@@ -1,0 +1,9 @@
+{               
+   "readings" : [       
+                {       
+                        "asset_code": "MyAsset",
+                        "read_key" : "11cfff7a-3769-4f47-9ded-00f0975d66f5",
+                        "reading" : { "rate" : 90 },
+                        "user_ts" : "now()"
+                }]
+}

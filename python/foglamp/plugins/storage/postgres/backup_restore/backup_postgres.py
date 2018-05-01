@@ -121,17 +121,12 @@ class Backup(object):
 
         Raises:
         """
-
-        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "ts"}'
-        if status is None:
-            payload = payload_builder.PayloadBuilder().SELECT("id", "status", ts, "file_name", "type") \
-                      .LIMIT(limit).SKIP(skip).ORDER_BY(['ts', sort_order]).payload()
-        else:
-            payload = payload_builder.PayloadBuilder().SELECT("id", "status", ts, "file_name", "type")\
-                      .WHERE(['status', '=', status]).LIMIT(limit).SKIP(skip)\
-                      .ORDER_BY(['ts', sort_order]).payload()
-
-        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload)
+        payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
+        if status:
+            payload.WHERE(['status', '=', status])
+            
+        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
 
         backups_information = backups_from_storage['rows']
 

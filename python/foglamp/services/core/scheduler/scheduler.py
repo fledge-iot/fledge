@@ -652,23 +652,8 @@ class Scheduler(object):
             res = self._storage.query_tbl("schedules")
 
             for row in res['rows']:
-                if 'days' in row.get('schedule_interval'):
-                    interval_split = row.get('schedule_interval').split('days')
-                    interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1].strip()
-                elif 'day' in row.get('schedule_interval'):
-                    interval_split = row.get('schedule_interval').split('day')
-                    interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1].strip()
-                else:
-                    interval_days = 0
-                    interval_time = row.get('schedule_interval')
-                s_days = int(interval_days)
-                if not interval_time:
-                    interval_time = "00:00:00"
-                s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
-                interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
-                                              seconds=s_interval.second)
+                interval_days, interval_dt = self.extract_day_time_from_interval(row.get('schedule_interval'))
+                interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
 
                 repeat_seconds = None
                 if interval is not None and interval != datetime.timedelta(0):
@@ -1413,9 +1398,9 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
-        end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
-        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", start_ts, end_ts, "reason", "exit_code")\
+        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code")\
+            .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+            .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .WHERE(["id", "=", str(task_id)]).payload()
 
         try:
@@ -1450,9 +1435,10 @@ class Scheduler(object):
                 A tuple of Task attributes to sort by.
                 Defaults to ("start_time", "desc")
         """
-        start_ts = '{"column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "start_time"}'
-        end_ts = '{"column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "end_time"}'
-        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", start_ts, end_ts, "reason", "exit_code").LIMIT(limit).chain_payload()
+        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code") \
+            .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+            .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .LIMIT(limit).chain_payload()
         if offset:
             chain_payload = PayloadBuilder(chain_payload).OFFSET(offset).chain_payload()
         if where:
@@ -1542,3 +1528,23 @@ class Scheduler(object):
         for pid_str in pids:
             if pid_str.strip():
                 os.kill(int(pid_str.strip()), signal.SIGTERM)
+
+    def extract_day_time_from_interval(self, str_interval):
+        if 'days' in str_interval:
+            interval_split = str_interval.split('days')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1]
+        elif 'day' in str_interval:
+            interval_split = str_interval.split('day')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1]
+        else:
+            interval_days = 0
+            interval_time = str_interval
+
+        if not interval_time:
+            interval_time = "00:00:00"
+        interval_time = interval_time.replace(",", "").strip()
+        interval_time = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+
+        return int(interval_days), interval_time

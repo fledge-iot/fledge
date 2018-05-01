@@ -253,10 +253,11 @@ class User:
             :param token:
             :return:
             """
-
             storage_client = connect.get_storage()
-            token_expiration = '{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "token_expiration"}'
-            payload = PayloadBuilder().SELECT(token_expiration).WHERE(['token', '=', token]).payload()
+            payload = PayloadBuilder().SELECT("token_expiration") \
+                .ALIAS("return", ("token_expiration", 'token_expiration')) \
+                .FORMAT("return", ("token_expiration", "YYYY-MM-DD HH24:MI:SS.MS")) \
+                .WHERE(['token', '=', token]).payload()
             result = storage_client.query_tbl_with_payload('user_logins', payload)
 
             if len(result['rows']) == 0:
@@ -297,9 +298,10 @@ class User:
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            pwd_last_changed = '{"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "pwd_last_changed"}'
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", pwd_last_changed).WHERE(['uname', '=', username]).\
-                AND_WHERE(['enabled', '=', 't']).payload()
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "pwd_last_changed").WHERE(['uname', '=', username])\
+                .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
+                .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
+                .AND_WHERE(['enabled', '=', 't']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
                 raise User.DoesNotExist('User does not exist')

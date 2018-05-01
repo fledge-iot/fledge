@@ -20,13 +20,14 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-URLS = ['foglamp/asset', '/foglamp/asset/fogbench%2fhumidity',
+URLS = ['foglamp/asset',
+        '/foglamp/asset/fogbench%2fhumidity',
         '/foglamp/asset/fogbench%2fhumidity/temperature',
         '/foglamp/asset/fogbench%2fhumidity/temperature/summary',
         '/foglamp/asset/fogbench%2fhumidity/temperature/series']
 
 PAYLOADS = ['{"aggregate": {"column": "*", "alias": "count", "operation": "count"}, "group": "asset_code"}',
-            '{"return": [{"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts", "alias": "timestamp"}, "reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}',
+            '{"return": ["reading", {"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}',
             '{"return": [{"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts", "alias": "timestamp"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}',
             '{"aggregate": [{"operation": "min", "alias": "min", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "max", "alias": "max", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "avg", "alias": "average", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}}',
             '{"aggregate": [{"operation": "min", "alias": "min", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "max", "alias": "max", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "avg", "alias": "average", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "group": {"format": "YYYY-MM-DD HH24:MI:SS", "column": "user_ts", "alias": "timestamp"}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}'
@@ -100,6 +101,9 @@ class TestBrowserAssets:
                 json_response = json.loads(r)
                 if str(request_url).endswith("summary"):
                     assert {'temperature': result['rows'][0]} == json_response
+                elif str(request_url) == 'foglamp/asset':
+                    result['rows'][0]['assetCode'] = result['rows'][0].pop('asset_code')
+                    assert result['rows'] == json_response
                 else:
                     assert result['rows'] == json_response
             # Now we want to check - query_table_patch.assert_called_once_with('readings', payload)

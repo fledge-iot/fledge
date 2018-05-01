@@ -4,10 +4,9 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import copy
 from datetime import datetime
-import json
 from enum import IntEnum
-from collections import OrderedDict
 from aiohttp import web
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -188,8 +187,10 @@ async def get_audit_entries(request):
     try:
         # HACK: This way when we can more future we do not get an exponential
         # explosion of if statements
-        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "timestamp"}'
-        payload = PayloadBuilder().SELECT("code", "level", "log", ts).WHERE(['1', '=', 1])
+        payload = PayloadBuilder().SELECT("code", "level", "log", "ts")\
+            .ALIAS("return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .WHERE(['1', '=', 1])
+
         if source is not None:
             payload.AND_WHERE(['code', '=', source])
 
@@ -199,18 +200,16 @@ async def get_audit_entries(request):
         _and_where_payload = payload.chain_payload()
         # SELECT *, count(*) OVER() FROM log - No support yet from storage layer
         # TODO: FOGL-740, FOGL-663 once ^^ resolved we should replace below storage call for getting total rows
-        # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
-        aggregate = {"operation": "count", "column": "*", "alias": "count"}
-        d = OrderedDict()
-        d['aggregate'] = aggregate
-        d.update(_and_where_payload)
-        total_count_payload = json.dumps(d)
+        _and_where_copy = copy.deepcopy(_and_where_payload)
+        total_count_payload = PayloadBuilder(_and_where_copy).AGGREGATE(["count", "*"])\
+            .ALIAS("aggregate", ("*", "count", "count")).payload()
 
         # SELECT count (*) FROM log <_and_where_payload>
         storage_client = connect.get_storage()
         result = storage_client.query_tbl_with_payload('log', total_count_payload)
         total_count = result['rows'][0]['count']
 
+        payload = PayloadBuilder(_and_where_payload)
         payload.ORDER_BY(['ts', 'desc'])
         payload.LIMIT(limit)
 

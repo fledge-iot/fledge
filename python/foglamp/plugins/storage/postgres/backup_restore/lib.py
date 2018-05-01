@@ -676,9 +676,9 @@ class BackupRestoreLib(object):
             exceptions.DoesNotExist
             exceptions.NotUniqueBackup
         """
-        ts = '{"column": "ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias" : "ts"}'
-        payload = payload_builder.PayloadBuilder().SELECT("id", "status", ts, "file_name", "type")\
-                  .WHERE(['id', '=', backup_id]).payload()
+        payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type")\
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .WHERE(['id', '=', backup_id]).payload()
 
         backup_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
 

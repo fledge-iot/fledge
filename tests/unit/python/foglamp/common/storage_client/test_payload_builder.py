@@ -40,6 +40,36 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
+        ("name", _payload("data/payload_select1_alias.json"))
+    ])
+    def test_select_payload_with_alias1(self, test_input, expected):
+        res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('name', 'my_name')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (("reading", "user_ts"),
+         {"return": ["reading", {"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts", "alias": "timestamp"}]})
+    ])
+    def test_select_payload_with_alias_and_format(self, test_input, expected):
+        res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('user_ts', 'timestamp')).\
+            FORMAT('return', ('user_ts', "YYYY-MM-DD HH24:MI:SS.MS")).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (("name", "id"), _payload("data/payload_select2_alias.json"))
+    ])
+    def test_select_payload_with_alias2(self, test_input, expected):
+        res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (("name", ["id", "reason"]), _payload("data/payload_select3_alias.json"))
+    ])
+    def test_select_payload_with_alias3(self, test_input, expected):
+        res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
         ("test", _payload("data/payload_from1.json")),
         ("test, test2", _payload("data/payload_from2.json"))
     ])
@@ -126,6 +156,28 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
+        ('user_ts', _payload("data/payload_group_by2_alias.json"))
+    ])
+    def test_group_by_payload_alias1(self, test_input, expected):
+        res = PayloadBuilder().GROUP_BY(test_input).ALIAS('group', ('user_ts', 'timestamp')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        ("user_ts", _payload("data/payload_group_by1_alias.json"))
+    ])
+    def test_group_by_payload_alias2(self, test_input, expected):
+        res = PayloadBuilder().GROUP_BY(test_input).ALIAS('group', ('user_ts', 'timestamp')).\
+            FORMAT('group', ('user_ts', "YYYY-MM-DD HH24:MI:SS.MS")).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        ('{"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts"}', _payload("data/payload_group_by1_alias.json"))
+    ])
+    def test_group_by_payload_alias3(self, test_input, expected):
+        res = PayloadBuilder().GROUP_BY(test_input).ALIAS('group', ('user_ts', 'timestamp')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
         (["min", "values"], _payload("data/payload_aggregate1.json")),
         (["max", "values"], _payload("data/payload_aggregate2.json")),
         (["avg", "values"], _payload("data/payload_aggregate3.json")),
@@ -136,6 +188,40 @@ class TestPayloadBuilderRead:
     ])
     def test_aggregate_payload(self, test_input, expected):
         res = PayloadBuilder().AGGREGATE(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (["min", "values"], _payload("data/payload_aggregate1_alias.json"))
+    ])
+    def test_aggregate_payload_with_alias1(self, test_input, expected):
+        res = PayloadBuilder().AGGREGATE(test_input).ALIAS('aggregate', ('values', 'min', 'min_values')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (["max", "values"], _payload("data/payload_aggregate2_alias.json"))
+    ])
+    def test_aggregate_payload_with_alias2(self, test_input, expected):
+        res = PayloadBuilder().AGGREGATE(test_input).ALIAS('aggregate', ('values', 'max', 'max_values')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        ((["min", "values"], ["max", "values"], ["avg", "values"]), _payload("data/payload_aggregate6_alias.json"))
+    ])
+    def test_aggregate_payload_with_alias3(self, test_input, expected):
+        res = PayloadBuilder().AGGREGATE(test_input).ALIAS('aggregate',
+                                                           ('values', 'min', 'min_values'),
+                                                           ('values', 'max', 'max_values'),
+                                                           ('values', 'avg', 'avg_values')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        ((["min", ["values", "rate"]], ["max", ["values", "rate"]], ["avg", ["values", "rate"]]), _payload("data/payload_aggregate7_alias.json"))
+    ])
+    def test_aggregate_payload_with_alias4(self, test_input, expected):
+        res = PayloadBuilder().AGGREGATE(test_input).ALIAS('aggregate',
+                                                           ('values', 'min', 'Minimum'),
+                                                           ('values', 'max', 'Maximum'),
+                                                           ('values', 'avg', 'Average')).payload()
         assert expected == json.loads(res)
 
     def test_select_all_payload(self):
@@ -217,6 +303,27 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(["key", "=", "READINGS"]).EXPR(exprs).payload()
         assert 2 == len(json.loads(res))
         assert _payload("data/payload_expr2.json") == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (("data", ["url", "value"], "new value"), _payload("data/payload_json_properties1.json"))
+    ])
+    def test_json_properties1(self, test_input, expected):
+        res = PayloadBuilder().JSON_PROPERTY(test_input).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input1, test_input2, expected", [
+        (("data", ["url", "value"], "new value"), ("data1", ["url1", "value1"], "new value1"), _payload("data/payload_json_properties2.json"))
+    ])
+    def test_json_properties2(self, test_input1, test_input2, expected):
+        res = PayloadBuilder().JSON_PROPERTY(test_input1, test_input2).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input1, test_input2, expected", [
+        (("data", ["url", "value"], "new value"), ("data1", ["url1", "value1"], "new value1"), _payload("data/payload_json_properties2.json"))
+    ])
+    def test_json_properties3(self, test_input1, test_input2, expected):
+        res = PayloadBuilder().JSON_PROPERTY(test_input1).JSON_PROPERTY(test_input2).payload()
+        assert expected == json.loads(res)
 
     def test_complex_select_payload(self):
         res = PayloadBuilder() \

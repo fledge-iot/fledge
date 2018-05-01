@@ -232,14 +232,14 @@ class TestPayloadBuilderRead:
     def test_timebucket(self, test_input, expected):
         timestamp = test_input[0]
         size = test_input[1]
-        format = None
+        fmt = None
         alias = None
         if len(test_input) == 3:
-            format = test_input[2]
+            fmt = test_input[2]
         if len(test_input) == 4:
-            format = test_input[2]
+            fmt = test_input[2]
             alias = test_input[3]
-        res = PayloadBuilder().TIMEBUCKET(timestamp, size, format, alias).payload()
+        res = PayloadBuilder().TIMEBUCKET(timestamp, size, fmt, alias).payload()
         assert expected == json.loads(res)
 
     def test_select_all_payload(self):

@@ -11,6 +11,7 @@ from unittest.mock import patch, MagicMock
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as sp_module
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -80,8 +81,9 @@ class TestSendingProcess:
 
         # Configures properly the SendingProcess
         sp._config_from_manager = {"applyFilter": {"value": "False"}}
-        sp._log_storage = MagicMock(spec=sp_module.LogStorage)
         sp._plugin = MagicMock()
+        mockStorageClient = MagicMock(spec=StorageClient)
+        sp._audit = AuditLogger(mockStorageClient)
 
         # Good Case
         with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):

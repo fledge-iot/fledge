@@ -566,9 +566,9 @@ class PayloadBuilder(object):
         Forms a json to return a dict of timebucket col
 
         :param timestamp: timestamp col
-        :param size: size
-        :param fmt: format string
-        :param alias: alias
+        :param size: bucket size in seconds, defaults to "1"
+        :param fmt: format string, optional
+        :param alias: alias, optional
         :return:
         :example:
         PayloadBuilder().TIMEBUCKET("user_ts", "5").payload() returns

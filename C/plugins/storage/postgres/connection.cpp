@@ -935,71 +935,89 @@ Document doc;
 			 *
 			 * SELECT oid, typname FROM pg_type;
 			 */
-			
-			Oid oid = PQftype(res, j);
-			switch (oid) {
 
-			case 3802: // JSON type hard coded in this example: jsonb
+			/**
+			 * If PQgetvalue() is pointer to an empty string,
+			 * we assume that is a NULL and we return
+			 * the "" value no matter the OID value
+			 */
+			if (!strlen(PQgetvalue(res, i, j)))
 			{
-				Document d;
-				if (d.Parse(PQgetvalue(res, i, j)).HasParseError())
+				Value value("", allocator);
+				Value name(PQfname(res, j), allocator);
+				row.AddMember(name, value, allocator);
+
+				// Get the next column
+				continue;
+			}
+
+			/* PQgetvalue() has a value, check OID */	
+			Oid oid = PQftype(res, j);
+			switch (oid)
+			{
+				case 3802: // JSON type hard coded in this example: jsonb
 				{
-					raiseError("resultSet", "Failed to parse: %s\n", PQgetvalue(res, i, j));
-					continue;
+					Document d;
+					if (d.Parse(PQgetvalue(res, i, j)).HasParseError())
+					{
+						raiseError("resultSet", "Failed to parse: %s\n", PQgetvalue(res, i, j));
+						continue;
+					}
+					Value value(d, allocator);
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, value, allocator);
+					break;
 				}
-				Value value(d, allocator);
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, value, allocator);
-				break;
-			}
-			case 23:    //INT 4 bytes: int4
-			{
-				int32_t intVal = atoi(PQgetvalue(res, i, j));
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, intVal, allocator);
-				break;
-			}
-			case 21:    //SMALLINT 2 bytes: int2
-			{
-				int16_t intVal = (short)atoi(PQgetvalue(res, i, j));
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, intVal, allocator);
-				break;
-			}
-			case 20:    //BIG INT 8 bytes: int8
-			{
-				int64_t intVal = atol(PQgetvalue(res, i, j));
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, intVal, allocator);
-				break;
-			}
-			case 700: // float4
-			case 701: // float8
-			case 710: // this OID doesn't exist
-			{
-				double dblVal = atof(PQgetvalue(res, i, j));
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, dblVal, allocator);
-				break;
-			}
-			case 1184: // Timestamp: timestamptz
-			{
-				char *str = PQgetvalue(res, i, j);
-				Value value(str, allocator);
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, value, allocator);
-				break;
-			}
-			default:
-			{
-				char *str = PQgetvalue(res, i, j);
-				if (oid == 1042) // char(x) rather than varchar so trim white space
-					str = trim(str);
-				Value value(str, allocator);
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, value, allocator);
-				break;
-			}
+				case 23:    //INT 4 bytes: int4
+				{
+					int32_t intVal = atoi(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, intVal, allocator);
+					break;
+				}
+				case 21:    //SMALLINT 2 bytes: int2
+				{
+					int16_t intVal = (short)atoi(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, intVal, allocator);
+					break;
+				}
+				case 20:    //BIG INT 8 bytes: int8
+				{
+					int64_t intVal = atol(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, intVal, allocator);
+					break;
+				}
+				case 700: // float4
+				case 701: // float8
+				case 710: // this OID doesn't exist
+				{
+					double dblVal = atof(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, dblVal, allocator);
+					break;
+				}
+				case 1184: // Timestamp: timestamptz
+				{
+					char *str = PQgetvalue(res, i, j);
+					Value value(str, allocator);
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, value, allocator);
+					break;
+				}
+				default:
+				{
+					char *str = PQgetvalue(res, i, j);
+					if (oid == 1042) // char(x) rather than varchar so trim white space
+					{
+						str = trim(str);
+					}
+					Value value(str, allocator);
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, value, allocator);
+					break;
+				}
 			}
 		}
 		rows.PushBack(row, allocator);  // Add the row

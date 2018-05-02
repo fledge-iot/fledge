@@ -86,34 +86,36 @@ class TestSendingProcess:
         sp._audit = AuditLogger(mockStorageClient)
 
         # Good Case
-        with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):
-            with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):
+                with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
 
-                with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()):
+                    with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()):
 
-                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) \
-                            as mocked_last_object_id_update:
-                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
-                                as mocked_update_statistics:
-                            data_sent = sp._send_data_block(STREAM_ID)
+                        with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) \
+                                as mocked_last_object_id_update:
+                            with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
+                                    as mocked_update_statistics:
+                                data_sent = sp._send_data_block(STREAM_ID)
 
-                            mocked_last_object_id_update.assert_called_once_with(p_new_last_object_id, STREAM_ID)
-                            mocked_update_statistics.assert_called_once_with(p_num_sent, STREAM_ID)
+                                mocked_last_object_id_update.assert_called_once_with(p_new_last_object_id, STREAM_ID)
+                                mocked_update_statistics.assert_called_once_with(p_num_sent, STREAM_ID)
 
         # Bad Case
-        with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):
-            with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            with patch.object(sp, '_last_object_id_read', return_value=mock_last_object_id_read()):
+                with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
 
-                with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_bad()):
+                    with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_bad()):
 
-                    with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) \
-                            as mocked_last_object_id_update:
-                        with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
-                                as mocked_update_statistics:
-                            data_sent = sp._send_data_block(STREAM_ID)
+                        with patch.object(sp, '_last_object_id_update', return_value=mock_last_object_id_update()) \
+                                as mocked_last_object_id_update:
+                            with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
+                                    as mocked_update_statistics:
+                                data_sent = sp._send_data_block(STREAM_ID)
 
-                            assert not mocked_last_object_id_update.called
-                            assert not mocked_update_statistics.called
+                                assert not mocked_last_object_id_update.called
+                                assert not mocked_update_statistics.called
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),

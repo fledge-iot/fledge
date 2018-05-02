@@ -561,7 +561,7 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
-    def TIMEBUCKET(cls, timestamp, size, fmt=None, alias=None):
+    def TIMEBUCKET(cls, timestamp, size="1", fmt=None, alias=None):
         """
         Forms a json to return a dict of timebucket col
 

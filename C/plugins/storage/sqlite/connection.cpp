@@ -40,6 +40,7 @@ using namespace rapidjson;
 #define F_TIMEH24_S     "%H:%M:%S"
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
 #define F_DATEH24_M     "%Y-%m-%d %H:%M"
+#define F_DATEH24_H     "%Y-%m-%d %H"
 #define F_DATEH24_MS    "%Y-%m-%d %H:%M:%f"
 #define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')"
 
@@ -53,6 +54,8 @@ map<string, string> sqliteDateFormat = {
 							F_DATEH24_S},
 						{"YYYY-MM-DD HH24:MI",
 							F_DATEH24_M},
+						{"YYYY-MM-DD HH24",
+							F_DATEH24_H},
 						{"", ""}
 					};
 

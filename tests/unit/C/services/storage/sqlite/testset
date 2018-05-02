@@ -88,5 +88,9 @@ Bad Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone_bad.js
 Set-FOGL-983,PUT,http://localhost:8080/storage/table/configuration,FOGL-983.json
 Get-FOGL-983,PUT,http://localhost:8080/storage/table/configuration/query,get-FOGL-983.json
 Update now,PUT,http://localhost:8080/storage/table/test2,updatenow.json
+Get Reading series group by minutes,PUT,http://localhost:8080/storage/reading/query,series_group_by_minutes.json
+Get Reading series (seconds),PUT,http://localhost:8080/storage/reading/query,series_seconds.json
+Get Reading series summary (seconds),PUT,http://localhost:8080/storage/reading/query,series_summary_seconds.json
+Get Reading series group by hours,PUT,http://localhost:8080/storage/reading/query,series_group_by_hours.json
 Add Readings now,POST,http://localhost:8080/storage/reading,add_readings_now.json
 Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

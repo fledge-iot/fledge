@@ -74,8 +74,13 @@ case "$1" in
     if [ $PID -eq 0 ]; then
       foglamp_start
     else
-      echo "FogLAMP already running [$PID]"
-      exit 0
+      if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
+        rm -f $PID_FILE
+        foglamp_start
+      else
+        echo "FogLAMP already running [$PID]"
+        exit 0
+      fi
     fi
  
     get_pid

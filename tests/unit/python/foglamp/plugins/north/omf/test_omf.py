@@ -1363,3 +1363,71 @@ class TestOmfNorthPlugin:
         assert generated_omf_type == expected_omf_type
 
         patched_send_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])
+
+    @pytest.mark.parametrize(
+        "p_key, "
+        "p_value, "
+        "expected, ",
+        [
+            # Good cases
+            ('producerToken', "xxx", "good"),
+
+            # Bad cases
+            ('NO-producerToken', "", "exception"),
+            ('producerToken', "", "exception")
+        ]
+    )
+    def test_validate_configuration(
+                                    self,
+                                    p_key,
+                                    p_value,
+                                    expected):
+        """ Tests the validation of the configurations retrieved from the Configuration Manager
+            handled by _validate_configuration """
+
+        omf._logger = MagicMock()
+
+        data = {p_key: {'value': p_value}}
+
+        if expected == "good":
+            assert not omf._logger.error.called
+
+        elif expected == "exception":
+            with pytest.raises(ValueError):
+                omf._validate_configuration(data)
+
+            assert omf._logger.error.called
+
+    @pytest.mark.parametrize(
+        "p_key, "
+        "p_value, "
+        "expected, ",
+        [
+            # Good cases
+            ('type-id', "xxx", "good"),
+
+            # Bad cases
+            ('NO-type-id', "", "exception"),
+            ('type-id', "", "exception")
+        ]
+    )
+    def test_validate_configuration_omf_type(
+                                    self,
+                                    p_key,
+                                    p_value,
+                                    expected):
+        """ Tests the validation of the configurations retrieved from the Configuration Manager
+            related to the OMF types """
+
+        omf._logger = MagicMock()
+
+        data = {p_key: {'value': p_value}}
+
+        if expected == "good":
+            assert not omf._logger.error.called
+
+        elif expected == "exception":
+            with pytest.raises(ValueError):
+                omf._validate_configuration_omf_type(data)
+
+            assert omf._logger.error.called

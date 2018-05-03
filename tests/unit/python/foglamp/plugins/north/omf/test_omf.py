@@ -18,7 +18,7 @@ import requests
 
 from unittest.mock import patch, MagicMock
 
-
+from foglamp.tasks.north.sending_process import SendingProcess
 from foglamp.plugins.north.omf import omf
 import foglamp.tasks.north.sending_process as module_sp
 
@@ -74,10 +74,15 @@ class TestOMF:
                     )
                 },
 
-                'sending_process_instance': MagicMock()
+                'sending_process_instance': MagicMock(spec=SendingProcess)
             }
 
-        config = omf.plugin_init(data)
+        config_default_omf_types = omf.CONFIG_DEFAULT_OMF_TYPES
+        config_default_omf_types["type-id"]["value"] = "0001"
+
+        with patch.object(data['sending_process_instance'], '_fetch_configuration',
+                          return_value=config_default_omf_types):
+            config = omf.plugin_init(data)
 
         assert config['_CONFIG_CATEGORY_NAME'] == module_sp.SendingProcess._CONFIG_CATEGORY_NAME
         assert config['URL'] == "test_URL"
@@ -1357,7 +1362,8 @@ class TestOmfNorthPlugin:
         omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
 
         with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) as patched_send_to_picromf:
-            generated_typename, generated_omf_type = omf_north._create_omf_type_configuration_based(p_asset_code_omf_type)
+            generated_typename, \
+                generated_omf_type = omf_north._create_omf_type_configuration_based(p_asset_code_omf_type)
 
         assert generated_typename == expected_typename
         assert generated_omf_type == expected_omf_type

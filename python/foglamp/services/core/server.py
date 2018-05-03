@@ -623,8 +623,9 @@ class Server:
                 loop = asyncio.get_event_loop()
             loop.run_until_complete(cls._stop())
             loop.stop()
-        except RuntimeError as ex:
-            _logger.exception("Error while stopping foglamp server: {}".format(str(ex)))
+        except RuntimeError as e:
+            _logger.exception("Error while stopping FogLAMP server: {}".format(str(e)))
+            raise
 
     @classmethod
     async def stop_rest_server(cls):
@@ -877,9 +878,9 @@ class Server:
         try:
 
             await cls._stop()
-            loop = asyncio.get_event_loop()
+            loop = request.loop
             # allow some time
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2.0, loop=loop)
             _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
             loop.stop()
 

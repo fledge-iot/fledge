@@ -332,8 +332,7 @@ foglamp_status() {
             fi
             ;;
         *)
-            pgrep -f 'python3.*-m.*foglamp.services.core' &> /dev/null
-            if [[ $? -eq 0 ]]; then
+            if [[ `pgrep -c -f 'python3.*-m.*foglamp.services.core'` -ne 0 ]]; then
                 if [[ "$1" == "silent" ]]; then
                     echo "1"
                 else

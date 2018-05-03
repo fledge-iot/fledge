@@ -3,12 +3,12 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-
+import datetime
 from aiohttp import web
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
-
+from foglamp.services.core.scheduler.scheduler import Scheduler
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -64,13 +64,16 @@ async def get_statistics_history(request):
         ['process_name', '=', 'stats collector']).payload()
     result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
     if len(result['rows']) > 0:
-        time_str = result['rows'][0]['schedule_interval']
-        ftr = [3600, 60, 1]
-        interval_in_secs = sum([a * b for a, b in zip(ftr, map(int, time_str.split(':')))])
+        scheduler = Scheduler()
+        interval_days, interval_dt = scheduler.extract_day_time_from_interval(result['rows'][0]['schedule_interval'])
+        interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
+        interval_in_secs = interval.total_seconds()
     else:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
+    stats_history_chain_payload = PayloadBuilder().SELECT(("history_ts", "key", "value"))\
+        .ALIAS("return", ("history_ts", 'history_ts')).FORMAT("return", ("history_ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+        .ORDER_BY(['history_ts', 'desc']).chain_payload()
 
-    stats_history_chain_payload = PayloadBuilder().SELECT(("history_ts", "key", "value")).ORDER_BY(['history_ts', 'desc']).chain_payload()
     if 'limit' in request.query and request.query['limit'] != '':
         try:
             limit = int(request.query['limit'])

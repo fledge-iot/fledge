@@ -30,6 +30,7 @@ from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
 from foglamp.services.common.microservice_management import routes as management_routes
 
+from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
@@ -115,10 +116,10 @@ class Server:
     rest_server_port = 0
     """ FogLAMP REST API port """
 
-    is_rest_server_http_enabled = False
+    is_rest_server_http_enabled = True
     """ a Flag to decide to enable FogLAMP REST API on HTTP on restart """
 
-    is_auth_required = True
+    is_auth_required = False
     """ a var to decide to make authentication mandatory / optional for FogLAMP Admin/ User REST API"""
 
     cert_file_name = ''
@@ -138,7 +139,7 @@ class Server:
         'enableHttp': {
             'description': 'Enable or disable the connection via HTTP',
             'type': 'boolean',
-            'default': 'false'
+            'default': 'true'
         },
         'authProviders': {
             'description': 'A JSON object which is an array of authentication providers to use '
@@ -667,6 +668,8 @@ class Server:
             for fs in found_services:
                 if fs._name in ("FogLAMP Storage", "FogLAMP Core"):
                     continue
+                if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
+                    continue
                 services_to_stop.append(fs)
 
             if len(services_to_stop) == 0:
@@ -793,20 +796,17 @@ class Server:
         try:
             service_id = request.match_info.get('service_id', None)
 
-            if not service_id:
-                raise web.HTTPBadRequest(reason='Service id is required')
-
             try:
                 services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='Service with {} does not exist'.format(service_id))
+                raise ValueError('Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.unregister(service_id)
 
             if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client)
-                    await cls._audit.information('SRVUN', { 'name' : services[0]._name })
+                    await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(str(ex))
 
@@ -859,7 +859,7 @@ class Server:
             svc["address"] = service._address
             svc["management_port"] = service._management_port
             svc["protocol"] = service._protocol
-            svc["status"] = service._status
+            svc["status"] = ServiceRecord.Status(int(service._status)).name.lower()
             if service._port:
                 svc["service_port"] = service._port
             services.append(svc)
@@ -906,7 +906,7 @@ class Server:
                 try:
                     assert uuid.UUID(microservice_uuid)
                 except:
-                    raise web.HTTPBadRequest(reason="Invalid microservice id {}".format(microservice_uuid))
+                    raise ValueError('Invalid microservice id {}'.format(microservice_uuid))
 
             try:
                 registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
@@ -921,10 +921,10 @@ class Server:
                 'message': "Interest registered successfully"
             }
 
-            return web.json_response(_response)
-
         except ValueError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
+
+        return web.json_response(_response)
 
     @classmethod
     async def unregister_interest(cls, request):
@@ -937,26 +937,24 @@ class Server:
         try:
             interest_registration_id = request.match_info.get('interest_id', None)
 
-            if not interest_registration_id:
-                raise web.HTTPBadRequest(reason='Registration id is required')
-            else:
-                try:
-                    assert uuid.UUID(interest_registration_id)
-                except:
-                    raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
+            try:
+                assert uuid.UUID(interest_registration_id)
+            except:
+                raise web.HTTPBadRequest(reason="Invalid registration id {}".format(interest_registration_id))
 
             try:
                 cls._interest_registry.get(registration_id=interest_registration_id)
             except interest_registry_exceptions.DoesNotExist:
-                raise web.HTTPNotFound(reason='InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
+                raise ValueError('InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
 
             cls._interest_registry.unregister(interest_registration_id)
 
             _resp = {'id': str(interest_registration_id), 'message': 'Interest unregistered'}
 
-            return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+
+        return web.json_response(_resp)
 
     @classmethod
     async def get_interest(cls, request):

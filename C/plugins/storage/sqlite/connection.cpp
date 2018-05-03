@@ -39,6 +39,8 @@ using namespace rapidjson;
 
 #define F_TIMEH24_S     "%H:%M:%S"
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
+#define F_DATEH24_M     "%Y-%m-%d %H:%M"
+#define F_DATEH24_H     "%Y-%m-%d %H"
 #define F_DATEH24_MS    "%Y-%m-%d %H:%M:%f"
 #define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')"
 
@@ -50,6 +52,10 @@ map<string, string> sqliteDateFormat = {
 							F_DATEH24_MS},
 						{"YYYY-MM-DD HH24:MI:SS",
 							F_DATEH24_S},
+						{"YYYY-MM-DD HH24:MI",
+							F_DATEH24_M},
+						{"YYYY-MM-DD HH24",
+							F_DATEH24_H},
 						{"", ""}
 					};
 
@@ -1238,7 +1244,14 @@ int		row = 0;
 		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
 		if (regex_match (s,e))
 		{
-			sql.append(str);
+			if (strcmp(str, "now()") == 0)
+			{
+				sql.append(SQLITE3_NOW);
+			}
+			else
+			{
+				sql.append(str);
+			}
 		}
 		else
 		{
@@ -2140,7 +2153,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				   "The \"value\" of an \"older\" condition must be an integer");
 			return false;
 		}
-		sql.append("< date('now', '-");
+		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
 		sql.append(" seconds')");
 	}
@@ -2152,7 +2165,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				   "The \"value\" of an \"newer\" condition must be an integer");
 			return false;
 		}
-		sql.append("> date('now', '-");
+		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
 		sql.append(" seconds')");
 	}

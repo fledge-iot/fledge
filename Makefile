@@ -81,6 +81,7 @@ STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_POSTGRES             := scripts/tasks/backup_postgres
 RESTORE_POSTGRES            := scripts/tasks/restore_postgres
 CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
+CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 
 # EXTRA SCRIPTS
 EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
@@ -211,11 +212,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -245,7 +246,8 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_script \
 	install_backup_postgres_script \
 	install_restore_postgres_script \
-	install_check_certificates_script
+	install_check_certificates_script \
+	install_certificates_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -295,6 +297,9 @@ install_check_certificates_script : $(SCRIPT_TASKS_INSTALL_DIR) $(CHECK_CERTS_TA
 
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
+
+install_certificates_script : $(SCRIPT_INSTALL_DIR) $(CERTIFICATES_SCRIPT_SRC)
+	$(CP) $(CERTIFICATES_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_COMMON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@

@@ -650,22 +650,10 @@ class Scheduler(object):
         try:
             self._logger.debug('Database command: %s', 'schedules')
             res = self._storage.query_tbl("schedules")
+
             for row in res['rows']:
-                if 'days' in row.get('schedule_interval'):
-                    interval_split = row.get('schedule_interval').split('days')
-                    interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1].strip()
-                elif 'day' in row.get('schedule_interval'):
-                    interval_split = row.get('schedule_interval').split('day')
-                    interval_days = interval_split[0].strip()
-                    interval_time = interval_split[1].strip()
-                else:
-                    interval_days = 0
-                    interval_time = row.get('schedule_interval')
-                s_days = int(interval_days)
-                s_interval = datetime.datetime.strptime(interval_time, "%H:%M:%S")
-                interval = datetime.timedelta(days=s_days, hours=s_interval.hour, minutes=s_interval.minute,
-                                              seconds=s_interval.second)
+                interval_days, interval_dt = self.extract_day_time_from_interval(row.get('schedule_interval'))
+                interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
 
                 repeat_seconds = None
                 if interval is not None and interval != datetime.timedelta(0):
@@ -677,22 +665,11 @@ class Scheduler(object):
 
                 schedule_id = uuid.UUID(row.get('id'))
 
-                #
-                # row.get('schedule_day') returns an int, say 0, from SQLite
-                # and "0", as a string, from Postgres
-                # We handle here this difference
-                #
-
-                if type(row.get('schedule_day')) is str:
-                    s_day = int(row.get('schedule_day')) if row.get('schedule_day').strip() else None
-                else:
-                    s_day = int(row.get('schedule_day'))
-
                 schedule = self._ScheduleRow(
                     id=schedule_id,
                     name=row.get('schedule_name'),
-                    type=int(row.get('schedule_type')),
-                    day=s_day,
+                    type=row.get('schedule_type'),
+                    day=row.get('schedule_day') if row.get('schedule_day') else None,
                     time=schedule_time,
                     repeat=interval,
                     repeat_seconds=repeat_seconds,
@@ -1056,7 +1033,7 @@ class Scheduler(object):
         if not is_new_schedule:
             update_payload = PayloadBuilder() \
                 .SET(schedule_name=schedule.name,
-                     schedule_type=int(schedule.schedule_type),
+                     schedule_type=schedule.schedule_type,
                      schedule_interval=str(schedule.repeat),
                      schedule_day=day if day else 0,
                      schedule_time=str(schedule_time) if schedule_time else '00:00:00',
@@ -1079,7 +1056,7 @@ class Scheduler(object):
         if is_new_schedule:
             insert_payload = PayloadBuilder() \
                 .INSERT(id=str(schedule.schedule_id),
-                        schedule_type=int(schedule.schedule_type),
+                        schedule_type=schedule.schedule_type,
                         schedule_name=schedule.name,
                         schedule_interval=str(schedule.repeat),
                         schedule_day=day if day else 0,
@@ -1302,6 +1279,11 @@ class Scheduler(object):
             raise RuntimeError('Update failed: %s', update_payload)
         await asyncio.sleep(1)
 
+        # Reset schedule_execution.next_start_time
+        schedule_row = self._schedules[schedule_id]
+        now = self.current_time if self.current_time else time.time()
+        self._schedule_first_task(schedule_row, now)
+
         # Start schedule
         await self.queue_task(schedule_id)
 
@@ -1416,7 +1398,10 @@ class Scheduler(object):
 
     async def get_task(self, task_id: uuid.UUID) -> Task:
         """Retrieves a task given its id"""
-        query_payload = PayloadBuilder().WHERE(["id", "=", str(task_id)]).payload()
+        query_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code")\
+            .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+            .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .WHERE(["id", "=", str(task_id)]).payload()
 
         try:
             self._logger.debug('Database command: %s', query_payload)
@@ -1450,8 +1435,10 @@ class Scheduler(object):
                 A tuple of Task attributes to sort by.
                 Defaults to ("start_time", "desc")
         """
-
-        chain_payload = PayloadBuilder().LIMIT(limit).chain_payload()
+        chain_payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "exit_code") \
+            .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+            .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .LIMIT(limit).chain_payload()
         if offset:
             chain_payload = PayloadBuilder(chain_payload).OFFSET(offset).chain_payload()
         if where:
@@ -1541,3 +1528,23 @@ class Scheduler(object):
         for pid_str in pids:
             if pid_str.strip():
                 os.kill(int(pid_str.strip()), signal.SIGTERM)
+
+    def extract_day_time_from_interval(self, str_interval):
+        if 'days' in str_interval:
+            interval_split = str_interval.split('days')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1]
+        elif 'day' in str_interval:
+            interval_split = str_interval.split('day')
+            interval_days = interval_split[0].strip()
+            interval_time = interval_split[1]
+        else:
+            interval_days = 0
+            interval_time = str_interval
+
+        if not interval_time:
+            interval_time = "00:00:00"
+        interval_time = interval_time.replace(",", "").strip()
+        interval_time = datetime.datetime.strptime(interval_time, "%H:%M:%S")
+
+        return int(interval_days), interval_time

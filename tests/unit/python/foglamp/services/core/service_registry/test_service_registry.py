@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry.exceptions import *
+from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
 
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -104,18 +105,24 @@ class TestServiceRegistry:
         assert excinfo.type is NonNumericPortError
         assert 0 == len(ServiceRegistry._registry)
 
-    def test_unregister(self):
+    def test_unregister(selfd, mocker):
+        mocker.patch.object(InterestRegistry, '__init__', return_value=None)
+        mocker.patch.object(InterestRegistry, 'get', return_value=list())
+
         reg_id = ServiceRegistry.register("A name", "Storage", "127.0.0.1", 1234, 4321, 'http')
         assert 1 == len(ServiceRegistry._registry)
 
         with patch.object(ServiceRegistry._logger, 'info') as log_i:
             s_id = ServiceRegistry.unregister(reg_id)
             assert 36 == len(s_id)  # uuid version 4 len
-            assert 0 == len(ServiceRegistry._registry)
+            assert 1 == len(ServiceRegistry._registry)
+            s = ServiceRegistry.get(idx=s_id)
+            assert s[0]._status == 2
+
         args, kwargs = log_i.call_args
-        assert args[0].startswith('Unregistered service instance id=')
+        assert args[0].startswith('Stopped service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
-                                ' management port=4321, status=1>')
+                                ' management port=4321, status=2>')
         assert 1 == log_i.call_count
 
     def test_unregister_non_existing_service_record(self):

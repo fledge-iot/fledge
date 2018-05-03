@@ -645,7 +645,7 @@ class TestTasks:
 
         with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
             with patch.object(server.Server.scheduler, 'cancel_task', return_value=mock_coro()):
-                resp = await client.put('/foglamp/task/cancel/{}'.format(self._random_uuid))
+                resp = await client.put('/foglamp/task/{}/cancel'.format(self._random_uuid))
                 assert 200 == resp.status
                 result = await resp.text()
                 json_response = json.loads(result)
@@ -653,7 +653,7 @@ class TestTasks:
                         'message': 'Task cancelled successfully'} == json_response
 
     async def test_cancel_task_bad_data(self, client):
-            resp = await client.put('/foglamp/task/cancel/{}'.format("bla"))
+            resp = await client.put('/foglamp/task/{}/cancel'.format("bla"))
             assert 404 == resp.status
             assert 'Invalid Task ID {}'.format("bla") == resp.reason
 
@@ -668,7 +668,7 @@ class TestTasks:
 
         with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
             with patch.object(server.Server.scheduler, 'cancel_task', side_effect=exception_name):
-                resp = await client.put('/foglamp/task/cancel/{}'.format(self._random_uuid))
+                resp = await client.put('/foglamp/task/{}/cancel'.format(self._random_uuid))
                 assert response_code == resp.status
                 assert response_message == resp.reason
 

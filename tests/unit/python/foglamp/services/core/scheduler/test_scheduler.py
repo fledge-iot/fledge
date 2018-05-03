@@ -8,7 +8,8 @@ import asyncio
 import datetime
 import uuid
 import time
-from unittest.mock import MagicMock, call, Mock
+import json
+from unittest.mock import MagicMock, call
 
 import copy
 import pytest
@@ -1119,8 +1120,11 @@ class TestScheduler:
             await scheduler.get_task(task_id)
 
         # THEN
-        log_args = 'Query failed: %s', '{"where": {"column": "id", "condition": "=", "value": "'+str(task_id)+'"}}'
-        log_exception.assert_called_once_with(*log_args)
+        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "start_time"}, {"alias": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "end_time"}, "reason", "exit_code"], "where": {"column": "id", "condition": "=", "value": str(task_id)}}
+        args, kwargs = log_exception.call_args
+        assert 'Query failed: %s' == args[0]
+        p = json.loads(args[1])
+        assert payload == p
 
     @pytest.mark.asyncio
     async def test_get_tasks(self, mocker):
@@ -1163,13 +1167,15 @@ class TestScheduler:
         log_debug = mocker.patch.object(scheduler._logger, 'debug', side_effect=Exception())
 
         # WHEN
-        # THEN
         with pytest.raises(Exception) as excinfo:
             tasks = await scheduler.get_tasks()
 
         # THEN
-        log_args = 'Query failed: %s', '{"limit": 100}'
-        log_exception.assert_called_once_with(*log_args)
+        payload = {"return": ["id", "process_name", "state", {"alias": "start_time", "column": "start_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"alias": "end_time", "column": "end_time", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "reason", "exit_code"], "limit": 100}
+        args, kwargs = log_exception.call_args
+        assert 'Query failed: %s' == args[0]
+        p = json.loads(args[1])
+        assert payload == p
 
     @pytest.mark.asyncio
     async def test_cancel_task_all_ok(self, mocker):
@@ -1276,10 +1282,10 @@ class MockStorage(StorageClient):
             "id": "cea17db8-6ccc-11e7-907b-a6006ad3dba0",
             "process_name": "purge",
             "schedule_name": "purge",
-            "schedule_type": "4",
+            "schedule_type": 4,
             "schedule_interval": "01:00:00",
             "schedule_time": "",
-            "schedule_day": "",
+            "schedule_day": 0,
             "exclusive": "t",
             "enabled": "t"
         },
@@ -1287,10 +1293,10 @@ class MockStorage(StorageClient):
             "id": "2176eb68-7303-11e7-8cf7-a6006ad3dba0",
             "process_name": "stats collector",
             "schedule_name": "stats collection",
-            "schedule_type": "2",
+            "schedule_type": 2,
             "schedule_interval": "00:00:15",
             "schedule_time": "00:00:15",
-            "schedule_day": "3",
+            "schedule_day": 3,
             "exclusive": "f",
             "enabled": "t"
         },
@@ -1298,10 +1304,10 @@ class MockStorage(StorageClient):
             "id": "d1631422-9ec6-11e7-abc4-cec278b6b50a",
             "process_name": "backup",
             "schedule_name": "backup hourly",
-            "schedule_type": "3",
+            "schedule_type": 3,
             "schedule_interval": "01:00:00",
             "schedule_time": "",
-            "schedule_day": "",
+            "schedule_day": 0,
             "exclusive": "t",
             "enabled": "f"
         },
@@ -1309,10 +1315,10 @@ class MockStorage(StorageClient):
             "id": "ada12840-68d3-11e7-907b-a6006ad3dba0",
             "process_name": "COAP",
             "schedule_name": "COAP listener south",
-            "schedule_type": "1",
+            "schedule_type": 1,
             "schedule_interval": "00:00:00",
             "schedule_time": "",
-            "schedule_day": "",
+            "schedule_day": 0,
             "exclusive": "t",
             "enabled": "t"
         },
@@ -1320,10 +1326,10 @@ class MockStorage(StorageClient):
             "id": "2b614d26-760f-11e7-b5a5-be2e44b06b34",
             "process_name": "North Readings to PI",
             "schedule_name": "OMF to PI north",
-            "schedule_type": "3",
+            "schedule_type": 3,
             "schedule_interval": "00:00:30",
             "schedule_time": "",
-            "schedule_day": "",
+            "schedule_day": 0,
             "exclusive": "t",
             "enabled": "t"
         },
@@ -1331,10 +1337,10 @@ class MockStorage(StorageClient):
             "id": "5d7fed92-fb9a-11e7-8c3f-9a214cf093ae",
             "process_name": "North Readings to OCS",
             "schedule_name": "OMF to OCS north",
-            "schedule_type": "3",
+            "schedule_type": 3,
             "schedule_interval": "1 day 00:00:40",
             "schedule_time": "",
-            "schedule_day": "",
+            "schedule_day": 0,
             "exclusive": "t",
             "enabled": "f"
         },
@@ -1392,8 +1398,8 @@ class MockStorage(StorageClient):
             "id": "259b8570-65c1-4b92-8c62-e9642631a600",
             "process_name": "North Readings to PI",
             "state": 1,
-            "start_time": "2018-02-06 13:28:14.477868+05:30",
-            "end_time": "2018-02-06 13:28:14.856375+05:30",
+            "start_time": "2018-02-06 13:28:14.477868",
+            "end_time": "2018-02-06 13:28:14.856375",
             "exit_code": "0",
             "reason": ""
         }

@@ -37,7 +37,7 @@ _help = """
     | GET             | /foglamp/task/latest                                      |
     | GET             | /foglamp/task/{task_id}                                   |
     | GET             | /foglamp/task/state                                       |
-    | PUT             | /foglamp/task/cancel/{task_id}                            |
+    | PUT             | /foglamp/task/{task_id}/cancel                            |
     -------------------------------------------------------------------------------
 """
 
@@ -681,21 +681,18 @@ async def get_tasks_latest(request):
 
               curl -X GET  http://localhost:8081/foglamp/task/latest?name=xxx
     """
-    payload = PayloadBuilder().SELECT(
-        ("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
-        .ORDER_BY(["process_name", "asc"], ["start_time", "desc"]).payload()
+    payload = PayloadBuilder().SELECT("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
+        .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
+        .FORMAT("return", ("start_time", "YYYY-MM-DD HH24:MI:SS.MS"), ("end_time", "YYYY-MM-DD HH24:MI:SS.MS"))\
+        .ORDER_BY(["process_name", "asc"], ["start_time", "desc"])
 
     if 'name' in request.query and request.query['name'] != '':
         name = request.query['name']
-        payload = PayloadBuilder() \
-            .SELECT(("id", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")) \
-            .WHERE(["process_name", "=", name]) \
-            .ORDER_BY(["start_time", "desc"]) \
-            .payload()
+        payload.WHERE(["process_name", "=", name])
 
     try:
         _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('tasks', payload)
+        results = _storage.query_tbl_with_payload('tasks', payload.payload())
 
         if len(results['rows']) == 0:
             raise web.HTTPNotFound(reason="No Tasks found")
@@ -729,7 +726,7 @@ async def cancel_task(request):
     """Cancel a running task from tasks table
 
     :Example:
-             curl -X PUT  http://localhost:8081/foglamp/task/cancel/{task_id}
+             curl -X PUT  http://localhost:8081/foglamp/task/{task_id}/cancel
     """
     try:
         task_id = request.match_info.get('task_id', None)

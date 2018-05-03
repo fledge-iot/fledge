@@ -48,9 +48,10 @@ This version of FogLAMP requires the following software to be installed in the s
 - **Avahi 0.6.32+**
 - **Python 3.5+**
 - **PostgreSQL 9.5+**
+- **SQLite 3.11+**
 - **Bluez 5.37+**
 
-Bluez is the official Bluetooth stack and we have added plugins that are set on by default and use *gatttool* and other components of *bluez*. In the future we will make this package optional, but for the moment you should install it even if you do not intend to use any Bluetooth device. |br| If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. Other requirements largely depend on the plugins that run in FogLAMP, but Python and PostgreSQL are essential for the Core and Storage microservices and tasks.
+Bluez is the official Bluetooth stack and we have added plugins that are set on by default and use *gatttool* and other components of *bluez*. In the future we will make this package optional, but for the moment you should install it even if you do not intend to use any Bluetooth device. |br| If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. |br| In this version SQLite is default engine, but we have left libraries to easily switch to PostgreSQL, in case you need it. The PostgreSQL plugin will be moved to a different repository in future versions. Other requirements largely depend on the plugins that run in FogLAMP.
 
 You may also want to install some utilities to make your life easier when you use or test FogLAMP:
 
@@ -76,17 +77,19 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - cmake
 - g++
 - git
-- libtool 
 - libbost-dev
 - libbost-system-dev
 - libbost-thread-dev
 - libpq-dev
-- uuid-dev
+- libsqlite3-dev
+- libtool 
 - make
 - postgresql
 - python-dbus
-- python3-pip
 - python-dev
+- python3-pip
+- sqlite3
+- uuid-dev
 
 .. code-block:: console
 
@@ -96,6 +99,11 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   All packages are up-to-date.
   $
   $ sudo apt-get install avahi-daemon git cmake g++ make build-essential autoconf automake
+  Reading package lists... Done
+  Building dependency tree
+  ...
+  $
+  $ sudo apt-get install sqlite3 libslite3-dev
   Reading package lists... Done
   Building dependency tree
   ...
@@ -119,84 +127,6 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   $ sudo apt-get install bluez
   Reading package lists... Done
   Building dependency tree
-  $
-
-
-Setting the PostgreSQL Database
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-In this version of FogLAMP the PostgreSQL database is the default storage engine, used by the Storage microservice. Make sure that PostgreSQL is installed and running correctly:
-
-.. code-block:: console
-
-  $ sudo systemctl status postgresql
-  ● postgresql.service - PostgreSQL RDBMS
-     Loaded: loaded (/lib/systemd/system/postgresql.service; enabled; vendor preset: enabled)
-     Active: active (exited) since Fri 2017-12-08 15:56:07 GMT; 15min ago
-   Main PID: 14572 (code=exited, status=0/SUCCESS)
-     CGroup: /system.slice/postgresql.service
-
-  Dec 08 15:56:07 ubuntu systemd[1]: Starting PostgreSQL RDBMS...
-  Dec 08 15:56:07 ubuntu systemd[1]: Started PostgreSQL RDBMS.
-  Dec 08 15:56:11 ubuntu systemd[1]: Started PostgreSQL RDBMS.
-  $
-  $ ps -ef | grep postgres
-  postgres 14806     1  0 15:56 ?        00:00:00 /usr/lib/postgresql/9.5/bin/postgres -D /var/lib/postgresql/9.5/main -c config_file=/etc/postgresql/9.5/main/postgresql.conf
-  postgres 14808 14806  0 15:56 ?        00:00:00 postgres: checkpointer process
-  postgres 14809 14806  0 15:56 ?        00:00:00 postgres: writer process
-  postgres 14810 14806  0 15:56 ?        00:00:00 postgres: wal writer process
-  postgres 14811 14806  0 15:56 ?        00:00:00 postgres: autovacuum launcher process
-  postgres 14812 14806  0 15:56 ?        00:00:00 postgres: stats collector process
-  ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
-  $
-
-PostgreSQL 9.5 is the version available for Ubuntu 16.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
-
-.. code-block:: console
-
-  $ sudo grep '^local' /etc/postgresql/9.5/main/pg_hba.conf
-  local   all             postgres                                peer
-  local   all             all                                     peer
-  $
-
-The installation procedure also creates a Linux *postgres* user. In order to check if everything is set correctly, execute the *psql* utility as sudo user:
-
-.. code-block:: console
-
-  $ sudo -u postgres psql -l
-                                    List of databases
-     Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
-  -----------+----------+----------+-------------+-------------+-----------------------
-   postgres  | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 |
-   template0 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
-             |          |          |             |             | postgres=CTc/postgres
-   template1 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
-             |          |          |             |             | postgres=CTc/postgres
-  (3 rows)
-  $
-
-Encoding and collations may differ, depending on the choices made when you installed your operating system. |br| Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *<foglamp_user>*, type:
-
-.. code-block:: console
-
-  $ sudo -u postgres createuser -d <foglamp_user>
- 
-The *-d* argument is important because the user will need to create the FogLAMP database.
-
-Finally, you should now be able to see the list of the available databases from your current user:
-
-.. code-block:: console
-
-  $ psql -l
-                                    List of databases
-     Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
-  -----------+----------+----------+-------------+-------------+-----------------------
-   postgres  | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 |
-   template0 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
-             |          |          |             |             | postgres=CTc/postgres
-   template1 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
-             |          |          |             |             | postgres=CTc/postgres
-  (3 rows)
   $
 
 
@@ -378,9 +308,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   foglamp.services.core
   foglamp.services.south --port=40417 --address=127.0.0.1 --name=HTTP_SOUTH
   foglamp.services.south --port=40417 --address=127.0.0.1 --name=COAP
-  foglamp.services.south --port=40417 --address=127.0.0.1 --name=CC2650POLL
   === FogLAMP tasks:
-  foglamp.tasks.north.sending_process --stream_id 3 --debug_level 1 --port=40417 --address=127.0.0.1 --name=sending HTTP
   foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=40417 --address=127.0.0.1 --name=sending process
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=40417 --address=127.0.0.1 --name=statistics to pi
   $
@@ -470,6 +398,84 @@ Easy, you have learnt ``foglamp start`` and ``foglamp status``, simply type ``fo
 As a next step, let's install FogLAMP!
 
 
+Appendix: Setting the PostgreSQL Database
+=========================================
+
+If you intend to use the PostgreSQL database as storage engine, make sure that PostgreSQL is installed and running correctly:
+
+.. code-block:: console
+
+  $ sudo systemctl status postgresql
+  ● postgresql.service - PostgreSQL RDBMS
+     Loaded: loaded (/lib/systemd/system/postgresql.service; enabled; vendor preset: enabled)
+     Active: active (exited) since Fri 2017-12-08 15:56:07 GMT; 15min ago
+   Main PID: 14572 (code=exited, status=0/SUCCESS)
+     CGroup: /system.slice/postgresql.service
+
+  Dec 08 15:56:07 ubuntu systemd[1]: Starting PostgreSQL RDBMS...
+  Dec 08 15:56:07 ubuntu systemd[1]: Started PostgreSQL RDBMS.
+  Dec 08 15:56:11 ubuntu systemd[1]: Started PostgreSQL RDBMS.
+  $
+  $ ps -ef | grep postgres
+  postgres 14806     1  0 15:56 ?        00:00:00 /usr/lib/postgresql/9.5/bin/postgres -D /var/lib/postgresql/9.5/main -c config_file=/etc/postgresql/9.5/main/postgresql.conf
+  postgres 14808 14806  0 15:56 ?        00:00:00 postgres: checkpointer process
+  postgres 14809 14806  0 15:56 ?        00:00:00 postgres: writer process
+  postgres 14810 14806  0 15:56 ?        00:00:00 postgres: wal writer process
+  postgres 14811 14806  0 15:56 ?        00:00:00 postgres: autovacuum launcher process
+  postgres 14812 14806  0 15:56 ?        00:00:00 postgres: stats collector process
+  ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
+  $
+
+PostgreSQL 9.5 is the version available for Ubuntu 16.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+
+.. code-block:: console
+
+  $ sudo grep '^local' /etc/postgresql/9.5/main/pg_hba.conf
+  local   all             postgres                                peer
+  local   all             all                                     peer
+  $
+
+The installation procedure also creates a Linux *postgres* user. In order to check if everything is set correctly, execute the *psql* utility as sudo user:
+
+.. code-block:: console
+
+  $ sudo -u postgres psql -l
+                                    List of databases
+     Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+  -----------+----------+----------+-------------+-------------+-----------------------
+   postgres  | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 |
+   template0 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+   template1 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+  (3 rows)
+  $
+
+Encoding and collations may differ, depending on the choices made when you installed your operating system. |br| Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *<foglamp_user>*, type:
+
+.. code-block:: console
+
+  $ sudo -u postgres createuser -d <foglamp_user>
+ 
+The *-d* argument is important because the user will need to create the FogLAMP database.
+
+Finally, you should now be able to see the list of the available databases from your current user:
+
+.. code-block:: console
+
+  $ psql -l
+                                    List of databases
+     Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+  -----------+----------+----------+-------------+-------------+-----------------------
+   postgres  | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 |
+   template0 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+   template1 | postgres | UTF8     | en_GB.UTF-8 | en_GB.UTF-8 | =c/postgres          +
+             |          |          |             |             | postgres=CTc/postgres
+  (3 rows)
+  $
+
+
 Appendix: Building FogLAMP on CentOS
 ====================================
 
@@ -490,6 +496,7 @@ Pre-requisites on CentOS are similar to the ones on other distributions, but the
 - gmp-devel
 - mpfr-devel
 - libmpc-devel
+- sqlite3
 - bzip2
 - jq
 
@@ -508,6 +515,7 @@ This is the complete list of the commands to execute and the installed packages 
   sudo yum install libmpc-devel
   sudo yum install bzip2
   sudo yum install jq
+  sudo yum install libsqlite3x-devel
 
 
 Building and Installing C++ 5.4
@@ -615,6 +623,59 @@ In order to use the new version, you need to create two symbolic links in the ``
   sudo ln -s pip3.5 pip3
 
 
+Installing SQLite3 
+------------------
+
+FogLAMP requires SQLite version 3.11 or later, CentOS provides an old version of SQLite. We must download SQLite, compile it and install it. The steps are:
+
+- Download the source code of SQLite with *wget*. If you do not have *wget* installed, install it with ``sudo yum install wget``: |br| ``wget http://www.sqlite.org/2018/sqlite-autoconf-3230100.tar.gz``
+- Extract the SQLite tarball: |br| ``tar xzvf sqlite-autoconf-3230100.tar.gz``
+- Move into the SQLite directory and execute the *configure-make-make install* commands: |br| ``cd sqlite-autoconf-3230100`` |br| ``./configure`` |br| ``make`` |br| ``sudo make install``
+
+
+Changing to the PostgreSQL Engine
+---------------------------------
+
+The CentOS version of FogLAMP is optimized to work with PostgreSQL as storage engine. In order to achieve that, change the file *configuration.cpp* in the *C/services/storage* directory: line #20, word *sqlite* must be replaced with *postgres*:
+
+``" { \"plugin\" : { \"value\" : \"postgres\", \"description\" : \"The stora    ge plugin to load\"},"``
+
+
+Building FogLAMP
+----------------
+
+We are finally ready to install FogLAMP, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
+
+First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory. 
+
+We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
+
+- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
+- Replace the content of *python/foglamp/services/common/service_announcer.py* with this code:
+
+.. code-block:: python
+
+  # -*- coding: utf-8 -*-
+  # FOGLAMP_BEGIN
+  # See: http://foglamp.readthedocs.io/
+  # FOGLAMP_END
+  """Common FoglampMicroservice Class"""
+
+  import foglamp.services.common.avahi as avahi
+  from foglamp.common import logger
+
+  _LOGGER = logger.setup(__name__)
+
+  class ServiceAnnouncer:
+      _service_name = None
+      """ The name of the service to advertise """
+
+      _group = None
+      """ The Avahi group """
+
+      def __init__(self, name, service, port, txt):
+
+
 Building FogLAMP
 ----------------
 
@@ -667,7 +728,7 @@ Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
 
   # import dbus
 
-  <<< In the function string_to_byte_array(s) commend: >>>
+  <<< In the function string_to_byte_array(s) comment: >>>
   #    for c in s:
   #        r.append(dbus.Byte(ord(c)))
 

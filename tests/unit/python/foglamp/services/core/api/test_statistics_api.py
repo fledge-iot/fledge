@@ -59,10 +59,36 @@ class TestStatistics:
                 assert 500 == resp.status
                 assert "Internal Server Error" == resp.reason
 
-    async def test_get_statistics_history(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
-        p1 = {'return': ['history_ts', 'key', 'value'], 'sort': {'direction': 'desc', 'column': 'history_ts'}}
+    @pytest.mark.parametrize("interval, schedule_interval", [
+        (60, "00:01:00"),
+        (100, "0:01:40"),
+        (3660, "1:01:00"),
+        (3660, "01:01:00"),
+        (86400, "1 day"),
+        (86500, "1 day, 00:01:40"),
+        (86500, "1 day 00:01:40"),
+        (86400, "1 day 0:00:00"),
+        (86400, "1 day, 0:00:00"),
+        (172800, "2 days"),
+        (172900, "2 days, 0:01:40"),
+        (179999, "2 days, 01:59:59"),
+        (179940, "2 days 01:59:00"),
+        (176459, "2 days 1:00:59"),
+        (0, "0 days"),
+        (0, "0 days, 00:00:00"),
+        (0, "0 days 00:00:00"),
+        (3601, "0 days, 1:00:01"),
+        (100, "0 days 0:01:40"),
+        (864000, "10 days"),
+        (867600, "10 days, 01:00:00"),
+        (864000, "10 days 00:00:00"),
+        (864000, "10 days, 0:00:00"),
+        (867600, "10 days 1:00:00")
+    ])
+    async def test_get_statistics_history(self, client, interval, schedule_interval):
+        output = {"interval": interval, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                                       {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
+        p1 = {"return": [{"alias": "history_ts", "column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}}
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -72,14 +98,14 @@ class TestStatistics:
 
             if table == 'statistics_history':
                 assert p1 == json.loads(payload)
-                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
             if table == 'schedules':
                 assert p2 == json.loads(payload)
-                return {"rows": [{"schedule_interval": "00:01:00"}]}
+                return {"rows": [{"schedule_interval": schedule_interval}]}
 
         mockedStorageClient = MagicMock(StorageClient)
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
@@ -92,13 +118,12 @@ class TestStatistics:
         assert 2 == query_patch.call_count
 
     async def test_get_statistics_history_limit(self, client):
-        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
+        output = {"interval": 60, 'statistics': [{"READINGS": 1, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                                 {"READINGS": 0, "BUFFERED": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
         p1 = {"aggregate": {"operation": "count", "column": "*"}}
         # payload limit will be request limit*2 i.e. via p1 query
-        p2 = {'limit': 2, 'sort': {'direction': 'desc', 'column': 'history_ts'},
-              'return': ['history_ts', 'key', 'value']}
+        p2 = {"return": [{"column": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "history_ts"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "limit": 2}
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
@@ -112,10 +137,10 @@ class TestStatistics:
 
             if table == 'statistics_history':
                 assert p2 == json.loads(payload)
-                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589+05:30"},
-                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589+05:30"},
-                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589+05:30"}]}
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"},
+                                 {"key": "BUFFERED", "value": 10, "history_ts": "2018-02-20 13:16:09.321589"}]}
 
             if table == 'schedules':
                 assert p3 == json.loads(payload)

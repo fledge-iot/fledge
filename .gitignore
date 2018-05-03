@@ -15,8 +15,9 @@ data/etc/certs/*
 data/var
 data/tmp
 
-# SQLite3 default db location
+# SQLite3 default db location and after migration
 data/*.db
+scripts/extras/*.db
 
 /etc/storage.json
 /etc/certs/*

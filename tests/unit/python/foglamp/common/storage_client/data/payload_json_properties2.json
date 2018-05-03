@@ -1,0 +1,14 @@
+{
+	"json_properties" : [
+				{
+					"column" : "data",
+					"path"   : [ "url", "value" ],
+					"value"  : "new value"
+				},
+				{
+					"column" : "data1",
+					"path"   : [ "url1", "value1" ],
+					"value"  : "new value1"
+				}
+	]
+}

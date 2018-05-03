@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import json
+from unittest.mock import MagicMock, patch, call
 import pytest
-
-from unittest.mock import MagicMock
-from unittest.mock import patch
-from unittest.mock import call
 
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.configuration_manager import ConfigurationManagerSingleton
@@ -915,67 +913,41 @@ class TestConfigurationManager:
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_1_row(self, reset_singleton):
-
-        async def async_mock(return_value):
-            return return_value
-
         storage_client_mock = MagicMock(spec=StorageClient)
         storage_client_mock.query_tbl_with_payload.return_value = {
             'rows': [{'key': 'key1', 'description': 'description1'}]}
-        c_mgr = ConfigurationManager(storage_client_mock)
 
-        with patch.object(PayloadBuilder, '__init__', return_value=None) as pbinitpatch:
-            with patch.object(PayloadBuilder, 'SELECT', return_value=PayloadBuilder) as pbselectpatch:
-                with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
-                    ret_val = await c_mgr._read_all_category_names()
-        pbselectpatch.assert_called_once_with(
-            ("key", "description", "value", "ts"))
-        pbpayloadpatch.assert_called_once_with()
-        storage_client_mock.query_tbl_with_payload.assert_called_once_with(
-            'configuration', None)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        ret_val = await c_mgr._read_all_category_names()
+        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
+        assert args[0] == 'configuration'
+        p = json.loads(args[1])
+        assert p == {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]}
         assert ret_val == [('key1', 'description1')]
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_2_row(self, reset_singleton):
-
-        async def async_mock(return_value):
-            return return_value
-
         storage_client_mock = MagicMock(spec=StorageClient)
         storage_client_mock.query_tbl_with_payload.return_value = {'rows': [
             {'key': 'key1', 'description': 'description1'}, {'key': 'key2', 'description': 'description2'}]}
         c_mgr = ConfigurationManager(storage_client_mock)
-
-        with patch.object(PayloadBuilder, '__init__', return_value=None) as pbinitpatch:
-            with patch.object(PayloadBuilder, 'SELECT', return_value=PayloadBuilder) as pbselectpatch:
-                with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
-                    ret_val = await c_mgr._read_all_category_names()
-        pbselectpatch.assert_called_once_with(
-            ("key", "description", "value", "ts"))
-        pbpayloadpatch.assert_called_once_with()
-        storage_client_mock.query_tbl_with_payload.assert_called_once_with(
-            'configuration', None)
+        ret_val = await c_mgr._read_all_category_names()
+        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
+        assert args[0] == 'configuration'
+        p = json.loads(args[1])
+        assert p == {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]}
         assert ret_val == [('key1', 'description1'), ('key2', 'description2')]
 
     @pytest.mark.asyncio
     async def test__read_all_category_names_0_row(self, reset_singleton):
-
-        async def async_mock(return_value):
-            return return_value
-
         storage_client_mock = MagicMock(spec=StorageClient)
         storage_client_mock.query_tbl_with_payload.return_value = {'rows': []}
         c_mgr = ConfigurationManager(storage_client_mock)
-
-        with patch.object(PayloadBuilder, '__init__', return_value=None) as pbinitpatch:
-            with patch.object(PayloadBuilder, 'SELECT', return_value=PayloadBuilder) as pbselectpatch:
-                with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
-                    ret_val = await c_mgr._read_all_category_names()
-        pbselectpatch.assert_called_once_with(
-            ("key", "description", "value", "ts"))
-        pbpayloadpatch.assert_called_once_with()
-        storage_client_mock.query_tbl_with_payload.assert_called_once_with(
-            'configuration', None)
+        ret_val = await c_mgr._read_all_category_names()
+        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
+        assert args[0] == 'configuration'
+        p = json.loads(args[1])
+        assert p == {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]}
         assert ret_val == []
 
     @pytest.mark.asyncio

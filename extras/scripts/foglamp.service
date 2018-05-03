@@ -74,7 +74,8 @@ case "$1" in
     if [ $PID -eq 0 ]; then
       foglamp_start
     else
-      if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
+      ps -p $PID
+      if [ $? -eq 1 ]; then
         rm -f $PID_FILE
         foglamp_start
       else
@@ -99,7 +100,8 @@ case "$1" in
     if [ $PID -eq 0 ]; then
       echo "FogLAMP not running"
     else
-      if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
+      ps -p $PID
+      if [ $? -eq 1 ]; then
         echo "FogLAMP not running (process dead but PID file exists)"
         exit 1
       else
@@ -115,7 +117,8 @@ case "$1" in
     if [ $PID -eq 0 ]; then
       echo "FogLAMP not running"
     else
-      if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
+      ps -p $PID
+      if [ $? -eq 1 ]; then
         echo "FogLAMP not running (process dead but PID file exists)"
         rm -f $PID_FILE
         exit 1

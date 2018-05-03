@@ -617,17 +617,6 @@ class Server:
             raise
 
     @classmethod
-    def stop(cls, loop=None):
-        try:
-            if loop is None:
-                loop = asyncio.get_event_loop()
-            loop.run_until_complete(cls._stop())
-            loop.stop()
-        except RuntimeError as e:
-            _logger.exception("Error while stopping FogLAMP server: {}".format(str(e)))
-            raise
-
-    @classmethod
     async def stop_rest_server(cls):
         # Delete all user tokens
         User.Objects.delete_all_user_tokens()

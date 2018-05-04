@@ -204,7 +204,8 @@ def _performance_log(_function):
             print("ERROR - {func} - error details |{error}|".format(
                                                                     func="_performance_log",
                                                                     error=ex), file=sys.stderr)
-
+            raise
+            
     return wrapper
 
 

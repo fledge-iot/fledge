@@ -13,6 +13,7 @@ __version__ = "${VERSION}"
 import pytest
 import json
 import sys
+import logging
 
 from foglamp.common import logger
 from unittest.mock import patch, MagicMock
@@ -328,8 +329,17 @@ class TestOCSNorthPlugin:
                             'classification': 'dynamic',
                             'id': '0001_pressure_typename_measurement',
                             'properties': {
-                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'pressure': {'type': 'number'}
+
+
+                                'Time': {
+                                        'isindex': True,
+                                        'format': 'date-time',
+                                        'type': 'string'
+                                },
+                                'pressure': {
+                                        'type': 'number',
+                                        'format': 'float64'
+                                }
                             },
                             'type': 'object'
                          }
@@ -354,71 +364,76 @@ class TestOCSNorthPlugin:
                     'luxometer_typename',
                     {
                         'luxometer_typename':
-                        [
-                            {
-                                'classification': 'static',
-                                'id': '0002_luxometer_typename_sensor',
-                                'properties': {
-                                    'Company': {'type': 'string'},
-                                    'Name': {'isindex': True, 'type': 'string'},
-                                    'Location': {'type': 'string'}
+                            [
+                                {
+                                    'classification': 'static',
+                                    'id': '0002_luxometer_typename_sensor',
+                                    'properties': {
+                                        'Company': {'type': 'string'},
+                                        'Name': {'isindex': True, 'type': 'string'},
+                                        'Location': {'type': 'string'}
+                                    },
+                                    'type': 'object'
                                 },
-                                'type': 'object'
-                            },
-                            {
-                                'classification': 'dynamic',
-                                'id': '0002_luxometer_typename_measurement',
-                                'properties': {
-                                    'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                    'lux': {'type': 'integer'}
-                                },
-                                'type': 'object'
-                            }
-                        ]
+                                {
+                                    'classification': 'dynamic',
+                                    'id': '0002_luxometer_typename_measurement',
+                                    'properties': {
+                                        'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                        'lux': {
+                                                'type': 'integer',
+                                                'format': 'int32'
+                                        }
+                                    },
+                                    'type': 'object'
+                                }
+                            ]
                     }
 
             ),
 
             # Case 3 - switch / string
             (
-                # Origin - Sensor data
-                {"asset_code": "switch", "asset_data": {"button": "up"}},
+                    # Origin - Sensor data
+                    {"asset_code": "switch", "asset_data": {"button": "up"}},
 
-                # type_id
-                "0002",
+                    # type_id
+                    "0002",
 
-                # Static Data
-                {
-                    "Location": "Palo Alto",
-                    "Company": "Dianomic"
-                },
+                    # Static Data
+                    {
+                        "Location": "Palo Alto",
+                        "Company": "Dianomic"
+                    },
 
-                # Expected
-                'switch_typename',
-                {
-                    'switch_typename':
-                    [
-                        {
-                            'classification': 'static',
-                            'id': '0002_switch_typename_sensor',
-                            'properties': {
-                                'Company': {'type': 'string'},
-                                'Name': {'isindex': True, 'type': 'string'},
-                                'Location': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        },
-                        {
-                            'classification': 'dynamic',
-                            'id': '0002_switch_typename_measurement',
-                            'properties': {
-                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'button': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        }
-                    ]
-                }
+                    # Expected
+                    'switch_typename',
+                    {
+                        'switch_typename':
+                            [
+                                {
+                                    'classification': 'static',
+                                    'id': '0002_switch_typename_sensor',
+                                    'properties': {
+                                        'Company': {'type': 'string'},
+                                        'Name': {'isindex': True, 'type': 'string'},
+                                        'Location': {'type': 'string'}
+                                    },
+                                    'type': 'object'
+                                },
+                                {
+                                    'classification': 'dynamic',
+                                    'id': '0002_switch_typename_measurement',
+                                    'properties': {
+                                        'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                        'button': {
+                                            'type': 'string'
+                                        }
+                                    },
+                                    'type': 'object'
+                                }
+                            ]
+                    }
 
             )
 
@@ -444,12 +459,13 @@ class TestOCSNorthPlugin:
         type_id = p_type_id
         ocs_north._config_omf_types = {"type-id": {"value": type_id}}
 
+        # noinspection PyDictCreation
         ocs_north._config = {}
-        ocs_north._config.update({"StaticData":"p_static_data"})
-        ocs_north._config.update({"formatNumber": "float64"})
-        ocs_north._config.update({"formatInteger": "int32"})
+        ocs_north._config["StaticData"] = p_static_data
+        ocs_north._config["formatNumber"] = "float64"
+        ocs_north._config["formatInteger"] = "int32"
 
-        ocs_north._logger = MagicMock(spec=logger)
+        ocs_north._logger = MagicMock(spec=logging)
 
         with patch.object(ocs_north, 'send_in_memory_data_to_picromf', return_value=True) \
                 as mocked_send_in_memory_data_to_picromf:
@@ -460,5 +476,4 @@ class TestOCSNorthPlugin:
         assert omf_type == expected_omf_type
 
         assert mocked_send_in_memory_data_to_picromf.called
-        #mocked_send_in_memory_data_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])
-
+        mocked_send_in_memory_data_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])

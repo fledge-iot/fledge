@@ -100,7 +100,7 @@ class SupportBuilder:
         # The foglamp entries from the syslog file
         temp_file = self._interim_file_path + "/" + "syslog-{}".format(file_spec)
         try:
-            subprocess.call("grep -n '{}' {} > {}".format("FogLAMP", _SYSLOG_FILE, temp_file), shell=True)
+            subprocess.call("grep '{}' {} > {}".format("FogLAMP", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
         pyz.add(temp_file, arcname=basename(temp_file))
@@ -109,7 +109,7 @@ class SupportBuilder:
         # The contents of the syslog file that relate to the database layer (postgres)
         temp_file = self._interim_file_path + "/" + "syslogStorage-{}".format(file_spec)
         try:
-            subprocess.call("grep -n '{}' {} > {}".format("FogLAMP Storage", _SYSLOG_FILE, temp_file), shell=True)
+            subprocess.call("grep '{}' {} > {}".format("FogLAMP Storage", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
         pyz.add(temp_file, arcname=basename(temp_file))

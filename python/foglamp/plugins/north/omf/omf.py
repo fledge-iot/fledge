@@ -42,6 +42,24 @@ _logger = None
 
 _MODULE_NAME = "omf_north"
 
+# Messages used for Information, Warning and Error notice
+MESSAGES_LIST = {
+
+    # Information messages
+    "i000000": "information.",
+
+    # Warning / Error messages
+    "e000000": "general error.",
+
+    "e000001": "the producerToken must be defined, use the FogLAMP API to set a proper value.",
+    "e000002": "the producerToken cannot be an empty string, use the FogLAMP API to set a proper value.",
+
+    "e000010": "the type-id must be defined, use the FogLAMP API to set a proper value.",
+    "e000011": "the type-id cannot be an empty string, use the FogLAMP API to set a proper value.",
+
+}
+
+
 # Defines what and the level of details for logging
 _log_debug_level = 0
 _log_performance = False
@@ -233,6 +251,54 @@ def plugin_info():
         'config': _CONFIG_DEFAULT_OMF
     }
 
+
+def _validate_configuration(data):
+    """ Validates the configuration retrieved from the Configuration Manager
+    Args:
+        data: configuration retrieved from the Configuration Manager
+    Returns:
+    Raises:
+        ValueError
+    """
+
+    _message = ""
+
+    if 'producerToken' not in data:
+        _message = MESSAGES_LIST["e000001"]
+
+    else:
+        if data['producerToken']['value'] == "":
+
+            _message = MESSAGES_LIST["e000002"]
+
+    if _message != "":
+        _logger.error(_message)
+        raise ValueError(_message)
+
+
+def _validate_configuration_omf_type(data):
+    """ Validates the configuration retrieved from the Configuration Manager related to the OMF types
+    Args:
+        data: configuration retrieved from the Configuration Manager
+    Returns:
+    Raises:
+        ValueError
+    """
+
+    _message = ""
+
+    if 'type-id' not in data:
+        _message = MESSAGES_LIST["e000010"]
+    else:
+        if data['type-id']['value'] == "":
+
+            _message = MESSAGES_LIST["e000011"]
+
+    if _message != "":
+        _logger.error(_message)
+        raise ValueError(_message)
+
+
 def plugin_init(data):
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
     Args:
@@ -258,6 +324,8 @@ def plugin_init(data):
         raise ex
     _logger.debug("{0} - ".format("plugin_info"))
 
+    _validate_configuration(data)
+
     # Retrieves the configurations and apply the related conversions
     _config['_CONFIG_CATEGORY_NAME'] = data['_CONFIG_CATEGORY_NAME']
     _config['URL'] = data['URL']['value']
@@ -276,6 +344,8 @@ def plugin_init(data):
                                                                                  cat_desc=_CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION,
                                                                                  cat_config=CONFIG_DEFAULT_OMF_TYPES,
                                                                                  cat_keep_original=True)
+
+    _validate_configuration_omf_type(_config_omf_types)
 
     # Converts the value field from str to a dict
     for item in _config_omf_types:

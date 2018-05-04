@@ -23,8 +23,8 @@ _SYSLOG_FILE = '/var/log/syslog'
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_TYPE = 'FogLAMP'
-__GET_SYSLOG_CMD_TEMPLATE = "grep -n '{}\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -n '{}\[' {} | wc -l"
+__GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
 
 _logger = logger.setup(__name__, level=20)
 

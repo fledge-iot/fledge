@@ -113,14 +113,14 @@ async def upload(request):
     if key_file:
         key_file_data = data['key'].file
         key_file_content = key_file_data.read()
-        key_file_path = certs_dir + '/{}'.format(key_filename)
+        key_file_path = str(certs_dir) + '/{}'.format(key_filename)
         with open(key_file_path, 'wb') as f:
             f.write(key_file_content)
 
     if cert_file:
         cert_file_data = data['cert'].file
         cert_file_content = cert_file_data.read()
-        cert_file_path = certs_dir + '/{}'.format(cert_filename)
+        cert_file_path = str(certs_dir) + '/{}'.format(cert_filename)
         with open(cert_file_path, 'wb') as f:
             f.write(cert_file_content)
 

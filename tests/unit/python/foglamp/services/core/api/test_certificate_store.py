@@ -97,25 +97,31 @@ class TestCertificateStore:
     async def test_upload(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/foglamp.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/foglamp.cert'), 'rb')}
-        with patch.object(certificate_store, '_find_file', return_value=[]) as e:
-            resp = await client.post('/foglamp/certificate', data=files)
-            assert 200 == resp.status
-            result = await resp.text()
-            json_response = json.loads(result)
-            assert 'foglamp.key and foglamp.cert have been uploaded successfully' == json_response['result']
-        assert 1 == e.call_count
-        args, kwargs = e.call_args
-        assert ('foglamp.cert', certificate_store._get_certs_dir()) == args
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
+                resp = await client.post('/foglamp/certificate', data=files)
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 'foglamp.key and foglamp.cert have been uploaded successfully' == json_response['result']
+            assert 1 == patch_find_file.call_count
+            args, kwargs = patch_find_file.call_args
+            assert ('foglamp.cert', certificate_store._get_certs_dir()) == args
 
     async def test_file_upload_with_overwrite(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/foglamp.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/foglamp.cert'), 'rb'),
                  'overwrite': '1'}
-        resp = await client.post('/foglamp/certificate', data=files)
-        assert 200 == resp.status
-        result = await resp.text()
-        json_response = json.loads(result)
-        assert 'foglamp.key and foglamp.cert have been uploaded successfully' == json_response['result']
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
+                resp = await client.post('/foglamp/certificate', data=files)
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 'foglamp.key and foglamp.cert have been uploaded successfully' == json_response['result']
+            assert 1 == patch_find_file.call_count
+            args, kwargs = patch_find_file.call_args
+            assert ('foglamp.cert', certificate_store._get_certs_dir()) == args
 
     async def test_file_upload_with_different_names(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/foglamp.key'), 'rb'),
@@ -158,13 +164,14 @@ class TestCertificateStore:
     async def test_upload_with_existing_and_no_overwrite(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/foglamp.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/foglamp.cert'), 'rb')}
-        with patch.object(certificate_store, '_find_file', return_value=["v"]) as patch_file:
-            resp = await client.post('/foglamp/certificate', data=files)
-            assert 400 == resp.status
-            assert 'Certificate with the same name already exists. To overwrite set the overwrite to 1' == resp.reason
-        assert 1 == patch_file.call_count
-        args, kwargs = patch_file.call_args
-        assert ('foglamp.cert', certificate_store._get_certs_dir()) == args
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch.object(certificate_store, '_find_file', return_value=["v"]) as patch_file:
+                resp = await client.post('/foglamp/certificate', data=files)
+                assert 400 == resp.status
+                assert 'Certificate with the same name already exists. To overwrite set the overwrite to 1' == resp.reason
+            assert 1 == patch_file.call_count
+            args, kwargs = patch_file.call_args
+            assert ('foglamp.cert', certificate_store._get_certs_dir()) == args
 
     async def test_exception(self, client):
         files = {'cert': 'certs/bla.cert', 'key': 'certs/bla.key'}

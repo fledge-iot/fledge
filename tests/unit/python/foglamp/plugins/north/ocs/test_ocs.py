@@ -22,6 +22,7 @@ from foglamp.plugins.north.ocs import ocs
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as module_sp
 
+
 # noinspection PyPep8Naming
 class to_dev_null(object):
     """ Used to ignore messages sent to the stderr """

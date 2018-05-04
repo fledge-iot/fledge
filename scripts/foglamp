@@ -192,6 +192,17 @@ foglamp_stop() {
 
   result=`curl -k -s -X PUT ${REST_API_URL}/foglamp/shutdown`
 
+  if [[ "${result}" =~ "Forbidden" ]]; then
+    token=`foglamp_authenticate`
+    echo " "
+    if [[ "${token}" =~ "failed" ]]; then
+        foglamp_log "info" "Failed authentication when attempting to stop foglamp." "all" "pretty"
+        echo "Authentication failed."
+	exit 0
+    fi
+    result=`curl -k -s -H "authorization: $token" -X PUT ${REST_API_URL}/foglamp/shutdown`
+  fi
+
   if [[ "${result}" =~ "FogLAMP shutdown has been scheduled" ]]; then
     echo -n "Stopping FogLAMP."
   fi
@@ -277,6 +288,31 @@ foglamp_kill() {
     foglamp_log "info" "FogLAMP killed." "all" "pretty"
 
 }
+
+foglamp_authenticate() {
+
+    fd=0
+    if [[ -t "$fd" ]]; then
+	# We have an interactive shell
+        if [ -z ${USERNAME+x} ]; then
+	    read -p "Username: " USERNAME
+	fi
+        if [ -z ${PASSWORD+x} ]; then
+	    read -s -p "Password: " PASSWORD
+	fi
+    fi
+
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    result=`curl -X POST -k -s ${REST_API_URL}/foglamp/login -d"$payload" || true`
+    if [[ ! "$result" =~ "Logged in successfully" ]]; then
+	echo "failed"
+    else
+    	echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'
+    fi
+}
+
 
 
 ## FogLAMP status
@@ -442,6 +478,48 @@ get_foglamp_version
 
 # Get FogLAMP rest API URL
 get_rest_api_url
+
+# Call getopt to get any command line options for username and password
+while getopts "u:p:" option; do
+    case "$option" in
+    u)
+        USERNAME=${OPTARG}
+        ;;
+    p)
+        PASSWORD=${OPTARG}
+        ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ -z ${USERNAME+x} ]; then
+	# If username is not set on the command line use environment variable if set
+	if [ ! -z ${FOGLAMP_USER+x} ]; then
+		USERNAME=$FOGLAMP_USER
+	fi
+fi
+
+if [ -z ${PASSWORD+x} ]; then
+	# If password is not set on the command line use environment variable if set
+	if [ ! -z ${FOGLAMP_PASSWORD+x} ]; then
+		PASSWORD=$FOGLAMP_PASSWORD
+	fi
+fi
+
+if [ -f ~/.foglamp ] ; then
+	# if ~/.foglamp is mode 0600 then fetch username and password
+	# from it if they are not already set
+	perm=`stat -c %A ~/.foglamp`
+	if [ "$perm" == "-rw-------" ]; then
+		if [ -z ${USERNAME+x} ]; then
+			USERNAME=`awk -F: '{ print $1 }' < ~/.foglamp`
+		fi
+		if [ -z ${PASSWORD+x} ]; then
+			PASSWORD=`awk -F: '{ print $2 }' < ~/.foglamp`
+		fi
+	fi
+fi
+
 
 # Handle commands
 case "$1" in

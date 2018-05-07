@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+""" Unit tests for the North Sending Process """
 
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
@@ -6,6 +7,9 @@
 
 import asyncio
 import pytest
+import logging
+import sys
+
 from unittest.mock import patch, MagicMock
 
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
@@ -45,6 +49,149 @@ STREAM_ID = 1
 def test_apply_date_format(p_data, expected_data):
 
     assert expected_data == sp_module.apply_date_format(p_data)
+
+
+@pytest.mark.parametrize(
+    "p_parameter, "
+    "expected_param_mgt_name, "
+    "expected_param_mgt_port, "
+    "expected_param_mgt_address, "
+    "expected_stream_id, "
+    "expected_log_performance, "
+    "expected_log_debug_level , "
+    "expected_execution",
+    [
+        # Bad cases
+        (
+            ["", "--name", "SEND_PR1"],
+            "",  "", "", 1, False, 0,
+            "exception"
+        ),
+        (
+            ["", "--name", "SEND_PR1", "--port", "0001"],
+            "", "", "", 1, False, 0,
+            "exception"
+        ),
+        (
+            ["", "--name", "SEND_PR1", "--port", "0001", "--address", "127.0.0.0"],
+            "", "", "", 1, False, 0,
+            "exception"
+        ),
+        # stream_id must be an integer
+        (
+            ["", "--name", "SEND_PR1", "--port", "0001", "--address", "127.0.0.0", "--stream_id", "x"],
+            "", "", "", 1, False, 0,
+            "exception"
+        ),
+
+        # Good cases
+        (
+            # p_parameter
+            ["", "--name", "SEND_PR1", "--port", "0001", "--address", "127.0.0.0", "--stream_id", "1"],
+
+            # expected_param_mgt_name
+            "SEND_PR1",
+            # expected_param_mgt_port
+            "0001",
+            # expected_param_mgt_address
+            "127.0.0.0",
+            # expected_stream_id
+            1,
+            # expected_log_performance
+            False,
+            # expected_log_debug_level
+            0,
+            # expected_execution
+            "good"
+        ),
+
+        (
+            # Case - --performance_log
+            # p_parameter
+            ["", "--name", "SEND_PR1", "--port", "0001", "--address", "127.0.0.0", "--stream_id", "1",
+             "--performance_log", "1"],
+
+            # expected_param_mgt_name
+            "SEND_PR1",
+            # expected_param_mgt_port
+            "0001",
+            # expected_param_mgt_address
+            "127.0.0.0",
+            # expected_stream_id
+            1,
+            # expected_log_performance
+            True,
+            # expected_log_debug_level
+            0,
+            # expected_execution
+            "good"
+        ),
+
+        (
+            # Case - --debug_level
+            # p_parameter
+            ["", "--name", "SEND_PR1", "--port", "0001", "--address", "127.0.0.0", "--stream_id", "1",
+             "--performance_log", "1", "--debug_level", "3"],
+
+            # expected_param_mgt_name
+            "SEND_PR1",
+            # expected_param_mgt_port
+            "0001",
+            # expected_param_mgt_address
+            "127.0.0.0",
+            # expected_stream_id
+            1,
+            # expected_log_performance
+            True,
+            # expected_log_debug_level
+            3,
+            # expected_execution
+            "good"
+        ),
+    ]
+)
+def test_handling_input_parameters(
+                                    p_parameter,
+                                    expected_param_mgt_name,
+                                    expected_param_mgt_port,
+                                    expected_param_mgt_address,
+                                    expected_stream_id,
+                                    expected_log_performance,
+                                    expected_log_debug_level,
+                                    expected_execution):
+    """ Tests the handing of input parameters of the Sending process """
+
+    sys.argv = p_parameter
+
+    sp_module._LOGGER = MagicMock(spec=logging)
+
+    if expected_execution == "good":
+
+        param_mgt_name, \
+            param_mgt_port, \
+            param_mgt_address, \
+            stream_id, \
+            log_performance, \
+            log_debug_level \
+            = sp_module.handling_input_parameters()
+
+        # noinspection PyProtectedMember
+        assert not sp_module._LOGGER.error.called
+
+        assert param_mgt_name == expected_param_mgt_name
+        assert param_mgt_port == expected_param_mgt_port
+        assert param_mgt_address == expected_param_mgt_address
+        assert stream_id == expected_stream_id
+        assert log_performance == expected_log_performance
+        assert log_debug_level == expected_log_debug_level
+
+    elif expected_execution == "exception":
+
+        with pytest.raises(sp_module.InvalidCommandLineParameters):
+            sp_module.handling_input_parameters()
+
+        # noinspection PyProtectedMember
+        assert sp_module._LOGGER.error.called
 
 
 # noinspection PyUnresolvedReferences

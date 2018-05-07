@@ -22,6 +22,32 @@ __version__ = "${VERSION}"
 STREAM_ID = 1
 
 
+@pytest.mark.parametrize(
+    "p_data, "
+    "expected_data",
+    [
+        ("2018-03-22 17:17:17.166347",       "2018-03-22 17:17:17.166347+00"),
+
+        ("2018-03-22 17:17:17.166347+00",    "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347+00:00", "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347+02:00", "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347+00:02", "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347+02:02", "2018-03-22 17:17:17.166347+00"),
+
+        ("2018-03-22 17:17:17.166347-00",    "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347-00:00", "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347-02:00", "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347-00:02", "2018-03-22 17:17:17.166347+00"),
+        ("2018-03-22 17:17:17.166347-02:02", "2018-03-22 17:17:17.166347+00"),
+
+    ]
+)
+def test_apply_date_format(p_data, expected_data):
+
+    assert expected_data == sp_module.apply_date_format(p_data)
+
+
+# noinspection PyUnresolvedReferences
 @pytest.allure.feature("unit")
 @pytest.allure.story("tasks", "north")
 class TestSendingProcess:
@@ -82,8 +108,8 @@ class TestSendingProcess:
         # Configures properly the SendingProcess
         sp._config_from_manager = {"applyFilter": {"value": "False"}}
         sp._plugin = MagicMock()
-        mockStorageClient = MagicMock(spec=StorageClient)
-        sp._audit = AuditLogger(mockStorageClient)
+        mock_storage_client = MagicMock(spec=StorageClient)
+        sp._audit = AuditLogger(mock_storage_client)
 
         # Good Case
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -96,7 +122,7 @@ class TestSendingProcess:
                                 as mocked_last_object_id_update:
                             with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
                                     as mocked_update_statistics:
-                                data_sent = sp._send_data_block(STREAM_ID)
+                                sp._send_data_block(STREAM_ID)
 
                                 mocked_last_object_id_update.assert_called_once_with(p_new_last_object_id, STREAM_ID)
                                 mocked_update_statistics.assert_called_once_with(p_num_sent, STREAM_ID)
@@ -112,7 +138,7 @@ class TestSendingProcess:
                                 as mocked_last_object_id_update:
                             with patch.object(sp, '_update_statistics', return_value=mock_update_statistics()) \
                                     as mocked_update_statistics:
-                                data_sent = sp._send_data_block(STREAM_ID)
+                                sp._send_data_block(STREAM_ID)
 
                                 assert not mocked_last_object_id_update.called
                                 assert not mocked_update_statistics.called
@@ -199,7 +225,8 @@ class TestSendingProcess:
 
         # Bad cases
         sp._logger.error = MagicMock()
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_0()) as sp_mocked:
+        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_0()):
+            # noinspection PyBroadException
             try:
                 sp._last_object_id_read(1)
             except Exception:
@@ -208,7 +235,8 @@ class TestSendingProcess:
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
         sp._logger.error = MagicMock()
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_2()) as sp_mocked:
+        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_2()):
+            # noinspection PyBroadException
             try:
                 sp._last_object_id_read(1)
             except Exception:
@@ -256,7 +284,7 @@ class TestSendingProcess:
         sp._readings = MagicMock(spec=ReadingsStorageClient)
 
         # Checks the transformations and especially the adding of the UTC timezone
-        with patch.object(sp._readings, 'fetch', return_value=mock_fetch_readings()) as sp_mocked:
+        with patch.object(sp._readings, 'fetch', return_value=mock_fetch_readings()):
             data_transformed = sp._load_data_into_memory(5)
 
             assert len(data_transformed) == 1
@@ -274,7 +302,9 @@ class TestSendingProcess:
         sp._storage = MagicMock(spec=StorageClient)
 
         # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        with patch.object(sp._storage, 'query_tbl_with_payload', return_value=mock_query_tbl_with_payload_statistics()) as sp_mocked:
+        with patch.object(sp._storage,
+                          'query_tbl_with_payload',
+                          return_value=mock_query_tbl_with_payload_statistics()):
             del data_transformed
             data_transformed = sp._load_data_into_memory(5)
 

@@ -499,36 +499,82 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
-    def test_load_data_into_memory(self, event_loop):
-        """Test _load_data_into_memory handling and transformations"""
+    def test_load_data_into_memory(self,
+                                   event_loop):
+        """ Unit test for - test_load_data_into_memory"""
 
-        def mock_fetch_readings():
-            """Mocks the fetch function of the ReadingsStorageClient object"""
+        # Checks the Readings handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
 
-            rows = {"rows": [
-                            {
-                                "id": 1,
-                                "asset_code": "test_asset_code",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                "reading": {"humidity": 11, "temperature": 38},
-                                "user_ts": "16/04/2018 16:32"
-                            },
-                    ]}
-            return rows
+        # Tests - READINGS
+        sp._config['source'] = sp._DATA_SOURCE_READINGS
 
-        def mock_query_tbl_with_payload_statistics():
-            """Mocks the fetch function of the StorageClient object"""
+        with patch.object(sp, '_load_data_into_memory_readings', return_value=True) \
+            as mocked_load_data_into_memory_readings:
 
-            rows = {"rows": [
-                            {
-                                "id": 1,
-                                "key": "test_asset_code",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                "value": 20,
-                                "ts": "16/04/2018 16:32"
-                            },
-                    ]}
-            return rows
+            sp._load_data_into_memory(5)
+            assert mocked_load_data_into_memory_readings.called
+
+        # Tests - STATISTICS
+        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
+
+        with patch.object(sp, '_load_data_into_memory_statistics', return_value=True) \
+            as mocked_load_data_into_memory_statistics:
+
+            sp._load_data_into_memory(5)
+            assert mocked_load_data_into_memory_statistics.called
+
+        # Tests - AUDIT
+        sp._config['source'] = sp._DATA_SOURCE_AUDIT
+
+        with patch.object(sp, '_load_data_into_memory_audit', return_value=True) \
+            as mocked_load_data_into_memory_audit:
+
+            sp._load_data_into_memory(5)
+            assert mocked_load_data_into_memory_audit.called
+
+
+
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1: Base case and Timezone added
+            (
+                # p_rows
+                {
+                    "rows": [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 11, "temperature": 38},
+                            "user_ts": "16/04/2018 16:32"
+                        },
+                    ]
+                },
+                # expected_rows,
+                # NOTE:
+                #    Time generated with UTC timezone
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32+00"
+                    },
+                ]
+
+            )
+        ]
+    )
+    def test_load_data_into_memory_readings(self,
+                                            event_loop,
+                                            p_rows,
+                                            expected_rows):
+        """Test _load_data_into_memory handling and transformations for the readings """
 
         # Checks the Readings handling
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -539,14 +585,165 @@ class TestSendingProcess:
         sp._readings = MagicMock(spec=ReadingsStorageClient)
 
         # Checks the transformations and especially the adding of the UTC timezone
-        with patch.object(sp._readings, 'fetch', return_value=mock_fetch_readings()):
-            data_transformed = sp._load_data_into_memory(5)
+        with patch.object(sp._readings, 'fetch', return_value=p_rows):
 
-            assert len(data_transformed) == 1
-            assert data_transformed[0]['id'] == 1
-            assert data_transformed[0]['asset_code'] == "test_asset_code"
-            assert data_transformed[0]['reading'] == {"humidity": 11, "temperature": 38}
-            assert data_transformed[0]['user_ts'] == "16/04/2018 16:32+00"
+            generated_rows = sp._load_data_into_memory(5)
+
+            assert len(generated_rows) == 1
+            assert generated_rows == expected_rows
+
+
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1:
+            # NOTE:
+            #    Time generated with UTC timezone
+
+            (
+                # p_rows
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32"
+                    },
+                ],
+                # expected_rows,
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32+00"
+                    },
+                ]
+
+            ),
+
+            # Case 2: "180.2" to float 180.2
+            (
+                    # p_rows
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": "180.2"},
+                            "user_ts": "16/04/2018 16:32"
+                        },
+                    ],
+                    # expected_rows,
+                    # NOTE:
+                    #    Time generated with UTC timezone
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 180.2},
+                            "user_ts": "16/04/2018 16:32+00"
+                        },
+                    ]
+
+            )
+        ]
+    )
+    def test_transform_in_memory_data_readings(self,
+                                               event_loop,
+                                               p_rows,
+                                               expected_rows):
+        """ Unit test for - _transform_in_memory_data_readings"""
+
+        # Checks the Readings handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._config['source'] = sp._DATA_SOURCE_READINGS
+
+        sp._readings = MagicMock(spec=ReadingsStorageClient)
+
+        # Checks the transformations and especially the adding of the UTC timezone
+        generated_rows = sp._transform_in_memory_data_readings(p_rows)
+
+        assert len(generated_rows) == 1
+        assert generated_rows == expected_rows
+
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1:
+            #    fields mapping,
+            #       key->asset_code
+            #    Timezone added
+            #    reading format handling
+            #
+            # Note :
+            #    read_key is not handled
+            #    Time generated with UTC timezone
+            (
+                # p_rows
+                {
+                    "rows": [
+                        {
+                            "id": 1,
+                            "key": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "value": 20,
+                            "ts": "16/04/2018 16:32"
+                        },
+                    ]
+                },
+                # expected_rows,
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "reading": {"value": 20},
+                        "user_ts": "16/04/2018 16:32+00"
+                    },
+                ]
+
+            ),
+
+            # Case 2: key is having spaces
+            (
+                    # p_rows
+                    {
+                        "rows": [
+                            {
+                                "id": 1,
+                                "key": " test_asset_code ",
+                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                "value": 21,
+                                "ts": "16/04/2018 16:32"
+                            },
+                        ]
+                    },
+                    # expected_rows,
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "reading": {"value": 21},
+                            "user_ts": "16/04/2018 16:32+00"
+                        },
+                    ]
+
+            )
+
+        ]
+    )
+    def test_load_data_into_memory_statistics(self,
+                                              event_loop,
+                                              p_rows,
+                                              expected_rows):
+        """Test _load_data_into_memory handling and transformations for the statistics """
 
         # Checks the Statistics handling
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -557,14 +754,108 @@ class TestSendingProcess:
         sp._storage = MagicMock(spec=StorageClient)
 
         # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        with patch.object(sp._storage,
-                          'query_tbl_with_payload',
-                          return_value=mock_query_tbl_with_payload_statistics()):
-            del data_transformed
-            data_transformed = sp._load_data_into_memory(5)
+        with patch.object(sp._storage, 'query_tbl_with_payload',return_value=p_rows):
 
-            assert len(data_transformed) == 1
-            assert data_transformed[0]['id'] == 1
-            assert data_transformed[0]['asset_code'] == "test_asset_code"
-            assert data_transformed[0]['reading'] == {"value": 20}
-            assert data_transformed[0]['user_ts'] == "16/04/2018 16:32+00"
+            generated_rows = sp._load_data_into_memory(5)
+
+            assert len(generated_rows) == 1
+            assert generated_rows == expected_rows
+
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1:
+            #    fields mapping,
+            #       key->asset_code
+            #    Timezone added
+            #    reading format handling
+            #
+            # Note :
+            #    read_key is not handled
+            #    Time generated with UTC timezone
+            (
+                # p_rows
+                [
+                        {
+                            "id": 1,
+                            "key": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "value": 20,
+                            "ts": "16/04/2018 16:32"
+                        },
+                ],
+                # expected_rows,
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "reading": {"value": 20},
+                        "user_ts": "16/04/2018 16:32+00"
+                    },
+                ]
+
+            ),
+
+            # Case 2: key is having spaces
+            (
+                    # p_rows
+                    [
+                        {
+                            "id": 1,
+                            "key": " test_asset_code ",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "value": 21,
+                            "ts": "16/04/2018 16:32"
+                        },
+                    ],
+                    # expected_rows,
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "reading": {"value": 21},
+                            "user_ts": "16/04/2018 16:32+00"
+                        },
+                    ]
+
+            )
+
+        ]
+    )
+    def test_transform_in_memory_data_statistics(self,
+                                                 event_loop,
+                                                 p_rows,
+                                                 expected_rows):
+        """ Unit test for - _transform_in_memory_data_statistics"""
+
+        # Checks the Statistics handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
+
+        sp._storage = MagicMock(spec=StorageClient)
+
+        # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
+        generated_rows = sp._transform_in_memory_data_statistics(p_rows)
+
+        assert len(generated_rows) == 1
+        assert generated_rows == expected_rows
+
+    def test_load_data_into_memory_audit(self,
+                                          event_loop
+                                          ):
+        """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
+
+        # Checks the Statistics handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._config['source'] = sp._DATA_SOURCE_AUDIT
+        sp._storage = MagicMock(spec=StorageClient)
+
+        generated_rows = sp._load_data_into_memory_audit(5)
+
+        assert len(generated_rows) == 0
+        assert generated_rows == ""

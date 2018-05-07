@@ -200,6 +200,114 @@ def test_handling_input_parameters(
 class TestSendingProcess:
     """Unit tests for the sending_process.py"""
 
+    @pytest.mark.parametrize(
+        "p_stream_id, "
+        "p_rows, "
+        "expected_stream_id_valid, "
+        "expected_execution",
+        [
+            # Good cases
+            (
+                # p_stream_id
+                1,
+                # p_rows
+                {
+                    "rows":
+                    [
+                      {"active": "t"}
+                    ]
+                },
+                # expected_stream_id_valid = True, it is a valid stream id
+                True,
+                # expected_execution
+                "good"
+            ),
+
+            (
+                # p_stream_id
+                1,
+                # p_rows
+                {
+                    "rows":
+                        [
+                            {"active": "f"}
+                        ]
+                },
+                # expected_stream_id_valid = True, it is a valid stream id
+                False,
+                # expected_execution
+                "good"
+            ),
+
+            # Bad cases
+            # 0 rows
+            (
+                # p_stream_id
+                1,
+                # p_rows
+                {
+                    "rows":
+                        [
+                        ]
+                },
+                # expected_stream_id_valid = True, it is a valid stream id
+                False,
+                # expected_execution
+                "exception"
+            ),
+            # Multiple rows
+            (
+                    # p_stream_id
+                    1,
+                    # p_rows
+                    {
+                        "rows":
+                            [
+                                {"active": "t"},
+                                {"active": "f"}
+                            ]
+                    },
+                    # expected_stream_id_valid = True, it is a valid stream id
+                    False,
+                    # expected_execution
+                    "exception"
+            ),
+
+        ]
+    )
+    def test_is_stream_id_valid(self,
+                                p_stream_id,
+                                p_rows,
+                                expected_stream_id_valid,
+                                expected_execution,
+                                event_loop):
+        """ Unit tests for - _is_stream_id_valid """
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        SendingProcess._logger = MagicMock(spec=logging)
+        sp._logger = MagicMock(spec=logging)
+        sp._storage = MagicMock(spec=StorageClient)
+
+        if expected_execution == "good":
+
+            with patch.object(sp._storage, 'query_tbl', return_value=p_rows):
+                generate_stream_id = sp._is_stream_id_valid(p_stream_id)
+
+            # noinspection PyProtectedMember
+            assert not SendingProcess._logger.error.called
+
+            assert generate_stream_id == expected_stream_id_valid
+
+        elif expected_execution == "exception":
+
+            with pytest.raises(ValueError):
+                sp._is_stream_id_valid(p_stream_id)
+
+            # noinspection PyProtectedMember
+            assert SendingProcess._logger.error.called
+
     @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
         (10, 20, 10)
     ])

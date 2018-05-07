@@ -398,6 +398,19 @@ class TestSendingProcess:
                                 assert not mocked_last_object_id_update.called
                                 assert not mocked_update_statistics.called
 
+    @pytest.mark.parametrize(
+        "p_jqfilter, ",
+        [
+            ""
+        ]
+    )
+    def test_send_data_block_jqfilter(self,
+                                      event_loop,
+                                      p_jqfilter):
+        """ Tests the JQFilter functionalities of _send_data_block"""
+
+        assert True
+
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
         ("omf",        "north", "OMF North"),
@@ -511,7 +524,7 @@ class TestSendingProcess:
         sp._config['source'] = sp._DATA_SOURCE_READINGS
 
         with patch.object(sp, '_load_data_into_memory_readings', return_value=True) \
-            as mocked_load_data_into_memory_readings:
+                as mocked_load_data_into_memory_readings:
 
             sp._load_data_into_memory(5)
             assert mocked_load_data_into_memory_readings.called
@@ -520,7 +533,7 @@ class TestSendingProcess:
         sp._config['source'] = sp._DATA_SOURCE_STATISTICS
 
         with patch.object(sp, '_load_data_into_memory_statistics', return_value=True) \
-            as mocked_load_data_into_memory_statistics:
+                as mocked_load_data_into_memory_statistics:
 
             sp._load_data_into_memory(5)
             assert mocked_load_data_into_memory_statistics.called
@@ -529,12 +542,10 @@ class TestSendingProcess:
         sp._config['source'] = sp._DATA_SOURCE_AUDIT
 
         with patch.object(sp, '_load_data_into_memory_audit', return_value=True) \
-            as mocked_load_data_into_memory_audit:
+                as mocked_load_data_into_memory_audit:
 
             sp._load_data_into_memory(5)
             assert mocked_load_data_into_memory_audit.called
-
-
 
     @pytest.mark.parametrize(
         "p_rows, "
@@ -591,7 +602,6 @@ class TestSendingProcess:
 
             assert len(generated_rows) == 1
             assert generated_rows == expected_rows
-
 
     @pytest.mark.parametrize(
         "p_rows, "
@@ -754,7 +764,7 @@ class TestSendingProcess:
         sp._storage = MagicMock(spec=StorageClient)
 
         # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        with patch.object(sp._storage, 'query_tbl_with_payload',return_value=p_rows):
+        with patch.object(sp._storage, 'query_tbl_with_payload', return_value=p_rows):
 
             generated_rows = sp._load_data_into_memory(5)
 
@@ -844,8 +854,8 @@ class TestSendingProcess:
         assert generated_rows == expected_rows
 
     def test_load_data_into_memory_audit(self,
-                                          event_loop
-                                          ):
+                                         event_loop
+                                         ):
         """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
 
         # Checks the Statistics handling

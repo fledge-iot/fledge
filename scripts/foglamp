@@ -24,6 +24,9 @@ set -e
 #
 USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
 
+# Remove any toekn cache left over from a previous execution
+rm -f ~/.foglamp_token
+
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
     # Set FOGLAMP_ROOT as the default directory
@@ -294,6 +297,10 @@ foglamp_kill() {
 
 foglamp_authenticate() {
 
+    if [[ -f ~/.foglamp_token ]]; then
+	cat ~/.foglamp_token
+	exit 0
+    fi
     fd=0
     if [[ -t "$fd" ]]; then
 	# We have an interactive shell
@@ -312,7 +319,9 @@ foglamp_authenticate() {
     if [[ ! "$result" =~ "Logged in successfully" ]]; then
 	echo "failed"
     else
-    	echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.foglamp_token
+	echo $token
     fi
 }
 
@@ -562,4 +571,5 @@ case "$1" in
         exit 1
 esac
 
+rm -f ~/.foglamp_token
 exit $?

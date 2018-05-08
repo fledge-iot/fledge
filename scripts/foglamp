@@ -24,6 +24,9 @@ set -e
 #
 USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
 
+# Remove any toekn cache left over from a previous execution
+rm -f ~/.foglamp_token
+
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
     # Set FOGLAMP_ROOT as the default directory
@@ -167,12 +170,16 @@ foglamp_start() {
                     foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
                     exit 1
                     ;;
+
+                  *)
+                    echo "Result X${new_attempt}X"
+                    ;;
                 esac
             done
             ;;
 
         *)
-            foglamp_log "err" "Unknown return status." "all"
+            foglamp_log "err" "Unknown return status, $result." "all"
             exit 1
             ;;
     esac
@@ -194,7 +201,6 @@ foglamp_stop() {
 
   if [[ "${result}" =~ "Forbidden" ]]; then
     token=`foglamp_authenticate`
-    echo " "
     if [[ "${token}" =~ "failed" ]]; then
         foglamp_log "info" "Failed authentication when attempting to stop foglamp." "all" "pretty"
         echo "Authentication failed."
@@ -291,6 +297,10 @@ foglamp_kill() {
 
 foglamp_authenticate() {
 
+    if [[ -f ~/.foglamp_token ]]; then
+	cat ~/.foglamp_token
+	exit 0
+    fi
     fd=0
     if [[ -t "$fd" ]]; then
 	# We have an interactive shell
@@ -309,7 +319,9 @@ foglamp_authenticate() {
     if [[ ! "$result" =~ "Logged in successfully" ]]; then
 	echo "failed"
     else
-    	echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.foglamp_token
+	echo $token
     fi
 }
 
@@ -328,6 +340,16 @@ foglamp_status() {
     # Get/Updates the rest API URL
     get_rest_api_url
     result=`curl -k -s ${REST_API_URL}/foglamp/ping || true`
+
+    if [[ "${result}" =~ "Forbidden" ]]; then
+      token=`foglamp_authenticate`
+      if [[ "${token}" =~ "failed" ]]; then
+          foglamp_log "info" "Failed authentication when attempting to get foglamp status." "all" "pretty"
+          echo "Authentication failed."
+          exit 0
+      fi
+      result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/foglamp/ping || true`
+    fi
 
     case "$result" in
 
@@ -549,4 +571,5 @@ case "$1" in
         exit 1
 esac
 
+rm -f ~/.foglamp_token
 exit $?

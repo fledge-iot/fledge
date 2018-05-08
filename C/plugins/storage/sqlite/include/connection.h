@@ -44,5 +44,8 @@ class Connection {
 		char		*trim(char *str);
 		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
+		bool applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
+						int i,
+						std::string& newDate);
 };
 #endif

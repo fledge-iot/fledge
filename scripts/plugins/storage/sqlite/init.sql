@@ -64,7 +64,7 @@ CREATE TABLE foglamp.log (
        code  CHARACTER(5)           NOT NULL,                  -- The process that logged the action
        level SMALLINT               NOT NULL,                  -- 0 Success - 1 Failure - 2 Warning - 4 Info
        log   JSON                   NOT NULL DEFAULT '{}',     -- Generic log structure
-       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT log_fk1 FOREIGN KEY (code)
        REFERENCES log_codes (code) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -99,7 +99,7 @@ CREATE TABLE foglamp.assets (
        status_id    integer                     NOT NULL,                   -- Status of the asset, FK to the asset_status table
        properties   JSON                        NOT NULL DEFAULT '{}',      -- A generic JSON structure. Some elements (for example "labels") may be used in the rule to send messages to the south devices or data to the cloud
        has_readings boolean                     NOT NULL DEFAULT 'f',       -- A boolean column, when TRUE, it means that the asset may have rows in the readings table
-       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT assets_fk1 FOREIGN KEY (status_id)
        REFERENCES asset_status (id) MATCH SIMPLE
                  ON UPDATE NO ACTION
@@ -130,7 +130,7 @@ CREATE TABLE foglamp.asset_status_changes (
        status_id  integer                     NOT NULL,
        log        JSON                        NOT NULL DEFAULT '{}',
        start_ts   DATETIME NOT NULL,
-       ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT asset_status_changes_fk1 FOREIGN KEY (asset_id)
        REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -153,7 +153,7 @@ CREATE TABLE foglamp.links (
        id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
        asset_id   integer                     NOT NULL,
        properties JSON                        NOT NULL DEFAULT '{}',
-       ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT links_fk1 FOREIGN KEY (asset_id)
        REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -167,7 +167,7 @@ CREATE INDEX fki_links_fk1
 CREATE TABLE foglamp.asset_links (
        link_id  integer                     NOT NULL,
        asset_id integer                     NOT NULL,
-       ts      DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts      DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT asset_links_pkey PRIMARY KEY (link_id, asset_id) );
 
 CREATE INDEX fki_asset_links_fk1
@@ -189,7 +189,7 @@ CREATE TABLE foglamp.asset_messages (
        asset_id  integer                     NOT NULL,
        status_id integer                     NOT NULL,
        message   JSON                        NOT NULL DEFAULT '{}',
-       ts        DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts        DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT asset_messages_fk1 FOREIGN KEY (asset_id)
        REFERENCES assets (id) MATCH SIMPLE
                ON UPDATE NO ACTION
@@ -215,8 +215,8 @@ CREATE TABLE foglamp.readings (
                                                                              -- assets table.
     read_key   uuid                        UNIQUE,                           -- An optional unique key used to avoid double-loading.
     reading    JSON                        NOT NULL DEFAULT '{}',            -- The json object received
-    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))
+    user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))
 );
 
 CREATE INDEX fki_readings_fk1
@@ -234,7 +234,7 @@ CREATE TABLE foglamp.destinations (
     properties    JSON                        NOT NULL DEFAULT '{ "streaming" : "all" }', -- A generic set of properties
     active_window JSON                        NOT NULL DEFAULT '[ "always" ]',            -- The window of operations
     active        boolean                     NOT NULL DEFAULT 't',                       -- When false, all streams to this destination stop and are inactive
-    ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')));         -- Creation or last update
+    ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')));         -- Creation or last update
 
 
 -- Streams table
@@ -250,7 +250,7 @@ CREATE TABLE foglamp.streams (
     active_window  JSON                        NOT NULL DEFAULT '{}',             -- The window of operations
     active         boolean                     NOT NULL DEFAULT 't',              -- When false, all data to this stream stop and are inactive
     last_object    bigint                      NOT NULL DEFAULT 0,                -- The ID of the last object streamed (asset or reading, depending on the object_stream)
-    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- Creation or last update
+    ts             DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Creation or last update
     CONSTRAINT streams_fk1 FOREIGN KEY (destination_id)
     REFERENCES destinations (id) MATCH SIMPLE
             ON UPDATE NO ACTION
@@ -268,7 +268,7 @@ CREATE TABLE foglamp.configuration (
        key         character varying(255)      NOT NULL,                          -- Primary key
        description character varying(255)      NOT NULL,                          -- Description, in plain text
        value       JSON                        NOT NULL DEFAULT '{}',             -- JSON object containing the configuration values
-       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- Timestamp, updated at every change
+       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Timestamp, updated at every change
        CONSTRAINT configuration_pkey PRIMARY KEY (key) );
 
 
@@ -279,7 +279,7 @@ CREATE TABLE foglamp.configuration_changes (
        key                 character varying(255)      NOT NULL,
        configuration_ts    DATETIME                    NOT NULL,
        configuration_value JSON                        NOT NULL DEFAULT '{}',
-       ts                  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),
+       ts                  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        CONSTRAINT configuration_changes_pkey PRIMARY KEY (key, configuration_ts) );
 
 -- Statistics table
@@ -289,7 +289,7 @@ CREATE TABLE foglamp.statistics (
        description         character varying(255)      NOT NULL,                           -- Description, in plan text
        value               bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the statistics
        previous_value      bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the prev stat to be updated by metrics collector
-       ts                  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))); -- Timestamp, updated at every change
+       ts                  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Timestamp, updated at every change
 CREATE UNIQUE INDEX statistics_ix1
     ON statistics(key);
 
@@ -301,7 +301,7 @@ CREATE TABLE foglamp.statistics_history (
        key         character varying(56)       NOT NULL,                           -- Coumpund primary key, all uppercase
        history_ts  DATETIME NOT NULL,                                              -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                 -- Integer value, the statistics
-       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))); -- Timestamp, updated at every change
+       ts          DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Timestamp, updated at every change
 
 CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);
@@ -392,7 +392,7 @@ CREATE TABLE foglamp.users (
        pwd               character varying(255) ,
        public_key        character varying(255) ,
        enabled           boolean                NOT NULL DEFAULT 't',
-       pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+       pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        access_method     smallint               NOT NULL DEFAULT 0,
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES roles (id) MATCH SIMPLE
@@ -411,7 +411,7 @@ CREATE TABLE foglamp.user_logins (
        id               INTEGER   PRIMARY KEY AUTOINCREMENT,
        user_id          integer   NOT NULL,
        ip               inet      NOT NULL DEFAULT '0.0.0.0',
-       ts               DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+       ts               DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        token            character varying(255)      NOT NULL,
        token_expiration DATETIME NOT NULL,
        CONSTRAINT user_logins_fk1 FOREIGN KEY (user_id)
@@ -512,7 +512,7 @@ CREATE TABLE foglamp.tasks (
              id           uuid                        NOT NULL,                          -- PK
              process_name character varying(255)      NOT NULL,                          -- Name of the task
              state        smallint                    NOT NULL,                          -- 1-Running, 2-Complete, 3-Cancelled, 4-Interrupted
-             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- The date and time the task started
+             start_time   DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- The date and time the task started
              end_time     DATETIME,                                                      -- The date and time the task ended
              reason       character varying(255),                                        -- The reason why the task ended
              pid          integer                     NOT NULL,                          -- Linux process id
@@ -541,7 +541,7 @@ CREATE TABLE foglamp.omf_created_objects (
 CREATE TABLE foglamp.backups (
     id         INTEGER                 PRIMARY KEY AUTOINCREMENT,
     file_name  character varying(255)  NOT NULL DEFAULT '',                   -- Backup file name, expressed as absolute path
-    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')), -- Backup creation timestamp
+    ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')), -- Backup creation timestamp
     type       integer                 NOT NULL,                              -- Backup type : 1-Full, 2-Incremental
     status     integer                 NOT NULL,                              -- Backup status :
                                                                               --   1-Running
@@ -946,22 +946,22 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 --
 
 -- Readings to OMF to PI
-INSERT INTO foglamp.destinations ( id, description, ts )
-       VALUES ( 1, 'OMF', datetime('now') );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts )
-       VALUES ( 1, 1, 'OMF north', 0, datetime('now') );
+INSERT INTO foglamp.destinations ( id, description )
+       VALUES ( 1, 'OMF' );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
+       VALUES ( 1, 1, 'OMF north', 0 );
 
 -- Stats to OMF to PI
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts )
-       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0, datetime('now') );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
+       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
 
 -- Readings to HTTP
-INSERT INTO foglamp.destinations ( id, description, ts )
-       VALUES ( 2, 'HTTP_TR', datetime('now') );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
-       VALUES ( 3, 2, 'HTTP north', 0, datetime('now') );
+INSERT INTO foglamp.destinations ( id, description )
+       VALUES ( 2, 'HTTP_TR' );
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
+       VALUES ( 3, 2, 'HTTP north', 0 );
 
 -- Readings to OMF to OCS
-INSERT INTO foglamp.destinations( id, description, ts ) VALUES ( 3, 'OCS', datetime('now') );
-INSERT INTO foglamp.streams( id, destination_id, description, last_object, ts ) VALUES ( 4, 3, 'OCS north', 0, datetime('now') );
+INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );
+INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );
 

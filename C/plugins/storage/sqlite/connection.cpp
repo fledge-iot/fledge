@@ -41,9 +41,10 @@ using namespace rapidjson;
 #define F_DATEH24_S     "%Y-%m-%d %H:%M:%S"
 #define F_DATEH24_M     "%Y-%m-%d %H:%M"
 #define F_DATEH24_H     "%Y-%m-%d %H"
+// This is the default datetime format in FogLAMP: 2018-05-03 18:15:00.622
 #define F_DATEH24_MS    "%Y-%m-%d %H:%M:%f"
-#define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')"
-
+#define SQLITE3_NOW     "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
+#define SQLITE3_FOGLAMP_DATETIME_TYPE "DATETIME"
 static time_t connectErrorTime = 0;
 map<string, string> sqliteDateFormat = {
 						{"HH24:MI:SS",
@@ -58,6 +59,127 @@ map<string, string> sqliteDateFormat = {
 							F_DATEH24_H},
 						{"", ""}
 					};
+
+/**
+ * This SQLIte3 query callback returns a formatted date
+ * by SELECT strftime('format', column, 'locatime')
+ *
+ * @param data         Output parameter to update with new datetime
+ * @param nCols        The number of columns or the row
+ * @param colValues    The column values
+ * @param colNames     The column names
+ * @return             0 on success, 1 otherwise
+ */
+static int dateCallback(void *data,
+			int nCols,
+			char **colValues,
+			char **colNames)
+{
+	if (colValues[0] != NULL)
+	{
+		memcpy((char *)data,
+			colValues[0],
+			strlen(colValues[0]));
+		// OK
+		return 0;
+	}
+	else
+	{
+		// Failure
+		return 1;
+	}
+}
+
+/**
+ * Apply FogLAMP default datetime formatting
+ * to a detected DATETIME datatype column
+ *
+ * @param pStmt    Current SQLite3 result set
+ * @param i        Current column index
+ * @param          Output parameter for new date
+ * @return         True is format has been applied,
+ *		   False otherwise
+ */
+bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
+					   int i,
+					   string& newDate)
+{
+	/**
+	 * Handle here possible unformatted DATETIME column type
+	 * If (column_name == column_original_name) AND
+	 * (sqlite3_column_table_name() == "DATETIME")
+	 * we assume the column has not been formatted
+	 * by any datetime() or strftime() SQLite function.
+	 * Thus we apply default FOGLAMP formatting:
+	 * "%Y-%m-%d %H:%M:%f" with 'localtime'
+	 */
+
+	if (sqlite3_column_database_name(pStmt, i) != NULL &&
+		sqlite3_column_table_name(pStmt, i) != NULL)
+	{
+		const char* pzDataType;
+		int retType = sqlite3_table_column_metadata(dbHandle,
+					sqlite3_column_database_name(pStmt, i),
+					sqlite3_column_table_name(pStmt, i),
+					sqlite3_column_name(pStmt, i),
+					&pzDataType,
+					NULL, NULL, NULL, NULL);
+
+		// Check whether to Apply dateformat
+		if (pzDataType != NULL &&
+			retType == SQLITE_OK &&
+			strcmp(pzDataType, SQLITE3_FOGLAMP_DATETIME_TYPE) == 0 &&
+			strcmp(sqlite3_column_origin_name(pStmt, i),
+				sqlite3_column_name(pStmt, i)) == 0)
+		{
+			// Column metadata found and column datatype is "pzDataType"
+			string formatStmt = string("SELECT strftime('");
+			formatStmt += string(F_DATEH24_MS);
+			formatStmt += "', '" + string((char *)sqlite3_column_text(pStmt, i));
+			formatStmt += "')";
+
+			char* zErrMsg = NULL;
+			// New formatted data
+			char formattedData[100] = "";
+
+			// Exec the format SQL
+			int rc = sqlite3_exec(dbHandle,
+					      formatStmt.c_str(),
+					      dateCallback,
+					      formattedData,
+					      &zErrMsg);
+
+			if (rc == SQLITE_OK )
+			{
+				// Use new formatted datetime value
+				newDate.assign(formattedData);
+
+				return true;
+			}
+			else
+			{
+				Logger::getLogger()->error("SELECT dateformat '%s': error %s",
+							   formatStmt.c_str(),
+							   zErrMsg);
+
+				sqlite3_free(zErrMsg);
+			}
+		}
+		else
+		{
+			// Format not done
+			// Just log the error if present
+			if (retType != SQLITE_OK)
+			{
+				Logger::getLogger()->error("SQLite3 failed " \
+						"to call sqlite3_table_column_metadata() " \
+						"for column '%s'",
+						sqlite3_column_name(pStmt, i));
+			}
+		}
+	}
+	return false;
+}
 
 /**
  * Apply the specified date format
@@ -292,7 +414,7 @@ unsigned long nRows = 0, nCols = 0;
 	// Rows counter, set it to 0 now
 	Value count;
 	count.SetInt(0);
-	
+
 	// Iterate over all the rows in the resultSet
 	while ((rc = sqlite3_step(pStmt)) == SQLITE_ROW)
 	{
@@ -321,6 +443,17 @@ unsigned long nRows = 0, nCols = 0;
 				}
 				case (SQLITE3_TEXT):
 				{
+
+					/**
+					 * Handle here possible unformatted DATETIME column type
+					 */
+					string newDate;
+					if (applyColumnDateTimeFormat(pStmt, i, newDate))
+					{
+						// Use new formatted datetime value
+						str = (char *)newDate.c_str();
+					}
+
 					Value value;
 					if (!d.Parse(str).HasParseError())
 					{
@@ -549,7 +682,9 @@ SQLBuffer	jsonConstraints;
 								}
 								else
 								{
+									sql.append("strftime('%Y-%m-%d %H:%M:%f', ");
 									sql.append((*itr)["column"].GetString());
+									sql.append(", 'utc')");
 									sql.append(" AS ");
 									sql.append((*itr)["column"].GetString());
 								}
@@ -1302,13 +1437,13 @@ bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
-char	sqlbuffer[200];
+char sqlbuffer[300];
 char *zErrMsg = NULL;
 int rc;
 int retrieve;
 
-	/* This query does not support timezone operations
-	 * such us: (user_ts AT TIME ZONE 'UTC') AS user_ts
+	/*
+	 * This query assumes datetime values are in 'localtime'
 	 */
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
@@ -1316,15 +1451,15 @@ int retrieve;
 			"asset_code, " \
 			"read_key, " \
 			"reading, " \
-			"user_ts as \"user_ts\", " \
-			"ts as \"ts\" " \
+			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', user_ts, 'utc') AS \"user_ts\", " \
+			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS \"ts\" " \
 		 "FROM foglamp.readings " \
-			"WHERE id >= %ld " \
-		 "ORDER BY id " \
-		 "LIMIT %d;",
+			"WHERE id >= %lu " \
+		 "ORDER BY id ASC " \
+		 "LIMIT %u;",
 		 id,
 		 blksize);
-	
+
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
 	if (sqlite3_prepare_v2(dbHandle,
@@ -1382,7 +1517,7 @@ long numReadings = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings;");
+		oldest.append("SELECT (strftime('%s','now', 'localtime') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings;");
 		const char *query = oldest.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
@@ -1414,7 +1549,7 @@ long numReadings = 0;
 		SQLBuffer unsentBuffer;
 		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < datetime('now', '-");
 		unsentBuffer.append(age);
-		unsentBuffer.append(" hours') AND id > ");
+		unsentBuffer.append(" hours', 'localtime') AND id > ");
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
@@ -1446,7 +1581,7 @@ long numReadings = 0;
 	
 	sql.append("DELETE FROM foglamp.readings WHERE user_ts < datetime('now', '-");
 	sql.append(age);
-	sql.append(" hours')");
+	sql.append(" hours', 'localtime')");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
 	{
 		sql.append(" AND id < ");
@@ -1904,8 +2039,7 @@ bool Connection::jsonAggregates(const Value& payload,
 
 			/*
 			 * Default format when no format is specified:
-			 * - we use JulianDay in order to get milliseconds,
-			 * - with timezone '+00:00' added
+			 * - we use JulianDay in order to get milliseconds.
 			 */
 			sql.append("strftime('%J', ");
 			sql.append(tb["timestamp"].GetString());
@@ -1920,7 +2054,7 @@ bool Connection::jsonAggregates(const Value& payload,
 				sql.append(")");
 			}
 
-			sql.append(") || '+00:00'");
+			sql.append(")");
 		}
 
 		sql.append(" AS \"");
@@ -2056,19 +2190,17 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 			sql.append(" GROUP BY ");
 		}
 
-		// Use DateTime Y-m-d H:M:S fromt JulianDay
+		// Use DateTime Y-m-d H:M:S from JulianDay
                 sql.append("datetime(strftime('%J', ");
                 sql.append(tb["timestamp"].GetString());
-		// Append timezone
-                sql.append(")) || '+00:00'");
+                sql.append("))");
 
 		sql.append(" ORDER BY ");
 
 		// Use DateTime Y-m-d H:M:S fromt JulianDay
                 sql.append("datetime(strftime('%J', ");
                 sql.append(tb["timestamp"].GetString());
-		// Append timezone
-                sql.append(")) || '+00:00'");
+                sql.append("))");
 
 		sql.append(" DESC");
 	}
@@ -2155,7 +2287,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("< datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')");
+		sql.append(" seconds', 'localtime')");
 	}
 	else if (!cond.compare("newer"))
 	{
@@ -2167,7 +2299,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 		}
 		sql.append("> datetime('now', '-");
 		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds')");
+		sql.append(" seconds', 'localtime')");
 	}
 	else
 	{

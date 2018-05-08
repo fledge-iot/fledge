@@ -399,17 +399,64 @@ class TestSendingProcess:
                                 assert not mocked_update_statistics.called
 
     @pytest.mark.parametrize(
-        "p_jqfilter, ",
+        "p_jqfilter, "
+        "p_data, "
+        "expected_data ",
         [
-            ""
+            (
+                # p_jqfilter
+                "",
+
+                # p_data
+                "",
+
+                # expected_data
+                ""
+            ),
         ]
     )
     def test_send_data_block_jqfilter(self,
                                       event_loop,
-                                      p_jqfilter):
-        """ Tests the JQFilter functionalities of _send_data_block"""
+                                      p_jqfilter,
+                                      p_data,
+                                      expected_data):
+        """ Tests JQFilter functionalities of _send_data_block"""
 
-        assert True
+        def mock_plugin_send_ok():
+            """Mocks _plugin_send - simulating data sent"""
+
+            return True, 2, 1
+
+        SendingProcess._logger = MagicMock(spec=logging)
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._logger = MagicMock(spec=logging)
+        sp._storage = MagicMock(spec=StorageClient)
+        sp._plugin = MagicMock()
+
+        mock_storage_client = MagicMock(spec=StorageClient)
+        sp._audit = AuditLogger(mock_storage_client)
+
+        sp._config_from_manager = {
+            "applyFilter": {"value": "TRUE"},
+            "filterRule": {"value": p_jqfilter}
+        }
+        sp._plugin_handle = []
+
+        # Executes the call
+        with patch.object(sp, '_last_object_id_read', return_value=1):
+            with patch.object(sp, '_load_data_into_memory', return_value=p_data):
+
+                with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()) as mocked_plugin_send:
+                    with patch.object(sp, '_last_object_id_update'):
+                        with patch.object(sp, '_update_statistics'):
+
+                            sp._send_data_block(STREAM_ID)
+
+                mocked_plugin_send.assert_called_once_with([], expected_data, STREAM_ID)
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),

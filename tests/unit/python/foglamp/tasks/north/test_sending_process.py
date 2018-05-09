@@ -1031,3 +1031,55 @@ class TestSendingProcess:
             sp.send_data(STREAM_ID)
 
         assert not mocked_send_data_block.called
+
+    @pytest.mark.parametrize(
+        "p_config,"
+        "expected_config",
+        [
+            # Case 1
+            (
+                # p_config
+                {
+                    "enable": {"value": "true"},
+                    "duration": {"value": "10"},
+                    "source": {"value": SendingProcess._DATA_SOURCE_READINGS},
+                    "blockSize": {"value": "10"},
+                    "sleepInterval": {"value": "10"},
+                    "plugin": {"value": "omf"},
+
+                },
+                # expected_config
+                {
+                    "enable": True,
+                    "duration": 10,
+                    "source": SendingProcess._DATA_SOURCE_READINGS,
+                    "blockSize": 10,
+                    "sleepInterval": 10,
+                    "north": "omf",
+
+                },
+            ),
+        ]
+    )
+    def test_retrieve_configuration_good(self,
+                                         event_loop,
+                                         p_config,
+                                         expected_config):
+        """ Unit tests - _retrieve_configuration - tests the transformations """
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        with patch.object(sp, '_fetch_configuration', return_value=p_config):
+            sp._retrieve_configuration(STREAM_ID)
+
+        assert sp._config['enable'] == expected_config['enable']
+        assert sp._config['duration'] == expected_config['duration']
+        assert sp._config['source'] == expected_config['source']
+        assert sp._config['blockSize'] == expected_config['blockSize']
+        assert sp._config['sleepInterval'] == expected_config['sleepInterval']
+        # Note
+        assert sp._config['north'] == expected_config['north']
+
+
+

@@ -7,6 +7,7 @@
 """Common Utilities"""
 
 from foglamp.common import logger
+import datetime
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -26,3 +27,11 @@ def get_diff(old, new):
         else:
             diff.append(key)
     return diff
+
+
+def local_timestamp():
+    """
+    :return: str - current time stamp with microseconds and machine timezone info
+    :example '2018-05-08 14:06:40.517313+05:30'
+    """
+    return str(datetime.datetime.now(datetime.timezone.utc).astimezone())

@@ -124,7 +124,7 @@ def plugin_start(handle):
     async def save_data():
         if 'tag' not in handle:
             return
-        time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
+        time_stamp = utils.local_timestamp()
         data = {
             'asset': 'TI Sensortag CC2650',
             'timestamp': time_stamp,
@@ -162,7 +162,7 @@ def plugin_start(handle):
             # debug_cnt = 0  # Used only for debugging. debug_cnt should be set to 0 in production.
             cnt = 0
             while tag.is_connected:
-                time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
+                time_stamp = utils.local_timestamp()
                 try:
                     pattern_index = tag.con.expect('Notification handle = .*? \r', timeout=4)
                     # Re-initialize attempt_count on success

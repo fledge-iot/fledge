@@ -102,7 +102,9 @@ def do_shutdown(request):
     _logger.info("Executing controlled shutdown")
     try:
         loop = request.loop
-        loop.run_until_complete(server.Server.shutdown(request))
+        asyncio.ensure_future(server.Server.shutdown(request), loop=loop)
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
     except RuntimeError as e:
         _logger.exception("Error while stopping FogLAMP server: {}".format(str(e)))
         raise

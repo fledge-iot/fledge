@@ -13,7 +13,7 @@ from foglamp.common.statistics import Statistics, _logger
 from foglamp.common.storage_client.storage_client import StorageClient
 
 
-__author__ = "Ashish Jabble, Mark Riddoch"
+__author__ = "Ashish Jabble, Mark Riddoch, Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -69,6 +69,38 @@ class TestStatistics:
         assert stats._storage.insert_into_tbl.called
         assert count == stats._storage.insert_into_tbl.call_count == 1
         stats._storage.insert_into_tbl.reset_mock()
+
+    async def test_register_exception(self):
+        storage_client_mock = MagicMock(spec=StorageClient)
+        s = Statistics(storage_client_mock)
+        with patch.object(_logger, 'exception') as logger_exception:
+            with patch.object(s._storage, 'insert_into_tbl', side_effect=Exception):
+                with pytest.raises(Exception):
+                    await s.register('T3Stat', 'Test stat')
+            args, kwargs = logger_exception.call_args
+            assert args[0] == 'Unable to create new statistic %s, error %s'
+            assert args[1] == 'T3Stat'
+
+    def test_load_keys(self):
+        """Test the load key"""
+        storage_client_mock = MagicMock(spec=StorageClient)
+        s = Statistics(storage_client_mock)
+        storage_return = {'rows': [{"previous_value": 0, "value": 1,
+                                    "key": "K1", "description": "desc1"}]}
+        with patch.object(s._storage, 'query_tbl_with_payload', return_value=storage_return):
+            s._load_keys()
+            assert "K1" in s._registered_keys
+
+    async def test_load_keys_exception(self):
+        """Test the load key exception"""
+        storage_client_mock = MagicMock(spec=StorageClient)
+        s = Statistics(storage_client_mock)
+        with patch.object(_logger, 'exception') as logger_exception:
+            with patch.object(s._storage, 'query_tbl_with_payload', side_effect=Exception):
+                with pytest.raises(Exception):
+                    await s._load_keys()
+            args, kwargs = logger_exception.call_args
+            assert args[0] == 'Failed to retrieve statistics keys, %s'
 
     async def test_update(self):
         storage_client_mock = MagicMock(spec=StorageClient)

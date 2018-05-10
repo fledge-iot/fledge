@@ -208,7 +208,7 @@ c_install : c_build
 ###############################################################################
 # build python source
 python_build : $(PYTHON_SETUP_FILE)
-	$(CD) $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE)
+	$(CD) $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE) ; $(CD) $(CURRENT_DIR) ; $(CP) $(PYTHON_REQUIREMENTS_FILE) $(PYTHON_LIB_DIR)/.
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)

@@ -11,9 +11,15 @@ from enum import IntEnum
 from collections import OrderedDict
 
 from foglamp.services.core import connect
-from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
-from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
-from foglamp.plugins.storage.postgres.backup_restore import exceptions
+
+# FIXME:
+#from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
+#from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
+#from foglamp.plugins.storage.postgres.backup_restore import exceptions
+
+from foglamp.plugins.storage.common.backup import Backup
+from foglamp.plugins.storage.common.restore import Restore
+import foglamp.plugins.storage.common.exceptions as exceptions
 
 
 __author__ = "Vaibhav Singhal"

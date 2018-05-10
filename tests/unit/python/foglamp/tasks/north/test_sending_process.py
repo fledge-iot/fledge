@@ -10,6 +10,7 @@ import pytest
 import logging
 import sys
 import time
+import signal
 
 from unittest.mock import patch, MagicMock
 
@@ -1081,7 +1082,7 @@ class TestSendingProcess:
         # Note
         assert sp._config['north'] == expected_config['north']
 
-    def test_start_stream_not_valid(self, event_loop):
+    def test__start_stream_not_valid(self, event_loop):
         """ Unit tests - _start - stream_id is not valid """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -1094,7 +1095,7 @@ class TestSendingProcess:
         assert not result
         assert not mocked_plugin_load.called
 
-    def test_start_sp_disabled(self, event_loop):
+    def test__start_sp_disabled(self, event_loop):
         """ Unit tests - _start - sending process is disabled """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -1112,7 +1113,7 @@ class TestSendingProcess:
         assert not result
         assert not mocked_plugin_load.called
 
-    def test_start_not_north(self, event_loop):
+    def test__start_not_north(self, event_loop):
         """ Unit tests - _start - it is not a north plugin """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -1135,7 +1136,7 @@ class TestSendingProcess:
         assert mocked_plugin_info.called
         assert mocked_is_north_valid.called
 
-    def test_start_good(self, event_loop):
+    def test__start_good(self, event_loop):
         """ Unit tests - _start """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -1149,16 +1150,16 @@ class TestSendingProcess:
             with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
                 with patch.object(sp, '_plugin_load') as mocked_plugin_load:
                     with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                        with patch.object(sp, '_is_north_valid', return_value=True) as mocked__is_north_valid:
-                            with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
-                                with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
-                                    result = sp._start(STREAM_ID)
+                        with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
+                            with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
+                                result = sp._start(STREAM_ID)
 
         assert result
         mocked_is_stream_id_valid.called_with(STREAM_ID)
-        mocked__retrieve_configuration.called_with(STREAM_ID, True)
+        mocked_retrieve_configuration.called_with(STREAM_ID, True)
         assert mocked_plugin_load.called
         assert mocked_plugin_info.called
         assert mocked_is_north_valid.called
         assert mocked_retrieve_configuration.called
         assert mocked_plugin_init.called
+

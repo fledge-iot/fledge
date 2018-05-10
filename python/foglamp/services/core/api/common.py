@@ -50,7 +50,7 @@ async def ping(request):
         category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
         allow_ping = True if category_item['value'].lower() == 'true' else False
         if request.is_auth_optional is False and allow_ping is False:
-            _logger.exception("Permission denied for Ping when Auth is mandatory.")
+            _logger.warning("Permission denied for Ping when Auth is mandatory.")
             raise web.HTTPForbidden
 
     def get_stats(k):
@@ -104,8 +104,6 @@ def do_shutdown(request):
     try:
         loop = request.loop
         asyncio.ensure_future(server.Server.shutdown(request), loop=loop)
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.close()
     except RuntimeError as e:
         _logger.exception("Error while stopping FogLAMP server: {}".format(str(e)))
         raise

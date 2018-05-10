@@ -475,6 +475,8 @@ Finally, you should now be able to see the list of the available databases from 
   (3 rows)
   $
 
+|br|
+
 
 Appendix: Building FogLAMP on CentOS
 ====================================

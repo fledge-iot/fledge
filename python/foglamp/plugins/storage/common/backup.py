@@ -2,29 +2,16 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2017
 
-""" Backups the entire FogLAMP repository into a file in the local filesystem,
-it executes a full warm backup.
-
-The information about executed backups are stored into the Storage Layer.
-
-The parameters for the execution are retrieved from the configuration manager.
-It could work also without the configuration manager,
-retrieving the parameters for the execution from the local file 'backup_configuration_cache.json'.
-
+""" Common functionalities for the Backup, they are also used for the integration with the API.
 """
 
-import sys
-import time
 import os
 import uuid
-import asyncio
 
 from foglamp.services.core import server
 
 from foglamp.common.storage_client import payload_builder
-from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
-from foglamp.common.audit_logger import AuditLogger
 
 import foglamp.plugins.storage.postgres.backup_restore.lib as lib
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
@@ -33,8 +20,6 @@ __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
-_MODULE_NAME = "foglamp_backup_common_module"
 
 _MESSAGES_LIST = {
 
@@ -48,7 +33,6 @@ _MESSAGES_LIST = {
     "e000004": "cannot complete the initialization - error details |{0}|",
 }
 """ Messages used for Information, Warning and Error notice """
-
 
 # Log definitions
 _logger = None
@@ -67,7 +51,7 @@ class Backup(object):
         the Storage Layer
     """
 
-    _MODULE_NAME = "foglamp_backup_postgres_api"
+    _MODULE_NAME = "foglamp_backup_common"
 
     _SCHEDULE_BACKUP_ON_DEMAND = "fac8dae6-d8d1-11e7-9296-cec278b6b50a"
 
@@ -100,11 +84,11 @@ class Backup(object):
         self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
 
     def get_all_backups(
-                                self,
-                                limit: int,
-                                skip: int,
-                                status: [lib.BackupStatus, None],
-                                sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
+                        self,
+                        limit: int,
+                        skip: int,
+                        status: [lib.BackupStatus, None],
+                        sort_order: lib.SortOrder = lib.SortOrder.DESC) -> list:
 
         """ Returns a list of backups is returned sorted in chronological order with the most recent backup first.
 
@@ -122,15 +106,13 @@ class Backup(object):
         Raises:
         """
 
-        # FIXME:
-        Backup._logger.info("BRK - Common get_all_backups ")
-
         payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
             .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
         if status:
             payload.WHERE(['status', '=', status])
             
-        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
+        backups_from_storage = self._storage.query_tbl_with_payload(
+            self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
 
         backups_information = backups_from_storage['rows']
 

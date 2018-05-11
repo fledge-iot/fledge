@@ -48,18 +48,13 @@ import time
 import sys
 import os
 import signal
-import uuid
 import sqlite3
 
-
-from foglamp.services.core import server
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 
-from foglamp.plugins.storage.common.restore import Restore
 import foglamp.plugins.storage.common.lib as lib
 import foglamp.plugins.storage.common.exceptions as exceptions
-
 
 
 __author__ = "Stefano Simonelli"
@@ -98,7 +93,7 @@ class RestoreProcess(FoglampProcess):
     """ Restore the entire FogLAMP repository.
     """
 
-    _MODULE_NAME = "foglamp_restore_postgres_process"
+    _MODULE_NAME = "foglamp_restore_sqlite_process"
 
     _FOGLAMP_ENVIRONMENT_DEV = "dev"
     _FOGLAMP_ENVIRONMENT_DEPLOY = "deploy"

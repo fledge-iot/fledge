@@ -16,17 +16,13 @@ retrieving the parameters for the execution from the local file 'backup_configur
 import sys
 import time
 import os
-import uuid
 import asyncio
 
-from foglamp.services.core import server
-
-from foglamp.common.storage_client import payload_builder
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
-from foglamp.plugins.storage.common.backup import Backup
+import foglamp.plugins.storage.common.backup as BackupCommon
 import foglamp.plugins.storage.common.lib as lib
 import foglamp.plugins.storage.common.exceptions as exceptions
 
@@ -60,12 +56,13 @@ _LOG_LEVEL_INFO = 20
 _LOGGER_LEVEL = _LOG_LEVEL_INFO
 _LOGGER_DESTINATION = logger.SYSLOG
 
+
 class BackupProcess(FoglampProcess):
     """ Backups the entire FogLAMP repository into a file in the local filesystem,
         it executes a full warm backup
     """
 
-    _MODULE_NAME = "foglamp_backup_postgres_process"
+    _MODULE_NAME = "foglamp_backup_sqlite_process"
 
     _BACKUP_FILE_NAME_PREFIX = "foglamp_backup_"
     """ Prefix used to generate a backup file name """
@@ -118,7 +115,7 @@ class BackupProcess(FoglampProcess):
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
 
-        self._backup = Backup(self._storage)
+        self._backup = BackupCommon.Backup(self._storage)
         self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
 
         self._job = lib.Job()
@@ -148,6 +145,14 @@ class BackupProcess(FoglampProcess):
 
         return _backup_file
 
+    def check_for_execution_backup(self):
+        """ Executes all the checks to ensure the prerequisites to execute the backup are met
+
+        Args:
+        Returns:
+        Raises:
+        """
+
     def init(self):
         """ Setups the correct state for the execution of the backup
 
@@ -163,8 +168,7 @@ class BackupProcess(FoglampProcess):
 
         self._backup_lib.retrieve_configuration()
 
-        # FIXME:
-        #self._backup_lib.check_for_execution_backup()
+        self.check_for_execution_backup()
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()

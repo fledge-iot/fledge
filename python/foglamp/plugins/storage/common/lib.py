@@ -590,6 +590,7 @@ class BackupRestoreLib(object):
         Raises:
         """
 
+        # noinspection PyUnusedLocal
         plugin_type = False
 
         # Inquires the storage

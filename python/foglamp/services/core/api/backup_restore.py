@@ -14,7 +14,6 @@ from collections import OrderedDict
 
 from foglamp.services.core import connect
 
-# FIXME:
 if 'foglamp.plugins.storage.common.backup' not in sys.modules:
     from foglamp.plugins.storage.common.backup import Backup
 

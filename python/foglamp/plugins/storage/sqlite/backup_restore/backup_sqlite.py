@@ -22,7 +22,7 @@ from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
-import foglamp.plugins.storage.common.backup as BackupCommon
+from foglamp.plugins.storage.common.backup import Backup
 import foglamp.plugins.storage.common.lib as lib
 import foglamp.plugins.storage.common.exceptions as exceptions
 
@@ -57,6 +57,7 @@ _LOGGER_LEVEL = _LOG_LEVEL_INFO
 _LOGGER_DESTINATION = logger.SYSLOG
 
 
+# noinspection PyAbstractClass
 class BackupProcess(FoglampProcess):
     """ Backups the entire FogLAMP repository into a file in the local filesystem,
         it executes a full warm backup
@@ -115,7 +116,7 @@ class BackupProcess(FoglampProcess):
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
 
-        self._backup = BackupCommon.Backup(self._storage)
+        self._backup = Backup(self._storage)
         self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
 
         self._job = lib.Job()
@@ -264,12 +265,12 @@ class BackupProcess(FoglampProcess):
         self._logger.debug("{func} - file_name |{file}|".format(func="_run_backup_command",
                                                                 file=_backup_file))
 
-        # FIXME:
         # Prepares the backup command
-        cmd = "{cmd} {path}/{db}.db '.backup {file}'".format(
-                                                cmd="sqlite3",
+        cmd = "{sqlite_cmd} {path}/{db} '{backup_cmd} {file}'".format(
+                                                sqlite_cmd=self._backup_lib.SQLITE_SQLITE,
                                                 path=self._backup_lib.dir_foglamp_data,
-                                                db=self._backup_lib.config['database'],
+                                                db=self._backup_lib.config['database-filename'],
+                                                backup_cmd=self._backup_lib.SQLITE_BACKUP,
                                                 file=_backup_file
         )
 

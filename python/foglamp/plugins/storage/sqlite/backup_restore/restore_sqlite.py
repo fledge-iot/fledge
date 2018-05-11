@@ -31,10 +31,10 @@ Usage:
     The latest backup will be restored if no options is used.
 
 Execution samples :
-    restore_postgres --backup-id=29 --port=${adm_port} --address=127.0.0.1 --name=restore
-    restore_postgres --file=/tmp/foglamp_backup_2017_12_04_13_57_37.dump \
+    restore_sqlite --backup-id=29 --port=${adm_port} --address=127.0.0.1 --name=restore
+    restore_sqlite --file=/tmp/foglamp_backup_2017_12_04_13_57_37.dump \
                      --port=${adm_port} --address=127.0.0.1 --name=restore
-    restore_postgres --port=${adm_port} --address=127.0.0.1 --name=restore
+    restore_sqlite --port=${adm_port} --address=127.0.0.1 --name=restore
 
     Note : ${adm_port} should correspond to the Management API port of the core.
 
@@ -89,6 +89,7 @@ _LOGGER_LEVEL = _LOG_LEVEL_INFO
 _LOGGER_DESTINATION = logger.SYSLOG
 
 
+# noinspection PyAbstractClass
 class RestoreProcess(FoglampProcess):
     """ Restore the entire FogLAMP repository.
     """
@@ -256,9 +257,8 @@ class RestoreProcess(FoglampProcess):
 
         return backup_id, file_name
 
-# FIXME:
     def storage_retrieve(self, sql_cmd):
-        """  Executes a sql command against the Storage layer that retrieves data
+        """  Executes a sql command against SQLite directly
 
         Args:
         Returns:
@@ -269,10 +269,9 @@ class RestoreProcess(FoglampProcess):
         _logger.debug("{func} - sql cmd |{cmd}| ".format(func="storage_retrieve",
                                                          cmd=sql_cmd))
 
-
-        db_connection_string = "{path}/{db}.db".format(
+        db_connection_string = "{path}/{db}".format(
                                                         path=self._restore_lib.dir_foglamp_data,
-                                                        db=self._restore_lib.config['database']
+                                                        db=self._restore_lib.config['database-filename']
                                                     )
 
         comm = sqlite3.connect(db_connection_string)
@@ -280,14 +279,14 @@ class RestoreProcess(FoglampProcess):
         cur = comm.cursor()
 
         cur.execute(sql_cmd)
+
         raw_data = cur.fetchall()
         cur.close()
 
         return raw_data
 
-
     def storage_update(self, sql_cmd):
-        """Executes a sql command against the Storage layer that updates data
+        """ Executes a sql command against SQLite directly
 
         Args:
             sql_cmd: sql command to execute
@@ -299,9 +298,9 @@ class RestoreProcess(FoglampProcess):
                                                             func="storage_update",
                                                             cmd=sql_cmd))
 
-        db_connection_string = "{path}/{db}.db".format(
+        db_connection_string = "{path}/{db}".format(
                                                         path=self._restore_lib.dir_foglamp_data,
-                                                        db=self._restore_lib.config['database']
+                                                        db=self._restore_lib.config['database-filename']
                                                     )
 
         comm = sqlite3.connect(db_connection_string)
@@ -311,7 +310,6 @@ class RestoreProcess(FoglampProcess):
         cur.execute(sql_cmd)
         comm.commit()
         comm.close()
-
 
     def _identify_last_backup(self):
         """ Identifies latest executed backup either successfully executed (COMPLETED) or already RESTORED
@@ -325,31 +323,19 @@ class RestoreProcess(FoglampProcess):
 
         self._logger.debug("{func} ".format(func="_identify_last_backup"))
 
-        # FIXME: foglamp
-        # sql_cmd = """
-        #     SELECT id, file_name FROM backups WHERE (ts,id)=
-        #     (SELECT  max(ts),MAX(id) FROM backups WHERE status={0} or status={1});
-        # """.format(lib.BackupStatus.COMPLETED,
-        #            lib.BackupStatus.RESTORED)
-
         sql_cmd = """
             SELECT id, file_name FROM backups WHERE id=
             (SELECT  MAX(id) FROM backups WHERE status={0} or status={1});
         """.format(lib.BackupStatus.COMPLETED,
                    lib.BackupStatus.RESTORED)
 
-        # sql_cmd = """
-        #       SELECT id, file_name FROM backups WHERE id=6;
-        # """.format(lib.BackupStatus.COMPLETED,
-        #            lib.BackupStatus.RESTORED)
-
         data = self.storage_retrieve(sql_cmd)
-
 
         if len(data) == 0:
             raise exceptions.NoBackupAvailableError
 
         elif len(data) == 1:
+
             _backup_id = data[0][0]
             _file_name = data[0][1]
 
@@ -556,23 +542,13 @@ class RestoreProcess(FoglampProcess):
                                                                     file=backup_file))
 
         # Prepares the restore command
-        # FIXME:
-        cmd = "{cmd} {file} {path}/{db}.db ".format(
-                                                cmd="cp",
+        cmd = "{cmd} {file} {path}/{db} ".format(
+                                                cmd=self._restore_lib.SQLITE_RESTORE,
+                                                file=backup_file,
                                                 path=self._restore_lib.dir_foglamp_data,
-                                                db=self._restore_lib.config['database'],
-                                                file=backup_file
+                                                db=self._restore_lib.config['database-filename']
+
         )
-
-        #pg_cmd = self._restore_lib.PG_COMMANDS[self._restore_lib.PG_COMMAND_RESTORE]
-
-        # cmd = "{cmd} {options} {schema} -d {db}  {file}".format(
-        #                                         cmd=pg_cmd,
-        #                                         options="--verbose --clean -n ",
-        #                                         schema=self._restore_lib.config['schema'],
-        #                                         db=self._restore_lib.config['database'],
-        #                                         file=backup_file
-        # )
 
         # Restores the backup
         status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
@@ -659,7 +635,7 @@ class RestoreProcess(FoglampProcess):
                                                                                 file=file_name))
         # Stops FogLamp if it is running
         if self._foglamp_status() == self.FogLampStatus.RUNNING:
-                   self._foglamp_stop()
+            self._foglamp_stop()
 
         self._logger.debug("{func} - FogLamp is down".format(func="execute_restore"))
 
@@ -770,6 +746,16 @@ class RestoreProcess(FoglampProcess):
         else:
             self._foglamp_cmd = self._FOGLAMP_CMD_PATH_DEV + " {0}"
 
+    def check_for_execution_restore(self):
+        """ Executes all the checks to ensure the prerequisites to execute the backup are met
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        pass
+
     def init(self):
         """"Setups the correct state for the execution of the restore
 
@@ -794,8 +780,7 @@ class RestoreProcess(FoglampProcess):
 
         self._restore_lib.retrieve_configuration()
 
-        # FIXME:
-        #self._restore_lib.check_for_execution_restore()
+        self.check_for_execution_restore()
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()

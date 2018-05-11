@@ -222,6 +222,11 @@ class BackupRestoreLib(object):
     JOB_SEM_FILE_RESTORE = ".restore.sem"
     """" Semaphores information for the handling of the backup/restore synchronization """
 
+    # SQLite command
+    SQLITE_SQLITE = "sqlite3"
+    SQLITE_BACKUP = ".backup"
+    SQLITE_RESTORE = "cp"
+
     # Postgres commands
     PG_COMMAND_DUMP = "pg_dump"
     PG_COMMAND_RESTORE = "pg_restore"
@@ -311,6 +316,11 @@ class BackupRestoreLib(object):
             "description": "Schema for backup and restore operations.",
             "type": "string",
             "default": "foglamp"
+        },
+        "database-filename": {
+            "description": "Database file name used by SQLite.",
+            "type": "string",
+            "default": "foglamp.db"
         },
         "backup-dir": {
             "description": "Directory where backups will be created, "
@@ -901,6 +911,8 @@ class BackupRestoreLib(object):
 
         self.config['port'] = int(_config_from_manager['port']['value'])
         self.config['database'] = _config_from_manager['database']['value']
+        self.config['database-filename'] = _config_from_manager['database-filename']['value']
+
         self.config['schema'] = _config_from_manager['schema']['value']
         self.config['backup-dir'] = _config_from_manager['backup-dir']['value']
         self.config['semaphores-dir'] = _config_from_manager['semaphores-dir']['value']

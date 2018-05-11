@@ -13,7 +13,9 @@
 #include <reading.h>
 #include <reading_set.h>
 #include <resultset.h>
+#include <purge_result.h>
 #include <query.h>
+#include <insert.h>
 #include <logger.h>
 #include <string>
 #include <vector>
@@ -27,10 +29,15 @@ class StorageClient {
 	public:
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
+		ResultSet *queryTable(const std::string& tablename, const Query& query);
+		int insertTable(const std::string& tableName, const InsertValues& values);
+		int updateTable(const std::string& tableName, const InsertValues& values, const Query& query);
 		bool readingAppend(Reading& reading);
 		bool readingAppend(const std::vector<Reading *> & readings);
 		ResultSet *readingQuery(const Query& query);
 		ReadingSet *readingFetch(const unsigned long readingId, const unsigned long count);
+		PurgeResult readingPurgeByAge(unsigned long age, unsigned long sent, bool purgeUnsent);
+		PurgeResult readingPurgeBySize(unsigned long size, unsigned long sent, bool purgeUnsent);
 	private:
 		HttpClient		*m_client;
 		Logger			*m_logger;

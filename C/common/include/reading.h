@@ -29,7 +29,7 @@ class Reading {
 		Reading(const Reading& orig);
 		~Reading();
 		void		addDatapoint(Datapoint *value);
-		std::string	toJSON();
+		std::string	toJSON() const;
 	protected:
 		Reading() {};
 		unsigned long			m_id;

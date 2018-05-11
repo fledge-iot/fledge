@@ -37,7 +37,7 @@ class Query {
 		void				timebucket(Timebucket*);
 		void				returns(Returns *);
 		void				returns(std::vector<Returns *>);
-		std::string			toJSON();
+		const std::string		toJSON() const;
 	private:
 		Where				*m_where;
 		std::vector<Aggregate *>	m_aggregates;

@@ -11,6 +11,9 @@
  */
 #include <client_http.hpp>
 #include <reading.h>
+#include <reading_set.h>
+#include <resultset.h>
+#include <query.h>
 #include <logger.h>
 #include <string>
 #include <vector>
@@ -26,6 +29,8 @@ class StorageClient {
 		~StorageClient();
 		bool readingAppend(Reading& reading);
 		bool readingAppend(const std::vector<Reading *> & readings);
+		ResultSet *readingQuery(const Query& query);
+		ReadingSet *readingFetch(const unsigned long readingId, const unsigned long count);
 	private:
 		HttpClient		*m_client;
 		Logger			*m_logger;

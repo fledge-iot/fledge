@@ -30,9 +30,13 @@ class Reading {
 		~Reading();
 		void		addDatapoint(Datapoint *value);
 		std::string	toJSON();
-	private:
-		const std::string		m_asset;
+	protected:
+		Reading() {};
+		unsigned long			m_id;
+		bool				m_has_id;
+		std::string			m_asset;
 		struct timeval			m_timestamp;
+		struct timeval			m_userTimestamp;
 		std::vector<Datapoint *>	m_values;
 		std::string			m_uuid;
 };

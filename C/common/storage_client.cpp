@@ -1,7 +1,7 @@
 /*
  * FogLAMP storage service client
  *
- * Copyright (c) 2018 OSIsoft, LLC
+ * Copyright (c) 2018 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -9,6 +9,7 @@
  */
 #include <storage_client.h>
 #include <reading.h>
+#include <reading_set.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <service_record.h>
@@ -124,3 +125,58 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 	}
 	return false;
 }
+
+/**
+ * Perform a generic query against the readings data
+ *
+ * @param query		The query to execute
+ * @return ResultSet	The result of the query
+ */
+ResultSet *StorageClient::readingQuery(const Query& query)
+{
+	try {
+		ostringstream convert;
+
+		convert << query.toJSON();
+		auto res = m_client->request("PUT", "/storage/reading/query", convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			ResultSet *result = new ResultSet(resultPayload.str().c_str());
+			return result;
+		}
+	} catch (exception& ex) {
+		m_logger->error("Failed to query readings: %s", ex.what());
+		throw;
+	}
+}
+
+/**
+ * Retrieve a set of readings for sending on the northbound
+ * interface of FogLAMP
+ *
+ * @param readingId	The ID of the reading which should be the first one to send
+ * @param count		Maximum number if readings to return
+ * @return ReadingSet	The set of readings
+ */
+ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const unsigned long count)
+{
+	try {
+		char url[256];
+		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
+				readingId, count);
+		auto res = m_client->request("GET", url);
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			ReadingSet *result = new ReadingSet(resultPayload.str().c_str());
+			return result;
+		}
+	} catch (exception& ex) {
+		m_logger->error("Failed to fetch readings: %s", ex.what());
+		throw;
+	}
+}
+

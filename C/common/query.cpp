@@ -114,7 +114,7 @@ void Query::returns(vector<Returns *> returns)
 /**
  * Return the JSON payload for a where clause
  */
-string Query::toJSON()
+const string Query::toJSON() const
 {
 ostringstream json;
 

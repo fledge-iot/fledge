@@ -5,11 +5,6 @@
 
 using namespace std;
 
-int main(int argc, char **argv) {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
-
 TEST(QueryTest, Simple)
 {
 Query query(new Where("c1", Equals, "10"));

@@ -5,11 +5,6 @@
 
 using namespace std;
 
-int main(int argc, char **argv) {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
-
 TEST(ResultSetTest, RowCount)
 {
 string	json("{ \"count\" : 1, \"rows\" : [ { \"c1\" : 1 } ] }");
@@ -105,5 +100,69 @@ string	json("{ \"count\" : 2, \"rows\" : [ { \"c1\" : 1 }, { \"c1\" : 2 } ] }");
 	{
 		rowIter = result.nextRow(rowIter);
 		ASSERT_EQ(INT_COLUMN, (*rowIter)->getType(0));
+	}
+}
+
+TEST(ResultSetTest, RowIteratorIntValue)
+{
+string	json("{ \"count\" : 2, \"rows\" : [ { \"c1\" : 1 }, { \"c1\" : 2 }, { \"c1\" : 3 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.rowCount(), 2);
+
+	ResultSet::RowIterator rowIter = result.firstRow();
+	int i = 1;
+	const ResultSet::ColumnValue *value = (*rowIter)->getColumn(0);
+	ASSERT_EQ(i, value->getInteger());
+	while (result.hasNextRow(rowIter))
+	{
+		i++;
+		rowIter = result.nextRow(rowIter);
+		ASSERT_EQ(i, (*rowIter)->getColumn(0)->getInteger());
+	}
+}
+
+TEST(ResultSetTest, RowIteratorIntValueByName)
+{
+string	json("{ \"count\" : 2, \"rows\" : [ { \"c1\" : 1 }, { \"c1\" : 2 }, { \"c1\" : 3 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.rowCount(), 2);
+
+	ResultSet::RowIterator rowIter = result.firstRow();
+	int i = 1;
+	const ResultSet::ColumnValue *value = (*rowIter)->getColumn("c1");
+	ASSERT_EQ(i, value->getInteger());
+	while (result.hasNextRow(rowIter))
+	{
+		i++;
+		rowIter = result.nextRow(rowIter);
+		ASSERT_EQ(i, (*rowIter)->getColumn("c1")->getInteger());
+	}
+}
+
+TEST(ResultSetTest, RowIndexIntValueByName)
+{
+string	json("{ \"count\" : 2, \"rows\" : [ { \"c1\" : 1 }, { \"c1\" : 2 }, { \"c1\" : 3 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.rowCount(), 2);
+
+	for (int i = 0; i < result.rowCount(); i++)
+	{
+		ASSERT_EQ(i + 1, result[i]->getColumn("c1")->getInteger());
+	}
+}
+
+TEST(ResultSetTest, RowIndexIntValueByIndex)
+{
+string	json("{ \"count\" : 2, \"rows\" : [ { \"c1\" : 1 }, { \"c1\" : 2 }, { \"c1\" : 3 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.rowCount(), 2);
+
+	for (int i = 0; i < result.rowCount(); i++)
+	{
+		ASSERT_EQ(i + 1, (*result[i])[0]->getInteger());
 	}
 }

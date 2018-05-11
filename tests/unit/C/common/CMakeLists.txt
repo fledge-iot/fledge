@@ -25,18 +25,11 @@ include_directories(../../../../C/thirdparty/Simple-Web-Server)
 
 file(GLOB test_sources "../../../../C/common/*.cpp")
 file(GLOB logger_sources "../../../../C/services/common/logger.cpp")
+file(GLOB unittests "*.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(test_query ${test_sources} ${logger_sources} test_query.cpp)
-target_link_libraries(test_query ${GTEST_LIBRARIES} pthread)
-target_link_libraries(test_query  ${Boost_LIBRARIES})
-target_link_libraries(test_query  ${UUIDLIB})
-add_executable(test_resultset ${test_sources} ${logger_sources} test_resultset.cpp)
-target_link_libraries(test_resultset ${GTEST_LIBRARIES} pthread)
-target_link_libraries(test_resultset  ${Boost_LIBRARIES})
-target_link_libraries(test_resultset  ${UUIDLIB})
-add_executable(test_reading ${test_sources} ${logger_sources} test_reading.cpp)
-target_link_libraries(test_reading ${GTEST_LIBRARIES} pthread)
-target_link_libraries(test_reading  ${Boost_LIBRARIES})
-target_link_libraries(test_reading  ${UUIDLIB})
+add_executable(RunTests ${test_sources} ${logger_sources} ${unittests})
+target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
+target_link_libraries(RunTests  ${Boost_LIBRARIES})
+target_link_libraries(RunTests  ${UUIDLIB})
 

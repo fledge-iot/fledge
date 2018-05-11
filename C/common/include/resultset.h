@@ -3,7 +3,7 @@
 /*
  * FogLAMP storage client.
  *
- * Copyright (c) 2018 OSisoft, LLC
+ * Copyright (c) 2018 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -53,6 +53,9 @@ class ResultSet {
 					m_type = NUMBER_COLUMN;
 				};
 				ColumnType 	getType() { return m_type; };
+				const long	getInteger() const;
+				const double	getNumber() const;
+				const char	*getString() const;
 			private:
 				ColumnType	m_type;
 				union {
@@ -64,6 +67,7 @@ class ResultSet {
 
 		class Row {
 			public:
+				Row(ResultSet *resultSet) : m_resultSet(resultSet) {};
 				~Row()
 				{
 					for (auto it = m_values.cbegin();
@@ -74,23 +78,35 @@ class ResultSet {
 				{
 					m_values.push_back(value);
 				};
-				ColumnType	getType(unsigned int column);
+				const ColumnType	getType(unsigned int column);
+				const ColumnType	getType(const std::string& name);
+				const ColumnValue	*getColumn(unsigned int column) const;
+				const ColumnValue	*getColumn(const std::string& name) const;
+				const ColumnValue 	*operator[] (int colNo) const {
+							return m_values[colNo];
+						};
 			private:
 				std::vector<ResultSet::ColumnValue *>	m_values;
+				const ResultSet				*m_resultSet;
 		};
 
 		typedef std::vector<Row *>::iterator RowIterator;
 
 		ResultSet(const std::string& json);
 		~ResultSet();
-		unsigned int			rowCount() { return m_rowCount; };
-		unsigned int			columnCount() { return m_columns.size(); };
-		const std::string&		columnName(unsigned int column);
-		const ColumnType		columnType(unsigned int column);
+		const unsigned int		rowCount() const { return m_rowCount; };
+		const unsigned int		columnCount() const { return m_columns.size(); };
+		const std::string&		columnName(unsigned int column) const;
+		const ColumnType		columnType(unsigned int column) const;
+		const ColumnType		columnType(const std::string& name) const;
 		RowIterator			firstRow();
 		RowIterator			nextRow(RowIterator it);
-		bool				isLastRow(RowIterator it);
-		bool				hasNextRow(RowIterator it);
+		const bool			isLastRow(RowIterator it) const;
+		const bool			hasNextRow(RowIterator it) const;
+		const unsigned int		findColumn(const std::string& name) const;
+		const Row *			operator[] (int rowNo) {
+							return m_rows[rowNo];
+						};
 
 	private:
 		class Column {
@@ -102,7 +118,9 @@ class ResultSet {
 				const std::string&	m_name;
 				ColumnType		m_type;
 		};
-		unsigned int		m_rowCount;
+
+
+		unsigned int				m_rowCount;
 		std::vector<ResultSet::Column *>	m_columns;
 		std::vector<ResultSet::Row *>		m_rows;
 
@@ -133,6 +151,22 @@ class ResultNoSuchColumnException : public std::exception {
 		virtual const char *what() const throw()
 		{
 			return "Column does not exist";
+		}
+};
+
+class ResultNoMoreRowsException : public std::exception {
+	public:
+		virtual const char *what() const throw()
+		{
+			return "No more rows in the result set";
+		}
+};
+
+class ResultIncorrectTypeException : public std::exception {
+	public:
+		virtual const char *what() const throw()
+		{
+			return "No more rows in the result set";
 		}
 };
 

@@ -7,9 +7,6 @@
 
 .. Images
 
-.. |DHT11 in PI| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg
-   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg 
-
 .. Links
 .. _here: 05_testing.html#setting-the-omf-translator-plugin
 .. _these steps: 04_installation.html
@@ -19,34 +16,6 @@
    <a href="03_getting_started.html#building-foglamp">here</a>
 
 .. Links in new tabs
-
-.. |ADAFruit| raw:: html
-
-   <a href="https://github.com/adafruit/Adafruit_Python_DHT" target="_blank">ADAFruit DHT Library</a>
-
-.. |here BT| raw:: html
-
-   <a href="https://bugs.launchpad.net/snappy/+bug/1674509" target="_blank">here</a>
-
-.. |DHT Description| raw:: html
-
-   <a href="http://www.aosong.com/en/products/details.asp?id=109" target="_blank">DHT11 Product Description</a>
-
-.. |DHT Manual| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11.pdf" target="_blank">DHT11 Product Manual</a>
-
-.. |DHT Resistor| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-with-resistor.jpg" target="_blank">This picture</a>
-
-.. |DHT Wired| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-wired.jpg" target="_blank">This picture</a>
-
-.. |DHT Pins| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-pins.jpg" target="_blank">this</a>
 
 .. |GPIO| raw:: html
 
@@ -118,6 +87,8 @@ These are the properties returned by the JSON document:
       }
   }
 
+|br|
+
 
 Plugin Initialization
 ---------------------
@@ -142,6 +113,8 @@ In a simple example of a sensor that reads a GPIO pin for data, we might choose 
    
       handle = config['gpiopin']['value']
       return handle
+
+|br|
 
 
 Plugin Reconfigure
@@ -169,6 +142,8 @@ Using a simple example of our sensor reading a GPIO pin, we extract the new pin 
       new_handle = new_config['gpiopin']['value']
 
       return new_handle
+
+|br|
 
 
 Plugin Shutdown

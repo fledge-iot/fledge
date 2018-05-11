@@ -4,13 +4,20 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+""" Test foglamp.services.core server """
 
+import asyncio
 import json
+from unittest import mock
 from unittest.mock import MagicMock, patch
 from aiohttp import web
+from aiohttp.test_utils import make_mocked_request
+from aiohttp.streams import StreamReader
+from multidict import CIMultiDict
 import pytest
 
 from foglamp.services.common.microservice_management import routes as management_routes
+from foglamp.services.core import server
 from foglamp.services.core.server import Server
 from foglamp.common.web import middleware
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
@@ -31,9 +38,23 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+def mock_request(data, loop):
+    payload = StreamReader(loop=loop)
+    payload.feed_data(data.encode())
+    payload.feed_eof()
+
+    protocol = mock.Mock()
+    app = mock.Mock()
+    headers = CIMultiDict([('CONTENT-TYPE', 'application/json')])
+    req = make_mocked_request('POST', '/sensor-reading', headers=headers,
+                              protocol=protocol, payload=payload, app=app, loop=loop)
+    return req
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("services", "core", "server")
 class TestServer:
+
     @pytest.fixture
     def client(self, loop, test_client):
         app = web.Application(middlewares=[middleware.error_middleware])
@@ -41,11 +62,116 @@ class TestServer:
         return loop.run_until_complete(test_client(app))
 
     ############################
+    # start stop
+    ############################
+
+    @pytest.mark.asyncio
+    async def test_start(self):
+        with patch.object(Server, "_start_core", return_value=None) as patched_start_core:
+            Server.start()
+        args, kwargs = patched_start_core.call_args
+        assert 1 == patched_start_core.call_count
+        assert isinstance(kwargs['loop'], asyncio.unix_events._UnixSelectorEventLoop)
+
+    @pytest.mark.asyncio
+    async def test__stop(self, mocker):
+        mocked__stop_scheduler = mocker.patch.object(Server, "_stop_scheduler")
+        mocked_stop_microservices = mocker.patch.object(Server, "stop_microservices")
+        mocked_stop_service_monitor = mocker.patch.object(Server, "stop_service_monitor")
+        mocked_stop_rest_server = mocker.patch.object(Server, "stop_rest_server")
+        mocked_stop_storage = mocker.patch.object(Server, "stop_storage")
+        mocked__remove_pid = mocker.patch.object(Server, "_remove_pid")
+
+        async def return_async_value(val):
+            return val
+
+        mocked__stop_scheduler.return_value = return_async_value('stopping scheduler..')
+        mocked_stop_microservices.return_value = return_async_value('stopping msvc..')
+        mocked_stop_service_monitor.return_value = return_async_value('stopping svc monitor..')
+        mocked_stop_rest_server.return_value = return_async_value('stopping REST server..')
+        mocked_stop_storage.return_value = return_async_value('stopping storage..')
+
+        mocked__remove_pid.return_value = 'removing PID..'
+
+        with patch.object(AuditLogger, '__init__', return_value=None):
+            with patch.object(AuditLogger, 'information', return_value=return_async_value(None)) as audit_info_patch:
+                await Server._stop()
+            # Must write the audit log entry before we stop the storage service
+            args, kwargs = audit_info_patch.call_args
+            assert 'FSTOP' == args[0]
+            assert None is args[1]
+
+        assert 1 == mocked__stop_scheduler.call_count
+        assert 1 == mocked_stop_microservices.call_count
+        assert 1 == mocked_stop_service_monitor.call_count
+        assert 1 == mocked_stop_rest_server.call_count
+        assert 1 == mocked_stop_storage.call_count
+        assert 1 == mocked__remove_pid.call_count
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip
+    def test__start_core(self, mocker, loop):
+        async def return_async_value(val):
+            return val
+
+        mocker.patch.object(Server, "_make_core_app")
+
+        mock_start_storage = mocker.patch.object(Server, "_start_storage")
+        mock_start_storage.return_value = return_async_value('start storage')
+
+        mockedSC = MagicMock(spec=StorageClient)
+        mock_get_storage_client = mocker.patch.object(Server, "_get_storage_client")
+        mock_get_storage_client.return_value = return_async_value(mockedSC)
+
+        mockedCf = MagicMock(spec=ConfigurationManager(mockedSC))
+        mockedIntReg = MagicMock(spec=InterestRegistry)
+
+        mockedAuditLogger = MagicMock(spec=AuditLogger(mockedSC))
+
+        mock_start_scheduler = mocker.patch.object(Server, "_start_scheduler")
+        mock_start_scheduler.return_value = return_async_value('start scheduler')
+
+        mock_start_service_monitor = mocker.patch.object(Server, "_start_service_monitor")
+        mock_start_service_monitor.return_value = return_async_value('start monitor')
+
+        mock_rest_api_config = mocker.patch.object(Server, "rest_api_config")
+        mock_rest_api_config.return_value = return_async_value('set RET api config')
+
+        mock_service_config = mocker.patch.object(Server, "service_config")
+        mock_service_config.return_value = return_async_value('set service config')
+
+        def stop_me():
+            loop.stop()
+
+        m = MagicMock()
+        m.sockets[0].getsockname.return_value = ('127.0.0.1', 52300)
+
+        # patch pid
+        # set ssl false/ true
+
+        # def se(*args):
+        #     print(args[0])
+        #     m = MagicMock()
+        #     m.sockets[0].getsockname.return_value = ('127.0.0.1', 52300)
+        #     return m, "b"
+
+        # with patch.object(Server, "_register_core", return_value=None) as patch_registration:
+        with patch.object(Server, "_start_app", return_value=(m, "b")):
+            with patch.object(server._logger, "info", return_value=None) as logger_patch:
+                loop.call_later(2, Server.stop, loop)
+                Server._start_core(loop=loop)
+        # patch_registration.assert_called_once_with('0.0.0.0', 52300, 52300)
+        assert 6 == logger_patch.call_count
+        # calls = 'REST API Server started on %s://%s:%s', 'http', '127.0.0.1', 52300
+        # logger_patch.assert_has_calls(calls)
+
+    ############################
     # Configuration Management
     ############################
+
     """ Tests the calls to configuration manager via core management api
-        No negative tests added since these are already covered in 
-        foglamp/services/core/api/test_configuration.py
+    
+    No negative tests added since these are already covered in foglamp/services/core/api/test_configuration.py
     """
     async def test_get_configuration_categories(self, client):
         async def async_mock():
@@ -439,9 +565,28 @@ class TestServer:
         assert 'uptime' in json_response
         assert 0.0 < json_response["uptime"]
 
-    # TODO: tricky one
-    async def test_shutdown(self, client):
-        pass
+    @pytest.mark.asyncio
+    async def test_shutdown(self, mocker):
+        async def return_async_value(val):
+            return val
+
+        mocked__stop = mocker.patch.object(Server, "_stop")
+        mocked__stop.return_value = return_async_value('stopping...')
+        mocked_log_info = mocker.patch.object(server._logger, "info")
+
+        request = mock_request(data="", loop=asyncio.get_event_loop())
+        resp = await Server.shutdown(request)
+
+        assert 1 == mocked__stop.call_count
+        assert 200 == resp.status
+
+        json_response = json.loads(resp.body.decode())
+
+        assert 1 == mocked_log_info.call_count
+        args, kwargs = mocked_log_info.call_args
+        assert 'Stopping the FogLAMP Core event loop. Good Bye!' == args[0]
+        assert 'message' in json_response
+        assert 'FogLAMP stopped successfully. Wait for few seconds for process cleanup.' == json_response["message"]
 
     async def test_change(self):
         pass

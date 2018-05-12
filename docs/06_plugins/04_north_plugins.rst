@@ -10,6 +10,8 @@
 
 .. |Getting Started| raw:: html
 
+   <a href="03_getting_started.html#building-foglamp">here</a>
+
 .. Links in new tabs
 
 .. =============================================
@@ -188,8 +190,8 @@ The following table presents the list of configuration options available for the
 |                   |          |                                         | the stream, this may be one of either |br|             |
 |                   |          |                                         | readings, statistics or audit.                         |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| StaticData        | JSON     | { "Location" : "Palo Alto",             | Static data to include in each sensor reading |br|     |    
-|                   |          |   "Company"  : "Dianomic" }             | sent to OMF.                                           |
+| StaticData        | JSON     | ``{ "Location" : "Palo Alto",`` |br|    | Static data to include in each sensor reading |br|     |    
+|                   |          | ``"Company"  : "Dianomic" }``           | sent to OMF.                                           |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | stream_id         | integer  | 1                                       | Stream ID                                              |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
@@ -241,12 +243,43 @@ The following table presents the list of configuration options available for the
 |                   |          |                                         | the stream, this may be one of either |br|             |
 |                   |          |                                         | readings, statistics or audit.                         |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| StaticData        | JSON     | { "Location" : "Palo Alto",             | Static data to include in each sensor reading |br|     |    
-|                   |          |   "Company"  : "Dianomic" }             | sent to OMF.                                           |
+| StaticData        | JSON     | ``{ "Location" : "Palo Alto",`` |br|    | Static data to include in each sensor reading |br|     |    
+|                   |          | ``"Company"  : "Dianomic" }``           | sent to OMF.                                           |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | stream_id         | integer  | 2                                       | Stream ID                                              |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
 | URL               | string   | https://pi-server:5460/ingress/messages | The URL of the PI Connector to send data to            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
+
+
+The last parameter to review is the *OMF Type*. The call is the GET method ``foglamp/category/OMF_TYPES``, which returns an integer value that identifies the measurement type:
+
+
+.. code-block:: console
+
+  $ curl -sX GET http://vbox-dev:8081/foglamp/category/OMF_TYPES
+  {
+    "type-id": {
+      "description": "Identify sensor and measurement types",
+      "type": "integer",
+      "default": "0001",
+      "value": "0001"
+    }
+  }
+  $
+
+If you change the value, you can easily identify the set of data sent to and then stored into PI.
+ 
+
+
+Changing the OMF Plugin Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before you send date to the PI server, it is extremely likey that you need to apply more changes to the configuration. The most important items to change are:
+
+- **URL** : the URL to the PI Connector Relay OMF. It is usually composed by the name or address of the Windows server where the Connector Relay service is running, the port associated to the service and the ingress/messages API call. The communication is via HTTPS protocol.
+- **producerToken** : the token provided by the Data Collection Manager when the PI administrator sets the use of FogLAMP. 
+- **type-id** : the measurement type for the stream of data.
+
 
 

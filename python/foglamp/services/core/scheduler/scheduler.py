@@ -1092,6 +1092,19 @@ class Scheduler(object):
 
         self._schedules[schedule.schedule_id] = schedule_row
 
+        # Add process to self._process_scripts if not present.
+        try:
+            assert self._process_scripts[schedule.process_name]
+        except KeyError:
+            select_payload = PayloadBuilder().WHERE(['name', '=', schedule.process_name]).payload()
+            try:
+                self._logger.debug('Database command: %s', select_payload)
+                res = self._storage.query_tbl_with_payload("scheduled_processes", select_payload)
+                for row in res['rows']:
+                    self._process_scripts[row.get('name')] = row.get('script')
+            except Exception:
+                self._logger.exception('Select failed: %s', select_payload)
+
         # Did the schedule change in a way that will affect task scheduling?
         if schedule.schedule_type in [Schedule.Type.INTERVAL, Schedule.Type.TIMED] and (
                                 is_new_schedule or

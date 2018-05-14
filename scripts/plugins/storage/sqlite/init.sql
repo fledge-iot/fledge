@@ -702,8 +702,8 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'certificate c
 
 -- Storage Tasks
 --
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup_postgres"]'  );
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore_postgres"]' );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
 
 -- South Microservices
 --

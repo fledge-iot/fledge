@@ -267,7 +267,6 @@ The last parameter to review is the *OMF Type*. The call is the GET method ``fog
 If you change the value, you can easily identify the set of data sent to and then stored into PI.
  
 
-
 Changing the OMF Plugin Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -278,4 +277,57 @@ Before you send data to the PI server, it is likey that you need to apply more c
 - **type-id** : the measurement type for the stream of data.
 
 An example of the changes to apply to the plugins to send data to the PI system is available here `here <../05_testing.html#sending-greetings-to-the-northern-hemisphere>`_.
+
+
+Data in the PI System
+~~~~~~~~~~~~~~~~~~~~~
+
+Once the North plugins have been set properly, you should expect to see data automatically sent and stored in the PI Server. More specifically, the process of the plugin is the following:
+
+- **Assets** buffered in FogLAMP are stored as *elements* in the PI System. 
+  - *PI Asset Framework* is automatically update with the new assets.
+  - JSON objects captured as part of the *reading* in FogLAMP become *attributes* in the PI Data Archive
+- The **Producer Token** is used to authenticate and create the hierarchy of elements in the *PI Asset Framework*
+- The configuration object named as **Static Data** is added as a set of *attributes* in the PI Data Archive
+
++-----------+--------------------+--------------------------------------------------------------------------+
+| System    | Object             | Value                                                                    |
++===========+====================+==========================================================================+
+| FogLAMP   | Producer Token     | readings_001                                                             |
+|           +--------------------+--------------------------------------------------------------------------+
+|           | OMF Type           | 0001                                                                     |
+|           +--------------------+--------------------------------------------------------------------------+
+|           | Static Data        | { "Company" : "Dianomic", "Location" : "Palo Alto" }                     |
+|           +--------------------+--------------------------------------------------------------------------+
+|           | Asset              | fogbench/accelerometer                                                   |
+|           +--------------------+--------------------------------------------------------------------------+
+|           | Reading            | [{"reading":{"y":1,"z":1,"x":-1}, "timestamp":"2018-05-14 19:27:06.788}] |
++-----------+--------------------+--------------------------------------------------------------------------+
+| PI System | Element Template   | [OMF.readings_001 Connector.0001_fogbench/accelerometer_typename_sensor] |
+|           +--------------------+----------+---------------------------------------------------------------+
+|           | Attribute Template | Company  | Configuration Item, Excluded, String                          |
+|           |                    +----------+---------------------------------------------------------------+
+|           |                    | Location | Configuration Item, Excluded, String                          |
+|           |                    +----------+---------------------------------------------------------------+
+|           |                    | x        | Excluded, Int64                                               |
+|           |                    +----------+---------------------------------------------------------------+
+|           |                    | y        | Excluded, Int64                                               |
+|           |                    +----------+---------------------------------------------------------------+
+|           |                    | z        | Excluded, Int64                                               |
+|           +--------------------+----------+---------------------------------------------------------------+
+|           | Element            | foglamp > readings_001 > fogbench/accelerometer                          |
+|           +--------------------+----------+---------------+-----------------------------------------------+
+|           | Attributes         | **Name** | **Value**     | **Timestamp**                                 |
+|           |                    +----------+---------------+-----------------------------------------------+
+|           |                    | Company  | Dianomic      | 1970-01-01 00:00:00                           |
++           |                    +----------+---------------+-----------------------------------------------+
+|           |                    | Location | Palo Alto     | 1970-01-01 00:00:00                           |
++           |                    +----------+---------------+-----------------------------------------------+
+|           |                    | x        | -1            | 2018-05-14 19:27:06.788                       |
++           |                    +----------+---------------+-----------------------------------------------+
+|           |                    | y        | 1             | 2018-05-14 19:27:06.788                       |
++           |                    +----------+---------------+-----------------------------------------------+
+|           |                    | z        | 1             | 2018-05-14 19:27:06.788                       |
++-----------+--------------------+----------+---------------+-----------------------------------------------+
+
 

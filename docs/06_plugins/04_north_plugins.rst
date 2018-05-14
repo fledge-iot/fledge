@@ -174,7 +174,7 @@ The following table presents the list of configuration options available for the
 | OMFMaxRetry       | interger | 3                                       | Max number of retries for the communication |br|       |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | interger | 10                                      | Seconds between each retry for the communication |br|  |
+| OMFRetrySleepTime | interger | 1                                       | Seconds between each retry for the communication |br|  |
 |                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
 |                   |          |                                         | NOTE : the time is doubled at each attempt.            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
@@ -227,7 +227,7 @@ The following table presents the list of configuration options available for the
 | OMFMaxRetry       | interger | 3                                       | Max number of retries for the communication |br|       |
 |                   |          |                                         | with the OMF PI Connector Relay                        |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+
-| OMFRetrySleepTime | interger | 10                                      | Seconds between each retry for the communication |br|  |
+| OMFRetrySleepTime | interger | 1                                       | Seconds between each retry for the communication |br|  |
 |                   |          |                                         | with the OMF PI Connector Relay, |br|                  |
 |                   |          |                                         | NOTE : the time is doubled at each attempt.            |
 +-------------------+----------+-----------------------------------------+--------------------------------------------------------+

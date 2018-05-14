@@ -17,7 +17,7 @@ The restore operation executes the following macro steps :
     - executes the restore
     - starts FogLAMP again
 
-so it needs also to interact with Postgres directly using psycopg2 and executing SQL commands
+so it needs also to interact with SQLite directly executing SQL commands
 because at the restart of FogLAMP the reference to the Storage Layer, previously obtained through
 the FoglampProcess class, will be no more valid.
 

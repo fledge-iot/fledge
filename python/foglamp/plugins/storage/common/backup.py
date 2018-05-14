@@ -13,8 +13,8 @@ from foglamp.services.core import server
 from foglamp.common.storage_client import payload_builder
 from foglamp.common import logger
 
-import foglamp.plugins.storage.postgres.backup_restore.lib as lib
-import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
+import foglamp.plugins.storage.common.lib as lib
+import foglamp.plugins.storage.common.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"

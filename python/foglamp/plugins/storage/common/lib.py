@@ -18,7 +18,7 @@ from foglamp.common.storage_client import payload_builder
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.common.configuration_manager import ConfigurationManager
 
-import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
+import foglamp.plugins.storage.common.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -222,7 +222,7 @@ class BackupRestoreLib(object):
     JOB_SEM_FILE_RESTORE = ".restore.sem"
     """" Semaphores information for the handling of the backup/restore synchronization """
 
-    # SQLite command
+    # SQLite commands
     SQLITE_SQLITE = "sqlite3"
     SQLITE_BACKUP = ".backup"
     SQLITE_RESTORE = "cp"

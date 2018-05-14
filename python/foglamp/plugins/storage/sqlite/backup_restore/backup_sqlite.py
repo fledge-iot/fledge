@@ -94,11 +94,6 @@ class BackupProcess(FoglampProcess):
                    "- dir |{0}| - error details |{1}|",
         "e000015": "The command is not available neither using the unmanaged approach"
                    " - command |{0}|",
-        "e000016": "Postgres command is not executable - command |{0}|",
-        "e000017": "The execution of the Postgres command using the -V option produce an error"
-                   " - command |{0}| - output |{1}|",
-        "e000018": "It is not possible to read data from Postgres"
-                   " - command |{0}| - exit code |{1}| - output |{2}|",
         "e000019": "The command is not available using the managed approach"
                    " - command |{0}|",
 

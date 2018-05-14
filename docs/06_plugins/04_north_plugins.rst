@@ -8,10 +8,6 @@
 
 .. Links
 
-.. |Getting Started| raw:: html
-
-   <a href="03_getting_started.html#building-foglamp">here</a>
-
 .. Links in new tabs
 
 .. =============================================
@@ -275,11 +271,11 @@ If you change the value, you can easily identify the set of data sent to and the
 Changing the OMF Plugin Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before you send date to the PI server, it is extremely likey that you need to apply more changes to the configuration. The most important items to change are:
+Before you send data to the PI server, it is likey that you need to apply more changes to the configuration. The most important items to change are:
 
 - **URL** : the URL to the PI Connector Relay OMF. It is usually composed by the name or address of the Windows server where the Connector Relay service is running, the port associated to the service and the ingress/messages API call. The communication is via HTTPS protocol.
 - **producerToken** : the token provided by the Data Collection Manager when the PI administrator sets the use of FogLAMP. 
 - **type-id** : the measurement type for the stream of data.
 
-
+An example of the changes to apply to the plugins to send data to the PI system is available here `here <../05_testing.html#sending-greetings-to-the-northern-hemisphere>`_.
 

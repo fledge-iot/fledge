@@ -275,6 +275,7 @@ Before you send data to the PI server, it is likey that you need to apply more c
 - **URL** : the URL to the PI Connector Relay OMF. It is usually composed by the name or address of the Windows server where the Connector Relay service is running, the port associated to the service and the ingress/messages API call. The communication is via HTTPS protocol.
 - **producerToken** : the token provided by the Data Collection Manager when the PI administrator sets the use of FogLAMP. 
 - **type-id** : the measurement type for the stream of data.
+- **source** : this parameter should be set to *readings* (default) when the plugin is used to send data collected by South microservices, and to *statistics* when the plugin is used to send FogLAMP statistics to the PI system.
 
 An example of the changes to apply to the plugins to send data to the PI system is available here `here <../05_testing.html#sending-greetings-to-the-northern-hemisphere>`_.
 

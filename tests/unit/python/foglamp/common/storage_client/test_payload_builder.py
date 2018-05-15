@@ -3,9 +3,10 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-import pytest
+
 import json
 import os
+import pytest
 import py
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -25,7 +26,7 @@ def _payload(test_data_file=None):
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("payload_builder")
+@pytest.allure.story("common", "storage_client", "payload_builder")
 class TestPayloadBuilderRead:
     """
     This class tests all SELECT (Read) data specific payload methods of payload builder

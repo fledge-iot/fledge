@@ -23,6 +23,7 @@ FogLampProcess::~FogLampProcess()
 {
 	delete m_client;
 	delete m_storage;
+	delete m_logger;
 }
 
 // Constructor
@@ -31,6 +32,8 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 				m_argc(argc),
 				m_arg_vals((const char**) argv)
 {
+	m_logger = new Logger("FogLAMP Process");
+
 	try
 	{
 		m_core_mngt_host = getArgValue("--address=");

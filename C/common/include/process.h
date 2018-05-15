@@ -35,6 +35,7 @@ class FogLampProcess
 		std::string		m_core_mngt_host;
 		ManagementClient* 	m_client;
 		StorageClient*		m_storage;
+		Logger*			m_logger;
 };
 
 #endif

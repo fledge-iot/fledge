@@ -4,10 +4,11 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-from unittest.mock import MagicMock, patch
-import pytest
 import asyncio
 import json
+
+from unittest.mock import MagicMock, patch
+import pytest
 
 from foglamp.common.statistics import Statistics, _logger
 from foglamp.common.storage_client.storage_client import StorageClient
@@ -27,7 +28,7 @@ class TestStatistics:
         storage_client_mock = None
         with pytest.raises(TypeError) as excinfo:
             Statistics(storage_client_mock)
-        assert 'Must be a valid Storage object' == str(excinfo.value)
+        assert str(excinfo.value) == 'Must be a valid Storage object'
 
     def test_init_with_storage(self):
         storage_client_mock = MagicMock(spec=StorageClient)
@@ -64,10 +65,9 @@ class TestStatistics:
         stats = Statistics(storageMock)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(stats.register('T2Stat', 'Test stat'))
-        count = stats._storage.insert_into_tbl.call_count
         loop.run_until_complete(stats.register('T2Stat', 'Test stat'))
         assert stats._storage.insert_into_tbl.called
-        assert count == stats._storage.insert_into_tbl.call_count == 1
+        assert stats._storage.insert_into_tbl.call_count == 1
         stats._storage.insert_into_tbl.reset_mock()
 
     async def test_register_exception(self):
@@ -77,9 +77,9 @@ class TestStatistics:
             with patch.object(s._storage, 'insert_into_tbl', side_effect=Exception):
                 with pytest.raises(Exception):
                     await s.register('T3Stat', 'Test stat')
-            args, kwargs = logger_exception.call_args
-            assert args[0] == 'Unable to create new statistic %s, error %s'
-            assert args[1] == 'T3Stat'
+        args, kwargs = logger_exception.call_args
+        assert args[0] == 'Unable to create new statistic %s, error %s'
+        assert args[1] == 'T3Stat'
 
     def test_load_keys(self):
         """Test the load key"""
@@ -87,9 +87,10 @@ class TestStatistics:
         s = Statistics(storage_client_mock)
         storage_return = {'rows': [{"previous_value": 0, "value": 1,
                                     "key": "K1", "description": "desc1"}]}
-        with patch.object(s._storage, 'query_tbl_with_payload', return_value=storage_return):
+        with patch.object(s._storage, 'query_tbl_with_payload', return_value=storage_return) as patch_query_tbl:
             s._load_keys()
             assert "K1" in s._registered_keys
+        patch_query_tbl.assert_called_once_with('statistics', '{"return": ["key"]}')
 
     async def test_load_keys_exception(self):
         """Test the load key exception"""
@@ -99,8 +100,8 @@ class TestStatistics:
             with patch.object(s._storage, 'query_tbl_with_payload', side_effect=Exception):
                 with pytest.raises(Exception):
                     await s._load_keys()
-            args, kwargs = logger_exception.call_args
-            assert args[0] == 'Failed to retrieve statistics keys, %s'
+        args, kwargs = logger_exception.call_args
+        assert args[0] == 'Failed to retrieve statistics keys, %s'
 
     async def test_update(self):
         storage_client_mock = MagicMock(spec=StorageClient)
@@ -110,8 +111,8 @@ class TestStatistics:
         expected_result = {"response": "updated", "rows_affected": 1}
         with patch.object(s._storage, 'update_tbl', return_value=expected_result) as stat_update:
             await s.update('READING', 5)
-            stat_update.assert_called_once_with('statistics', payload)
-            assert "updated" == expected_result['response']
+            assert expected_result['response'] == "updated"
+        stat_update.assert_called_once_with('statistics', payload)
 
     @pytest.mark.parametrize("key, value_increment, exception_name, exception_message", [
         (123456, 120, TypeError, "key must be a string"),
@@ -148,22 +149,19 @@ class TestStatistics:
         expected_result = {"response": "updated", "rows_affected": 1}
         with patch.object(s._storage, 'update_tbl', return_value=expected_result) as stat_update:
             await s.add_update(stat_dict)
-            stat_update.assert_called_once_with('statistics', payload)
-            assert "updated" == expected_result['response']
+            assert expected_result['response'] == "updated"
+        stat_update.assert_called_once_with('statistics', payload)
 
     async def test_insert_when_key_error(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
         storage_client_mock = MagicMock(spec=StorageClient)
         s = Statistics(storage_client_mock)
-        payload = '{"previous_value": 0, "value": 1, "key": "FOGBENCH/TEMPERATURE", ' \
-                  '"description": "The number of readings received by FogLAMP since startup' \
-                  ' for sensor FOGBENCH/TEMPERATURE"}'
         with patch.object(_logger, 'exception') as logger_exception:
             with pytest.raises(KeyError):
                 await s.add_update(stat_dict)
-            args, kwargs = logger_exception.call_args
-            assert args[0] == 'Statistics key %s has not been registered'
-            assert args[1] == 'FOGBENCH/TEMPERATURE'
+        args, kwargs = logger_exception.call_args
+        assert args[0] == 'Statistics key %s has not been registered'
+        assert args[1] == 'FOGBENCH/TEMPERATURE'
 
     async def test_add_update_exception(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
@@ -175,4 +173,4 @@ class TestStatistics:
             with pytest.raises(Exception):
                 with patch.object(_logger, 'exception') as logger_exception:
                     await s.add_update(stat_dict)
-            logger_exception.assert_called_once_with(*msg)
+                logger_exception.assert_called_once_with(*msg)

@@ -16,6 +16,8 @@
 #include <process.h>
 #include <service_record.h>
 
+#define LOG_SERVICE_NAME  "FogLAMP Process"
+
 using namespace std;
 
 // Destructor
@@ -32,7 +34,8 @@ FogLampProcess::FogLampProcess(int argc, char** argv) :
 				m_argc(argc),
 				m_arg_vals((const char**) argv)
 {
-	m_logger = new Logger("FogLAMP Process");
+	string myName = LOG_SERVICE_NAME;
+	m_logger = new Logger(myName);
 
 	try
 	{

@@ -20,9 +20,7 @@ if 'foglamp.plugins.storage.common.backup' not in sys.modules:
 if 'foglamp.plugins.storage.common.restore' not in sys.modules:
     from foglamp.plugins.storage.common.restore import Restore
 
-if 'foglamp.plugins.storage.common.exceptions' not in sys.modules:
-    import foglamp.plugins.storage.common.exceptions as exceptions
-
+from foglamp.plugins.storage.common import exceptions
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

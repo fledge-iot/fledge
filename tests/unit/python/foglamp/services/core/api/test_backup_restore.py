@@ -12,9 +12,11 @@ from aiohttp import web
 import pytest
 from foglamp.services.core import routes
 from foglamp.services.core import connect
-from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
-from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
-from foglamp.plugins.storage.postgres.backup_restore import exceptions
+
+from foglamp.plugins.storage.common.backup import Backup
+from foglamp.plugins.storage.common.restore import Restore
+from foglamp.plugins.storage.common import exceptions
+
 from foglamp.services.core.api import backup_restore
 from foglamp.common.storage_client.storage_client import StorageClient
 

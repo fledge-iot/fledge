@@ -82,6 +82,13 @@ _num_iterated = 0
 # TODO: have its own sys/ console logger
 # _logger = logger.setup(__name__)
 
+def local_timestamp():
+    """
+    :return: str - current time stamp with microseconds and machine timezone info
+    :example '2018-05-08 14:06:40.517313+05:30'
+    """
+    return str(datetime.now(timezone.utc).astimezone())
+
 
 def read_templates():
     templates = []
@@ -143,7 +150,7 @@ def _prepare_sensor_reading(data, supported_format_types):
         sensor_value_object = dict()
         sensor_value_object["asset"] = d['name']
         sensor_value_object["readings"] = x_sensor_values
-        sensor_value_object["timestamp"] = "{!s}".format(datetime.now(tz=timezone.utc))
+        sensor_value_object["timestamp"] = "{!s}".format(local_timestamp())
         sensor_value_object["key"] = str(uuid.uuid4())
         # print(json.dumps(sensor_value_object))
         ord_dict = collections.OrderedDict(sorted(sensor_value_object.items()))
@@ -347,6 +354,7 @@ read_out_file(_file=sample_file, _keep=keep_the_file, _iterations=arg_iterations
               send_to=arg_payload_protocol)
 get_statistics(_stats_type=arg_stats_type, _out_file=statistics_file)
 
+# TODO: Change below per local_timestamp() values
 """ Expected output from given template
 { 
   "timestamp"     : "2017-08-04T06:59:57.503Z",

@@ -26,6 +26,7 @@ __version__ = "${VERSION}"
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "backup")
+@pytest.mark.skip(reason="FOGL-1343")
 class TestBackup:
     """Unit test the Backup functionality
     """
@@ -180,6 +181,7 @@ class TestBackup:
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "restore")
+@pytest.mark.skip(reason="FOGL-1343")
 class TestRestore:
     """Unit test the Restore functionality"""
 

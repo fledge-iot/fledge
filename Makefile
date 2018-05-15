@@ -78,8 +78,8 @@ STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
-BACKUP_POSTGRES             := scripts/tasks/backup_postgres
-RESTORE_POSTGRES            := scripts/tasks/restore_postgres
+BACKUP_SRC                  := scripts/tasks/backup
+RESTORE_SRC                 := scripts/tasks/restore
 CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
 CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 
@@ -244,8 +244,8 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
-	install_backup_postgres_script \
-	install_restore_postgres_script \
+	install_backup_script \
+	install_restore_script \
 	install_check_certificates_script \
 	install_certificates_script
 
@@ -286,11 +286,11 @@ install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
-install_backup_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(BACKUP_POSTGRES)
-	$(CP) $(BACKUP_POSTGRES) $(SCRIPT_TASKS_INSTALL_DIR)
+install_backup_script : $(SCRIPT_TASKS_INSTALL_DIR) $(BACKUP_SRC)
+	$(CP) $(BACKUP_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
-install_restore_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_POSTGRES)
-	$(CP) $(RESTORE_POSTGRES) $(SCRIPT_TASKS_INSTALL_DIR)
+install_restore_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_SRC)
+	$(CP) $(RESTORE_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_check_certificates_script : $(SCRIPT_TASKS_INSTALL_DIR) $(CHECK_CERTS_TASK_SCRIPT_SRC)
 	$(CP) $(CHECK_CERTS_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

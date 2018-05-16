@@ -42,35 +42,35 @@ This version of FogLAMP provides the following plugins in the main repository:
 | Type    | Name       | Initial    | Description                 | Availability               | Notes                                  |
 |         |            | |br| Status|                             |                            |                                        |
 +=========+============+============+=============================+============================+========================================+
-| Storage | SQLite     | Enabled    | SQLite storage |br|         | Ubuntu: x86 |br|           |                                        |
+| Storage | SQLite     | Enabled    | SQLite storage |br|         | Ubuntu: x86_64 |br|        |                                        |
 |         |            |            | for data and metadata       | Ubuntu Core: x86, ARM |br| |                                        |
 |         |            |            |                             | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| Storage | Postgres   | Disabled   | PostgreSQL storage |br|     | Ubuntu: x86 |br|           |                                        |
+| Storage | Postgres   | Disabled   | PostgreSQL storage |br|     | Ubuntu: x86_64 |br|        |                                        |
 |         |            |            | for data and metadata       | Ubuntu Core: x86, ARM |br| |                                        |
 |         |            |            |                             | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| South   | COAP       | Enabled    | CoAP Listener               | Ubuntu: x86 |br|           |                                        |
+| South   | COAP       | Enabled    | CoAP Listener               | Ubuntu: x86_64 |br|        |                                        |
 |         |            |            |                             | Ubuntu Core: x86, ARM |br| |                                        |
 |         |            |            |                             | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| South   | CC2650POLL | Disabled   | TI SensorTag CC2650 |br|    | Ubuntu: x86 |br|           | It requires BLE support. |br|          |
+| South   | CC2650POLL | Disabled   | TI SensorTag CC2650 |br|    | Ubuntu: x86_64 |br|        | It requires BLE support. |br|          |
 |         |            |            | in polling mode             | Ubuntu Core: x86, ARM |br| | There are issues with Ubuntu Core |br| |
 |         |            |            |                             | Raspbian                   | on ARM, reported |here BT|             |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| South   | CC2650ASYN | Disabled   | TI SensorTag CC2650 |br|    | Ubuntu: x86 |br|           | It requires BLE support. |br|          |
+| South   | CC2650ASYN | Disabled   | TI SensorTag CC2650 |br|    | Ubuntu: x86_64 |br|        | It requires BLE support. |br|          |
 |         |            |            | asynchronous |br|           | Ubuntu Core: x86, ARM |br| | There are issues with Ubuntu Core |br| |
 |         |            |            | (listening) mode            | Raspbian                   | on ARM, reported |here BT|.            |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| South   | HTTP_SOUTH | Enabled    | HTTP Listener               | Ubuntu: x86  |br|          |                                        |
+| South   | HTTP_SOUTH | Enabled    | HTTP Listener               | Ubuntu: x86_64 |br|        |                                        |
 |         |            |            |                             | Ubuntu Core: x86, ARM |br| |                                        |
 |         |            |            |                             | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| North   | OMF        | Disabled   | OSIsoft Message Format |br| | Ubuntu: x86 |br|           | It works with PI Connector |br|        |
+| North   | OMF        | Disabled   | OSIsoft Message Format |br| | Ubuntu: x86_64 |br|        | It works with PI Connector |br|        |
 |         |            |            | sender to PI Connector |br| | Ubuntu Core: x86, ARM |br| | Relay OMF 1.2.X and 2.2                |
 |         |            |            | Relay OMF                   | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
-| North   | OCS        | Disabled   | OSIsoft Message Format |br| | Ubuntu: x86 |br|           |                                        |
+| North   | OCS        | Disabled   | OSIsoft Message Format |br| | Ubuntu: x86_64 |br|        |                                        |
 |         |            |            | sender to the OSIsoft  |br| | Ubuntu Core: x86, ARM |br| |                                        |
 |         |            |            | Cloud Service               | Raspbian                   |                                        |
 +---------+------------+------------+-----------------------------+----------------------------+----------------------------------------+
@@ -78,17 +78,100 @@ This version of FogLAMP provides the following plugins in the main repository:
 
 In addition to the plugins in the main repository, these plugins are also available:
 
-+-------+-------------+---------------------------+---------------------------------------+--------------+
-| Type  | Name        | Repository                | Description                           | Availability |
-+=======+=============+===========================+=======================================+==============+
-| South | dht11pi     | foglamp-south-dht11       | Wired DHT11 Sensor in polling mode    | Respbian     |
-+-------+-------------+---------------------------+---------------------------------------+--------------+
-| South | envirophat  | foglamp-south-envirophat  | Enviro pHAT sensor set                | Raspbian     |
-+-------+-------------+---------------------------+---------------------------------------+--------------+
-| South | openweather | foglamp-south-openweather | Data pull from the OpenWeatherMap API | Raspbian     |
-+-------+-------------+---------------------------+---------------------------------------+--------------+
-| South | pt100       | foglamp-south-pt100       | Wired PT100 temperature sensor        | Raspbian     |
-+-------+-------------+---------------------------+---------------------------------------+--------------+
++-------+----------------+------------------------------+---------------------------------------+---------------+
+| Type  | Name           | Repository                   | Description                           | Availability  |
++=======+================+==============================+=======================================+===============+
+| South | dht11pi        | foglamp-south-dht11          | Wired DHT11 Sensor in polling mode    | Respbian      |
++-------+----------------+------------------------------+---------------------------------------+---------------+
+| South | envirophat     | foglamp-south-envirophat     | Enviro pHAT sensor set                | Raspbian      |
++-------+----------------+------------------------------+---------------------------------------+---------------+
+| South | openweathermap | foglamp-south-openweathermap | Data pull from the OpenWeatherMap API | Ubuntu x86_64 |
+|       |                |                              |                                       | Raspbian      |
++-------+----------------+------------------------------+---------------------------------------+---------------+
+| South | pt100          | foglamp-south-pt100          | Wired PT100 temperature sensor        | Raspbian      |
++-------+----------------+------------------------------+---------------------------------------+---------------+
 
-|br|
+
+Installing New Plugins
+----------------------
+
+As a general rule and unless the documentation states otherwise, plugins should be installed in two ways:
+
+- When the plugin is available as **source code**, it should be installed when **FogLAMP is not running**. |br| This is the recommended method because you may want to manually move the plugin code into the right location where FogLAMP is installed, add pre-requisites and execute the REST commands necessary to start the plugin.
+- When the plugin is available as **package**, it should be installed when **FogLAMP is running**. |br| This is the required method because the package executed pre and post-installtion tasks that require FogLAMP to run. 
+
+In general, FogLAMP must be restarted when a new plugin has been installed.
+
+For example, this is the command to use to install the *OpenWeather* South plugin:
+
+.. code-block:: console
+
+  $ sudo systemctl status foglamp.service
+  ● foglamp.service - LSB: FogLAMP
+     Loaded: loaded (/etc/init.d/foglamp; bad; vendor preset: enabled)
+     Active: active (running) since Wed 2018-05-16 01:32:25 BST; 4min 1s ago
+       Docs: man:systemd-sysv-generator(8)
+     CGroup: /system.slice/foglamp.service
+             ├─13741 python3 -m foglamp.services.core
+             ├─13746 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=40138
+             ├─13785 /bin/sh services/south --port=40138 --address=127.0.0.1 --name=COAP
+             ├─13786 python3 -m foglamp.services.south --port=40138 --address=127.0.0.1 --name=COAP
+             ├─13787 /bin/sh services/south --port=40138 --address=127.0.0.1 --name=HTTP_SOUTH
+             └─13788 python3 -m foglamp.services.south --port=40138 --address=127.0.0.1 --name=HTTP_SOUTH
+
+  May 16 01:36:09 ubuntu python3[13741]: FogLAMP[13741] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Process started: Schedule 'stats collection' process 'stats coll
+                                         ['tasks/statistics', '--port=40138', '--address=127.0.0.1', '--name=stats collector']
+  May 16 01:36:09 ubuntu python3[13741]: FogLAMP[13741] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Sleeping for 1730.0983202457428 seconds
+  May 16 01:36:10 ubuntu python3[13741]: FogLAMP[13741] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Process terminated: Schedule 'stats collection' process 'stats c
+                                         ['tasks/statistics']
+  FogLAMP v1.2 running.
+  FogLAMP Uptime:  266 seconds.
+  FogLAMP records: 0 read, 0 sent, 0 purged.
+  FogLAMP does not require authentication.
+  === FogLAMP services:
+  foglamp.services.core
+  foglamp.services.south --port=40138 --address=127.0.0.1 --name=COAP
+  foglamp.services.south --port=40138 --address=127.0.0.1 --name=HTTP_SOUTH
+  === FogLAMP tasks:
+  $
+  $ sudo cp foglamp-south-openweathermap-1.2-x86_64.deb /var/cache/apt/archives/.
+  $ sudo apt install /var/cache/apt/archives/foglamp-south-openweathermap-1.2-x86_64.deb
+  Reading package lists... Done
+  Building dependency tree
+  Reading state information... Done
+  Note, selecting 'foglamp-south-openweathermap' instead of '/var/cache/apt/archives/foglamp-south-openweathermap-1.2-x86_64.deb'
+  The following packages were automatically installed and are no longer required:
+    linux-headers-4.4.0-109 linux-headers-4.4.0-109-generic linux-headers-4.4.0-119 linux-headers-4.4.0-119-generic linux-headers-4.4.0-121 linux-headers-4.4.0-121-generic
+    linux-image-4.4.0-109-generic linux-image-4.4.0-119-generic linux-image-4.4.0-121-generic linux-image-extra-4.4.0-109-generic linux-image-extra-4.4.0-119-generic
+    linux-image-extra-4.4.0-121-generic
+  Use 'sudo apt autoremove' to remove them.
+  The following NEW packages will be installed
+    foglamp-south-openweathermap
+  0 to upgrade, 1 to newly install, 0 to remove and 0 not to upgrade.
+  Need to get 0 B/3,404 B of archives.
+  After this operation, 0 B of additional disk space will be used.
+  Selecting previously unselected package foglamp-south-openweathermap.
+  (Reading database ... 211747 files and directories currently installed.)
+  Preparing to unpack .../foglamp-south-openweathermap-1.2-x86_64.deb ...
+  Unpacking foglamp-south-openweathermap (1.2) ...
+  Setting up foglamp-south-openweathermap (1.2) ...
+  openweathermap plugin installed. Restart FogLAMP to enable the plugin.
+  $
+  $ sudo systemctl stop foglamp.service
+  $ sudo systemctl start foglamp.service
+  $
+  $ foglamp status
+  FogLAMP v1.2 running.
+  FogLAMP Uptime:  271 seconds.
+  FogLAMP records: 36 read, 0 sent, 0 purged.
+  FogLAMP does not require authentication.
+  === FogLAMP services:
+  foglamp.services.core
+  foglamp.services.south --port=42066 --address=127.0.0.1 --name=openweathermap
+  foglamp.services.south --port=42066 --address=127.0.0.1 --name=COAP
+  foglamp.services.south --port=42066 --address=127.0.0.1 --name=HTTP_SOUTH
+  === FogLAMP tasks:
+  $
+
+
 

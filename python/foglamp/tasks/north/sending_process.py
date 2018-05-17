@@ -28,7 +28,7 @@ import json
 import foglamp.plugins.north.common.common as plugin_common
 
 from foglamp.common.parser import Parser
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient, ReadingsStorageClientAsync
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
@@ -472,7 +472,7 @@ class SendingProcess:
         raw_data = None
         try:
             # Loads data, +1 as > is needed
-            readings = self._readings.fetch(last_object_id + 1, self._config['blockSize'])
+            readings = asyncio.get_event_loop().run_until_complete(self._readings.fetch(last_object_id + 1, self._config['blockSize']))
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
@@ -904,7 +904,7 @@ class SendingProcess:
             sys.exit(1)
         try:
             self._storage = StorageClient(self._mgt_address, self._mgt_port)
-            self._readings = ReadingsStorageClient(self._mgt_address, self._mgt_port)
+            self._readings = ReadingsStorageClientAsync(self._mgt_address, self._mgt_port)
             self._audit = AuditLogger(self._storage)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))

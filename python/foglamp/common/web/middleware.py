@@ -19,7 +19,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=20)
+_logger = logger.setup(__name__)
 
 
 async def error_middleware(app, handler):

@@ -8,7 +8,6 @@ import os
 import subprocess
 from pathlib import Path
 from aiohttp import web
-from foglamp.common import logger
 from foglamp.services.core.support import SupportBuilder
 
 __author__ = "Ashish Jabble"
@@ -26,7 +25,6 @@ __DEFAULT_LOG_TYPE = 'FogLAMP'
 __GET_SYSLOG_CMD_TEMPLATE = "grep '{}\[' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep '{}\[' {} | wc -l"
 
-_logger = logger.setup(__name__, level=20)
 
 _help = """
     -------------------------------------------------------------------------------

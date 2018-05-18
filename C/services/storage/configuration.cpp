@@ -36,6 +36,21 @@ StorageConfiguration::StorageConfiguration()
 }
 
 /**
+ * Return if a value exsits for the cached configuration category
+ */
+bool StorageConfiguration::hasValue(const string& key)
+{
+	if (document.HasParseError())
+	{
+		logger->error("Configuration cache failed to parse.");
+		return false;
+	}
+	if (!document.HasMember(key.c_str()))
+		return false;
+	return true;
+}
+
+/**
  * Return a value from the cached configuration category
  */
 const char *StorageConfiguration::getValue(const string& key)

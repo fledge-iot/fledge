@@ -43,6 +43,7 @@ public:
         static StorageApi *getInstance();
 	void	initResources();
 	void	setPlugin(StoragePlugin *);
+	void	setReadingPlugin(StoragePlugin *);
 	void	start();
 	void	startServer();
 	void	wait();
@@ -66,6 +67,7 @@ private:
 	int		        m_threads;
         thread                  *m_thread;
 	StoragePlugin		*plugin;
+	StoragePlugin		*readingPlugin;
 	StorageStats		stats;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);

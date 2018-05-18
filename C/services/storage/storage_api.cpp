@@ -143,7 +143,7 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const int threads) {
+StorageApi::StorageApi(const unsigned short port, const int threads) : readingPlugin(0) {
 
 	m_port = port;
 	m_threads = threads;
@@ -230,6 +230,14 @@ void StorageApi::wait() {
 void StorageApi::setPlugin(StoragePlugin *plugin)
 {
 	this->plugin = plugin;
+}
+
+/**
+ * Connect with the storage plugin
+ */
+void StorageApi::setReadingPlugin(StoragePlugin *plugin)
+{
+	this->readingPlugin = plugin;
 }
 
 /**
@@ -470,7 +478,7 @@ string  responsePayload;
 	stats.readingAppend++;
 	try {
 		payload = request->content.string();
-		int rval = plugin->readingsAppend(payload);
+		int rval = (readingPlugin ? readingPlugin : plugin)->readingsAppend(payload);
 		if (rval != -1)
 		{
 			responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
@@ -534,7 +542,7 @@ unsigned long			   count = 0;
 		}
 
 		// Get plugin data
-		char *responsePayload = plugin->readingsFetch(id, count);
+		char *responsePayload = (readingPlugin ? readingPlugin : plugin)->readingsFetch(id, count);
 		string res = responsePayload;
 
 		// Reply to client
@@ -560,7 +568,7 @@ string	payload;
 	try {
 		payload = request->content.string();
 
-		char *resultSet = plugin->readingsRetrieve(payload);
+		char *resultSet = (readingPlugin ? readingPlugin : plugin)->readingsRetrieve(payload);
 		string res = resultSet;
 
 		respond(response, res);
@@ -630,7 +638,7 @@ string        flags;
 		char *purged = NULL;
 		if (age)
 		{
-			purged = plugin->readingsPurge(age, flagsMask, lastSent);
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(age, flagsMask, lastSent);
 		}
 		else if (size)
 		{

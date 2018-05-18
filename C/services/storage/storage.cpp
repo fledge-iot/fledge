@@ -217,9 +217,34 @@ bool StorageService::loadPlugin()
 		storagePlugin = new StoragePlugin(handle);
 		api->setPlugin(storagePlugin);
 		logger->info("Loaded storage plugin %s.", plugin);
+	}
+	else
+	{
+		return false;
+	}
+	if (! config->hasValue("readingPlugin"))
+	{
+		// Single plugin does everything
 		return true;
 	}
-	return false;
+	const char *readingPluginName = config->getValue("readingPlugin");
+	if (plugin == NULL)
+	{
+		logger->error("Unable to fetch plugin name from configuration.\n");
+		return false;
+	}
+	logger->info("Load reading plugin %s.", readingPluginName);
+	if ((handle = manager->loadPlugin(string(readingPluginName), PLUGIN_TYPE_STORAGE)) != NULL)
+	{
+		readingPlugin = new StoragePlugin(handle);
+		api->setReadingPlugin(readingPlugin);
+		logger->info("Loaded reading plugin %s.", readingPluginName);
+	}
+	else
+	{
+		return false;
+	}
+	return true;
 }
 
 /**

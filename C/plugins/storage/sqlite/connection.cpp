@@ -115,7 +115,9 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	 */
 
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
-		sqlite3_column_table_name(pStmt, i) != NULL)
+		sqlite3_column_table_name(pStmt, i) != NULL) &&
+		(strcmp(sqlite3_column_origin_name(pStmt, i),
+			sqlite3_column_name(pStmt, i)) == 0))
 	{
 		const char* pzDataType;
 		int retType = sqlite3_table_column_metadata(dbHandle,

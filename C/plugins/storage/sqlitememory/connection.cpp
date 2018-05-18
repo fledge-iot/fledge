@@ -115,7 +115,9 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	 */
 
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
-		sqlite3_column_table_name(pStmt, i) != NULL)
+		sqlite3_column_table_name(pStmt, i) != NULL) &&
+		(strcmp(sqlite3_column_origin_name(pStmt, i),
+			sqlite3_column_name(pStmt, i)) == 0))
 	{
 		const char* pzDataType;
 		int retType = sqlite3_table_column_metadata(dbHandle,
@@ -284,12 +286,11 @@ Connection::Connection()
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 
 	/**
-	 * Create IN MEMORY database for "readings" table
+	 * Create IN MEMORY database for "readings" table: set empty file
 	 */
-	const char *inMemoryConn = "file::memory:?cache=shared";
+	const char *inMemoryConn = "file:?cache=shared";
 
-	// Note: database name "foglamp" not added
-	const char * createReadings = "CREATE TABLE readings (" \
+	const char * createReadings = "CREATE TABLE foglamp.readings (" \
 					"id		INTEGER			PRIMARY KEY AUTOINCREMENT," \
 					"asset_code	character varying(50)	NOT NULL," \
 					"read_key	uuid			UNIQUE," \
@@ -329,7 +330,7 @@ Connection::Connection()
 		int rc;
                 // Exec the statements without getting error messages, for now
 
-		// ATTACH
+		// ATTACH 'foglamp' as in memory shared DB
 		rc = sqlite3_exec(inMemory,
 				  "ATTACH DATABASE 'file::memory:?cache=shared' AS 'foglamp'",
 				  NULL,
@@ -1402,8 +1403,7 @@ int		row = 0;
 		return -1;
 	}
 
-	// foglamp db name not in use here
-	sql.append("INSERT INTO readings ( asset_code, read_key, reading, user_ts ) VALUES ");
+	sql.append("INSERT INTO foglamp.readings ( asset_code, read_key, reading, user_ts ) VALUES ");
 
 	if (!doc.HasMember("readings"))
 	{
@@ -1525,7 +1525,6 @@ int retrieve;
 	 * This query assumes datetime values are in 'localtime'
 	 */
 
-	// foglamp db name is not in use in this query
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
 		 "SELECT id, " \
@@ -1534,7 +1533,7 @@ int retrieve;
 			"reading, " \
 			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', user_ts, 'utc') AS \"user_ts\", " \
 			"strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS \"ts\" " \
-		 "FROM readings " \
+		 "FROM foglamp.readings " \
 			"WHERE id >= %lu " \
 		 "ORDER BY id ASC " \
 		 "LIMIT %u;",
@@ -1591,7 +1590,6 @@ long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
 
-	// foglamp db name is not in use in these queries
 	if (age == 0)
 	{
 		/*
@@ -1599,7 +1597,7 @@ long numReadings = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'localtime') - strftime('%s', MIN(user_ts)))/360 FROM readings;");
+		oldest.append("SELECT (strftime('%s','now', 'localtime') - strftime('%s', MIN(user_ts)))/360 FROM foglamp.readings;");
 		const char *query = oldest.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
@@ -1629,7 +1627,7 @@ long numReadings = 0;
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM readings WHERE  user_ts < datetime('now', '-");
+		unsentBuffer.append("SELECT count(*) FROM foglamp.readings WHERE  user_ts < datetime('now', '-");
 		unsentBuffer.append(age);
 		unsentBuffer.append(" hours', 'localtime') AND id > ");
 		unsentBuffer.append(sent);
@@ -1661,7 +1659,7 @@ long numReadings = 0;
 		}
 	}
 	
-	sql.append("DELETE FROM readings WHERE user_ts < datetime('now', '-");
+	sql.append("DELETE FROM foglamp.readings WHERE user_ts < datetime('now', '-");
 	sql.append(age);
 	sql.append(" hours', 'localtime')");
 	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
@@ -1696,7 +1694,7 @@ long numReadings = 0;
 	unsigned int deletedRows = sqlite3_changes(dbHandle);
 
 	SQLBuffer retainedBuffer;
-	retainedBuffer.append("SELECT count(*) FROM readings WHERE id > ");
+	retainedBuffer.append("SELECT count(*) FROM foglamp.readings WHERE id > ");
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query_r = retainedBuffer.coalesce();
@@ -1724,7 +1722,7 @@ long numReadings = 0;
 
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
-	rc = sqlite3_exec(dbHandle, "SELECT count(*) FROM readings",
+	rc = sqlite3_exec(dbHandle, "SELECT count(*) FROM foglamp.readings",
 			  countCallback,
 			  &readings_num,
 			  &zErrMsg);

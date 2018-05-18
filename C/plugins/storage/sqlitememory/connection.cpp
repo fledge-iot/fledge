@@ -120,7 +120,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			sqlite3_column_name(pStmt, i)) == 0))
 	{
 		const char* pzDataType;
-		int retType = sqlite3_table_column_metadata(dbHandle,
+		int retType = sqlite3_table_column_metadata(inMemory,
 					sqlite3_column_database_name(pStmt, i),
 					sqlite3_column_table_name(pStmt, i),
 					sqlite3_column_name(pStmt, i),
@@ -145,7 +145,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			char formattedData[100] = "";
 
 			// Exec the format SQL
-			int rc = sqlite3_exec(dbHandle,
+			int rc = sqlite3_exec(inMemory,
 					      formatStmt.c_str(),
 					      dateCallback,
 					      formattedData,

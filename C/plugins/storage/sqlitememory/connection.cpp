@@ -1484,7 +1484,7 @@ int		row = 0;
 	int rc;
 
 	// Exec the INSERT statement: no callback, no result set
-	rc = sqlite3_exec(dbHandle,
+	rc = sqlite3_exec(inMemory,
 			  query,
 			  NULL,
 			  NULL,
@@ -1542,7 +1542,7 @@ int retrieve;
 
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
-	if (sqlite3_prepare_v2(dbHandle,
+	if (sqlite3_prepare_v2(inMemory,
 			       sqlbuffer,
 			       -1,
 			       &stmt,
@@ -1604,7 +1604,7 @@ long numReadings = 0;
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = sqlite3_exec(dbHandle,
+		rc = sqlite3_exec(inMemory,
 				  query,
 				  selectCallback,
 				  &purge_readings,
@@ -1638,7 +1638,7 @@ long numReadings = 0;
 		int unsent = 0;
 
 		// Exec query and get result in 'unsent' via 'countCallback'
-		rc = sqlite3_exec(dbHandle,
+		rc = sqlite3_exec(inMemory,
 				  query,
 				  countCallback,
 				  &unsent,
@@ -1674,7 +1674,7 @@ long numReadings = 0;
 	int rows_deleted;
 
 	// Exec DELETE query: no callback, no resultset
-	rc = sqlite3_exec(dbHandle,
+	rc = sqlite3_exec(inMemory,
 			  query,
 			  NULL,
 			  NULL,
@@ -1701,7 +1701,7 @@ long numReadings = 0;
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
-	rc = sqlite3_exec(dbHandle,
+	rc = sqlite3_exec(inMemory,
 			  query_r,
 			  countCallback,
 			  &retained_unsent,
@@ -1722,7 +1722,7 @@ long numReadings = 0;
 
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
-	rc = sqlite3_exec(dbHandle, "SELECT count(*) FROM foglamp.readings",
+	rc = sqlite3_exec(inMemory, "SELECT count(*) FROM foglamp.readings",
 			  countCallback,
 			  &readings_num,
 			  &zErrMsg);

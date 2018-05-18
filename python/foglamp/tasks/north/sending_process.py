@@ -24,6 +24,7 @@ import logging
 import datetime
 import signal
 import json
+import copy
 
 import foglamp.plugins.north.common.common as plugin_common
 
@@ -243,6 +244,19 @@ def handling_input_parameters():
 class SendingProcess:
     """ SendingProcess """
 
+    # FIXME:
+    _data_to_send_queue_max_size = 5
+    _data_to_send_queue = [None, None, None, None, None,]
+    #_data_to_send_queue = [[None], [None], [None], [None], [None]]
+
+    # FIXME:
+    _run_task_fetch_data = True
+    _run_task_send_data = True
+
+    _task_id_fetch_data = None
+    _task_id_send_data = None
+
+
     _logger = None  # type: logging.Logger
 
     _stop_execution = False
@@ -427,7 +441,7 @@ class SendingProcess:
             raise
         return north_ok
 
-    def _load_data_into_memory(self, last_object_id):
+    async def _load_data_into_memory(self, last_object_id):
         """ Identifies the data source requested and call the appropriate handler
         Args:
         Returns:
@@ -443,7 +457,7 @@ class SendingProcess:
         SendingProcess._logger.debug("{0} ".format("_load_data_into_memory"))
         try:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
-                data_to_send = self._load_data_into_memory_readings(last_object_id)
+                data_to_send = await self._load_data_into_memory_readings(last_object_id)
             elif self._config['source'] == self._DATA_SOURCE_STATISTICS:
                 data_to_send = self._load_data_into_memory_statistics(last_object_id)
             elif self._config['source'] == self._DATA_SOURCE_AUDIT:
@@ -459,7 +473,7 @@ class SendingProcess:
         return data_to_send
 
     @_performance_log
-    def _load_data_into_memory_readings(self, last_object_id):
+    async def _load_data_into_memory_readings(self, last_object_id):
         """ Extracts from the DB Layer data related to the readings loading into a memory structure
         Args:
             last_object_id: last value already handled
@@ -472,7 +486,7 @@ class SendingProcess:
         raw_data = None
         try:
             # Loads data, +1 as > is needed
-            readings = asyncio.get_event_loop().run_until_complete(self._readings.fetch(last_object_id + 1, self._config['blockSize']))
+            readings = await self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
@@ -710,7 +724,61 @@ class SendingProcess:
             raise
         return data_sent
 
-    def send_data(self, stream_id):
+    async def task_fetch_data(self, stream_id):
+
+        # FIXME:
+        last_object_id = self._last_object_id_read(stream_id)
+        queue_idx = 0
+
+
+        while self._run_task_fetch_data:
+
+            SendingProcess._logger.debug("{0} - ".format("DBG - fetch_data"))
+
+            if queue_idx < self._data_to_send_queue_max_size:
+
+                if self._data_to_send_queue[queue_idx] == None:
+                    # FIXME:
+                    data_to_send = await self._load_data_into_memory(last_object_id)
+
+                    self._data_to_send_queue[queue_idx] = copy.deepcopy(data_to_send)
+                    last_object_id = data_to_send[self._config['blockSize'] - 1]['id']
+
+                queue_idx = queue_idx +1
+                # FIXME:
+
+            else:
+                await asyncio.sleep(1)
+                queue_idx = 0
+                # FIXME:
+
+        SendingProcess._logger.debug("{0} - ".format("DBG - fetch_data - END "))
+
+    async def task_send_data(self, stream_id):
+
+        # FIXME:
+        queue_idx = 0
+        while self._run_task_send_data:
+
+            SendingProcess._logger.debug("{0} - ".format("DBG - send_data"))
+
+            if queue_idx < self._data_to_send_queue_max_size:
+
+                if self._data_to_send_queue[queue_idx] != None:
+                    SendingProcess._logger.debug("{0} - ".format("DBG - send_data - EXEC"))
+
+                    self._data_to_send_queue[queue_idx] = None
+
+                queue_idx = queue_idx + 1
+
+            else:
+                await asyncio.sleep(1)
+                queue_idx = 0
+
+
+        SendingProcess._logger.debug("{0} - ".format("DBG - send_data - END"))
+
+    async def send_data(self, stream_id):
         """ Handles the sending of the data to the destination using the configured plugin
             for a defined amount of time
         Args:
@@ -718,6 +786,13 @@ class SendingProcess:
         Raises:
         """
         SendingProcess._logger.debug("{0} - ".format("send_data"))
+
+        self._task_id_fetch_data = asyncio.ensure_future(self.task_fetch_data(stream_id))
+        self._task_id_send_data = asyncio.ensure_future(self.task_send_data(stream_id))
+
+        self._run_task_fetch_data = True
+        self._run_task_send_data = True
+
         try:
             start_time = time.time()
             elapsed_seconds = 0
@@ -727,21 +802,27 @@ class SendingProcess:
                 if SendingProcess._stop_execution:
                     SendingProcess._logger.info("{func} - signal received, stops the execution".format(
                             func="send_data"))
+                    # FIXME:
                     break
 
                 try:
-                    data_sent = self._send_data_block(stream_id)
+                    await asyncio.sleep(2)
+                    # FIXME:
+                    #data_sent = self._send_data_block(stream_id)
+
                 except Exception as e:
                     data_sent = False
                     _message = _MESSAGES_LIST["e000021"].format(e)
                     SendingProcess._logger.error(_message)
 
-                if not data_sent:
-                    SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
-                    time.sleep(self._config['sleepInterval'])
+                # FIXME:
+                # if not data_sent:
+                #     SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
+                #     time.sleep(self._config['sleepInterval'])
 
                 elapsed_seconds = time.time() - start_time
-                SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format(
+                # FIXME:
+                SendingProcess._logger.debug("DBG -  {0} - elapsed_seconds {1}".format(
                                                             "send_data",
                                                             elapsed_seconds))
         except Exception:
@@ -750,6 +831,17 @@ class SendingProcess:
             loop = asyncio.get_event_loop()
             loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message}))
             raise
+
+        # FIXME: graceful termination
+        self._run_task_fetch_data = False
+        self._run_task_send_data = False
+
+        await asyncio.sleep(10)
+        #await asyncio.wait(self._task_id_fetch_data)
+        #await asyncio.wait(self._task_id_send_data)
+
+        # FIXME:
+        SendingProcess._logger.debug("{0} - ".format("send_data - completed"))
 
     def _update_statistics(self, num_sent, stream_id):
         """ Updates FogLAMP statistics
@@ -816,9 +908,17 @@ class SendingProcess:
                                                              cat_keep_original)
             # Retrieves the configurations and apply the related conversions
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
+
+            # FIXME:
             self._config['duration'] = int(_config_from_manager['duration']['value'])
+            self._config['duration'] = 120
+
             self._config['source'] = _config_from_manager['source']['value']
-            self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
+
+            # FIXME:
+            #self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
+            self._config['blockSize'] = 2
+
             self._config['sleepInterval'] = int(_config_from_manager['sleepInterval']['value'])
             self._config['north'] = _config_from_manager['plugin']['value']
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = config_category_name
@@ -930,7 +1030,9 @@ class SendingProcess:
 
                 # Start sending
                 if self._start(self.input_stream_id):
-                    self.send_data(self.input_stream_id)
+                    # FIXME:
+                    asyncio.get_event_loop().run_until_complete(self.send_data(self.input_stream_id))
+
                 # Stop Sending
                 self.stop()
                 SendingProcess._logger.info(_MESSAGES_LIST["i000002"])
@@ -959,3 +1061,4 @@ class SendingProcess:
 
 if __name__ == "__main__":
     SendingProcess().start()
+

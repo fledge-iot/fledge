@@ -19,11 +19,8 @@ class Connection {
 	public:
 		Connection();
 		~Connection();
-		bool		retrieve(const std::string& table, const std::string& condition,
+		bool		retrieveReadings(const std::string& condition,
 					std::string& resultSet);
-		int		insert(const std::string& table, const std::string& data);
-		int		update(const std::string& table, const std::string& data);
-		int		deleteRows(const std::string& table, const std::string& condition);
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,
 						std::string& resultSet);
@@ -32,7 +29,6 @@ class Connection {
 		long		tableSize(const std::string& table);
 	private:
 		void		raiseError(const char *operation, const char *reason,...);
-		sqlite3		*dbHandle;
 		sqlite3		*inMemory; // Handle for :memory: database
 		int		mapResultSet(void *res, std::string& resultSet);
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);

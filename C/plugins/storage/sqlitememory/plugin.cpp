@@ -62,64 +62,6 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 	manager->growPool(5);
 	return manager;
 }
-
-/**
- * Insert into an arbitrary table
- */
-int plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
-{
-ConnectionManager *manager = (ConnectionManager *)handle;
-Connection        *connection = manager->allocate();
-
-	int result = connection->insert(std::string(table), std::string(data));
-	manager->release(connection);
-	return result;
-}
-
-/**
- * Retrieve data from an arbitrary table
- */
-const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
-{
-ConnectionManager *manager = (ConnectionManager *)handle;
-Connection        *connection = manager->allocate();
-std::string results;
-
-	bool rval = connection->retrieve(std::string(table), std::string(query), results);
-	manager->release(connection);
-	if (rval)
-	{
-		return strdup(results.c_str());
-	}
-	return NULL;
-}
-
-/**
- * Update an arbitary table
- */
-int plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
-{
-ConnectionManager *manager = (ConnectionManager *)handle;
-Connection        *connection = manager->allocate();
-
-	int result = connection->update(std::string(table), std::string(data));
-	manager->release(connection);
-	return result;
-}
-
-/**
- * Delete from an arbitrary table
- */
-int plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
-{
-ConnectionManager *manager = (ConnectionManager *)handle;
-Connection        *connection = manager->allocate();
-
-	int result = connection->deleteRows(std::string(table), std::string(condition));
-	manager->release(connection);
-	return result;
-}
-
 /**
  * Append a sequence of readings to the readings buffer
  */
@@ -156,7 +98,7 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	connection->retrieve(std::string("readings"), std::string(condition), results);
+	connection->retrieveReadings(std::string(condition), results);
 	manager->release(connection);
 	return strdup(results.c_str());
 }

@@ -143,12 +143,13 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const int threads) : readingPlugin(0) {
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0) {
 
 	m_port = port;
 	m_threads = threads;
 	m_server = new HttpServer();
 	m_server->config.port = port;
+	m_server->config.thread_pool_size = threads;
 	StorageApi::m_instance = this;
 }
 

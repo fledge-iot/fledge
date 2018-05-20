@@ -37,7 +37,7 @@ extern "C" {
 static PLUGIN_INFORMATION info = {
 	"SQLite3",                // Name
 	"1.0.0",                  // Version
-	SP_COMMON|SP_READINGS,    // Flags
+	SP_READINGS,    	  // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
 	"1.0.0"                   // Interface version
 };

@@ -173,7 +173,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			// Just log the error if present
 			if (retType != SQLITE_OK)
 			{
-				Logger::getLogger()->error("SQLite3 failed " \
+				Logger::getLogger()->error("SQLite3 memory failed " \
 						"to call sqlite3_table_column_metadata() " \
 						"for column '%s'",
 						sqlite3_column_name(pStmt, i));
@@ -657,7 +657,7 @@ SQLBuffer	jsonConstraints;
 								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
 								{
 									raiseError("retrieve",
-										   "SQLite3 plugin does not support timezones in qeueries");
+										   "SQLite3 Memory plugin does not support timezones in qeueries");
 									return false;
 								}
 								else
@@ -1911,14 +1911,14 @@ char *ptr;
  */
 void Connection::raiseError(const char *operation, const char *reason, ...)
 {
-ConnectionManager *manager = ConnectionManager::getInstance();
+MemConnectionManager *manager = MemConnectionManager::getInstance();
 char	tmpbuf[512];
 
 	va_list ap;
 	va_start(ap, reason);
 	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
 	va_end(ap);
-	Logger::getLogger()->error("SQLite3 storage plugin raising error: %s", tmpbuf);
+	Logger::getLogger()->error("SQLite3 Memory storage plugin raising error: %s", tmpbuf);
 	manager->setError(operation, tmpbuf, false);
 }
 
@@ -1929,7 +1929,7 @@ long Connection::tableSize(const string& table)
 {
 SQLBuffer buf;
 
- 	raiseError("tableSize", "Not available in SQLite3 storage plugin");
+ 	raiseError("tableSize", "Not available in SQLite3 Memory storage plugin");
 	return -1;
 }
 

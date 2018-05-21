@@ -17,25 +17,25 @@
 class Connection;
 
 /**
- * Singleton class to manage SQLite3 connection pool
+ * Singleton class to manage SQLite3 Memory connection pool
  */
-class ConnectionManager {
+class MemConnectionManager {
 	public:
-		static ConnectionManager  *getInstance();
-		void                      growPool(unsigned int);
-		unsigned int              shrinkPool(unsigned int);
-		Connection                *allocate();
-		void                      release(Connection *);
-		void			  shutdown();
-		void			  setError(const char *, const char *, bool);
-		PLUGIN_ERROR		  *getError()
-					  {
+		static MemConnectionManager  *getInstance();
+		void                         growPool(unsigned int);
+		unsigned int                 shrinkPool(unsigned int);
+		Connection                   *allocate();
+		void                         release(Connection *);
+		void		   	     shutdown();
+		void			     setError(const char *, const char *, bool);
+		PLUGIN_ERROR		     *getError()
+					     {
 						return &lastError;
-					  }
+					     }
 
 	private:
-		ConnectionManager();
-		static ConnectionManager     *instance;
+		MemConnectionManager();
+		static MemConnectionManager  *instance;
 		std::list<Connection *>      idle;
 		std::list<Connection *>      inUse;
 		std::mutex                   idleLock;

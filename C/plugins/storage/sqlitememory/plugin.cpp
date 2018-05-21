@@ -57,7 +57,7 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init()
 {
-ConnectionManager *manager = ConnectionManager::getInstance();
+MemConnectionManager *manager = MemConnectionManager::getInstance();
 
 	manager->growPool(5);
 	return manager;
@@ -67,7 +67,7 @@ ConnectionManager *manager = ConnectionManager::getInstance();
  */
 int plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
 {
-ConnectionManager *manager = (ConnectionManager *)handle;
+MemConnectionManager *manager = (MemConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
 	int result = connection->appendReadings(readings);
@@ -80,7 +80,7 @@ Connection        *connection = manager->allocate();
  */
 char *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int blksize)
 {
-ConnectionManager *manager = (ConnectionManager *)handle;
+MemConnectionManager *manager = (MemConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string	  resultSet;
 
@@ -94,7 +94,7 @@ std::string	  resultSet;
  */
 char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)
 {
-ConnectionManager *manager = (ConnectionManager *)handle;
+MemConnectionManager *manager = (MemConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
@@ -108,7 +108,7 @@ std::string results;
  */
 char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long param, unsigned int flags, unsigned long sent)
 {
-ConnectionManager *manager = (ConnectionManager *)handle;
+MemConnectionManager *manager = (MemConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
@@ -144,7 +144,7 @@ void plugin_release(PLUGIN_HANDLE handle, char *results)
  */
 PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE handle)
 {
-ConnectionManager *manager = (ConnectionManager *)handle;
+MemConnectionManager *manager = (MemConnectionManager *)handle;
   
 	return manager->getError();
 }
@@ -154,7 +154,7 @@ ConnectionManager *manager = (ConnectionManager *)handle;
  */
 bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
-ConnectionManager *manager = (ConnectionManager *)handle;
+MemConnectionManager *manager = (MemConnectionManager *)handle;
   
 	manager->shutdown();
 	return true;

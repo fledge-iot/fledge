@@ -306,6 +306,9 @@ Connection::Connection()
 		dbPath = defaultConnection;
 	}
 
+	// Allow usage of URI for filename
+	sqlite3_config(SQLITE_CONFIG_URI, 1);
+
 	/**
 	 * Make a connection to the database
 	 * and chewck backend connection was successfully made

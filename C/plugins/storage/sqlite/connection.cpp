@@ -113,6 +113,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	 * Thus we apply default FOGLAMP formatting:
 	 * "%Y-%m-%d %H:%M:%f" with 'localtime'
 	 */
+	sqlite3_config(SQLITE_CONFIG_URI, 1);
 
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
 		sqlite3_column_table_name(pStmt, i) != NULL &&

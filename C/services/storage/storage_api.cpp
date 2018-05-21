@@ -188,7 +188,17 @@ void StorageApi::initResources()
 	m_server->default_resource["PUT"] = defaultWrapper;
 	m_server->default_resource["GET"] = defaultWrapper;
 	m_server->default_resource["DELETE"] = defaultWrapper;
+#if 1
 	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
+#else
+	m_server->resource[READING_ACCESS]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    thread work_thread([response, request] {
+      readingAppendWrapper(response, request);
+      response->write("Work done");
+    });
+    work_thread.detach();
+  };
+#endif
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
@@ -489,7 +499,7 @@ string  responsePayload;
 		}
 		else
 		{
-			mapError(responsePayload, plugin->lastError());
+			mapError(responsePayload, (readingPlugin ? readingPlugin : plugin)->lastError());
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
@@ -643,7 +653,7 @@ string        flags;
 		}
 		else if (size)
 		{
-			purged = plugin->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
 		}
 		else
 		{

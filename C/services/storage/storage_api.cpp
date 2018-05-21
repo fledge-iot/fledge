@@ -24,6 +24,9 @@
 #include "crypto.hpp"
 #endif
 
+// Enable worker threads for readings append and fetch
+#define WORKER_THREADS		0
+
 /**
  * Definition of the Storage Service REST API
  */
@@ -188,9 +191,7 @@ void StorageApi::initResources()
 	m_server->default_resource["PUT"] = defaultWrapper;
 	m_server->default_resource["GET"] = defaultWrapper;
 	m_server->default_resource["DELETE"] = defaultWrapper;
-#if 1
-	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
-#else
+#if WORKER_THREADS
 	m_server->resource[READING_ACCESS]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
     thread work_thread([response, request] {
       readingAppendWrapper(response, request);
@@ -198,8 +199,20 @@ void StorageApi::initResources()
     });
     work_thread.detach();
   };
+#else
+	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
 #endif
+#if WORKER_THREADS
+	m_server->resource[READING_ACCESS]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    thread work_thread([response, request] {
+      readingFetchWrapper(response, request);
+      response->write("Work done");
+    });
+    work_thread.detach();
+  };
+#else
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
+#endif
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
 

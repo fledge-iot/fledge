@@ -9,6 +9,9 @@ It is loaded by the send process (see The FogLAMP Sending Process) and runs in t
 to send the reading data to a PI Server (or Connector) using the OSIsoft OMF format.
 PICROMF = PI Connector Relay OMF"""
 
+import aiohttp
+import asyncio
+
 from datetime import datetime
 import sys
 import copy
@@ -367,8 +370,9 @@ def plugin_init(data):
 
     return _config
 
-@_performance_log
-def plugin_send(data, raw_data, stream_id):
+
+#@_performance_log
+async def plugin_send(data, raw_data, stream_id):
     """ Translates and sends to the destination system the data provided by the Sending Process
     Args:
         data: plugin_handle from sending_process
@@ -393,9 +397,15 @@ def plugin_send(data, raw_data, stream_id):
     try:
         is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
         if is_data_available:
-            omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+
+            # FIXME:
+            # omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+
             try:
-                omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
+                # FIXME:
+                #await omf_north.send_in_memory_data_to_picromf("Data", data_to_send, True)
+                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send, False)
+
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
@@ -578,7 +588,11 @@ class OmfNorthPlugin(object):
             omf_type[typename][1]["properties"][item] = {"type": item_type}
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
-        self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+
+        # FIXME:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.send_in_memory_data_to_picromf("Type", omf_type[typename], False))
+
         return typename, omf_type
     
     def _create_omf_objects_configuration_based(self, asset_code, asset_code_omf_type):
@@ -613,7 +627,11 @@ class OmfNorthPlugin(object):
         omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_configuration_based - omf_type |{0}| ".format(str(omf_type)))
-        self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+
+        # FIXME:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.send_in_memory_data_to_picromf("Type", omf_type[typename], False))
+
         return typename, omf_type
     
     def _create_omf_object_links(self, asset_code, typename, omf_type):
@@ -654,9 +672,13 @@ class OmfNorthPlugin(object):
                                                                                                     str(static_data)))
             self._logger.debug("_create_omf_object_links - asset_code |{0}| - link_data |{1}| ".format(asset_code,
                                                                                                   str(link_data)))
-        self.send_in_memory_data_to_picromf("Container", containers)
-        self.send_in_memory_data_to_picromf("Data", static_data)
-        self.send_in_memory_data_to_picromf("Data", link_data)
+
+        # FIXME:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.send_in_memory_data_to_picromf("Container", containers, False))
+        loop.run_until_complete(self.send_in_memory_data_to_picromf("Data", static_data, False))
+        loop.run_until_complete(self.send_in_memory_data_to_picromf("Data", link_data, False))
+
         return
     
     @_performance_log
@@ -695,13 +717,15 @@ class OmfNorthPlugin(object):
             else:
                 self._logger.debug("asset already created - asset |{0}| ".format(asset_code))
     
-    @_performance_log
-    def send_in_memory_data_to_picromf(self, message_type, omf_data):
+    #@_performance_log
+    async def send_in_memory_data_to_picromf(self, message_type, omf_data, async_operation):
         """ Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
             it logs a WARNING only at the end of the retry mechanism in case of a communication error
         Args:
             message_type: possible values {Type, Container, Data}
             omf_data:     OMF message to send
+            # FIXME:
+            async_operation
         Returns:
         Raises:
             Exception: an error occurred during the OMF request
@@ -726,23 +750,43 @@ class OmfNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
-                response = requests.post(self._config['URL'],
-                                         headers=msg_header,
-                                         data=omf_data_json,
-                                         verify=False,
-                                         timeout=self._config['OMFHttpTimeout'])
+                # FIXME:
+                if async_operation:
+                    
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(
+                                                url=self._config['URL'],
+                                                headers=msg_header,
+                                                data=omf_data_json,
+                                                # FIXME:
+                                                timeout=60
+                                                #timeout=self._config['OMFHttpTimeout']
+                                                ) as resp:
+                            
+                            status_code = resp.status
+                            text = await resp.text()
+
+                else:                                        
+                    response = requests.post(self._config['URL'],
+                                             headers=msg_header,
+                                             data=omf_data_json,
+                                             verify=False,
+                                             timeout=self._config['OMFHttpTimeout'])
+                    status_code = response.status_code
+                    text = response.text
+                    
             except Exception as e:
                 _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
             else:
                 # Evaluate the HTTP status codes
-                if not str(response.status_code).startswith('2'):
-                    tmp_text = str(response.status_code) + " " + response.text
+                if not str(status_code).startswith('2'):
+                    tmp_text = str(status_code) + " " + text
                     _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
                     _error = plugin_exceptions.URLFetchError(_message)
                 self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
-                                                                                 response.status_code,
-                                                                                 response.text))
+                                                                                 status_code,
+                                                                                 text))
             if _error:
                 time.sleep(sleep_time)
                 num_retry += 1

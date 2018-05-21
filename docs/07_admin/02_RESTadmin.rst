@@ -894,4 +894,164 @@ The response payload is some basic health information in a JSON object.
   "uptime": 2113.076449394226 }
   $
 
+
+statistics
+----------
+
+The *statistics* interface allows the retrieval of live statistics and statistical history for the FogLAMP device. 
+
+
+GET statistics
+~~~~~~~~~~~~~~
+
+``GET /foglamp/statistics`` - return a general set of statistics
+
+
+**Response Payload**
+
+The response payload is a JSON document with statistical information (all numerical), these statistics are absolute counts since FogLAMP started.
+
++------------------------+-----------------------------------------------------------------------------+
+| Key                    | Description                                                                 |
++========================+=============================================================================+
+| BUFFERED               | The number of readings currently in the FogLAMP buffer                      |
++------------------------+-----------------------------------------------------------------------------+
+| DISCARDED              | The number of readings discarded at the input side by FogLAMP,       |br|   |
+|                        | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
+|                        | to some error in the readings themselves.                                   |
++------------------------+-----------------------------------------------------------------------------+
+| PURGED                 | The number of readings removed from the buffer by the *Purge* task          |
++------------------------+-----------------------------------------------------------------------------+
+| READINGS               | The number of readings received by FogLAMP since startup                    |
++------------------------+-----------------------------------------------------------------------------+
+| SENT_1                 | The number of readings sent to the PI system via the OMF plugin             |
++------------------------+-----------------------------------------------------------------------------+
+| SENT_2                 | The number of statistics sent to the PI system via the OMF plugin           |
++------------------------+-----------------------------------------------------------------------------+
+| SENT_3                 | The number of readings sent to another system via the HTTP plugin           |
++------------------------+-----------------------------------------------------------------------------+
+| SENT_4                 | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
++------------------------+-----------------------------------------------------------------------------+
+| UNSENT                 | The number of readings filtered out in the send process                     |
++------------------------+-----------------------------------------------------------------------------+
+| UNSNPURGED             | The number of readings that were purged from the buffer before being sent   |
++------------------------+-----------------------------------------------------------------------------+
+| *ASSET-CODE*           | The number of readings received by FogLAMP since startup               |br| |
+|                        | with name *asset-code*                                                      |
++------------------------+-----------------------------------------------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/statistics
+  [ { "description" : "The number of readings currently in the FogLAMP buffer",
+      "key"         : "BUFFERED",
+      "value"       : 0 },
+  ...
+    { "description" : "The number of readings received by FogLAMP since startup for sensor FOGBENCH/ACCELEROMETER",
+      "key"         : "FOGBENCH/ACCELEROMETER",
+      "value"       : 2 },
+  ... ]
+  $
+
+ 
+GET statistics/history
+~~~~~~~~~~~~~~~~~~~~~~
+
+``GET /foglamp/statistics/history`` - return a historical set of statistics. This interface is normally used to check if a set of sensors or devices are sending data to FogLAMP, by comparing the recent statistics and the number of readings received for an asset.
+
+
+**Reguest Parameters**
+
+- **limit** - limit the result set to the *N* most recent entries.
+
+
+**Response Payload**
+
+A JSON document containing an array of statistical information, these statistics are delta counts since the previous entry in the array. The time interval between values is a constant defined that runs the gathering process which populates the history statistics in the storage layer.
+
++---------------------------+-----------------------------------------------------------------------------+
+| Key                       | Description                                                                 |
++===========================+=============================================================================+
+| interval                  | The interval in seconds between successive statistics values                |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].BUFFERED     | The number of readings currently in the FogLAMP buffer                      |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].DISCARDED    | The number of readings discarded at the input side by FogLAMP,       |br|   |
+|                           | i.e. discarded before being  placed in the buffer. This may be due   |br|   |
+|                           | to some error in the readings themselves.                                   |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].PURGED       | The number of readings removed from the buffer by the *Purge* task          |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].READINGS     | The number of readings received by FogLAMP since startup                    |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].SENT_1       | The number of readings sent to the PI system via the OMF plugin             |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].SENT_2       | The number of statistics sent to the PI system via the OMF plugin           |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].SENT_3       | The number of readings sent to another system via the HTTP plugin           |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].SENT_4       | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].UNSENT       | The number of readings filtered out in the send process                     |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].UNSNPURGED   | The number of readings that were purged from the buffer before being sent   |
++---------------------------+-----------------------------------------------------------------------------+
+| statistics[].*ASSET-CODE* | The number of readings received by FogLAMP since startup               |br| |
+|                           | with name *asset-code*                                                      |
++---------------------------+-----------------------------------------------------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/statistics/history?limit=2
+  { "interval"   : 15,
+    "statistics" : [ { "READINGS": 0,
+                       "FOGBENCH/LUXOMETER": 0,
+                       "DISCARDED": 0,
+                       "FOGBENCH/HUMIDITY": 0,
+                       "FOGBENCH/ACCELEROMETER": 0,
+                       "UNSENT": 0,
+                       "SENT_2": 0,
+                       "SENT_4": 0,
+                       "FOGBENCH/TEMPERATURE": 0,
+                       "FOGBENCH/GYROSCOPE": 0,
+                       "UNSNPURGED": 0,
+                       "BUFFERED": 0,
+                       "FOGBENCH/MOUSE": 0,
+                       "FOGBENCH/MAGNETOMETER": 0,
+                       "PURGED": 0,
+                       "FOGBENCH/WALL CLOCK": 0,
+                       "SENT_1": 0,
+                       "FOGBENCH/PRESSURE": 0,
+                       "SENT_3": 0,
+                       "FOGBENCH/SWITCH": 0,
+                       "history_ts": "2018-05-15 22:39:10.374" },
+                     { "READINGS": 0,
+                       "FOGBENCH/LUXOMETER": 0,
+                       "DISCARDED": 0,
+                       "FOGBENCH/HUMIDITY": 0,
+                       "FOGBENCH/ACCELEROMETER": 0,
+                       "UNSENT": 0,
+                       "SENT_2": 0,
+                       "SENT_4": 0,
+                       "FOGBENCH/TEMPERATURE": 0,
+                       "FOGBENCH/GYROSCOPE": 0,
+                       "UNSNPURGED": 0,
+                       "BUFFERED": 0,
+                       "FOGBENCH/MOUSE": 0,
+                       "FOGBENCH/MAGNETOMETER": 0,
+                       "PURGED": 0,
+                       "FOGBENCH/WALL CLOCK": 0,
+                       "SENT_1": 0,
+                       "FOGBENCH/PRESSURE": 0,
+                       "SENT_3": 0,
+                       "FOGBENCH/SWITCH": 0,
+                       "history_ts": "2018-05-15 22:38:55.653" } ]
+  $
+
  

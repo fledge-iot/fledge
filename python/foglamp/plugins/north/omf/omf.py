@@ -336,6 +336,7 @@ def plugin_init(data):
     _config['OMFMaxRetry'] = int(data['OMFMaxRetry']['value'])
     _config['OMFRetrySleepTime'] = int(data['OMFRetrySleepTime']['value'])
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
+
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect
@@ -371,7 +372,6 @@ def plugin_init(data):
     return _config
 
 
-#@_performance_log
 async def plugin_send(data, raw_data, stream_id):
     """ Translates and sends to the destination system the data provided by the Sending Process
     Args:
@@ -398,13 +398,10 @@ async def plugin_send(data, raw_data, stream_id):
         is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
         if is_data_available:
 
-            # FIXME:
-            # omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+            await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
 
             try:
-                # FIXME:
-                #await omf_north.send_in_memory_data_to_picromf("Data", data_to_send, True)
-                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send, False)
+                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send, True)
 
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
@@ -539,7 +536,7 @@ class OmfNorthPlugin(object):
         asset_id = asset_code.replace(" ", "")
         return asset_id + _OMF_SUFFIX_TYPENAME
     
-    def _create_omf_objects_automatic(self, asset_info):
+    async def _create_omf_objects_automatic(self, asset_info):
         """ Handles the Automatic OMF Type Mapping
          Args:
              asset_info : Asset's information as retrieved from the Storage layer,
@@ -548,10 +545,10 @@ class OmfNorthPlugin(object):
              response_status_code: http response code related to the PICROMF request
          Raises:
          """
-        typename, omf_type = self._create_omf_type_automatic(asset_info)
-        self._create_omf_object_links(asset_info["asset_code"], typename, omf_type)
+        typename, omf_type = await self._create_omf_type_automatic(asset_info)
+        await self._create_omf_object_links(asset_info["asset_code"], typename, omf_type)
     
-    def _create_omf_type_automatic(self, asset_info):
+    async def _create_omf_type_automatic(self, asset_info):
         """ Automatic OMF Type Mapping - Handles the OMF type creation
          Args:
              asset_info : Asset's information as retrieved from the Storage layer,
@@ -589,13 +586,11 @@ class OmfNorthPlugin(object):
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
 
-        # FIXME:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.send_in_memory_data_to_picromf("Type", omf_type[typename], False))
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename], False)
 
         return typename, omf_type
     
-    def _create_omf_objects_configuration_based(self, asset_code, asset_code_omf_type):
+    async def _create_omf_objects_configuration_based(self, asset_code, asset_code_omf_type):
         """ Handles the Configuration Based OMF Type Mapping
          Args:
             asset_code
@@ -603,10 +598,10 @@ class OmfNorthPlugin(object):
          Returns:
          Raises:
          """
-        typename, omf_type = self._create_omf_type_configuration_based(asset_code_omf_type)
-        self._create_omf_object_links(asset_code, typename, omf_type)
+        typename, omf_type = await self._create_omf_type_configuration_based(asset_code_omf_type)
+        await self._create_omf_object_links(asset_code, typename, omf_type)
     
-    def _create_omf_type_configuration_based(self, asset_code_omf_type):
+    async def _create_omf_type_configuration_based(self, asset_code_omf_type):
         """ Configuration Based OMF Type Mapping - Handles the OMF type creation
          Args:
             asset_code_omf_type : describe the OMF type as a python dict
@@ -628,13 +623,11 @@ class OmfNorthPlugin(object):
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_configuration_based - omf_type |{0}| ".format(str(omf_type)))
 
-        # FIXME:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.send_in_memory_data_to_picromf("Type", omf_type[typename], False))
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename], False)
 
         return typename, omf_type
     
-    def _create_omf_object_links(self, asset_code, typename, omf_type):
+    async def _create_omf_object_links(self, asset_code, typename, omf_type):
         """ Handles the creation of the links between the OMF objects :
             sensor, its measurement, sensor type and measurement type
          Args:
@@ -672,17 +665,13 @@ class OmfNorthPlugin(object):
                                                                                                     str(static_data)))
             self._logger.debug("_create_omf_object_links - asset_code |{0}| - link_data |{1}| ".format(asset_code,
                                                                                                   str(link_data)))
-
-        # FIXME:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.send_in_memory_data_to_picromf("Container", containers, False))
-        loop.run_until_complete(self.send_in_memory_data_to_picromf("Data", static_data, False))
-        loop.run_until_complete(self.send_in_memory_data_to_picromf("Data", link_data, False))
+        await self.send_in_memory_data_to_picromf("Container", containers, False)
+        await self.send_in_memory_data_to_picromf("Data", static_data, False)
+        await self.send_in_memory_data_to_picromf("Data", link_data, False)
 
         return
     
-    @_performance_log
-    def create_omf_objects(self, raw_data, config_category_name, type_id):
+    async def create_omf_objects(self, raw_data, config_category_name, type_id):
         """ Handles the creation of the OMF types related to the asset codes using one of the 2 possible ways :
                 Automatic OMF Type Mapping
                 Configuration Based OMF Type Mapping
@@ -708,24 +697,22 @@ class OmfNorthPlugin(object):
                     configuration_based = True
                 if configuration_based:
                     self._logger.debug("creates type - configuration based - asset |{0}| ".format(asset_code))
-                    self._create_omf_objects_configuration_based(asset_code, asset_code_omf_type)
+                    await self._create_omf_objects_configuration_based(asset_code, asset_code_omf_type)
                 else:
                     # handling - Automatic OMF Type Mapping
                     self._logger.debug("creates type - automatic handling - asset |{0}| ".format(asset_code))
-                    self._create_omf_objects_automatic(item)
+                    await self._create_omf_objects_automatic(item)
                 self._flag_created_omf_type(config_category_name, type_id, asset_code)
             else:
                 self._logger.debug("asset already created - asset |{0}| ".format(asset_code))
     
-    #@_performance_log
     async def send_in_memory_data_to_picromf(self, message_type, omf_data, async_operation):
         """ Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
             it logs a WARNING only at the end of the retry mechanism in case of a communication error
         Args:
             message_type: possible values {Type, Container, Data}
             omf_data:     OMF message to send
-            # FIXME:
-            async_operation
+            async_operation : True= the operation should be managed using the Async aiohttp
         Returns:
         Raises:
             Exception: an error occurred during the OMF request
@@ -750,17 +737,14 @@ class OmfNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
-                # FIXME:
                 if async_operation:
-                    
-                    async with aiohttp.ClientSession() as session:
+
+                    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                         async with session.post(
                                                 url=self._config['URL'],
                                                 headers=msg_header,
                                                 data=omf_data_json,
-                                                # FIXME:
-                                                timeout=60
-                                                #timeout=self._config['OMFHttpTimeout']
+                                                timeout=self._config['OMFHttpTimeout']
                                                 ) as resp:
                             
                             status_code = resp.status

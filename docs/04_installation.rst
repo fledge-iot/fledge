@@ -268,18 +268,21 @@ You can install FogLAMP as a service following these simple steps:
              └─1817 python3 -m foglamp.services.south --port=46309 --address=127.0.0.1 --name=HTTP_SOUTH
   $
 
+|br|
+
 
 Installing the Debian Package
 =============================
 
 We have versions of FogLAMP available as Debian packages for you. Check the |Downloads page| to review which versions and platforms are available.
 
+
 Obtaining and Installing the Debian Package
 -------------------------------------------
 
 Check the |Downloads page| to find the package to install.
 
-Once you have downloaded the package, install it using the ``dbpkg`` command. Note that you may need to install it as superuser (or by using the ``sudo`` command) and you need to install the pre-requisites first.
+Once you have downloaded the package, install it using the ``apt-get`` command. You can use ``apt-get`` to install a local Debian package and automatically retrieve all the necessary packages that are defined as pre-requisites for FogLAMP.  Note that you may need to install the package as superuser (or by using the ``sudo`` command) and move the package to the apt cache directory first (``/var/cache/apt/archives``).
 
 For example, if you are installing FogLAMP on an Intel x86/64 machine, you can type this command to download the package:
 
@@ -297,61 +300,26 @@ For example, if you are installing FogLAMP on an Intel x86/64 machine, you can t
   2018-04-24 18:22:10 (521 KB/s) - ‘foglamp-1.2-x86_64.deb’ saved [496094/496094]
   $
 
-Make sure the system has all the pre-requisites needed to run FogLAMP:
+We recommend to execute an *update-upgrade-update* of the system first, then you may copy the FogLAMP package in the *apt cache* directory and install it.
 
-- autoconf
-- jq
-- libboost-dev
-- libboost-system-dev
-- libboost-thread-dev
-- libpq-dev
-- libtool
-- postgresql
-- postgresql-server-dev-9.6
-- python-setuptools
-- python3-pip
-- sqlite3
 
 .. code-block:: console
 
   $ sudo apt update
   Hit:1 http://gb.archive.ubuntu.com/ubuntu xenial InRelease
   ...
-  $
-  $ sudo apt -y install postgresql postgresql-server-dev-9.5
+  $ sudo apt upgrade
   ...
-  $ sudo apt -y install libpq-dev autoconf
+  $ sudo apt update
   ...
-  $ sudo apt -y install libtool jq
+  $ sudo cp foglamp-1.2-x86_64.deb /var/cache/apt/archives/.
   ...
-  $ sudo apt -y install libboost-dev libboost-system-dev libboost-thread-dev
-  ...
-  $ sudo apt -y install sqlite3
-  ...
-  $ sudo apt -y install python-setuptools
-  ...
-  $ sudo apt install python3-pip
-  ...
-  $
-
-If you are installing FogLAMP on an ARM platform, you may also need:
-
-.. code-block:: console
-
-  $ sudo apt -y install postgresql postgresql-server-dev-9.6
-  ...
-  $ sudo apt install python3.5-dev python3-dbus python3-setuptools
-  ...
-  $
-
-Now you are ready to install the package:
-
-.. code-block:: console
-
-  $ sudo dpkg -i foglamp-1.2-x86_64.deb
-  Selecting previously unselected package foglamp.
-  (Reading database ... 114963 files and directories currently installed.)
-  Preparing to unpack foglamp-1.2-x86_64.deb ...
+  $ sudo apt install /var/cache/apt/archives/foglamp-1.2-x86_64.deb
+  Reading package lists... Done
+  Building dependency tree
+  Reading state information... Done
+  Note, selecting 'foglamp' instead of '/var/cache/apt/archives/foglamp-1.2-x86_64.deb'
+  The following packages were automatically installed and are no longer required:
   ...
   Unpacking foglamp (1.2) ...
   Setting up foglamp (1.2) ...
@@ -367,10 +335,9 @@ Now you are ready to install the package:
   foglamp.service is not a native service, redirecting to systemd-sysv-install
   Executing /lib/systemd/systemd-sysv-install enable foglamp
   Starting FogLAMP service
-  $
+  $ 
 
-
-The installation automatically registers FogLAMP as a service, so it will come up at startup and it is already up and running when you complete the command.
+As you can see from the output, the installation automatically registers FogLAMP as a service, so it will come up at startup and it is already up and running when you complete the command.
 
 Check the newly installed package:
 
@@ -387,20 +354,20 @@ You can also check the service currently running:
 
   $ sudo systemctl status foglamp.service
   ● foglamp.service - LSB: FogLAMP
-     Loaded: loaded (/etc/init.d/foglamp; bad; vendor preset: enabled)
-     Active: active (running) since Tue 2018-04-24 18:38:34 BST; 3min 30s ago
-       Docs: man:systemd-sysv-generator(8)
-    Process: 28451 ExecStart=/etc/init.d/foglamp start (code=exited, status=0/SUCCESS)
-      Tasks: 14
-     Memory: 64.9M
-        CPU: 3.867s
-     CGroup: /system.slice/foglamp.service
-             ├─28516 python3 -m foglamp.services.core
-             ├─28521 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=46141
-             ├─28565 /bin/sh services/south --port=46141 --address=127.0.0.1 --name=COAP
-             ├─28566 python3 -m foglamp.services.south --port=46141 --address=127.0.0.1 --name=COAP
-             ├─28567 /bin/sh services/south --port=46141 --address=127.0.0.1 --name=HTTP_SOUTH
-             └─28568 python3 -m foglamp.services.south --port=46141 --address=127.0.0.1 --name=HTTP_SOUTH
+   Loaded: loaded (/etc/init.d/foglamp; bad; vendor preset: enabled)
+   Active: active (running) since Thu 2018-05-10 03:48:20 BST; 1min 31s ago
+     Docs: man:systemd-sysv-generator(8)
+  Process: 1088 ExecStart=/etc/init.d/foglamp start (code=exited, status=0/SUCCESS)
+    Tasks: 14
+   Memory: 87.2M
+      CPU: 2.603s
+   CGroup: /system.slice/foglamp.service
+           ├─1218 python3 -m foglamp.services.core
+           ├─1226 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=44530
+           ├─1277 /bin/sh services/south --port=44530 --address=127.0.0.1 --name=COAP
+           ├─1278 /bin/sh services/south --port=44530 --address=127.0.0.1 --name=HTTP_SOUTH
+           ├─1279 python3 -m foglamp.services.south --port=44530 --address=127.0.0.1 --name=COAP
+           └─1280 python3 -m foglamp.services.south --port=44530 --address=127.0.0.1 --name=HTTP_SOUTH
   ...
   $
 
@@ -411,7 +378,7 @@ Check if FogLAMP is up and running with the ``foglamp`` command:
 
   $ /usr/local/foglamp/bin/foglamp status
   FogLAMP v1.2 running.
-  FogLAMP Uptime:  308 seconds.
+  FogLAMP Uptime:  162 seconds.
   FogLAMP records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
   === FogLAMP services:
@@ -437,14 +404,19 @@ Upgrading or downgrading FogLAMP, starting from version 1.2, is as easy as insta
 Uninstalling the Debian Package
 -------------------------------
 
-Use the ``dpkg`` command to uninstall FogLAMP:
+Use the ``apt`` or the ``apt-get`` command to uninstall FogLAMP:
 
 .. code-block:: console
 
-  $ sudo dpkg -l | grep foglamp
-  ii  foglamp           1.2              amd64        FogLAMP, the open source platform for the Internet of Things
-  $ sudo dpkg --purge foglamp
-  (Reading database ... 115190 files and directories currently installed.)
+  $ sudo apt remove foglamp
+  Reading package lists... Done
+  ...
+  The following packages will be REMOVED
+  foglamp
+  0 to upgrade, 0 to newly install, 1 to remove and 2 not to upgrade.
+  After this operation, 0 B of additional disk space will be used.
+  Do you want to continue? [Y/n]
+  (Reading database ... 211747 files and directories currently installed.)
   Removing foglamp (1.2) ...
   FogLAMP is currently running.
   Stop FogLAMP service.
@@ -459,14 +431,12 @@ Use the ``dpkg`` command to uninstall FogLAMP:
   Remove FogLAMP service script
   Reset systemctl
   dpkg: warning: while removing foglamp, directory '/usr/local/foglamp' not empty so not removed
-  $ sudo dpkg --purge foglamp
-  dpkg: warning: ignoring request to remove foglamp which isn't installed
   $
 
-The command also removes the service installed, but it leaves the data directory, in case an administrator might want to analyze or reuse the data.
-
+The command also removes the service installed. |br| You may notice the warning in the last row of the command output: this is due to the fact that the data directory (``/usr/local/foglamp/data`` by default) has not been removed, in case an administrator might want to analyze or reuse the data.
 
 |br|
+
 
 DEPRECATED: Installing the Snap Package
 ---------------------------------------

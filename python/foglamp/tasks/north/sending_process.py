@@ -302,7 +302,7 @@ class SendingProcess:
             "description": "Number of elements of blockSize size that should be managed as an in memory buffer"
                            " for the fetch/send operations",
             "type": "integer",
-            "default": "5"
+            "default": "10"
         },
         "sleepInterval": {
             "description": "A period of time, expressed in seconds, "
@@ -413,8 +413,6 @@ class SendingProcess:
         Returns:
             True/False
         Raises:
-        Todo:
-            it should evolve using the DB layer
         """
         try:
             streams = self._storage.query_tbl('streams', 'id={0}'.format(stream_id))
@@ -444,7 +442,6 @@ class SendingProcess:
         Returns:
             north_ok: True if the north is a proper one
         Raises:
-        Todo:
         """
         north_ok = False
         try:
@@ -468,7 +465,6 @@ class SendingProcess:
                 value      - dictionary, like for example {"lux": 53570.172}
         Raises:
             UnknownDataSource
-        Todo:
         """
         SendingProcess._logger.debug("{0} ".format("_load_data_into_memory"))
         try:
@@ -496,7 +492,6 @@ class SendingProcess:
         Returns:
             raw_data: data extracted from the DB Layer
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
@@ -566,7 +561,6 @@ class SendingProcess:
         Returns:
             converted_data: data extracted from the DB Layer and converted in the proper format
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - position |{1}| ".format("_load_data_into_memory_statistics", last_object_id))
         raw_data = None
@@ -600,7 +594,6 @@ class SendingProcess:
         Returns:
             converted_data: converted data
         Raises:
-        Todo:
         """
         converted_data = []
         # Extracts only the asset_code column
@@ -655,8 +648,6 @@ class SendingProcess:
         Returns:
             last_object_id: starting point for the send operation
         Raises:
-        Todo:
-            it should evolve using the DB layer
         """
         try:
             where = 'id={0}'.format(stream_id)
@@ -682,8 +673,6 @@ class SendingProcess:
         Args:
             new_last_object_id: Last row id already sent
             stream_id:          Managed stream id
-        Todo:
-            it should evolve using the DB layer
         """
         try:
             SendingProcess._logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
@@ -699,7 +688,7 @@ class SendingProcess:
             SendingProcess._logger.error(_message)
             raise
 
-    async def task_fetch_data(self, stream_id):
+    async def _task_fetch_data(self, stream_id):
         """ Read data from the Storage Layer into a memory structure
         Args:
             stream_id:          Managed stream id
@@ -776,7 +765,7 @@ class SendingProcess:
 
         SendingProcess._logger.debug("task {0} - end".format("fetch_data"))
 
-    async def task_send_data(self, stream_id):
+    async def _task_send_data(self, stream_id):
         """ Sends the data from the in memory structure to the PI Server
         Args:
             stream_id:          Managed stream id
@@ -911,8 +900,8 @@ class SendingProcess:
         # Prepares the in memory buffer for the fetch/send operations
         self._memory_buffer = [None for x in range(self._config['memory_buffer_size'])]
 
-        self._task_id_fetch_data = asyncio.ensure_future(self.task_fetch_data(stream_id))
-        self._task_id_send_data = asyncio.ensure_future(self.task_send_data(stream_id))
+        self._task_id_fetch_data = asyncio.ensure_future(self._task_fetch_data(stream_id))
+        self._task_id_send_data = asyncio.ensure_future(self._task_send_data(stream_id))
 
         self._run_task_fetch_data = True
         self._run_task_send_data = True
@@ -970,7 +959,6 @@ class SendingProcess:
         Args:
         Returns:
         Raises:
-        Todo:
         """
         module_to_import = self._NORTH_PATH + self._config['north'] + "." + self._config['north']
         try:
@@ -1019,8 +1007,6 @@ class SendingProcess:
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
 
             self._config['duration'] = int(_config_from_manager['duration']['value'])
-            # FIXME:
-            self._config['duration'] = 120
 
             self._config['source'] = _config_from_manager['source']['value']
 
@@ -1046,7 +1032,6 @@ class SendingProcess:
             False = the sending process is disabled
         Raises:
             PluginInitialiseFailed
-        Todo:
         """
         exec_sending_process = False
         SendingProcess._logger.debug("{0} - ".format("start"))
@@ -1159,7 +1144,6 @@ class SendingProcess:
         Args:
         Returns:
         Raises:
-        Todo:
         """
         try:
             self._plugin.plugin_shutdown(self._plugin_handle)

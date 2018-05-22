@@ -782,6 +782,14 @@ class SendingProcess:
             stream_id:          Managed stream id
         """
 
+        data_sent = False
+        db_update = False
+        update_last_object_id = 0
+        tot_num_sent = 0
+
+        update_position_idx = 0
+        update_position_max = 5
+
         try:
             self._memory_buffer_send_idx = 0
 
@@ -806,11 +814,27 @@ class SendingProcess:
                                         stream_id)
 
                         if data_sent:
-                            # Updates reached position, statistics and logs the operation within the Storage Layer
-                            self._last_object_id_update(new_last_object_id, stream_id)
+                            db_update = True
+                            update_last_object_id = new_last_object_id
+                            tot_num_sent = tot_num_sent + num_sent
 
-                            await self._update_statistics(num_sent, stream_id)
-                            await self._audit.information(self._AUDIT_CODE, {"sentRows": num_sent})
+                        # Updates the Storage layer every 'update_position_max' interactions
+                        if db_update:
+
+                            if update_position_idx >= update_position_max:
+
+                                SendingProcess._logger.debug("task {f} - update position - idx/max |{idx}/{max}| "
+                                    .format(
+                                                f="send_data",
+                                                idx=update_position_idx,
+                                                max=update_position_max))
+
+                                await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+                                update_position_idx = 0
+                                tot_num_sent = 0
+                                db_update = False
+                            else:
+                                update_position_idx += 1
 
                         self._memory_buffer[self._memory_buffer_send_idx] = None
 
@@ -828,13 +852,39 @@ class SendingProcess:
                 else:
                     self._memory_buffer_send_idx = 0
 
+            # Checks if the information on the Storage layer needs to be updates
+            if db_update:
+                await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+
         except Exception as e:
             _message = _MESSAGES_LIST["e000021"].format(e)
             SendingProcess._logger.error(_message)
 
+            if db_update:
+                await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+
         SendingProcess._logger.debug("task {0} - end".format("send_data"))
 
-    def performance_track(self, message):
+    async def _update_position_reached(self, stream_id, update_last_object_id, tot_num_sent):
+        """ Updates : last_object_id, statistics and audit
+        Args:
+        Returns:
+        Raises:
+        """
+
+        SendingProcess._logger.debug("{f} - update position - last_object/sent |{last}/{sent}| ".format(
+            f="_update_position_reached",
+            last=update_last_object_id,
+            sent=tot_num_sent))
+
+        self._last_object_id_update(update_last_object_id, stream_id)
+
+        await self._update_statistics(tot_num_sent, stream_id)
+
+        await self._audit.information(self._AUDIT_CODE, {"sentRows": tot_num_sent})
+
+    @staticmethod
+    def performance_track(message):
         """ Tracks information for tuning performance
         Args:
         Returns:

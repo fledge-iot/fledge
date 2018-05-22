@@ -401,7 +401,7 @@ async def plugin_send(data, raw_data, stream_id):
             await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
 
             try:
-                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send, True)
+                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
 
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
@@ -586,7 +586,7 @@ class OmfNorthPlugin(object):
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
 
-        await self.send_in_memory_data_to_picromf("Type", omf_type[typename], False)
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
 
         return typename, omf_type
     
@@ -623,7 +623,7 @@ class OmfNorthPlugin(object):
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_configuration_based - omf_type |{0}| ".format(str(omf_type)))
 
-        await self.send_in_memory_data_to_picromf("Type", omf_type[typename], False)
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
 
         return typename, omf_type
     
@@ -665,9 +665,9 @@ class OmfNorthPlugin(object):
                                                                                                     str(static_data)))
             self._logger.debug("_create_omf_object_links - asset_code |{0}| - link_data |{1}| ".format(asset_code,
                                                                                                   str(link_data)))
-        await self.send_in_memory_data_to_picromf("Container", containers, False)
-        await self.send_in_memory_data_to_picromf("Data", static_data, False)
-        await self.send_in_memory_data_to_picromf("Data", link_data, False)
+        await self.send_in_memory_data_to_picromf("Container", containers)
+        await self.send_in_memory_data_to_picromf("Data", static_data)
+        await self.send_in_memory_data_to_picromf("Data", link_data)
 
         return
     
@@ -706,13 +706,12 @@ class OmfNorthPlugin(object):
             else:
                 self._logger.debug("asset already created - asset |{0}| ".format(asset_code))
     
-    async def send_in_memory_data_to_picromf(self, message_type, omf_data, async_operation):
+    async def send_in_memory_data_to_picromf(self, message_type, omf_data):
         """ Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
             it logs a WARNING only at the end of the retry mechanism in case of a communication error
         Args:
             message_type: possible values {Type, Container, Data}
             omf_data:     OMF message to send
-            async_operation : True= the operation should be managed using the Async aiohttp
         Returns:
         Raises:
             Exception: an error occurred during the OMF request
@@ -737,28 +736,17 @@ class OmfNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
-                if async_operation:
+                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+                    async with session.post(
+                                            url=self._config['URL'],
+                                            headers=msg_header,
+                                            data=omf_data_json,
+                                            timeout=self._config['OMFHttpTimeout']
+                                            ) as resp:
 
-                    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-                        async with session.post(
-                                                url=self._config['URL'],
-                                                headers=msg_header,
-                                                data=omf_data_json,
-                                                timeout=self._config['OMFHttpTimeout']
-                                                ) as resp:
-                            
-                            status_code = resp.status
-                            text = await resp.text()
+                        status_code = resp.status
+                        text = await resp.text()
 
-                else:                                        
-                    response = requests.post(self._config['URL'],
-                                             headers=msg_header,
-                                             data=omf_data_json,
-                                             verify=False,
-                                             timeout=self._config['OMFHttpTimeout'])
-                    status_code = response.status_code
-                    text = response.text
-                    
             except Exception as e:
                 _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
@@ -768,9 +756,11 @@ class OmfNorthPlugin(object):
                     tmp_text = str(status_code) + " " + text
                     _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
                     _error = plugin_exceptions.URLFetchError(_message)
-                self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
-                                                                                 status_code,
-                                                                                 text))
+
+                self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
+                                                                                message_type,
+                                                                                status_code,
+                                                                                text))
             if _error:
                 time.sleep(sleep_time)
                 num_retry += 1

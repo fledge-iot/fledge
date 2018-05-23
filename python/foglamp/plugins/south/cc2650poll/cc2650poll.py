@@ -9,12 +9,12 @@
 import copy
 import datetime
 import json
-import asyncio
 import uuid
 
+from foglamp.common import logger
+from foglamp.plugins.common import utils
 from foglamp.plugins.south.common.sensortag_cc2650 import *
 from foglamp.services.south import exceptions
-from foglamp.common import logger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -46,12 +46,15 @@ _DEFAULT_CONFIG = {
         'description': 'Time in seconds allowed for shutdown to complete the pending tasks',
         'type': 'integer',
         'default': '10'
+    },
+    'management_host': {
+        'description': 'Management host',
+        'type': 'string',
+        'default': '127.0.0.1',
     }
 }
 
 _LOGGER = logger.setup(__name__, level=20)
-
-sensortag_characteristics = characteristics
 
 
 def plugin_info():
@@ -82,7 +85,7 @@ def plugin_init(config):
         handle: JSON object to be used in future calls to the plugin
     Raises:
     """
-    global sensortag_characteristics
+    sensortag_characteristics = copy.deepcopy(characteristics)
     data = copy.deepcopy(config)
 
     bluetooth_adr = config['bluetoothAddress']['value']
@@ -126,7 +129,7 @@ def plugin_poll(handle):
     if 'tag' not in handle:
         raise RuntimeError
 
-    time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
+    time_stamp = utils.local_timestamp()
     data = list()
     bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']
@@ -241,7 +244,7 @@ def plugin_poll(handle):
                 'readings': readings[reading_key]
             })
 
-    except (Exception, RuntimeError) as ex:
+    except (Exception, RuntimeError, pexpect.exceptions.TIMEOUT) as ex:
         _LOGGER.exception("SensorTagCC2650 {} exception: {}".format(bluetooth_adr, str(ex)))
         raise exceptions.DataRetrievalError(ex)
 
@@ -250,9 +253,10 @@ def plugin_poll(handle):
 
 
 def plugin_reconfigure(handle, new_config):
-    """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
-        The new configuration category should be passed.
+    """  Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -261,10 +265,39 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
+    _LOGGER.info("Old config for CC2650POLL plugin {} \n new config {}".format(handle, new_config))
 
-    new_handle = {}
+    # Find diff between old config and new config
+    diff = utils.get_diff(handle, new_config)
 
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'bluetoothAddress' in diff or 'management_host' in diff:
+        _plugin_stop(handle)
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting CC2650POLL plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    elif 'pollInterval' in diff or 'connectionTimeout' in diff or 'shutdownThreshold' in diff:
+        new_handle = copy.deepcopy(new_config)
+        new_handle['restart'] = 'no'
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
     return new_handle
+
+
+def _plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    if 'tag' in handle:
+        bluetooth_adr = handle['bluetoothAddress']['value']
+        tag = handle['tag']
+        tag.disconnect()
+        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
 
 
 def plugin_shutdown(handle):
@@ -275,14 +308,5 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
-    # Find all running tasks:
-    pending_tasks = asyncio.Task.all_tasks()
-
-    # Wait until tasks done:
-    asyncio.ensure_future(asyncio.wait(*pending_tasks, timeout=handle['shutdownThreshold']['value']))
-
-    if 'tag' in handle:
-        bluetooth_adr = handle['bluetoothAddress']['value']
-        tag = handle['tag']
-        tag.disconnect()
-        _LOGGER.info('SensorTagCC2650 {} Disconnected.'.format(bluetooth_adr))
+    _plugin_stop(handle)
+    _LOGGER.info('CC2650 poll plugin shut down.')

@@ -39,6 +39,14 @@
 
    <a href="https://www.osisoft.com/pi-system" target="_blank">here</a>
 
+.. |jq| raw:: html
+
+   <a href="https://stedolan.github.io/jq" target="_blank">jq</a>
+
+.. |get start| raw:: html
+
+   <a href="03_getting_started.html" target="_blank">Getting Started</a>
+
 
 .. =============================================
 
@@ -73,6 +81,8 @@ When you have a running FogLAMP, check the extra information provided by the ``f
   $ foglamp status
   FogLAMP running.
   FogLAMP uptime:  282 seconds.
+  FogLAMP Records: 10 read, 0 sent, 0 purged.
+  FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
   foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP
@@ -84,16 +94,25 @@ When you have a running FogLAMP, check the extra information provided by the ``f
 Let's analyze the output of the command:
 
 - ``FogLAMP running.`` - The FogLAMP Core microservice is running on this machine and it is responding to the status command as *running* because other basic microservices are also running. 
-- ``FogLAMP uptime:  282 seconds.`` - This is a simple uptime in second provided by the Core microservice. It is equivalent to the ``ping`` method called via the REST API. The following lines provide a list of the modules running in this installation of FogLAMP. They are separated by dots and described in this way:
+- ``FogLAMP uptime:  282 seconds.`` - This is a simple uptime in second provided by the Core microservice. It is equivalent to the ``ping`` method called via the REST API.
+- ``FogLAMP records:`` - This is a summary of the number of records received from sensors and devices (South), sent to other services (North) and purged from the buffer.
+- ``FogLAMP authentication`` - This row describes if a user or an application must authenticate to ogLAMP in order to operate with the REST API.
+
+The following lines provide a list of the modules running in this installation of FogLAMP. They are separated by dots and described in this way:
+
   - The prefix ``foglamp`` is always present and identifies the FogLAMP modules.
   - The following term describes the type of module: *services* for microservices, *tasks* for tasks etc.
   - The following term is the name of the module: *core*, *storage*, *north*, *south*, *app*, *alert*
   - The last term is the name of the plugin executed as part of the module.
   - Extra arguments may be available: they are the arguments passed to the module by the core when it is launched.
+
 - ``=== FogLAMP services:`` - This block contains the list of microservices running in the FogLAMP plaftorm.
+
   - ``foglamp.services.core`` is the Core microservice itself
   - ``foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to FogLAMP via a CoAP protocol
+
 - ``=== FogLAMP tasks:`` - This block contains the list of tasks running in the FogLAMP platform.
+
   - ``foglamp.tasks.north.sending_process ... --name=sending process`` is a North task that prepares and sends data collected by the South modules to the OSIsoft PI System in OMF (OSIsoft Message Format).
   - ``foglamp.tasks.north.sending_process ... --name=statistics to pi`` is a North task that prepares and sends the internal statistics to the OSIsoft PI System in OMF (OSIsoft Message Format).
 
@@ -113,7 +132,7 @@ This is a short list of the methods available to the administrators.  A more det
 - **ping** provides the uptime of the FogLAMP Core microservice
 - **statistics** provides a set of statistics of the FogLAMP platform, such as data collected, sent, purged, rejected etc.
 - **asset** provides a list of asset that have readings buffered in FogLAMP.
-- **categories** provides a list of the configuration of the modules and components in FogLAMP.
+- **category** provides a list of the configuration of the modules and components in FogLAMP.
 
 
 Useful Tools
@@ -137,7 +156,7 @@ The default port for the REST API is 8081. Using curl, try this command:
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/ping ; echo
-  {"uptime": 2646.8824095726013}
+  {"dataPurged": 0, "dataRead": 10, "uptime": 2646.8824095726013, "dataSent": 0, "authenticationOptional": true}
   $
  
 The ``echo`` at the end of the line is simply used to add an extra new line to the output. 
@@ -419,7 +438,7 @@ FogLAMP comes with a North plugin called *OMF Translator*. OMF is the OSIsoft Me
 - Information regarding OMF are available |here OMF|
 - Information regarding the OSIsoft PI System are available |here PI|
 
-*OMF Translator* is schedules as a North task that is executed every 30 seconds (the time may vary, we set it to 30 seconds to facilitate the testing.
+*OMF Translator* is scheduled as a North task that is executed every 30 seconds (the time may vary, we set it to 30 seconds to facilitate the testing).
 
 
 Preparing the PI System
@@ -439,99 +458,190 @@ If you are curious to see which categories are available in FogLAMP, simply type
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/categories ; echo
-  { "categories": [ { "description": "Log Partitioning",                     "key": "LOGPART" },
-                    { "description": "Sensors and Device Interface",         "key": "SENSORS" },
-                    { "description": "HTTP North Plugin Configuration",      "key": "SEND_PR_3" },
-                    { "description": "Streaming",                            "key": "STREAMING" },
-                    { "description": "System Purge",                         "key": "SYPURGE" },
-                    { "description": "POLL Plugin Configuration",            "key": "POLL" },
-                    { "description": "HTTP South Plugin Configuration",      "key": "HTTP_SOUTH" },
-                    { "description": "SensorTagCC2650 Plugin Configuration", "key": "CC2650POLL" },
-                    { "description": "Scheduler configuration",              "key": "SCHEDULER" },
-                    { "description": "Service Monitor configuration",        "key": "SMNTR" },
-                    { "description": "COAP Device",                          "key": "COAP" },
-                    { "description": "Device server configuration",          "key": "DEVICE" },
-                    { "description": "Configuration of OMF types",           "key": "OMF_TYPES" },
-                    { "description": "Configuration of the Sending Process", "key": "SEND_PR_1" },
-                    { "description": "Purge the readings table",             "key": "PURGE_READ" },
-                    { "description": "Configuration of the Sending Process", "key": "SEND_PR_2" } 
+  $ curl -s http://localhost:8081/foglamp/category ; echo
+  { "categories": [ { "key": "CC2650ASYN", "description": "TI SensorTag CC2650 async South Plugin"    },
+                    { "key": "CC2650POLL", "description": "TI SensorTag CC2650 polling South Plugin"  },
+                    { "key": "COAP",       "description": "COAP Device"                               },
+                    { "key": "HTTP_SOUTH", "description": "HTTP_SOUTH Device"                         },
+                    { "key": "POLL",       "description": "South Plugin polling template"             },
+                    { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
+                    { "key": "SEND_PR_1",  "description": "OMF North Plugin Configuration"            },
+                    { "key": "SEND_PR_2",  "description": "OMF North Statistics Plugin Configuration" },
+                    { "key": "SEND_PR_3",  "description": "HTTP North Plugin Configuration"           },
+                    { "key": "SEND_PR_4",  "description": "OCS North Plugin Configuration"            },
+                    { "key": "SMNTR",      "description": "Service Monitor configuration"             },
+                    { "key": "South",      "description": "South server configuration"                },
+                    { "key": "rest_api",   "description": "The FogLAMP Admin and User REST API"       },
+                    { "key": "service",    "description": "The FogLAMP service configuration"         }
                   ]
   }
   $
 
-The configuration for the OMF Translator used to stream the South data is:
+The configuration for the OMF Translator used to stream the South data is initially disabled, all you can see about the settings is:
 
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/category/SEND_PR_1 ; echo
-  { "plugin":            { "description": "Python module name of the plugin to load",
-                           "type": "string",
-                           "default": "omf",
-                           "value": "omf" },
-    "OMFMaxRetry":       { "description": "Max number of retries for the communication with the OMF PI Connector Relay",
-                           "type": "integer",
-                           "default": "5",
-                           "value": "5" },
-    "stream_id":         { "description": "Stream ID",
-                           "type": "integer",
-                           "default": "1",
-                           "value": "1" },
-    "blockSize":         { "description": "The size of a block of readings to send in each transmission.",
-                           "type": "integer",
-                           "default": "5000",
-                           "value": "5000" },
-    "sleepInterval":     { "description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
-                           "type": "integer",
-                           "default": "5",
-                           "value": "5" },
-    "translator":        { "description": "The name of the translator to use to translate the readings into the output format and send them",
-                           "type": "string",
-                           "default": "omf",
-                           "value": "omf" },
-    "URL":               { "description": "The URL of the PI Connector to send data to",
-                           "type": "string",
-                           "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages",
-                           "value": "http://WIN-4M7ODKB0RH2:8118/ingress/messages" },
-    "OMFHttpTimeout":    { "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
-                           "type": "integer",
-                           "default": "30",
-                           "value": "30" },
-    "producerToken":     { "description": "The producer token that represents this FogLAMP stream",
-                           "type": "string",
-                           "default": "omf_translator_0001",
-                           "value": "omf_translator_0001" },
-    "source":            { "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
-                           "type": "string",
-                           "default": "readings",
-                           "value": "readings" },
-    "duration":          { "description": "How long the sending process should run (in seconds) before stopping.",
-                           "type": "integer",
-                           "default": "60",
-                           "value": "60" },
-    "OMFRetrySleepTime": { "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
-                           "type": "integer",
-                           "default": "1",
-                           "value": "1" },
-    "StaticData":        { "description": "Static data to include in each sensor reading sent to OMF.",
-                           "type": "JSON",
-                           "default": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}",
-                           "value": "{\"Location\": \"Palo Alto\", \"Company\": \"Dianomic\"}" },
-    "enable":            { "description": "A switch that can be used to enable or disable execution of the sending process.",
-                           "type": "boolean", "default": "True",
-                           "value": "True" }
+  {
+    "plugin": {
+      "value": "omf",
+      "type": "string",
+      "default": "omf",
+      "description": "Python module name of the plugin to load"
+    }
   }
   $
 
-What we need to do now is to change the IP address in the URL of *SEND_PR_1* with the IP address of the Windows Server running the PI Connector Relay. Supposing the Windows IP address is *192.168.56.101*, we can use curl for this:
+At this point it may be a good idea to familiarize with the |jq| tool, it will help you a lot in selecting and using data via the REST API. You may remember, we discussed it in the |get start| chapter.
+
+First, we can see the list of all the scheduled tasks (the process of sending data to a PI Connector Relay OMF is one of them). The command is:
 
 .. code-block:: console
 
-  $ curl -H 'Content-Type: application/json' -X PUT -d '{ "value": "http://192.168.56.101:8118/ingress/messages" }' http://localhost:8081/foglamp/category/SEND_PR_1/URL;echo
-  {"value": "http://192.168.56.101:8118/ingress/messages", "default": "http://WIN-4M7ODKB0RH2:8118/ingress/messages", "description": "The URL of the PI Connector to send data to", "type": "string"}
+  $ curl -s http://localhost:8081/foglamp/schedule | jq
+  {
+    "schedules": [
+      {
+        "name": "OMF to OCS north",
+        "repeat": 30,
+        "time": 0,
+        "processName": "North Readings to OCS",
+        "exclusive": true,
+        "type": "INTERVAL",
+        "enabled": false,
+        "day": null,
+        "id": "5d7fed92-fb9a-11e7-8c3f-9a214cf093ae"
+      },
+  ...
   $
 
-By using the PUT method, FogLAMP replies with the new value of the entry. You can note that the *value* element is the only one that can be changed in *URL* (the other elements are factory settings).
+...which means: "show me all the tasks that can be scheduled", The output has been made more readable by jq. There are several tasks, we need to identify the one we need and extract its unique id. We can achieve that with the power of jq: first we can select the JSON object that shows the elements of the sending task:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/schedule | jq '.schedules[] | select( .name == "OMF to PI north")'
+  {
+    "id": "2b614d26-760f-11e7-b5a5-be2e44b06b34",
+    "name": "OMF to PI north",
+    "type": "INTERVAL",
+    "repeat": 30,
+    "time": 0,
+    "day": null,
+    "exclusive": true,
+    "processName": "North Readings to PI",
+    "enabled": false
+  }
+  $
+
+Let's have a look at what we have found:
+
+- **id** is the unique identifier of the schedule.
+- **name** is a user-friendly name of the schedule.
+- **type** is the type of schedule, in this case a schedule that is triggered at regular intervals.
+- **repeat** specifies the interval of 30 seconds.
+- **time** specifies when the schedule should run: since the type is INTERVAL, this element is irrelevant.
+- **day** indicates the day of the week the schedule should run, in this case it will be constantly every 30 seconds
+- **exclusive** indicates that only a single instance of this task should run at any time.
+- **processName** is the name of the task to be executed.
+- **enabled** indicates whether the schedule is currently enabled or disabled.
+
+Now let's identify the plugin used to send data to the PI Connector Relay OMF. This is currently identified by the key *SEND_PR_1* (yes, we know it is not intuitive, we will make it better in future releases):
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/category | jq '.categories[] | select ( .key == "SEND_PR_1" )'
+  {
+    "key":         "SEND_PR_1",
+    "description": "OMF North Plugin Configuration"
+  }
+  $
+
+We can get the specific information adding the name of the task to the URL:
+
+.. code-block:: console
+
+  $  curl -s http://localhost:8081/foglamp/category/SEND_PR_1 | jq
+  {
+    "plugin": {
+      "description": "Python module name of the plugin to load",
+      "type":        "string",
+      "value":       "omf",
+      "default":     "omf"
+    }
+  }
+  $
+
+Now, the output returned does not say much: this is because the plugin has never been enabled, so the configuration has not been loaded yet. First, let's enabled the schedule. From a the previous query of the schedulable tasks, we know the id is *2b614d26-760f-11e7-b5a5-be2e44b06b34*:
+
+.. code-block:: console
+
+  $ curl  -X PUT http://localhost:8081/foglamp/schedule/2b614d26-760f-11e7-b5a5-be2e44b06b34 -d '{ "enabled" : true }'
+  { "schedule": { "id":          "2b614d26-760f-11e7-b5a5-be2e44b06b34",
+                  "name":        "OMF to PI north",
+                  "type":        "INTERVAL",
+                  "repeat":      30.0,
+                  "time":        0,
+                  "day":         null,
+                  "exclusive":   true,
+                  "processName": "North Readings to PI",
+                  "enabled":     true
+                }
+  }  
+  $
+
+Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 seconds, so you have to wait up to 30 seconds to see the new, full configuration. After 30 seconds or so, you should see something like this:
+
+.. code-block:: console
+
+  $ curl -s http://localhost:8081/foglamp/category/SEND_PR_1 | jq
+  { "north":             { "description": "The name of the north to use to translate the readings into the output format and send them",
+                           "type": "string", "value": "omf", "default": "omf" },
+    "OMFRetrySleepTime": { "description": "Seconds between each retry for the communication with the OMF PI Connector Relay",
+                           "type": "integer", "value": "1", "default": "1" },
+    "filterRule":        { "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+                           "type": "string", "value": ".[]", "default": ".[]" },
+    "URL":               { "description": "The URL of the PI Connector to send data to",
+                           "type": "string", "value": "https://pi-server:5460/ingress/messages", "default": "https://pi-server:5460/ingress/messages" },
+    "plugin":            { "description": "OMF North Plugin",
+                           "type": "string", "value": "omf", "default": "omf" },
+    "producerToken":     { "description": "The producer token that represents this FogLAMP stream",
+                           "type": "string", "value": "omf_north_0001", "default": "omf_north_0001" },
+    "OMFMaxRetry":       { "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+                           "type": "integer", "value": "5", "default": "5" },
+    "enable":            { "description": "A switch that can be used to enable or disable execution of the sending process.",
+                           "type": "boolean", "value": "True", "default": "True" },
+    "OMFHttpTimeout":    { "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+                           "type": "integer", "value": "30", "default": "30" },
+    "StaticData":        { "description": "Static data to include in each sensor reading sent to OMF.",
+                           "type": "JSON", "value": "{\"Company\": \"Dianomic\", \"Location\": \"Palo Alto\"}", "default": "{\"Company\": \"Dianomic\", \"Location\": \"Palo Alto\"}" },
+    "duration":          { "description": "How long the sending process should run (in seconds) before stopping.",
+                           "type": "integer", "value": "60", "default": "60" },
+    "sleepInterval":     { "description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
+                           "type": "integer", "value": "5", "default": "5" },
+    "source":            { "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+                           "type": "string", "value": "readings", "default": "readings" },
+    "blockSize":         { "description": "The size of a block of readings to send in each transmission.",
+                           "type": "integer", "value": "5000", "default": "5000" },
+    "applyFilter":       { "description": "Whether to apply filter before processing the data",
+                           "type": "boolean", "value": "False", "default": "False" },
+    "stream_id":         { "description": "Stream ID",
+                           "type": "integer", "value": "1", "default": "1" }
+  }
+  $
+
+You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2 uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
+
+.. code-block:: console
+
+  $ curl -sH'Content-Type: application/json' -X PUT -d '{ "value": "https://192.168.56.101:5460/ingress/messages" }' http://localhost:8081/foglamp/category/SEND_PR_1/URL | jq
+  { "description": "The URL of the PI Connector to send data to",
+    "type":        "string",
+    "value":       "https://192.168.56.101:5460/ingress/messages",
+    "default":     "https://pi-server:5460/ingress/messages"
+  }
+  $
+
+You can note that the *value* element is the only one that can be changed in *URL* (the other elements are factory settings).
 
 Now we are ready to send data North, to the PI System.
 

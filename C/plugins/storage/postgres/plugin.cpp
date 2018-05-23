@@ -1,11 +1,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <connection_manager.h>
 #include <connection.h>
@@ -21,6 +21,7 @@
 #include <iostream>
 #include <string>
 #include <logger.h>
+#include <plugin_exception.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -165,62 +166,24 @@ std::string results;
 /**
  * Purge readings from the buffer
  */
-char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent)
+char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long param, unsigned int flags, unsigned long sent)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string 	  results;
+unsigned long	  age, size;
 
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
-		unsigned long deletedRows = 0;
-		unsigned long unsentPurged = 0;
-		unsigned long unsentRetained = 0;
-		unsigned long readings = 0;
-		/*
-		 * Remove readings an hour at a time until we get below
-		 * the required size or we no longer remove readings
+		/**
+		 * Throw PluginNotImplementedException for purge by size in Postgres
 		 */
-		long tableSize = connection->tableSize(std::string("readings"));
-		while (tableSize > age)
-		{
-			(void)connection->purgeReadings(0, flags, sent, results);
-
-			// Parse the JSON response and track number for succesive calls
-			Document doc;
-			doc.Parse(results.c_str());
-			if (doc.HasMember("removed"))
-				deletedRows += doc["removed"].GetInt();
-			if (doc.HasMember("unsentPurged"))
-				unsentPurged += doc["unsentPurged"].GetInt();
-			if (doc.HasMember("unsentRetained"))
-				unsentRetained += doc["unsentRetained"].GetInt();
-			if (doc.HasMember("readings"))
-				readings = doc["readings"].GetInt();
-			long newTableSize = connection->tableSize(std::string("readings"));
-			if (newTableSize == tableSize)
-			{
-				// We didn't remove any readings, so stop here
-				Logger::getLogger()->error("Failed to reach target readings size %ld during purge operation",
-					age);
-				break;
-			}
-			tableSize = newTableSize;
-		}
-
-		// Create the aggregate JSON response
-	        ostringstream convert;
-
-		convert << "{ \"removed\" : " << deletedRows << ", ";
-        	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
-		convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-		convert << " \"readings\" : " << readings << " }";
-
-		results = convert.str();
+		throw PluginNotImplementedException("Purge by size is not supported by 'Postgres' storage engine.");
 	}
 	else
 	{
+		age = param;
 		(void)connection->purgeReadings(age, flags, sent, results);
 	}
 	manager->release(connection);

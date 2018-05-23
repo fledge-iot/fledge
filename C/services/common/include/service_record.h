@@ -14,6 +14,9 @@
 
 class ServiceRecord : public JSONProvider {
 	public:
+		ServiceRecord(const std::string& name);
+		ServiceRecord(const std::string& name,
+			      const std::string& type);
 		ServiceRecord(const std::string& name,
 			      const std::string& type,
 			      const std::string& protocol,
@@ -21,6 +24,38 @@ class ServiceRecord : public JSONProvider {
 			      const unsigned short port,
 			      const unsigned short managementPort);
 		void asJSON(std::string &) const;
+		const std::string&		getName() const
+		{
+			return m_name;
+		}
+		const std::string&		getType() const
+		{
+			return m_type;
+		}
+		void setAddress(const std::string& address)
+		{
+			m_address = address;
+		}
+		void setPort(const unsigned short port)
+		{
+			m_port = port;
+		}
+		void setProtocol(const std::string& protocol)
+		{
+			m_protocol = protocol;
+		}
+		void setManagementPort(const unsigned short managementPort)
+		{
+			m_managementPort = managementPort;
+		}
+		const std::string& getAddress()
+		{
+			return m_address;
+		}
+		unsigned short getPort()
+		{
+			return m_port;
+		}
 	private:
 		std::string		m_name;
 		std::string		m_type;

@@ -1,0 +1,11 @@
+{
+        "where" : {
+                "column" : "id",
+                "condition" : "=",
+                "value" : 200
+                },
+        "values"    : {
+                    "ts" : "now()"
+                  }
+
+}

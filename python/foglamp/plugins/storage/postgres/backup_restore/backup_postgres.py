@@ -17,12 +17,14 @@ import sys
 import time
 import os
 import uuid
+import asyncio
 
 from foglamp.services.core import server
 
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.process import FoglampProcess
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 
 import foglamp.plugins.storage.postgres.backup_restore.lib as lib
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
@@ -119,22 +121,12 @@ class Backup(object):
 
         Raises:
         """
-
-        if status is None:
-            payload = payload_builder.PayloadBuilder() \
-                .LIMIT(limit) \
-                .SKIP(skip) \
-                .ORDER_BY(['ts', sort_order]) \
-                .payload()
-        else:
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['status', '=', status]) \
-                .LIMIT(limit) \
-                .SKIP(skip) \
-                .ORDER_BY(['ts', sort_order]) \
-                .payload()
-
-        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload)
+        payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
+        if status:
+            payload.WHERE(['status', '=', status])
+            
+        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
 
         backups_information = backups_from_storage['rows']
 
@@ -387,10 +379,15 @@ class BackupProcess(FoglampProcess):
 
         self._backup_lib.sl_backup_status_update(backup_information['id'], status, exit_code)
 
+        audit = AuditLogger(self._storage)
+        loop = asyncio.get_event_loop()
         if status != lib.BackupStatus.COMPLETED:
 
             self._logger.error(self._MESSAGES_LIST["e000007"])
+            loop.run_until_complete(audit.information('BKEXC', {'status': 'failed'}))
             raise exceptions.BackupFailed
+        else:
+            loop.run_until_complete(audit.information('BKEXC', {'status': 'completed'}))
 
     def _purge_old_backups(self):
         """  Deletes old backups in relation at the retention parameter

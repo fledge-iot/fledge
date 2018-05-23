@@ -12,9 +12,7 @@ setup(
     # TODO: list of excludes (tests)
     packages=find_packages(),
     entry_points={
-        'console_scripts': [
-            'foglamp = foglamp.services.core.server:main'
-        ],
+        'console_scripts': [],
     },
     zip_safe=False
 )

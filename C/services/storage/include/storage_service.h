@@ -31,6 +31,8 @@ class StorageService : public ServiceHandler {
 		void 			stop();
 		void			shutdown();
 		void			configChange(const std::string&, const std::string&);
+		string			getPluginName();
+		string			getPluginManagedStatus();
 	private:
 		const string&		m_name;
 		bool 			loadPlugin();

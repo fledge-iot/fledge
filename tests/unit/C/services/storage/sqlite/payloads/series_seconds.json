@@ -1,0 +1,48 @@
+{
+	"aggregate": [
+		{
+			"json": {
+				"properties": "rate",
+				"column": "reading"
+			},
+			"operation": "min",
+			"alias": "min"
+		},
+		{
+			"json": {
+				"properties": "rate",
+				"column": "reading"
+			},
+			"operation": "max",
+			"alias": "max"
+		},
+		{
+			"json": {
+				"properties": "rate",
+				"column": "reading"
+			},
+			"operation": "avg",
+			"alias": "average"
+		}
+	],
+	"where": {
+		"column": "asset_code",
+		"condition": "=",
+		"value": "MyAsset",
+		"and": {
+			"column": "user_ts",
+			"condition": "newer",
+			"value": 1
+		}
+	},
+	"group": {
+		"format": "YYYY-MM-DD HH24:MI:SS",
+		"column": "user_ts",
+		"alias": "timestamp"
+	},
+	"limit": 20,
+	"sort": {
+		"column": "timestamp",
+		"direction": "desc"
+	}
+}

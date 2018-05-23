@@ -35,6 +35,11 @@ ostringstream urlbase;
  */
 ManagementClient::~ManagementClient()
 {
+	if (m_uuid)
+	{
+		delete m_uuid;
+		m_uuid = 0;
+	}
 	delete m_client;
 }
 
@@ -66,6 +71,10 @@ string payload;
 		{
 			m_logger->error("Failed to register service: %s.",
 				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("Unexpected result from service registration %s", res->content.string().c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Register service failed %s.", e.what());
@@ -115,18 +124,73 @@ bool ManagementClient::unregisterService()
 }
 
 /**
+ * Get the specified service
+ */
+bool ManagementClient::getService(ServiceRecord& service)
+{
+string payload;
+
+	try {
+		string url = "/foglamp/service";
+		if (!service.getName().empty())
+		{
+			url += "?name=" + service.getName();
+		}
+		else if (!service.getType().empty())
+		{
+			url += "?type=" + service.getType();
+		}
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetching service record: %s\n",
+				res->content.string().c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register service: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			Value& serviceRecord = doc["services"][0];
+			service.setAddress(serviceRecord["address"].GetString());
+			service.setPort(serviceRecord["service_port"].GetInt());
+			service.setProtocol(serviceRecord["protocol"].GetString());
+			service.setManagementPort(serviceRecord["management_port"].GetInt());
+			return true;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get service failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
  * Register interest in a configuration category
  */
 bool ManagementClient::registerCategory(const string& category)
 {
 ostringstream convert;
 
+	if (m_uuid == 0)
+	{
+		// Not registered with core
+		m_logger->error("Storage service is not registered with the core - not registering configuration interest");
+		return true;
+	}
 	try {
 		convert << "{ \"category\" : \"" << category << "\", ";
-		convert << "\"service\" : \"" << m_uuid << "\" }";
+		convert << "\"service\" : \"" << *m_uuid << "\" }";
 		auto res = m_client->request("POST", "/foglamp/interest", convert.str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string content = res->content.string();
+		doc.Parse(content.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of category registration: %s\n",
@@ -137,12 +201,19 @@ ostringstream convert;
 		{
 			const char *reg_id = doc["id"].GetString();
 			m_categories[category] = string(reg_id);
+			m_logger->info("Registered configuration category %s, registration id %s.",
+					category.c_str(), reg_id);
 			return true;
 		}
 		else if (doc.HasMember("message"))
 		{
-			m_logger->error("Failed to register service: %s.",
+			m_logger->error("Failed to register configuration category: %s.",
 				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("Failed to register configuration category: %s.",
+					content.c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Register configuration category failed %s.", e.what());

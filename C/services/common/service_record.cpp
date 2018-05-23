@@ -31,6 +31,31 @@ ServiceRecord::ServiceRecord(const string& name,
 }
 
 /**
+ * Construct an incomplete service record with a name and type
+ */
+ServiceRecord::ServiceRecord(const string& name,
+			     const string& type) : m_name(name),
+						   m_type(type),
+						   m_protocol(""),
+						   m_address(""),
+						   m_port(0),
+						   m_managementPort(0)
+{
+}
+
+/**
+ * Construct an incomplete service record with just a name
+ */
+ServiceRecord::ServiceRecord(const string& name) : m_name(name),
+						   m_type(""),
+						   m_protocol(""),
+						   m_address(""),
+						   m_port(0),
+						   m_managementPort(0)
+{
+}
+
+/**
  * Serialise the service record to json
  */
 void ServiceRecord::asJSON(string& json) const

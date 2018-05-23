@@ -5,11 +5,15 @@
 # FOGLAMP_END
 
 """HTTP Listener handler for sensor readings"""
-import sys
-from aiohttp import web
 import asyncio
+import copy
+import sys
+
+from aiohttp import web
+
 from foglamp.common import logger
 from foglamp.common.web import middleware
+from foglamp.plugins.common import utils
 from foglamp.services.south.ingest import Ingest
 
 __author__ = "Amarendra K Sinha"
@@ -41,6 +45,11 @@ _DEFAULT_CONFIG = {
         'description': 'URI to accept data on',
         'type': 'string',
         'default': 'sensor-reading',
+    },
+    'management_host': {
+        'description': 'Management host',
+        'type': 'string',
+        'default': '127.0.0.1',
     }
 }
 
@@ -57,57 +66,112 @@ def plugin_info():
 
 
 def plugin_init(config):
-    """Registers HTTP Listener handler to accept sensor readings"""
+    """Registers HTTP Listener handler to accept sensor readings
 
-    _LOGGER.info("Retrieve HTTP Listener Configuration %s", config)
-
-    host = config['host']['value']
-    port = config['port']['value']
-    uri = config['uri']['value']
-
-    return {'host': host, 'port': port, 'uri': uri}
+    Args:
+        config: JSON configuration document for the South device configuration category
+    Returns:
+        handle: JSON object to be used in future calls to the plugin
+    Raises:
+    """
+    handle = config
+    return handle
 
 
 def plugin_start(data):
     try:
-        host = data['host']
-        port = data['port']
-        uri = data['uri']
+        host = data['host']['value']
+        port = data['port']['value']
+        uri = data['uri']['value']
 
         loop = asyncio.get_event_loop()
 
         app = web.Application(middlewares=[middleware.error_middleware])
         app.router.add_route('POST', '/{}'.format(uri), HttpSouthIngest.render_post)
         handler = app.make_handler()
-        coro = loop.create_server(handler, host, port)
-        server = asyncio.ensure_future(coro)
+        server_coro = loop.create_server(handler, host, port)
+        future = asyncio.ensure_future(server_coro)
 
         data['app'] = app
         data['handler'] = handler
-        data['server'] = server
+        data['server'] = None
+
+        def f_callback(f):
+            # _LOGGER.info(repr(f.result()))
+            """ <Server sockets=
+            [<socket.socket fd=17, family=AddressFamily.AF_INET, type=2049,proto=6, laddr=('0.0.0.0', 6683)>]>"""
+            data['server'] = f.result()
+
+        future.add_done_callback(f_callback)
     except Exception as e:
         _LOGGER.exception(str(e))
-        sys.exit(1)
 
 
-def plugin_reconfigure(config):
-    pass
+def plugin_reconfigure(handle, new_config):
+    """ Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+        new_config: JSON object representing the new configuration category for the category
+    Returns:
+        new_handle: new handle to be used in the future calls
+    Raises:
+    """
+    _LOGGER.info("Old config for HTTP_SOUTH plugin {} \n new config {}".format(handle, new_config))
+
+    # Find diff between old config and new config
+    diff = utils.get_diff(handle, new_config)
+
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'port' in diff or 'host' in diff or 'management_host' in diff:
+        _plugin_stop(handle)
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting HTTP_SOUTH plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
+    return new_handle
 
 
-def plugin_shutdown(data):
+def _plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    _LOGGER.info('Stopping South HTTP plugin.')
     try:
-        app = data['app']
-        handler = data['handler']
-        server = data['server']
+        app = handle['app']
+        handler = handle['handler']
+        server = handle['server']
 
-        server.close()
-        asyncio.ensure_future(server.wait_closed())
-        asyncio.ensure_future(app.shutdown())
-        asyncio.ensure_future(handler.shutdown(60.0))
-        asyncio.ensure_future(app.cleanup())
+        if server:
+            server.close()
+            asyncio.ensure_future(server.wait_closed())
+            asyncio.ensure_future(app.shutdown())
+            asyncio.ensure_future(handler.shutdown(60.0))
+            asyncio.ensure_future(app.cleanup())
     except Exception as e:
         _LOGGER.exception(str(e))
         raise
+
+
+def plugin_shutdown(handle):
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    _plugin_stop(handle)
+    _LOGGER.info('South HTTP plugin shut down.')
 
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
@@ -128,68 +192,51 @@ class HttpSouthIngest(object):
                         "timestamp": "2017-01-02T01:02:03.23232Z-05:00",
                         "asset": "pump1",
                         "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
-                        "readings": {
-                            "velocity": "500",
-                            "temperature": {
-                                "value": "32",
-                                "unit": "kelvin"
-                            }
+                        "readings": {"humidity": 0.0, "temperature": -40.0}
                         }
                     }
         Example:
-            curl -X POST http://localhost:6683/sensor-reading -d '{"timestamp": "2017-01-02T01:02:03.23232Z-05:00", "asset": "pump1", "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4", "readings": {"velocity": "500", "temperature": {"value": "32", "unit": "kelvin"}}}'
+            curl -X POST http://localhost:6683/sensor-reading -d '{"timestamp": "2017-01-02T01:02:03.23232Z-05:00", "asset": "pump1", "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4", "readings": {"humidity": 0.0, "temperature": -40.0}}'
         """
         # TODO: The payload is documented at
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        increment_discarded_counter = False
-
         # TODO: Decide upon the correct format of message
         message = {'result': 'success'}
-        code = web.HTTPOk.status_code
-
         try:
             if not Ingest.is_available():
-                increment_discarded_counter = True
                 message = {'busy': True}
-            else:
+                raise web.HTTPServiceUnavailable(reason=message)
+
+            try:
                 payload = await request.json()
+            except Exception:
+                raise ValueError('Payload must be a dictionary')
 
-                if not isinstance(payload, dict):
-                    raise ValueError('Payload must be a dictionary')
+            asset = payload['asset']
+            timestamp = payload['timestamp']
+            key = payload['key']
 
-                asset = payload.get('asset')
-                timestamp = payload.get('timestamp')
-                key = payload.get('key')
+            # readings or sensor_values are optional
+            try:
+                readings = payload['readings']
+            except KeyError:
+                readings = payload['sensor_values']  # sensor_values is deprecated
 
-                # readings and sensor_readings are optional
-                try:
-                    readings = payload.get('readings')
-                except KeyError:
-                    readings = payload.get('sensor_values')  # sensor_values is deprecated
+            # if optional then
+            # TODO: confirm, do we want to check this?
+            if not isinstance(readings, dict):
+                raise ValueError('readings must be a dictionary')
 
-                if not isinstance(readings, dict):
-                    raise ValueError('readings must be a dictionary')
-
-                await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
-        except (ValueError, TypeError) as e:
-            increment_discarded_counter = True
-            code = web.HTTPBadRequest.status_code
-            message = {'error': str(e)}
-            _LOGGER.exception(str(e))
-        except Exception as e:
-            increment_discarded_counter = True
-            code = web.HTTPInternalServerError.status_code
-            message = {'error': str(e)}
-            _LOGGER.exception(str(e))
-
-        if increment_discarded_counter:
+            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
+        except (KeyError, ValueError, TypeError) as e:
             Ingest.increment_discarded_readings()
-
-        # expect keys in response:
-        # (code = 2xx) result Or busy
-        # (code = 4xx, 5xx) error
-        message['status'] = code
+            _LOGGER.exception("%d: %s", web.HTTPBadRequest.status_code, str(e))
+            raise web.HTTPBadRequest(reason=str(e))
+        except Exception as ex:
+            Ingest.increment_discarded_readings()
+            _LOGGER.exception("%d: %s", web.HTTPInternalServerError.status_code, str(ex))
+            raise web.HTTPInternalServerError(reason=str(ex))
 
         return web.json_response(message)

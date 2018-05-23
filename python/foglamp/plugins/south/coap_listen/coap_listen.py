@@ -7,13 +7,15 @@
 """CoAP handler for sensor readings"""
 
 import asyncio
-import json
-
-import aiocoap.resource
-import cbor2
+import copy
 import logging
 
+import aiocoap.resource
+import aiocoap.error
+import cbor2
+
 from foglamp.common import logger
+from foglamp.plugins.common import utils
 from foglamp.services.south.ingest import Ingest
 
 __author__ = "Terris Linenbach"
@@ -22,6 +24,8 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
+# We want to see informational output from this plugin
+_LOGGER.setLevel(logging.INFO)
 
 _DEFAULT_CONFIG = {
     'plugin': {
@@ -38,8 +42,14 @@ _DEFAULT_CONFIG = {
         'description': 'URI to accept data on',
         'type': 'string',
         'default': 'sensor-values',
+    },
+    'management_host': {
+        'description': 'Management host',
+        'type': 'string',
+        'default': '127.0.0.1',
     }
 }
+aiocoap_ctx = None
 
 
 def plugin_info():
@@ -70,10 +80,6 @@ def plugin_init(config):
     Raises:
     """
     handle = config
-
-    _LOGGER.setLevel(logging.INFO)
-    """ We want to see informational output from this plugin """
-
     return handle
 
 
@@ -89,9 +95,10 @@ def plugin_start(handle):
 
     uri = handle['uri']['value']
     port = handle['port']['value']
+    asyncio.ensure_future(_start_aiocoap(uri, port))
 
-    _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
 
+async def _start_aiocoap(uri, port):
     root = aiocoap.resource.Site()
 
     root.add_resource(('.well-known', 'core'),
@@ -99,13 +106,16 @@ def plugin_start(handle):
 
     root.add_resource(('other', uri), CoAPIngest())
 
-    asyncio.ensure_future(aiocoap.Context.create_server_context(root, bind=('::', int(port))))
+    global aiocoap_ctx
+    aiocoap_ctx = await aiocoap.Context().create_server_context(root, bind=('::', int(port)))
+    _LOGGER.info('CoAP listener started on port {} with uri {}'.format(port, uri))
 
 
 def plugin_reconfigure(handle, new_config):
-    """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
-        The new configuration category should be passed.
+    """  Reconfigures the plugin
+
+    it should be called when the configuration of the plugin is changed during the operation of the South device service;
+    The new configuration category should be passed.
 
     Args:
         handle: handle returned by the plugin initialisation call
@@ -114,10 +124,37 @@ def plugin_reconfigure(handle, new_config):
         new_handle: new handle to be used in the future calls
     Raises:
     """
+    _LOGGER.info("Old config for COAP plugin {} \n new config {}".format(handle, new_config))
 
-    new_handle = {}
+    # Find diff between old config and new config
+    diff = utils.get_diff(handle, new_config)
 
+    # Plugin should re-initialize and restart if key configuration is changed
+    if 'port' in diff or 'uri' in diff or 'management_host' in diff:
+        _plugin_stop(handle)
+        new_handle = plugin_init(new_config)
+        new_handle['restart'] = 'yes'
+        _LOGGER.info("Restarting COAP plugin due to change in configuration keys [{}]".format(', '.join(diff)))
+    else:
+        new_handle = copy.deepcopy(handle)
+        new_handle['restart'] = 'no'
     return new_handle
+
+
+def _plugin_stop(handle):
+    """ Stops the plugin doing required cleanup, to be called prior to the South device service being shut down.
+
+    Args:
+        handle: handle returned by the plugin initialisation call
+    Returns:
+    Raises:
+    """
+    _LOGGER.info('Stopping South COAP plugin...')
+    try:
+        asyncio.ensure_future(aiocoap_ctx.shutdown())
+    except Exception as ex:
+        _LOGGER.exception('Error in shutting down COAP plugin {}'.format(str(ex)))
+        raise
 
 
 def plugin_shutdown(handle):
@@ -128,6 +165,9 @@ def plugin_shutdown(handle):
     Returns:
     Raises:
     """
+    _plugin_stop(handle)
+    _LOGGER.info('COAP plugin shut down.')
+
 
 # TODO: Implement FOGL-701 (implement AuditLogger which logs to DB and can be used by all ) for this class
 class CoAPIngest(aiocoap.resource.Resource):
@@ -165,45 +205,43 @@ class CoAPIngest(aiocoap.resource.Resource):
         # https://docs.google.com/document/d/1rJXlOqCGomPKEKx2ReoofZTXQt9dtDiW_BHU7FYsj-k/edit#
         # and will be moved to a .rst file
 
-        code = aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR
-        increment_discarded_counter = True
+        code = aiocoap.numbers.codes.Code.VALID
+        # TODO: Decide upon the correct format of message
         message = ''
-
         try:
             if not Ingest.is_available():
                 message = '{"busy": true}'
-            else:
+                raise aiocoap.error.CommunicationKilled(message)
+
+            try:
                 payload = cbor2.loads(request.payload)
+            except Exception:
+                raise ValueError('Payload must be a dictionary')
 
-                if not isinstance(payload, dict):
-                    raise ValueError('Payload must be a dictionary')
+            asset = payload['asset']
+            timestamp = payload['timestamp']
+            key = payload['key']
 
-                asset = payload.get('asset')
-                timestamp = payload.get('timestamp')
+            # readings or sensor_values are optional
+            try:
+                readings = payload['readings']
+            except KeyError:
+                readings = payload['sensor_values']  # sensor_values is deprecated
 
-                key = payload.get('key')
+            # if optional then
+            # TODO: confirm, do we want to check this?
+            if not isinstance(readings, dict):
+                raise ValueError('readings must be a dictionary')
 
-                # readings and sensor_readings are optional
-                try:
-                    readings = payload['readings']
-                except KeyError:
-                    readings = payload.get('sensor_values')  # sensor_values is deprecated
+            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 
-                increment_discarded_counter = False
-
-                await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key,
-                                          readings=readings)
-
-                # Success
-                code = aiocoap.numbers.codes.Code.VALID
-        except (ValueError, TypeError) as e:
-            code = aiocoap.numbers.codes.Code.BAD_REQUEST
-            message = json.dumps({message: str(e)})
-        except Exception:
-            _LOGGER.exception('Add readings failed')
-
-        if increment_discarded_counter:
+        except (KeyError, ValueError, TypeError) as e:
             Ingest.increment_discarded_readings()
+            _LOGGER.exception("%d: %s", aiocoap.numbers.codes.Code.BAD_REQUEST, str(e))
+            raise aiocoap.error.BadRequest(str(e))
+        except Exception as ex:
+            Ingest.increment_discarded_readings()
+            _LOGGER.exception("%d: %s", aiocoap.numbers.codes.Code.INTERNAL_SERVER_ERROR, str(ex))
+            raise aiocoap.error.ConstructionRenderableError(str(ex))
 
         return aiocoap.Message(payload=message.encode('utf-8'), code=code)
-

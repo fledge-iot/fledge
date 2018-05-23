@@ -10,7 +10,7 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 
 
-__author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
+__author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Mark Riddoch"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -25,11 +25,21 @@ class Statistics(object):
         to a statistics record.
     """
 
-    def __init__(self, storage):
-        if not isinstance(storage, StorageClient):
-            raise TypeError('Must be a valid Storage object')
+    _shared_state = {}
 
-        self._storage = storage
+    _storage = None
+
+    _registered_keys = None
+    """ Set of keys already in the storage tables """
+
+    def __init__(self, storage=None):
+        self.__dict__ = self._shared_state
+        if self._storage is None:
+            if not isinstance(storage, StorageClient):
+                raise TypeError('Must be a valid Storage object')
+            self._storage = storage
+        if self._registered_keys is None:
+            self._load_keys()
 
     async def update(self, key, value_increment):
         """ UPDATE the value column only of a statistics row based on key
@@ -41,28 +51,75 @@ class Statistics(object):
         Returns:
             None
         """
+        if not isinstance(key, str):
+            raise TypeError('key must be a string')
+
+        if not isinstance(value_increment, int):
+            raise ValueError('value must be an integer')
+
         try:
             payload = PayloadBuilder()\
                 .WHERE(["key", "=", key])\
                 .EXPR(["value", "+", value_increment])\
                 .payload()
             self._storage.update_tbl("statistics", payload)
-        except:
+        except Exception as ex:
             _logger.exception(
-                'Unable to update statistics value based on statistics_key %s and value_increment %s'
-                , key, value_increment)
+                'Unable to update statistics value based on statistics_key %s and value_increment %d, error %s'
+                , key, value_increment, str(ex))
             raise
 
+    async def add_update(self, sensor_stat_dict):
+        """UPDATE the value column of a statistics based on key, if key is not present, ADD the new key
 
-# TODO: FOGL-484 Move below commented code to tests directory
-# async def _main():
-#     _storage = StorageClient(core_management_host="0.0.0.0", core_management_port=33881)
-#
-#     _stats = Statistics(_storage)
-#     await _stats.update(key='READINGS', value_increment=10)
-#
-#
-# if __name__ == '__main__':
-#     import asyncio
-#     loop = asyncio.get_event_loop()
-#     loop.run_until_complete(_main())
+        Args:
+            sensor_stat_dict: Dictionary containing the key value of Asset name and value increment
+
+        Returns:
+            None
+        """
+        for key, value_increment in sensor_stat_dict.items():
+            # Try updating the statistics value for given key
+            try:
+                payload = PayloadBuilder() \
+                    .WHERE(["key", "=", key]) \
+                    .EXPR(["value", "+", value_increment]) \
+                    .payload()
+                result = self._storage.update_tbl("statistics", payload)
+                if result["response"] != "updated":
+                    raise KeyError
+            # If key was not present, add the key and with value = value_increment
+            except KeyError:
+                _logger.exception('Statistics key %s has not been registered', key)
+                raise
+            except Exception as ex:
+                _logger.exception(
+                    'Unable to update statistics value based on statistics_key %s and value_increment %s, error %s'
+                    , key, value_increment, str(ex))
+                raise
+
+    async def register(self, key, description):
+        if key in self._registered_keys:
+            return
+        if len(self._registered_keys) == 0:
+            self._load_keys()
+        try:
+            payload = PayloadBuilder().INSERT(key=key, description=description, value=0, previous_value=0).payload()
+            self._storage.insert_into_tbl("statistics", payload)
+            self._registered_keys.append(key)
+        except Exception as ex:
+            """ The error may be because the key has been created in another process, reload keys """
+            self._load_keys()
+            if key not in self._registered_keys:
+                _logger.exception('Unable to create new statistic %s, error %s', key, str(ex))
+                raise
+
+    def _load_keys(self):
+        self._registered_keys = []
+        try:
+            payload = PayloadBuilder().SELECT("key").payload()
+            results = self._storage.query_tbl_with_payload('statistics', payload)
+            for row in results['rows']:
+                self._registered_keys.append(row['key'])
+        except Exception as ex:
+            _logger.exception('Failed to retrieve statistics keys, %s', str(ex))

@@ -1,0 +1,11 @@
+{
+	"condition" : {
+				"column" : "id",
+				"condition" : "=",
+				"value" : 2
+			},
+	"values" : {
+				"description" : "updated description",
+				"key" : "UPDA"
+				}
+}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Copyright (c) 2017 OSIsoft, LLC
+## Copyright (c) 2017-2018 OSIsoft, LLC
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -24,72 +24,27 @@
 
 #set -x
 
+# Include common code
+source "${FOGLAMP_ROOT}/scripts/common/get_storage_plugin.sh"
 
 PLUGIN_TO_USE=""
 
-
 # Logger wrapper
 storage_log() {
-    write_log "foglamp.script.storage" "$1" "$2" "$3" "$4"
+    write_log "Storage" "script.storage" "$1" "$2" "$3" "$4"
 }
-
-
-## Get the default storage database plugin from the foglamp config file
-get_default_storage_plugin() {
-
-    # Remove new lines and store in a variable
-    json_foglamp=`tr -d '\n' < $1`
-
-    # Remove tabs
-    json_foglamp=`echo $json_foglamp | tr -d '\t'`
-
-    echo `echo $json_foglamp | grep -o '"default storage plugin" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
-}
-
-
-# Get the storage database plugin from the Storage microservice cache file
-get_plugin_from_storage() {
-
-    # Remove new lines and store in a variable
-    json_storage=`tr -d '\n' < $1`
-
-    # Remove tabs
-    json_storage=`echo $json_storage | tr -d '\t'`
-
-    echo `echo $json_storage | grep -o '"plugin" *: *{.*' | grep -o '{.*' | grep -o '"value" *:.*' | grep -o ':.*' | grep -o '".*' | cut -d'"' -f2`
-}
-
 
 #############
 ## MAIN LOGIC
 #############
 
-# Check if the storage cache file exists
-if [[ -e "$FOGLAMP_DATA/etc/storage.json" ]]; then
 
-    # Extract plugin
-    PLUGIN_TO_USE=`get_plugin_from_storage "$FOGLAMP_DATA/etc/storage.json"`
-
-    # Check if the plugin has been found
-    if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-        storage_log "err" "Missing plugin in FogLAMP storage cache file storage.json" "all" "pretty"
-    fi
-
-fi
-
+PLUGIN_TO_USE=`get_storage_plugin`
 if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-
-    # Extract the default storage plugin from the configuration file
-    PLUGIN_TO_USE=`get_default_storage_plugin "$FOGLAMP_DATA/etc/foglamp.json"`
-    if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
-        storage_log "err" "FogLAMP cannot start." "all" "pretty"
-        storage_log "err" "Missing default plugin in FogLAMP configuration file foglamp.json" "all" "pretty"
-        exit 1
-    fi
-
+    storage_log "err" "Missing plugin from FogLAMP storage service" "all" "pretty"
 fi
 
-PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE"
+PLUGIN_SCRIPT="$FOGLAMP_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE.sh"
 if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 
     # Missing storage plugin script
@@ -99,7 +54,8 @@ if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 
 fi
 
-source "$PLUGIN_SCRIPT" $1
+# Pass action in $1 and FOGLAMP_VERSION in $2
+source "$PLUGIN_SCRIPT" $1 $2
 
 # exit cannot be used because the script is sourced.
 #exit $?

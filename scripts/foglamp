@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Copyright (c) 2017 OSIsoft, LLC
+## Copyright (c) 2017-2018 OSIsoft, LLC
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -22,7 +22,10 @@ set -e
 #
 # This is the startup script for foglamp
 #
-USAGE="Usage: `basename ${0}` {start|stop|status|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|reset|kill|help|version}"
+
+# Remove any toekn cache left over from a previous execution
+rm -f ~/.foglamp_token
 
 # Check FOGLAMP_ROOT
 if [ -z ${FOGLAMP_ROOT+x} ]; then
@@ -48,21 +51,51 @@ fi
 . $FOGLAMP_ROOT/scripts/common/write_log.sh
 
 
+## Check the Storage management script
+check_storage_management_script() {
+
+  if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
+      foglamp_log "info" "FogLAMP cannot ${1}." "all" "pretty"
+      foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
+      exit 1
+  fi
+
+}
+
 ## Logger wrapper
 foglamp_log() {
-    write_log "foglamp.script.foglamp" "$1" "$2" "$3" "$4"
+    write_log "" "script.foglamp" "$1" "$2" "$3" "$4"
+}
+
+
+## FogLAMP Reset
+## Reset means that the database is removed and all the data will be lost!
+foglamp_reset() {
+
+  # Check the storage management script
+  check_storage_management_script "be reset"
+
+  # We could have made it easier here, we will improve it later. 
+  # For now, check the status of faoglamp, since the server must be down
+  result=`foglamp_status "silent"`
+  
+  if [[ $result != "2" ]]; then
+      foglamp_log "info" "FogLAMP appears to be running and it cannot be reset. Stop FogLAMP first." "all" "pretty"
+    exit 0
+  fi
+
+  # Execute the Storage Plugin Script
+  # NOTE: this script prepares the storage,
+  #       but it does not start the microservice
+  source "$FOGLAMP_ROOT/scripts/storage" reset
+
 }
 
 
 ## FogLAMP Start
 foglamp_start() {
-
     # Check the storage management script
-    if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
-        foglamp_log "info" "FogLAMP cannot start." "all" "pretty"
-        foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
-        exit 1
-    fi
+    check_storage_management_script "start"
 
     # Check the Python environment
     if ! [[ -x "$(command -v python3)" ]]; then
@@ -73,7 +106,8 @@ foglamp_start() {
     # Execute the Storage Plugin Script
     # NOTE: this script prepares the storage,
     #       but it does not start the microservice
-    source "$FOGLAMP_ROOT/scripts/storage" start
+    # Pass FOGLAMP_SCHEMA to 'storage' script
+    source "$FOGLAMP_ROOT/scripts/storage" start ${FOGLAMP_SCHEMA}
 
     result=`foglamp_status "silent"`
     case "$result" in
@@ -90,7 +124,7 @@ foglamp_start() {
 
         "2")
             #FogLAMP not running
-	    echo -n "Starting FogLAMP."
+            echo -n "Starting FogLAMP v${FOGLAMP_VERSION}."
             PYTHONPATH=${FOGLAMP_ROOT}/python
             export PYTHONPATH
             if [[ ! -e "$PYTHONPATH/foglamp/services/core/__main__.py" ]]; then
@@ -102,45 +136,131 @@ foglamp_start() {
 
             attempts=60
             while [ $attempts -gt 0 ]; do
-		sleep 1
+                sleep 1
                 new_attempt=`foglamp_status "silent"`
-		case "$new_attempt" in
-		    "0")
-			echo
-		        foglamp_log "info" "FogLAMP started." "all" "pretty"
-		        let attempts=0
-		        ;;
-		    "1")
-	                let attempts=attempts-1
-			echo -n "."
-			;;
-		    "2")
-                        foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
-                        foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
-                        exit 1
-			;;
-	        esac
+                case "$new_attempt" in
+
+                  "0")  # Started
+                    echo
+                    foglamp_log "info" "FogLAMP started." "all" "pretty"
+                    let attempts=0
+                    ;;
+
+                  "1")  # Starting
+                    let attempts=attempts-1
+
+                    # Check the status of the attempts - is the time over?
+                    if [[ attempts -gt 0 ]]; then
+
+                      # Print an extra dot
+                      echo -n "."
+
+                    else
+
+                      # Time is over - exit with error
+                      foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
+                      foglamp_log "err" "Number of attempts exceeded: FogLAMP may be in an inconsistent state." "all" "pretty"
+                      exit 1
+
+                    fi
+                    ;;
+
+                  "2")  # Not running
+                    foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
+                    foglamp_log "err" "Check ${FOGLAMP_DATA}/core.err for more information." "outonly" "pretty"
+                    exit 1
+                    ;;
+
+                  *)
+                    echo "Result X${new_attempt}X"
+                    ;;
+                esac
             done
             ;;
 
         *)
-            foglamp_log "err" "Unknown return status." "all"
+            foglamp_log "err" "Unknown return status, $result." "all"
             exit 1
             ;;
     esac
 
 }
 
-
 ## FogLAMP Stop
-#
-# We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
 #
 foglamp_stop() {
 
+  result=`foglamp_status "silent"`
+  
+  if [[ $result = "2" ]]; then
+      foglamp_log "info" "It looks like FogLAMP is not running." "all" "pretty"
+    exit 0
+  fi
+
+  result=`curl -k -s -X PUT ${REST_API_URL}/foglamp/shutdown`
+
+  if [[ "${result}" =~ "Forbidden" ]]; then
+    token=`foglamp_authenticate`
+    if [[ "${token}" =~ "failed" ]]; then
+        foglamp_log "info" "Failed authentication when attempting to stop foglamp." "all" "pretty"
+        echo "Authentication failed."
+	exit 0
+    fi
+    result=`curl -k -s -H "authorization: $token" -X PUT ${REST_API_URL}/foglamp/shutdown`
+  fi
+
+  if [[ "${result}" =~ "FogLAMP shutdown has been scheduled" ]]; then
+    echo -n "Stopping FogLAMP."
+  fi
+
+  attempts=60
+
+  while [ $attempts -gt 0 ]; do
+    sleep 1
+    new_attempt=`foglamp_status "silent"`
+    case "$new_attempt" in
+
+      0|1 )  # Still running
+
+        let attempts=attempts-1
+
+        # Check the status of the attempts - is the time over?
+        if [[ attempts -gt 0 ]]; then
+
+          # Print an extra dot
+          echo -n "."
+
+        else
+
+          # Time is over - exit with error
+          foglamp_log "err" "FogLAMP cannot be stopped." "all" "pretty"
+          foglamp_log "err" "Number of attempts exceeded: FogLAMP may be in an inconsistent state." "all" "pretty"
+          exit 1
+
+        fi
+        ;;
+
+      2 )  # Not running
+
+        echo
+        foglamp_log "info" "FogLAMP stopped." "all" "pretty"
+        let attempts=0
+        ;;
+
+    esac
+  done
+
+}
+
+## FogLAMP Kill
+#
+# We know this is not the best way to stop FogLAMP, but for the moment this is all we have got
+#
+foglamp_kill() {
+
     # Check the storage management script
     if [[ ! -e "$FOGLAMP_ROOT/scripts/storage" ]]; then
-        foglamp_log "info" "FogLAMP cannot be stopped." "all" "pretty"
+        foglamp_log "info" "FogLAMP cannot be killed." "all" "pretty"
         foglamp_log "err" "FogLAMP Storage Plugin script not found." "all" "pretty"
         exit 1
     fi
@@ -170,10 +290,41 @@ foglamp_stop() {
     # NOTE: This script does not stop the microservice,
     #       it deals with the database engine.
     source "$FOGLAMP_ROOT/scripts/storage" stop
-    
-    foglamp_log "info" "FogLAMP stopped." "all" "pretty"
+
+    foglamp_log "info" "FogLAMP killed." "all" "pretty"
 
 }
+
+foglamp_authenticate() {
+
+    if [[ -f ~/.foglamp_token ]]; then
+	cat ~/.foglamp_token
+	exit 0
+    fi
+    fd=0
+    if [[ -t "$fd" ]]; then
+	# We have an interactive shell
+        if [ -z ${USERNAME+x} ]; then
+	    read -p "Username: " USERNAME
+	fi
+        if [ -z ${PASSWORD+x} ]; then
+	    read -s -p "Password: " PASSWORD
+	fi
+    fi
+
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    result=`curl -X POST -k -s ${REST_API_URL}/foglamp/login -d"$payload" || true`
+    if [[ ! "$result" =~ "Logged in successfully" ]]; then
+	echo "failed"
+    else
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.foglamp_token
+	echo $token
+    fi
+}
+
 
 
 ## FogLAMP status
@@ -186,22 +337,43 @@ foglamp_stop() {
 #
 foglamp_status() {
 
-    # Check if curl is present
-    if [[ ! `command -v curl` ]]; then
-        foglamp_log "info" "FogLAMP cannot be checked." "outonly" "pretty"
-        foglamp_log "info" "The curl command cannot be executed." "outonly" "pretty"
+    # Get/Updates the rest API URL
+    get_rest_api_url
+    result=`curl -k -s ${REST_API_URL}/foglamp/ping || true`
+
+    if [[ "${result}" =~ "Forbidden" ]]; then
+      token=`foglamp_authenticate`
+      if [[ "${token}" =~ "failed" ]]; then
+          foglamp_log "info" "Failed authentication when attempting to get foglamp status." "all" "pretty"
+          echo "Authentication failed."
+          exit 0
+      fi
+      result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/foglamp/ping || true`
     fi
 
-    result=`curl -s http://localhost:8081/foglamp/ping || true`
     case "$result" in
 
         *uptime*)
             if [[ "$1" == "silent" ]]; then
                 echo "0"
             else
-                tot_sec=`echo $result | cut -d":" -f2 | cut -d"." -f1`
-                foglamp_log "info" "FogLAMP running." "outonly" "pretty"
-                foglamp_log "info" "FogLAMP uptime: $tot_sec seconds." "outonly" "pretty"
+
+                uptime_sec=`echo ${result} | tr -d ' ' | grep -o '"uptime".*' | cut -d":" -f2 | cut -d"." -f1`
+                record_read=`echo ${result} | tr -d ' ' | grep -o '"dataRead".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                record_sent=`echo ${result} | tr -d ' ' | grep -o '"dataSent".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                record_purged=`echo ${result} | tr -d ' ' | grep -o '"dataPurged".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                auth_opt=`echo ${result} | tr -d ' ' | grep -o '"authenticationOptional".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/}//g'`
+                if [[ "${auth_opt}" == "true" ]]; then
+                  req_auth="does not require"
+                else
+                  req_auth="requires"
+                fi
+
+                foglamp_log "info" "FogLAMP v${FOGLAMP_VERSION} running." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP Uptime:  ${uptime_sec} seconds." "outonly" "pretty"
+                foglamp_log "info" "FogLAMP records: ${record_read} read, ${record_sent} sent, ${record_purged} purged." "outonly" "pretty"
+                
+                foglamp_log "info" "FogLAMP ${req_auth} authentication." "outonly" "pretty"
 
                 # Show Services
                 foglamp_log "info" "=== FogLAMP services:" "outonly" "pretty"
@@ -218,7 +390,7 @@ foglamp_status() {
             fi
             ;;
         *)
-            if [[ `ps -ef | grep -c 'python3 -m foglamp.services.core'` -gt 1 ]]; then
+            if [[ `pgrep -c -f 'python3.*-m.*foglamp.services.core'` -ne 0 ]]; then
                 if [[ "$1" == "silent" ]]; then
                     echo "1"
                 else
@@ -236,18 +408,69 @@ foglamp_status() {
 }
 
 
+##
+## Print FogLAMP Version
+##
+foglamp_print_version() {
+    echo "FogLAMP version ${FOGLAMP_VERSION}, DB schema version ${FOGLAMP_SCHEMA}"
+}
+
+
+##
+## Get FogLAMP version from VERSION file
+##
+get_foglamp_version() {
+    FOGLAMP_VERSION_FILE="${FOGLAMP_ROOT}/VERSION"
+    FOGLAMP_VERSION=`cat ${FOGLAMP_VERSION_FILE} | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+    FOGLAMP_SCHEMA=`cat ${FOGLAMP_VERSION_FILE} | tr -d ' ' | grep -i "FOGLAMP_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+
+    if [ ! "${FOGLAMP_VERSION}" ]; then
+        echo "Error FOGLAMP_VERSION is not set, check [${FOGLAMP_VERSION_FILE}]. Exiting."
+        return  1
+    fi
+    if [ ! "${FOGLAMP_SCHEMA}" ]; then
+        echo "Error FOGLAMP_SCHEMA is not set, check [${FOGLAMP_VERSION_FILE}]. Exiting."
+        return 1
+    fi
+}
+
+
+##
+## Get FogLAMP rest API URL
+##
+get_rest_api_url() {
+
+    pid_file=${FOGLAMP_DATA}/var/run/foglamp.core.pid
+    export PYTHONPATH=${FOGLAMP_ROOT}
+
+    if [[ -f ${pid_file} ]]; then
+        REST_API_URL=`cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid`
+    fi
+
+    # Sets a default value if it not possible to determine the proper value using the pid file
+    if [ ! "${REST_API_URL}" ]; then
+        export REST_API_URL=http://localhost:8081
+    fi
+}
+
+
+##
 ## FogLAMP Script Help
+##
 foglamp_help() {
 
     echo "${USAGE}
-FogLAMP admin script
+FogLAMP v${FOGLAMP_VERSION} admin script
 The script is used to start FogLAMP
 Arguments:
  start   - Start FogLAMP core (core will start other services).
  stop    - Stop all FogLAMP services and processes
+ kill    - Kill all FogLAMP services and processes
  status  - Show the status for the FogLAMP services
+ reset   - Restore FogLAMP factory settings
+           WARNING! This command will destroy all your data!
+ version - Print FogLAMP version
  help    - This text"
-
 }
 
 
@@ -265,25 +488,80 @@ if [[ ! -d ${FOGLAMP_DATA} ]]; then
     exit 1
 fi
 
-# Check if the configuration file exists
-if [[ ! -e "$FOGLAMP_DATA/etc/foglamp.json" ]]; then
-
-    # Missing configuration file
-    foglamp_log "err" "FogLAMP cannot start." "all" "pretty"
-    foglamp_log "err" "FogLAMP configuration file foglamp.json not found." "all" "pretty"
+# Check if curl is present
+if [[ ! `command -v curl` ]]; then
+    foglamp_log "err" "Missing dependency: curl." "all" "pretty"
+    foglamp_log "info" "Install curl and run FogLAMP again." "outonly" "pretty"
     exit 1
-
 fi
 
+# Get FogLAMP version
+get_foglamp_version
+
+# Get FogLAMP rest API URL
+get_rest_api_url
+
+# Call getopt to get any command line options for username and password
+while getopts "u:p:" option; do
+    case "$option" in
+    u)
+        USERNAME=${OPTARG}
+        ;;
+    p)
+        PASSWORD=${OPTARG}
+        ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ -z ${USERNAME+x} ]; then
+	# If username is not set on the command line use environment variable if set
+	if [ ! -z ${FOGLAMP_USER+x} ]; then
+		USERNAME=$FOGLAMP_USER
+	fi
+fi
+
+if [ -z ${PASSWORD+x} ]; then
+	# If password is not set on the command line use environment variable if set
+	if [ ! -z ${FOGLAMP_PASSWORD+x} ]; then
+		PASSWORD=$FOGLAMP_PASSWORD
+	fi
+fi
+
+if [ -f ~/.foglamp ] ; then
+	# if ~/.foglamp is mode 0600 then fetch username and password
+	# from it if they are not already set
+	perm=`stat -c %A ~/.foglamp`
+	if [ "$perm" == "-rw-------" ]; then
+		if [ -z ${USERNAME+x} ]; then
+			USERNAME=`awk -F: '{ print $1 }' < ~/.foglamp`
+		fi
+		if [ -z ${PASSWORD+x} ]; then
+			PASSWORD=`awk -F: '{ print $2 }' < ~/.foglamp`
+		fi
+	fi
+fi
+
+
+# Handle commands
 case "$1" in
+    reset)
+        foglamp_reset
+        ;;
     start)
         foglamp_start
         ;;
     stop)
         foglamp_stop
         ;;
+    kill)
+        foglamp_kill
+        ;;
     status)
         foglamp_status
+        ;;
+    version)
+        foglamp_print_version 
         ;;
     help)
         foglamp_help
@@ -293,4 +571,5 @@ case "$1" in
         exit 1
 esac
 
+rm -f ~/.foglamp_token
 exit $?

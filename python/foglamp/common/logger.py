@@ -29,7 +29,7 @@ def setup(logger_name: str = None,
           destination: int = SYSLOG,
           level: int = logging.WARNING,
           propagate: bool = False) -> logging.Logger:
-    r"""Configures a `logging.Logger`_ object
+    """Configures a `logging.Logger`_ object
 
     Once configured, a logger can also be retrieved via
     `logging.getLogger`_
@@ -74,9 +74,7 @@ def setup(logger_name: str = None,
         raise ValueError("Invalid destination {}".format(destination))
 
     # TODO: Consider using %r with message when using syslog .. \n looks better than #
-    formatter = logging.Formatter(
-        fmt='[FOGLAMP] %(asctime)s - %(levelname)s :: %(module)s: %(name)s: %(message)s',
-        datefmt='%m-%d-%Y %H:%M:%S')
+    formatter = logging.Formatter(fmt='FogLAMP[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s')
 
     handler.setFormatter(formatter)
 

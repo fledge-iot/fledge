@@ -1,0 +1,13 @@
+{
+	"where" : {
+		"column" : "ts",
+		"condition" : "newer",
+		"value" : 60
+		},
+	"aggregate" : {
+			"operation" : "count",
+			"column" : "*",
+			"alias" : "Count"
+			}
+
+}

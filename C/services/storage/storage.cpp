@@ -17,6 +17,7 @@
 #include <plugin.h>
 #include <logger.h>
 #include <iostream>
+#include <string>
 
 extern int makeDaemon(void);
 
@@ -31,6 +32,7 @@ unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
+bool           returnPlugin = false;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -50,16 +52,27 @@ string	       myName = SERVICE_NAME;
 		{
 			coreAddress = &argv[i][10];
 		}
+		else if (!strncmp(argv[i], "--plugin", 8))
+		{
+			returnPlugin = true;
+		}
 	}
 
-	if (daemonMode && makeDaemon() == -1)
+	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
 	{
 		// Failed to run in daemon mode
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
 	StorageService *service = new StorageService(myName);
-	service->start(coreAddress, corePort);
+	if (returnPlugin)
+	{
+		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
+	}
+	else
+	{
+		service->start(coreAddress, corePort);
+	}
 	return 0;
 }
 
@@ -107,7 +120,7 @@ StorageService::StorageService(const string& myName) : m_name(myName), m_shutdow
 unsigned short servicePort;
 
 	config = new StorageConfiguration();
-	logger = new Logger(SERVICE_NAME);
+	logger = new Logger(myName);
 
 	if (config->getValue("port") == NULL)
 	{
@@ -145,7 +158,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 	management.start();
 
 	// Allow time for the listeners to start before we register
-	sleep(10);
+	sleep(1);
 	if (! m_shutdown)
 	{
 		// Now register our service
@@ -155,7 +168,11 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
-		client->registerCategory(STORAGE_CATEGORY);
+		unsigned int retryCount = 0;
+		while (client->registerCategory(STORAGE_CATEGORY) == false && ++retryCount < 10)
+		{
+			sleep(2 * retryCount);
+		}
 
 		// Wait for all the API threads to complete
 		api->wait();
@@ -227,4 +244,20 @@ void StorageService::configChange(const string& categoryName, const string& cate
 	{
 		config->updateCategory(category);
 	}
+}
+
+/**
+ * Return the name of the configured storage service
+ */
+string StorageService::getPluginName()
+{
+	return string(config->getValue("plugin"));
+}
+
+/**
+ * Return the managed status of the storage plugin
+ */
+string StorageService::getPluginManagedStatus()
+{
+	return string(config->getValue("managedStatus"));
 }

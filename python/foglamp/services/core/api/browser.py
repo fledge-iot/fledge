@@ -31,14 +31,10 @@ Supports a number of REST API:
 
   Note seconds, minutes and hours can not be combined in a URL. If they are then only seconds
   will have an effect.
-
-  TODO: Improve error handling, use a connection pool
 """
 
-import json
 from aiohttp import web
 
-from collections import OrderedDict
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.services.core import connect
 
@@ -63,29 +59,65 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/asset/{asset_code}/{reading}/series', asset_averages)
 
 
+def prepare_limit_skip_payload(request, _dict):
+    """ limit skip clause validation
+
+    Args:
+        request: request query params
+        _dict: main payload dict
+    Returns:
+        chain payload dict
+    """
+    limit = __DEFAULT_LIMIT
+    if 'limit' in request.query and request.query['limit'] != '':
+        try:
+            limit = int(request.query['limit'])
+            if limit < 0:
+                raise ValueError
+        except ValueError:
+            raise web.HTTPBadRequest(reason="Limit must be a positive integer")
+
+    offset = __DEFAULT_OFFSET
+    if 'skip' in request.query and request.query['skip'] != '':
+        try:
+            offset = int(request.query['skip'])
+            if offset < 0:
+                raise ValueError
+        except ValueError:
+            raise web.HTTPBadRequest(reason="Skip/Offset must be a positive integer")
+
+    payload = PayloadBuilder(_dict).LIMIT(limit)
+    if offset:
+        payload = PayloadBuilder(_dict).SKIP(offset)
+
+    return payload.chain_payload()
+
+
 async def asset_counts(request):
     """ Browse all the assets for which we have recorded readings and
     return a readings count.
 
-    Return the result of the query
-    SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
+    Returns:
+           json result on basis of SELECT asset_code, count(*) FROM readings GROUP BY asset_code;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset
     """
+    payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count"))\
+        .GROUP_BY("asset_code").payload()
 
-    # TODO: FOGL-643 - Aggregate with alias support needed to use payload builder
-    # PayloadBuilder().AGGREGATE(["count", "*"]).GROUP_BY('asset_code')
-    aggregate = {"operation": "count", "column": "*", "alias": "count"}
-    d = OrderedDict()
-    d['aggregate'] = aggregate
-    d['group'] = "asset_code"
-
-    payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+        asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(asset_json)
 
 
 async def asset(request):
@@ -94,36 +126,35 @@ async def asset(request):
     return is defaulted to a small number (20), this may be changed by supplying
     the query parameter ?limit=xx&skip=xx
 
-    Return the result of the query
-    SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
+    Returns:
+          json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", (reading)::jsonFROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1
+            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity?limit=1&skip=1"
     """
     asset_code = request.match_info.get('asset_code', '')
-
-    # TODO: FOGL-637, 640
-    timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
-    d = OrderedDict()
-    d['return'] = [timestamp, "reading"]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")). \
+        FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+    _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
 
-    # Add the order by and limit clause
-    limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
-    _sort_limit_skip_payload = PayloadBuilder(d).ORDER_BY(["user_ts", "desc"]).LIMIT(limit)
-    if offset:
-        _sort_limit_skip_payload = PayloadBuilder(d).SKIP(offset)
+    # Add the order by and limit, offset clause
+    _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
-    d.update(_sort_limit_skip_payload.chain_payload())
-
-    payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 async def asset_reading(request):
@@ -146,42 +177,39 @@ async def asset_reading(request):
 
     Only one of hour, minutes or seconds should be supplied
 
-    Return the result of the query
-    SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0
+    Returns:
+           json result on basis of SELECT TO_CHAR(user_ts, '__TIMESTAMP_FMT') as "timestamp", reading->>'reading' FROM readings WHERE asset_code = 'asset_code' ORDER BY user_ts DESC LIMIT 20 OFFSET 0;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?skip=10
+            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature?limit=1&skip=10"
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
 
-    # TODO: FOGL-637, 640
-    timestamp = {"column": "user_ts", "format": __TIMESTAMP_FMT, "alias": "timestamp"}
-    json_property = OrderedDict()
-    json_property['json'] = {"column": "reading", "properties": reading}
-    json_property['alias'] = reading
-
-    d = OrderedDict()
-    d['return'] = [timestamp, json_property]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading]))\
+        .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading))\
+        .FORMAT("return", ("user_ts", __TIMESTAMP_FMT)).chain_payload()
+    _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
 
-    # Add the order by and limit clause
-    limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    offset = int(request.query.get('skip')) if 'skip' in request.query else __DEFAULT_OFFSET
-    _sort_limit_skip_payload = PayloadBuilder(d).ORDER_BY(["user_ts", "desc"]).LIMIT(limit)
+    # Add the order by and limit, offset clause
+    _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
-    if offset:
-        _sort_limit_skip_payload = PayloadBuilder(d).SKIP(offset)
-
-    d.update(_sort_limit_skip_payload.chain_payload())
-
-    payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 async def asset_summary(request):
@@ -203,32 +231,34 @@ async def asset_summary(request):
 
     Only one of hour, minutes or seconds should be supplied
 
-    Return the result of the query
-    SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code'
+    Returns:
+           json result on basis of SELECT MIN(reading->>'reading'), MAX(reading->>'reading'), AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code';
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/summary
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
-
-    # TODO: FOGL-643
-    prop_dict = {"column": "reading", "properties": reading}
-    min_dict = {"operation": "min", "json": prop_dict, "alias": "min"}
-    max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
-    avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
-
-    d = OrderedDict()
-    d['aggregate'] = [min_dict, max_dict, avg_dict]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                            ["avg", ["reading", reading]])\
+        .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+               ('reading', 'avg', 'average')).chain_payload()
+    _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
+    payload = PayloadBuilder(_and_where).payload()
 
-    payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
-
-    if 'rows' not in results:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        # for aggregates, so there can only ever be one row
+        response = results['rows'][0]
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
-    else:
-        return web.json_response({reading: results['rows']})
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response({reading: response})
 
 
 async def asset_averages(request):
@@ -252,61 +282,88 @@ async def asset_averages(request):
     The amount of time covered by each returned value is set using the
     query parameter group. This may be set to seconds, minutes or hours
 
-    Return the result of the query
-    SELECT user_ts AVG((reading->>'reading')::float) FROM readings WHERE asset_code = 'asset_code' GROUP BY user_ts
+    Returns:
+            on the basis of
+            SELECT min((reading->>'reading')::float) AS "min",
+                   max((reading->>'reading')::float) AS "max",
+                   avg((reading->>'reading')::float) AS "average",
+                   to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS') AS "timestamp"
+            FROM foglamp.readings
+                   WHERE asset_code = 'asset_code' AND
+                     reading ? 'reading'
+            GROUP BY to_char(user_ts, 'YYYY-MM-DD HH24:MI:SS')
+            ORDER BY timestamp DESC;
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series
+            curl -X GET "http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?limit=1&skip=1"
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?hours=1
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?minutes=60
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?seconds=3600
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=seconds
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=minutes
+            curl -X GET http://localhost:8081/foglamp/asset/fogbench%2Fhumidity/temperature/series?group=hours
     """
     asset_code = request.match_info.get('asset_code', '')
     reading = request.match_info.get('reading', '')
 
     ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
-    if 'group' in request.query:
-        if request.query['group'] == 'seconds':
-            ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
-        elif request.query['group'] == 'minutes':
-            ts_restraint = 'YYYY-MM-DD HH24:MI'
-        elif request.query['group'] == 'hours':
-            ts_restraint = 'YYYY-MM-DD HH24'
+    if 'group' in request.query and request.query['group'] != '':
+        _group = request.query['group']
+        if _group in ('seconds', 'minutes', 'hours'):
+            if _group == 'seconds':
+                ts_restraint = 'YYYY-MM-DD HH24:MI:SS'
+            elif _group == 'minutes':
+                ts_restraint = 'YYYY-MM-DD HH24:MI'
+            elif _group == 'hours':
+                ts_restraint = 'YYYY-MM-DD HH24'
+        else:
+            raise web.HTTPBadRequest(reason="{} is not a valid group".format(_group))
 
-    # TODO: FOGL-637, 640
-    timestamp = {"column": "user_ts", "format": ts_restraint, "alias": "timestamp"}
-    prop_dict = {"column": "reading", "properties": reading}
-    min_dict = {"operation": "min", "json": prop_dict, "alias": "min"}
-    max_dict = {"operation": "max", "json": prop_dict, "alias": "max"}
-    avg_dict = {"operation": "avg", "json": prop_dict, "alias": "average"}
-
-    aggregate = OrderedDict()
-    aggregate['aggregate'] = [min_dict, max_dict, avg_dict]
-    d = OrderedDict()
-    d['aggregate'] = [min_dict, max_dict, avg_dict]
-    _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
+    _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
+                                            ["avg", ["reading", reading]])\
+        .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
+               ('reading', 'avg', 'average')).chain_payload()
+    _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
     _and_where = where_clause(request, _where)
-    d.update(_and_where)
 
-    # Add the group by and limit clause
-    d['group'] = timestamp
-    limit = int(request.query.get('limit')) if 'limit' in request.query else __DEFAULT_LIMIT
-    _limit_payload = PayloadBuilder(d).LIMIT(limit)
-    d.update(_limit_payload.chain_payload())
+    # Add the GROUP BY
+    _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp"))\
+        .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
 
-    payload = json.dumps(d)
-    _storage = connect.get_storage()
-    results = _storage.query_tbl_with_payload('readings', payload)
+    # Add LIMIT, OFFSET, ORDER BY timestamp DESC
+    _limit_skip_payload = prepare_limit_skip_payload(request, _group)
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
 
-    if 'rows' in results:
-        return web.json_response(results['rows'])
-    else:
+    results = {}
+    try:
+        _storage = connect.get_storage()
+        results = _storage.query_tbl_with_payload('readings', payload)
+        response = results['rows']
+    except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
+    except Exception as ex:
+        raise web.HTTPException(reason=str(ex))
+
+    return web.json_response(response)
 
 
 def where_clause(request, where):
     val = 0
-    if 'seconds' in request.query:
-        val = int(request.query['seconds'])
-    elif 'minutes' in request.query:
-        val = int(request.query['minutes']) * 60
-    elif 'hours' in request.query:
-        val = int(request.query['hours']) * 60 * 60
+    try:
+        if 'seconds' in request.query and request.query['seconds'] != '':
+            val = int(request.query['seconds'])
+        elif 'minutes' in request.query and request.query['minutes'] != '':
+            val = int(request.query['minutes']) * 60
+        elif 'hours' in request.query and request.query['hours'] != '':
+            val = int(request.query['hours']) * 60 * 60
 
+        if val < 0:
+            raise ValueError
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Time must be a positive integer")
+
+    # if no time units then NO AND_WHERE condition applied
     if val == 0:
         return where
 

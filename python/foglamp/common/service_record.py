@@ -7,17 +7,16 @@
 """Service Record Class"""
 
 from enum import IntEnum
-from foglamp.common import logger
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 class ServiceRecord(object):
     """Used to information regarding a registered microservice.
     """
-
 
     class Type(IntEnum):
         """Enumeration for Service Types"""
@@ -26,8 +25,20 @@ class ServiceRecord(object):
         Core = 2
         Southbound = 3
 
+    class Status(IntEnum):
+        """Enumeration for Service Status"""
+
+        Running = 1
+        Down = 2
+        Failed = 3
+        Unresponsive = 4
+
     class InvalidServiceType(Exception):
         # TODO: tell allowed service types?
+        pass
+
+    class InvalidServiceStatus(Exception):
+        # TODO: tell allowed service status?
         pass
 
     __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
@@ -39,10 +50,10 @@ class ServiceRecord(object):
         self._protocol = s_protocol
         self._address = s_address
         self._port = None
-        if s_port != None:
+        if s_port is not None:
             self._port = int(s_port)
         self._management_port = int(m_port)
-        self._status = 0
+        self._status = ServiceRecord.Status.Running
 
     def __repr__(self):
         template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \
@@ -56,4 +67,3 @@ class ServiceRecord(object):
         if s_type not in ServiceRecord.Type.__members__:
             raise ServiceRecord.InvalidServiceType
         return s_type
-

@@ -76,152 +76,187 @@ bool Connection::retrieve(const string& table, const string& condition, string& 
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
+SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 
-	if (condition.empty())
-	{
-		sql.append("SELECT * FROM foglamp.");
-		sql.append(table);
-	}
-	else
-	{
-		if (document.Parse(condition.c_str()).HasParseError())
+	try {
+		if (condition.empty())
 		{
-			raiseError("retrieve", "Failed to parse JSON payload");
-			return false;
-		}
-		if (document.HasMember("aggregate"))
-		{
-			sql.append("SELECT ");
-			if (document.HasMember("modifier"))
-			{
-				sql.append(document["modifier"].GetString());
-				sql.append(' ');
-			}
-			if (!jsonAggregates(document, document["aggregate"], sql))
-			{
-				return false;
-			}
-			sql.append(" FROM foglamp.");
-		}
-		else if (document.HasMember("return"))
-		{
-			int col = 0;
-			Value& columns = document["return"];
-			if (! columns.IsArray())
-			{
-				raiseError("retrieve", "The property return must be an array");
-				return false;
-			}
-			sql.append("SELECT ");
-			if (document.HasMember("modifier"))
-			{
-				sql.append(document["modifier"].GetString());
-				sql.append(' ');
-			}
-			for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
-			{
-				if (col)
-					sql.append(", ");
-				if (!itr->IsObject())	// Simple column name
-				{
-					sql.append(itr->GetString());
-				}
-				else
-				{
-					if (itr->HasMember("column"))
-					{
-						if (itr->HasMember("format"))
-						{
-							sql.append("to_char(");
-							sql.append((*itr)["column"].GetString());
-							sql.append(", '");
-							sql.append((*itr)["format"].GetString());
-							sql.append("')");
-						}
-						else
-						{
-							sql.append((*itr)["column"].GetString());
-						}
-						sql.append(' ');
-					}
-					else if (itr->HasMember("json"))
-					{
-						const Value& json = (*itr)["json"];
-						if (! returnJson(json, sql))
-							return false;
-					}
-					else
-					{
-						raiseError("retrieve", "return object must have either a column or json property");
-						return false;
-					}
-
-					if (itr->HasMember("alias"))
-                                        {
-						sql.append(" AS \"");
-                                                sql.append((*itr)["alias"].GetString());
-                                                sql.append('"');
-                                        }
-				}
-				col++;
-			}
-			sql.append(" FROM foglamp.");
+			sql.append("SELECT * FROM foglamp.");
+			sql.append(table);
 		}
 		else
 		{
-			sql.append("SELECT ");
-			if (document.HasMember("modifier"))
+			if (document.Parse(condition.c_str()).HasParseError())
 			{
-				sql.append(document["modifier"].GetString());
-				sql.append(' ');
+				raiseError("retrieve", "Failed to parse JSON payload");
+				return false;
 			}
-			sql.append(" * FROM foglamp.");
-		}
-		sql.append(table);
-		if (document.HasMember("where"))
-		{
-			sql.append(" WHERE ");
-		 
-			if (document.HasMember("where"))
+			if (document.HasMember("aggregate"))
 			{
-				if (!jsonWhereClause(document["where"], sql))
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				if (!jsonAggregates(document, document["aggregate"], sql, jsonConstraints))
 				{
 					return false;
 				}
+				sql.append(" FROM foglamp.");
+			}
+			else if (document.HasMember("return"))
+			{
+				int col = 0;
+				Value& columns = document["return"];
+				if (! columns.IsArray())
+				{
+					raiseError("retrieve", "The property return must be an array");
+					return false;
+				}
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+				{
+					if (col)
+						sql.append(", ");
+					if (!itr->IsObject())	// Simple column name
+					{
+						sql.append(itr->GetString());
+					}
+					else
+					{
+						if (itr->HasMember("column"))
+						{
+							if (! (*itr)["column"].IsString())
+							{
+								raiseError("rerieve", "column must be a string");
+								return false;
+							}
+							if (itr->HasMember("format"))
+							{
+								if (! (*itr)["format"].IsString())
+								{
+									raiseError("rerieve", "format must be a string");
+									return false;
+								}
+								sql.append("to_char(");
+								sql.append((*itr)["column"].GetString());
+								sql.append(", '");
+								sql.append((*itr)["format"].GetString());
+								sql.append("')");
+							}
+							else if (itr->HasMember("timezone"))
+							{
+								if (! (*itr)["timezone"].IsString())
+								{
+									raiseError("rerieve", "timezone must be a string");
+									return false;
+								}
+								sql.append((*itr)["column"].GetString());
+								sql.append(" AT TIME ZONE '");
+								sql.append((*itr)["timezone"].GetString());
+								sql.append("' AS ");
+								sql.append((*itr)["column"].GetString());
+							}
+							else
+							{
+								sql.append((*itr)["column"].GetString());
+							}
+							sql.append(' ');
+						}
+						else if (itr->HasMember("json"))
+						{
+							const Value& json = (*itr)["json"];
+							if (! returnJson(json, sql, jsonConstraints))
+								return false;
+						}
+						else
+						{
+							raiseError("retrieve", "return object must have either a column or json property");
+							return false;
+						}
+
+						if (itr->HasMember("alias"))
+						{
+							sql.append(" AS \"");
+							sql.append((*itr)["alias"].GetString());
+							sql.append('"');
+						}
+					}
+					col++;
+				}
+				sql.append(" FROM foglamp.");
 			}
 			else
 			{
-				raiseError("retrieve", "JSON does not contain where clause");
+				sql.append("SELECT ");
+				if (document.HasMember("modifier"))
+				{
+					sql.append(document["modifier"].GetString());
+					sql.append(' ');
+				}
+				sql.append(" * FROM foglamp.");
+			}
+			sql.append(table);
+			if (document.HasMember("where"))
+			{
+				sql.append(" WHERE ");
+			 
+				if (document.HasMember("where"))
+				{
+					if (!jsonWhereClause(document["where"], sql))
+					{
+						return false;
+					}
+				}
+				else
+				{
+					raiseError("retrieve", "JSON does not contain where clause");
+					return false;
+				}
+				if (! jsonConstraints.isEmpty())
+				{
+					sql.append(" AND ");
+					const char *jsonBuf =  jsonConstraints.coalesce();
+					sql.append(jsonBuf);
+					delete[] jsonBuf;
+				}
+			}
+			if (!jsonModifiers(document, sql))
+			{
 				return false;
 			}
 		}
-		if (!jsonModifiers(document, sql))
-		{
-			return false;
-		}
-	}
-	sql.append(';');
+		sql.append(';');
 
-	const char *query = sql.coalesce();
-	PGresult *res = PQexec(dbConnection, query);
-	delete[] query;
-	if (PQresultStatus(res) == PGRES_TUPLES_OK)
-	{
-		mapResultSet(res, resultSet);
+		const char *query = sql.coalesce();
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_TUPLES_OK)
+		{
+			mapResultSet(res, resultSet);
+			PQclear(res);
+			return true;
+		}
+		char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+		if (!strcmp(SQLState, "22P02"))	// Conversion error
+		{
+			raiseError("retrieve", "Unable to convert data to the required type");
+		}
+		else
+		{
+			raiseError("retrieve", PQerrorMessage(dbConnection));
+		}
 		PQclear(res);
-		return true;
+		return false;
+	} catch (exception e) {
+		raiseError("retrieve", "Internal error: %s", e.what());
 	}
-	char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
-	if (!strcmp(SQLState, "22P02"))	// Conversion error
-	{
- 		raiseError("retrieve", "Unable to convert data to the required type");
-	}
-	else
-	{
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
-	}
-	PQclear(res);
-	return false;
 }
 
 /**
@@ -523,7 +558,7 @@ int		col = 0;
 					else
 					{
 						sql.append("'\"");
-						sql.append(str);
+						sql.append(escape(str));
 						sql.append("\"'");
 					}
 				}
@@ -736,10 +771,10 @@ int		row = 0;
  */
 bool Connection::fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet)
 {
-char	sqlbuffer[100];
+char	sqlbuffer[200];
 
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
-		"SELECT * FROM foglamp.readings WHERE id >= %ld LIMIT %d;", id, blksize);
+		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
 	
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
@@ -893,55 +928,96 @@ Document doc;
 		Value row(kObjectType); // Create a row
 		for (j = 0; j < nFields; j++)
 		{
-			/* TODO Improve handling of Oid's */
-			Oid oid = PQftype(res, j);
-			switch (oid) {
+			/**
+			 * TODO Improve handling of Oid's
+			 *
+			 * Current OID detection is based on
+			 *
+			 * SELECT oid, typname FROM pg_type;
+			 */
 
-			case 3802: // JSON type hard coded in this example
+			/**
+			 * If PQgetvalue() is pointer to an empty string,
+			 * we assume that is a NULL and we return
+			 * the "" value no matter the OID value
+			 */
+			if (!strlen(PQgetvalue(res, i, j)))
 			{
-				Document d;
-				if (d.Parse(PQgetvalue(res, i, j)).HasParseError())
+				Value value("", allocator);
+				Value name(PQfname(res, j), allocator);
+				row.AddMember(name, value, allocator);
+
+				// Get the next column
+				continue;
+			}
+
+			/* PQgetvalue() has a value, check OID */	
+			Oid oid = PQftype(res, j);
+			switch (oid)
+			{
+				case 3802: // JSON type hard coded in this example: jsonb
 				{
-					raiseError("resultSet", "Failed to parse: %s\n", PQgetvalue(res, i, j));
-					continue;
+					Document d;
+					if (d.Parse(PQgetvalue(res, i, j)).HasParseError())
+					{
+						raiseError("resultSet", "Failed to parse: %s\n", PQgetvalue(res, i, j));
+						continue;
+					}
+					Value value(d, allocator);
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, value, allocator);
+					break;
 				}
-				Value value(d, allocator);
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, value, allocator);
-				break;
-			}
-			case 20:
-			{
-				int64_t intVal = atol(PQgetvalue(res, i, j));
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, intVal, allocator);
-				break;
-			}
-			case 710:
-			{
-				double dblVal = atof(PQgetvalue(res, i, j));
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, dblVal, allocator);
-				break;
-			}
-			case 1184: // Timestamp
-			{
-				char *str = PQgetvalue(res, i, j);
-				Value value(str, allocator);
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, value, allocator);
-				break;
-			}
-			default:
-			{
-				char *str = PQgetvalue(res, i, j);
-				if (oid == 1042) // char(x) rather than varchar so trim white space
-					str = trim(str);
-				Value value(str, allocator);
-				Value name(PQfname(res, j), allocator);
-				row.AddMember(name, value, allocator);
-				break;
-			}
+				case 23:    //INT 4 bytes: int4
+				{
+					int32_t intVal = atoi(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, intVal, allocator);
+					break;
+				}
+				case 21:    //SMALLINT 2 bytes: int2
+				{
+					int16_t intVal = (short)atoi(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, intVal, allocator);
+					break;
+				}
+				case 20:    //BIG INT 8 bytes: int8
+				{
+					int64_t intVal = atol(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, intVal, allocator);
+					break;
+				}
+				case 700: // float4
+				case 701: // float8
+				case 710: // this OID doesn't exist
+				{
+					double dblVal = atof(PQgetvalue(res, i, j));
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, dblVal, allocator);
+					break;
+				}
+				case 1184: // Timestamp: timestamptz
+				{
+					char *str = PQgetvalue(res, i, j);
+					Value value(str, allocator);
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, value, allocator);
+					break;
+				}
+				default:
+				{
+					char *str = PQgetvalue(res, i, j);
+					if (oid == 1042) // char(x) rather than varchar so trim white space
+					{
+						str = trim(str);
+					}
+					Value value(str, allocator);
+					Value name(PQfname(res, j), allocator);
+					row.AddMember(name, value, allocator);
+					break;
+				}
 			}
 		}
 		rows.PushBack(row, allocator);  // Add the row
@@ -957,7 +1033,7 @@ Document doc;
 /**
  * Process the aggregate options and return the columns to be selected
  */
-bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql)
+bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, SQLBuffer& sql, SQLBuffer& jsonConstraint)
 {
 	if (aggregates.IsObject())
 	{
@@ -1001,24 +1077,48 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 			const Value& jsonFields = json["properties"];
 			if (jsonFields.IsArray())
 			{
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				jsonConstraint.append(json["column"].GetString());
 				int field = 0;
+				string prev;
 				for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 				{
 					if (field)
 					{
 						sql.append("->>");
 					}
+					if (prev.length() > 0)
+					{
+						jsonConstraint.append("->>'");
+						jsonConstraint.append(prev);
+						jsonConstraint.append("'");
+					}
+					prev = itr->GetString();
 					field++;
 					sql.append('\'');
 					sql.append(itr->GetString());
 					sql.append('\'');
 				}
+				jsonConstraint.append(" ? '");
+				jsonConstraint.append(prev);
+				jsonConstraint.append("'");
 			}
 			else
 			{
 				sql.append('\'');
 				sql.append(jsonFields.GetString());
 				sql.append('\'');
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				jsonConstraint.append(json["column"].GetString());
+				jsonConstraint.append(" ? '");
+				jsonConstraint.append(jsonFields.GetString());
+				jsonConstraint.append("'");
 			}
 			sql.append(")::float");
 		}
@@ -1080,33 +1180,45 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
 				}
 				sql.append('(');
 				sql.append(json["column"].GetString());
-				sql.append("->>");
 				if (!json.HasMember("properties"))
 				{
 					raiseError("retrieve", "The json property is missing a properties property");
 					return false;
 				}
 				const Value& jsonFields = json["properties"];
+				if (! jsonConstraint.isEmpty())
+				{
+					jsonConstraint.append(" AND ");
+				}
+				jsonConstraint.append(json["column"].GetString());
 				if (jsonFields.IsArray())
 				{
-					int field = 0;
+					string prev;
 					for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 					{
-						if (field)
+						if (prev.length() > 0)
 						{
-							sql.append("->>");
+							jsonConstraint.append("->>'");
+							jsonConstraint.append(prev);
+							jsonConstraint.append("'");
 						}
-						field++;
-						sql.append('\'');
+						prev = itr->GetString();
+						sql.append("->>'");
 						sql.append(itr->GetString());
 						sql.append('\'');
 					}
+					jsonConstraint.append(" ? '");
+					jsonConstraint.append(prev);
+					jsonConstraint.append("'");
 				}
 				else
 				{
-					sql.append('\'');
+					sql.append("->>'");
 					sql.append(jsonFields.GetString());
 					sql.append('\'');
+					jsonConstraint.append(" ? '");
+					jsonConstraint.append(jsonFields.GetString());
+					jsonConstraint.append("'");
 				}
 				sql.append(")::float");
 			}
@@ -1223,6 +1335,33 @@ bool Connection::jsonAggregates(const Value& payload, const Value& aggregates, S
  */
 bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 {
+	if (payload.HasMember("timebucket") && payload.HasMember("sort"))
+	{
+		raiseError("query modifiers", "Sort and timebucket modifiers can not be used in the same payload");
+		return false;
+	}
+
+	if (payload.HasMember("group"))
+	{
+		sql.append(" GROUP BY ");
+		if (payload["group"].IsObject())
+		{
+			const Value& grp = payload["group"];
+			if (grp.HasMember("format"))
+			{
+				sql.append("to_char(");
+				sql.append(grp["column"].GetString());
+				sql.append(", '");
+				sql.append(grp["format"].GetString());
+				sql.append("')");
+			}
+		}
+		else
+		{
+			sql.append(payload["group"].GetString());
+		}
+	}
+
 	if (payload.HasMember("sort"))
 	{
 		sql.append(" ORDER BY ");
@@ -1278,28 +1417,6 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 	}
 
-
-	if (payload.HasMember("group"))
-	{
-		sql.append(" GROUP BY ");
-		if (payload["group"].IsObject())
-		{
-			const Value& grp = payload["group"];
-			if (grp.HasMember("format"))
-			{
-				sql.append("to_char(");
-				sql.append(grp["column"].GetString());
-				sql.append(", '");
-				sql.append(grp["format"].GetString());
-				sql.append("')");
-			}
-		}
-		else
-		{
-			sql.append(payload["group"].GetString());
-		}
-	}
-
 	if (payload.HasMember("timebucket"))
 	{
 		const Value& tb = payload["timebucket"];
@@ -1332,19 +1449,46 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		{
 			sql.append(1);
 		}
-		sql.append(')');
+		sql.append(") ORDER BY ");
+		sql.append("floor(extract(epoch from ");
+		sql.append(tb["timestamp"].GetString());
+		sql.append(") / ");
+		if (tb.HasMember("size"))
+		{
+			sql.append(tb["size"].GetString());
+		}
+		else
+		{
+			sql.append(1);
+		}
+		sql.append(") DESC");
 	}
 
 	if (payload.HasMember("skip"))
 	{
+		if (!payload["skip"].IsInt())
+		{
+			raiseError("skip", "Skip must be specfied as an integer");
+			return false;
+		}
 		sql.append(" OFFSET ");
 		sql.append(payload["skip"].GetInt());
 	}
 
 	if (payload.HasMember("limit"))
 	{
+		if (!payload["limit"].IsInt())
+		{
+			raiseError("limit", "Limit must be specfied as an integer");
+			return false;
+		}
 		sql.append(" LIMIT ");
-		sql.append(payload["limit"].GetInt());
+		try {
+			sql.append(payload["limit"].GetInt());
+		} catch (exception e) {
+			raiseError("limit", "Bad value for limit parameter: %s", e.what());
+			return false;
+		}
 	}
 	return true;
 }
@@ -1436,7 +1580,7 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	return true;
 }
 
-bool Connection::returnJson(const Value& json, SQLBuffer& sql)
+bool Connection::returnJson(const Value& json, SQLBuffer& sql, SQLBuffer& jsonConstraint)
 {
 	if (! json.IsObject())
 	{
@@ -1458,24 +1602,48 @@ bool Connection::returnJson(const Value& json, SQLBuffer& sql)
 	const Value& jsonFields = json["properties"];
 	if (jsonFields.IsArray())
 	{
+		if (! jsonConstraint.isEmpty())
+		{
+			jsonConstraint.append(" AND ");
+		}
+		jsonConstraint.append(json["column"].GetString());
 		int field = 0;
+		string prev;
 		for (Value::ConstValueIterator itr = jsonFields.Begin(); itr != jsonFields.End(); ++itr)
 		{
 			if (field)
 			{
 				sql.append("->");
 			}
+			if (prev.length())
+			{
+				jsonConstraint.append("->'");
+				jsonConstraint.append(prev);
+				jsonConstraint.append('\'');
+			}
 			field++;
 			sql.append('\'');
 			sql.append(itr->GetString());
 			sql.append('\'');
+			prev = itr->GetString();
 		}
+		jsonConstraint.append(" ? '");
+		jsonConstraint.append(prev);
+		jsonConstraint.append("'");
 	}
 	else
 	{
 		sql.append('\'');
 		sql.append(jsonFields.GetString());
 		sql.append('\'');
+		if (! jsonConstraint.isEmpty())
+		{
+			jsonConstraint.append(" AND ");
+		}
+		jsonConstraint.append(json["column"].GetString());
+		jsonConstraint.append(" ? '");
+		jsonConstraint.append(jsonFields.GetString());
+		jsonConstraint.append("'");
 	}
 
 	return true;

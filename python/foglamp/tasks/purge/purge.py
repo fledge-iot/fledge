@@ -12,7 +12,7 @@ Conditions:
     1. If the configuration value of retainUnsent is set to True then any reading with an id value that is
     greater than the minimum(last_object) of streams table will not be removed.
 
-    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age,
+    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age | size,
     regardless of the minimum(last_object) of streams table will be removed.
 
 Statistics reported by Purge process are:
@@ -24,16 +24,17 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
-import logging
 
+from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.statistics import Statistics
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
+from foglamp.common.storage_client.exceptions import *
 from foglamp.common.process import FoglampProcess
 
 
-__author__ = "Ori Shadmon, Vaibhav Singhal"
+__author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -49,8 +50,8 @@ class Purge(FoglampProcess):
             "default": "72"
         },
         "size": {
-            "description": "Maximium size of data to be retained, the oldest data will be removed to keep below this size," +
-                           "unless retained. (in Hours)",
+            "description": "Maximum size of data to be retained, the oldest data will be removed to keep below this "
+                           "size, unless retained. (in Kbytes)",
             "type": "integer",
             "default": "1000000"
         },
@@ -63,36 +64,26 @@ class Purge(FoglampProcess):
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
-    def __init__(self):
+    def __init__(self, loop=None):
         super().__init__()
         self._logger = logger.setup("Data Purge")
+        self._audit = AuditLogger(self._storage)
+        self.loop = asyncio.get_event_loop() if loop is None else loop
 
     def write_statistics(self, total_purged, unsent_purged):
-        loop = asyncio.get_event_loop()
         stats = Statistics(self._storage)
-        loop.run_until_complete(stats.update('PURGED', total_purged))
-        loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
-
-    def _insert_into_log(self, level=0, log=None):
-        """" INSERT into log table values """
-        payload = PayloadBuilder().INSERT(code='PURGE', level=level, log=log).payload()
-        self._storage.insert_into_tbl("log", payload)
-        if level == 1:
-            self._logger.error("Purge failed: ", log)
-        else:
-            self._logger.info("Purge: ", log)
+        self.loop.run_until_complete(stats.update('PURGED', total_purged))
+        self.loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 
     def set_configuration(self):
         """" set the default configuration for purge
         :return:
             Configuration information that was set for purge process
         """
-        event_loop = asyncio.get_event_loop()
         cfg_manager = ConfigurationManager(self._storage)
-        event_loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
-                                                                            self._DEFAULT_PURGE_CONFIG,
-                                                                            self._CONFIG_CATEGORY_DESCRIPTION))
-        return event_loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
+        self.loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME, self._DEFAULT_PURGE_CONFIG,
+                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
+        return self.loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
 
     def purge_data(self, config):
         """" Purge readings table based on the set configuration
@@ -113,48 +104,53 @@ class Purge(FoglampProcess):
         result = self._storage.query_tbl_with_payload("streams", payload)
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
-
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
-        if config['age']['value'] != 0:
-            result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
+        try:
+            if int(config['age']['value']) != 0:
 
-            """ Default to a warning
-                TODO Make a common audit trail class for inserting itno this log table
-            """
-            error_level = 4
+                result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
-            if "message" in result.keys() and "409 Conflict" in result["message"]:
-                """ Message has become a failure """
-                error_level = 1 
-            else:
                 total_count = result['readings']
                 total_rows_removed = result['removed']
                 unsent_rows_removed = result['unsentPurged']
                 unsent_retained = result['unsentRetained']
+        except ValueError:
+            self._logger.error("Configuration item age {} should be integer!".format(config['age']['value']))
 
-        if config['size']['value'] != 0:
-            result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
+        except StorageServerError as ex:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
+            pass
 
-            """ Default to a warning
-                TODO Make a common audit trail class for inserting itno this log table
-            """
-            error_level = 4
+        try:
+            if int(config['size']['value']) != 0:
+                result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
-            if "message" in result.keys() and "409 Conflict" in result["message"]:
-                """ Message has become a failure """
-                error_level = 1 
-            else:
                 total_count += result['readings']
                 total_rows_removed += result['removed']
                 unsent_rows_removed += result['unsentPurged']
                 unsent_retained += result['unsentRetained']
+        except ValueError:
+            self._logger.error("Configuration item size {} should be integer!".format(config['size']['value']))
+
+        except StorageServerError as ex:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
+            pass
 
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-        self._insert_into_log(level=error_level, log={"start_time": start_time, "end_time": end_time,
-                                                      "rowsRemoved": total_rows_removed,
-                                                      "unsentRowsRemoved": unsent_rows_removed,
-                                                      "rowsRetained": unsent_retained, "rowsRemaining": total_count})
+        if total_rows_removed > 0:
+            """ Only write an audit log entry when rows are removed """
+            self.loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time,
+                                                                           "end_time": end_time,
+                                                                           "rowsRemoved": total_rows_removed,
+                                                                           "unsentRowsRemoved": unsent_rows_removed,
+                                                                           "rowsRetained": unsent_retained,
+                                                                           "rowsRemaining": total_count
+                                                                           }))
+        else:
+            self._logger.info("No rows purged")
 
         return total_rows_removed, unsent_rows_removed
 

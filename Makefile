@@ -1,3 +1,4 @@
+#.PHONY: generate_selfcertificate
 
 ###############################################################################
 ################################### COMMANDS ##################################
@@ -12,8 +13,10 @@ PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
 RM_DIR := rm -r
 RM_FILE := rm
 MAKE_INSTALL = $(MAKE) install
-CP     := cp
-CP_DIR := cp -r
+CP            := cp
+CP_DIR        := cp -r
+SSL_NAME      := "foglamp"
+SSL_DAYS      := "365"
 
 ###############################################################################
 ################################### DIRS/FILES ################################
@@ -35,7 +38,7 @@ SYMLINK_STORAGE_BINARY := $(DEV_SERVICES_DIR)/storage
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
-PYTHON_BUILD_DIR := python_build
+PYTHON_BUILD_DIR := python_build_dir
 PYTHON_LIB_DIR := $(PYTHON_BUILD_DIR)/lib
 PYTHON_REQUIREMENTS_FILE := $(PYTHON_SRC_DIR)/requirements.txt
 PYTHON_SETUP_FILE := $(PYTHON_SRC_DIR)/setup.py
@@ -55,25 +58,39 @@ SCRIPT_SERVICES_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/services
 SCRIPT_TASKS_INSTALL_DIR = $(SCRIPTS_INSTALL_DIR)/tasks
 FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
+# DB schema update
+SQLITE_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/sqlite/schema_update.sh
+POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/postgres/schema_update.sh
+POSTGRES_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/postgres
+SQLITE_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlite
+
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
 FOGLAMP_SCRIPT_SRC         := scripts/foglamp
 
 # SCRIPTS TO INSTALL IN SCRIPTS DIR
-COMMON_SCRIPTS_SRC         := scripts/common
-POSTGRES_SCRIPT_SRC        := scripts/plugins/storage/postgres
-SOUTH_SCRIPT_SRC           := scripts/services/south
-STORAGE_SERVICE_SCRIPT_SRC := scripts/services/storage
-STORAGE_SCRIPT_SRC         := scripts/storage
-NORTH_SCRIPT_SRC           := scripts/tasks/north
-PURGE_SCRIPT_SRC           := scripts/tasks/purge
-STATISTICS_SCRIPT_SRC      := scripts/tasks/statistics
-BACKUP_POSTGRES            := scripts/tasks/backup_postgres
-RESTORE_POSTGRES           := scripts/tasks/restore_postgres
+COMMON_SCRIPTS_SRC          := scripts/common
+POSTGRES_SCRIPT_SRC         := scripts/plugins/storage/postgres.sh
+SQLITE_SCRIPT_SRC           := scripts/plugins/storage/sqlite.sh
+SOUTH_SCRIPT_SRC            := scripts/services/south
+STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
+STORAGE_SCRIPT_SRC          := scripts/storage
+NORTH_SCRIPT_SRC            := scripts/tasks/north
+PURGE_SCRIPT_SRC            := scripts/tasks/purge
+STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
+BACKUP_POSTGRES             := scripts/tasks/backup_postgres
+RESTORE_POSTGRES            := scripts/tasks/restore_postgres
+CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
+CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 
+# EXTRA SCRIPTS
+EXTRAS_SCRIPTS_SRC_DIR      := extras/scripts
 
 # FOGBENCH 
 FOGBENCH_PYTHON_SRC_DIR    := extras/python/fogbench
+
+# FogLAMP Version file
+FOGLAMP_VERSION_FILE       := VERSION
 
 ###############################################################################
 ################################### OTHER VARS ################################
@@ -87,14 +104,57 @@ PACKAGE_NAME=FogLAMP
 # default
 # compile any code that must be compiled
 # generally prepare the development tree to allow for core to be run
-default : c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
+default : apply_version \
+	generate_selfcertificate \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
+
+apply_version :
+# VERSION : this file contains FogLAMP app version and FogLAMP DB schema revision
+#
+# Example:
+# foglamp_version=1.2
+# foglamp_schema=3
+#
+# Note: variable names are case insensitive, all spaces are removed
+# Get variables and export FOGLAMP_VERSION and FOGLAMP_SCHEMA
+	$(eval FOGLAMP_VERSION := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_VERSION=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
+	$(eval FOGLAMP_SCHEMA := $(shell cat $(FOGLAMP_VERSION_FILE) | tr -d ' ' | grep -i "FOGLAMP_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'))
+	$(if $(FOGLAMP_VERSION),$(eval FOGLAMP_VERSION=$(FOGLAMP_VERSION)),$(error FOGLAMP_VERSION is not set, check VERSION file))
+	$(if $(FOGLAMP_SCHEMA),$(eval FOGLAMP_SCHEMA=$(FOGLAMP_SCHEMA)),$(error FOGLAMP_SCHEMA is not set, check VERSION file))
+
+# Print build or install message based on MAKECMDGOALS var
+ifeq ($(MAKECMDGOALS),install)
+	$(eval ACTION="Installing")
+else
+	$(eval ACTION="Building")
+endif
+	@echo "$(ACTION) $(PACKAGE_NAME) version $(FOGLAMP_VERSION), DB schema $(FOGLAMP_SCHEMA)"
+
+# Check where this FogLAMP can be installed over an existing one:
+schema_check : apply_version
+###
+# Call check_schema_update.sh (param 1 is installed FogLAMP VERSION file path, param2 is the new VERSION file path)
+# and grab it's output
+# Note: DATA_INSTALL_DIR is passed to the called script via export
+###
+	@$(eval SCHEMA_CHANGE_OUTPUT=$(shell export DATA_INSTALL_DIR=$(DATA_INSTALL_DIR); scripts/common/check_schema_update.sh "$(INSTALL_DIR)/${FOGLAMP_VERSION_FILE}" "${FOGLAMP_VERSION_FILE}"))
+
+# Check for "error" "warning"
+	@$(eval SCHEMA_CHANGE_ERROR=$(shell echo $(SCHEMA_CHANGE_OUTPUT) | grep -i error))
+	@$(eval SCHEMA_CHANGE_WARNING=$(shell echo $(SCHEMA_CHANGE_OUTPUT) | grep -i warning))
+
+# Abort, print warning or info message
+	$(if $(SCHEMA_CHANGE_ERROR),$(error FogLAMP DB schema cannot be performed as pre-install task: $(SCHEMA_CHANGE_ERROR)),)
+	$(if $(SCHEMA_CHANGE_WARNING),$(warning $(SCHEMA_CHANGE_WARNING)),$(info -- FogLAMP DB schema check OK: $(SCHEMA_CHANGE_OUTPUT)))
 
 # install
 # Creates a deployment structure in the default destination, /usr/local/foglamp
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
 install : $(INSTALL_DIR) \
+	schema_check \
+	foglamp_version_file_install \
 	c_install \
 	python_install \
 	python_requirements \
@@ -102,6 +162,12 @@ install : $(INSTALL_DIR) \
 	bin_install \
 	extras_install \
 	data_install
+
+###############################################################################
+############################ PRE-REQUISITE SCRIPTS ############################
+###############################################################################
+generate_selfcertificate:
+	scripts/certificates $(SSL_NAME) $(SSL_DAYS)
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################
@@ -142,15 +208,15 @@ c_install : c_build
 ###############################################################################
 # build python source
 python_build : $(PYTHON_SETUP_FILE)
-	$(CD) $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE)
+	$(CD) $(PYTHON_SRC_DIR) ; $(PYTHON_BUILD_PACKAGE) ; $(CD) $(CURRENT_DIR) ; $(CP) $(PYTHON_REQUIREMENTS_FILE) $(PYTHON_LIB_DIR)/.
 
 # install python requirements without --user 
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) --no-cache-dir
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) --no-cache-dir
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :
@@ -160,6 +226,10 @@ $(PYTHON_INSTALL_DIR) :
 python_install : python_build $(PYTHON_INSTALL_DIR)
 	$(CP_DIR) $(PYTHON_LIB_DIR)/* $(PYTHON_INSTALL_DIR)
 
+# copy FogLAMP version info file into install dir
+foglamp_version_file_install :
+	$(CP) $(FOGLAMP_VERSION_FILE) $(INSTALL_DIR)
+
 ###############################################################################
 ###################### SCRIPTS INSTALL TARGETS ################################
 ###############################################################################
@@ -167,6 +237,7 @@ python_install : python_build $(PYTHON_INSTALL_DIR)
 scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_common_scripts \
 	install_postgres_script \
+	install_sqlite_script \
 	install_south_script \
 	install_storage_service_script \
 	install_north_script \
@@ -175,6 +246,8 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_storage_script \
 	install_backup_postgres_script \
 	install_restore_postgres_script \
+	install_check_certificates_script \
+	install_certificates_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -182,10 +255,22 @@ $(SCRIPTS_INSTALL_DIR) :
 
 install_common_scripts : $(SCRIPT_COMMON_INSTALL_DIR) $(COMMON_SCRIPTS_SRC)
 	$(CP) $(COMMON_SCRIPTS_SRC)/*.sh $(SCRIPT_COMMON_INSTALL_DIR)
+	$(CP) $(COMMON_SCRIPTS_SRC)/*.py $(SCRIPT_COMMON_INSTALL_DIR)
 	
-install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) $(POSTGRES_SCRIPT_SRC)
+install_postgres_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
+	$(POSTGRES_SCHEMA_UPDATE_DIR) $(POSTGRES_SCRIPT_SRC) $(POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC)
 	$(CP) $(POSTGRES_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
-	
+	$(CP) $(POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC) $(POSTGRES_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/postgres/upgrade $(POSTGRES_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/postgres/downgrade $(POSTGRES_SCHEMA_UPDATE_DIR)
+
+install_sqlite_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
+	$(SQLITE_SCHEMA_UPDATE_DIR) $(SQLITE_SCRIPT_SRC) $(SQLITE_SCHEMA_UPDATE_SCRIPT_SRC)
+	$(CP) $(SQLITE_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
+	$(CP) $(SQLITE_SCHEMA_UPDATE_SCRIPT_SRC) $(SQLITE_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/sqlite/upgrade $(SQLITE_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/sqlite/downgrade $(SQLITE_SCHEMA_UPDATE_DIR)
+
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
@@ -207,8 +292,14 @@ install_backup_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(BACKUP_POSTGRES)
 install_restore_postgres_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_POSTGRES)
 	$(CP) $(RESTORE_POSTGRES) $(SCRIPT_TASKS_INSTALL_DIR)
 
+install_check_certificates_script : $(SCRIPT_TASKS_INSTALL_DIR) $(CHECK_CERTS_TASK_SCRIPT_SRC)
+	$(CP) $(CHECK_CERTS_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
+
+install_certificates_script : $(SCRIPT_INSTALL_DIR) $(CERTIFICATES_SCRIPT_SRC)
+	$(CP) $(CERTIFICATES_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_COMMON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
@@ -224,6 +315,16 @@ $(SCRIPT_STORAGE_INSTALL_DIR) :
 
 $(SCRIPT_TASKS_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+$(POSTGRES_SCHEMA_UPDATE_DIR) :
+	$(MKDIR_PATH) $@
+	$(MKDIR_PATH) $@/upgrade
+	$(MKDIR_PATH) $@/downgrade
+
+$(SQLITE_SCHEMA_UPDATE_DIR) :
+	$(MKDIR_PATH) $@
+	$(MKDIR_PATH) $@/upgrade
+	$(MKDIR_PATH) $@/downgrade
 
 ###############################################################################
 ########################## BIN INSTALL TARGETS ################################
@@ -241,13 +342,19 @@ $(BIN_INSTALL_DIR) :
 ####################### EXTRAS INSTALL TARGETS ################################
 ###############################################################################
 # install bin
-extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench
+extras_install : $(EXTRAS_INSTALL_DIR) install_python_fogbench install_extras_scripts
 
 install_python_fogbench : $(FOGBENCH_PYTHON_INSTALL_DIR) $(FOGBENCH_PYTHON_SRC_DIR)
 	$(CP_DIR) $(FOGBENCH_PYTHON_SRC_DIR) $(FOGBENCH_PYTHON_INSTALL_DIR)
 
 $(FOGBENCH_PYTHON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
+
+install_extras_scripts : $(EXTRAS_INSTALL_DIR) $(EXTRAS_SCRIPTS_SRC_DIR)
+	$(CP_DIR) $(EXTRAS_SCRIPTS_SRC_DIR) $(EXTRAS_INSTALL_DIR)
+
+	sed -i "s|export FOGLAMP_ROOT=.*|export FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/setenv.sh
+	sed -i "s|^FOGLAMP_ROOT=.*|FOGLAMP_ROOT=\"$(INSTALL_DIR)\"|" $(EXTRAS_INSTALL_DIR)/scripts/foglamp.service
 
 # create extras install dir
 $(EXTRAS_INSTALL_DIR) :
@@ -292,4 +399,3 @@ clean :
 	-$(RM_DIR) $(PYTHON_BUILD_DIR)
 	-$(RM_DIR) $(DEV_SERVICES_DIR)
 	-$(RM) $(SYMLINK_PLUGINS_DIR)
-

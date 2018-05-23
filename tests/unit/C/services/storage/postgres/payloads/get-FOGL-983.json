@@ -1,0 +1,8 @@
+{
+    "where" : { 
+                    "column"    : "key",
+                    "condition" : "=",
+                    "value"     : "DEVICE"
+                  },
+    "return" : [ "description" ]
+}

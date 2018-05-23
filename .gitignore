@@ -11,6 +11,20 @@
 
 # Data / cache files
 data/etc/storage.json
+data/etc/certs/*
+data/var
+data/tmp
+
+# SQLite3 default db location and after migration
+data/*.db
+scripts/extras/*.db
+
+/etc/storage.json
+/etc/certs/*
+
+*.cert
+*.key
+*.csr
 
 # Docs
 docs/_build
@@ -20,19 +34,32 @@ docs/.cache/
 # Compiled Object files
 *.pyc
 
-# Allure
-allure/
-allure-report/
-
 # build specific
 /C/plugins/storage/build
 /C/services/storage/build
 /cmake_build
 /plugins
-/python_build
+/python_build_dir
 /services
 
 # Error Logs
 *.err
 
+# Test files
+*.result
+*.temp
+
+# Keys and certificates
+*.cert
+*.csr
+*.key
+
 .cache/
+
+# Backup
+data/backup
+data/etc/backup_postgres_configuration_cache.json
+
+# test
+.pytest_cache
+.coverage

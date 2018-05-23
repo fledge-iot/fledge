@@ -14,7 +14,7 @@ The sending process does not implement the protocol used to send the data,
 that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
-import json
+
 import resource
 import asyncio
 import sys
@@ -22,6 +22,10 @@ import time
 import importlib
 import logging
 import datetime
+import signal
+import json
+
+import foglamp.plugins.north.common.common as plugin_common
 
 from foglamp.common.parser import Parser
 from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
@@ -29,9 +33,11 @@ from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
 from foglamp.common.statistics import Statistics
+from foglamp.common.jqfilter import JQFilter
+from foglamp.common.audit_logger import AuditLogger
 
 
-__author__ = "Stefano Simonelli"
+__author__ = "Stefano Simonelli, Massimiliano Pinto, Mark Riddoch"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -80,10 +86,17 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_LOGGER = logger.setup(__name__)
+# LOG configuration
+_LOG_LEVEL_DEBUG = 10
+_LOG_LEVEL_INFO = 20
+_LOG_LEVEL_WARNING = 30
+
+_LOGGER_LEVEL = _LOG_LEVEL_WARNING
+_LOGGER_DESTINATION = logger.SYSLOG
+
+_LOGGER = logger.setup(__name__, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
+
 _event_loop = ""
-_log_debug_level = 0
-""" Defines what and the level of details for logging """
 _log_performance = False
 """ Enable/Disable performance logging, enabled using a command line parameter"""
 
@@ -92,14 +105,51 @@ class PluginInitialiseFailed(RuntimeError):
     """ PluginInitializeFailed """
     pass
 
+
 class UnknownDataSource(RuntimeError):
     """ the data source could be only one among: readings, statistics or audit """
     pass
+
 
 class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
     pass
 
+def apply_date_format(in_data):
+    """ This routine adds the default UTC zone format to the input date time string
+    If a timezone (strting with + or -) is found, all the following chars
+    are replaced by +00, otherwise +00 is added.
+
+    Note: if the input zone is +02:00 no date conversion is done,
+          at the time being this routine expects UTC date time values.
+
+    Examples:
+        2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
+        2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
+        2018-03-22 17:17:17.166347+00    ==> 2018-03-22 17:17:17.166347+00
+        2018-03-22 17:17:17.166347+02:00 ==> 2018-03-22 17:17:17.166347+00
+
+    Args:
+        the date time string to format
+    Returns:
+        the newly formatted datetime string
+    """
+
+    # Look for timezone start with '-' a the end of the date (-XY:WZ)
+    zone_index = in_data.rfind("-")
+    # If index is less than 10 we don't have the trailing zone with -
+    if (zone_index < 10):
+        #  Look for timezone start with '+' (+XY:ZW)
+        zone_index = in_data.rfind("+")
+
+    if zone_index == -1:
+        # Just add +00
+        timestamp = in_data + "+00"
+    else:
+        # Remove everything after - or + and add +00
+        timestamp = in_data[:zone_index] + "+00"
+
+    return timestamp
 
 def _performance_log(func):
     """ Logs information for performance measurement """
@@ -108,6 +158,7 @@ def _performance_log(func):
         start = datetime.datetime.now()
         # Code execution
         res = func(*arg)
+
         if _log_performance:
             usage = resource.getrusage(resource.RUSAGE_SELF)
             process_memory = usage.ru_maxrss / 1000
@@ -174,6 +225,7 @@ def handling_input_parameters():
         log_debug_level = int(param_debug_level)
     else:
         log_debug_level = 0
+
     _LOGGER.debug("{func} "
                   "- name |{name}| - port |{port}| - address |{address}| "
                   "- stream_id |{stream_id}| - log_performance |{perf}| "
@@ -188,48 +240,13 @@ def handling_input_parameters():
     return param_mgt_name, param_mgt_port, param_mgt_address, stream_id, log_performance, log_debug_level
 
 
-class LogStorage(object):
-    """ Logs operations in the Storage layer """
-
-    LOG_CODE = "STRMN"
-    """ Process name for logging the operations """
-
-    class Severity(object):
-        """ Log severity level """
-        SUCCESS = 0
-        FAILURE = 1
-        WARNING = 2
-        INFO = 4
-
-    def __init__(self, storage):
-        self._storage = storage
-        """ Reference to the Storage Layer """
-
-    def write(self, level, log):
-        """ Logs an operation in the Storage layer
-        Args:
-            level: {SUCCESS|FAILURE|WARNING|INFO}
-            log: message to log as a dict
-        Returns:
-        Raises:
-            Logs in the syslog in case of an error but the exception is not propagated
-        """
-        try:
-            payload = payload_builder.PayloadBuilder() \
-                .INSERT(code=LogStorage.LOG_CODE,
-                        level=level,
-                        log=log) \
-                .payload()
-            self._storage.insert_into_tbl("log", payload)
-        except Exception as _ex:
-            _message = _MESSAGES_LIST["e000024"].format(_ex)
-            _LOGGER.error(_message)
-
-
 class SendingProcess:
     """ SendingProcess """
 
     _logger = None  # type: logging.Logger
+
+    _stop_execution = False
+    """ sets to True when a signal is captured and a termination is needed """
 
     # Filesystem path where the norths reside
     _NORTH_PATH = "foglamp.plugins.north."
@@ -241,6 +258,9 @@ class SendingProcess:
     _DATA_SOURCE_READINGS = "readings"
     _DATA_SOURCE_STATISTICS = "statistics"
     _DATA_SOURCE_AUDIT = "audit"
+
+    # Audit code to use
+    _AUDIT_CODE = "STRMN"
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'SEND_PR'
@@ -266,7 +286,7 @@ class SendingProcess:
         "blockSize": {
             "description": "The size of a block of readings to send in each transmission.",
             "type": "integer",
-            "default": "5000"
+            "default": "500"
         },
         "sleepInterval": {
             "description": "A period of time, expressed in seconds, "
@@ -330,14 +350,31 @@ class SendingProcess:
         self._storage = None
         self._readings = None
         """" Interfaces to the FogLAMP Storage Layer """
-        self._log_storage = None
+        self._audit = None
         """" Used to log operations in the Storage Layer """
 
         self.input_stream_id = None
         self._log_performance = None
+        """ Enable/Disable performance logging, enabled using a command line parameter"""
         self._log_debug_level = None
+        """ Defines what and the level of details for logging """
 
         self._event_loop = asyncio.get_event_loop()
+
+    @staticmethod
+    def _signal_handler(_signal_num, _stack_frame):
+        """ Handles signals to properly terminate the execution
+
+        Args:
+        Returns:
+        Raises:
+        """
+
+        SendingProcess._stop_execution = True
+
+        SendingProcess._logger.info("{func} - signal captured |{signal_num}| ".format(
+            func="_signal_handler",
+            signal_num=_signal_num))
 
     def _is_stream_id_valid(self, stream_id):
         """ Checks if the provided stream id  is valid
@@ -382,7 +419,7 @@ class SendingProcess:
         north_ok = False
         try:
             if self._plugin_info['type'] == self._PLUGIN_TYPE and \
-               self._plugin_info['name'] != "Empty north":
+               self._plugin_info['name'] != "Empty North Plugin":
                 north_ok = True
         except Exception:
             _message = _MESSAGES_LIST["e000000"]
@@ -434,19 +471,61 @@ class SendingProcess:
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
         try:
-            # Loads data
-            payload = payload_builder.PayloadBuilder() \
-                .WHERE(['id', '>', last_object_id]) \
-                .LIMIT(self._config['blockSize']) \
-                .ORDER_BY(['id', 'ASC']) \
-                .payload()
-            readings = self._readings.query(payload)
+            # Loads data, +1 as > is needed
+            readings = self._readings.fetch(last_object_id + 1, self._config['blockSize'])
+
             raw_data = readings['rows']
+            converted_data = self._transform_in_memory_data_readings(raw_data)
+
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000009"].format(str(_ex))
             SendingProcess._logger.error(_message)
             raise
-        return raw_data
+        return converted_data
+
+    @staticmethod
+    def _transform_in_memory_data_readings(raw_data):
+        """ Transforms readings data retrieved form the DB layer to the proper format
+        Args:
+            raw_data: list of dicts to convert having the structure
+                id         : int  - Row id on the storage layer
+                asset_code : str  - Asset code
+                read_key   : str  - Id of the row
+                reading    : dict - Payload
+                user_ts    : str  - Timestamp as str
+        Returns:
+            converted_data: converted data
+        Raises:
+        """
+        converted_data = []
+
+        try:
+            for row in raw_data:
+
+                # Converts values to the proper types, for example "180.2" to float 180.2
+                payload = row['reading']
+                for key in list(payload.keys()):
+                    value = payload[key]
+                    payload[key] = plugin_common.convert_to_type(value)
+
+                # Adds timezone UTC
+                timestamp = apply_date_format(row['user_ts'])
+
+                new_row = {
+                    'id': row['id'],
+                    'asset_code': row['asset_code'],
+                    'read_key': row['read_key'],
+                    'reading': payload,
+                    'user_ts': timestamp
+                }
+                converted_data.append(new_row)
+
+        except Exception as e:
+            _message = _MESSAGES_LIST["e000022"].format(str(e))
+            SendingProcess._logger.error(_message)
+            raise e
+
+        return converted_data
 
     @_performance_log
     def _load_data_into_memory_statistics(self, last_object_id):
@@ -463,11 +542,14 @@ class SendingProcess:
         raw_data = None
         try:
             payload = payload_builder.PayloadBuilder() \
+                .SELECT("id", "key", '{"column": "ts", "timezone": "UTC"}', "value", "history_ts")\
                 .WHERE(['id', '>', last_object_id]) \
                 .LIMIT(self._config['blockSize']) \
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
+
             statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+
             raw_data = statistics_history['rows']
             converted_data = self._transform_in_memory_data_statistics(raw_data)
         except Exception:
@@ -495,12 +577,16 @@ class SendingProcess:
         # and renames the columns to id, asset_code, user_ts, reading
         try:
             for row in raw_data:
+                # Adds timezone UTC
+                timestamp = apply_date_format(row['ts'])
+
                 # Removes spaces
                 asset_code = row['key'].strip()
+
                 new_row = {
                     'id': row['id'],                    # Row id
                     'asset_code': asset_code,           # Asset code
-                    'user_ts': row['ts'],               # Timestamp
+                    'user_ts': timestamp,               # Timestamp
                     'reading': {'value': row['value']}  # Converts raw data to a Dictionary
                 }
                 converted_data.append(new_row)
@@ -597,12 +683,27 @@ class SendingProcess:
             last_object_id = self._last_object_id_read(stream_id)
             data_to_send = self._load_data_into_memory(last_object_id)
             if data_to_send:
+                if self._config_from_manager['applyFilter']["value"].upper() == "TRUE":
+                    jqfilter = JQFilter()
+
+                    # Steps needed to proper format the data generated by the JQFilter to the one expected by the SP
+                    data_to_send_2 = jqfilter.transform(data_to_send, self._config_from_manager['filterRule']["value"])
+                    data_to_send_3 = json.dumps(data_to_send_2)
+                    del data_to_send_2
+
+                    data_to_send_4 = eval(data_to_send_3)
+                    del data_to_send_3
+
+                    data_to_send = data_to_send_4[0]
+                    del data_to_send_4
+
                 data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(self._plugin_handle, data_to_send, stream_id)
                 if data_sent:
                     # Updates reached position, statistics and logs the operation within the Storage Layer
                     self._last_object_id_update(new_last_object_id, stream_id)
                     self._update_statistics(num_sent, stream_id)
-                    self._log_storage.write(LogStorage.Severity.INFO, {"sentRows": num_sent})
+                    loop = asyncio.get_event_loop()
+                    loop.run_until_complete(self._audit.information(self._AUDIT_CODE, {"sentRows": num_sent}))
         except Exception:
             _message = _MESSAGES_LIST["e000006"]
             SendingProcess._logger.error(_message)
@@ -615,22 +716,30 @@ class SendingProcess:
         Args:
         Returns:
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - ".format("send_data"))
         try:
             start_time = time.time()
             elapsed_seconds = 0
+
             while elapsed_seconds < self._config['duration']:
+                # Terminates the execution in case a signal has been received
+                if SendingProcess._stop_execution:
+                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
+                            func="send_data"))
+                    break
+
                 try:
                     data_sent = self._send_data_block(stream_id)
                 except Exception as e:
                     data_sent = False
                     _message = _MESSAGES_LIST["e000021"].format(e)
                     SendingProcess._logger.error(_message)
+
                 if not data_sent:
                     SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
                     time.sleep(self._config['sleepInterval'])
+
                 elapsed_seconds = time.time() - start_time
                 SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format(
                                                             "send_data",
@@ -638,7 +747,8 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000021"].format("")
             SendingProcess._logger.error(_message)
-            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on send_data": _message})
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message}))
             raise
 
     def _update_statistics(self, num_sent, stream_id):
@@ -741,8 +851,8 @@ class SendingProcess:
                 exec_sending_process = self._config['enable']
                 if self._config['enable']:
                     self._plugin_load()
-                    self._plugin._log_debug_level = _log_debug_level
-                    self._plugin._log_performance = _log_performance
+                    self._plugin._log_debug_level = self._log_debug_level
+                    self._plugin._log_performance = self._log_performance
                     self._plugin_info = self._plugin.plugin_info()
                     SendingProcess._logger.debug("{0} - {1} - {2} ".format("start",
                                                             self._plugin_info['name'],
@@ -769,16 +879,25 @@ class SendingProcess:
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000004"].format(str(_ex))
             SendingProcess._logger.error(_message)
-            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on start": _message})
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on start": _message}))
             raise
         return exec_sending_process
 
-
     def start(self):
         # Command line parameter handling
+        global _log_performance
+        global _LOGGER
+
+        # Setups signals handlers, to properly handle the termination
+        # a) SIGTERM - 15 : kill or system shutdown
+        signal.signal(signal.SIGTERM, SendingProcess._signal_handler)
+
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \
                 handling_input_parameters()
+            _log_performance = self._log_performance
+
         except Exception as ex:
             message = _MESSAGES_LIST["e000017"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -786,7 +905,7 @@ class SendingProcess:
         try:
             self._storage = StorageClient(self._mgt_address, self._mgt_port)
             self._readings = ReadingsStorageClient(self._mgt_address, self._mgt_port)
-            self._log_storage = LogStorage(self._storage)
+            self._audit = AuditLogger(self._storage)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -796,13 +915,19 @@ class SendingProcess:
             # logging from different processes
             SendingProcess._logger.removeHandler(SendingProcess._logger.handle)
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
-            SendingProcess._logger = logger.setup(logger_name)
+
+            SendingProcess._logger = logger.setup(logger_name, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
+
             try:
                 # Set the debug level
                 if self._log_debug_level == 1:
                     SendingProcess._logger.setLevel(logging.INFO)
                 elif self._log_debug_level >= 2:
                     SendingProcess._logger.setLevel(logging.DEBUG)
+
+                # Sets the reconfigured logger
+                _LOGGER = SendingProcess._logger
+
                 # Start sending
                 if self._start(self.input_stream_id):
                     self.send_data(self.input_stream_id)
@@ -827,7 +952,8 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
             SendingProcess._logger.error(_message)
-            self._log_storage.write(LogStorage.Severity.FAILURE, {"error - on stop": _message})
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on stop": _message}))
             raise
 
 

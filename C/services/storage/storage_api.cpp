@@ -1,11 +1,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include "client_http.hpp"
 #include "server_http.hpp"
@@ -13,6 +13,7 @@
 #include "storage_stats.h"
 #include "management_api.h"
 #include "logger.h"
+#include "plugin_exception.h"
 
 
 // Added for the default_resource example
@@ -495,13 +496,12 @@ string  responsePayload;
  * @param response	The response stream to send the response on
  * @param request	The HTTP request
  */
-void StorageApi::readingFetch(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void StorageApi::readingFetch(shared_ptr<HttpServer::Response> response,
+			      shared_ptr<HttpServer::Request> request)
 {
 SimpleWeb::CaseInsensitiveMultimap query;
 unsigned long			   id = 0;
 unsigned long			   count = 0;
-string				   responsePayload;
-
 	stats.readingFetch++;
 	try {
 		query = request->parse_query_string();
@@ -510,7 +510,9 @@ string				   responsePayload;
 		if (search == query.end())
 		{
 			string payload = "{ \"error\" : \"Missing query parameter id\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				payload);
 			return;
 		}
 		else
@@ -521,7 +523,9 @@ string				   responsePayload;
 		if (search == query.end())
 		{
 			string payload = "{ \"error\" : \"Missing query parameter count\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				payload);
 			return;
 		}
 		else
@@ -529,9 +533,14 @@ string				   responsePayload;
 			count = (unsigned)atol(search->second.c_str());
 		}
 
-		responsePayload = plugin->readingsFetch(id, count);
+		// Get plugin data
+		char *responsePayload = plugin->readingsFetch(id, count);
+		string res = responsePayload;
 
-		respond(response, responsePayload);
+		// Reply to client
+		respond(response, res);
+		// Free plugin data
+		free(responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -635,8 +644,20 @@ string        flags;
 		}
 		string responsePayload = purged;
 		respond(response, responsePayload);
-	} catch (exception ex) {
+	}
+	/** Handle PluginNotImplementedException exception here */
+	catch (PluginNotImplementedException& ex) {
+		string payload = "{ \"error\" : \"";
+		payload += ex.what();
+		payload += "\" }";
+		/** Return HTTP code 400 with message from storage plugin */
+		respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+		return;
+	}
+	/** Handle general exception */
+	catch (exception ex) {
 		internalError(response, ex);
+		return;
 	}
 }
 

@@ -7,32 +7,35 @@
 from importlib import import_module
 import copy
 import json
+import inspect
 
-from collections import OrderedDict
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClient
 
 from foglamp.common import logger
+from foglamp.common.audit_logger import AuditLogger
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 _logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
-_valid_type_strings = ['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON']
+_valid_type_strings = sorted(['boolean', 'integer', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password', 'JSON'])
+
 
 class ConfigurationManagerSingleton(object):
     """ ConfigurationManagerSingleton
-    
+
     Used to make ConfigurationManager a singleton via shared state
     """
     _shared_state = {}
+
     def __init__(self):
         self.__dict__ = self._shared_state
+
 
 class ConfigurationManager(ConfigurationManagerSingleton):
     """ Configuration Manager
@@ -61,13 +64,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     """
 
     _storage = None
-    _registered_interests = {}
+    _registered_interests = None
+
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
         if self._storage is None:
             if not isinstance(storage, StorageClient):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
+        if self._registered_interests is None:
+            self._registered_interests = {}
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -79,12 +85,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.exception(
                         'Unable to import callback module %s for category_name %s', callback, category_name)
                     raise
-                try:
-                    await cb.run(category_name)
-                except AttributeError:
+                if not hasattr(cb, 'run'):
                     _logger.exception(
-                        'Unable to run %s.run(category_name) for category_name %s', callback, category_name)
-                    raise
+                        'Callback module %s does not have method run', callback)
+                    raise AttributeError('Callback module {} does not have method run'.format(callback))
+                method = cb.run
+                if not inspect.iscoroutinefunction(method):
+                    _logger.exception(
+                        'Callback module %s run method must be a coroutine function', callback)
+                    raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
+                await cb.run(category_name)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items):
         # preserve all value_vals from category_val_storage
@@ -128,9 +138,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Specifying value_name and value_val for item_name {} is not allowed if desired behavior is to use default_val as value_val'.format(
                             item_name))
                 if num_entries is None:
-                    raise ValueError('Unrecognized entry_name for item_name {}'.format(item_name))
-                if num_entries > 0:
-                    raise ValueError('Duplicate entry_name for item_name {}'.format(item_name))
+                    raise ValueError('Unrecognized entry_name {} for item_name {}'.format(entry_name, item_name))
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
                         raise ValueError(
@@ -145,12 +153,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
-        payload = PayloadBuilder().INSERT(key=category_name, description=category_description, value=category_val).payload()
-        self._storage.insert_into_tbl("configuration", payload)
+        try:
+            audit = AuditLogger(self._storage)
+            await audit.information('CONAD', {'name': category_name, 'category': category_val})
+            payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
+                                              value=category_val).payload()
+            result = self._storage.insert_into_tbl("configuration", payload)
+            response = result['response']
+        except KeyError:
+            raise ValueError(result['message'])
 
     async def _read_all_category_names(self):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
-        payload = PayloadBuilder().SELECT(("key", "description", "value", "ts")).payload()
+        payload = PayloadBuilder().SELECT("key", "description", "value", "ts") \
+            .ALIAS("return", ("ts", 'timestamp')) \
+            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
         results = self._storage.query_tbl_with_payload('configuration', payload)
 
         category_info = []
@@ -161,8 +178,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _read_category_val(self, category_name):
         # SELECT configuration.key, configuration.description, configuration.value,
         # configuration.ts FROM configuration WHERE configuration.key = :key_1
-        payload = PayloadBuilder().SELECT(("value"))\
-            .WHERE(["key", "=", category_name]).payload()
+        payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", category_name]).payload()
         results = self._storage.query_tbl_with_payload('configuration', payload)
         for row in results['rows']:
             return row['value']
@@ -170,15 +186,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _read_item_val(self, category_name, item_name):
         # SELECT configuration.value::json->'configuration' as value
         # FROM foglamp.configuration WHERE configuration.key='SENSORS'
-        # TODO: FOGL-637, 640
-        d = OrderedDict()
-        property_dict = {"column": "value", "properties": [item_name]}
-        json_column_dict = OrderedDict()
-        json_column_dict['json'] = property_dict
-        json_column_dict['alias'] = "value"
-        d['return'] = [json_column_dict]
-        d['where'] = {"column": "key", "condition": "=", "value": category_name}
-        payload = json.dumps(d)
+        payload = PayloadBuilder().SELECT(("key", "description", "ts", ["value", [item_name]])) \
+            .ALIAS("return", ("ts", "timestamp"), ("value", "value")) \
+            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+            .WHERE(["key", "=", category_name]).payload()
+
         results = self._storage.query_tbl_with_payload('configuration', payload)
         if len(results['rows']) == 0:
             return None
@@ -188,15 +200,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _read_value_val(self, category_name, item_name):
         # SELECT configuration.value::json->'retainUnsent'->'value' as value
         # FROM foglamp.configuration WHERE configuration.key='PURGE_READ'
-        # TODO: FOGL-637, 640
-        d = OrderedDict()
-        property_dict = {"column": "value", "properties": [item_name, "value"]}
-        json_column_dict = OrderedDict()
-        json_column_dict['json'] = property_dict
-        json_column_dict['alias'] = "value"
-        d['return'] = [json_column_dict]
-        d['where'] = {"column": "key", "condition": "=", "value": category_name}
-        payload = json.dumps(d)
+        payload = PayloadBuilder().SELECT(("key", "description", "ts", ["value", [item_name, "value"]])) \
+            .ALIAS("return", ("ts", "timestamp"), ("value", "value")) \
+            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+            .WHERE(["key", "=", category_name]).payload()
+
         results = self._storage.query_tbl_with_payload('configuration', payload)
         if len(results['rows']) == 0:
             return None
@@ -204,21 +212,28 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return results['rows'][0]['value']
 
     async def _update_value_val(self, category_name, item_name, new_value_val):
+        old_value = await self._read_value_val(category_name, item_name)
         # UPDATE foglamp.configuration
         # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
         # WHERE key='PURGE_READ'
-        # TODO: FOGL-637, 640
-        jsonb_prop_dict = {"column": "value", "path": [item_name, "value"], "value": new_value_val}
-        d = OrderedDict()
-        d['json_properties'] = [jsonb_prop_dict]
-        d['where'] = {"column": "key", "condition": "=", "value": category_name}
-        payload = json.dumps(d)
+        payload = PayloadBuilder().SELECT("key", "description", "ts", "value")\
+            .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
+            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            .WHERE(["key", "=", category_name]).payload()
+
         self._storage.update_tbl("configuration", payload)
+        audit = AuditLogger(self._storage)
+        audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value, 'newValue': new_value_val}
+        await audit.information('CONCH', audit_details)
 
     async def _update_category(self, category_name, category_val, category_description):
-        payload = PayloadBuilder().SET(value=category_val, description=category_description).\
-            WHERE(["key", "=", category_name]).payload()
-        self._storage.update_tbl("configuration", payload)
+        try:
+            payload = PayloadBuilder().SET(value=category_val, description=category_description). \
+                WHERE(["key", "=", category_name]).payload()
+            result = self._storage.update_tbl("configuration", payload)
+            response = result['response']
+        except KeyError:
+            raise ValueError(result['message'])
 
     async def get_all_category_names(self):
         """Get all category names in the FogLAMP system
@@ -409,8 +424,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         category_name)
                 # if validating category from storage succeeds, merge new and storage
                 else:
-                    category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage, keep_original_items)
-                    if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage, sort_keys=True):
+                    category_val_prepared = await self._merge_category_vals(category_val_prepared, category_val_storage,
+                                                                            keep_original_items)
+                    if json.dumps(category_val_prepared, sort_keys=True) == json.dumps(category_val_storage,
+                                                                                       sort_keys=True):
                         return
                 await self._update_category(category_name, category_val_prepared, category_description)
         except:
@@ -487,7 +504,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     del self._registered_interests[category_name]
 
 # async def _main(storage_client):
-# 
+#
 #     # lifecycle of a component's configuration
 #     # start component
 #     # 1. create a configuration that does not exist - use all default values
@@ -498,24 +515,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 #     # restart component
 #     # 1. create/update a configuration that already exists (merge)
 #     # 2. read the configuration back in (cache locally for reuse)
-# 
+#
 #     """
 #     # content of foglamp.callback.py
 #     # example only - delete before merge to develop
-# 
+#
 #     def run(category_name):
 #         print('callback1 for category_name {}'.format(category_name))
 #     """
-# 
+#
 #     """
 #     # content of foglamp.callback2.py
 #     # example only - delete before merge to develop
-# 
+#
 #     def run(category_name):
 #         print('callback2 for category_name {}'.format(category_name))
 #     """
 #     cf = ConfigurationManager(storage_client)
-# 
+#
 #     sample_json = {
 #         "port": {
 #             "description": "Port to listen on",
@@ -533,58 +550,58 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 #             "type": "X509 certificate"
 #         }
 #     }
-# 
+#
 #     print("test create_category")
 #     # print(sample_json)
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #     #print(sample_json)
-# 
+#
 #     print("test register category")
 #     print(cf._registered_interests)
 #     cf.register_interest('CATEG', 'foglamp.callback')
 #     print(cf._registered_interests)
 #     cf.register_interest('CATEG', 'foglamp.callback2')
 #     print(cf._registered_interests)
-# 
+#
 #     cf.register_interest('CATEG', 'foglamp.callback3')
 #     print(cf._registered_interests)
 #     cf.unregister_interest('CATEG', 'foglamp.callback3')
 #     print(cf._registered_interests)
-# 
+#
 #     print("register interest in None- throw ValueError")
 #     try:
 #         cf.register_interest(None, 'foglamp.callback2')
 #     except ValueError as err:
 #         print(err)
 #     print(cf._registered_interests)
-# 
-# 
+#
+#
 #     print("test get_all_category_names")
 #     names_list = await cf.get_all_category_names()
 #     for row in names_list:
 #         # tuple
 #         print(row)
-# 
+#
 #     print("test get_category_all_items")
 #     json = await cf.get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
-# 
+#
 #     print("test get_category_item")
 #     json = await cf.get_category_item('CATEG', "url")
 #     print(json)
 #     print(type(json))
-# 
+#
 #     print("test get_category_item_value")
 #     string_result = await cf.get_category_item_value_entry('CATEG', "url")
 #     print(string_result)
 #     print(type(string_result))
-# 
+#
 #     print("test create_category - same values - should be ignored")
 #     # print(sample_json)
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #     # print(sample_json)
-# 
+#
 #     sample_json = {
 #         "url": {
 #             "description": "URL to accept data on",
@@ -602,23 +619,23 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 #             "type": "X509 certificate"
 #         }
 #     }
-# 
+#
 #     print("test create_category - same values different order- should be ignored")
 #     print(sample_json)
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
 #     print(sample_json)
-# 
+#
 #     print("test set_category_item_value_entry")
 #     await cf.set_category_item_value_entry('CATEG', "url", "blablabla")
-# 
+#
 #     print("test set_category_item_value_entry - same value, update should be ignored")
 #     await cf.set_category_item_value_entry('CATEG', "url", "blablabla")
-# 
+#
 #     print("test get_category_item_value")
 #     string_result = await cf.get_category_item_value_entry('CATEG', "url")
 #     print(string_result)
 #     print(type(string_result))
-# 
+#
 #     print("test create_category second run. add port2, add url2, keep certificate, drop old port and old url")
 #     sample_json = {
 #         "port2": {
@@ -638,12 +655,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 #         }
 #     }
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION')
-# 
+#
 #     print("test get_all_items")
 #     json = await cf.get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
-# 
+#
 #     print("test create_category third run(keep_original_items). add port2, add url2, keep certificate, drop old port and old url")
 #     sample_json = {
 #         "port3": {
@@ -663,12 +680,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 #         }
 #     }
 #     await cf.create_category('CATEG', sample_json, 'CATEG_DESCRIPTION', True)
-# 
+#
 #     print("test get_all_items")
 #     json = await cf.get_category_all_items('CATEG')
 #     print(json)
 #     print(type(json))
-# 
+#
 # if __name__ == '__main__':
 #     import asyncio
 #     loop = asyncio.get_event_loop()

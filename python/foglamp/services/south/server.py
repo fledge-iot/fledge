@@ -6,25 +6,23 @@
 
 """FogLAMP South Microservice"""
 
+import json
 import asyncio
-import signal
-import uuid
-
 from foglamp.services.south import exceptions
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.south.ingest import Ingest
 from foglamp.services.common.microservice import FoglampMicroservice
 from aiohttp import web
 
-
-__author__ = "Terris Linenbach"
+__author__ = "Terris Linenbach, Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__)
-
+_MAX_RETRY_POLL = 3
+_TIME_TO_WAIT_BEFORE_RETRY = 2
+_CLEAR_PENDING_TASKS_TIMEOUT = 5
 
 class Server(FoglampMicroservice):
     """" Implements the South Microservice """
@@ -35,6 +33,11 @@ class Server(FoglampMicroservice):
             'description': 'Python module name of the plugin to load',
             'type': 'string',
             'default': 'coap_listen'
+        },
+        'management_host': {
+            'description': 'Management host',
+            'type': 'string',
+            'default': '127.0.0.1',
         }
     }
 
@@ -57,48 +60,34 @@ class Server(FoglampMicroservice):
     _plugin = None
     """The plugin's module'"""
 
+    _plugin_info = None
+    """The plugin's info'"""
+
     _plugin_handle = None
     """The value that is returned by the plugin_init"""
 
     _type = "Southbound"
 
-    async def _stop(self, loop):
-        if self._plugin is not None:
-            try:
-                self._plugin.plugin_shutdown(self._plugin_handle)
-            except Exception:
-                _LOGGER.exception("Unable to shut down plugin '{}'".format(self._name))
-            finally:
-                self._plugin = None
-                self._plugin_handle = None
+    _task_main = None
 
-        try:
-            await Ingest.stop()
-        except Exception:
-            _LOGGER.exception('Unable to stop the Ingest server')
-            return
+    def __init__(self):
+        super().__init__(self._DEFAULT_CONFIG)
 
-        # Stop all pending asyncio tasks
-        for task in asyncio.Task.all_tasks():
-            task.cancel()
-
-        loop.stop()
-
-    
     async def _start(self, loop) -> None:
         error = None
-
         try:
-            category = self._name
             # Configuration handling - initial configuration
+            category = self._name
             config = self._DEFAULT_CONFIG
             config_descr = '{} Device'.format(self._name)
-
-            cfg_manager = ConfigurationManager(self._storage)
-
-            await cfg_manager.create_category(category, config, config_descr, True)
-
-            config = await cfg_manager.get_category_all_items(category)
+            config_payload = json.dumps({
+                "key": category,
+                "description": config_descr,
+                "value": config,
+                "keep_original_items": True
+            })
+            self._core_microservice_management_client.create_configuration_category(config_payload)
+            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
             try:
                 plugin_module_name = config['plugin']['value']
@@ -118,55 +107,64 @@ class Server(FoglampMicroservice):
                 raise
 
             # Plugin initialization
-            plugin_info = self._plugin.plugin_info()
-            default_config = plugin_info['config']
+            self._plugin_info = self._plugin.plugin_info()
+            default_config = self._plugin_info['config']
 
             # Configuration handling - updates the configuration using information specific to the plugin
-            await cfg_manager.create_category(category, default_config, '{} Device'.format(self._name))
+            config_payload = json.dumps({
+                "key": category,
+                "description": '{} Device'.format(self._name),
+                "value": default_config,
+                "keep_original_items": False
+            })
+            self._core_microservice_management_client.create_configuration_category(config_payload)
+            config = self._core_microservice_management_client.get_configuration_category(category_name=category)
 
-            config = await cfg_manager.get_category_all_items(category)
+            # Register interest with category and microservice_id
+            result = self._core_microservice_management_client.register_interest(category, self._microservice_id)
 
-            # TODO: Register for config changes
+            # KeyError when result (id and message) keys are not found
+            registration_id = result['id']
+            message = result['message']
 
             # Ensures the plugin type is the correct one - 'south'
-            if plugin_info['type'] != 'south':
-
-                message = self._MESSAGES_LIST['e000001'].format(self._name, plugin_info['type'])
+            if self._plugin_info['type'] != 'south':
+                message = self._MESSAGES_LIST['e000001'].format(self._name, self._plugin_info['type'])
                 _LOGGER.error(message)
-
                 raise exceptions.InvalidPluginTypeError()
 
             self._plugin_handle = self._plugin.plugin_init(config)
 
+            await Ingest.start(self._core_management_host, self._core_management_port, self)
+
             # Executes the requested plugin type
-            if plugin_info['mode'] == 'async':
-                await  self._exec_plugin_async(config)
-
-            elif plugin_info['mode'] == 'poll':
-                asyncio.ensure_future(self._exec_plugin_poll(config))
-
-        except Exception as ex:
+            if self._plugin_info['mode'] == 'async':
+                self._task_main = asyncio.ensure_future(self._exec_plugin_async())
+            elif self._plugin_info['mode'] == 'poll':
+                self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
+        except asyncio.CancelledError:
+            pass
+        except exceptions.DataRetrievalError:
+            _LOGGER.exception('Data retreival error in plugin {}'.format(self._name))
+        except (Exception, KeyError) as ex:
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
             print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
-    
-    async def _exec_plugin_async(self, config) -> None:
+    async def _exec_plugin_async(self) -> None:
         """Executes async type plugin
         """
-        await Ingest.start(self._core_management_host, self._core_management_port)
+        _LOGGER.info('Started South Plugin: {}'.format(self._name))
         self._plugin.plugin_start(self._plugin_handle)
 
-    
-    async def _exec_plugin_poll(self, config) -> None:
+    async def _exec_plugin_poll(self) -> None:
         """Executes poll type plugin
         """
-        await Ingest.start(self._core_management_host, self._core_management_port)
-        max_retry = 3
+        _LOGGER.info('Started South Plugin: {}'.format(self._name))
         try_count = 1
-        while True and try_count <= max_retry:
+        while self._plugin and try_count <= _MAX_RETRY_POLL:
             try:
                 data = self._plugin.plugin_poll(self._plugin_handle)
                 if len(data) > 0:
@@ -182,47 +180,100 @@ class Server(FoglampMicroservice):
                                                                   key=data['key'],
                                                                   readings=data['readings']))
                 # pollInterval is expressed in milliseconds
-                sleep_seconds = int(config['pollInterval']['value']) / 1000.0
+                sleep_seconds = int(self._plugin_handle['pollInterval']['value']) / 1000.0
                 await asyncio.sleep(sleep_seconds)
                 # If successful, then set retry count back to 1, meaning that only in case of 3 successive failures, exit.
                 try_count = 1
             except KeyError as ex:
                 _LOGGER.exception('Keyerror plugin {} : {}'.format(self._name, str(ex)))
-            except Exception as ex:
+            except (Exception, RuntimeError, exceptions.DataRetrievalError) as ex:
                 try_count += 1
                 _LOGGER.exception('Failed to poll for plugin {}, retry count: {}'.format(self._name, try_count))
-                await asyncio.sleep(2)
-
+                await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
+        _LOGGER.exception('Max retries exhausted in starting South plugin: {}'.format(self._name))
 
     def run(self):
         """Starts the South Microservice
-
-        Args:
-            plugin: Specifies which device plugin to start
-            core_mgt_host: IP address of the core's management API
-            core_mgt_port: Port of the core's management API
         """
         loop = asyncio.get_event_loop()
-
-        # Register signal handlers
-        # Registering SIGTERM causes an error at shutdown. See
-        # https://github.com/python/asyncio/issues/396
-        for signal_name in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(
-                signal_name,
-                lambda: asyncio.ensure_future(self._stop(loop)))
-
         asyncio.ensure_future(self._start(loop))
+        # This activates event loop and starts fetching events to the microservice server instance
         loop.run_forever()
+
+    async def _stop(self, loop):
+        if self._plugin is not None:
+            try:
+                self._plugin.plugin_shutdown(self._plugin_handle)
+            except Exception as ex:
+                _LOGGER.exception("Unable to stop plugin '%s' | reason: %s", self._name, str(ex))
+                #  must not prevent FogLAMP shutting down cleanly via the API call.
+                # raise ex
+            finally:
+                self._plugin = None
+                self._plugin_handle = None
+
+        try:
+            await Ingest.stop()
+            _LOGGER.info('Stopped the Ingest server.')
+        except Exception as ex:
+            _LOGGER.exception('Unable to stop the Ingest server. %s', str(ex))
+            raise ex
+
+        try:
+            self._task_main.cancel()
+            # Cancel all pending asyncio tasks after a timeout occurs
+            done, pending = await asyncio.wait(asyncio.Task.all_tasks(), timeout=_CLEAR_PENDING_TASKS_TIMEOUT)
+            for task_pending in pending:
+                task_pending.cancel()
+            await asyncio.sleep(2)
+        except (asyncio.CancelledError, exceptions.DataRetrievalError):
+            pass
+
+        # This deactivates event loop and
+        # helps aiohttp microservice server instance in graceful shutdown
+        _LOGGER.info('Stopping South service event loop, for plugin {}.'.format(self._name))
+        loop.stop()
 
     async def shutdown(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        print("shutdown south")
-        return web.json_response({"south":"shutdown"})
+        _LOGGER.info('Stopping South Service plugin {}'.format(self._name))
+        try:
+            await self._stop(asyncio.get_event_loop())
+            self.unregister_service_with_core(self._microservice_id)
+        except Exception as ex:
+            _LOGGER.exception('Error in stopping South Service plugin {}, {}'.format(self._name, str(ex)))
+            raise web.HTTPInternalServerError(reason=str(ex))
+
+        return web.json_response({"message": "Successfully shutdown microservice id {} at "
+                                             "url http://{}:{}/foglamp/service/shutdown".format(self._microservice_id, self._microservice_management_host, self._microservice_management_port)})
 
     async def change(self, request):
         """implementation of abstract method form foglamp.common.microservice.
         """
-        print("change south")
-        return web.json_response({"south":"change"})
+        _LOGGER.info('Configuration has changed for South plugin {}'.format(self._name))
+
+        try:
+            # retrieve new configuration
+            new_config = self._core_microservice_management_client.get_configuration_category(category_name=self._name)
+
+            # plugin_reconfigure and assign new handle
+            new_handle = self._plugin.plugin_reconfigure(self._plugin_handle, new_config)
+            self._plugin_handle = new_handle
+
+            _LOGGER.info('Reconfiguration done for South plugin {}'.format(self._name))
+            if new_handle['restart'] == 'yes':
+                self._task_main.cancel()
+                # Executes the requested plugin type with new config
+                if self._plugin_info['mode'] == 'async':
+                    self._task_main = asyncio.ensure_future(self._exec_plugin_async())
+                elif self._plugin_info['mode'] == 'poll':
+                    self._task_main = asyncio.ensure_future(self._exec_plugin_poll())
+                await asyncio.sleep(_TIME_TO_WAIT_BEFORE_RETRY)
+        except asyncio.CancelledError:
+            pass
+        except exceptions.DataRetrievalError:
+            _LOGGER.exception('Data retreival error in plugin {} during reconfigure'.format(self._name))
+            raise web.HTTPInternalServerError('Data retreival error in plugin {} during reconfigure'.format(self._name))
+
+        return web.json_response({"south": "change"})

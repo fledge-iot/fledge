@@ -1,0 +1,6 @@
+{
+  "return": [
+              {"alias": "my_name", "column": "name"},
+              {"alias": "my_id", "column": "id"}
+            ]
+}

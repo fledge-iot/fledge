@@ -23,6 +23,7 @@ class ManagementClient {
 		~ManagementClient();
 		bool registerService(const ServiceRecord& service);
 		bool unregisterService();
+		bool getService(ServiceRecord& service);
 		bool registerCategory(const std::string& category);
 		bool unregisterCategory(const std::string& category);
 	private:

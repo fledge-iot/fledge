@@ -7,6 +7,7 @@
 """Interest Registry Class"""
 
 import uuid
+from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common import logger
 from foglamp.services.core.interest_registry.interest_record import InterestRecord
 from foglamp.services.core.interest_registry import exceptions as interest_registry_exceptions
@@ -18,13 +19,16 @@ __version__ = "${VERSION}"
 _LOGGER = logger.setup(__name__)
 NOTIFY_CHANGE_CALLBACK = "foglamp.services.core.interest_registry.change_callback"
 
+
 class InterestRegistrySingleton(object):
     """This class is used to provide singlton functionality to InterestRegistry
     """
 
     _shared_state = {}
+
     def __init__(self):
         self.__dict__ = self._shared_state
+
 
 class InterestRegistry(InterestRegistrySingleton):
     """Used by core to manage microservices' interests in configuration changes.
@@ -33,10 +37,13 @@ class InterestRegistry(InterestRegistrySingleton):
 
     """
 
-    _registered_interests = list()
+    _registered_interests = None
     """ maintains the list of InterestRecord objects """
 
-    def __init__(self, configuration_manager):
+    _configuration_manager = None
+    """ ConfigurationManager used by InterestRegistry """
+
+    def __init__(self, configuration_manager=None):
         """ Used to create InterestRegistry object
 
         Args:
@@ -45,7 +52,12 @@ class InterestRegistry(InterestRegistrySingleton):
         """
 
         InterestRegistrySingleton.__init__(self)
-        self._configuration_manager = configuration_manager
+        if self._configuration_manager is None:
+            if not isinstance(configuration_manager, ConfigurationManager):
+                raise TypeError('Must be a valid ConfigurationManager object')
+            self._configuration_manager = configuration_manager
+        if self._registered_interests is None:
+            self._registered_interests = list()
     
     def and_filter(self, **kwargs):
         """ Used to filter InterestRecord objects based on attribute values.
@@ -57,7 +69,7 @@ class InterestRegistry(InterestRegistrySingleton):
     def get(self, registration_id=None, category_name=None, microservice_uuid=None):
         """ Used to filter InterestRecord objects based on attribute values.
         Args:
-	    registration_id (str): registration_id uuid as a string (optional)
+            registration_id (str): registration_id uuid as a string (optional)
             category_name (str): category of interest (optional)
             microservice_uuid (str): interested party - microservice uuid as a string (optional)
         """
@@ -66,16 +78,15 @@ class InterestRegistry(InterestRegistrySingleton):
             raise interest_registry_exceptions.DoesNotExist
         return interest_records
 
-
     def register(self, microservice_uuid, category_name):
         """ Used to add an entry to the InterestRegistry
         Args:
             category_name (str): category of interest (required)
-            microservice_uuid (str): interested party - microservice uuid as a string (required)
-	Note:
-	    category_name, microservice_uuid pair must be unique
-	Returns:
-	    registration id of new InterestRegistration entry
+            microservice_uuid (str): interested party - microservice_uuid as a string (required)
+        Note:
+            category_name, microservice_uuid pair must be unique
+        Returns:
+            registration id of new InterestRegistration entry
         Raises:
             foglamp.services.core.interest_registry.exceptions.ErrorInterestRegistrationAlreadyExists
                 in the event that the microservice_uuid, category_name pair is already registered
@@ -107,8 +118,8 @@ class InterestRegistry(InterestRegistrySingleton):
         """ Used to remove an entry from the InterestRegistry
         Args:
             registration_id (str): id (uuid as a string) of InterestRegistration entry to remove
-	Returns:
-	    registration id of removed interest record
+        Returns:
+            registration id of removed interest record
         Raises:
             foglamp.services.core.interest_registry.exceptions.DoesNotExist
                 in the event that the registration id does not have a corresponding entry in the registry

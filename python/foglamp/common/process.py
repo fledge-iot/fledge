@@ -8,12 +8,10 @@
 
 from abc import ABC, abstractmethod
 import argparse
-import http.client
-import json
 import time
-
 from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.common import logger
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -25,8 +23,20 @@ _logger = logger.setup(__name__)
 
 
 class ArgumentParserError(Exception):
-    """ Overwrite default exception to not terminate application """
+    """ Override default exception to not terminate application """
     pass
+
+
+class SilentArgParse(argparse.ArgumentParser):
+
+    def error(self, message):
+        """ Override default error functionality to not terminate application """
+        raise ArgumentParserError(message)
+
+    def silent_arg_parse(self, argument_name):
+        self.add_argument(argument_name)
+        parser_result = self.parse_known_args()
+        return list(vars(parser_result[0]).values())[0]
 
 
 class FoglampProcess(ABC):
@@ -44,7 +54,7 @@ class FoglampProcess(ABC):
     _name = None
     """ name of process """
 
-    _m_client = None
+    _core_microservice_management_client = None
     """ MicroserviceManagementClient instance """
 
     _readings_storage = None
@@ -79,7 +89,7 @@ class FoglampProcess(ABC):
         elif self._name is None:
             raise ValueError("--name is not specified")
 
-        self._m_client = self.MicroserviceManagementClient(self._core_management_host,self._core_management_port)
+        self._core_microservice_management_client = MicroserviceManagementClient(self._core_management_host,self._core_management_port)
         self._readings_storage = ReadingsStorageClient(self._core_management_host, self._core_management_port)
         self._storage = StorageClient(self._core_management_host, self._core_management_port)
 
@@ -104,21 +114,14 @@ class FoglampProcess(ABC):
             Known Exceptions:
             ArgumentParserError
         """
-        class SilentArgParse(argparse.ArgumentParser):
-            def error(self, message):
-                raise ArgumentParserError(message)
-        
         parser = SilentArgParse()
-        parser.add_argument(argument_name)
-        try:
-            parser_result = parser.parse_known_args()
-        except ArgumentParserError:
-            raise
-        else:
-            return list(vars(parser_result[0]).values())[0]
+        return parser.silent_arg_parse(argument_name)
+        
+    def get_services_from_core(self, name=None, _type=None):
+        return self._core_microservice_management_client.get_services(name, _type)
 
-    def register_service(self, service_registration_payload):
-        """ Register, with core, this process as a microservice.
+    def register_service_with_core(self, service_registration_payload):
+        """ Register a microservice with core
 
         Keyword Arguments:
             service_registration_payload -- json format dictionary
@@ -131,117 +134,74 @@ class FoglampProcess(ABC):
                 HTTPError
         """
 
-        return self._m_client.register_service(service_registration_payload)
+        return self._core_microservice_management_client.register_service(service_registration_payload)
 
-    def unregister_service(self):
-        """ UnRegister, with core, this process as a microservice.
+    def unregister_service_with_core(self, microservice_id):
+        """ Unregister a microservice with core
+
+        Keyword Arguments:
+            microservice_id (uuid as a string)
         """
-        return self._m_client.unregister_service(self.microservice_id)
+        return self._core_microservice_management_client.unregister_service(microservice_id)
 
-    def get_service(self, name=None, _type=None):
-        return self._m_client.get_services(name, _type)
-
-    def register_interest(self):
+    def register_interest_with_core(self):
         # cat name
         # callback module
         # self.microservice_id
         raise NotImplementedError
 
-    def deregister_interest(self):
+    def unregister_interest_with_core(self):
         # cat name
         # self.microservice_id
         raise NotImplementedError
 
-    class MicroserviceManagementClient(object):
-        _management_client_conn = None
+    def get_configuration_categories(self):
+        """
 
-        def __init__(self, core_management_host, core_management_port):
-            self._management_client_conn = http.client.HTTPConnection("{0}:{1}".format(core_management_host, core_management_port))
+        :return:
+        """
+        return self._core_microservice_management_client.get_configuration_category()
 
-        def register_service(self, service_registration_payload):
-            # register with core
-            self._management_client_conn.request(method='POST', url='/foglamp/service', body=json.dumps(service_registration_payload))
-            r = self._management_client_conn.getresponse()
-            if r.status in range(400, 500):
-                r.raise_for_status()
-            if r.status in range(500, 600):
-                r.raise_for_status()
-            res = r.read().decode()
-            self._management_client_conn.close()
-            response = json.loads(res)
-            try:
-                response["id"]
-            except KeyError:
-                error = response["error"]
-                _logger.exception("Could not register the microservice, From request %s, Got error %s", json.dumps(service_registration_payload), error)
-            except Exception as ex:
-                _logger.exception("Could not register the microservice, From request %s, Reason: %s", json.dumps(service_registration_payload), str(ex))
-                raise
+    def get_configuration_category(self, category_name=None):
+        """
 
-            return response
+        :param category_name:
+        :return:
+        """
+        return self._core_microservice_management_client.get_configuration_category(category_name)
 
-        def unregister_service(self, microservice_id):
-            # unregister with core
-            self._management_client_conn.request(method='DELETE', url='/foglamp/service/{}'.format(microservice_id))
-            r = self._management_client_conn.getresponse()
-            if r.status in range(400, 500):
-                r.raise_for_status()
-            if r.status in range(500, 600):
-                r.raise_for_status()
-            res = r.read().decode()
-            self._management_client_conn.close()
-            response = json.loads(res)
-            try:
-                response["id"]
-                # assert microservice_id = response["id"]
-                # assert "Service unregistered" == response["message"]
-            except KeyError:
-                error = response["error"]
-                _logger.exception("Could not un-register the micro-service having uuid %s, "
-                                  "Got error: %s", microservice_id, error)
-            except Exception as ex:
-                _logger.exception("Could not un-register the micro-service having uuid %s, "
-                                  "Reason: %s", microservice_id, str(ex))
-                raise
+    def get_configuration_item(self, category_name, config_item):
+        """
 
-            return response
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        return self._core_microservice_management_client.get_configuration_item(category_name, config_item)
 
-        def register_interest(self):
-            # TODO
-            # check with python/foglamp/services/common/microservice_management/service_registry/service_registry.py
-            # And routing problem
-            pass
+    def create_configuration_category(self, category_data):
+        """
 
-        def unregister_interest(self):
-            # TODO
-            # check with python/foglamp/services/common/microservice_management/service_registry/service_registry.py
-            # And routing problem
-            pass
+        :param category_data:
+        :return:
+        """
+        return self._core_microservice_management_client.create_configuration_category(category_data)
 
-        def get_services(self, name=None, _type=None):
-            url = '/foglamp/service'
-            if _type:
-                url = '{}?type={}'.format(url, _type)
-            if name:
-                url = '{}?name={}'.format(url, name)
-            if name and _type:
-                url = '{}?name={}&type={}'.format(url, name, _type)
-            self._management_client_conn.request(method='GET', url=url)
-            r = self._management_client_conn.getresponse()
-            if r.status in range(400, 500):
-                r.raise_for_status()
-            if r.status in range(500, 600):
-                r.raise_for_status()
-            res = r.read().decode()
-            self._management_client_conn.close()
-            response = json.loads(res)
-            try:
-                response["services"]
-            except KeyError:
-                error = response["error"]
-                _logger.exception("Could not find the micro-service for request url %s, Got error: %s", url, error)
-            except Exception as ex:
-                _logger.exception("Could not find the micro-service for request url %s, Reason: %s", url, str(ex))
-                raise
+    def update_configuration_item(self, category_name, config_item):
+        """
 
-            return response
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        return self._core_microservice_management_client.update_configuration_item(category_name, config_item)
+
+    def delete_configuration_item(self, category_name, config_item):
+        """
+
+        :param category_name:
+        :param config_item:
+        :return:
+        """
+        return self._core_microservice_management_client.delete_configuration_item(category_name, config_item)
+

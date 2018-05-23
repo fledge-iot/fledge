@@ -13,7 +13,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__all__ = ('NotReadyError', 'DuplicateRequestError', 'TaskNotRunningError', 'TaskNotFoundError', 'ScheduleNotFoundError')
+__all__ = ('NotReadyError', 'DuplicateRequestError', 'TaskNotRunningError', 'TaskNotFoundError', 'ScheduleNotFoundError',
+           'ScheduleProcessNameNotFoundError')
 
 class NotReadyError(RuntimeError):
     pass
@@ -46,3 +47,5 @@ class ScheduleNotFoundError(ValueError):
             "Schedule not found: {}".format(schedule_id), *args)
 
 
+class ScheduleProcessNameNotFoundError(ValueError):
+    pass

@@ -1,0 +1,92 @@
+Common Read,GET,http://localhost:8080/storage/table/test,
+Common Read key,GET,http://localhost:8080/storage/table/test?id=1,
+Common Read key empty,GET,http://localhost:8080/storage/table/test?id=2,
+Common Read complex,PUT,http://localhost:8080/storage/table/test/query,where_code_1.json
+Common Read complex empty,PUT,http://localhost:8080/storage/table/test/query,where_id_2.json
+Common Read complex not equal,PUT,http://localhost:8080/storage/table/test/query,where_id_not_1.json
+Common Read complex count,PUT,http://localhost:8080/storage/table/test/query,where_count.json
+Common Read complex avg,PUT,http://localhost:8080/storage/table/test/query,where_avg.json
+Common Read complex min,PUT,http://localhost:8080/storage/table/test/query,where_min.json
+Common Read complex max,PUT,http://localhost:8080/storage/table/test/query,where_max.json
+Common Insert,POST,http://localhost:8080/storage/table/test,insert.json
+Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
+Common Insert bad column,POST,http://localhost:8080/storage/table/test,insert_bad.json
+Common Insert bad syntax,POST,http://localhost:8080/storage/table/test,insert_bad2.json
+Common Delete,DELETE,http://localhost:8080/storage/table/test,where_id_2.json
+Common Read deleted,GET,http://localhost:8080/storage/table/test?id=2,
+Common Delete non-existant,DELETE,http://localhost:8080/storage/table/test,where_id_2.json
+Common Insert,POST,http://localhost:8080/storage/table/test,insert.json
+Common Read limit,PUT,http://localhost:8080/storage/table/test/query,limit.json
+Common Read skip,PUT,http://localhost:8080/storage/table/test/query,skip.json
+Common Read bad 1,PUT,http://localhost:8080/storage/table/test/query,where_bad_1.json
+Common Read bad 2,PUT,http://localhost:8080/storage/table/test/query,where_bad_2.json
+Common Read bad 3,PUT,http://localhost:8080/storage/table/test/query,where_bad_3.json
+Common Read bad 4,PUT,http://localhost:8080/storage/table/test/query,where_bad_4.json
+Common Read default sort order,PUT,http://localhost:8080/storage/table/test/query,bad_sort_1.json
+Common Read bad sort 2,PUT,http://localhost:8080/storage/table/test/query,bad_sort_2.json
+Common Update,PUT,http://localhost:8080/storage/table/test,update.json
+Common Read back,GET,http://localhost:8080/storage/table/test?id=2,
+Common Update,PUT,http://localhost:8080/storage/table/test,updateKey.json
+Common Read back,GET,http://localhost:8080/storage/table/test?key=UPDA,
+Common Update no values,PUT,http://localhost:8080/storage/table/test,bad_update.json
+Common Read group,PUT,http://localhost:8080/storage/table/test/query,group.json
+Bad URL,GET,http://localhost:8080/foglamp/nothing,
+Bad table,GET,http://localhost:8080/storage/table/doesntexist,
+Bad column,GET,http://localhost:8080/storage/table/test?doesntexist=9,
+Ping interface,GET,http://localhost:1081/foglamp/service/ping,,checkstate
+Add Readings,POST,http://localhost:8080/storage/reading,asset.json
+Fetch Readings,GET,http://localhost:8080/storage/reading?id=1&count=1000,,checkstate
+Fetch Readings zero count,GET,http://localhost:8080/storage/reading?id=1&count=0,
+Fetch Readings no count,GET,http://localhost:8080/storage/reading?id=1,
+Fetch Readings no id,GET,http://localhost:8080/storage/reading?count=1000,
+Purge Readings,PUT,http://localhost:8080/storage/reading/purge?age=1000&sent=10&flags=purge,
+Common Read sort array,PUT,http://localhost:8080/storage/table/test/query,sort2.json
+Common Read multiple aggregates,PUT,http://localhost:8080/storage/table/test/query,where_multi_aggregatee.json,
+Common Read columns,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r1.json,
+Common Read columns alias,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r2.json,
+Common Read columns json,PUT,http://localhost:8080/storage/table/test/query,where_id_1_r3.json,
+Date format1,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d1.json
+Date format2,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d2.json
+Date format3,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d3.json
+Date format4,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d4.json
+Date format5,PUT,http://localhost:8080/storage/table/test2/query,where_test2_d5.json
+Bad format1,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format1.json
+Bad format2,PUT,http://localhost:8080/storage/table/test2/query,where_bad_format2.json
+Count star,PUT,http://localhost:8080/storage/table/test2/query,where_count_star.json
+sum,PUT,http://localhost:8080/storage/table/test2/query,where_sum.json
+Add more Readings,POST,http://localhost:8080/storage/reading,readings.json
+Query Readings,PUT,http://localhost:8080/storage/reading/query,query_readings.json
+Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket.json
+Query Readings Timebucket 1,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket1.json
+Multi And,PUT,http://localhost:8080/storage/table/test2/query,multi_and.json
+Multi Or,PUT,http://localhost:8080/storage/table/test2/query,multi_or.json
+Multi Mixed,PUT,http://localhost:8080/storage/table/test2/query,multi_mised.json
+Update Bad Condition,PUT,http://localhost:8080/storage/table/test2,update_bad.json
+Read back,GET,http://localhost:8080/storage/table/test2,
+Count Assets,PUT,http://localhost:8080/storage/reading/query,count_assets.json
+Reading Rate,PUT,http://localhost:8080/storage/reading/query,reading_property.json
+Bad JSON,PUT,http://localhost:8080/storage/reading/query,reading_property_bad.json
+Update expression,PUT,http://localhost:8080/storage/table/test2,update_expression.json
+Read back update,PUT,http://localhost:8080/storage/table/test2/query,read_id_1xx.json
+Distinct,PUT,http://localhost:8080/storage/table/test2/query,where_distinct.json
+Update JSON,PUT,http://localhost:8080/storage/table/test,update_json.json
+Read back update,PUT,http://localhost:8080/storage/table/test/query,sort.json
+Add JSON,POST,http://localhost:8080/storage/table/test,insert2.json
+Update Complex JSON,PUT,http://localhost:8080/storage/table/test,update_json2.json
+Read back update,GET,http://localhost:8080/storage/table/test?id=4,
+Add now,POST,http://localhost:8080/storage/table/test2,addnew.json
+Newer,PUT,http://localhost:8080/storage/table/test2/query,newer.json
+Older,PUT,http://localhost:8080/storage/table/test2/query,older.json
+Newer Bad,PUT,http://localhost:8080/storage/table/test2/query,newerBad.json
+Like,PUT,http://localhost:8080/storage/table/test2/query,where_like.json
+Group Time,PUT,http://localhost:8080/storage/reading/query,group_time.json
+Jira FOGL-690,POST,http://localhost:8080/storage/table/configuration,error-fogl690.json
+Jira FOGL-690 cleanup,DELETE,http://localhost:8080/storage/table/configuration,delete.json
+Add bad Readings,POST,http://localhost:8080/storage/reading,badreadings.json
+Query Readings Timebucket Bad,PUT,http://localhost:8080/storage/reading/query,query_readings_timebucket_bad.json
+Reading Rate Array,PUT,http://localhost:8080/storage/reading/query,reading_property_array.json
+Common Read limit max_int,PUT,http://localhost:8080/storage/table/test/query,limit_max_int.json
+Common Read skip max_int,PUT,http://localhost:8080/storage/table/test/query,skip_max_int.json
+Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone.json
+Bad Timezone,PUT,http://localhost:8080/storage/table/test2/query,timezone_bad.json
+Shutdown,POST,http://localhost:1081/foglamp/service/shutdown,,checkstate

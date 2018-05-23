@@ -130,7 +130,12 @@ unsigned short servicePort;
 	{
 		servicePort = (unsigned short)atoi(config->getValue("port"));
 	}
-	unsigned int threads = (unsigned int)atoi(config->getValue("threads"));
+	unsigned int threads = 1;
+	if (config->hasValue("threads"))
+	{
+		threads = (unsigned int)atoi(config->getValue("threads"));
+	}
+
 
 	api = new StorageApi(servicePort, threads);
 }

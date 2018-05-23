@@ -10,7 +10,6 @@ to send the reading data to a PI Server (or Connector) using the OSIsoft OMF for
 PICROMF = PI Connector Relay OMF"""
 
 import aiohttp
-import asyncio
 
 from datetime import datetime
 import sys
@@ -20,7 +19,6 @@ import resource
 import datetime
 import time
 import json
-import requests
 import logging
 import urllib3
 import foglamp.plugins.north.common.common as plugin_common
@@ -389,7 +387,6 @@ async def plugin_send(data, raw_data, stream_id):
 
     is_data_sent = False
     config_category_name = data['_CONFIG_CATEGORY_NAME']
-    data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
     omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
@@ -417,6 +414,7 @@ async def plugin_send(data, raw_data, stream_id):
                 raise ex
             else:
                 is_data_sent = True
+
     except Exception as ex:
         _logger.exception(plugin_common.MESSAGES_LIST["e000031"].format(ex))
         raise
@@ -741,7 +739,6 @@ class OmfNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
-                # FIXME:
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],
@@ -752,13 +749,6 @@ class OmfNorthPlugin(object):
 
                         status_code = resp.status
                         text = await resp.text()
-
-                # FIXME: testing
-                # file = open("/tmp/sp_to_pi.txt", 'a')
-                # file.write(omf_data_json)
-                # file.close()
-                # status_code = 200
-                # text = ""
 
             except Exception as e:
                 _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
@@ -788,7 +778,12 @@ class OmfNorthPlugin(object):
     def transform_in_memory_data(self, data_to_send, raw_data):
         """ Transforms the in memory data into a new structure that could be converted into JSON for the PICROMF
         Args:
+            data_to_send - Transformed/generated data
+            raw_data - Input data
         Returns:
+            data_available - True, there are new data
+            _new_position - It corresponds to the row_id of the last element
+            _num_sent - Number of elements handled, used to update the statistics
         Raises:
         """
 
@@ -843,7 +838,3 @@ class OmfNorthPlugin(object):
             raise
 
         return data_available, _new_position, _num_sent
-    
-
-
-

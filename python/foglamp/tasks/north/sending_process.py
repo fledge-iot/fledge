@@ -244,6 +244,9 @@ def handling_input_parameters():
 class SendingProcess:
     """ SendingProcess """
 
+    UPDATE_POSITION_MAX = 10
+    """ the position is updated after the specified numbers of interactions of the sending task """
+
     _run_task_fetch_data = True
     _run_task_send_data = True
     _task_id_fetch_data = None
@@ -777,7 +780,6 @@ class SendingProcess:
         tot_num_sent = 0
 
         update_position_idx = 0
-        update_position_max = 5
 
         try:
             self._memory_buffer_send_idx = 0
@@ -807,24 +809,6 @@ class SendingProcess:
                             update_last_object_id = new_last_object_id
                             tot_num_sent = tot_num_sent + num_sent
 
-                        # Updates the Storage layer every 'update_position_max' interactions
-                        if db_update:
-
-                            if update_position_idx >= update_position_max:
-
-                                SendingProcess._logger.debug("task {f} - update position - idx/max |{idx}/{max}| "
-                                    .format(
-                                                f="send_data",
-                                                idx=update_position_idx,
-                                                max=update_position_max))
-
-                                await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
-                                update_position_idx = 0
-                                tot_num_sent = 0
-                                db_update = False
-                            else:
-                                update_position_idx += 1
-
                         self._memory_buffer[self._memory_buffer_send_idx] = None
 
                         self._memory_buffer_send_idx += 1
@@ -837,6 +821,25 @@ class SendingProcess:
                                                      .format(f="send_data", idx=self._memory_buffer_send_idx))
 
                         await asyncio.sleep(time_to_sleep)
+
+                    # Updates the Storage layer every 'self.UPDATE_POSITION_MAX' interactions
+                    if db_update:
+
+                        if update_position_idx >= self.UPDATE_POSITION_MAX:
+
+                            SendingProcess._logger.debug("task {f} - update position - idx/max |{idx}/{max}| "
+                                .format(
+                                            f="send_data",
+                                            idx=update_position_idx,
+                                            max=self.UPDATE_POSITION_MAX))
+
+                            await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+                            update_position_idx = 0
+                            tot_num_sent = 0
+                            db_update = False
+                        else:
+                            update_position_idx += 1
+
 
                 else:
                     self._memory_buffer_send_idx = 0
@@ -1156,5 +1159,4 @@ class SendingProcess:
 
 
 if __name__ == "__main__":
-
     SendingProcess().start()

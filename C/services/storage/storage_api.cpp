@@ -25,7 +25,7 @@
 #endif
 
 // Enable worker threads for readings append and fetch
-#define WORKER_THREADS		0
+#define WORKER_THREADS		1
 
 /**
  * Definition of the Storage Service REST API

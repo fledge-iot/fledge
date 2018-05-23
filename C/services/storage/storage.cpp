@@ -241,9 +241,14 @@ bool StorageService::loadPlugin()
 		return true;
 	}
 	const char *readingPluginName = config->getValue("readingPlugin");
+	if (! *readingPluginName)
+	{
+		// Single plugin does everything
+		return true;
+	}
 	if (plugin == NULL)
 	{
-		logger->error("Unable to fetch plugin name from configuration.\n");
+		logger->error("Unable to fetch reading plugin name from configuration.\n");
 		return false;
 	}
 	logger->info("Load reading plugin %s.", readingPluginName);

@@ -27,6 +27,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
  */
 class StorageClient {
 	public:
+		StorageClient(HttpClient *client) : m_client(client) {};
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
 		ResultSet *queryTable(const std::string& tablename, const Query& query);

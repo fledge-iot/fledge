@@ -395,7 +395,12 @@ async def plugin_send(data, raw_data, stream_id):
     omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
+        # Alloc the in memory buffer
+        buffer_size = len(raw_data)
+        data_to_send = [None for x in range(buffer_size)]
+
         is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
+
         if is_data_available:
 
             await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
@@ -736,6 +741,7 @@ class OmfNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
+                # FIXME:
                 async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
                     async with session.post(
                                             url=self._config['URL'],
@@ -746,6 +752,13 @@ class OmfNorthPlugin(object):
 
                         status_code = resp.status
                         text = await resp.text()
+
+                # FIXME: testing
+                # file = open("/tmp/sp_to_pi.txt", 'a')
+                # file.write(omf_data_json)
+                # file.close()
+                # status_code = 200
+                # text = ""
 
             except Exception as e:
                 _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
@@ -779,82 +792,58 @@ class OmfNorthPlugin(object):
         Raises:
         """
 
-        new_position = 0
+        _new_position = 0
         data_available = False
+
         # statistics
-        num_sent = 0
-        # internal statistic - rows that generate errors in the preparation process, before sending them to OMF
-        num_unsent = 0
+        _num_sent = 0
+
+        idx = 0
+
         try:
+
             for row in raw_data:
-                row_id = row['id']
-                asset_code = row['asset_code']
+
                 # Identification of the object/sensor
-                measurement_id = self._generate_omf_measurement(asset_code)
+                measurement_id = self._generate_omf_measurement(row['asset_code'])
                 
                 try:
-                    self._transform_in_memory_row(data_to_send, row, measurement_id)
+                    # The expression **row['reading'] - joins the 2 dictionaries
+                    data_to_send[idx] = {
+                            "containerid": measurement_id,
+                            "values": [
+                                {
+                                    "Time": row['user_ts'][0:10] + "T" + row['user_ts'][11:23] + "Z",
+                                    **row['reading']
+                                }
+                            ]
+                        }
+
+                    idx += 1
+
                     # Used for the statistics update
-                    num_sent += 1
+                    _num_sent += 1
+
                     # Latest position reached
-                    new_position = row_id
+                    _new_position = row['id']
+
                     data_available = True
+
+                    if _log_debug_level == 3:
+                        self._logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
+                                           .format(measurement_id, row['asset_code'], str(row['id'])))
+
+                        self._logger.debug("in memory info |{0}| ".format(data_to_send[idx]))
+
                 except Exception as e:
-                    num_unsent += 1
                     self._logger.warning(plugin_common.MESSAGES_LIST["e000023"].format(e))
+
         except Exception:
             self._logger.error(plugin_common.MESSAGES_LIST["e000021"])
             raise
-        return data_available, new_position, num_sent
+
+        return data_available, _new_position, _num_sent
     
-    def _transform_in_memory_row(self, data_to_send, row, target_stream_id):
-        """ Extends the in memory structure using data retrieved from the Storage Layer
-        Args:
-            data_to_send:      data block to send - updated/used by reference
-            row:               information retrieved from the Storage Layer that it is used to extend data_to_send
-            target_stream_id:  OMF container ID
-        Returns:
-        Raises:
-        """
-        data_available = False
-        try:
-            row_id = row['id']
-            asset_code = row['asset_code']
-            timestamp_raw = row['user_ts']
 
-            # Converts Date/time to a proper ISO format - Z is the zone designator for the zero UTC offset
-            step1 = datetime.datetime.strptime(timestamp_raw, '%Y-%m-%d %H:%M:%S.%f+00')
-            timestamp = step1.isoformat() + 'Z'
 
-            sensor_data = row['reading']
-            if _log_debug_level == 3:
-                self._logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
-                              .format(target_stream_id, asset_code, str(row_id)))
-            # Prepares new data for the PICROMF
-            new_data = [
-                {
-                    "containerid": target_stream_id,
-                    "values": [
-                        {
-                            "Time": timestamp
-                        }
-                    ]
-                }
-            ]
-            # Evaluates which data is available
-            for data_key in sensor_data:
-                try:
-                    new_data[0]["values"][0][data_key] = sensor_data[data_key]
-                    data_available = True
-                except KeyError:
-                    pass
-            if data_available:
-                # note : append produces a not properly constructed OMF message
-                data_to_send.extend(new_data)
-                if _log_debug_level == 3:
-                    self._logger.debug("in memory info |{0}| ".format(new_data))
-            else:
-                self._logger.warning(plugin_common.MESSAGES_LIST["e000020"])
-        except Exception:
-            self._logger.error(plugin_common.MESSAGES_LIST["e000022"])
-            raise
+

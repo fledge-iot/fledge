@@ -367,7 +367,6 @@ class SendingProcess:
         self._mgt_port = None
         self._mgt_address = None
         ''' Parameters for the Storage layer '''
-        # FIXME:
         self._storage_async = None
         self._storage = None
         self._readings = None
@@ -1110,7 +1109,6 @@ class SendingProcess:
         try:
             self._storage_async = StorageClientAsync(self._mgt_address, self._mgt_port)
             self._readings = ReadingsStorageClientAsync(self._mgt_address, self._mgt_port)
-            # FIXME:
             self._storage = StorageClient(self._mgt_address, self._mgt_port)
             self._audit = AuditLogger(self._storage)
         except Exception as ex:

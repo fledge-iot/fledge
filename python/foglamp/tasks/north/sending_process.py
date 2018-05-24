@@ -252,6 +252,10 @@ class SendingProcess:
     _task_id_fetch_data = None
     _task_id_send_data = None
 
+    _task_sem_fetch_data = None
+    _task_sem_send_data = None
+    """" Semaphores used for the synchronization of the fetch/send operations """
+
     _memory_buffer = [None]
     _memory_buffer_fetch_idx = 0
     _memory_buffer_send_idx = 0
@@ -704,6 +708,9 @@ class SendingProcess:
         # Prepares the in memory buffer for the fetch/send operations
         self._memory_buffer = [None for x in range(self._config['memory_buffer_size'])]
 
+        self._task_sem_fetch_data = asyncio.Semaphore(0)
+        self._task_sem_send_data = asyncio.Semaphore(0)
+
         self._task_id_fetch_data = asyncio.ensure_future(self._task_fetch_data(stream_id))
         self._task_id_send_data = asyncio.ensure_future(self._task_send_data(stream_id))
 
@@ -804,6 +811,8 @@ class SendingProcess:
                             self._memory_buffer_fetch_idx += 1
 
                             self.performance_track("task fetch_data")
+
+                            self._task_sem_fetch_data.release()
                         else:
                             # There is no more data to load
                             SendingProcess._logger.debug("task {f} - idle : no more data to load - idx |{idx}| "
@@ -816,7 +825,7 @@ class SendingProcess:
                         SendingProcess._logger.debug("task {f} - idle : memory buffer full - idx |{idx}| "
                                                      .format(f="fetch_data", idx=self._memory_buffer_fetch_idx))
 
-                        await asyncio.sleep(time_to_sleep)
+                        await self._task_sem_send_data.acquire()
 
                 else:
                     self._memory_buffer_fetch_idx = 0
@@ -887,12 +896,14 @@ class SendingProcess:
 
                             self.performance_track("task send_data")
 
+                            self._task_sem_send_data.release()
+
                     else:
                         # There is no data to send
                         SendingProcess._logger.debug("task {f} - idle : no data to send - idx |{idx}| "
                                                      .format(f="send_data", idx=self._memory_buffer_send_idx))
 
-                        await asyncio.sleep(time_to_sleep)
+                        await self._task_sem_fetch_data.acquire()
 
                     # Updates the Storage layer every 'self.UPDATE_POSITION_MAX' interactions
                     if db_update:

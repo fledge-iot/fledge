@@ -692,6 +692,57 @@ class SendingProcess:
             SendingProcess._logger.error(_message)
             raise
 
+    async def send_data(self, stream_id):
+        """ Handles the sending of the data to the destination using the configured plugin
+            for a defined amount of time
+        Args:
+        Returns:
+        Raises:
+        """
+        SendingProcess._logger.debug("{0} - start".format("send_data"))
+
+        # Prepares the in memory buffer for the fetch/send operations
+        self._memory_buffer = [None for x in range(self._config['memory_buffer_size'])]
+
+        self._task_id_fetch_data = asyncio.ensure_future(self._task_fetch_data(stream_id))
+        self._task_id_send_data = asyncio.ensure_future(self._task_send_data(stream_id))
+
+        self._run_task_fetch_data = True
+        self._run_task_send_data = True
+
+        try:
+            start_time = time.time()
+            elapsed_seconds = 0
+
+            while elapsed_seconds < self._config['duration']:
+
+                # Terminates the execution in case a signal has been received
+                if SendingProcess._stop_execution:
+                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
+                            func="send_data"))
+                    break
+
+                # Context switch to either the fetch or the send operation
+                await asyncio.sleep(self._config['sleepInterval'])
+
+                elapsed_seconds = time.time() - start_time
+                SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format("send_data", elapsed_seconds))
+
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000021"].format(ex)
+            SendingProcess._logger.error(_message)
+
+            await self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message})
+
+        # Graceful termination of the tasks
+        self._run_task_fetch_data = False
+        self._run_task_send_data = False
+
+        await self._task_id_fetch_data
+        await self._task_id_send_data
+
+        SendingProcess._logger.debug("{0} - completed".format("send_data"))
+
     async def _task_fetch_data(self, stream_id):
         """ Read data from the Storage Layer into a memory structure
         Args:
@@ -713,10 +764,17 @@ class SendingProcess:
                     # Checks if there is enough space to load a new block of data
                     if self._memory_buffer[self._memory_buffer_fetch_idx] is None:
 
-                        data_to_send = await self._load_data_into_memory(last_object_id)
+                        try:
+                            data_to_send = await self._load_data_into_memory(last_object_id)
+
+                        except Exception as ex:
+                            _message = _MESSAGES_LIST["e000028"].format(ex)
+                            SendingProcess._logger.error(_message)
+                            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_fetch_data": _message})
+
+                            data_to_send = False
 
                         if data_to_send:
-
                             SendingProcess._logger.debug("task {f} - loaded - idx |{idx}|".format(
                                                                         f="fetch_data",
                                                                         idx=self._memory_buffer_fetch_idx))
@@ -763,9 +821,12 @@ class SendingProcess:
                 else:
                     self._memory_buffer_fetch_idx = 0
 
-        except Exception as e:
-            _message = _MESSAGES_LIST["e000028"].format(e)
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000028"].format(ex)
             SendingProcess._logger.error(_message)
+
+            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_fetch_data": _message})
+            raise
 
         SendingProcess._logger.debug("task {0} - end".format("fetch_data"))
 
@@ -800,21 +861,31 @@ class SendingProcess:
                                                                     f="send_data",
                                                                     idx=self._memory_buffer_send_idx))
 
-                        data_sent, new_last_object_id, num_sent = await self._plugin.plugin_send(
-                                        self._plugin_handle,
-                                        self._memory_buffer[self._memory_buffer_send_idx],
-                                        stream_id)
+                        try:
+                            data_sent, new_last_object_id, num_sent = await self._plugin.plugin_send(
+                                self._plugin_handle,
+                                self._memory_buffer[self._memory_buffer_send_idx],
+                                stream_id)
+
+                        except Exception as ex:
+                            _message = _MESSAGES_LIST["e000021"].format(ex)
+                            SendingProcess._logger.error(_message)
+                            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_send_data": _message})
+
+                            data_sent = False
+                            new_last_object_id = update_last_object_id
+                            num_sent = 0
 
                         if data_sent:
                             db_update = True
                             update_last_object_id = new_last_object_id
                             tot_num_sent = tot_num_sent + num_sent
 
-                        self._memory_buffer[self._memory_buffer_send_idx] = None
+                            self._memory_buffer[self._memory_buffer_send_idx] = None
 
-                        self._memory_buffer_send_idx += 1
+                            self._memory_buffer_send_idx += 1
 
-                        self.performance_track("task send_data")
+                            self.performance_track("task send_data")
 
                     else:
                         # There is no data to send
@@ -847,12 +918,15 @@ class SendingProcess:
             if db_update:
                 await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
 
-        except Exception as e:
-            _message = _MESSAGES_LIST["e000021"].format(e)
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000021"].format(ex)
             SendingProcess._logger.error(_message)
 
             if db_update:
                 await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+
+            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_send_data": _message})
+            raise
 
         SendingProcess._logger.debug("task {0} - end".format("send_data"))
 
@@ -889,58 +963,6 @@ class SendingProcess:
             SendingProcess._logger.debug("PERFORMANCE - {0} : memory MB |{1:>8,}|".format(
                                                                 message,
                                                                 process_memory))
-
-    async def send_data(self, stream_id):
-        """ Handles the sending of the data to the destination using the configured plugin
-            for a defined amount of time
-        Args:
-        Returns:
-        Raises:
-        """
-        SendingProcess._logger.debug("{0} - ".format("send_data"))
-
-        # Prepares the in memory buffer for the fetch/send operations
-        self._memory_buffer = [None for x in range(self._config['memory_buffer_size'])]
-
-        self._task_id_fetch_data = asyncio.ensure_future(self._task_fetch_data(stream_id))
-        self._task_id_send_data = asyncio.ensure_future(self._task_send_data(stream_id))
-
-        self._run_task_fetch_data = True
-        self._run_task_send_data = True
-
-        try:
-            start_time = time.time()
-            elapsed_seconds = 0
-
-            while elapsed_seconds < self._config['duration']:
-
-                # Terminates the execution in case a signal has been received
-                if SendingProcess._stop_execution:
-                    SendingProcess._logger.info("{func} - signal received, stops the execution".format(
-                            func="send_data"))
-                    break
-
-                # Context switch to either the fetch or the send operation
-                await asyncio.sleep(self._config['sleepInterval'])
-
-                elapsed_seconds = time.time() - start_time
-                SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format("send_data", elapsed_seconds))
-
-        except Exception:
-            _message = _MESSAGES_LIST["e000021"].format("")
-            SendingProcess._logger.error(_message)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message}))
-            raise
-
-        # Graceful termination
-        self._run_task_fetch_data = False
-        self._run_task_send_data = False
-
-        await self._task_id_fetch_data
-        await self._task_id_send_data
-
-        SendingProcess._logger.debug("{0} - ".format("send_data - completed"))
 
     async def _update_statistics(self, num_sent, stream_id):
         """ Updates FogLAMP statistics

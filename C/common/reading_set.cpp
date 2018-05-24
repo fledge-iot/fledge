@@ -32,7 +32,7 @@ ReadingSet::ReadingSet(const std::string& json)
 	}
 	if (doc.HasMember("count"))
 	{
-		m_count = doc["count"].GetInt();
+		m_count = doc["count"].GetUint();
 		if (!doc.HasMember("readings"))
 		{
 			throw new ReadingSetException("Missing readings array");

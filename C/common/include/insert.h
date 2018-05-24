@@ -60,6 +60,12 @@ class InsertValue {
 			json << "\"" << m_column << "\" : ";
 			switch (m_type)
 			{
+			case JSON_COLUMN:
+				// TODO support JSON
+				break;
+			case BOOL_COLUMN:
+				json << m_value.ival;
+				break;
 			case INT_COLUMN:
 				json << m_value.ival;
 				break;

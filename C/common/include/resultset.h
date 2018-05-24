@@ -53,9 +53,9 @@ class ResultSet {
 					m_type = NUMBER_COLUMN;
 				};
 				ColumnType 	getType() { return m_type; };
-				const long	getInteger() const;
-				const double	getNumber() const;
-				const char	*getString() const;
+				long	getInteger() const;
+				double	getNumber() const;
+				char	*getString() const;
 			private:
 				ColumnType	m_type;
 				union {
@@ -78,11 +78,11 @@ class ResultSet {
 				{
 					m_values.push_back(value);
 				};
-				const ColumnType	getType(unsigned int column);
-				const ColumnType	getType(const std::string& name);
-				const ColumnValue	*getColumn(unsigned int column) const;
-				const ColumnValue	*getColumn(const std::string& name) const;
-				const ColumnValue 	*operator[] (int colNo) const {
+				ColumnType	getType(unsigned int column);
+				ColumnType	getType(const std::string& name);
+				ColumnValue	*getColumn(unsigned int column) const;
+				ColumnValue	*getColumn(const std::string& name) const;
+				ColumnValue 	*operator[] (unsigned long colNo) const {
 							return m_values[colNo];
 						};
 			private:
@@ -94,17 +94,17 @@ class ResultSet {
 
 		ResultSet(const std::string& json);
 		~ResultSet();
-		const unsigned int		rowCount() const { return m_rowCount; };
-		const unsigned int		columnCount() const { return m_columns.size(); };
+		unsigned int			rowCount() const { return m_rowCount; };
+		unsigned int			columnCount() const { return m_columns.size(); };
 		const std::string&		columnName(unsigned int column) const;
-		const ColumnType		columnType(unsigned int column) const;
-		const ColumnType		columnType(const std::string& name) const;
+		ColumnType			columnType(unsigned int column) const;
+		ColumnType			columnType(const std::string& name) const;
 		RowIterator			firstRow();
 		RowIterator			nextRow(RowIterator it);
-		const bool			isLastRow(RowIterator it) const;
-		const bool			hasNextRow(RowIterator it) const;
-		const unsigned int		findColumn(const std::string& name) const;
-		const Row *			operator[] (int rowNo) {
+		bool				isLastRow(RowIterator it) const;
+		bool				hasNextRow(RowIterator it) const;
+		unsigned int			findColumn(const std::string& name) const;
+		const Row *			operator[] (unsigned long rowNo) {
 							return m_rows[rowNo];
 						};
 

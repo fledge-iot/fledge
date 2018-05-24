@@ -21,11 +21,13 @@
  */
 class PurgeResult {
 	public:
+		PurgeResult() : m_removed(0), m_unsentPurged(0), m_unsentRetained(0),
+				m_remaining(0) {};
 		PurgeResult(const std::string& json);
-		const unsigned long	getRemoved() const { return m_removed; };
-		const unsigned long	getUnsentPurged() const { return m_unsentPurged; };
-		const unsigned long	getUnsentRetained() const { return m_unsentRetained; };
-		const unsigned long	getRemaining() const { return m_remaining; };
+		unsigned long	getRemoved() const { return m_removed; };
+		unsigned long	getUnsentPurged() const { return m_unsentPurged; };
+		unsigned long	getUnsentRetained() const { return m_unsentRetained; };
+		unsigned long	getRemaining() const { return m_remaining; };
 	private:
 		unsigned long 	m_removed;
 		unsigned long 	m_unsentPurged;

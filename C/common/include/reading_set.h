@@ -28,8 +28,8 @@ class ReadingSet {
 		ReadingSet(const std::string& json);
 		~ReadingSet();
 
-		const unsigned int		getCount() const { return m_count; };
-		const Reading			*operator[] (int idx) const {
+		unsigned int			getCount() const { return m_count; };
+		const Reading			*operator[] (const unsigned int idx) {
 							return m_readings[idx];
 						};
 	private:

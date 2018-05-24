@@ -150,6 +150,7 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 		m_logger->error("Failed to query readings: %s", ex.what());
 		throw;
 	}
+	return 0;
 }
 
 /**
@@ -178,13 +179,14 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		m_logger->error("Failed to fetch readings: %s", ex.what());
 		throw;
 	}
+	return 0;
 }
 
 /**
  * Purge the readings by age
  *
  * @param age	Number of hours old a reading has to be to be considered for purging
- * @param sent	The ID of the last readign that was sent
+ * @param sent	The ID of the last reading that was sent
  * @param purgeUnsent	Flag to control if unsent readings should be purged
  * @return PurgeResult	Data on the readings hat were purged
  */
@@ -205,13 +207,14 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		m_logger->error("Failed to fetch readings: %s", ex.what());
 		throw;
 	}
+	return PurgeResult();
 }
 
 /**
  * Purge the readings by size
  *
  * @param size		Desired maximum size of readings table
- * @param sent	The ID of the last readign that was sent
+ * @param sent	The ID of the last reading that was sent
  * @param purgeUnsent	Flag to control if unsent readings should be purged
  * @return PurgeResult	Data on the readings hat were purged
  */
@@ -232,6 +235,7 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 		m_logger->error("Failed to fetch readings: %s", ex.what());
 		throw;
 	}
+	return PurgeResult();
 }
 
 /**
@@ -261,6 +265,7 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex.what());
 		throw;
 	}
+	return 0;
 }
 
 /**
@@ -304,6 +309,7 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 		m_logger->error("Failed to insert into table %s: %s", tableName.c_str(), ex.what());
 		throw;
 	}
+	return 0;
 }
 
 /**
@@ -352,6 +358,50 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
 		throw;
 	}
+	return -1;
 }
 
 
+/**
+ * Delete from a table
+ *
+ * @param tablename	The name of the table to delete from
+ * @param query		The query payload to match rows to delete
+ * @return int	The number of rows deleted
+ */
+int StorageClient::deleteTable(const std::string& tableName, const Query& query)
+{
+	try {
+		ostringstream convert;
+
+		convert << query.toJSON();
+		char url[128];
+		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		auto res = m_client->request("DELETE", url, convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			Document doc;
+			doc.Parse(res->content.string().c_str());
+			if (doc.HasParseError())
+			{
+				m_logger->info("PUT result %s.", res->status_code.c_str());
+				m_logger->error("Failed to parse result of deleteTable. %s",
+						GetParseError_En(doc.GetParseError()));
+				return -1;
+			}
+			else if (doc.HasMember("message"))
+			{
+				m_logger->error("Failed to delete table data: %s",
+					doc["message"].GetString());
+				return -1;
+			}
+			return doc["rows_affected"].GetInt();
+		}
+	} catch (exception& ex) {
+		m_logger->error("Failed to delete table data %s: %s", tableName.c_str(), ex.what());
+		throw;
+	}
+	return -1;
+}

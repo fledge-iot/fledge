@@ -30,7 +30,7 @@ ResultSet::ResultSet(const std::string& json)
 	}
 	if (doc.HasMember("count"))
 	{
-		m_rowCount = doc["count"].GetInt();
+		m_rowCount = doc["count"].GetUint();
 		const Value& rows = doc["rows"];
 		if (!doc.HasMember("rows"))
 		{
@@ -69,7 +69,7 @@ ResultSet::ResultSet(const std::string& json)
 					throw new ResultException("Expected row to be an object");
 				}
 				ResultSet::Row	*rowValue = new ResultSet::Row(this);
-				int colNo = 0;
+				unsigned int colNo = 0;
 				for (Value::ConstMemberIterator item = row.MemberBegin(); item != row.MemberEnd(); ++item)
 				{
 					switch (m_columns[colNo]->getType())
@@ -82,6 +82,10 @@ ResultSet::ResultSet(const std::string& json)
 						break;
 					case NUMBER_COLUMN:
 						rowValue->append(new ColumnValue(item->value.GetDouble()));
+						break;
+					case JSON_COLUMN:
+					case BOOL_COLUMN:
+						// TODO Add support
 						break;
 					}
 					colNo++;
@@ -142,7 +146,7 @@ const string& ResultSet::columnName(unsigned int column) const
  * @return ColumnType	The type of the specified column
  * @throw ResultNoSuchColumnException	The specified column does not exist in the result set
  */
-const ColumnType ResultSet::columnType(unsigned int column) const
+ColumnType ResultSet::columnType(unsigned int column) const
 {
 	if (column >= m_columns.size())
 	{
@@ -158,7 +162,7 @@ const ColumnType ResultSet::columnType(unsigned int column) const
  * @return ColumnType	The type of the specified column
  * @throw ResultNoSuchColumnException	The specified column does not exist in the result set
  */
-const ColumnType ResultSet::columnType(const string& name) const
+ColumnType ResultSet::columnType(const string& name) const
 {
 	unsigned int column = findColumn(name);
 	return m_columns[column]->getType();
@@ -197,7 +201,7 @@ ResultSet::RowIterator ResultSet::nextRow(RowIterator it)
  * @param it	Iterator returned by the firstRow() method
  * @return bool	True if there are more rows in the result set
  */
-const bool ResultSet::hasNextRow(RowIterator it) const
+bool ResultSet::hasNextRow(RowIterator it) const
 {
 	return (it + 1) != m_rows.end();
 }
@@ -209,7 +213,7 @@ const bool ResultSet::hasNextRow(RowIterator it) const
  * @param it	Iterator returned by the firstRow() method
  * @return bool	True if there are no more rows in the result set
  */
-const bool ResultSet::isLastRow(RowIterator it) const
+bool ResultSet::isLastRow(RowIterator it) const
 {
 	return (it + 1) == m_rows.end();
 }
@@ -221,7 +225,7 @@ const bool ResultSet::isLastRow(RowIterator it) const
  * @return ColumnType	The column type of the specified column
  * @throw ResultNoSuchColumnException	The specified column does not exist in the row
  */
-const ColumnType ResultSet::Row::getType(unsigned int column)
+ColumnType ResultSet::Row::getType(unsigned int column)
 {
 	if (column > m_values.size())
 		throw new ResultNoSuchColumnException();
@@ -235,7 +239,7 @@ const ColumnType ResultSet::Row::getType(unsigned int column)
  * @return ColumnType	The column type of the specified column
  * @throw ResultNoSuchColumnException	The specified column does not exist in the row
  */
-const ColumnType ResultSet::Row::getType(const string& name)
+ColumnType ResultSet::Row::getType(const string& name)
 {
 	unsigned int column = m_resultSet->findColumn(name);
 	return m_values[column]->getType();
@@ -248,7 +252,7 @@ const ColumnType ResultSet::Row::getType(const string& name)
  * @return ColumnValue	The column value of the specified column
  * @throw ResultNoSuchColumnException	The specified column does not exist in the row
  */
-const ResultSet::ColumnValue *ResultSet::Row::getColumn(unsigned int column) const
+ResultSet::ColumnValue *ResultSet::Row::getColumn(unsigned int column) const
 {
 	if (column > m_values.size())
 		throw new ResultNoSuchColumnException();
@@ -262,7 +266,7 @@ const ResultSet::ColumnValue *ResultSet::Row::getColumn(unsigned int column) con
  * @return ColumnValue	The column value of the specified column
  * @throw ResultNoSuchColumnException	The specified column does not exist in the row
  */
-const ResultSet::ColumnValue *ResultSet::Row::getColumn(const string& name) const
+ResultSet::ColumnValue *ResultSet::Row::getColumn(const string& name) const
 {
 	unsigned int column = m_resultSet->findColumn(name);
 	return m_values[column];
@@ -275,7 +279,7 @@ const ResultSet::ColumnValue *ResultSet::Row::getColumn(const string& name) cons
  * @return unsigned int		The index of the named column
  * @throw ResultNoSuchColumnException	The named column does not exist in the result set
  */
-const unsigned int ResultSet::findColumn(const string& name) const
+unsigned int ResultSet::findColumn(const string& name) const
 {
 	for (unsigned int i = 0; i != m_columns.size(); i++)
 	{
@@ -291,7 +295,7 @@ const unsigned int ResultSet::findColumn(const string& name) const
  * @return long Integer value
  * @throw ResultIncorrectTypeException	The column can not be returned as an integer
  */
-const long ResultSet::ColumnValue::getInteger() const
+long ResultSet::ColumnValue::getInteger() const
 {
 	switch (m_type)
 	{
@@ -310,7 +314,7 @@ const long ResultSet::ColumnValue::getInteger() const
  * @return double Floating point value
  * @throw ResultIncorrectTypeException	The column can not be returned as a double
  */
-const double ResultSet::ColumnValue::getNumber() const
+double ResultSet::ColumnValue::getNumber() const
 {
 	switch (m_type)
 	{
@@ -329,7 +333,7 @@ const double ResultSet::ColumnValue::getNumber() const
  * @return double Floating point value
  * @throw ResultIncorrectTypeException	The column can not be returned as a double
  */
-const char *ResultSet::ColumnValue::getString() const
+char *ResultSet::ColumnValue::getString() const
 {
 	switch (m_type)
 	{

@@ -28,7 +28,7 @@ import json
 import foglamp.plugins.north.common.common as plugin_common
 
 from foglamp.common.parser import Parser
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient, ReadingsStorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient, StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
@@ -367,6 +367,8 @@ class SendingProcess:
         self._mgt_port = None
         self._mgt_address = None
         ''' Parameters for the Storage layer '''
+        # FIXME:
+        self._storage_async = None
         self._storage = None
         self._readings = None
         """" Interfaces to the FogLAMP Storage Layer """
@@ -555,7 +557,6 @@ class SendingProcess:
 
         return converted_data
 
-    @_performance_log
     def _load_data_into_memory_statistics(self, last_object_id):
         """ Extracts statistics data from the DB Layer, converts it into the proper format
             loading into a memory structure
@@ -671,7 +672,7 @@ class SendingProcess:
             raise
         return last_object_id
 
-    def _last_object_id_update(self, new_last_object_id, stream_id):
+    async def _last_object_id_update(self, new_last_object_id, stream_id):
         """ Updates reached position
         Args:
             new_last_object_id: Last row id already sent
@@ -685,7 +686,8 @@ class SendingProcess:
                 .SET(last_object=new_last_object_id, ts='now()') \
                 .WHERE(['id', '=', stream_id]) \
                 .payload()
-            self._storage.update_tbl("streams", payload)
+            await self._storage_async.update_tbl("streams", payload)
+
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000020"].format(_ex)
             SendingProcess._logger.error(_message)
@@ -839,8 +841,6 @@ class SendingProcess:
                             db_update = False
                         else:
                             update_position_idx += 1
-
-
                 else:
                     self._memory_buffer_send_idx = 0
 
@@ -869,7 +869,7 @@ class SendingProcess:
             last=update_last_object_id,
             sent=tot_num_sent))
 
-        self._last_object_id_update(update_last_object_id, stream_id)
+        await self._last_object_id_update(update_last_object_id, stream_id)
 
         await self._update_statistics(tot_num_sent, stream_id)
 
@@ -1097,6 +1097,10 @@ class SendingProcess:
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \
                 handling_input_parameters()
+
+            self._log_performance = True
+            self._log_debug_level = 2
+
             _log_performance = self._log_performance
 
         except Exception as ex:
@@ -1104,8 +1108,10 @@ class SendingProcess:
             SendingProcess._logger.exception(message)
             sys.exit(1)
         try:
-            self._storage = StorageClient(self._mgt_address, self._mgt_port)
+            self._storage_async = StorageClientAsync(self._mgt_address, self._mgt_port)
             self._readings = ReadingsStorageClientAsync(self._mgt_address, self._mgt_port)
+            # FIXME:
+            self._storage = StorageClient(self._mgt_address, self._mgt_port)
             self._audit = AuditLogger(self._storage)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))

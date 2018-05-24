@@ -408,7 +408,7 @@ async def plugin_send(data, raw_data, stream_id):
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
-                    omf_north.deleted_omf_types_already_created(config_category_name, type_id)
+                    await omf_north.deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
                     _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
                 raise ex
@@ -450,7 +450,7 @@ class OmfNorthPlugin(object):
         self._config_omf_types = config_omf_types
         self._logger = _logger
 
-    def deleted_omf_types_already_created(self, config_category_name, type_id):
+    async def deleted_omf_types_already_created(self, config_category_name, type_id):
         """ Deletes OMF types/objects tracked as already created, it is used to force the recreation of the types
          Args:
             config_category_name: used to identify OMF objects already created
@@ -463,9 +463,9 @@ class OmfNorthPlugin(object):
             .AND_WHERE(['type_id', '=', type_id]) \
             .payload()
 
-        self._sending_process_instance._storage.delete_from_tbl("omf_created_objects", payload)
+        await self._sending_process_instance._storage_async.delete_from_tbl("omf_created_objects", payload)
     
-    def _retrieve_omf_types_already_created(self, configuration_key, type_id):
+    async def _retrieve_omf_types_already_created(self, configuration_key, type_id):
         """ Retrieves the list of OMF types already defined/sent to the PICROMF
          Args:
              configuration_key - part of the key to identify the type
@@ -479,7 +479,7 @@ class OmfNorthPlugin(object):
             .AND_WHERE(['type_id', '=', type_id]) \
             .payload()
 
-        omf_created_objects = self._sending_process_instance._storage.query_tbl_with_payload('omf_created_objects', payload)
+        omf_created_objects = await self._sending_process_instance._storage_async.query_tbl_with_payload('omf_created_objects', payload)
         self._logger.debug("{func} - omf_created_objects {item} ".format(
                                                                     func="_retrieve_omf_types_already_created",
                                                                     item=omf_created_objects))
@@ -489,7 +489,7 @@ class OmfNorthPlugin(object):
             rows.append(row['asset_code'])
         return rows
     
-    def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
+    async def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
         """ Stores into the Storage layer the successfully creation of the type into PICROMF.
          Args:
              configuration_key - part of the key to identify the type
@@ -503,7 +503,7 @@ class OmfNorthPlugin(object):
                     asset_code=asset_code,
                     type_id=type_id)\
             .payload()
-        self._sending_process_instance._storage.insert_into_tbl("omf_created_objects", payload)
+        await self._sending_process_instance._storage_async.insert_into_tbl("omf_created_objects", payload)
     
     def _generate_omf_asset_id(self, asset_code):
         """ Generates an asset id usable by AF/PI Server from an asset code stored into the Storage layer
@@ -686,11 +686,14 @@ class OmfNorthPlugin(object):
         Raises:
         """
         asset_codes_to_evaluate = plugin_common.identify_unique_asset_codes(raw_data)
-        asset_codes_already_created = self._retrieve_omf_types_already_created(config_category_name, type_id)
+        asset_codes_already_created = await self._retrieve_omf_types_already_created(config_category_name, type_id)
+
         for item in asset_codes_to_evaluate:
             asset_code = item["asset_code"]
+
             # Evaluates if it is a new OMF type
             if not any(tmp_item == asset_code for tmp_item in asset_codes_already_created):
+
                 asset_code_omf_type = ""
                 try:
                     asset_code_omf_type = copy.deepcopy(self._config_omf_types[asset_code]["value"])
@@ -698,14 +701,17 @@ class OmfNorthPlugin(object):
                     configuration_based = False
                 else:
                     configuration_based = True
+
                 if configuration_based:
                     self._logger.debug("creates type - configuration based - asset |{0}| ".format(asset_code))
                     await self._create_omf_objects_configuration_based(asset_code, asset_code_omf_type)
                 else:
+
                     # handling - Automatic OMF Type Mapping
                     self._logger.debug("creates type - automatic handling - asset |{0}| ".format(asset_code))
                     await self._create_omf_objects_automatic(item)
-                self._flag_created_omf_type(config_category_name, type_id, asset_code)
+
+                await self._flag_created_omf_type(config_category_name, type_id, asset_code)
             else:
                 self._logger.debug("asset already created - asset |{0}| ".format(asset_code))
     
@@ -814,6 +820,12 @@ class OmfNorthPlugin(object):
                             ]
                         }
 
+                    if _log_debug_level == 3:
+                        self._logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
+                                           .format(measurement_id, row['asset_code'], str(row['id'])))
+
+                        self._logger.debug("in memory info |{0}| ".format(data_to_send[idx]))
+
                     idx += 1
 
                     # Used for the statistics update
@@ -823,12 +835,6 @@ class OmfNorthPlugin(object):
                     _new_position = row['id']
 
                     data_available = True
-
-                    if _log_debug_level == 3:
-                        self._logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
-                                           .format(measurement_id, row['asset_code'], str(row['id'])))
-
-                        self._logger.debug("in memory info |{0}| ".format(data_to_send[idx]))
 
                 except Exception as e:
                     self._logger.warning(plugin_common.MESSAGES_LIST["e000023"].format(e))

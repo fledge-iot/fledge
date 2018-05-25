@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 file(GLOB SOURCES *.cpp)
 
 # Include header files
-include_directories(include ../../../services/common/include ../common/include)
+include_directories(include ../../../common/include ../../../services/common/include ../common/include)
 include_directories(../../../thirdparty/rapidjson/include)
 
 file(GLOB SOURCES "*.cpp" ../common/*.cpp)

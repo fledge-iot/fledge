@@ -30,9 +30,8 @@ class Reading {
 		Reading(const Reading& orig);
 
 		~Reading();
-		void			addDatapoint(Datapoint *value);
-		std::string			toJSON();
-
+		void				addDatapoint(Datapoint *value);
+		std::string			toJSON() const;
 		// Return AssetName
 		const std::string		getAssetName() const;
 
@@ -44,14 +43,18 @@ class Reading {
 		// Return Reading asset time
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT) const;
 
-	private:
-		const std::string		m_asset;
+	protected:
+		Reading() {};
+		unsigned long			m_id;
+		bool				m_has_id;
+		std::string			m_asset;
 		struct timeval			m_timestamp;
+		struct timeval			m_userTimestamp;
 		std::vector<Datapoint *>	m_values;
 		std::string			m_uuid;
 		// Supported date time formats for 'm_timestamp'
 		std::vector<std::string>	m_dateTypes = { DEFAULT_DATE_TIME_FORMAT,
-								COMBINED_DATE_STANDARD_FORMAT };
+								COMBINED_DATE_STANDARD_FORMAT 								    };
 };
 #endif
 

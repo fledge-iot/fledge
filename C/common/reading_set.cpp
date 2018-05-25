@@ -35,11 +35,11 @@ ReadingSet::ReadingSet(const std::string& json)
 		m_count = doc["count"].GetUint();
 		if (m_count)
 		{
-			if (!doc.HasMember("readings"))
+			if (!doc.HasMember("rows"))
 			{
 				throw new ReadingSetException("Missing readings array");
 			}
-			const Value& readings = doc["readings"];
+			const Value& readings = doc["rows"];
 			if (readings.IsArray())
 			{
 				// Process every rows and create the result set

@@ -226,5 +226,7 @@ void SouthService::shutdown()
  */
 void SouthService::configChange(const string& categoryName, const string& category)
 {
-    // TODO action configuration change
+	// TODO action configuration change
+	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
+			category.c_str());
 }

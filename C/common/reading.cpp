@@ -71,7 +71,7 @@ void Reading::addDatapoint(Datapoint *value)
  * Return the asset reading as a JSON structure encoded in a
  * C++ string.
  */
-string Reading::toJSON()
+string Reading::toJSON() const
 {
 ostringstream convert;
 

@@ -10,6 +10,7 @@
  * Author: Mark Riddoch
  */
 #include <client_http.hpp>
+#include <config_category.h>
 #include <service_record.h>
 #include <logger.h>
 #include <string>
@@ -21,11 +22,15 @@ class ManagementClient {
 	public:
 		ManagementClient(const std::string& hostname, const unsigned short port);
 		~ManagementClient();
-		bool registerService(const ServiceRecord& service);
-		bool unregisterService();
-		bool getService(ServiceRecord& service);
-		bool registerCategory(const std::string& category);
-		bool unregisterCategory(const std::string& category);
+		bool 			registerService(const ServiceRecord& service);
+		bool 			unregisterService();
+		bool 			getService(ServiceRecord& service);
+		bool 			registerCategory(const std::string& categoryName);
+		bool 			unregisterCategory(const std::string& categoryName);
+		ConfigCategories	getCategories();
+		ConfigCategory		getCategory();
+		bool			addCategory(const std::string& categoryName,
+						const ConfigCategory& category);
 	private:
 		HttpClient		*m_client;
 		std::string		*m_uuid;

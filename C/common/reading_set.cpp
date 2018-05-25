@@ -33,27 +33,30 @@ ReadingSet::ReadingSet(const std::string& json)
 	if (doc.HasMember("count"))
 	{
 		m_count = doc["count"].GetUint();
-		if (!doc.HasMember("readings"))
+		if (m_count)
 		{
-			throw new ReadingSetException("Missing readings array");
-		}
-		const Value& readings = doc["readings"];
-		if (readings.IsArray())
-		{
-			// Process every rows and create the result set
-			for (auto& reading : readings.GetArray())
+			if (!doc.HasMember("readings"))
 			{
-				if (!reading.IsObject())
-				{
-					throw new ReadingSetException("Expected reading to be an object");
-				}
-				JSONReading *value = new JSONReading(reading);
-				m_readings.push_back(value);
+				throw new ReadingSetException("Missing readings array");
 			}
-		}
-		else
-		{
-			throw new ReadingSetException("Expected array of rows in result set");
+			const Value& readings = doc["readings"];
+			if (readings.IsArray())
+			{
+				// Process every rows and create the result set
+				for (auto& reading : readings.GetArray())
+				{
+					if (!reading.IsObject())
+					{
+						throw new ReadingSetException("Expected reading to be an object");
+					}
+					JSONReading *value = new JSONReading(reading);
+					m_readings.push_back(value);
+				}
+			}
+			else
+			{
+				throw new ReadingSetException("Expected array of rows in result set");
+			}
 		}
 	}
 	else

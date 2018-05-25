@@ -58,19 +58,9 @@ bool StorageClient::readingAppend(Reading& reading)
 		{
 			return true;
 		}
-		Document doc;
-		doc.Parse(res->content.string().c_str());
-		if (doc.HasParseError())
-		{
-			m_logger->info("POST readings result %s.", res->status_code.c_str());
-			m_logger->error("Failed to parse result of readingAppend. %s",
-					GetParseError_En(doc.GetParseError()));
-		}
-		else if (doc.HasMember("message"))
-		{
-			m_logger->error("Failed to append readings: %s",
-				doc["message"].GetString());
-		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
 		m_logger->error("Failed to append reading: %s", ex.what());
@@ -104,21 +94,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		Document doc;
-		doc.Parse(resultPayload.str().c_str());
-		if (doc.HasParseError())
-		{
-			m_logger->info("POST readings result %s.", res->status_code.c_str());
-			m_logger->error("Failed to parse result of readingAppend. %s",
-					GetParseError_En(doc.GetParseError()));
-			m_logger->error("Unparsable response payload is: %s.", resultPayload.str().c_str());
-		}
-		else if (doc.HasMember("message"))
-		{
-			m_logger->info("POST readings result %s", res->status_code.c_str());
-			m_logger->error("Failed to append readings: %s",
-				doc["message"].GetString());
-		}
+		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
 		m_logger->error("Failed to append reading: %s", ex.what());
@@ -146,6 +122,9 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 			ResultSet *result = new ResultSet(resultPayload.str().c_str());
 			return result;
 		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to query readings: %s", ex.what());
 		throw;
@@ -175,6 +154,9 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 			ReadingSet *result = new ReadingSet(resultPayload.str().c_str());
 			return result;
 		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to fetch readings: %s", ex.what());
 		throw;
@@ -197,14 +179,15 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		snprintf(url, sizeof(url), "/storage/reading/purge?age=%ld&sent=%ld&flags=%s",
 				age, sent, purgeUnsent ? "purge" : "retain");
 		auto res = m_client->request("PUT", url);
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0)
 		{
-			ostringstream resultPayload;
-			resultPayload << res->content.rdbuf();
 			return PurgeResult(resultPayload.str());
 		}
+		handleUnexpectedResponse("Purge by age", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to fetch readings: %s", ex.what());
+		m_logger->error("Failed to purge readings: %s", ex.what());
 		throw;
 	}
 	return PurgeResult();
@@ -254,13 +237,14 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
 		auto res = m_client->request("PUT", url, convert.str());
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0)
 		{
-			ostringstream resultPayload;
-			resultPayload << res->content.rdbuf();
 			ResultSet *result = new ResultSet(resultPayload.str().c_str());
 			return result;
 		}
+		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex.what());
 		throw;
@@ -305,6 +289,9 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 			}
 			return doc["rows_affected"].GetInt();
 		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to insert into table %s: %s", tableName.c_str(), ex.what());
 		throw;
@@ -354,6 +341,9 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 			}
 			return doc["rows_affected"].GetInt();
 		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
 		throw;
@@ -399,9 +389,41 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 			}
 			return doc["rows_affected"].GetInt();
 		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Delete from table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to delete table data %s: %s", tableName.c_str(), ex.what());
 		throw;
 	}
 	return -1;
+}
+
+/**
+ * Standard logging method for all interactions
+ *
+ * @param operation	The operation beign undertaken
+ * @param responseCode	The HTTP response code
+ * @param payload	The payload in the response message
+ */
+void StorageClient::handleUnexpectedResponse(const char *operation,
+			const string& responseCode,  const string& payload)
+{
+Document doc;
+
+	doc.Parse(payload.c_str());
+	if (!doc.HasParseError())
+	{
+		if (doc.HasMember("message"))
+		{
+			m_logger->info("%s completed with result %s", operation, 
+							responseCode.c_str());
+			m_logger->error("%s: %s",
+				doc["message"].GetString());
+		}
+	}
+	else
+	{
+		m_logger->error("%s completed with result %s", responseCode.c_str());
+	}
 }

@@ -30,17 +30,20 @@ class StorageClient {
 		StorageClient(HttpClient *client) : m_client(client) {};
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
-		ResultSet *queryTable(const std::string& tablename, const Query& query);
-		int insertTable(const std::string& tableName, const InsertValues& values);
-		int updateTable(const std::string& tableName, const InsertValues& values, const Query& query);
-		int deleteTable(const std::string& tableName, const Query& query);
-		bool readingAppend(Reading& reading);
-		bool readingAppend(const std::vector<Reading *> & readings);
-		ResultSet *readingQuery(const Query& query);
-		ReadingSet *readingFetch(const unsigned long readingId, const unsigned long count);
-		PurgeResult readingPurgeByAge(unsigned long age, unsigned long sent, bool purgeUnsent);
-		PurgeResult readingPurgeBySize(unsigned long size, unsigned long sent, bool purgeUnsent);
+		ResultSet	*queryTable(const std::string& tablename, const Query& query);
+		int 		insertTable(const std::string& tableName, const InsertValues& values);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const Query& query);
+		int		deleteTable(const std::string& tableName, const Query& query);
+		bool		readingAppend(Reading& reading);
+		bool		readingAppend(const std::vector<Reading *> & readings);
+		ResultSet	*readingQuery(const Query& query);
+		ReadingSet	*readingFetch(const unsigned long readingId, const unsigned long count);
+		PurgeResult	readingPurgeByAge(unsigned long age, unsigned long sent, bool purgeUnsent);
+		PurgeResult	readingPurgeBySize(unsigned long size, unsigned long sent, bool purgeUnsent);
 	private:
+		void  		handleUnexpectedResponse(const char *operation,
+						const std::string& responseCode,
+						const std::string& payload);
 		HttpClient		*m_client;
 		Logger			*m_logger;
 };

@@ -135,11 +135,10 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url", URLS)
     async def test_http_exception(self, client, request_url):
-        with patch.object(connect, 'get_storage', return_value=Exception) as exc:
+        with patch.object(connect, 'get_storage', return_value=Exception):
             resp = await client.get(request_url)
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
-        exc.assert_called_once_with()
 
     @pytest.mark.parametrize("group_name, payload, result", [
         ('seconds', '{"aggregate": [{"alias": "min", "operation": "min", "json": {"properties": "temperature", "column": "reading"}}, {"alias": "max", "operation": "max", "json": {"properties": "temperature", "column": "reading"}}, {"alias": "average", "operation": "avg", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "group": {"alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS", "column": "user_ts"}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}',

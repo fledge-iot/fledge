@@ -141,11 +141,10 @@ class TestAudit:
                 assert response_message == resp.reason
 
     async def test_get_audit_http_exception(self, client):
-        with patch.object(connect, 'get_storage', return_value=Exception) as exc:
+        with patch.object(connect, 'get_storage', return_value=Exception):
             resp = await client.get('/foglamp/audit')
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
-        exc.assert_called_once_with()
 
     async def test_create_audit_entry(self, client):
         request_data = {"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}

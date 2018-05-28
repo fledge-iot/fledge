@@ -126,6 +126,7 @@ def apply_date_format(in_data):
           at the time being this routine expects UTC date time values.
 
     Examples:
+        2018-05-28 13:42:28.84           ==> 2018-05-28 13:42:28.840000+00
         2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
         2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
         2018-03-22 17:17:17.166347+00    ==> 2018-03-22 17:17:17.166347+00
@@ -145,6 +146,9 @@ def apply_date_format(in_data):
         zone_index = in_data.rfind("+")
 
     if zone_index == -1:
+        # Pads with 0
+        in_data = in_data.ljust(26, '0')
+
         # Just add +00
         timestamp = in_data + "+00"
     else:
@@ -785,6 +789,7 @@ class SendingProcess:
                             await self._audit.failure(self._AUDIT_CODE, {"error - on _task_fetch_data": _message})
 
                             data_to_send = False
+                            await asyncio.sleep(self.TASK_FETCH_SLEEP)
 
                         if data_to_send:
                             SendingProcess._logger.debug("task {f} - loaded - idx |{idx}|".format(
@@ -1193,4 +1198,5 @@ class SendingProcess:
 
 
 if __name__ == "__main__":
+
     SendingProcess().start()

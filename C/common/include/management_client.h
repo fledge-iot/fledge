@@ -28,9 +28,8 @@ class ManagementClient {
 		bool 			registerCategory(const std::string& categoryName);
 		bool 			unregisterCategory(const std::string& categoryName);
 		ConfigCategories	getCategories();
-		ConfigCategory		getCategory();
-		bool			addCategory(const std::string& categoryName,
-						const ConfigCategory& category);
+		ConfigCategory		getCategory(const std::string& categoryName);
+		bool			addCategory(const ConfigCategory& category);
 	private:
 		HttpClient		*m_client;
 		std::string		*m_uuid;

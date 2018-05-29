@@ -810,6 +810,11 @@ class OmfNorthPlugin(object):
                 
                 try:
                     # The expression **row['reading'] - joins the 2 dictionaries
+                    #
+                    # The code formats the date to the format OMF/the PI Server expects directly
+                    # without using python date library for performance reason and
+                    # because it is expected to receive the date in a precise/fixed format :
+                    #   2018-05-28 16:56:55.000000+00
                     data_to_send[idx] = {
                             "containerid": measurement_id,
                             "values": [

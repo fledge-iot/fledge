@@ -117,6 +117,7 @@ class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
     pass
 
+
 def apply_date_format(in_data):
     """ This routine adds the default UTC zone format to the input date time string
     If a timezone (strting with + or -) is found, all the following chars
@@ -126,6 +127,7 @@ def apply_date_format(in_data):
           at the time being this routine expects UTC date time values.
 
     Examples:
+        2018-05-28 16:56:55              ==> 2018-05-28 16:56:55.000000+00
         2018-05-28 13:42:28.84           ==> 2018-05-28 13:42:28.840000+00
         2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
         2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
@@ -146,7 +148,13 @@ def apply_date_format(in_data):
         zone_index = in_data.rfind("+")
 
     if zone_index == -1:
-        # Pads with 0
+
+        if in_data.rfind(".") == -1:
+
+            # there are no milliseconds in the date
+            in_data += ".000000"
+
+        # Pads with 0 if needed
         in_data = in_data.ljust(26, '0')
 
         # Just add +00
@@ -908,6 +916,12 @@ class SendingProcess:
                         # There is no data to send
                         SendingProcess._logger.debug("task {f} - idle : no data to send - idx |{idx}| "
                                                      .format(f="send_data", idx=self._memory_buffer_send_idx))
+
+                        # Updates the position before going to wait for the semaphore
+                        await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+                        update_position_idx = 0
+                        tot_num_sent = 0
+                        db_update = False
 
                         await self._task_fetch_data_sem.acquire()
 

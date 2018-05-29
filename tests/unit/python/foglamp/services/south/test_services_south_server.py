@@ -6,9 +6,10 @@
 
 import asyncio
 import copy
-import pytest
 import sys
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, Mock, call, patch
+import pytest
+
 from foglamp.services.south import server as South
 from foglamp.services.south.server import Server
 from foglamp.common.storage_client.storage_client import StorageClient
@@ -89,8 +90,10 @@ plugin_attrs = {
 def mock_coro():
     yield from false_coro()
 
+
 async def false_coro():
     return True
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("south")
@@ -147,11 +150,6 @@ class TestServicesSouthServer:
     @pytest.mark.asyncio
     async def test__start_async_plugin_bad_plugin_value(self, mocker, loop):
         # GIVEN
-        def cat_get():
-            config = _TEST_CONFIG
-            config['plugin']['value'] = None
-            return config
-
         mocker.patch.object(FoglampMicroservice, "__init__", return_value=None)
 
         south_server = Server()
@@ -177,8 +175,12 @@ class TestServicesSouthServer:
         sys.modules['foglamp.plugins.south.test.test'] = None
 
         # WHEN
-        await south_server._start(loop)
-        await asyncio.sleep(.5)
+        with patch.object(South._LOGGER, 'error') as log_error:
+            await south_server._start(loop)
+            await asyncio.sleep(.5)
+        assert 1 == log_error.call_count
+        log_error.assert_called_once_with('Unable to load module |{}| for device plugin |{}| - error details |{}|'
+                                          .format(south_server._name, south_server._name, south_server._name))
 
         # THEN
         assert 1 == log_exception.call_count
@@ -197,8 +199,12 @@ class TestServicesSouthServer:
         sys.modules['foglamp.plugins.south.test.test'] = mock_plugin
 
         # WHEN
-        await south_server._start(loop)
-        await asyncio.sleep(.5)
+        with patch.object(South._LOGGER, 'error') as log_error:
+            await south_server._start(loop)
+            await asyncio.sleep(.5)
+        assert 1 == log_error.call_count
+        log_error.assert_called_once_with('cannot proceed the execution, only the type -device- is allowed'
+                                          ' - plugin name |{}| plugin type |bad|'.format(south_server._name))
 
         # THEN
         log_exception.assert_called_with('Failed to initialize plugin {}'.format(south_server._name))
@@ -299,8 +305,10 @@ class TestServicesSouthServer:
         # Count is 2 and 4 because above method is executed twice
         assert 2 == log_info.call_count
         assert 4 == log_exception.call_count
-        calls = [call('Max retries exhausted in starting South plugin: test'), call('Failed to poll for plugin test, retry count: 2'),
-                 call('Max retries exhausted in starting South plugin: test'), call('Failed to poll for plugin test, retry count: 2')]
+        calls = [call('Max retries exhausted in starting South plugin: test'),
+                 call('Failed to poll for plugin test, retry count: 2'),
+                 call('Max retries exhausted in starting South plugin: test'),
+                 call('Failed to poll for plugin test, retry count: 2')]
         log_exception.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio
@@ -312,7 +320,7 @@ class TestServicesSouthServer:
     async def test__stop(self, loop, mocker):
         # GIVEN
         cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
-        ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
+        mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -338,7 +346,7 @@ class TestServicesSouthServer:
     async def test__stop_plugin_stop_error(self, loop, mocker):
         # GIVEN
         cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
-        ingest_stop = mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
+        mocker.patch.object(Ingest, 'stop', return_value=mock_coro())
         mock_plugin = MagicMock()
         attrs = copy.deepcopy(plugin_attrs)
         attrs['plugin_info.return_value']['mode'] = 'async'
@@ -365,8 +373,8 @@ class TestServicesSouthServer:
     async def test_shutdown(self, loop, mocker):
         # GIVEN
         cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
-        server_stop = mocker.patch.object(south_server, '_stop', return_value=mock_coro())
-        unregister = mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro())
+        mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
         # WHEN
         await south_server.shutdown(request=None)
@@ -379,8 +387,8 @@ class TestServicesSouthServer:
     async def test_shutdown_error(self, loop, mocker):
         # GIVEN
         cat_get, south_server, ingest_start, log_exception, log_info = self.south_fixture(mocker)
-        server_stop = mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
-        unregister = mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
+        mocker.patch.object(south_server, '_stop', return_value=mock_coro(), side_effect=RuntimeError)
+        mocker.patch.object(south_server, 'unregister_service_with_core', return_value=True)
 
         # WHEN
         from aiohttp.web_exceptions import HTTPInternalServerError

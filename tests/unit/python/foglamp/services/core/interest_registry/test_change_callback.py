@@ -224,6 +224,10 @@ class TestChangeCallback:
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
             s_id_1 = ServiceRegistry.register('sname1', 'Storage', 'saddress1', 1, 1, 'http')
         assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <sname1, type=Storage, protocol=http, address=saddress1, service port=1, management port=1, status=1>')
+
         i_reg = InterestRegistry(cfg_mgr)
         i_reg.register(s_id_1, 'catname1')
 

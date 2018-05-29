@@ -54,6 +54,10 @@ class TestServiceRegistry:
             ServiceRegistry.register("A name", "Storage", "127.0.0.1", 1, 2, 'http')
             assert 1 == len(ServiceRegistry._registry)
         assert 1 == log_info1.call_count
+        args, kwargs = log_info1.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1,'
+                                ' management port=2, status=1>')
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(ServiceRegistry._logger, 'info') as log_info2:
@@ -68,6 +72,10 @@ class TestServiceRegistry:
             ServiceRegistry.register("A name", "Storage", "127.0.0.1", 1234, 1, 'http')
             assert 1 == len(ServiceRegistry._registry)
         assert 1 == log_info1.call_count
+        args, kwargs = log_info1.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
+                                ' management port=1, status=1>')
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(ServiceRegistry._logger, 'info') as log_info2:
@@ -82,6 +90,10 @@ class TestServiceRegistry:
             ServiceRegistry.register("A name", "Storage", "127.0.0.1", 1, 1234, 'http')
             assert 1 == len(ServiceRegistry._registry)
         assert 1 == log_info1.call_count
+        args, kwargs = log_info1.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1,'
+                                ' management port=1234, status=1>')
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(ServiceRegistry._logger, 'info') as log_info2:
@@ -116,6 +128,10 @@ class TestServiceRegistry:
             reg_id = ServiceRegistry.register("A name", "Storage", "127.0.0.1", 1234, 4321, 'http')
             assert 1 == len(ServiceRegistry._registry)
         assert 1 == log_info1.call_count
+        arg, kwarg = log_info1.call_args
+        assert arg[0].startswith('Registered service instance id=')
+        assert arg[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
+                               ' management port=4321, status=1>')
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info2:
             s_id = ServiceRegistry.unregister(reg_id)

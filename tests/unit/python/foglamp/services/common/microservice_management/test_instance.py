@@ -33,12 +33,20 @@ class TestInstance:
             idx = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
             assert str(uuid.UUID(idx, version=4)) == idx
         assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
+                                ' management port=1999, status=1>')
 
     async def test_duplicate_name_registration(self):
         with patch.object(Service._logger, 'info') as log_info:
             idx1 = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
             assert str(uuid.UUID(idx1, version=4)) == idx1
         assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
+                                ' management port=1999, status=1>')
 
         with pytest.raises(AlreadyExistsWithTheSameName) as excinfo:
             Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
@@ -49,6 +57,10 @@ class TestInstance:
             idx1 = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
             assert str(uuid.UUID(idx1, version=4)) == idx1
         assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
+                                ' management port=1999, status=1>')
 
         with pytest.raises(AlreadyExistsWithTheSameAddressAndPort) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9999, 1998)
@@ -59,6 +71,10 @@ class TestInstance:
             idx1 = Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
             assert str(uuid.UUID(idx1, version=4)) == idx1
         assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
+                                ' management port=1999, status=1>')
 
         with pytest.raises(AlreadyExistsWithTheSameAddressAndManagementPort) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9998, 1999)
@@ -85,6 +101,10 @@ class TestInstance:
             idx = Service.register("StorageService2", "Storage", "127.0.0.1", 8888, 1888)
             assert str(uuid.UUID(idx, version=4)) == idx
         assert 1 == log_info.call_count
+        arg, kwarg = log_info.call_args
+        assert arg[0].startswith('Registered service instance id=')
+        assert arg[0].endswith(': <StorageService2, type=Storage, protocol=http, address=127.0.0.1, service port=8888,'
+                               ' management port=1888, status=1>')
 
         mocker.patch.object(InterestRegistry, '__init__', return_value=None)
         mocker.patch.object(InterestRegistry, 'get', return_value=list())
@@ -94,6 +114,10 @@ class TestInstance:
             t = Service.unregister(idx)
             assert idx == t
         assert 1 == log_info2.call_count
+        args, kwargs = log_info2.call_args
+        assert args[0].startswith('Stopped service instance id=')
+        assert args[0].endswith(': <StorageService2, type=Storage, protocol=http, address=127.0.0.1, '
+                                'service port=8888, management port=1888, status=2>')
 
         s = Service.get(idx)
         assert s[0]._status == 2  # Unregistered
@@ -140,4 +164,9 @@ class TestInstance:
                 Service.register("StorageService", "Storage", "127.0.0.1", 8888, 9999)
                 Service.get('incorrect_id')
             assert 1 == log_info.call_count
+            args, kwargs = log_info.call_args
+            assert args[0].startswith('Registered service instance id=')
+            assert args[0].endswith(
+                ': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=8888,'
+                ' management port=9999, status=1>')
         assert str(excinfo).endswith('DoesNotExist')

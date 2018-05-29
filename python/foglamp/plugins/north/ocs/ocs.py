@@ -376,8 +376,7 @@ def plugin_init(data):
 
 
 # noinspection PyUnusedLocal
-@_performance_log
-def plugin_send(data, raw_data, stream_id):
+async def plugin_send(data, raw_data, stream_id):
     """ Translates and sends to the destination system the data provided by the Sending Process
     Args:
         data: plugin_handle from sending_process
@@ -409,10 +408,10 @@ def plugin_send(data, raw_data, stream_id):
 
         if is_data_available:
 
-            ocs_north.create_omf_objects(raw_data, config_category_name, type_id)
+            await ocs_north.create_omf_objects(raw_data, config_category_name, type_id)
 
             try:
-                ocs_north.send_in_memory_data_to_picromf("Data", data_to_send)
+                await ocs_north.send_in_memory_data_to_picromf("Data", data_to_send)
 
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
@@ -465,7 +464,7 @@ class OCSNorthPlugin(omf.OmfNorthPlugin):
 
         super().__init__(sending_process_instance, config, config_omf_types, _logger)
 
-    def _create_omf_type_automatic(self, asset_info):
+    async def _create_omf_type_automatic(self, asset_info):
         """ Automatic OMF Type Mapping - Handles the OMF type creation
 
             Overwrite omf._create_omf_type_automatic function
@@ -528,6 +527,6 @@ class OCSNorthPlugin(omf.OmfNorthPlugin):
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| "
                                .format(sensor_id, str(omf_type)))
 
-        self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
 
         return typename, omf_type

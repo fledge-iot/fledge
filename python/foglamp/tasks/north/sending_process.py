@@ -918,10 +918,11 @@ class SendingProcess:
                                                      .format(f="send_data", idx=self._memory_buffer_send_idx))
 
                         # Updates the position before going to wait for the semaphore
-                        await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
-                        update_position_idx = 0
-                        tot_num_sent = 0
-                        db_update = False
+                        if db_update:
+                            await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+                            update_position_idx = 0
+                            tot_num_sent = 0
+                            db_update = False
 
                         await self._task_fetch_data_sem.acquire()
 

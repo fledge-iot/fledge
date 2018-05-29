@@ -37,6 +37,9 @@ class ConfigCategory {
 		unsigned int			getCount() const { return m_items.size(); };
 		bool				itemExists(const std::string& name) const;
 		std::string			getValue(const std::string& name) const;
+		std::string			getType(const std::string& name) const;
+		std::string			getDescription(const std::string& name) const;
+		std::string			getDefault(const std::string& name) const;
 		std::string			toJSON() const;
 
 	private:

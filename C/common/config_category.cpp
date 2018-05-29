@@ -65,6 +65,12 @@ ConfigCategories::~ConfigCategories()
 	}
 }
 
+/**
+ * Configuration Category constructor
+ *
+ * @param name	The name of the configuration category
+ * @param json	JSON content of the configuration category
+ */
 ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(name)
 {
 	Document doc;
@@ -79,6 +85,9 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	}
 }
 
+/**
+ * Configuration category destructor
+ */
 ConfigCategory::~ConfigCategory()
 {
 	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
@@ -87,6 +96,11 @@ ConfigCategory::~ConfigCategory()
 	}
 }
 
+/**
+ * Check for the existance of an item within the configuration category
+ *
+ * @param name	Item name to check within the category
+ */
 bool ConfigCategory::itemExists(const string& name) const
 {
 	for (int i = 0; i < m_items.size(); i++)
@@ -99,6 +113,13 @@ bool ConfigCategory::itemExists(const string& name) const
 	return false;
 }
 
+/**
+ * Return the value of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
 string ConfigCategory::getValue(const string& name) const
 {
 	for (int i = 0; i < m_items.size(); i++)
@@ -111,6 +132,68 @@ string ConfigCategory::getValue(const string& name) const
 	throw new exception;
 }
 
+/**
+ * Return the type of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getType(const string& name) const
+{
+	for (int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_type;
+		}
+	}
+	throw new exception;
+}
+
+/**
+ * Return the description of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getDescription(const string& name) const
+{
+	for (int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_description;
+		}
+	}
+	throw new exception;
+}
+
+/**
+ * Return the default value of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+string ConfigCategory::getDefault(const string& name) const
+{
+	for (int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_default;
+		}
+	}
+	throw new exception;
+}
+
+/**
+ * Set the description for the configuration category
+ *
+ * @param description	The configuration category description
+ */
 void ConfigCategory::setDescription(const string& description)
 {
 	m_description = description;
@@ -134,7 +217,9 @@ ostringstream convert;
 	return convert.str();
 }
 
-
+/**
+ * Constructor for a configuration item
+ */
 ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item)
 {
 	m_name = name;
@@ -160,6 +245,9 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		m_default = "";
 }
 
+/**
+ * Create a JSON representation of the configuration item
+ */
 string ConfigCategory::CategoryItem::toJSON() const
 {
 ostringstream convert;

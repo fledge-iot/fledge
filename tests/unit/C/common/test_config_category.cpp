@@ -67,6 +67,24 @@ TEST(CategoryTest, getValue)
 	ASSERT_EQ(0, confCategory.getValue("name").compare("FogLAMP"));
 }
 
+TEST(CategoryTest, getType)
+{
+	ConfigCategory confCategory("test", myCategory);
+	ASSERT_EQ(0, confCategory.getType("name").compare("string"));
+}
+
+TEST(CategoryTest, getDefault)
+{
+	ConfigCategory confCategory("test", myCategory);
+	ASSERT_EQ(0, confCategory.getDefault("name").compare("FogLAMP"));
+}
+
+TEST(CategoryTest, getDescription)
+{
+	ConfigCategory confCategory("test", myCategory);
+	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this FogLAMP service"));
+}
+
 TEST(CategoryTest, toJSON)
 {
 	ConfigCategory confCategory("test", myCategory);

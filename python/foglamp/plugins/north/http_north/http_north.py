@@ -75,7 +75,7 @@ def plugin_init(data):
     return config
 
 
-def plugin_send(data, payload, stream_id):
+async def plugin_send(data, payload, stream_id):
     return http_north.send_payloads(payload, stream_id)
 
 

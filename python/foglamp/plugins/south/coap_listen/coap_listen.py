@@ -233,7 +233,7 @@ class CoAPIngest(aiocoap.resource.Resource):
             if not isinstance(readings, dict):
                 raise ValueError('readings must be a dictionary')
 
-            asyncio.ensure_future(Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings))
+            await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 
         except (KeyError, ValueError, TypeError) as e:
             Ingest.increment_discarded_readings()

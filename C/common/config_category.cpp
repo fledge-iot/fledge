@@ -103,7 +103,7 @@ ConfigCategory::~ConfigCategory()
  */
 bool ConfigCategory::itemExists(const string& name) const
 {
-	for (int i = 0; i < m_items.size(); i++)
+	for (unsigned int i = 0; i < m_items.size(); i++)
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
@@ -122,7 +122,7 @@ bool ConfigCategory::itemExists(const string& name) const
  */
 string ConfigCategory::getValue(const string& name) const
 {
-	for (int i = 0; i < m_items.size(); i++)
+	for (unsigned int i = 0; i < m_items.size(); i++)
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
@@ -141,7 +141,7 @@ string ConfigCategory::getValue(const string& name) const
  */
 string ConfigCategory::getType(const string& name) const
 {
-	for (int i = 0; i < m_items.size(); i++)
+	for (unsigned int i = 0; i < m_items.size(); i++)
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
@@ -160,7 +160,7 @@ string ConfigCategory::getType(const string& name) const
  */
 string ConfigCategory::getDescription(const string& name) const
 {
-	for (int i = 0; i < m_items.size(); i++)
+	for (unsigned int i = 0; i < m_items.size(); i++)
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
@@ -179,7 +179,7 @@ string ConfigCategory::getDescription(const string& name) const
  */
 string ConfigCategory::getDefault(const string& name) const
 {
-	for (int i = 0; i < m_items.size(); i++)
+	for (unsigned int i = 0; i < m_items.size(); i++)
 	{
 		if (name.compare(m_items[i]->m_name) == 0)
 		{

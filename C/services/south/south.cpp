@@ -114,11 +114,6 @@ SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(fa
  */
 void SouthService::start(string& coreAddress, unsigned short corePort)
 {
-	if (!loadPlugin())
-	{
-		logger->fatal("Failed to load south plugin.");
-		return;
-	}
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting south service...");
@@ -136,6 +131,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
+
+		m_config = client->getCategory(m_name);
+		if (!loadPlugin())
+		{
+			logger->fatal("Failed to load south plugin.");
+			return;
+		}
 		if (!client->registerService(record))
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
@@ -192,18 +194,18 @@ bool SouthService::loadPlugin()
 {
 	PluginManager *manager = PluginManager::getInstance();
 
-	const char *plugin = "dummy";
-	if (plugin == NULL)
+	if (! m_config.itemExists("plugin:"))
 	{
 		logger->error("Unable to fetch plugin name from configuration.\n");
 		return false;
 	}
-	logger->info("Load south plugin %s.", plugin);
+	string plugin = m_config.getValue("plugin");
+	logger->info("Load south plugin %s.", plugin.c_str());
 	PLUGIN_HANDLE handle;
-	if ((handle = manager->loadPlugin(string(plugin), PLUGIN_TYPE_SOUTH)) != NULL)
+	if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 	{
 		southPlugin = new SouthPlugin(handle);
-		logger->info("Loaded south plugin %s.", plugin);
+		logger->info("Loaded south plugin %s.", plugin.c_str());
 		return true;
 	}
 	return false;

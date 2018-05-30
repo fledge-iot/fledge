@@ -393,7 +393,6 @@ async def plugin_send(data, raw_data, stream_id):
 
     is_data_sent = False
     config_category_name = data['_CONFIG_CATEGORY_NAME']
-    data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
     # Sets globals for the OMF module
@@ -404,6 +403,10 @@ async def plugin_send(data, raw_data, stream_id):
     ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
+        # Alloc the in memory buffer
+        buffer_size = len(raw_data)
+        data_to_send = [None for x in range(buffer_size)]
+
         is_data_available, new_position, num_sent = ocs_north.transform_in_memory_data(data_to_send, raw_data)
 
         if is_data_available:

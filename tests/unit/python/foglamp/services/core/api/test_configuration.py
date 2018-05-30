@@ -316,9 +316,10 @@ class TestConfiguration:
     async def test_create_category_http_exception(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
         payload = {"key": name, "description": desc, "value": info}
-        resp = await client.post('/foglamp/category', data=json.dumps(payload))
-        assert 500 == resp.status
-        assert 'Internal Server Error' == resp.reason
+        with patch.object(connect, 'get_storage', side_effect=Exception):
+            resp = await client.post('/foglamp/category', data=json.dumps(payload))
+            assert 500 == resp.status
+            assert 'Internal Server Error' == resp.reason
 
     @pytest.mark.parametrize("payload, message", [
         # FIXME: keys order mismatch assertion
@@ -370,11 +371,11 @@ class TestConfiguration:
                 assert "'Config item is already in use for {}'".format(category_name) == resp.reason
             patch_get_all_items.assert_called_once_with(category_name)
 
-    @pytest.mark.parametrize("data", [
-        {"default": "true", "description": "Test description", "type": "boolean"},
-        {"default": "true", "description": "Test description", "type": "boolean", "value": "false"}
+    @pytest.mark.parametrize("data, payload", [
+        ({"default": "true", "description": "Test description", "type": "boolean"}, '{"values": {"value": {"info": {"default": "1", "type": "integer", "description": "Test description"}, "info1": {"value": "true", "default": "true", "type": "boolean", "description": "Test description"}}}, "where": {"column": "key", "condition": "=", "value": "cat"}}'),
+        ({"default": "true", "description": "Test description", "type": "boolean", "value": "false"}, '{"values": {"value": {"info": {"default": "1", "type": "integer", "description": "Test description"}, "info1": {"value": "false", "default": "true", "type": "boolean", "description": "Test description"}}}, "where": {"column": "key", "condition": "=", "value": "cat"}}')
     ])
-    async def test_add_config_item(self, client, data):
+    async def test_add_config_item(self, client, data, payload):
         async def async_mock():
             return {"info": {"default": "1", "description": "Test description", "type": "integer"}}
 
@@ -383,7 +384,6 @@ class TestConfiguration:
 
         category_name = 'cat'
         new_config_item = 'info1'
-        payload = '{"values": {"value": {"info1": {"type": "boolean", "description": "Test description", "default": "true", "value": "true"}, "info": {"type": "integer", "description": "Test description", "default": "1"}}}, "where": {"column": "key", "condition": "=", "value": "cat"}}'
         expected = {'rows_affected': 1, "response": "updated"}
         result = {'message': '{} config item has been saved for {} category'.format(new_config_item, category_name)}
         storage_client_mock = MagicMock(StorageClient)
@@ -406,15 +406,14 @@ class TestConfiguration:
                     args, kwargs = audit_info_patch.call_args
                     assert 'CONAD' == args[0]
                     assert audit_details == args[1]
-                # FIXME: payload order assertion
-                args, kwargs = update_tbl_patch.call_args
-                assert args[0] == 'configuration'
-                # assert args[1] in payload
-                # update_tbl_patch.assert_called_once_with('configuration', payload)
+                args1, kwargs1 = update_tbl_patch.call_args
+                assert 'configuration' == args1[0]
+                assert json.loads(payload) == json.loads(args1[1])
             patch_get_all_items.assert_called_once_with(category_name)
 
     async def test_unknown_exception_for_add_config_item(self, client):
         data = {"default": "d", "description": "Test description", "type": "boolean"}
-        resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
-        assert 500 == resp.status
-        assert 'Internal Server Error' == resp.reason
+        with patch.object(connect, 'get_storage', side_effect=Exception):
+            resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
+            assert 500 == resp.status
+            assert 'Internal Server Error' == resp.reason

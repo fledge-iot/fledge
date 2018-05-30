@@ -29,9 +29,15 @@ class TestConnect:
         ServiceRegistry._registry = []
 
     def test_get_storage(self):
-        ServiceRegistry.register("FogLAMP Storage", "Storage", "127.0.0.1", 37449, 37843)
-        storage_client = connect.get_storage()
-        assert isinstance(storage_client, StorageClient)
+        with patch.object(ServiceRegistry._logger, 'info') as log_info:
+            ServiceRegistry.register("FogLAMP Storage", "Storage", "127.0.0.1", 37449, 37843)
+            storage_client = connect.get_storage()
+            assert isinstance(storage_client, StorageClient)
+        assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <FogLAMP Storage, type=Storage, protocol=http, address=127.0.0.1, service port=37449,'
+                                ' management port=37843, status=1>')
 
     @patch('foglamp.services.core.connect._logger')
     def test_exception_when_no_storage(self, mock_logger):
@@ -42,7 +48,14 @@ class TestConnect:
 
     @patch('foglamp.services.core.connect._logger')
     def test_exception_when_non_foglamp_storage(self, mock_logger):
-        ServiceRegistry.register("foo", "Storage", "127.0.0.1", 1, 2)
+        with patch.object(ServiceRegistry._logger, 'info') as log_info:
+            ServiceRegistry.register("foo", "Storage", "127.0.0.1", 1, 2)
+        assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <foo, type=Storage, protocol=http, address=127.0.0.1, service port=1, '
+                                'management port=2, status=1>')
+
         with pytest.raises(DoesNotExist) as excinfo:
             connect.get_storage()
         assert str(excinfo).endswith('DoesNotExist')

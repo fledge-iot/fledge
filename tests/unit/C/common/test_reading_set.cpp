@@ -7,7 +7,7 @@
 using namespace std;
 using namespace rapidjson;
 
-const char *input = "{ \"count\" : 2, \"readings\" : [ "
+const char *input = "{ \"count\" : 2, \"rows\" : [ "
 	    "{ \"id\": 1, \"asset_code\": \"luxometer\", "
             "\"read_key\": \"5b3be500-ff95-41ae-b5a4-cc99d08bef4a\", "
             "\"reading\": { \"lux\": 76204.524 }, "

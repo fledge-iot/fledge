@@ -239,3 +239,104 @@ ostringstream convert;
         }
         return false;
 }
+
+/**
+ * Get the set of all categories from the core micro service.
+ */
+ConfigCategories ManagementClient::getCategories()
+{
+	try {
+		string url = "/foglamp/service/category";
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetching configuration categories: %s\n",
+				res->content.string().c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch configuration categories: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return ConfigCategories(res->content.string());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config categories failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Return the content of the named category by calling the
+ * management API of the FogLAMP core.
+ *
+ * @param categoryName	The name of the categpry to return
+ * @return ConfigCategory	The configuration category
+ * @throw	exception	If the category does not exist or theresult can not be parsed
+ */
+ConfigCategory ManagementClient::getCategory(const string& categoryName)
+{
+	try {
+		string url = "/foglamp/service/category/" + categoryName;
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetching configuration category: %s\n",
+				res->content.string().c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch configuration category: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return ConfigCategory(categoryName, res->content.string());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config category failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Add/Update a category in the configuration manager
+ */
+bool ManagementClient::addCategory(const ConfigCategory& category)
+{
+	try {
+		string url = "/foglamp/service/category";
+		auto res = m_client->request("POST", url.c_str(), category.toJSON());
+		Document doc;
+		doc.Parse(res->content.string().c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of adding a category: %s\n",
+				res->content.string().c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to add configuration category: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config categories failed %s.", e.what());
+	}
+	return false;
+}

@@ -66,93 +66,93 @@ class TestServer:
     ############################
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_get_certificates(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_rest_api_config(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__rest_api_config(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_service_config(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_make_app(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__make_app(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_make_core_app(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__make_core_app(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_start_service_monitor(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_service_monitor(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_stop_service_monitor(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_start_scheduler(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test___start_scheduler(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test__start_storage(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_start_storage(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_storage(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_get_storage_client(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__get_storage_client(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_start_app(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_app(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_pid_filename(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_pidfile_exists(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__pidfile_exists(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_remove_pid(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__remove_pid(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_write_pid(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__write_pid(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test__start_core(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_register_core(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__register_core(self):
         pass
 
     @pytest.mark.asyncio
@@ -199,28 +199,28 @@ class TestServer:
         assert 1 == mocked__remove_pid.call_count
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_stop_rest_server(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_stop_storage(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
+    @pytest.mark.skip(reason="To be implemented")
     async def test_stop_microservices(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_request_microservice_shutdown(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__request_microservice_shutdown(self):
         pass
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="To be developed")
-    async def test_stop_scheduler(self):
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__stop_scheduler(self):
         pass
 
     ############################
@@ -646,6 +646,5 @@ class TestServer:
         assert 'message' in json_response
         assert 'FogLAMP stopped successfully. Wait for few seconds for process cleanup.' == json_response["message"]
 
-    @pytest.mark.skip(reason="To be developed")
     async def test_change(self):
         pass

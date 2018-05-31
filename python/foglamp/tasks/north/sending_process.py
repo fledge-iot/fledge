@@ -15,6 +15,7 @@ that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
 
+import aiohttp
 import resource
 import asyncio
 import sys
@@ -512,12 +513,19 @@ class SendingProcess:
         """
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
+
+        converted_data = []
         try:
             # Loads data, +1 as > is needed
             readings = await self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
+
+        except aiohttp.client_exceptions.ClientPayloadError as _ex:
+
+            _message = _MESSAGES_LIST["e000009"].format(str(_ex))
+            SendingProcess._logger.warning(_message)
 
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000009"].format(str(_ex))

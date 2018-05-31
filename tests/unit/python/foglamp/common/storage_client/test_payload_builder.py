@@ -3,9 +3,10 @@
 # FOGLAMP_BEGIN
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
-import pytest
+
 import json
 import os
+import pytest
 import py
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
@@ -25,7 +26,7 @@ def _payload(test_data_file=None):
 
 
 @pytest.allure.feature("unit")
-@pytest.allure.story("payload_builder")
+@pytest.allure.story("common", "storage_client", "payload_builder")
 class TestPayloadBuilderRead:
     """
     This class tests all SELECT (Read) data specific payload methods of payload builder
@@ -222,6 +223,28 @@ class TestPayloadBuilderRead:
                                                            ('values', 'min', 'Minimum'),
                                                            ('values', 'max', 'Maximum'),
                                                            ('values', 'avg', 'Average')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        (("user_ts",), _payload("data/payload_timebucket4.json")),
+        (("user_ts", "5"), _payload("data/payload_timebucket1.json")),
+        (("user_ts", "5", "DD-MM-YYYYY HH24:MI:SS"), _payload("data/payload_timebucket2.json")),
+        (("user_ts", "5", "DD-MM-YYYYY HH24:MI:SS", "bucket"), _payload("data/payload_timebucket3.json"))
+    ])
+    def test_timebucket(self, test_input, expected):
+        timestamp = test_input[0]
+        fmt = None
+        alias = None
+        if len(test_input) == 1:
+            res = PayloadBuilder().TIMEBUCKET(timestamp).payload()
+        else:
+            size = test_input[1]
+            if len(test_input) == 3:
+                fmt = test_input[2]
+            if len(test_input) == 4:
+                fmt = test_input[2]
+                alias = test_input[3]
+            res = PayloadBuilder().TIMEBUCKET(timestamp, size, fmt, alias).payload()
         assert expected == json.loads(res)
 
     def test_select_all_payload(self):

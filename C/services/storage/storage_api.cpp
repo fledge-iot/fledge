@@ -642,8 +642,8 @@ string        flags;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
 			return;
 		}
-		string responsePayload = purged;
-		respond(response, responsePayload);
+		respond(response, purged);
+		free(purged);
 	}
 	/** Handle PluginNotImplementedException exception here */
 	catch (PluginNotImplementedException& ex) {

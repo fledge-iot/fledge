@@ -26,7 +26,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__, level=20)
+_LOGGER = logger.setup(__name__)
 _NO_OF_FILES_TO_RETAIN = 3
 _SYSLOG_FILE = '/var/log/syslog'
 

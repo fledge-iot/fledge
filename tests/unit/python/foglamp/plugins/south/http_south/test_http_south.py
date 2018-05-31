@@ -171,11 +171,14 @@ def test_plugin_reconfigure_else(mocker, unused_port):
     config['uri']['value'] = config['uri']['default']
     config2 = copy.deepcopy(config)
     pstop = mocker.patch.object(http_south, '_plugin_stop', return_value=True)
+    log_info = mocker.patch.object(http_south._LOGGER, "info")
 
     # WHEN
     new_config = http_south.plugin_reconfigure(config, config2)
 
     # THEN
+    assert 1 == log_info.call_count
+    log_info.assert_called_once_with("Old config for HTTP_SOUTH plugin {} \n new config {}".format(config, config2))
     assert 0 == pstop.call_count
     assert "no" == new_config["restart"]
 
@@ -333,13 +336,17 @@ class TestHttpSouthIngest(object):
     @pytest.mark.asyncio
     async def test_render_post_payload_not_dict(self, loop):
         data = "blah"
+        msg = 'Payload must be a dictionary'
         with patch.object(Ingest, 'increment_discarded_readings', return_value=True) as ingest_discarded:
             with patch.object(Ingest, 'is_available', return_value=True) as ingest_is_available:
-                with pytest.raises(aiohttp.web_exceptions.HTTPBadRequest) as ex:
-                    request = mock_request(data, loop)
-                    r = await HttpSouthIngest.render_post(request)
-                    assert 400 == r.status
-                assert str(ex).endswith('Payload must be a dictionary')
+                with patch.object(http_south._LOGGER, 'exception') as log_exc:
+                    with pytest.raises(aiohttp.web_exceptions.HTTPBadRequest) as ex:
+                        request = mock_request(data, loop)
+                        r = await HttpSouthIngest.render_post(request)
+                        assert 400 == r.status
+                    assert str(ex).endswith(msg)
+                assert 1 == log_exc.call_count
+                log_exc.assert_called_once_with('%d: %s', 400, msg)
             assert 1 == ingest_discarded.call_count
             assert 1 == ingest_is_available.call_count
 
@@ -357,13 +364,17 @@ class TestHttpSouthIngest(object):
                 }
             }
         }"""
+        msg = "{'busy': True}"
         with patch.object(Ingest, 'increment_discarded_readings', return_value=True) as ingest_discarded:
             with patch.object(Ingest, 'is_available', return_value=False) as ingest_is_available:
-                with pytest.raises(aiohttp.web_exceptions.HTTPInternalServerError) as ex:
-                    request = mock_request(data, loop)
-                    r = await HttpSouthIngest.render_post(request)
-                    assert 400 == r.status
-                assert str(ex).endswith("{'busy': True}")
+                with patch.object(http_south._LOGGER, 'exception') as log_exc:
+                    with pytest.raises(aiohttp.web_exceptions.HTTPInternalServerError) as ex:
+                        request = mock_request(data, loop)
+                        r = await HttpSouthIngest.render_post(request)
+                        assert 400 == r.status
+                    assert str(ex).endswith(msg)
+                assert 1 == log_exc.call_count
+                log_exc.assert_called_once_with('%d: %s', 500, msg)
             assert 1 == ingest_discarded.call_count
             assert 1 == ingest_is_available.call_count
 
@@ -380,13 +391,17 @@ class TestHttpSouthIngest(object):
                     "unit": "kelvin"
                 }
         }"""
+        msg = 'Payload must be a dictionary'
         with patch.object(Ingest, 'increment_discarded_readings', return_value=True) as ingest_discarded:
             with patch.object(Ingest, 'is_available', return_value=True) as ingest_is_available:
-                with pytest.raises(aiohttp.web_exceptions.HTTPBadRequest) as ex:
-                    request = mock_request(data, loop)
-                    r = await HttpSouthIngest.render_post(request)
-                    assert 400 == r.status
-                assert str(ex).endswith('Payload must be a dictionary')
+                with patch.object(http_south._LOGGER, 'exception') as log_exc:
+                    with pytest.raises(aiohttp.web_exceptions.HTTPBadRequest) as ex:
+                        request = mock_request(data, loop)
+                        r = await HttpSouthIngest.render_post(request)
+                        assert 400 == r.status
+                    assert str(ex).endswith(msg)
+                assert 1 == log_exc.call_count
+                log_exc.assert_called_once_with('%d: %s', 400, msg)
             assert 1 == ingest_discarded.call_count
             assert 1 == ingest_is_available.call_count
 
@@ -398,12 +413,16 @@ class TestHttpSouthIngest(object):
             "key": "80a43623-ebe5-40d6-8d80-3f892da9b3b4",
             "readings": "500"
         }"""
+        msg = 'readings must be a dictionary'
         with patch.object(Ingest, 'increment_discarded_readings', return_value=True) as ingest_discarded:
             with patch.object(Ingest, 'is_available', return_value=True) as ingest_is_available:
-                with pytest.raises(aiohttp.web_exceptions.HTTPBadRequest) as ex:
-                    request = mock_request(data, loop)
-                    r = await HttpSouthIngest.render_post(request)
-                    assert 400 == r.status
-                assert str(ex).endswith("readings must be a dictionary")
+                with patch.object(http_south._LOGGER, 'exception') as log_exc:
+                    with pytest.raises(aiohttp.web_exceptions.HTTPBadRequest) as ex:
+                        request = mock_request(data, loop)
+                        r = await HttpSouthIngest.render_post(request)
+                        assert 400 == r.status
+                    assert str(ex).endswith(msg)
+                assert 1 == log_exc.call_count
+                log_exc.assert_called_once_with('%d: %s', 400, msg)
             assert 1 == ingest_discarded.call_count
             assert 1 == ingest_is_available.call_count

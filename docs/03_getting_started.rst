@@ -62,7 +62,8 @@ You may also want to install some utilities to make your life easier when you us
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP on Ubuntu 16.04.3 LTS (Server or Desktop).  Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a snap package from |snappy|.
+In this section we will describe how to build FogLAMP on Ubuntu 16.04.3 LTS (Server or Desktop).  Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `here <92_downloads.html>`_).
+
 
 Build Pre-Requisites
 --------------------
@@ -474,6 +475,8 @@ Finally, you should now be able to see the list of the available databases from 
              |          |          |             |             | postgres=CTc/postgres
   (3 rows)
   $
+
+|br|
 
 
 Appendix: Building FogLAMP on CentOS

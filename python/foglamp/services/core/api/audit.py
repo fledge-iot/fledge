@@ -30,8 +30,7 @@ _help = """
     -------------------------------------------------------------------------------
 """
 
-_LOG_LEVEL = 20
-_logger = logger.setup(__name__, level=_LOG_LEVEL)
+_logger = logger.setup(__name__)
 
 
 class Severity(IntEnum):

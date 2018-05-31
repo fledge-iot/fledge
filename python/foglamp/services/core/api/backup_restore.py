@@ -6,15 +6,21 @@
 
 """Backup and Restore Rest API support"""
 
+import sys
+
 from aiohttp import web
 from enum import IntEnum
 from collections import OrderedDict
 
 from foglamp.services.core import connect
-from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
-from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
-from foglamp.plugins.storage.postgres.backup_restore import exceptions
 
+if 'foglamp.plugins.storage.common.backup' not in sys.modules:
+    from foglamp.plugins.storage.common.backup import Backup
+
+if 'foglamp.plugins.storage.common.restore' not in sys.modules:
+    from foglamp.plugins.storage.common.restore import Restore
+
+from foglamp.plugins.storage.common import exceptions
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

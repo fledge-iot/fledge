@@ -61,6 +61,10 @@ ResultSet::ResultSet(const std::string& json)
 					{
 						type = BOOL_COLUMN;
 					}
+					else if (itr->value.IsString())
+					{
+						type = STRING_COLUMN;
+					}
 					else
 					{
 						throw new ResultException("Unable to determine column type");

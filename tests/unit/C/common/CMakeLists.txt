@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 set(UUIDLIB -luuid)
+set(COMMONLIB -ldl)
  
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -24,13 +25,12 @@ include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/thirdparty/Simple-Web-Server)
 
 file(GLOB test_sources "../../../../C/common/*.cpp")
-file(GLOB logger_sources "../../../../C/services/common/logger.cpp")
-file(GLOB service_sources "../../../../C/services/common/service_record.cpp")
 file(GLOB unittests "*.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(RunTests ${test_sources} ${logger_sources} ${service_sources} ${unittests})
+add_executable(RunTests ${test_sources} ${unittests})
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
 target_link_libraries(RunTests  ${Boost_LIBRARIES})
 target_link_libraries(RunTests  ${UUIDLIB})
+target_link_libraries(RunTests  ${COMMONLIB})
 

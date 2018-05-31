@@ -46,6 +46,26 @@ class InsertValue {
 			m_value.fval = value;
 			m_type = NUMBER_COLUMN;
 		};
+		InsertValue(const InsertValue& rhs) : m_column(rhs.m_column)
+		{
+			m_type = rhs.m_type;
+			switch (rhs.m_type)
+			{
+			case INT_COLUMN:
+				m_value.ival = rhs.m_value.ival;
+				break;
+			case NUMBER_COLUMN:
+				m_value.fval = rhs.m_value.fval;
+				break;
+			case STRING_COLUMN:
+				m_value.str = strdup(rhs.m_value.str);
+				break;
+			case BOOL_COLUMN:
+			case JSON_COLUMN:
+				// TODO
+				break;
+			}
+		}
 		~InsertValue()
 		{
 			if (m_type == STRING_COLUMN)
@@ -79,6 +99,7 @@ class InsertValue {
 			return json.str();
 		}
 	private:
+		InsertValue&		operator=(InsertValue const& rhs);
 		const std::string	m_column;
 		ColumnType		m_type;
 		union {

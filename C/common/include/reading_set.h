@@ -36,6 +36,8 @@ class ReadingSet {
 							return m_readings;
 						};
 	private:
+		ReadingSet(const ReadingSet&);
+		ReadingSet&			operator=(ReadingSet const &);
 		unsigned int			m_count;
 		std::vector<Reading *>		m_readings;
 

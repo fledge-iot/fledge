@@ -39,6 +39,8 @@ class Query {
 		void				returns(std::vector<Returns *>);
 		const std::string		toJSON() const;
 	private:
+		Query(const Query&);		// Disable copy of query
+		Query& 				operator=(Query const&);
 		Where				*m_where;
 		std::vector<Aggregate *>	m_aggregates;
 		std::string			m_group;

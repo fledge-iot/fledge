@@ -387,7 +387,6 @@ class ReadingsStorageClient(StorageClient):
                           '/storage/reading', readings, r.status, r.reason, jdoc)
             raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
 
-        _LOGGER.debug("Inserted %s records", jdoc['readings_added'])
         return jdoc
 
     @classmethod
@@ -647,7 +646,7 @@ class StorageClientAsync(AbstractStorage):
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-                raise Exception(str(ex))
+            raise Exception(str(ex))
 
         return jdoc
 
@@ -864,7 +863,6 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         except Exception as ex:
             raise Exception(str(ex))
 
-        _LOGGER.debug("Inserted %s records", jdoc['readings_added'])
         return jdoc
 
     async def fetch(self, reading_id, count):

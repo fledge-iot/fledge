@@ -66,6 +66,96 @@ class TestServer:
     ############################
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_get_certificates(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_rest_api_config(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_service_config(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_make_app(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_make_core_app(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_start_service_monitor(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_stop_service_monitor(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_start_scheduler(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test__start_storage(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_start_storage(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_get_storage_client(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_start_app(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_pid_filename(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_pidfile_exists(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_remove_pid(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_write_pid(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test__start_core(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_register_core(self):
+        pass
+
+    @pytest.mark.asyncio
     async def test_start(self):
         with patch.object(Server, "_start_core", return_value=None) as patched_start_core:
             Server.start()
@@ -109,61 +199,29 @@ class TestServer:
         assert 1 == mocked__remove_pid.call_count
 
     @pytest.mark.asyncio
-    @pytest.mark.skip
-    def test__start_core(self, mocker, loop):
-        async def return_async_value(val):
-            return val
+    @pytest.mark.skip(reason="To be developed")
+    async def test_stop_rest_server(self):
+        pass
 
-        mocker.patch.object(Server, "_make_core_app")
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_stop_storage(self):
+        pass
 
-        mock_start_storage = mocker.patch.object(Server, "_start_storage")
-        mock_start_storage.return_value = return_async_value('start storage')
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_stop_microservices(self):
+        pass
 
-        mockedSC = MagicMock(spec=StorageClient)
-        mock_get_storage_client = mocker.patch.object(Server, "_get_storage_client")
-        mock_get_storage_client.return_value = return_async_value(mockedSC)
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_request_microservice_shutdown(self):
+        pass
 
-        mockedCf = MagicMock(spec=ConfigurationManager(mockedSC))
-        mockedIntReg = MagicMock(spec=InterestRegistry)
-
-        mockedAuditLogger = MagicMock(spec=AuditLogger(mockedSC))
-
-        mock_start_scheduler = mocker.patch.object(Server, "_start_scheduler")
-        mock_start_scheduler.return_value = return_async_value('start scheduler')
-
-        mock_start_service_monitor = mocker.patch.object(Server, "_start_service_monitor")
-        mock_start_service_monitor.return_value = return_async_value('start monitor')
-
-        mock_rest_api_config = mocker.patch.object(Server, "rest_api_config")
-        mock_rest_api_config.return_value = return_async_value('set RET api config')
-
-        mock_service_config = mocker.patch.object(Server, "service_config")
-        mock_service_config.return_value = return_async_value('set service config')
-
-        def stop_me():
-            loop.stop()
-
-        m = MagicMock()
-        m.sockets[0].getsockname.return_value = ('127.0.0.1', 52300)
-
-        # patch pid
-        # set ssl false/ true
-
-        # def se(*args):
-        #     print(args[0])
-        #     m = MagicMock()
-        #     m.sockets[0].getsockname.return_value = ('127.0.0.1', 52300)
-        #     return m, "b"
-
-        # with patch.object(Server, "_register_core", return_value=None) as patch_registration:
-        with patch.object(Server, "_start_app", return_value=(m, "b")):
-            with patch.object(server._logger, "info", return_value=None) as logger_patch:
-                loop.call_later(2, Server.stop, loop)
-                Server._start_core(loop=loop)
-        # patch_registration.assert_called_once_with('0.0.0.0', 52300, 52300)
-        assert 6 == logger_patch.call_count
-        # calls = 'REST API Server started on %s://%s:%s', 'http', '127.0.0.1', 52300
-        # logger_patch.assert_has_calls(calls)
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be developed")
+    async def test_stop_scheduler(self):
+        pass
 
     ############################
     # Configuration Management
@@ -588,5 +646,6 @@ class TestServer:
         assert 'message' in json_response
         assert 'FogLAMP stopped successfully. Wait for few seconds for process cleanup.' == json_response["message"]
 
+    @pytest.mark.skip(reason="To be developed")
     async def test_change(self):
         pass

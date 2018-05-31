@@ -13,6 +13,14 @@ string	json("{ \"count\" : 1, \"rows\" : [ { \"c1\" : 1 } ] }");
 	ASSERT_EQ(result.rowCount(), 1);
 }
 
+TEST(ResultSetTest, NoRows)
+{
+string	json("{ \"count\" : 0, \"rows\" : [  ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.rowCount(), 0);
+}
+
 TEST(ResultSetTest, ColumnCount1)
 {
 string	json("{ \"count\" : 1, \"rows\" : [ { \"c1\" : 1 } ] }");
@@ -43,6 +51,15 @@ string	json("{ \"count\" : 1, \"rows\" : [ { \"c1\" : 1 } ] }");
 
 	ResultSet result(json);
 	ASSERT_EQ(result.columnType(0), INT_COLUMN);
+}
+
+TEST(ResultSetTest, ColumnTypeIntAfterJSON)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : {}, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.columnType(1), INT_COLUMN);
+	ASSERT_EQ(result.columnName(1).compare("c1"), 0);
 }
 
 TEST(ResultSetTest, ColumnTypeNumber)

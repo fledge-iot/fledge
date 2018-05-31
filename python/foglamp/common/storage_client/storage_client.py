@@ -641,7 +641,7 @@ class StorageClientAsync(AbstractStorage):
             async with self._session.post(url, data=data) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.info("POST %s, with payload: %s", post_url, data)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -687,7 +687,7 @@ class StorageClientAsync(AbstractStorage):
             async with self._session.put(url, data=data) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.info("PUT %s, with payload: %s", put_url, data)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -726,7 +726,7 @@ class StorageClientAsync(AbstractStorage):
             async with self._session.delete(url, data=condition) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -759,7 +759,7 @@ class StorageClientAsync(AbstractStorage):
             async with self._session.get(url) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.info("GET %s", get_url)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -800,7 +800,7 @@ class StorageClientAsync(AbstractStorage):
             async with self._session.put(url, data=query_payload) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -856,7 +856,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             async with self._session.post(url, data=readings) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
                                   '/storage/reading', readings, resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -893,7 +893,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             async with self._session.get(url) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", url, resp.status,
                                   resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -931,7 +931,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             async with self._session.put(url, data=query_payload) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
                                   '/storage/reading/query', query_payload, resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
@@ -992,7 +992,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             async with self._session.put(url, data=None) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
-                if status_code != 200:
+                if status_code not in range(200, 209):
                     _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
                                   resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)

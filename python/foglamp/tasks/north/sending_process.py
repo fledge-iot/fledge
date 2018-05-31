@@ -897,8 +897,6 @@ class SendingProcess:
                             await self._audit.failure(self._AUDIT_CODE, {"error - on _task_send_data": _message})
 
                             data_sent = False
-                            new_last_object_id = update_last_object_id
-                            num_sent = 0
 
                         if data_sent:
                             db_update = True

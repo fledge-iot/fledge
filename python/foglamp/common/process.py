@@ -9,11 +9,11 @@
 from abc import ABC, abstractmethod
 import argparse
 import time
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient, StorageClientAsync, ReadingsStorageClientAsync
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.common import logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
-__author__ = "Ashwin Gopalakrishnan, Amarendra K Sinha"
+__author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -60,15 +60,9 @@ class FoglampProcess(ABC):
     _readings_storage = None
     """ foglamp.common.storage_client.storage_client.ReadingsStorageClient """
 
-    _readings_storage_async = None
-    """ foglamp.common.storage_client.storage_client.ReadingsStorageClient """
-
     _storage = None
     """ foglamp.common.storage_client.storage_client.StorageClient """
     
-    _storage_async = None
-    """ async foglamp.common.storage_client.storage_client.StorageClient """
-
     _start_time = None
     """ time at which this python process started """
 
@@ -96,12 +90,8 @@ class FoglampProcess(ABC):
             raise ValueError("--name is not specified")
 
         self._core_microservice_management_client = MicroserviceManagementClient(self._core_management_host,self._core_management_port)
-
         self._readings_storage = ReadingsStorageClient(self._core_management_host, self._core_management_port)
         self._storage = StorageClient(self._core_management_host, self._core_management_port)
-
-        self._readings_storage_async = ReadingsStorageClientAsync(self._core_management_host, self._core_management_port)
-        self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port)
 
     # pure virtual method run() to be implemented by child class
     @abstractmethod

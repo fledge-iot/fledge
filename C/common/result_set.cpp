@@ -31,71 +31,83 @@ ResultSet::ResultSet(const std::string& json)
 	if (doc.HasMember("count"))
 	{
 		m_rowCount = doc["count"].GetUint();
-		const Value& rows = doc["rows"];
-		if (!doc.HasMember("rows"))
+		if (m_rowCount)
 		{
-			throw new ResultException("Missing rows array");
-		}
-		if (rows.IsArray())
-		{
-			// Process first row to get column names and types
-			const Value& firstRow = rows[0];
-			for (Value::ConstMemberIterator itr = firstRow.MemberBegin(); itr != firstRow.MemberEnd(); ++itr)
+			const Value& rows = doc["rows"];
+			if (!doc.HasMember("rows"))
 			{
-				ColumnType type = STRING_COLUMN;
-				if (itr->value.IsObject())
-				{
-					type = JSON_COLUMN;
-				}
-				else if (itr->value.IsNumber() && itr->value.IsDouble())
-				{
-					type = NUMBER_COLUMN;
-				}
-				else if (itr->value.IsNumber())
-				{
-					type = INT_COLUMN;
-				}
-				else if (itr->value.IsBool())
-				{
-					type = BOOL_COLUMN;
-				}
-				m_columns.push_back(new Column(string(itr->name.GetString()), type));
+				throw new ResultException("Missing rows array");
 			}
-			// Process every rows and create the result set
-			for (auto& row : rows.GetArray())
+			if (rows.IsArray())
 			{
-				if (!row.IsObject())
+				// Process first row to get column names and types
+				const Value& firstRow = rows[0];
+				for (Value::ConstMemberIterator itr = firstRow.MemberBegin(); itr != firstRow.MemberEnd(); ++itr)
 				{
-					throw new ResultException("Expected row to be an object");
-				}
-				ResultSet::Row	*rowValue = new ResultSet::Row(this);
-				unsigned int colNo = 0;
-				for (Value::ConstMemberIterator item = row.MemberBegin(); item != row.MemberEnd(); ++item)
-				{
-					switch (m_columns[colNo]->getType())
+					ColumnType type = STRING_COLUMN;
+					if (itr->value.IsObject())
 					{
-					case STRING_COLUMN:
-						rowValue->append(new ColumnValue(string(item->value.GetString())));
-						break;
-					case INT_COLUMN:
-						rowValue->append(new ColumnValue(item->value.GetInt()));
-						break;
-					case NUMBER_COLUMN:
-						rowValue->append(new ColumnValue(item->value.GetDouble()));
-						break;
-					case JSON_COLUMN:
-					case BOOL_COLUMN:
-						// TODO Add support
-						break;
+						type = JSON_COLUMN;
 					}
-					colNo++;
+					else if (itr->value.IsNumber() && itr->value.IsDouble())
+					{
+						type = NUMBER_COLUMN;
+					}
+					else if (itr->value.IsNumber())
+					{
+						type = INT_COLUMN;
+					}
+					else if (itr->value.IsBool())
+					{
+						type = BOOL_COLUMN;
+					}
+					else if (itr->value.IsString())
+					{
+						type = STRING_COLUMN;
+					}
+					else
+					{
+						throw new ResultException("Unable to determine column type");
+					}
+					m_columns.push_back(new Column(string(itr->name.GetString()), type));
 				}
-				m_rows.push_back(rowValue);
+				// Process every rows and create the result set
+				for (auto& row : rows.GetArray())
+				{
+					if (!row.IsObject())
+					{
+						throw new ResultException("Expected row to be an object");
+					}
+					ResultSet::Row	*rowValue = new ResultSet::Row(this);
+					unsigned int colNo = 0;
+					for (Value::ConstMemberIterator item = row.MemberBegin(); item != row.MemberEnd(); ++item)
+					{
+						switch (m_columns[colNo]->getType())
+						{
+						case STRING_COLUMN:
+							rowValue->append(new ColumnValue(string(item->value.GetString())));
+							break;
+						case INT_COLUMN:
+							rowValue->append(new ColumnValue(item->value.GetInt()));
+							break;
+						case NUMBER_COLUMN:
+							rowValue->append(new ColumnValue(item->value.GetDouble()));
+							break;
+						case JSON_COLUMN:
+						case BOOL_COLUMN:
+							// TODO Add support
+							rowValue->append(new ColumnValue(string("TODO")));
+							break;
+						}
+						colNo++;
+					}
+					m_rows.push_back(rowValue);
+				}
 			}
-		}
-		else
-		{
-			throw new ResultException("Expected array of rows in result set");
+			else
+			{
+				throw new ResultException("Expected array of rows in result set");
+			}
 		}
 	}
 	else
@@ -284,7 +296,9 @@ unsigned int ResultSet::findColumn(const string& name) const
 	for (unsigned int i = 0; i != m_columns.size(); i++)
 	{
 		if (m_columns[i]->getName().compare(name) == 0)
+		{
 			return i;
+		}
 	}
 	throw ResultNoSuchColumnException();
 }

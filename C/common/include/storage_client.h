@@ -16,6 +16,7 @@
 #include <purge_result.h>
 #include <query.h>
 #include <insert.h>
+#include <expression.h>
 #include <logger.h>
 #include <string>
 #include <vector>
@@ -33,6 +34,8 @@ class StorageClient {
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		int 		insertTable(const std::string& tableName, const InsertValues& values);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const Query& query);
+		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Query& query);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Query& query);
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
 		bool		readingAppend(const std::vector<Reading *> & readings);

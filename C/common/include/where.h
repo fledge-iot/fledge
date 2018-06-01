@@ -32,6 +32,8 @@ class Where {
 		void		orWhere(Where *condition) { m_or = condition; };
 		std::string	toJSON();
 	private:
+		Where(const Where&);
+		Where&			operator=(Where const&);
 		const std::string	m_column;
 		const Condition		m_condition;
 		const std::string	m_value;

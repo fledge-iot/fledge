@@ -16,7 +16,7 @@
 #include <vector>
 
 typedef enum column_type {
-	INT_COLUMN,
+	INT_COLUMN = 1,
 	NUMBER_COLUMN,
 	STRING_COLUMN,
 	BOOL_COLUMN,
@@ -52,11 +52,18 @@ class ResultSet {
 					m_value.fval = value;
 					m_type = NUMBER_COLUMN;
 				};
+				~ColumnValue()
+				{
+					if (m_type == STRING_COLUMN)
+						free(m_value.str);
+				};
 				ColumnType 	getType() { return m_type; };
 				long	getInteger() const;
 				double	getNumber() const;
 				char	*getString() const;
 			private:
+				ColumnValue(const ColumnValue&);
+				ColumnValue&	operator=(ColumnValue const&);
 				ColumnType	m_type;
 				union {
 					char		*str;
@@ -86,6 +93,8 @@ class ResultSet {
 							return m_values[colNo];
 						};
 			private:
+				Row(const Row&);
+				Row&					operator=(Row const&);
 				std::vector<ResultSet::ColumnValue *>	m_values;
 				const ResultSet				*m_resultSet;
 		};
@@ -109,13 +118,15 @@ class ResultSet {
 						};
 
 	private:
+		ResultSet(const ResultSet &);
+		ResultSet&			operator=(ResultSet const&);
 		class Column {
 			public:
 				Column(const std::string& name, ColumnType type) : m_name(name), m_type(type) {};
 				const std::string& getName() { return m_name; };
 				ColumnType	getType() { return m_type; };
 			private:
-				const std::string&	m_name;
+				const std::string	m_name;
 				ColumnType		m_type;
 		};
 

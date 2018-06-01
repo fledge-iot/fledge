@@ -544,7 +544,6 @@ class StorageClientAsync(AbstractStorage):
 
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
-            self._session = aiohttp.ClientSession()
         except Exception:
             raise InvalidServiceInstance
 
@@ -636,17 +635,15 @@ class StorageClientAsync(AbstractStorage):
             raise TypeError("Provided data to insert must be a valid JSON")
 
         post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
-        try:
-            url = 'http://' + self.base_url + post_url
-            async with self._session.post(url, data=data) as resp:
+        url = 'http://' + self.base_url + post_url
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=data) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.info("POST %s, with payload: %s", post_url, data)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -682,17 +679,15 @@ class StorageClientAsync(AbstractStorage):
 
         put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
-        try:
-            url = 'http://' + self.base_url + put_url
-            async with self._session.put(url, data=data) as resp:
+        url = 'http://' + self.base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=data) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.info("PUT %s, with payload: %s", put_url, data)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -721,17 +716,15 @@ class StorageClientAsync(AbstractStorage):
         if condition and (not Utils.is_json(condition)):
             raise TypeError("condition payload must be a valid JSON")
 
-        try:
-            url = 'http://' + self.base_url + del_url
-            async with self._session.delete(url, data=condition) as resp:
+        url = 'http://' + self.base_url + del_url
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(url, data=condition) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -754,17 +747,15 @@ class StorageClientAsync(AbstractStorage):
         if query:  # else SELECT * FROM <tbl_name>
             get_url += '?{}'.format(query)
 
-        try:
-            url = 'http://' + self.base_url + get_url
-            async with self._session.get(url) as resp:
+        url = 'http://' + self.base_url + get_url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.info("GET %s", get_url)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -795,17 +786,15 @@ class StorageClientAsync(AbstractStorage):
 
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
 
-        try:
-            url = 'http://' + self.base_url + put_url
-            async with self._session.put(url, data=query_payload) as resp:
+        url = 'http://' + self.base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=query_payload) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -851,17 +840,15 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         if not Utils.is_json(readings):
             raise TypeError("Readings payload must be a valid JSON")
 
-        try:
-            url = 'http://' + self._base_url + '/storage/reading'
-            async with self._session.post(url, data=readings) as resp:
+        url = 'http://' + self._base_url + '/storage/reading'
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=readings) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
                                   '/storage/reading', readings, resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -887,18 +874,16 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         except ValueError:
             raise
 
-        try:
-            get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
-            url = 'http://' + self._base_url + get_url
-            async with self._session.get(url) as resp:
+        get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
+        url = 'http://' + self._base_url + get_url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", url, resp.status,
                                   resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -926,17 +911,15 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         if not Utils.is_json(query_payload):
             raise TypeError("Query payload must be a valid JSON")
 
-        try:
-            url = 'http://' + self._base_url + '/storage/reading/query'
-            async with self._session.put(url, data=query_payload) as resp:
+        url = 'http://' + self._base_url + '/storage/reading/query'
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=query_payload) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
                                   '/storage/reading/query', query_payload, resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc
 
@@ -987,16 +970,14 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         if flag:
             put_url += "&flags={}".format(flag.lower())
 
-        try:
-            url = 'http://' + self._base_url + put_url
-            async with self._session.put(url, data=None) as resp:
+        url = 'http://' + self._base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=None) as resp:
                 status_code = resp.status
                 jdoc = await resp.json()
                 if status_code not in range(200, 209):
                     _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
                                   resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-        except Exception as ex:
-            raise ex
 
         return jdoc

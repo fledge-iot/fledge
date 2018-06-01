@@ -7,7 +7,7 @@
 """ Storage layer python client
 """
 
-__author__ = "Praveen Garg"
+__author__ = "Praveen Garg, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -22,7 +22,7 @@ from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.utils import Utils
 
-_LOGGER = logger.setup(__name__, level=20)
+_LOGGER = logger.setup(__name__)
 
 
 class AbstractStorage(ABC):
@@ -96,7 +96,7 @@ class StorageClient(AbstractStorage):
         r = conn.getresponse()
 
         if r.status in range(400, 500):
-            _LOGGER.error("Get Service: Client error code: %d, %s", r.status.r.reason)
+            _LOGGER.error("Get Service: Client error code: %d, %s", r.status, r.reason)
         if r.status in range(500, 600):
             _LOGGER.error("Get Service: Server error code: %d, %s", r.status, r.reason)
 
@@ -544,6 +544,7 @@ class StorageClientAsync(AbstractStorage):
 
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
+            self._session = aiohttp.ClientSession()
         except Exception:
             raise InvalidServiceInstance
 
@@ -635,20 +636,17 @@ class StorageClientAsync(AbstractStorage):
             raise TypeError("Provided data to insert must be a valid JSON")
 
         post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
-
         try:
             url = 'http://' + self.base_url + post_url
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=data) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.info("POST %s, with payload: %s", post_url, data)
-                        _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+            async with self._session.post(url, data=data) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("POST %s, with payload: %s", post_url, data)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -686,17 +684,15 @@ class StorageClientAsync(AbstractStorage):
 
         try:
             url = 'http://' + self.base_url + put_url
-            async with aiohttp.ClientSession() as session:
-                async with session.put(url, data=data) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.info("PUT %s, with payload: %s", put_url, data)
-                        _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+            async with self._session.put(url, data=data) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("PUT %s, with payload: %s", put_url, data)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -727,17 +723,15 @@ class StorageClientAsync(AbstractStorage):
 
         try:
             url = 'http://' + self.base_url + del_url
-            async with aiohttp.ClientSession() as session:
-                async with session.delete(url, data=condition) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
-                        _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+            async with self._session.delete(url, data=condition) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -762,17 +756,15 @@ class StorageClientAsync(AbstractStorage):
 
         try:
             url = 'http://' + self.base_url + get_url
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.info("GET %s", get_url)
-                        _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+            async with self._session.get(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("GET %s", get_url)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -805,17 +797,15 @@ class StorageClientAsync(AbstractStorage):
 
         try:
             url = 'http://' + self.base_url + put_url
-            async with aiohttp.ClientSession() as session:
-                async with session.put(url, data=query_payload) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
-                        _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=r.status, reason=resp.reason, error=jdoc)
+            async with self._session.put(url, data=query_payload) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -828,8 +818,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         super().__init__(core_management_host=core_mgt_host, core_management_port=core_mgt_port, svc=svc)
         self.__class__._base_url = self.base_url
 
-    @classmethod
-    async def append(cls, readings):
+    async def append(self, readings):
         """
         :param readings:
         :return:
@@ -863,24 +852,20 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             raise TypeError("Readings payload must be a valid JSON")
 
         try:
-            url = 'http://' + cls._base_url + '/storage/reading'
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=readings) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
-                                      '/storage/reading', readings, resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-                    _LOGGER.debug("Inserted %s records", jdoc['readings_added'])
+            url = 'http://' + self._base_url + '/storage/reading'
+            async with self._session.post(url, data=readings) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
+                                  '/storage/reading', readings, resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
-    @classmethod
-    async def fetch(cls, reading_id, count):
+    async def fetch(self, reading_id, count):
         """
 
         :param reading_id: the first reading ID in the block that is retrieved
@@ -904,24 +889,20 @@ class ReadingsStorageClientAsync(StorageClientAsync):
 
         try:
             get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
-            url = 'http://' + cls._base_url + get_url
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", url, resp.status,
-                                      resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-                        # _LOGGER.debug("Inserted %s records", jdoc['readings_added'])
+            url = 'http://' + self._base_url + get_url
+            async with self._session.get(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", url, resp.status,
+                                  resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
-    @classmethod
-    async def query(cls, query_payload):
+    async def query(self, query_payload):
         """
 
         :param query_payload:
@@ -946,24 +927,20 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             raise TypeError("Query payload must be a valid JSON")
 
         try:
-            url = 'http://' + cls._base_url + '/storage/reading/query'
-            async with aiohttp.ClientSession() as session:
-                async with session.put(url, data=query_payload) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
-                                      '/storage/reading/query', query_payload, resp.status, resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-                        # _LOGGER.debug("Inserted %s records", jdoc['readings_added'])
+            url = 'http://' + self._base_url + '/storage/reading/query'
+            async with self._session.put(url, data=query_payload) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
+                                  '/storage/reading/query', query_payload, resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
-    @classmethod
-    async def purge(cls, age=None, sent_id=0, size=None, flag=None):
+    async def purge(self, age=None, sent_id=0, size=None, flag=None):
         """ Purge readings based on the age of the readings
 
         :param age: the maximum age of data to retain, expressed in hours
@@ -1011,18 +988,15 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             put_url += "&flags={}".format(flag.lower())
 
         try:
-            url = 'http://' + cls._base_url + put_url
-            async with aiohttp.ClientSession() as session:
-                async with session.put(url, data=None) as resp:
-                    status_code = resp.status
-                    text = await resp.text()
-                    jdoc = json.loads(text, strict=False)
-                    if status_code != 200:
-                        _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
-                                      resp.reason, jdoc)
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-                        # _LOGGER.debug("Inserted %s records", jdoc['readings_added'])
+            url = 'http://' + self._base_url + put_url
+            async with self._session.put(url, data=None) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
+                                  resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc

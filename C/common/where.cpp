@@ -32,7 +32,7 @@ Where::~Where()
 /**
  * Return the JSON payload for a where clause
  */
-string Where::toJSON()
+const string Where::toJSON() const
 {
 ostringstream json;
 

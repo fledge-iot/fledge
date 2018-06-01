@@ -30,7 +30,7 @@ class Where {
 		~Where();
 		void		andWhere(Where *condition) { m_and = condition; };
 		void		orWhere(Where *condition) { m_or = condition; };
-		std::string	toJSON();
+		const std::string	toJSON() const;
 	private:
 		Where(const Where&);
 		Where&			operator=(Where const&);

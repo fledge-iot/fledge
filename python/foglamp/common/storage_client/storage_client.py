@@ -646,7 +646,7 @@ class StorageClientAsync(AbstractStorage):
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -692,7 +692,7 @@ class StorageClientAsync(AbstractStorage):
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -731,7 +731,7 @@ class StorageClientAsync(AbstractStorage):
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -764,7 +764,7 @@ class StorageClientAsync(AbstractStorage):
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -805,7 +805,7 @@ class StorageClientAsync(AbstractStorage):
                     _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -861,7 +861,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
                                   '/storage/reading', readings, resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -898,7 +898,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
                                   resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -936,7 +936,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
                                   '/storage/reading/query', query_payload, resp.status, resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc
 
@@ -997,6 +997,6 @@ class ReadingsStorageClientAsync(StorageClientAsync):
                                   resp.reason, jdoc)
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
         except Exception as ex:
-            raise Exception(str(ex))
+            raise ex
 
         return jdoc

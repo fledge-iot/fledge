@@ -325,11 +325,11 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			Document doc;
-			doc.Parse(res->content.string().c_str());
+			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())
 			{
 				m_logger->info("PUT result %s.", res->status_code.c_str());
-				m_logger->error("Failed to parse result of insertTable. %s",
+				m_logger->error("Failed to parse result of updateTable. %s",
 						GetParseError_En(doc.GetParseError()));
 				return -1;
 			}
@@ -377,11 +377,11 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			Document doc;
-			doc.Parse(res->content.string().c_str());
+			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())
 			{
 				m_logger->info("PUT result %s.", res->status_code.c_str());
-				m_logger->error("Failed to parse result of insertTable. %s",
+				m_logger->error("Failed to parse result of updateTable. %s",
 						GetParseError_En(doc.GetParseError()));
 				return -1;
 			}
@@ -433,11 +433,11 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			Document doc;
-			doc.Parse(res->content.string().c_str());
+			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())
 			{
 				m_logger->info("PUT result %s.", res->status_code.c_str());
-				m_logger->error("Failed to parse result of insertTable. %s",
+				m_logger->error("Failed to parse result of updateTable. %s",
 						GetParseError_En(doc.GetParseError()));
 				return -1;
 			}

@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <reading_set.h>
 #include <string>
@@ -109,4 +109,64 @@ JSONReading::JSONReading(const Value& json)
 	convert_timestamp(json["ts"].GetString(), &m_timestamp);
 	convert_timestamp(json["user_ts"].GetString(), &m_userTimestamp);
 	m_uuid = json["read_key"].GetString();
+
+	// Add 'reading' values
+	for (auto& m : json["reading"].GetObject())
+	{
+		switch (m.value.GetType())
+		{
+			// String
+			case (5):
+			{
+				DatapointValue value(m.value.GetString());
+				this->addDatapoint(new Datapoint(m.name.GetString(),
+								 value));
+				break;
+			}
+
+			// Number
+			case (6):
+			{
+				if (m.value.IsInt() ||
+				    m.value.IsUint() ||
+				    m.value.IsInt64() ||
+				    m.value.IsUint64())
+				{
+					DatapointValue value(m.value.GetInt());
+					this->addDatapoint(new Datapoint(m.name.GetString(),
+									 value));
+					break;
+				}
+				else if (m.value.IsDouble())
+				{
+					DatapointValue value(m.value.GetDouble());
+					this->addDatapoint(new Datapoint(m.name.GetString(),
+									 value));
+					break;
+				}
+				else
+				{
+					string errMsg = "Cannot parse the numeric type";
+					errMsg += " of reading element '";
+					errMsg.append(m.name.GetString());
+					errMsg += "'";
+
+					throw new ReadingSetException(errMsg.c_str());
+					break;
+				}
+			}
+
+			default:
+			{
+				string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
+				errMsg += "' of reading element '";
+				errMsg.append(m.name.GetString());
+				errMsg += "'";
+
+				throw new ReadingSetException(errMsg.c_str());
+
+				break;
+			}
+		}
+	}
 }

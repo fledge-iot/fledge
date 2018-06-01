@@ -14,7 +14,7 @@ import signal
 
 from unittest.mock import patch, MagicMock
 
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient, ReadingsStorageClientAsync
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as sp_module
 from foglamp.common.audit_logger import AuditLogger
@@ -335,12 +335,12 @@ class TestSendingProcess:
         assert sp._is_north_valid() == expected_result
 
     @pytest.mark.asyncio
-    @pytest.mark.this
     async def test_load_data_into_memory(self,
                                          loop):
         """ Unit test for - test_load_data_into_memory"""
 
-        async def mock_coro():
+        async def mock_coroutine():
+            """" mock_coroutine """
             return True
 
         # Checks the Readings handling
@@ -350,7 +350,7 @@ class TestSendingProcess:
         # Tests - READINGS
         sp._config['source'] = sp._DATA_SOURCE_READINGS
 
-        with patch.object(sp, '_load_data_into_memory_readings', return_value=mock_coro()) \
+        with patch.object(sp, '_load_data_into_memory_readings', return_value=mock_coroutine()) \
                 as mocked_load_data_into_memory_readings:
 
             await sp._load_data_into_memory(5)
@@ -374,6 +374,143 @@ class TestSendingProcess:
             await  sp._load_data_into_memory(5)
             assert mocked_load_data_into_memory_audit.called
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1: Base case and Timezone added
+            (
+                # p_rows
+                {
+                    "rows": [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 11, "temperature": 38},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ]
+                },
+                # expected_rows,
+                # NOTE:
+                #    Time generated with UTC timezone
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                    },
+                ]
+
+            )
+        ]
+    )
+    async def test_load_data_into_memory_readings(self,
+                                            event_loop,
+                                            p_rows,
+                                            expected_rows):
+        """Test _load_data_into_memory handling and transformations for the readings """
+
+        async def mock_coroutine():
+            """" mock_coroutine """
+            return p_rows
+
+        # Checks the Readings handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._config['source'] = sp._DATA_SOURCE_READINGS
+
+        sp._readings = MagicMock(spec=ReadingsStorageClientAsync)
+
+        # Checks the transformations and especially the adding of the UTC timezone
+        with patch.object(sp._readings, 'fetch', return_value=mock_coroutine()):
+
+            generated_rows = await sp._load_data_into_memory_readings(5)
+
+            assert len(generated_rows) == 1
+            assert generated_rows == expected_rows
+
+    @pytest.mark.this
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1:
+            # NOTE:
+            #    Time generated with UTC timezone
+
+            (
+                # p_rows
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32:55"
+                    },
+                ],
+                # expected_rows,
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                    },
+                ]
+
+            ),
+
+            # Case 2: "180.2" to float 180.2
+            (
+                    # p_rows
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": "180.2"},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    # expected_rows,
+                    # NOTE:
+                    #    Time generated with UTC timezone
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 180.2},
+                            "user_ts": "16/04/2018 16:32:55.000000+00"
+                        },
+                    ]
+
+            )
+        ]
+    )
+    def test_transform_in_memory_data_readings(self,
+                                               event_loop,
+                                               p_rows,
+                                               expected_rows):
+        """ Unit test for - _transform_in_memory_data_readings"""
+
+        # Checks the Readings handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        # Checks the transformations and especially the adding of the UTC timezone
+        generated_rows = sp._transform_in_memory_data_readings(p_rows)
+
+        assert len(generated_rows) == 1
+        assert generated_rows == expected_rows
 
     @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
         (10, 20, 10)
@@ -647,142 +784,6 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
-
-    @pytest.mark.parametrize(
-        "p_rows, "
-        "expected_rows, ",
-        [
-            # Case 1: Base case and Timezone added
-            (
-                # p_rows
-                {
-                    "rows": [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32"
-                        },
-                    ]
-                },
-                # expected_rows,
-                # NOTE:
-                #    Time generated with UTC timezone
-                [
-                    {
-                        "id": 1,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 11, "temperature": 38},
-                        "user_ts": "16/04/2018 16:32+00"
-                    },
-                ]
-
-            )
-        ]
-    )
-    def test_load_data_into_memory_readings(self,
-                                            event_loop,
-                                            p_rows,
-                                            expected_rows):
-        """Test _load_data_into_memory handling and transformations for the readings """
-
-        # Checks the Readings handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._config['source'] = sp._DATA_SOURCE_READINGS
-
-        sp._readings = MagicMock(spec=ReadingsStorageClient)
-
-        # Checks the transformations and especially the adding of the UTC timezone
-        with patch.object(sp._readings, 'fetch', return_value=p_rows):
-
-            generated_rows = sp._load_data_into_memory(5)
-
-            assert len(generated_rows) == 1
-            assert generated_rows == expected_rows
-
-    @pytest.mark.parametrize(
-        "p_rows, "
-        "expected_rows, ",
-        [
-            # Case 1:
-            # NOTE:
-            #    Time generated with UTC timezone
-
-            (
-                # p_rows
-                [
-                    {
-                        "id": 1,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 11, "temperature": 38},
-                        "user_ts": "16/04/2018 16:32"
-                    },
-                ],
-                # expected_rows,
-                [
-                    {
-                        "id": 1,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 11, "temperature": 38},
-                        "user_ts": "16/04/2018 16:32+00"
-                    },
-                ]
-
-            ),
-
-            # Case 2: "180.2" to float 180.2
-            (
-                    # p_rows
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": "180.2"},
-                            "user_ts": "16/04/2018 16:32"
-                        },
-                    ],
-                    # expected_rows,
-                    # NOTE:
-                    #    Time generated with UTC timezone
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 180.2},
-                            "user_ts": "16/04/2018 16:32+00"
-                        },
-                    ]
-
-            )
-        ]
-    )
-    def test_transform_in_memory_data_readings(self,
-                                               event_loop,
-                                               p_rows,
-                                               expected_rows):
-        """ Unit test for - _transform_in_memory_data_readings"""
-
-        # Checks the Readings handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._config['source'] = sp._DATA_SOURCE_READINGS
-
-        sp._readings = MagicMock(spec=ReadingsStorageClient)
-
-        # Checks the transformations and especially the adding of the UTC timezone
-        generated_rows = sp._transform_in_memory_data_readings(p_rows)
-
-        assert len(generated_rows) == 1
-        assert generated_rows == expected_rows
 
     @pytest.mark.parametrize(
         "p_rows, "

@@ -27,14 +27,14 @@ import time
 
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.statistics import Statistics
+from foglamp.common import statistics
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.process import FoglampProcess
 
 
-__author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch"
+__author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -71,7 +71,7 @@ class Purge(FoglampProcess):
         self.loop = asyncio.get_event_loop() if loop is None else loop
 
     def write_statistics(self, total_purged, unsent_purged):
-        stats = Statistics(self._storage)
+        stats = self.loop.run_until_complete(statistics.create_statistics(self._storage_async))
         self.loop.run_until_complete(stats.update('PURGED', total_purged))
         self.loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 

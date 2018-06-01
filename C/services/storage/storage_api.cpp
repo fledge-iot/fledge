@@ -25,7 +25,7 @@
 #endif
 
 // Enable worker threads for readings append and fetch
-#define WORKER_THREADS		1
+#define WORKER_THREADS		0
 
 /**
  * Definition of the Storage Service REST API
@@ -39,7 +39,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 /**
  * The following are a set of wrapper C functions that are registered with the HTTP Server
- * for each of the API entry poitns. These must be outside if a class as the library has no
+ * for each of the API entry points. These must be outside if a class as the library has no
  * mechanism to have a class isntance and hence can not provide a "this" pointer for the callback.
  *
  * These functions do the minumum work needed to find the singleton instance of the StorageAPI

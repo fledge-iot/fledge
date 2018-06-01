@@ -27,13 +27,6 @@ __version__ = "${VERSION}"
 
 STREAM_ID = 1
 
-@asyncio.coroutine
-def mock_coro():
-    yield from true_coro()
-
-async def true_coro():
-    return True
-
 @pytest.mark.parametrize(
     "p_data, "
     "expected_data",
@@ -342,12 +335,16 @@ class TestSendingProcess:
         assert sp._is_north_valid() == expected_result
 
     @pytest.mark.asyncio
+    @pytest.mark.this
     async def test_load_data_into_memory(self,
-                                   event_loop):
+                                         loop):
         """ Unit test for - test_load_data_into_memory"""
 
+        async def mock_coro():
+            return True
+
         # Checks the Readings handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+        with patch.object(asyncio, 'get_event_loop', return_value=loop):
             sp = SendingProcess()
 
         # Tests - READINGS
@@ -356,27 +353,26 @@ class TestSendingProcess:
         with patch.object(sp, '_load_data_into_memory_readings', return_value=mock_coro()) \
                 as mocked_load_data_into_memory_readings:
 
-            assert 1 == 1
-            #await sp._load_data_into_memory(5)
-            # assert mocked_load_data_into_memory_readings.called
+            await sp._load_data_into_memory(5)
+            assert mocked_load_data_into_memory_readings.called
 
-        # # Tests - STATISTICS
-        # sp._config['source'] = sp._DATA_SOURCE_STATISTICS
-        #
-        # with patch.object(sp, '_load_data_into_memory_statistics', return_value=mock_coro()) \
-        #         as mocked_load_data_into_memory_statistics:
-        #
-        #     await  sp._load_data_into_memory(5)
-        #     assert mocked_load_data_into_memory_statistics.called
-        #
-        # # Tests - AUDIT
-        # sp._config['source'] = sp._DATA_SOURCE_AUDIT
-        #
-        # with patch.object(sp, '_load_data_into_memory_audit', return_value=mock_coro()) \
-        #         as mocked_load_data_into_memory_audit:
-        #
-        #     await  sp._load_data_into_memory(5)
-        #     assert mocked_load_data_into_memory_audit.called
+        # Tests - STATISTICS
+        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
+
+        with patch.object(sp, '_load_data_into_memory_statistics', return_value=True) \
+                as mocked_load_data_into_memory_statistics:
+
+            await  sp._load_data_into_memory(5)
+            assert mocked_load_data_into_memory_statistics.called
+
+        # Tests - AUDIT
+        sp._config['source'] = sp._DATA_SOURCE_AUDIT
+
+        with patch.object(sp, '_load_data_into_memory_audit', return_value=True) \
+                as mocked_load_data_into_memory_audit:
+
+            await  sp._load_data_into_memory(5)
+            assert mocked_load_data_into_memory_audit.called
 
 
     @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [

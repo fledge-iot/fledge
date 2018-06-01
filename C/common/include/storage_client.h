@@ -33,9 +33,9 @@ class StorageClient {
 		~StorageClient();
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		int 		insertTable(const std::string& tableName, const InsertValues& values);
-		int		updateTable(const std::string& tableName, const InsertValues& values, const Query& query);
-		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Query& query);
-		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Query& query);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Where& where);
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
 		bool		readingAppend(const std::vector<Reading *> & readings);

@@ -304,16 +304,16 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
  *
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
- * @param query		The conditions to match the updated rows
+ * @param where		The conditions to match the updated rows
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Query& query)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
 {
 	try {
 		ostringstream convert;
 
 		convert << "{ \"where\" : ";
-		convert << query.toJSON();
+		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
 		convert << " }";
@@ -356,16 +356,16 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  *
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
- * @param query		The conditions to match the updated rows
+ * @param where		The conditions to match the updated rows
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Query& query)
+int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
 {
 	try {
 		ostringstream convert;
 
 		convert << "{ \"where\" : ";
-		convert << query.toJSON();
+		convert << where.toJSON();
 		convert << ", \"expressions\" : ";
 		convert << values.toJSON();
 		convert << " }";
@@ -410,16 +410,16 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
- * @param query		The conditions to match the updated rows
+ * @param where		The conditions to match the updated rows
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Query& query)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
 {
 	try {
 		ostringstream convert;
 
 		convert << "{ \"where\" : ";
-		convert << query.toJSON();
+		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
 		convert << ", \"expressions\" : ";

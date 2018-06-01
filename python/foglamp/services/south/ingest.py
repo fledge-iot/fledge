@@ -13,12 +13,11 @@ import uuid
 from typing import List, Union
 import json
 from foglamp.common import logger
-from foglamp.common import statistics
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, ReadingsStorageClientAsync, \
-                                                         StorageClient, StorageClientAsync
+from foglamp.common.statistics import Statistics
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
 from foglamp.common.storage_client.exceptions import StorageServerError
 
-__author__ = "Terris Linenbach, Amarendra K Sinha"
+__author__ = "Terris Linenbach"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -45,9 +44,6 @@ class Ingest(object):
 
     readings_storage = None  # type: Readings
     storage = None  # type: Storage
-
-    readings_storage_async = None  # type: Readings
-    storage_async = None  # type: Storage
 
     _readings_stats = 0  # type: int
     """Number of readings accepted before statistics were written to storage"""
@@ -210,9 +206,6 @@ class Ingest(object):
 
         cls.readings_storage = ReadingsStorageClient(cls._core_management_host, cls._core_management_port)
         cls.storage = StorageClient(cls._core_management_host, cls._core_management_port)
-
-        cls.readings_storage_async = ReadingsStorageClientAsync(cls._core_management_host, cls._core_management_port)
-        cls.storage_async = StorageClientAsync(cls._core_management_host, cls._core_management_port)
 
         await cls._read_config()
 
@@ -432,7 +425,7 @@ class Ingest(object):
         """Periodically commits collected readings statistics"""
         _LOGGER.info('South statistics writer started')
 
-        stats = await statistics.create_statistics(cls.storage_async)
+        stats = Statistics(cls.storage)
 
         # Register static statistics
         await stats.register('READINGS', 'The number of readings received by FogLAMP since startup')
@@ -459,7 +452,7 @@ class Ingest(object):
             cls._readings_stats = 0
 
             try:
-                asyncio.ensure_future(stats.update('READINGS', readings))
+                await stats.update('READINGS', readings)
             except Exception as ex:
                 cls._readings_stats += readings
                 _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
@@ -468,7 +461,7 @@ class Ingest(object):
             cls._discarded_readings_stats = 0
 
             try:
-                asyncio.ensure_future(stats.update('DISCARDED', readings))
+                await stats.update('DISCARDED', readings)
             except Exception as ex:
                 cls._discarded_readings_stats += readings
                 _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
@@ -478,7 +471,7 @@ class Ingest(object):
                 description = 'The number of readings received by FogLAMP since startup for sensor {}'.format(key)
                 await stats.register(key, description)
             try:
-                asyncio.ensure_future(stats.add_update(cls._sensor_stats))
+                await stats.add_update(cls._sensor_stats)
                 cls._sensor_stats = {}
             except Exception as ex:
                 _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))

@@ -32,7 +32,7 @@ from foglamp.common.storage_client.storage_client import StorageClient, Readings
 from foglamp.common import logger
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
-from foglamp.common import statistics
+from foglamp.common.statistics import Statistics
 from foglamp.common.jqfilter import JQFilter
 from foglamp.common.audit_logger import AuditLogger
 
@@ -985,8 +985,7 @@ class SendingProcess:
         """
         try:
             key = 'SENT_' + str(stream_id)
-            _stats = await statistics.create_statistics(self._storage_async)
-
+            _stats = Statistics(self._storage)
             await _stats.update(key, num_sent)
 
         except Exception:

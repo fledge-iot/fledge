@@ -209,3 +209,54 @@ string	json("{ \"count\" : 2, \"rows\" : [ { \"c1\" : 1 }, { \"c1\" : 2 }, { \"c
 		ASSERT_EQ(i + 1, (*result[i])[0]->getInteger());
 	}
 }
+
+TEST(ResultSetTest, JSONColumn)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : { \"j1\" : \"test\" }, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.columnType(0), JSON_COLUMN);
+}
+
+TEST(ResultSetTest, JSONColumnType)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : { \"j1\" : \"test\" }, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ResultSet::RowIterator rowIter = result.firstRow();
+	const ResultSet::ColumnValue *value = (*rowIter)->getColumn("json");
+	ASSERT_EQ(result.columnType(0), JSON_COLUMN);
+}
+
+TEST(ResultSetTest, JSONColumnObjectType)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : { \"j1\" : \"test\" }, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ResultSet::RowIterator rowIter = result.firstRow();
+	const ResultSet::ColumnValue *value = (*rowIter)->getColumn("json");
+	const rapidjson::Value *v = value->getJSON();
+	ASSERT_EQ(v->IsObject(), true);
+}
+
+TEST(ResultSetTest, JSONColumnHasMember)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : { \"j1\" : \"test\" }, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ResultSet::RowIterator rowIter = result.firstRow();
+	const ResultSet::ColumnValue *value = (*rowIter)->getColumn("json");
+	const rapidjson::Value *v = value->getJSON();
+	ASSERT_EQ(v->HasMember("j1"), true);
+}
+
+TEST(ResultSetTest, JSONColumnGetString)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : { \"j1\" : \"test\" }, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ResultSet::RowIterator rowIter = result.firstRow();
+	const ResultSet::ColumnValue *value = (*rowIter)->getColumn("json");
+	const rapidjson::Value *v = value->getJSON();
+	ASSERT_EQ(strcmp((*v)["j1"].GetString(), "test"), 0);
+}

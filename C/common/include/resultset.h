@@ -14,6 +14,7 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <rapidjson/document.h>
 
 typedef enum column_type {
 	INT_COLUMN = 1,
@@ -52,23 +53,34 @@ class ResultSet {
 					m_value.fval = value;
 					m_type = NUMBER_COLUMN;
 				};
+				ColumnValue(const rapidjson::Value& value)
+				{
+					rapidjson::Document *d = new rapidjson::Document();
+					rapidjson::Document::AllocatorType& a = d->GetAllocator();
+					m_value.json = new rapidjson::Value(value, a);
+					m_type = JSON_COLUMN;
+				};
 				~ColumnValue()
 				{
 					if (m_type == STRING_COLUMN)
 						free(m_value.str);
+					else if (m_type == JSON_COLUMN)
+						delete m_value.json;
 				};
 				ColumnType 	getType() { return m_type; };
 				long	getInteger() const;
 				double	getNumber() const;
 				char	*getString() const;
+				const rapidjson::Value *getJSON() const { return m_value.json; };
 			private:
 				ColumnValue(const ColumnValue&);
 				ColumnValue&	operator=(ColumnValue const&);
 				ColumnType	m_type;
 				union {
-					char		*str;
-					long		ival;
-					double		fval;
+					char			*str;
+					long			ival;
+					double			fval;
+					rapidjson::Value	*json;
 					}	m_value;
 		};
 

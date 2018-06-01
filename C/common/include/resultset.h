@@ -16,7 +16,7 @@
 #include <vector>
 
 typedef enum column_type {
-	INT_COLUMN,
+	INT_COLUMN = 1,
 	NUMBER_COLUMN,
 	STRING_COLUMN,
 	BOOL_COLUMN,
@@ -126,7 +126,7 @@ class ResultSet {
 				const std::string& getName() { return m_name; };
 				ColumnType	getType() { return m_type; };
 			private:
-				const std::string&	m_name;
+				const std::string	m_name;
 				ColumnType		m_type;
 		};
 

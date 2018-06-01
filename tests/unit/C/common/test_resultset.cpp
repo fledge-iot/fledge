@@ -62,6 +62,32 @@ string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : {}, \"c1\" : 1 } ] }");
 	ASSERT_EQ(result.columnName(1).compare("c1"), 0);
 }
 
+TEST(ResultSetTest, ColumnTypeIntByNameAfterJSON)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : {}, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ASSERT_EQ(result.columnType("c1"), INT_COLUMN);
+}
+
+TEST(ResultSetTest, GetColumnAfterJSON)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : {}, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ResultSet::RowIterator rowIter = result.firstRow();
+	ASSERT_EQ((*rowIter)->getColumn(1)->getInteger(), 1);
+}
+
+TEST(ResultSetTest, GetColumnByNameAfterJSON)
+{
+string	json("{ \"count\" : 1, \"rows\" : [ { \"json\" : {}, \"c1\" : 1 } ] }");
+
+	ResultSet result(json);
+	ResultSet::RowIterator rowIter = result.firstRow();
+	ASSERT_EQ((*rowIter)->getColumn("c1")->getInteger(), 1);
+}
+
 TEST(ResultSetTest, ColumnTypeNumber)
 {
 string	json("{ \"count\" : 1, \"rows\" : [ { \"c1\" : 1.4 } ] }");

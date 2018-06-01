@@ -296,7 +296,9 @@ unsigned int ResultSet::findColumn(const string& name) const
 	for (unsigned int i = 0; i != m_columns.size(); i++)
 	{
 		if (m_columns[i]->getName().compare(name) == 0)
+		{
 			return i;
+		}
 	}
 	throw ResultNoSuchColumnException();
 }

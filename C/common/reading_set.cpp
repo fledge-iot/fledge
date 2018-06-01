@@ -116,7 +116,7 @@ JSONReading::JSONReading(const Value& json)
 		switch (m.value.GetType())
 		{
 			// String
-			case (5):
+			case (kStringType):
 			{
 				DatapointValue value(m.value.GetString());
 				this->addDatapoint(new Datapoint(m.name.GetString(),
@@ -125,7 +125,7 @@ JSONReading::JSONReading(const Value& json)
 			}
 
 			// Number
-			case (6):
+			case (kNumberType):
 			{
 				if (m.value.IsInt() ||
 				    m.value.IsUint() ||

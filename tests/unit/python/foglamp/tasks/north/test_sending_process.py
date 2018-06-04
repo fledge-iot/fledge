@@ -435,7 +435,6 @@ class TestSendingProcess:
             assert len(generated_rows) == 1
             assert generated_rows == expected_rows
 
-    @pytest.mark.this
     @pytest.mark.parametrize(
         "p_rows, "
         "expected_rows, ",
@@ -512,6 +511,322 @@ class TestSendingProcess:
         assert len(generated_rows) == 1
         assert generated_rows == expected_rows
 
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1:
+            #    fields mapping,
+            #       key->asset_code
+            #    Timezone added
+            #    reading format handling
+            #
+            # Note :
+            #    read_key is not handled
+            #    Time generated with UTC timezone
+            (
+                # p_rows
+                {
+                    "rows": [
+                        {
+                            "id": 1,
+                            "key": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "value": 20,
+                            "ts": "16/04/2018 16:32:55"
+                        },
+                    ]
+                },
+                # expected_rows,
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "reading": {"value": 20},
+                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                    },
+                ]
+
+            ),
+
+            # Case 2: key is having spaces
+            (
+                    # p_rows
+                    {
+                        "rows": [
+                            {
+                                "id": 1,
+                                "key": " test_asset_code ",
+                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                "value": 21,
+                                "ts": "16/04/2018 16:32:55"
+                            },
+                        ]
+                    },
+                    # expected_rows,
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "reading": {"value": 21},
+                            "user_ts": "16/04/2018 16:32:55.000000+00"
+                        },
+                    ]
+
+            )
+
+        ]
+    )
+    def test_load_data_into_memory_statistics(self,
+                                              event_loop,
+                                              p_rows,
+                                              expected_rows):
+        """Test _load_data_into_memory handling and transformations for the statistics """
+
+        # Checks the Statistics handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
+
+        sp._storage = MagicMock(spec=StorageClient)
+
+        # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
+        with patch.object(sp._storage, 'query_tbl_with_payload', return_value=p_rows):
+
+            generated_rows = sp._load_data_into_memory_statistics(5)
+
+            assert len(generated_rows) == 1
+            assert generated_rows == expected_rows
+
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows, ",
+        [
+            # Case 1:
+            #    fields mapping,
+            #       key->asset_code
+            #    Timezone added
+            #    reading format handling
+            #
+            # Note :
+            #    read_key is not handled
+            #    Time generated with UTC timezone
+            (
+                # p_rows
+                [
+                        {
+                            "id": 1,
+                            "key": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "value": 20,
+                            "ts": "16/04/2018 16:32:55"
+                        },
+                ],
+                # expected_rows,
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "reading": {"value": 20},
+                        "user_ts": "16/04/2018 16:32:55.000000+00"
+                    },
+                ]
+
+            ),
+
+            # Case 2: key is having spaces
+            (
+                    # p_rows
+                    [
+                        {
+                            "id": 1,
+                            "key": " test_asset_code ",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "value": 21,
+                            "ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    # expected_rows,
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "reading": {"value": 21},
+                            "user_ts": "16/04/2018 16:32:55.000000+00"
+                        },
+                    ]
+
+            )
+
+        ]
+    )
+    def test_transform_in_memory_data_statistics(self,
+                                                 event_loop,
+                                                 p_rows,
+                                                 expected_rows):
+        """ Unit test for - _transform_in_memory_data_statistics"""
+
+        # Checks the Statistics handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
+        generated_rows = sp._transform_in_memory_data_statistics(p_rows)
+
+        assert len(generated_rows) == 1
+        assert generated_rows == expected_rows
+
+    def test_load_data_into_memory_audit(self,
+                                         event_loop
+                                         ):
+        """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
+
+        # Checks the Statistics handling
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._config['source'] = sp._DATA_SOURCE_AUDIT
+        sp._storage = MagicMock(spec=StorageClient)
+
+        generated_rows = sp._load_data_into_memory_audit(5)
+
+        assert len(generated_rows) == 0
+        assert generated_rows == ""
+
+    def test_last_object_id_read(self, event_loop):
+        """Tests the possible cases for the function last_object_id_read """
+
+        def mock_query_tbl_row_1():
+            """Mocks the query_tbl function of the StorageClient object - good case"""
+
+            rows = {"rows": [{"last_object": 10}]}
+            return rows
+
+        def mock_query_tbl_row_0():
+            """Mocks the query_tbl function of the StorageClient object - base case"""
+
+            rows = {"rows": []}
+            return rows
+
+        def mock_query_tbl_row_2():
+            """Mocks the query_tbl function of the StorageClient object - base case"""
+
+            rows = {"rows": [{"last_object": 10}, {"last_object": 11}]}
+            return rows
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._storage = MagicMock(spec=StorageClient)
+
+        # Good Case
+        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_1()) as sp_mocked:
+            position = sp._last_object_id_read(1)
+            sp_mocked.assert_called_once_with('streams', 'id=1')
+            assert position == 10
+
+        # Bad cases
+        sp._logger.error = MagicMock()
+        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_0()):
+            # noinspection PyBroadException
+            try:
+                sp._last_object_id_read(1)
+            except Exception:
+                pass
+
+            sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
+
+        sp._logger.error = MagicMock()
+        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_2()):
+            # noinspection PyBroadException
+            try:
+                sp._last_object_id_read(1)
+            except Exception:
+                pass
+
+            sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
+
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "p_duration, "
+        "p_sleep_interval, "
+        "p_data_sent, "
+        "expected_calls, "
+        "expected_time ",
+        [
+            # Cases
+
+            # p_duration - p_sleep_interval  - p_data_sent - expected_calls - expected_time
+            (3,            1,                  False,        3,               3),
+            (3,            1,                  True,         3,               3),
+
+        ]
+    )
+    async def test_send_data_good(self,
+                            event_loop,
+                            p_duration,
+                            p_sleep_interval,
+                            p_data_sent,
+                            expected_calls,
+                            expected_time):
+        """ Unit tests - send_data """
+
+        SendingProcess._logger = MagicMock(spec=logging)
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'duration': p_duration,
+            'sleepInterval': p_sleep_interval
+        }
+
+        # Executes the call
+        start_time = time.time()
+
+        with patch.object(asyncio, 'Semaphore', return_value=True) as mock_semaphore:
+            with patch.object(asyncio, 'ensure_future', return_value=True) as mock_ensure_future:
+                with patch.object(sp, '_send_data_block', return_value=p_data_sent) as mocked_send_data_block:
+
+                    await sp.send_data(STREAM_ID)
+
+        if not p_data_sent:
+            assert mocked_send_data_block.call_count == expected_calls
+
+            # It considers a reasonable tolerance
+            elapsed_seconds = time.time() - start_time
+            assert expected_time <= elapsed_seconds <= (expected_time + 10)
+
+        elif p_data_sent:
+            # Not sleep is executed in case of data were sent and so a lot of calls are expected
+            assert mocked_send_data_block.call_count >= expected_calls
+
+    def test_send_data_stop_exec(self, event_loop):
+        """ Unit tests - send_data - simulates the termination signal """
+
+        SendingProcess._logger = MagicMock(spec=logging)
+        SendingProcess._stop_execution = True
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'duration': 10,
+            'sleepInterval': 1
+        }
+
+        with patch.object(sp, '_send_data_block', return_value=True) as mocked_send_data_block:
+
+            sp.send_data(STREAM_ID)
+
+        assert not mocked_send_data_block.called
+
+
     @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
         (10, 20, 10)
     ])
@@ -527,7 +842,7 @@ class TestSendingProcess:
                                 "asset_code": "test_asset_code",
                                 "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                                 "reading": {"humidity": 11, "temperature": 38},
-                                "user_ts": "16/04/2018 16:32"
+                                "user_ts": "16/04/2018 16:32:55"
                             },
                     ]}
             return rows
@@ -581,7 +896,7 @@ class TestSendingProcess:
                                 "asset_code": "test_asset_code",
                                 "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                                 "reading": {"humidity": 11, "temperature": 38},
-                                "user_ts": "16/04/2018 16:32"
+                                "user_ts": "16/04/2018 16:32:55"
                             },
                     ]}
             return rows
@@ -637,7 +952,7 @@ class TestSendingProcess:
                         "reading": {
                             "humidity": 11, "temperature": 38
                         },
-                        "user_ts": "16/04/2018 16:32"
+                        "user_ts": "16/04/2018 16:32:55"
                     },
                 ],
 
@@ -652,7 +967,7 @@ class TestSendingProcess:
                             'addedField': 512
                         },
                         'asset_code': 'test_asset_code',
-                        'user_ts': '16/04/2018 16:32'
+                        'user_ts': '16/04/2018 16:32:55'
                     }
                 ],
             ),
@@ -731,320 +1046,8 @@ class TestSendingProcess:
         assert plugin_info['name'] == plugin_name
 
 
-    def test_last_object_id_read(self, event_loop):
-        """Tests the possible cases for the function last_object_id_read """
-
-        def mock_query_tbl_row_1():
-            """Mocks the query_tbl function of the StorageClient object - good case"""
-
-            rows = {"rows": [{"last_object": 10}]}
-            return rows
-
-        def mock_query_tbl_row_0():
-            """Mocks the query_tbl function of the StorageClient object - base case"""
-
-            rows = {"rows": []}
-            return rows
-
-        def mock_query_tbl_row_2():
-            """Mocks the query_tbl function of the StorageClient object - base case"""
-
-            rows = {"rows": [{"last_object": 10}, {"last_object": 11}]}
-            return rows
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._storage = MagicMock(spec=StorageClient)
-
-        # Good Case
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_1()) as sp_mocked:
-            position = sp._last_object_id_read(1)
-            sp_mocked.assert_called_once_with('streams', 'id=1')
-            assert position == 10
-
-        # Bad cases
-        sp._logger.error = MagicMock()
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_0()):
-            # noinspection PyBroadException
-            try:
-                sp._last_object_id_read(1)
-            except Exception:
-                pass
-
-            sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
-
-        sp._logger.error = MagicMock()
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_2()):
-            # noinspection PyBroadException
-            try:
-                sp._last_object_id_read(1)
-            except Exception:
-                pass
-
-            sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
 
-    @pytest.mark.parametrize(
-        "p_rows, "
-        "expected_rows, ",
-        [
-            # Case 1:
-            #    fields mapping,
-            #       key->asset_code
-            #    Timezone added
-            #    reading format handling
-            #
-            # Note :
-            #    read_key is not handled
-            #    Time generated with UTC timezone
-            (
-                # p_rows
-                {
-                    "rows": [
-                        {
-                            "id": 1,
-                            "key": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "value": 20,
-                            "ts": "16/04/2018 16:32"
-                        },
-                    ]
-                },
-                # expected_rows,
-                [
-                    {
-                        "id": 1,
-                        "asset_code": "test_asset_code",
-                        "reading": {"value": 20},
-                        "user_ts": "16/04/2018 16:32+00"
-                    },
-                ]
-
-            ),
-
-            # Case 2: key is having spaces
-            (
-                    # p_rows
-                    {
-                        "rows": [
-                            {
-                                "id": 1,
-                                "key": " test_asset_code ",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                "value": 21,
-                                "ts": "16/04/2018 16:32"
-                            },
-                        ]
-                    },
-                    # expected_rows,
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "reading": {"value": 21},
-                            "user_ts": "16/04/2018 16:32+00"
-                        },
-                    ]
-
-            )
-
-        ]
-    )
-    def test_load_data_into_memory_statistics(self,
-                                              event_loop,
-                                              p_rows,
-                                              expected_rows):
-        """Test _load_data_into_memory handling and transformations for the statistics """
-
-        # Checks the Statistics handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
-
-        sp._storage = MagicMock(spec=StorageClient)
-
-        # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        with patch.object(sp._storage, 'query_tbl_with_payload', return_value=p_rows):
-
-            generated_rows = sp._load_data_into_memory(5)
-
-            assert len(generated_rows) == 1
-            assert generated_rows == expected_rows
-
-    @pytest.mark.parametrize(
-        "p_rows, "
-        "expected_rows, ",
-        [
-            # Case 1:
-            #    fields mapping,
-            #       key->asset_code
-            #    Timezone added
-            #    reading format handling
-            #
-            # Note :
-            #    read_key is not handled
-            #    Time generated with UTC timezone
-            (
-                # p_rows
-                [
-                        {
-                            "id": 1,
-                            "key": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "value": 20,
-                            "ts": "16/04/2018 16:32"
-                        },
-                ],
-                # expected_rows,
-                [
-                    {
-                        "id": 1,
-                        "asset_code": "test_asset_code",
-                        "reading": {"value": 20},
-                        "user_ts": "16/04/2018 16:32+00"
-                    },
-                ]
-
-            ),
-
-            # Case 2: key is having spaces
-            (
-                    # p_rows
-                    [
-                        {
-                            "id": 1,
-                            "key": " test_asset_code ",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "value": 21,
-                            "ts": "16/04/2018 16:32"
-                        },
-                    ],
-                    # expected_rows,
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "reading": {"value": 21},
-                            "user_ts": "16/04/2018 16:32+00"
-                        },
-                    ]
-
-            )
-
-        ]
-    )
-    def test_transform_in_memory_data_statistics(self,
-                                                 event_loop,
-                                                 p_rows,
-                                                 expected_rows):
-        """ Unit test for - _transform_in_memory_data_statistics"""
-
-        # Checks the Statistics handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
-
-        sp._storage = MagicMock(spec=StorageClient)
-
-        # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        generated_rows = sp._transform_in_memory_data_statistics(p_rows)
-
-        assert len(generated_rows) == 1
-        assert generated_rows == expected_rows
-
-    def test_load_data_into_memory_audit(self,
-                                         event_loop
-                                         ):
-        """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
-
-        # Checks the Statistics handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._config['source'] = sp._DATA_SOURCE_AUDIT
-        sp._storage = MagicMock(spec=StorageClient)
-
-        generated_rows = sp._load_data_into_memory_audit(5)
-
-        assert len(generated_rows) == 0
-        assert generated_rows == ""
-
-    @pytest.mark.parametrize(
-        "p_duration, "
-        "p_sleep_interval, "
-        "p_data_sent, "
-        "expected_calls, "
-        "expected_time ",
-        [
-            # Cases
-
-            # p_duration - p_sleep_interval  - p_data_sent - expected_calls - expected_time
-            (3,            1,                  False,        3,               3),
-            (3,            1,                  True,         3,               3),
-
-        ]
-    )
-    def test_send_data_good(self,
-                            event_loop,
-                            p_duration,
-                            p_sleep_interval,
-                            p_data_sent,
-                            expected_calls,
-                            expected_time):
-        """ Unit tests - send_data """
-
-        SendingProcess._logger = MagicMock(spec=logging)
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        # Configures properly the SendingProcess, enabling JQFilter
-        sp._config = {
-            'duration': p_duration,
-            'sleepInterval': p_sleep_interval
-        }
-
-        # Executes the call
-        start_time = time.time()
-
-        with patch.object(sp, '_send_data_block', return_value=p_data_sent) as mocked_send_data_block:
-
-            sp.send_data(STREAM_ID)
-
-        if not p_data_sent:
-            assert mocked_send_data_block.call_count == expected_calls
-
-            # It considers a reasonable tolerance
-            elapsed_seconds = time.time() - start_time
-            assert expected_time <= elapsed_seconds <= (expected_time + 10)
-
-        elif p_data_sent:
-            # Not sleep is executed in case of data were sent and so a lot of calls are expected
-            assert mocked_send_data_block.call_count >= expected_calls
-
-    def test_send_data_stop_exec(self, event_loop):
-        """ Unit tests - send_data - simulates the termination signal """
-
-        SendingProcess._logger = MagicMock(spec=logging)
-        SendingProcess._stop_execution = True
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        # Configures properly the SendingProcess, enabling JQFilter
-        sp._config = {
-            'duration': 10,
-            'sleepInterval': 1
-        }
-
-        with patch.object(sp, '_send_data_block', return_value=True) as mocked_send_data_block:
-
-            sp.send_data(STREAM_ID)
-
-        assert not mocked_send_data_block.called
 
     @pytest.mark.parametrize(
         "p_config,"

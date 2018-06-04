@@ -54,11 +54,12 @@ string payload;
 		service.asJSON(payload);
 		auto res = m_client->request("POST", "/foglamp/service", payload);
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of registration: %s\n",
-				res->content.string().c_str());
+				response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -74,7 +75,7 @@ string payload;
 		}
 		else
 		{
-			m_logger->error("Unexpected result from service registration %s", res->content.string().c_str());
+			m_logger->error("Unexpected result from service registration %s", response.c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Register service failed %s.", e.what());
@@ -98,11 +99,12 @@ bool ManagementClient::unregisterService()
 		url += *m_uuid;
 		auto res = m_client->request("DELETE", url.c_str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of unregistration: %s\n",
-				res->content.string().c_str());
+				response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -142,11 +144,12 @@ string payload;
 		}
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of fetching service record: %s\n",
-				res->content.string().c_str());
+				response.c_str());
 			return false;
 		}
 		else if (doc.HasMember("message"))
@@ -194,7 +197,7 @@ ostringstream convert;
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of category registration: %s\n",
-				res->content.string().c_str());
+				content.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -249,11 +252,12 @@ ConfigCategories ManagementClient::getCategories()
 		string url = "/foglamp/service/category";
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of fetching configuration categories: %s\n",
-				res->content.string().c_str());
+				response.c_str());
 			throw new exception();
 		}
 		else if (doc.HasMember("message"))
@@ -264,7 +268,7 @@ ConfigCategories ManagementClient::getCategories()
 		}
 		else
 		{
-			return ConfigCategories(res->content.string());
+			return ConfigCategories(response);
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get config categories failed %s.", e.what());
@@ -286,7 +290,8 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 		string url = "/foglamp/service/category/" + categoryName;
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of fetching configuration category: %s\n",
@@ -301,7 +306,7 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 		}
 		else
 		{
-			return ConfigCategory(categoryName, res->content.string());
+			return ConfigCategory(categoryName, response);
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get config category failed %s.", e.what());
@@ -318,11 +323,12 @@ bool ManagementClient::addCategory(const ConfigCategory& category)
 		string url = "/foglamp/service/category";
 		auto res = m_client->request("POST", url.c_str(), category.toJSON());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of adding a category: %s\n",
-				res->content.string().c_str());
+				response.c_str());
 			return false;
 		}
 		else if (doc.HasMember("message"))

@@ -262,8 +262,14 @@ class SendingProcess:
     _stop_execution = False
     """ sets to True when a signal is captured and a termination is needed """
 
-    TASK_FETCH_SLEEP = 0.01
-    """ The amount of time the sending operation will sleep if there are no more data """
+    TASK_FETCH_SLEEP = 0.5
+    """ The amount of time the fetch operation will sleep if there are no more data to load or in case of an error """
+
+    TASK_SEND_SLEEP = 0.5
+    """ The amount of time the sending operation will sleep in case of an error """
+
+    TASK_SLEEP_MAX_INCREMENTS = 4
+    """ Maximum number of increments for the sleep handling, the amount of time is doubled at every sleep """
 
     TASK_SEND_UPDATE_POSITION_MAX = 10
     """ the position is updated after the specified numbers of interactions of the sending task """
@@ -297,6 +303,12 @@ class SendingProcess:
             "type": "integer",
             "default": "60"
         },
+        "sleepInterval": {
+            "description": "A period of time, expressed in seconds, "
+                           "the main task will wait before evaluate if the duration has expired",
+            "type": "integer",
+            "default": "1"
+        },
         "source": {
             "description": "Defines the source of the data to be sent on the stream, "
                            "this may be one of either readings, statistics or audit.",
@@ -313,12 +325,6 @@ class SendingProcess:
                            " for the fetch/send operations",
             "type": "integer",
             "default": "10"
-        },
-        "sleepInterval": {
-            "description": "A period of time, expressed in seconds, "
-                           "the main task will wait before evaluate if the duration has expired",
-            "type": "integer",
-            "default": "1"
         },
         "north": {
             "description": "The name of the north to use to translate the readings "
@@ -501,7 +507,6 @@ class SendingProcess:
             raise
         return data_to_send
 
-    @_performance_log
     async def _load_data_into_memory_readings(self, last_object_id):
         """ Extracts from the DB Layer data related to the readings loading into a memory structure
         Args:
@@ -781,7 +786,12 @@ class SendingProcess:
 
             SendingProcess._logger.debug("task {0} - start".format("_task_fetch_data"))
 
+            sleep_time = self.TASK_FETCH_SLEEP
+            sleep_num_increments = 0
+
             while self._task_fetch_data_run:
+
+                slept = False
 
                 if self._memory_buffer_fetch_idx < self._config['memory_buffer_size']:
 
@@ -797,7 +807,9 @@ class SendingProcess:
                             await self._audit.failure(self._AUDIT_CODE, {"error - on _task_fetch_data": _message})
 
                             data_to_send = False
-                            await asyncio.sleep(self.TASK_FETCH_SLEEP)
+
+                            slept = True
+                            await asyncio.sleep(sleep_time)
 
                         if data_to_send:
                             SendingProcess._logger.debug("task {f} - loaded - idx |{idx}|".format(
@@ -836,7 +848,8 @@ class SendingProcess:
                             SendingProcess._logger.debug("task {f} - idle : no more data to load - idx |{idx}| "
                                                          .format(f="fetch_data", idx=self._memory_buffer_fetch_idx))
 
-                            await asyncio.sleep(self.TASK_FETCH_SLEEP)
+                            slept = True
+                            await asyncio.sleep(sleep_time)
 
                     else:
                         # There is no more space in the in memory buffer
@@ -844,9 +857,17 @@ class SendingProcess:
                                                      .format(f="fetch_data", idx=self._memory_buffer_fetch_idx))
 
                         await self._task_send_data_sem.acquire()
-
                 else:
                     self._memory_buffer_fetch_idx = 0
+
+                # Handles the sleep time, it is doubled at every time up to a limit
+                if slept:
+                    sleep_num_increments += 1
+                    sleep_time *= 2
+
+                    if sleep_num_increments >= self.TASK_SLEEP_MAX_INCREMENTS:
+                        sleep_time = self.TASK_FETCH_SLEEP
+                        sleep_num_increments = 0
 
         except Exception as ex:
             _message = _MESSAGES_LIST["e000028"].format(ex)
@@ -874,7 +895,12 @@ class SendingProcess:
 
             SendingProcess._logger.debug("task {0} - start".format("_task_send_data"))
 
+            sleep_time = self.TASK_SEND_SLEEP
+            sleep_num_increments = 0
+
             while self._task_send_data_run:
+
+                slept = False
 
                 if self._memory_buffer_send_idx < self._config['memory_buffer_size']:
 
@@ -899,6 +925,9 @@ class SendingProcess:
                             data_sent = False
                             new_last_object_id = update_last_object_id
                             num_sent = 0
+
+                            slept = True
+                            await asyncio.sleep(sleep_time)
 
                         if data_sent:
                             db_update = True
@@ -944,6 +973,15 @@ class SendingProcess:
                             update_position_idx += 1
                 else:
                     self._memory_buffer_send_idx = 0
+
+                # Handles the sleep time, it is doubled at every time up to a limit
+                if slept:
+                    sleep_num_increments += 1
+                    sleep_time *= 2
+
+                    if sleep_num_increments >= self.TASK_SLEEP_MAX_INCREMENTS:
+                        sleep_time = self.TASK_SEND_SLEEP
+                        sleep_num_increments = 0
 
             # Checks if the information on the Storage layer needs to be updates
             if db_update:

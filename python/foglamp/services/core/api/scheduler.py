@@ -140,6 +140,8 @@ def _extract_args(data, curr_value):
         _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value[
             'schedule_enabled'] if curr_value else 'True'
         _schedule['schedule_enabled'] = 'True' if _schedule['schedule_enabled'] else 'False'
+
+        _schedule['enabled_changed'] = data.get('enabled') if 'enabled' in data else None
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
 
@@ -259,7 +261,7 @@ async def _execute_add_update_schedule(data, curr_value=None):
     schedule.enabled = True if _schedule.get('schedule_enabled') == 'True' else False
 
     # Save schedule
-    await server.Server.scheduler.save_schedule(schedule)
+    await server.Server.scheduler.save_schedule(schedule, _schedule['enabled_changed'])
 
     updated_schedule_id = schedule.schedule_id
 

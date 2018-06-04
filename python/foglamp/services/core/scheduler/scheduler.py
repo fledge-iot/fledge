@@ -980,7 +980,7 @@ class Scheduler(object):
 
         return self._schedule_row_to_schedule(found_id, schedule_row)
 
-    async def save_schedule(self, schedule: Schedule):
+    async def save_schedule(self, schedule: Schedule, enabled_changed=None):
         """Creates or update a schedule
 
         Args:
@@ -1115,6 +1115,24 @@ class Scheduler(object):
             now = self.current_time if self.current_time else time.time()
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
+
+        """
+            FOGL-1389 - Enable/Disable schedule vide {"enabled": True/False} updation.
+
+            During update, if a schedule's enabled attribute is not changed then both enable_schedule() and
+            disable_schedule() will return unconditionally without doing any action otherwise suitable action will be
+            invoked. This implies that if we want to properly change any attribute of a running schedule, it must
+            first be disable, attribtue value changed and then it should be restarted. Othrwise schedule will continue
+            to run with unpredictable behaviour.
+
+            For a new schedule, if enabled is set to True, the schedule will be enabled otherwise disable_schedule()
+            will be called and which will return unconditionally without any action.
+        """
+        if enabled_changed is not None:
+            if enabled_changed is True:
+                await self.enable_schedule(schedule.schedule_id)
+            else:
+                await self.disable_schedule(schedule.schedule_id)
 
     async def remove_service_from_task_processes(self, service_name):
         """

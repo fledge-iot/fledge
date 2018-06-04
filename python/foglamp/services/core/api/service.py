@@ -79,6 +79,8 @@ async def add_service(request):
         name = data.get('name', None)
         plugin = data.get('plugin', None)
         service_type = data.get('type', None)
+        enabled = data.get('enabled', None)
+
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if plugin is None:
@@ -87,6 +89,10 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
         if not service_type in ['south', 'north']:
             raise web.HTTPBadRequest(reason='Only north and south types are supported.')
+        if enabled is not None:
+            if enabled not in ['t', 'f', 'true', 'false']:
+                raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
+        enabled_changed = True if enabled.lower() in ['t', 'true'] else False
 
         storage = connect.get_storage()
 
@@ -136,7 +142,7 @@ async def add_service(request):
         schedule.exclusive = True
         schedule.enabled = False
         # Save schedule
-        await server.Server.scheduler.save_schedule(schedule)
+        await server.Server.scheduler.save_schedule(schedule, )
         schedule = await server.Server.scheduler.get_schedule_by_name(name)
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 

@@ -747,9 +747,6 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
-    # FIXME:
-    @pytest.mark.this
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "p_duration, "
         "p_sleep_interval, "
@@ -809,6 +806,29 @@ class TestSendingProcess:
         elapsed_seconds = time.time() - start_time
         assert expected_time <= elapsed_seconds <= (expected_time + tolerance)
 
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_update_position_reached(self, event_loop):
+        """ Unit tests - _update_position_reached """
+
+        async def mock_task():
+            """ Dummy async task """
+            return True
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._audit = MagicMock(spec=AuditLogger)
+
+        with patch.object(sp, '_last_object_id_update', return_value=mock_task()) as mock_last_object_id_update:
+            with patch.object(sp, '_update_statistics', return_value=mock_task()) as mock__update_statistics:
+                with patch.object(sp._audit, 'information', return_value=mock_task()) as mock_audit_information:
+                    await sp._update_position_reached(STREAM_ID, 1000, 100)
+
+        mock_last_object_id_update.assert_called_with(1000, STREAM_ID)
+        mock__update_statistics.assert_called_with(100, STREAM_ID)
+        mock_audit_information.assert_called_with(SendingProcess._AUDIT_CODE, {"sentRows": 100})
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
@@ -837,10 +857,6 @@ class TestSendingProcess:
         plugin_info = sp._plugin.plugin_info()
         assert plugin_info['type'] == plugin_type
         assert plugin_info['name'] == plugin_name
-
-
-
-
 
     @pytest.mark.parametrize(
         "p_config,"

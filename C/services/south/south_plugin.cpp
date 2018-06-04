@@ -23,7 +23,8 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle) : Plugin(handle)
 	// Call the init method of the plugin
 	PLUGIN_HANDLE (*pluginInit)() = (PLUGIN_HANDLE (*)())
 					manager->resolveSymbol(handle, "plugin_init");
-	instance = (*pluginInit)();
+	ConfigCategory *category = 0;
+	instance = (*pluginInit)(category);
 
 
 	// Setup the function pointers to the plugin

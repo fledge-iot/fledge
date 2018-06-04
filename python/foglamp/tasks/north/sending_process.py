@@ -787,7 +787,7 @@ class SendingProcess:
             SendingProcess._logger.debug("task {0} - start".format("_task_fetch_data"))
 
             sleep_time = self.TASK_FETCH_SLEEP
-            sleep_num_increments = 0
+            sleep_num_increments = 1
 
             while self._task_fetch_data_run:
 
@@ -865,9 +865,9 @@ class SendingProcess:
                     sleep_num_increments += 1
                     sleep_time *= 2
 
-                    if sleep_num_increments >= self.TASK_SLEEP_MAX_INCREMENTS:
+                    if sleep_num_increments > self.TASK_SLEEP_MAX_INCREMENTS:
                         sleep_time = self.TASK_FETCH_SLEEP
-                        sleep_num_increments = 0
+                        sleep_num_increments = 1
 
         except Exception as ex:
             _message = _MESSAGES_LIST["e000028"].format(ex)
@@ -896,7 +896,7 @@ class SendingProcess:
             SendingProcess._logger.debug("task {0} - start".format("_task_send_data"))
 
             sleep_time = self.TASK_SEND_SLEEP
-            sleep_num_increments = 0
+            sleep_num_increments = 1
 
             while self._task_send_data_run:
 
@@ -979,9 +979,9 @@ class SendingProcess:
                     sleep_num_increments += 1
                     sleep_time *= 2
 
-                    if sleep_num_increments >= self.TASK_SLEEP_MAX_INCREMENTS:
+                    if sleep_num_increments > self.TASK_SLEEP_MAX_INCREMENTS:
                         sleep_time = self.TASK_SEND_SLEEP
-                        sleep_num_increments = 0
+                        sleep_num_increments = 1
 
             # Checks if the information on the Storage layer needs to be updates
             if db_update:

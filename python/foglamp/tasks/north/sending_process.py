@@ -860,7 +860,7 @@ class SendingProcess:
                 else:
                     self._memory_buffer_fetch_idx = 0
 
-                # Handles the sleep time, it is doubled at every time up to a limit
+                # Handles the sleep time, it is doubled every time up to a limit
                 if slept:
                     sleep_num_increments += 1
                     sleep_time *= 2
@@ -974,7 +974,7 @@ class SendingProcess:
                 else:
                     self._memory_buffer_send_idx = 0
 
-                # Handles the sleep time, it is doubled at every time up to a limit
+                # Handles the sleep time, it is doubled every time up to a limit
                 if slept:
                     sleep_num_increments += 1
                     sleep_time *= 2

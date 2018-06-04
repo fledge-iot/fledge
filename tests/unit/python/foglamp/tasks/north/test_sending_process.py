@@ -753,269 +753,62 @@ class TestSendingProcess:
     @pytest.mark.parametrize(
         "p_duration, "
         "p_sleep_interval, "
-        "p_data_sent, "
-        "expected_calls, "
-        "expected_time ",
+        "p_signal_received, "  # simulates the termination signal
+        "expected_time, "
+        "tolerance ",
         [
-            # Cases
-
-            # p_duration - p_sleep_interval  - p_data_sent - expected_calls - expected_time
-            (3,            1,                  False,        3,               3),
-            (3,            1,                  True,         3,               3),
+            # p_duration - p_sleep_interval  - p_signal_received - expected_time - tolerance
+            (10,           1,                 False,              10,            5),
+            (60,          1,                  True,               0,             5),
 
         ]
     )
-    async def test_send_data_good(self,
+    async def test_send_data_good(
+                            self,
                             event_loop,
                             p_duration,
                             p_sleep_interval,
-                            p_data_sent,
-                            expected_calls,
-                            expected_time):
+                            p_signal_received,
+                            expected_time,
+                            tolerance):
         """ Unit tests - send_data """
 
-        SendingProcess._logger = MagicMock(spec=logging)
+        async def mock_task():
+            """ Dummy async task """
+            pass
+
+            return True
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
+
+        sp._logger = MagicMock(spec=logging)
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
             'duration': p_duration,
-            'sleepInterval': p_sleep_interval
+            'sleepInterval': p_sleep_interval,
+            'memory_buffer_size': 1000
         }
 
-        # Executes the call
+        dummy_task_id = asyncio.ensure_future(mock_task())
+
+        # Simulates the reception of the termination signal
+        if p_signal_received:
+            SendingProcess._stop_execution = True
+        else:
+            SendingProcess._stop_execution = False
+
+        # Start time track
         start_time = time.time()
 
-        with patch.object(asyncio, 'Semaphore', return_value=True) as mock_semaphore:
-            with patch.object(asyncio, 'ensure_future', return_value=True) as mock_ensure_future:
-                with patch.object(sp, '_send_data_block', return_value=p_data_sent) as mocked_send_data_block:
+        with patch.object(asyncio, 'ensure_future', return_value=dummy_task_id) as mock_ensure_future:
+            await sp.send_data(STREAM_ID)
 
-                    await sp.send_data(STREAM_ID)
+        # It considers a reasonable tolerance
+        elapsed_seconds = time.time() - start_time
+        assert expected_time <= elapsed_seconds <= (expected_time + tolerance)
 
-        if not p_data_sent:
-            assert mocked_send_data_block.call_count == expected_calls
-
-            # It considers a reasonable tolerance
-            elapsed_seconds = time.time() - start_time
-            assert expected_time <= elapsed_seconds <= (expected_time + 10)
-
-        elif p_data_sent:
-            # Not sleep is executed in case of data were sent and so a lot of calls are expected
-            assert mocked_send_data_block.call_count >= expected_calls
-
-    def test_send_data_stop_exec(self, event_loop):
-        """ Unit tests - send_data - simulates the termination signal """
-
-        SendingProcess._logger = MagicMock(spec=logging)
-        SendingProcess._stop_execution = True
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        # Configures properly the SendingProcess, enabling JQFilter
-        sp._config = {
-            'duration': 10,
-            'sleepInterval': 1
-        }
-
-        with patch.object(sp, '_send_data_block', return_value=True) as mocked_send_data_block:
-
-            sp.send_data(STREAM_ID)
-
-        assert not mocked_send_data_block.called
-
-
-    @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
-        (10, 20, 10)
-    ])
-    def test_send_data_block_good(self, p_last_object,  p_new_last_object_id, p_num_sent, event_loop):
-        """Tests the _send_data_block, evaluating also the the last object is properly updated"""
-
-        def mock_load_data_into_memory():
-            """Mocks _load_data_into_memory"""
-
-            rows = {"rows": [
-                            {
-                                "id": 1,
-                                "asset_code": "test_asset_code",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                "reading": {"humidity": 11, "temperature": 38},
-                                "user_ts": "16/04/2018 16:32:55"
-                            },
-                    ]}
-            return rows
-
-        def mock_plugin_send_ok():
-            """Mocks _plugin_send - simulating data sent"""
-
-            _data_sent = True
-            _new_last_object_id = p_new_last_object_id
-            _num_sent = p_num_sent
-
-            return _data_sent, _new_last_object_id, _num_sent
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        # Configures properly the SendingProcess
-        sp._config_from_manager = {"applyFilter": {"value": "False"}}
-        sp._plugin = MagicMock()
-        mock_storage_client = MagicMock(spec=StorageClient)
-        sp._audit = AuditLogger(mock_storage_client)
-
-        # Good Case
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            with patch.object(sp, '_last_object_id_read', return_value=p_last_object):
-                with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
-
-                    with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()):
-
-                        with patch.object(sp, '_last_object_id_update') \
-                                as mocked_last_object_id_update:
-                            with patch.object(sp, '_update_statistics') \
-                                    as mocked_update_statistics:
-                                sp._send_data_block(STREAM_ID)
-
-                                mocked_last_object_id_update.assert_called_once_with(p_new_last_object_id, STREAM_ID)
-                                mocked_update_statistics.assert_called_once_with(p_num_sent, STREAM_ID)
-
-    @pytest.mark.parametrize("p_last_object, p_new_last_object_id, p_num_sent", [
-        (10, 20, 10)
-    ])
-    def test_send_data_block_bad(self, p_last_object,  p_new_last_object_id, p_num_sent, event_loop):
-        """ Unite tests - _send_data_block - error being raised """
-
-        def mock_load_data_into_memory():
-            """Mocks _load_data_into_memory"""
-
-            rows = {"rows": [
-                            {
-                                "id": 1,
-                                "asset_code": "test_asset_code",
-                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                "reading": {"humidity": 11, "temperature": 38},
-                                "user_ts": "16/04/2018 16:32:55"
-                            },
-                    ]}
-            return rows
-
-        def mock_plugin_send_bad():
-            """Mocks _plugin_send - simulating no data were sent"""
-
-            _data_sent = False
-            _new_last_object_id = p_new_last_object_id
-            _num_sent = p_num_sent
-
-            return _data_sent, _new_last_object_id, _num_sent
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        # Configures properly the SendingProcess
-        sp._config_from_manager = {"applyFilter": {"value": "False"}}
-        sp._plugin = MagicMock()
-        mock_storage_client = MagicMock(spec=StorageClient)
-        sp._audit = AuditLogger(mock_storage_client)
-
-        # Bad Case
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            with patch.object(sp, '_last_object_id_read', return_value=p_last_object):
-                with patch.object(sp, '_load_data_into_memory', return_value=mock_load_data_into_memory()):
-
-                    with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_bad()):
-
-                        with patch.object(sp, '_last_object_id_update') as mocked_last_object_id_update:
-                            with patch.object(sp, '_update_statistics') as mocked_update_statistics:
-                                sp._send_data_block(STREAM_ID)
-
-                                assert not mocked_last_object_id_update.called
-                                assert not mocked_update_statistics.called
-
-    @pytest.mark.parametrize(
-        "p_jqfilter, "
-        "p_data, "
-        "expected_data ",
-        [
-            # Case - add the field 'addedField': 512
-            (
-                # p_jqfilter
-                "(.[]|.reading|.addedField)=512",
-
-                # p_data
-                [
-                    {
-                        "id": 1,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {
-                            "humidity": 11, "temperature": 38
-                        },
-                        "user_ts": "16/04/2018 16:32:55"
-                    },
-                ],
-
-                # expected_data
-                [
-                    {
-                        'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
-                        'id': 1,
-                        'reading': {
-                            'humidity': 11,
-                            'temperature': 38,
-                            'addedField': 512
-                        },
-                        'asset_code': 'test_asset_code',
-                        'user_ts': '16/04/2018 16:32:55'
-                    }
-                ],
-            ),
-        ]
-    )
-    def test_send_data_block_jqfilter(self,
-                                      event_loop,
-                                      p_jqfilter,
-                                      p_data,
-                                      expected_data):
-        """ Tests JQFilter functionalities of _send_data_block"""
-
-        def mock_plugin_send_ok():
-            """Mocks _plugin_send - simulating data sent"""
-
-            return True, 2, 1
-
-        SendingProcess._logger = MagicMock(spec=logging)
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        # Configures properly the SendingProcess, enabling JQFilter
-        sp._logger = MagicMock(spec=logging)
-        sp._storage = MagicMock(spec=StorageClient)
-        sp._plugin = MagicMock()
-
-        mock_storage_client = MagicMock(spec=StorageClient)
-        sp._audit = AuditLogger(mock_storage_client)
-
-        sp._config_from_manager = {
-            "applyFilter": {"value": "TRUE"},
-            "filterRule": {"value": p_jqfilter}
-        }
-        sp._plugin_handle = []
-
-        # Executes the call
-        with patch.object(sp, '_last_object_id_read', return_value=1):
-            with patch.object(sp, '_load_data_into_memory', return_value=p_data):
-
-                with patch.object(sp._plugin, 'plugin_send', return_value=mock_plugin_send_ok()) as mocked_plugin_send:
-                    with patch.object(sp, '_last_object_id_update'):
-                        with patch.object(sp, '_update_statistics'):
-                            with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-
-                                sp._send_data_block(STREAM_ID)
-
-                mocked_plugin_send.assert_called_once_with([], expected_data, STREAM_ID)
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),

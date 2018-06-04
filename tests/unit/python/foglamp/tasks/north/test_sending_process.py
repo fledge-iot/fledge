@@ -747,6 +747,7 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "p_duration, "
         "p_sleep_interval, "
@@ -806,8 +807,6 @@ class TestSendingProcess:
         elapsed_seconds = time.time() - start_time
         assert expected_time <= elapsed_seconds <= (expected_time + tolerance)
 
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):
         """ Unit tests - _update_position_reached """
@@ -870,6 +869,7 @@ class TestSendingProcess:
                     "duration": {"value": "10"},
                     "source": {"value": SendingProcess._DATA_SOURCE_READINGS},
                     "blockSize": {"value": "10"},
+                    "memory_buffer_size": {"value": "10"},
                     "sleepInterval": {"value": "10"},
                     "plugin": {"value": "omf"},
 
@@ -880,6 +880,7 @@ class TestSendingProcess:
                     "duration": 10,
                     "source": SendingProcess._DATA_SOURCE_READINGS,
                     "blockSize": 10,
+                    "memory_buffer_size": 10,
                     "sleepInterval": 10,
                     "north": "omf",
 
@@ -903,11 +904,11 @@ class TestSendingProcess:
         assert sp._config['duration'] == expected_config['duration']
         assert sp._config['source'] == expected_config['source']
         assert sp._config['blockSize'] == expected_config['blockSize']
+        assert sp._config['memory_buffer_size'] == expected_config['memory_buffer_size']
         assert sp._config['sleepInterval'] == expected_config['sleepInterval']
-        # Note
         assert sp._config['north'] == expected_config['north']
 
-    def test__start_stream_not_valid(self, event_loop):
+    def test_start_stream_not_valid(self, event_loop):
         """ Unit tests - _start - stream_id is not valid """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -920,7 +921,7 @@ class TestSendingProcess:
         assert not result
         assert not mocked_plugin_load.called
 
-    def test__start_sp_disabled(self, event_loop):
+    def test_start_sp_disabled(self, event_loop):
         """ Unit tests - _start - sending process is disabled """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -938,7 +939,7 @@ class TestSendingProcess:
         assert not result
         assert not mocked_plugin_load.called
 
-    def test__start_not_north(self, event_loop):
+    def test_start_not_north(self, event_loop):
         """ Unit tests - _start - it is not a north plugin """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -961,7 +962,7 @@ class TestSendingProcess:
         assert mocked_plugin_info.called
         assert mocked_is_north_valid.called
 
-    def test__start_good(self, event_loop):
+    def test_start_good(self, event_loop):
         """ Unit tests - _start """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -987,4 +988,3 @@ class TestSendingProcess:
         assert mocked_is_north_valid.called
         assert mocked_retrieve_configuration.called
         assert mocked_plugin_init.called
-

@@ -20,7 +20,12 @@ const char *myCategory = "{\"description\": {"
 		"\"value\": \"FogLAMP\","
 		"\"type\": \"string\","
 		"\"default\": \"FogLAMP\","
-		"\"description\": \"The name of this FogLAMP service\"}}";
+		"\"description\": \"The name of this FogLAMP service\"},"
+        "\"complex\": {" \
+		"\"value\": { \"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"type\": \"json\","
+		"\"default\": {\"first\" : \"FogLAMP\", \"second\" : \"json\" },"
+		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
 	"\"description\" : { "
@@ -32,7 +37,12 @@ const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\"
 		"\"description\" : \"The name of this FogLAMP service\", "
 		"\"type\" : \"string\", "
 		"\"value\" : \"FogLAMP\", "
-		"\"default\" : \"FogLAMP\" }}";
+		"\"default\" : \"FogLAMP\" }, "
+	"\"complex\" : { " 
+		"\"description\" : \"A JSON configuration parameter\", "
+		"\"type\" : \"json\", "
+		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
+		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }}";
 
 TEST(CategoriesTest, Count)
 {
@@ -51,7 +61,7 @@ TEST(CategoriesTest, Index)
 TEST(CategoryTest, Construct)
 {
 	ConfigCategory confCategory("test", myCategory);
-	ASSERT_EQ(2, confCategory.getCount());
+	ASSERT_EQ(3, confCategory.getCount());
 }
 
 TEST(CategoryTest, ExistsTest)

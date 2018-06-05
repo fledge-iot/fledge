@@ -32,6 +32,7 @@ class ConfigCategories {
 class ConfigCategory {
 	public:
 		ConfigCategory(const std::string& name, const std::string& json);
+		ConfigCategory() {};
 		~ConfigCategory();
 		void				setDescription(const std::string& description);
 		unsigned int			getCount() const { return m_items.size(); };
@@ -45,6 +46,7 @@ class ConfigCategory {
 	private:
 		class CategoryItem {
 			public:
+				enum ItemType { StringItem, JsonItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
 				std::string	toJSON() const;
 				std::string 	m_name;
@@ -52,6 +54,7 @@ class ConfigCategory {
 				std::string 	m_default;
 				std::string 	m_value;
 				std::string 	m_description;
+				ItemType	m_itemType;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

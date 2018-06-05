@@ -31,17 +31,27 @@ class TestStatistics:
 
     async def test_init_with_storage(self):
         storage_client_mock = MagicMock(spec=StorageClient)
-        s = await statistics.create_statistics(storage_client_mock)
-        assert isinstance(s, statistics.Statistics)
-        assert isinstance(s._storage, StorageClient)
+        async def mock_coro():
+            return ""
+        with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
+            s = await statistics.create_statistics(storage_client_mock)
+            assert isinstance(s, statistics.Statistics)
+            assert isinstance(s._storage, StorageClient)
+        storage_client_mock.reset_mock()
 
     async def test_singleton(self):
         """ Test that two statistics instance share the same state """
-        storageMock1 = MagicMock(spec=StorageClient)
-        s1 = await statistics.create_statistics(storageMock1)
-        storageMock2 = MagicMock(spec=StorageClient)
-        s2 = await statistics.create_statistics(storageMock2)
-        assert s1._storage == s2._storage
+        async def mock_coro():
+            return ""
+
+        with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
+                # statistics.Statistics._init = MagicMock()
+                storageMock1 = MagicMock(spec=StorageClient)
+                s1 = await statistics.create_statistics(storageMock1)
+                with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
+                    storageMock2 = MagicMock(spec=StorageClient)
+                    s2 = await statistics.create_statistics(storageMock2)
+                    assert s1._storage == s2._storage
 
     async def test_register(self):
         """ Test that register results in a database insert """
@@ -51,8 +61,9 @@ class TestStatistics:
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
-        with patch.object(stats._storage, 'insert_into_tbl', return_value=mock_coro()) as stat_update:
-            await stats.register('T1Stat', 'Test stat')
+        with patch.object(stats, '_load_keys', return_value=mock_coro()):
+            with patch.object(stats._storage, 'insert_into_tbl', return_value=mock_coro()) as stat_update:
+                await stats.register('T1Stat', 'Test stat')
             args, kwargs = stat_update.call_args
             assert args[0] == 'statistics'
             expected_storage_args = json.loads(args[1])
@@ -70,11 +81,12 @@ class TestStatistics:
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
-        with patch.object(stats._storage, 'insert_into_tbl', return_value=mock_coro()) as stat_update:
-            await stats.register('T2Stat', 'Test stat')
-            await stats.register('T2Stat', 'Test stat')
-            assert stat_update.called
-            assert stat_update.call_count == 1
+        with patch.object(stats, '_load_keys', return_value=mock_coro()):
+            with patch.object(stats._storage, 'insert_into_tbl', return_value=mock_coro()) as stat_insert:
+                await stats.register('T2Stat', 'Test stat')
+                await stats.register('T2Stat', 'Test stat')
+            assert stat_insert.called
+            assert stat_insert.call_count == 1
         stats._storage.insert_into_tbl.reset_mock()
 
     async def test_register_exception(self):
@@ -84,9 +96,9 @@ class TestStatistics:
             with patch.object(s._storage, 'insert_into_tbl', side_effect=Exception):
                 with pytest.raises(Exception):
                     await s.register('T3Stat', 'Test stat')
-        args, kwargs = logger_exception.call_args
-        assert args[0] == 'Unable to create new statistic %s, error %s'
-        assert args[1] == 'T3Stat'
+                    args, kwargs = logger_exception.call_args
+                    assert args[0] == 'Unable to create new statistic %s, error %s'
+                    assert args[1] == 'T3Stat'
 
     async def test_load_keys(self):
         """Test the load key"""
@@ -179,9 +191,9 @@ class TestStatistics:
             with patch.object(statistics._logger, 'exception') as logger_exception:
                 with pytest.raises(KeyError):
                     await s.add_update(stat_dict)
-        args, kwargs = logger_exception.call_args
-        assert args[0] == 'Statistics key %s has not been registered'
-        assert args[1] == 'FOGBENCH/TEMPERATURE'
+            args, kwargs = logger_exception.call_args
+            assert args[0] == 'Statistics key %s has not been registered'
+            assert args[1] == 'FOGBENCH/TEMPERATURE'
 
     async def test_add_update_exception(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}

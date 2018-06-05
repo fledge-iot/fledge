@@ -13,6 +13,7 @@
 #include <logger.h>
 #include <south_plugin.h>
 #include <service_handler.h>
+#include <management_client.h>
 #include <config_category.h>
 
 #define SERVICE_NAME  "FogLAMP South"
@@ -36,5 +37,6 @@ class SouthService : public ServiceHandler {
 		Logger        		*logger;
 		bool			m_shutdown;
 		ConfigCategory		m_config;
+		ManagementClient	*m_mgtClient;
 };
 #endif

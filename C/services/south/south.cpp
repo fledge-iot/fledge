@@ -9,7 +9,6 @@
  */
 #include <south_service.h>
 #include <management_api.h>
-#include <management_client.h>
 #include <storage_client.h>
 #include <service_record.h>
 #include <plugin_manager.h>
@@ -130,27 +129,27 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
-		ManagementClient *client = new ManagementClient(coreAddress, corePort);
+		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
-		m_config = client->getCategory(m_name);
+		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
 			logger->fatal("Failed to load south plugin.");
 			return;
 		}
-		if (!client->registerService(record))
+		if (!m_mgtClient->registerService(record))
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
 		unsigned int retryCount = 0;
-		while (client->registerCategory(m_name) == false && ++retryCount < 10)
+		while (m_mgtClient->registerCategory(m_name) == false && ++retryCount < 10)
 		{
 			sleep(2 * retryCount);
 		}
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("FogLAMP%20Storage");
-		if (!client->getService(storageRecord))
+		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
 			return;
@@ -172,7 +171,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Clean shutdown, unregister the storage service
-		client->unregisterService();
+		m_mgtClient->unregisterService();
 	}
 	logger->info("South service shut down.");
 }
@@ -204,7 +203,10 @@ bool SouthService::loadPlugin()
 	PLUGIN_HANDLE handle;
 	if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
 	{
-		southPlugin = new SouthPlugin(handle);
+		// Deal with registering and fetching the configuration
+		ConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
+		
+		southPlugin = new SouthPlugin(handle, m_config);
 		logger->info("Loaded south plugin %s.", plugin.c_str());
 		return true;
 	}

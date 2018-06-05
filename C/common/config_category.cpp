@@ -10,6 +10,8 @@
 #include <config_category.h>
 #include <string>
 #include <rapidjson/document.h>
+#include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/writer.h>
 #include <sstream>
 #include <iostream>
 #include <time.h>
@@ -235,12 +237,33 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		m_description = item["description"].GetString();
 	else
 		m_description = "";
-	if (item.HasMember("value"))
+	if (item.HasMember("value") && item["value"].IsString())
+	{
 		m_value = item["value"].GetString();
+		m_itemType = StringItem;
+	}
+	else if (item.HasMember("value") && item["value"].IsObject())
+	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = strbuf.GetString();
+		m_itemType = JsonItem;
+	}
 	else
+	{
 		m_value = "";
-	if (item.HasMember("default"))
+	}
+	if (item.HasMember("default") && item["default"].IsString())
 		m_default = item["default"].GetString();
+	else if (item.HasMember("default") && item["default"].IsObject())
+	{
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+		m_default = strbuf.GetString();
+		m_itemType = JsonItem;
+	}
 	else
 		m_default = "";
 }
@@ -255,7 +278,15 @@ ostringstream convert;
 	convert << "\"" << m_name << "\" : { ";
 	convert << "\"description\" : \"" << m_description << "\", ";
 	convert << "\"type\" : \"" << m_type << "\", ";
-	convert << "\"value\" : \"" << m_value << "\", ";
-	convert << "\"default\" : \"" << m_default << "\" }";
+	if (m_itemType == StringItem)
+	{
+		convert << "\"value\" : \"" << m_value << "\", ";
+		convert << "\"default\" : \"" << m_default << "\" }";
+	}
+	else if (m_itemType == JsonItem)
+	{
+		convert << "\"value\" : " << m_value << ", ";
+		convert << "\"default\" : " << m_default << " }";
+	}
 	return convert.str();
 }

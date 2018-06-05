@@ -31,6 +31,7 @@ class TestStatistics:
 
     async def test_init_with_storage(self):
         storage_client_mock = MagicMock(spec=StorageClient)
+
         async def mock_coro():
             return ""
         with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
@@ -41,11 +42,11 @@ class TestStatistics:
 
     async def test_singleton(self):
         """ Test that two statistics instance share the same state """
+
         async def mock_coro():
             return ""
 
         with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
-                # statistics.Statistics._init = MagicMock()
                 storageMock1 = MagicMock(spec=StorageClient)
                 s1 = await statistics.create_statistics(storageMock1)
                 with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
@@ -58,6 +59,7 @@ class TestStatistics:
         storageMock = MagicMock(spec=StorageClient)
         stats = statistics.Statistics(storageMock)
         stats._registered_keys = []
+
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
@@ -78,6 +80,7 @@ class TestStatistics:
         storageMock = MagicMock(spec=StorageClient)
         stats = statistics.Statistics(storageMock)
         stats._registered_keys = []
+
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
@@ -122,6 +125,7 @@ class TestStatistics:
 
         async def mock_coro():
             return Exception
+
         with patch.object(statistics._logger, 'exception') as logger_exception:
             with patch.object(s._storage, 'query_tbl_with_payload', return_value=mock_coro()):
                 await s._load_keys()
@@ -131,8 +135,10 @@ class TestStatistics:
     async def test_update(self):
         storage_client_mock = MagicMock(spec=StorageClient)
         s = statistics.Statistics(storage_client_mock)
+
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
+
         payload = '{"where": {"column": "key", "condition": "=", "value": "READING"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 5}]}'
         expected_result = {"response": "updated", "rows_affected": 1}
@@ -173,6 +179,7 @@ class TestStatistics:
         s = statistics.Statistics(storage_client_mock)
         payload = '{"where": {"column": "key", "condition": "=", "value": "FOGBENCH/TEMPERATURE"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 1}]}'
+
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
@@ -184,6 +191,7 @@ class TestStatistics:
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
         storage_client_mock = MagicMock(spec=StorageClient)
         s = statistics.Statistics(storage_client_mock)
+
         async def mock_coro():
             return {"response": "not updated", "rows_affected": 0}
 
@@ -194,6 +202,7 @@ class TestStatistics:
             args, kwargs = logger_exception.call_args
             assert args[0] == 'Statistics key %s has not been registered'
             assert args[1] == 'FOGBENCH/TEMPERATURE'
+        assert stat_update.call_count == 1
 
     async def test_add_update_exception(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}

@@ -244,7 +244,7 @@ string ConfigCategory::toJSON() const
 ostringstream convert;
 
 	convert << "{ \"key\" : \"" << m_name << "\", ";
-	convert << "\"description\" : \"" << m_description << "\", ";
+	convert << "\"description\" : \"" << m_description << "\", \"value\" : {";
 	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
 	{
 		convert << (*it)->toJSON();
@@ -253,7 +253,7 @@ ostringstream convert;
 			convert << ", ";
 		}
 	}
-	convert << "}";
+	convert << "} }";
 	return convert.str();
 }
 

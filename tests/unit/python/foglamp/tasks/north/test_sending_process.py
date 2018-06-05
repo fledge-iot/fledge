@@ -6,18 +6,17 @@
 # FOGLAMP_END
 
 import asyncio
-import pytest
 import logging
 import sys
 import time
-import signal
-
 from unittest.mock import patch, MagicMock
 
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient, ReadingsStorageClientAsync
-from foglamp.tasks.north.sending_process import SendingProcess
+import pytest
+
 import foglamp.tasks.north.sending_process as sp_module
 from foglamp.common.audit_logger import AuditLogger
+from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClientAsync
+from foglamp.tasks.north.sending_process import SendingProcess
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -747,8 +746,6 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "p_duration, "
@@ -812,6 +809,63 @@ class TestSendingProcess:
         # It considers a reasonable tolerance
         elapsed_seconds = time.time() - start_time
         assert expected_time <= elapsed_seconds <= (expected_time + tolerance)
+
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+
+
+    @pytest.mark.parametrize(
+        "p_rows, "
+        "expected_rows ",
+        [
+            (
+                # p_rows
+                [
+                    {
+                        "id": 1,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 11, "temperature": 38},
+                        "user_ts": "16/04/2018 16:32:55"
+                    }
+                ],
+                #  expected_rows
+                1
+            )
+        ]
+    )
+    async def test_task_fetch_data(self,
+                                   event_loop,
+                                   p_rows,
+                                   expected_rows):
+        """ Unit tests - _task_fetch_data """
+
+        async def mock_task():
+            """ Dummy async task """
+            pass
+
+            return True
+
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._logger = MagicMock(spec=logging)
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'memory_buffer_size': 1000
+        }
+
+        sp._task_fetch_data_run = True
+
+        with patch.object(sp, '_last_object_id_read', return_value=0):
+            with patch.object(sp, '_load_data_into_memory', return_value=p_rows):
+                await sp._task_fetch_data(STREAM_ID)
+
+        # FIXME:
+        assert True
+
 
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):

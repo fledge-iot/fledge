@@ -747,6 +747,8 @@ class TestSendingProcess:
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
+    # FIXME:
+    @pytest.mark.this
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "p_duration, "
@@ -797,10 +799,14 @@ class TestSendingProcess:
         else:
             SendingProcess._stop_execution = False
 
+        # Force tasks immediately termination
+        sp._task_fetch_data_run = False
+        sp._task_send_data_run = False
+
         # Start time track
         start_time = time.time()
 
-        with patch.object(asyncio, 'ensure_future', return_value=dummy_task_id) as mock_ensure_future:
+        with patch.object(sp, '_last_object_id_read', return_value=0):
             await sp.send_data(STREAM_ID)
 
         # It considers a reasonable tolerance

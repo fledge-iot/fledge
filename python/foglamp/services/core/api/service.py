@@ -92,7 +92,7 @@ async def add_service(request):
         if enabled is not None:
             if enabled not in ['t', 'f', 'true', 'false']:
                 raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
-        enabled_changed = True if enabled.lower() in ['t', 'true'] else False
+        is_enabled = True if enabled.lower() in ['t', 'true'] else False
 
         storage = connect.get_storage()
 
@@ -142,7 +142,7 @@ async def add_service(request):
         schedule.exclusive = True
         schedule.enabled = False
         # Save schedule
-        await server.Server.scheduler.save_schedule(schedule, )
+        await server.Server.scheduler.save_schedule(schedule, is_enabled)
         schedule = await server.Server.scheduler.get_schedule_by_name(name)
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 

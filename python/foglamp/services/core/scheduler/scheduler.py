@@ -980,7 +980,7 @@ class Scheduler(object):
 
         return self._schedule_row_to_schedule(found_id, schedule_row)
 
-    async def save_schedule(self, schedule: Schedule, enabled_changed=None):
+    async def save_schedule(self, schedule: Schedule, is_enabled_modified=None):
         """Creates or update a schedule
 
         Args:
@@ -1128,8 +1128,8 @@ class Scheduler(object):
             For a new schedule, if enabled is set to True, the schedule will be enabled otherwise disable_schedule()
             will be called and which will return unconditionally without any action.
         """
-        if enabled_changed is not None:
-            if enabled_changed is True:
+        if is_enabled_modified is not None:
+            if is_enabled_modified is True:
                 await self.enable_schedule(schedule.schedule_id)
             else:
                 await self.disable_schedule(schedule.schedule_id)

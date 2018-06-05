@@ -28,6 +28,7 @@ const char *myCategory = "{\"description\": {"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
+    "\"value\" : {"
 	"\"description\" : { "
 		"\"description\" : \"The description of this FogLAMP service\", "
 		"\"type\" : \"string\", "
@@ -42,7 +43,7 @@ const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\"
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
 		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
-		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }}";
+		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
 
 TEST(CategoriesTest, Count)
 {

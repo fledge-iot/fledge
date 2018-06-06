@@ -9,7 +9,7 @@ import asyncio
 import logging
 import sys
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 
 import pytest
 
@@ -1131,6 +1131,7 @@ class TestSendingProcess:
             """ mock rows retrieval from the storage layer - used for the first fill """
             return p_rows[idx]
 
+        # GIVEN
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
 
@@ -1153,6 +1154,7 @@ class TestSendingProcess:
         # Prepares the in memory buffer for the fetch/send operations
         sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
 
+        # WHEN
         # Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=0):
             with patch.object(sp, '_load_data_into_memory',
@@ -1177,6 +1179,152 @@ class TestSendingProcess:
                 sp._task_send_data_sem.release()
 
                 await task_id
+
+        # THEN
+        assert sp._memory_buffer == expected_buffer
+
+    @pytest.mark.parametrize(
+        "p_rows, "            # GIVEN, information retrieve from the storage layer
+        "p_num_element_to_fetch, " 
+        "p_buffer_size, "     # size of the in memory buffer        
+        "expected_buffer ",   # THEN, expected in memory buffer loaded by the _task_fetch_data function
+        [
+            (
+                # p_rows
+                [
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 10, "temperature": 101},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 20, "temperature": 201},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 30, "temperature": 301},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ]
+                ],
+                # p_num_element_to_fetch
+                2,
+                # p_buffer_size
+                3,
+
+                #  expected_buffer - 2 dimensions list
+                [
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 10, "temperature": 101},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 20, "temperature": 201},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 30, "temperature": 301},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    None
+
+                ]
+
+            )
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_task_fetch_data_error(
+                                            self,
+                                            event_loop,
+                                            p_rows,
+                                            p_num_element_to_fetch,
+                                            p_buffer_size,
+                                            expected_buffer):
+        """ Unit tests - _task_fetch_data - simulates and error while fetching """
+
+        async def mock_retrieve_rows(idx):
+            """ mock rows retrieval from the storage layer - used for the first fill """
+            return p_rows[idx]
+
+        async def mock_audit_failure():
+            """ mock_audit_failure """
+
+            return True
+
+        # GIVEN
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._logger = MagicMock(spec=logging)
+        SendingProcess._logger = MagicMock(spec=logging)
+        sp._audit = MagicMock(spec=AuditLogger)
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'memory_buffer_size': p_buffer_size
+        }
+
+        sp._config_from_manager = {
+            'applyFilter': {'value': "FALSE"}
+        }
+
+        sp._task_fetch_data_run = True
+
+        sp._task_fetch_data_sem = asyncio.Semaphore(0)
+        sp._task_send_data_sem = asyncio.Semaphore(0)
+
+        # Prepares the in memory buffer for the fetch/send operations
+        sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
+
+        # WHEN - Starts the fetch 'task'
+        with patch.object(sp, '_last_object_id_read', return_value=0):
+            with patch.object(SendingProcess._logger, 'error') as patched_logger:
+                with patch.object(sp._audit, 'failure', return_value=mock_audit_failure()) as patched_audit:
+                    with patch.object(sp, '_load_data_into_memory',
+                                      side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
+
+                        # to mask - cannot reuse already awaited coroutine
+                        with pytest.raises(RuntimeError):
+                            task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+
+                            # Lets the _task_fetch_data to run for a while
+                            await asyncio.sleep(3)
+
+                            # Tear down
+                            sp._task_fetch_data_run = False
+                            sp._task_send_data_sem.release()
+
+                            await task_id
+
+        # THEN - Checks log and audit are called in case of en error and the in memory buffer is as expected
+        assert patched_logger.called
+        assert patched_audit.called
+        patched_audit.assert_called_with(SendingProcess._AUDIT_CODE, ANY)
 
         assert sp._memory_buffer == expected_buffer
 

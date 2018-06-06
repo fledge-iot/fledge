@@ -812,6 +812,7 @@ class TestSendingProcess:
 
     @pytest.mark.parametrize(
         "p_rows, "
+        "p_buffer_size, "
         "expected_rows ",
         [
             (
@@ -822,18 +823,54 @@ class TestSendingProcess:
                             "id": 1,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 20, "temperature": 201},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 30, "temperature": 301},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    [
+                        {
+                            "id": 4,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 40, "temperature": 401},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 5,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 50, "temperature": 501},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 6,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 60, "temperature": 601},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                     ]
+
                 ],
+                # p_buffer_size
+                3,
+
                 #  expected_rows - 2 dimensions list
                 [
                     [
@@ -841,46 +878,46 @@ class TestSendingProcess:
                             "id": 1,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 10, "temperature": 101},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
                             "id": 2,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 20, "temperature": 201},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                     ],
                     [
                         {
-                            "id": 1,
+                            "id": 3,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 30, "temperature": 301},
                             "user_ts": "16/04/2018 16:32:55"
-                        },
-                        {
-                            "id": 2,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
+                        }
                     ],
                     [
                         {
-                            "id": 1,
+                            "id": 4,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 40, "temperature": 401},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                         {
-                            "id": 2,
+                            "id": 5,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
+                            "reading": {"humidity": 50, "temperature": 501},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 6,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 60, "temperature": 601},
                             "user_ts": "16/04/2018 16:32:55"
                         },
                     ]
@@ -890,10 +927,13 @@ class TestSendingProcess:
         ]
     )
     @pytest.mark.asyncio
+    # FIXME:
+    @pytest.mark.this
     async def test_task_fetch_data_fill_buffer(
                                                 self,
                                                 event_loop,
                                                 p_rows,
+                                                p_buffer_size,
                                                 expected_rows):
         """ Unit tests - _task_fetch_data - fill the memory buffer"""
 
@@ -908,7 +948,7 @@ class TestSendingProcess:
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
-            'memory_buffer_size': 3
+            'memory_buffer_size': p_buffer_size
         }
 
         sp._config_from_manager = {
@@ -925,7 +965,8 @@ class TestSendingProcess:
 
         with patch.object(sp, '_last_object_id_read', return_value=0):
 
-            with patch.object(sp, '_load_data_into_memory', return_value=asyncio.ensure_future(retrieve_rows(0))):
+            with patch.object(sp, '_load_data_into_memory',
+                              side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0,p_buffer_size)]):
 
                 task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
 

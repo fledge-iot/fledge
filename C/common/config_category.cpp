@@ -239,12 +239,30 @@ void ConfigCategory::setDescription(const string& description)
 	m_description = description;
 }
 
+/**
+ * Return JSON string of all category components
+ */
 string ConfigCategory::toJSON() const
 {
 ostringstream convert;
 
 	convert << "{ \"key\" : \"" << m_name << "\", ";
-	convert << "\"description\" : \"" << m_description << "\", \"value\" : {";
+	convert << "\"description\" : \"" << m_description << "\", \"value\" : ";
+	// Add items
+	convert << ConfigCategory::itemsToJSON();
+	convert << " }";
+
+	return convert.str();
+}
+
+/**
+ * Return JSON string of category items only
+ */
+string ConfigCategory::itemsToJSON() const
+{
+ostringstream convert;
+
+	convert << "{";
 	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
 	{
 		convert << (*it)->toJSON();
@@ -253,7 +271,8 @@ ostringstream convert;
 			convert << ", ";
 		}
 	}
-	convert << "} }";
+	convert << "}";
+
 	return convert.str();
 }
 

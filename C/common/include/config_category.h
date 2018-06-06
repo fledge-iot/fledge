@@ -44,6 +44,7 @@ class ConfigCategory {
 		bool				isString(const std::string& name) const;
 		bool				isJSON(const std::string& name) const;
 		std::string			toJSON() const;
+		std::string			itemsToJSON() const;
 
 	private:
 		class CategoryItem {

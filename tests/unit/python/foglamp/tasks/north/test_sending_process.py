@@ -811,9 +811,10 @@ class TestSendingProcess:
         assert expected_time <= elapsed_seconds <= (expected_time + tolerance)
 
     @pytest.mark.parametrize(
-        "p_rows, "
-        "p_buffer_size, "
-        "expected_rows ",
+        "p_rows, "                 # GIVEN, information retrieve from the storage layer
+        "p_num_element_to_fetch, " 
+        "p_buffer_size, "          # size of the in memory buffer        
+        "expected_buffer ",        # THEN, expected in memory buffer loaded by the _task_fetch_data function
         [
             (
                 # p_rows
@@ -868,10 +869,12 @@ class TestSendingProcess:
                     ]
 
                 ],
+                # p_num_element_to_fetch
+                3,
                 # p_buffer_size
                 3,
 
-                #  expected_rows - 2 dimensions list
+                #  expected_buffer - 2 dimensions list
                 [
                     [
                         {
@@ -927,18 +930,205 @@ class TestSendingProcess:
         ]
     )
     @pytest.mark.asyncio
-    # FIXME:
-    @pytest.mark.this
     async def test_task_fetch_data_fill_buffer(
                                                 self,
                                                 event_loop,
                                                 p_rows,
                                                 p_buffer_size,
-                                                expected_rows):
-        """ Unit tests - _task_fetch_data - fill the memory buffer"""
+                                                p_num_element_to_fetch,
+                                                expected_buffer):
+        """ Unit tests - _task_fetch_data - fill the memory buffer
+
+            Checks if the fetch task/function properly fills the in memory buffer
+            in relation to defined set of inputs
+        """
 
         async def retrieve_rows(idx):
             """ mock rows retrieval from the storage layer """
+            return p_rows[idx]
+
+        # GIVEN
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._logger = MagicMock(spec=logging)
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'memory_buffer_size': p_buffer_size
+        }
+
+        sp._config_from_manager = {
+            'applyFilter': {'value': "FALSE"}
+        }
+
+        sp._task_fetch_data_run = True
+
+        sp._task_fetch_data_sem = asyncio.Semaphore(0)
+        sp._task_send_data_sem = asyncio.Semaphore(0)
+
+        # Prepares the in memory buffer for the fetch/send operations
+        sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
+
+        # WHEN
+        with patch.object(sp, '_last_object_id_read', return_value=0):
+
+            with patch.object(sp, '_load_data_into_memory',
+                              side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
+
+                task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+
+                # Lets the _task_fetch_data to run for a while
+                await asyncio.sleep(3)
+
+                # Tear down
+                sp._task_fetch_data_run = False
+                sp._task_fetch_data_sem.release()
+                sp._task_send_data_sem.release()
+
+                await task_id
+
+        # THEN
+        assert sp._memory_buffer == expected_buffer
+
+    @pytest.mark.parametrize(
+        "p_rows, "            # GIVEN, information retrieve from the storage layer
+        "p_num_element_to_fetch, " 
+        "p_buffer_size, "     # size of the in memory buffer        
+        "expected_buffer ",   # THEN, expected in memory buffer loaded by the _task_fetch_data function
+        [
+            (
+                # p_rows
+                [
+                    # Step 1
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 10, "temperature": 101},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 20, "temperature": 201},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 30, "temperature": 301},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    [
+                        {
+                            "id": 4,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 40, "temperature": 401},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 5,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 50, "temperature": 501},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 6,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 60, "temperature": 601},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+
+                    # Step 2
+                    [
+                        {
+                            "id": 10,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 100, "temperature": 1001},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ]
+
+                ],
+                # p_num_element_to_fetch
+                4,
+                # p_buffer_size
+                3,
+
+                #  expected_buffer - 2 dimensions list
+                [
+                    # Loaded at first step 2
+                    [
+                        {
+                            "id": 10,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 100, "temperature": 1001},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ],
+                    # Loaded at first step 1
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 30, "temperature": 301},
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 4,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 40, "temperature": 401},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 5,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 50, "temperature": 501},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                        {
+                            "id": 6,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 60, "temperature": 601},
+                            "user_ts": "16/04/2018 16:32:55"
+                        },
+                    ]
+                ]
+
+            )
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_task_fetch_data_cycle_buffer(
+                                                self,
+                                                event_loop,
+                                                p_rows,
+                                                p_num_element_to_fetch,
+                                                p_buffer_size,
+                                                expected_buffer):
+        """ Unit tests - _task_fetch_data - add a new element after filling the memory buffer"""
+
+        async def retrieve_rows(idx):
+            """ mock rows retrieval from the storage layer - used for the first fill """
             return p_rows[idx]
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -963,180 +1153,32 @@ class TestSendingProcess:
         # Prepares the in memory buffer for the fetch/send operations
         sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
 
+        # Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=0):
-
             with patch.object(sp, '_load_data_into_memory',
-                              side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0,p_buffer_size)]):
+                              side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
                 task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+
+                # Lets the _task_fetch_data to run for a while, to fill the in memory buffer
+                await asyncio.sleep(3)
+
+                # Simulates the sent operation - so another block is loaded
+                sp._memory_buffer[0] = None
+
+                # Lets the fetch task to restart
+                sp._task_send_data_sem.release()
 
                 # Lets the _task_fetch_data to run for a while
                 await asyncio.sleep(3)
 
                 # Tear down
                 sp._task_fetch_data_run = False
-                sp._task_fetch_data_sem.release()
                 sp._task_send_data_sem.release()
 
                 await task_id
 
-        assert sp._memory_buffer == expected_rows
-
-    @pytest.mark.parametrize(
-        "p_rows, "
-        "p_rows_new, "
-        "expected_rows ",
-        [
-            (
-                # p_rows
-                [
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
-                        {
-                            "id": 2,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
-                    ]
-                ],
-                # p_rows_new
-                [
-                    [
-                        {
-                            "id": 4,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        }
-                    ]
-                ],
-                #  expected_rows - 2 dimensions list
-                [
-                    [
-                        {
-                            "id": 4,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        }
-                    ],
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
-                        {
-                            "id": 2,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
-                    ],
-                    [
-                        {
-                            "id": 1,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
-                        {
-                            "id": 2,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 11, "temperature": 38},
-                            "user_ts": "16/04/2018 16:32:55"
-                        },
-                    ]
-                ]
-
-            )
-        ]
-    )
-    @pytest.mark.asyncio
-    async def test_task_fetch_data_cycle_buffer(
-                                                self,
-                                                event_loop,
-                                                p_rows,
-                                                p_rows_new,
-                                                expected_rows):
-        """ Unit tests - _task_fetch_data - add a new element after filling the memory buffer"""
-
-        async def retrieve_rows(idx):
-            """ mock rows retrieval from the storage layer """
-            return p_rows[idx]
-
-        async def retrieve_rows_new(idx):
-            """ mock rows retrieval from the storage layer """
-            return p_rows_new[idx]
-
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
-
-        sp._logger = MagicMock(spec=logging)
-
-        # Configures properly the SendingProcess, enabling JQFilter
-        sp._config = {
-            'memory_buffer_size': 3
-        }
-
-        sp._config_from_manager = {
-            'applyFilter': {'value': "FALSE"}
-        }
-
-        sp._task_fetch_data_run = True
-
-        sp._task_fetch_data_sem = asyncio.Semaphore(0)
-        sp._task_send_data_sem = asyncio.Semaphore(0)
-
-        # Prepares the in memory buffer for the fetch/send operations
-        sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
-
-        # Fills the buffer
-        with patch.object(sp, '_last_object_id_read', return_value=0):
-            with patch.object(sp, '_load_data_into_memory', return_value=asyncio.ensure_future(retrieve_rows(0))):
-
-                asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
-
-                # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
-
-        # Simulates the sent operation - so another block is loaded
-        sp._memory_buffer[0] = None
-
-        with patch.object(sp, '_last_object_id_read', return_value=0):
-            with patch.object(sp, '_load_data_into_memory', return_value=asyncio.ensure_future(retrieve_rows_new(0))):
-                task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
-
-                # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
-
-                # Tear down
-                sp._task_fetch_data_run = False
-                sp._task_fetch_data_sem.release()
-                sp._task_send_data_sem.release()
-
-                await asyncio.sleep(3)
-
-                # FIXME:
-                # await task_id
-
-        assert sp._memory_buffer == expected_rows
-
+        assert sp._memory_buffer == expected_buffer
 
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):

@@ -781,14 +781,12 @@ class TestSendingProcess:
 
         sp._logger = MagicMock(spec=logging)
 
-        # Configures properly the SendingProcess, enabling JQFilter
+        # Configures properly the SendingProcess
         sp._config = {
             'duration': p_duration,
             'sleepInterval': p_sleep_interval,
             'memory_buffer_size': 1000
         }
-
-        dummy_task_id = asyncio.ensure_future(mock_task())
 
         # Simulates the reception of the termination signal
         if p_signal_received:
@@ -953,7 +951,7 @@ class TestSendingProcess:
 
         sp._logger = MagicMock(spec=logging)
 
-        # Configures properly the SendingProcess, enabling JQFilter
+        # Configures properly the SendingProcess
         sp._config = {
             'memory_buffer_size': p_buffer_size
         }
@@ -1137,7 +1135,7 @@ class TestSendingProcess:
 
         sp._logger = MagicMock(spec=logging)
 
-        # Configures properly the SendingProcess, enabling JQFilter
+        # Configures properly the SendingProcess
         sp._config = {
             'memory_buffer_size': p_buffer_size
         }
@@ -1284,7 +1282,7 @@ class TestSendingProcess:
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
 
-        # Configures properly the SendingProcess, enabling JQFilter
+        # Configures properly the SendingProcess
         sp._config = {
             'memory_buffer_size': p_buffer_size
         }
@@ -1325,6 +1323,167 @@ class TestSendingProcess:
         assert patched_logger.called
         assert patched_audit.called
         patched_audit.assert_called_with(SendingProcess._AUDIT_CODE, ANY)
+
+        assert sp._memory_buffer == expected_buffer
+
+
+    @pytest.mark.parametrize(
+        "p_rows, "                  # GIVEN, information retrieve from the storage layer
+        "p_num_element_to_fetch, " 
+        "p_buffer_size, "           # size of the in memory buffer
+        "p_jqfilter, "              # JQ filter to apply
+        "expected_buffer ",         # THEN, expected in memory buffer loaded by the _task_fetch_data function
+        [
+            (
+                # p_rows
+                [
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 11, "temperature": 38
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 20, "temperature": 201
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 30, "temperature": 301
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ]
+                ],
+                # p_num_element_to_fetch
+                3,
+                # p_buffer_size
+                3,
+                # p_jqfilter
+                "(.[]|.reading|.addedField)=512",
+
+                #  expected_buffer - 2 dimensions list
+                [
+                    [
+                        {
+                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
+                            'id': 1,
+                            'reading': {
+                                'humidity': 11,
+                                'temperature': 38,
+                                'addedField': 512
+                            },
+                            'asset_code': 'test_asset_code',
+                            'user_ts': '16/04/2018 16:32:55'
+                        }
+                    ],
+                    [
+                        {
+                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
+                            'id': 2,
+                            'reading': {
+                                'humidity': 20,
+                                'temperature': 201,
+                                'addedField': 512
+                            },
+                            'asset_code': 'test_asset_code',
+                            'user_ts': '16/04/2018 16:32:55'
+                        }
+                    ],
+                    [
+                        {
+                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
+                            'id': 3,
+                            'reading': {
+                                'humidity': 30,
+                                'temperature': 301,
+                                'addedField': 512
+                            },
+                            'asset_code': 'test_asset_code',
+                            'user_ts': '16/04/2018 16:32:55'
+                        }
+                    ],
+                ]
+
+            )
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_task_fetch_data_jqfilter(
+                                            self,
+                                            event_loop,
+                                            p_rows,
+                                            p_num_element_to_fetch,
+                                            p_buffer_size,
+                                            p_jqfilter,
+                                            expected_buffer):
+        """ Unit tests - _task_fetch_data - tests JQFilter functionalities """
+
+        async def mock_retrieve_rows(idx):
+            """ mock rows retrieval from the storage layer"""
+            return p_rows[idx]
+
+        # GIVEN
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._logger = MagicMock(spec=logging)
+        SendingProcess._logger = MagicMock(spec=logging)
+        sp._audit = MagicMock(spec=AuditLogger)
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'memory_buffer_size': p_buffer_size
+        }
+
+        sp._config_from_manager = {
+            'applyFilter': {'value': "FALSE"}
+        }
+
+        sp._config_from_manager = {
+            "applyFilter": {"value": "TRUE"},
+            "filterRule": {"value": p_jqfilter}
+        }
+
+        sp._task_fetch_data_run = True
+
+        sp._task_fetch_data_sem = asyncio.Semaphore(0)
+        sp._task_send_data_sem = asyncio.Semaphore(0)
+
+        # Prepares the in memory buffer for the fetch/send operations
+        sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
+
+        # WHEN - Starts the fetch 'task'
+        with patch.object(sp, '_last_object_id_read', return_value=0):
+            with patch.object(sp, '_load_data_into_memory',
+                              side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
+
+                task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+
+                # Lets the _task_fetch_data to run for a while
+                await asyncio.sleep(3)
+
+                # Tear down
+                sp._task_fetch_data_run = False
+                sp._task_send_data_sem.release()
+
+                await task_id
 
         assert sp._memory_buffer == expected_buffer
 

@@ -27,6 +27,7 @@
 class Reading {
 	public:
 		Reading(const std::string& asset, Datapoint *value);
+		Reading(const std::string& asset, std::vector<Datapoint *> values);
 		Reading(const Reading& orig);
 
 		~Reading();

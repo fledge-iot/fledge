@@ -192,6 +192,44 @@ string ConfigCategory::getDefault(const string& name) const
 }
 
 /**
+ * Return if the configuration item is a string item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a string type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isString(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::StringItem;
+		}
+	}
+	throw new exception;
+}
+
+/**
+ * Return if the configuration item is a JSON item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a JSON type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isJSON(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_itemType == CategoryItem::JsonItem;
+		}
+	}
+	throw new exception;
+}
+
+/**
  * Set the description for the configuration category
  *
  * @param description	The configuration category description
@@ -206,7 +244,7 @@ string ConfigCategory::toJSON() const
 ostringstream convert;
 
 	convert << "{ \"key\" : \"" << m_name << "\", ";
-	convert << "\"description\" : \"" << m_description << "\", ";
+	convert << "\"description\" : \"" << m_description << "\", \"value\" : {";
 	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
 	{
 		convert << (*it)->toJSON();
@@ -215,7 +253,7 @@ ostringstream convert;
 			convert << ", ";
 		}
 	}
-	convert << "}";
+	convert << "} }";
 	return convert.str();
 }
 

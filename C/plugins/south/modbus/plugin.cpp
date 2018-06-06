@@ -16,6 +16,7 @@
 #include <logger.h>
 #include <plugin_exception.h>
 #include <config_category.h>
+#include <rapidjson/document.h>
 
 using namespace std;
 
@@ -23,25 +24,25 @@ using namespace std;
  * Default configuration
  */
 #define CONFIG	"{\"plugin\" : { \"description\" : \"Modbus TCP and RTU plugin\", " \
-		"\"type\" : \"string\", \"default\" : \"foglamp-modbus\" }, " \
+			"\"type\" : \"string\", \"default\" : \"foglamp-modbus\" }, " \
 		"\"address\" : { \"description\" : \"Address of Modbus TCP server\", " \
-		"\"type\" : \"string\", \"default\" : \"\" }, "\
+			"\"type\" : \"string\", \"default\" : \"127.0.0.1\" }, "\
 		"\"port\" : { \"description\" : \"Port of Modbus TCP server\", " \
-		"\"type\" : \"int\", \"default\" : \"502\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"2222\" }, "\
 		"\"device\" : { \"description\" : \"Device for Modbus RTU\", " \
-		"\"type\" : \"int\", \"default\" : \"\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"\" }, "\
 		"\"baud\" : { \"description\" : \"Baud rate  of Modbus RTU\", " \
-		"\"type\" : \"int\", \"default\" : \"9600\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"9600\" }, "\
 		"\"bits\" : { \"description\" : \"Number of data bits for Modbus RTU\", " \
-		"\"type\" : \"int\", \"default\" : \"7\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"7\" }, "\
 		"\"stopbits\" : { \"description\" : \"Number of stop bits for Modbus RTU\", " \
-		"\"type\" : \"int\", \"default\" : \"2\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"2\" }, "\
 		"\"map\" : { \"description\" : \"Modbus register map\", " \
-		"\"type\" : \"json\", \"default\" : { " \
-			"[ { \"asset\" : \"temperature\", \"register\" : \"7\" }," \
-			"{ \"asset\" : \"humidity\", \"register\" : \"8\" } ]" \
-			"} " \
-" }"
+			"\"type\" : \"JSON\", \"default\" : { " \
+				"\"registers\" : { \"temperature\" : 7," \
+				  		  "\"humidity\" : 8 }," \
+				"\"coils\" : { }" \
+			"} } };"
 
 /**
  * The Modbus plugin interface
@@ -135,6 +136,30 @@ string	device, address;
 	}
 
 	modbus->setAssetName(config->getValue("asset"));
+
+	// Now process the Modbus regster map
+	string map = config->getValue("map");
+	rapidjson::Document doc;
+	doc.Parse(map.c_str());
+	if (!doc.HasParseError())
+	{
+		if (doc.HasMember("registers") && doc["registers"].IsObject())
+		{
+			for (rapidjson::Value::ConstMemberIterator itr = doc["registers"].MemberBegin();
+						itr != doc["registers"].MemberEnd(); ++itr)
+			{
+				modbus->addRegister(itr->name.GetString(), itr->value.GetInt());
+			}
+		}
+		if (doc.HasMember("coils") && doc["coils"].IsObject())
+		{
+			for (rapidjson::Value::ConstMemberIterator itr = doc["coils"].MemberBegin();
+						itr != doc["coils"].MemberEnd(); ++itr)
+			{
+				modbus->addCoil(itr->name.GetString(), itr->value.GetInt());
+			}
+		}
+	}
 
 	return (PLUGIN_HANDLE)modbus;
 }

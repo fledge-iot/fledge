@@ -32,6 +32,16 @@ Modbus::Modbus(const string& device, int baud, char parity, int bits, int stopBi
  */
 Modbus::~Modbus()
 {
+	for (vector<RegisterMap *>::const_iterator it = m_registers.cbegin();
+			it != m_registers.cend(); ++it)
+	{
+		delete *it;
+	}
+	for (vector<RegisterMap *>::const_iterator it = m_coils.cbegin();
+			it != m_coils.cend(); ++it)
+	{
+		delete *it;
+	}
 }
 
 /**
@@ -39,8 +49,21 @@ Modbus::~Modbus()
  */
 Reading	Modbus::takeReading()
 {
-	uint16_t	regValue;
-	modbus_read_registers(m_modbus, m_registerMap[0]->m_registerNo, 1, &regValue);
-	DatapointValue value(regValue);
-	return Reading(m_assetName, new Datapoint(m_registerMap[0]->m_name, value));
+vector<Datapoint *>	points;
+
+	for (int i = 0; i < m_registers.size(); i++)
+	{
+		uint16_t	regValue;
+		modbus_read_registers(m_modbus, m_registers[i]->m_registerNo, 1, &regValue);
+		DatapointValue value(regValue);
+		points.push_back(new Datapoint(m_registers[i]->m_name, value));
+	}
+	for (int i = 0; i < m_coils.size(); i++)
+	{
+		uint8_t	coilValue;
+		modbus_read_bits(m_modbus, m_coils[i]->m_registerNo, 1, &coilValue);
+		DatapointValue value(coilValue);
+		points.push_back(new Datapoint(m_coils[i]->m_name, value));
+	}
+	return Reading(m_assetName, points);
 }

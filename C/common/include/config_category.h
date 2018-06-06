@@ -41,6 +41,8 @@ class ConfigCategory {
 		std::string			getType(const std::string& name) const;
 		std::string			getDescription(const std::string& name) const;
 		std::string			getDefault(const std::string& name) const;
+		bool				isString(const std::string& name) const;
+		bool				isJSON(const std::string& name) const;
 		std::string			toJSON() const;
 
 	private:

@@ -193,7 +193,7 @@ bool SouthService::loadPlugin()
 {
 	PluginManager *manager = PluginManager::getInstance();
 
-	if (! m_config.itemExists("plugin:"))
+	if (! m_config.itemExists("plugin"))
 	{
 		logger->error("Unable to fetch plugin name from configuration.\n");
 		return false;

@@ -28,6 +28,7 @@ const char *myCategory = "{\"description\": {"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
 const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\", "
+    "\"value\" : {"
 	"\"description\" : { "
 		"\"description\" : \"The description of this FogLAMP service\", "
 		"\"type\" : \"string\", "
@@ -42,7 +43,7 @@ const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\"
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
 		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
-		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }}";
+		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
 
 TEST(CategoriesTest, Count)
 {
@@ -95,11 +96,23 @@ TEST(CategoryTest, getDescription)
 	ASSERT_EQ(0, confCategory.getDescription("name").compare("The name of this FogLAMP service"));
 }
 
+TEST(CategoryTest, isString)
+{
+	ConfigCategory confCategory("test", myCategory);
+	ASSERT_EQ(true, confCategory.isString("name"));
+	ASSERT_EQ(false, confCategory.isString("complex"));
+}
+
+TEST(CategoryTest, isJSON)
+{
+	ConfigCategory confCategory("test", myCategory);
+	ASSERT_EQ(false, confCategory.isJSON("name"));
+	ASSERT_EQ(true, confCategory.isJSON("complex"));
+}
+
 TEST(CategoryTest, toJSON)
 {
 	ConfigCategory confCategory("test", myCategory);
 	confCategory.setDescription("Test description");
-printf("Expected: %s\n", json);
-printf("Got     : %s\n", confCategory.toJSON().c_str());
 	ASSERT_EQ(0, confCategory.toJSON().compare(json));
 }

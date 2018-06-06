@@ -1453,10 +1453,6 @@ class TestSendingProcess:
         }
 
         sp._config_from_manager = {
-            'applyFilter': {'value': "FALSE"}
-        }
-
-        sp._config_from_manager = {
             "applyFilter": {"value": "TRUE"},
             "filterRule": {"value": p_jqfilter}
         }
@@ -1486,6 +1482,189 @@ class TestSendingProcess:
                 await task_id
 
         assert sp._memory_buffer == expected_buffer
+
+# FIXME:
+    @pytest.mark.parametrize(
+        "p_rows, "                  # GIVEN, information available in the in memory buffer
+        "p_num_element_to_fetch, " 
+        "p_buffer_size, "           # size of the in memory buffer
+        "p_send_result, "           # Values returned by the _plugin.plugin_send
+        "expected_buffer ",         # THEN, expected in memory buffer loaded by the _task_fetch_data function
+        [
+            (
+                # p_rows
+                [
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 11, "temperature": 38
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 20, "temperature": 201
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 3,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 30, "temperature": 301
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ]
+                ],
+                # p_num_element_to_fetch
+                3,
+                # p_buffer_size
+                3,
+
+                # p_send_result
+                [
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 1010,
+                        "num_sent": 10,
+                     },
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 2010,
+                        "num_sent": 20,
+                    },
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 3010,
+                        "num_sent": 30,
+                    },
+
+                ],
+
+                #  expected_buffer - 2 dimensions list
+                [
+                    [
+                        {
+                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
+                            'id': 1,
+                            'reading': {
+                                'humidity': 11,
+                                'temperature': 38,
+                                'addedField': 512
+                            },
+                            'asset_code': 'test_asset_code',
+                            'user_ts': '16/04/2018 16:32:55'
+                        }
+                    ],
+                    [
+                        {
+                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
+                            'id': 2,
+                            'reading': {
+                                'humidity': 20,
+                                'temperature': 201,
+                                'addedField': 512
+                            },
+                            'asset_code': 'test_asset_code',
+                            'user_ts': '16/04/2018 16:32:55'
+                        }
+                    ],
+                    [
+                        {
+                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
+                            'id': 3,
+                            'reading': {
+                                'humidity': 30,
+                                'temperature': 301,
+                                'addedField': 512
+                            },
+                            'asset_code': 'test_asset_code',
+                            'user_ts': '16/04/2018 16:32:55'
+                        }
+                    ],
+                ]
+
+            )
+        ]
+    )
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_task_send_data(
+                                            self,
+                                            event_loop,
+                                            p_rows,
+                                            p_num_element_to_fetch,
+                                            p_buffer_size,
+                                            p_send_result,
+                                            expected_buffer):
+        """ Unit tests - _task_fetch_data - """
+
+        async def mock_send_rows(x):
+            """ mock the results of the sending operation """
+            return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
+
+        # GIVEN
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        dummy = p_send_result[0]["new_last_object_id"]
+        dummy = p_send_result[1]["new_last_object_id"]
+
+        sp._logger = MagicMock(spec=logging)
+        SendingProcess._logger = MagicMock(spec=logging)
+        sp._audit = MagicMock(spec=AuditLogger)
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'memory_buffer_size': p_buffer_size
+        }
+
+        sp._config_from_manager = {
+            'applyFilter': {'value': "FALSE"}
+        }
+
+        sp._task_send_data_run = True
+
+        sp._task_fetch_data_sem = asyncio.Semaphore(0)
+        sp._task_send_data_sem = asyncio.Semaphore(0)
+
+        # Prepares the in memory buffer for the send operation
+        sp._memory_buffer = p_rows
+
+        # WHEN - Starts the fetch 'task'
+        with patch.object(sp, '_last_object_id_read', return_value=0):
+            with patch.object(sp._plugin, 'plugin_send',
+                              side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
+
+                task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
+
+                # Lets the _task_fetch_data to run for a while
+                await asyncio.sleep(3)
+
+                # Tear down
+                sp._task_send_data_run = False
+                sp._task_fetch_data_sem.release()
+
+                await task_id
+
+        assert True
+        #assert sp._memory_buffer == expected_buffer
+
+
+
 
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):

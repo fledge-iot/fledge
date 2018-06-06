@@ -125,7 +125,7 @@ async def add_service(request):
         category_desc = '{} service configuration'.format(name)
         config_mgr = ConfigurationManager(storage)
         await config_mgr.create_category(category_name=name, category_description=category_desc,
-                                     category_value=new_category, keep_original_items=False)
+                                     category_value=new_category, keep_original_items=True)
 
         # Check that the process is not already registered
         payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', name]).payload()

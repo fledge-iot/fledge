@@ -1485,11 +1485,52 @@ class TestSendingProcess:
 
     @pytest.mark.parametrize(
         "p_rows, "                  # GIVEN, information available in the in memory buffer
-        "p_num_element_to_fetch, " 
         "p_buffer_size, "           # size of the in memory buffer
         "p_send_result, "           # Values returned by the _plugin.plugin_send
-        "expected_buffer ",         # THEN, expected in memory buffer after the _task_send_data operations
+        "expected_num_sent, "       # THEN, expected elements sent
+        "expected_buffer ",         # expected in memory buffer after the _task_send_data operations
         [
+            # Case 1
+            (
+                    # p_rows
+                    [
+                        [
+                            {
+                                "id": 1,
+                                "asset_code": "test_asset_code",
+                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                                "reading": {
+                                    "humidity": 11, "temperature": 38
+                                },
+                                "user_ts": "16/04/2018 16:32:55"
+                            }
+                        ]
+                    ],
+                    # p_buffer_size
+                    3,
+
+                    # p_send_result
+                    [
+                        {
+                            "data_sent": True,
+                            "new_last_object_id": 1,
+                            "num_sent": 1,
+                        }
+                    ],
+
+                    # expected_num_sent
+                    1,
+
+                    #  expected_buffer - 2 dimensions list
+                    [
+                        None,
+                        None,
+                        None
+                    ]
+
+            ),
+
+            # Case 2 - fills the buffer
             (
                 # p_rows
                 [
@@ -1517,7 +1558,7 @@ class TestSendingProcess:
                     ],
                     [
                         {
-                            "id": 3,
+                            "id": 4,
                             "asset_code": "test_asset_code",
                             "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "reading": {
@@ -1527,8 +1568,6 @@ class TestSendingProcess:
                         }
                     ]
                 ],
-                # p_num_element_to_fetch
-                3,
                 # p_buffer_size
                 3,
 
@@ -1536,21 +1575,24 @@ class TestSendingProcess:
                 [
                     {
                         "data_sent": True,
-                        "new_last_object_id": 1010,
-                        "num_sent": 10,
+                        "new_last_object_id": 1,
+                        "num_sent": 1,
                      },
                     {
                         "data_sent": True,
-                        "new_last_object_id": 2010,
-                        "num_sent": 20,
+                        "new_last_object_id": 2,
+                        "num_sent": 1,
                     },
                     {
                         "data_sent": True,
-                        "new_last_object_id": 3010,
-                        "num_sent": 30,
+                        "new_last_object_id": 4,
+                        "num_sent": 1,
                     },
 
                 ],
+
+                # expected_num_sent
+                3,
 
                 #  expected_buffer - 2 dimensions list
                 [
@@ -1559,21 +1601,19 @@ class TestSendingProcess:
                     None
                 ]
 
-            )
+            ),
         ]
     )
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
-    async def test_task_send_data(
+    async def test_task_send_data_fill_buffer(
                                             self,
                                             event_loop,
                                             p_rows,
-                                            p_num_element_to_fetch,
                                             p_buffer_size,
                                             p_send_result,
+                                            expected_num_sent,
                                             expected_buffer):
-        """ Unit tests - _task_fetch_data - """
+        """ Unit tests - _task_send_data - send data without errors """
 
         async def mock_send_rows(x):
             """ mock the results of the sending operation """
@@ -1605,13 +1645,19 @@ class TestSendingProcess:
         sp._task_fetch_data_sem = asyncio.Semaphore(0)
         sp._task_send_data_sem = asyncio.Semaphore(0)
 
-        # Prepares the in memory buffer for the send operation
-        sp._memory_buffer = p_rows
+        # Allocates the in memory buffer
+        sp._memory_buffer = [None for x in range(p_buffer_size)]
+
+        # Fills the buffer
+        for x in range(len(p_rows)):
+            sp._memory_buffer[x] = p_rows[x]
 
         # WHEN - Starts the fetch 'task'
-        with patch.object(sp, '_update_position_reached', return_value=mock_async_call()) as patched_update_position_reached:
+        with patch.object(sp, '_update_position_reached', return_value=mock_async_call()) \
+                as patched_update_position_reached:
+
             with patch.object(sp._plugin, 'plugin_send',
-                              side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, p_num_element_to_fetch)]):
+                              side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
 
                 task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
 
@@ -1624,10 +1670,209 @@ class TestSendingProcess:
 
                 await task_id
 
+        expected_new_last_object_id = p_send_result[len(p_send_result) - 1]["new_last_object_id"]
+
         assert sp._memory_buffer == expected_buffer
-        assert patched_update_position_reached.called
+        patched_update_position_reached.assert_called_with(STREAM_ID, expected_new_last_object_id, expected_num_sent)
 
+    @pytest.mark.parametrize(
+        "p_rows_step1, "            # information available in the in memory buffer
+        "p_rows_step2, "            # information available in the in memory buffer
+        "p_buffer_size, "           # size of the in memory buffer
+        "p_send_result, "           # Values returned by the _plugin.plugin_send
+        "expected_num_sent_step1, " # expected elements sent
+        "expected_num_sent_step2, " # expected elements sent
+        "expected_buffer ",         # expected in memory buffer after the _task_send_data operations
+        [
+            # Case 1
+            (
+                # p_rows_step1
+                [
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 11, "temperature": 38
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 20, "temperature": 201
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 4,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 30, "temperature": 301
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ]
+                ],
+                # p_rows_step2
+                [
+                    [
+                        {
+                            "id": 5,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 50, "temperature": 501
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ]
+                ],
 
+                # p_buffer_size
+                3,
+
+                # p_send_result
+                [
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 1,
+                        "num_sent": 1,
+                     },
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 2,
+                        "num_sent": 1,
+                    },
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 4,
+                        "num_sent": 1,
+                    },
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 5,
+                        "num_sent": 1,
+                    },
+
+                ],
+
+                # expected_num_sent_step1
+                3,
+
+                # expected_num_sent_step1
+                1,
+
+                #  expected_buffer - 2 dimensions list
+                [
+                    None,
+                    None,
+                    None
+                ]
+
+            ),
+        ]
+    )
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_task_send_data_cycle_buffer(
+                                            self,
+                                            event_loop,
+                                            p_rows_step1,
+                                            p_rows_step2,
+                                            p_buffer_size,
+                                            p_send_result,
+                                            expected_num_sent_step1,
+                                            expected_num_sent_step2,
+                                            expected_buffer):
+        """ Unit tests - _task_send_data - send data filling the buffer and adding new elements """
+
+        async def mock_send_rows(x):
+            """ mock the results of the sending operation """
+            return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
+
+        async def mock_async_call():
+            """ mock a generic async function """
+            return True
+
+        # GIVEN
+        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+            sp = SendingProcess()
+
+        sp._logger = MagicMock(spec=logging)
+        SendingProcess._logger = MagicMock(spec=logging)
+        sp._audit = MagicMock(spec=AuditLogger)
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        sp._config = {
+            'memory_buffer_size': p_buffer_size
+        }
+
+        sp._config_from_manager = {
+            'applyFilter': {'value': "FALSE"}
+        }
+
+        sp._task_send_data_run = True
+
+        sp._task_fetch_data_sem = asyncio.Semaphore(0)
+        sp._task_send_data_sem = asyncio.Semaphore(0)
+
+        # Allocates the in memory buffer
+        sp._memory_buffer = [None for x in range(p_buffer_size)]
+
+        # Fills the buffer - step 1
+        for x in range(len(p_rows_step1)):
+            sp._memory_buffer[x] = p_rows_step1[x]
+
+        # WHEN - Starts the fetch 'task'
+        # 2 calls of _update_position_reached will be executed
+        with patch.object(sp, '_update_position_reached', side_effect=[asyncio.ensure_future(mock_async_call()) for x in range(2)]) \
+                as patched_update_position_reached:
+
+            with patch.object(sp._plugin, 'plugin_send',
+                              side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+
+                task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
+
+                # Lets the _task_fetch_data to run for a while
+                await asyncio.sleep(3)
+
+                # THEN - Step 1
+                expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
+
+                assert sp._memory_buffer == expected_buffer
+                patched_update_position_reached.assert_called_with(STREAM_ID,
+                                                                   expected_new_last_object_id,
+                                                                   expected_num_sent_step1)
+
+                # Fills the buffer - step 1
+                for x in range(len(p_rows_step2)):
+                    sp._memory_buffer[x] = p_rows_step2[x]
+
+                # let handle step 2
+                sp._task_fetch_data_sem.release()
+                await asyncio.sleep(3)
+
+                # Tear down
+                sp._task_send_data_run = False
+                sp._task_fetch_data_sem.release()
+
+                await task_id
+
+        # THEN - Step 2
+        expected_new_last_object_id = p_rows_step2[len(p_rows_step2) - 1][0]["id"]
+
+        assert sp._memory_buffer == expected_buffer
+        patched_update_position_reached.assert_called_with(STREAM_ID, expected_new_last_object_id, expected_num_sent_step2)
 
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):

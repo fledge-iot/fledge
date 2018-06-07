@@ -25,6 +25,8 @@ using namespace std;
  */
 #define CONFIG	"{\"plugin\" : { \"description\" : \"Modbus TCP and RTU plugin\", " \
 			"\"type\" : \"string\", \"default\" : \"foglamp-modbus\" }, " \
+		"\"asset\" : { \"description\" : \"Asset name\", "\
+			"\"type\" : \"string\", \"default\" : \"modbus\" }, " \
 		"\"address\" : { \"description\" : \"Address of Modbus TCP server\", " \
 			"\"type\" : \"string\", \"default\" : \"127.0.0.1\" }, "\
 		"\"port\" : { \"description\" : \"Port of Modbus TCP server\", " \
@@ -39,10 +41,12 @@ using namespace std;
 			"\"type\" : \"integer\", \"default\" : \"2\" }, "\
 		"\"map\" : { \"description\" : \"Modbus register map\", " \
 			"\"type\" : \"JSON\", \"default\" : { " \
+				"\"coils\" : { }, " \
+				"\"inputs\" : { }, " \
 				"\"registers\" : { \"temperature\" : 7," \
 				  		  "\"humidity\" : 8 }," \
-				"\"coils\" : { }" \
-			"} } };"
+				"\"inputRegisters\" : { }" \
+			"} } }"
 
 /**
  * The Modbus plugin interface
@@ -80,7 +84,7 @@ string	device, address;
 	if (config->itemExists("address"))
 	{
 		address = config->getValue("address");
-		if (address.compare("") == 0)		// Not empty
+		if (! address.empty())		// Not empty
 		{
 			unsigned short port = 502;
 			if (config->itemExists("port"))
@@ -94,7 +98,7 @@ string	device, address;
 	if (config->itemExists("device"))
 	{
 		device = config->getValue("device");
-		if (device.compare("") == 0)
+		if (! device.empty())
 		{
 			int baud = 9600;
 			char parity = 'E';
@@ -135,7 +139,10 @@ string	device, address;
 		}
 	}
 
-	modbus->setAssetName(config->getValue("asset"));
+	if (config->itemExists("asset"))
+		modbus->setAssetName(config->getValue("asset"));
+	else
+		modbus->setAssetName("modbus");
 
 	// Now process the Modbus regster map
 	string map = config->getValue("map");
@@ -143,20 +150,36 @@ string	device, address;
 	doc.Parse(map.c_str());
 	if (!doc.HasParseError())
 	{
-		if (doc.HasMember("registers") && doc["registers"].IsObject())
-		{
-			for (rapidjson::Value::ConstMemberIterator itr = doc["registers"].MemberBegin();
-						itr != doc["registers"].MemberEnd(); ++itr)
-			{
-				modbus->addRegister(itr->name.GetString(), itr->value.GetInt());
-			}
-		}
 		if (doc.HasMember("coils") && doc["coils"].IsObject())
 		{
 			for (rapidjson::Value::ConstMemberIterator itr = doc["coils"].MemberBegin();
 						itr != doc["coils"].MemberEnd(); ++itr)
 			{
-				modbus->addCoil(itr->name.GetString(), itr->value.GetInt());
+				modbus->addCoil(itr->name.GetString(), itr->value.GetUint());
+			}
+		}
+		if (doc.HasMember("inputs") && doc["inputs"].IsObject())
+		{
+			for (rapidjson::Value::ConstMemberIterator itr = doc["inputs"].MemberBegin();
+						itr != doc["inputs"].MemberEnd(); ++itr)
+			{
+				modbus->addInput(itr->name.GetString(), itr->value.GetUint());
+			}
+		}
+		if (doc.HasMember("registers") && doc["registers"].IsObject())
+		{
+			for (rapidjson::Value::ConstMemberIterator itr = doc["registers"].MemberBegin();
+						itr != doc["registers"].MemberEnd(); ++itr)
+			{
+				modbus->addRegister(itr->name.GetString(), itr->value.GetUint());
+			}
+		}
+		if (doc.HasMember("inputRegisters") && doc["inputRegisters"].IsObject())
+		{
+			for (rapidjson::Value::ConstMemberIterator itr = doc["inputRegisters"].MemberBegin();
+						itr != doc["inputRegisters"].MemberEnd(); ++itr)
+			{
+				modbus->addInputRegister(itr->name.GetString(), itr->value.GetUint());
 			}
 		}
 	}

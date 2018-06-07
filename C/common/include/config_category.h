@@ -33,6 +33,7 @@ class ConfigCategory {
 	public:
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
+		ConfigCategory(const ConfigCategory& orig);
 		~ConfigCategory();
 		void				setDescription(const std::string& description);
 		unsigned int			getCount() const { return m_items.size(); };
@@ -45,6 +46,7 @@ class ConfigCategory {
 		bool				isJSON(const std::string& name) const;
 		std::string			toJSON() const;
 		std::string			itemsToJSON() const;
+		ConfigCategory& 		operator=(ConfigCategory const& rhs);
 
 	private:
 		class CategoryItem {

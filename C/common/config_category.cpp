@@ -76,7 +76,7 @@ ConfigCategories::~ConfigCategories()
 ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(name)
 {
 	Document doc;
-	doc.Parse(json.c_str());
+	ParseResult ok = doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
 		throw new exception();
@@ -84,6 +84,17 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	for (Value::ConstMemberIterator itr = doc.MemberBegin(); itr != doc.MemberEnd(); ++itr)
 	{
 		m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+	}
+}
+
+/**
+ * Copy constructor for a configuration category
+ */
+ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
+{
+	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
 	}
 }
 
@@ -96,6 +107,18 @@ ConfigCategory::~ConfigCategory()
 	{
 		delete *it;
 	}
+}
+
+/**
+ * Operator= for ConfigCategory
+ */
+ConfigCategory& ConfigCategory::operator=(ConfigCategory const& rhs)
+{
+	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
+	}
+	return *this;
 }
 
 /**

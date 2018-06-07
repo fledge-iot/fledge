@@ -27,19 +27,35 @@ class Modbus {
 				{
 					m_coils.push_back(new Modbus::RegisterMap(value, registerNo));
 				};
+		void		addInput(const std::string& value, const unsigned int registerNo)
+				{
+					m_inputs.push_back(new Modbus::RegisterMap(value, registerNo));
+				};
+		void		addInputRegister(const std::string& value, const unsigned int registerNo)
+				{
+					m_inputRegisters.push_back(new Modbus::RegisterMap(value, registerNo));
+				};
 		Reading		takeReading();
 	private:
 		Modbus(const Modbus&);
 		Modbus & 		operator=(const Modbus&);
 		class RegisterMap {
 			public:
-				RegisterMap(const std::string& value, const unsigned int registerNo);
+				RegisterMap(const std::string& value, const unsigned int registerNo) :
+					m_name(value), m_registerNo(registerNo) {};
 				const std::string		m_name;
 				const unsigned int		m_registerNo;
 		};
 		modbus_t			*m_modbus;
 		std::string			m_assetName;
-		std::vector<RegisterMap *>	m_registers;
 		std::vector<RegisterMap *>	m_coils;
+		std::vector<RegisterMap *>	m_inputs;
+		std::vector<RegisterMap *>	m_registers;
+		std::vector<RegisterMap *>	m_inputRegisters;
+		const std::string		m_address;
+		const unsigned short		m_port;
+		const std::string		m_device;
+		const bool			m_tcp;
+		bool				m_connected;
 };
 #endif

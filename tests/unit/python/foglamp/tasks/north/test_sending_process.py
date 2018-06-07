@@ -1998,7 +1998,9 @@ class TestSendingProcess:
                                             expected_num_sent,
                                             expected_buffer,
                                             fixture_sp):
-        """ Unit tests - _task_send_data - simulates and error while sending """
+        """ Unit tests - _task_send_data - simulates an error while sending,
+            to force the error the list p_send_result is filled with less elements respect the required ones,
+            so 2 calls will be successful the third one will fail """
 
         async def mock_send_rows(x):
             """ mock the results of the sending operation """
@@ -2017,14 +2019,16 @@ class TestSendingProcess:
             fixture_sp._memory_buffer[x] = p_rows[x]
 
         # WHEN - Starts the fetch 'task'
-        with patch.object(fixture_sp, '_update_position_reached', return_value=mock_async_call()) \
-                as patched_update_position_reached:
+        with patch.object(fixture_sp, '_update_position_reached', return_value=mock_async_call()):
 
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
                 with patch.object(fixture_sp._audit, 'failure', return_value=mock_audit_failure()) as patched_audit:
 
-                    with patch.object(fixture_sp._plugin, 'plugin_send',
-                                      side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                    with patch.object(
+                            fixture_sp._plugin,
+                            'plugin_send',
+                            side_effect=[
+                                asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
 
                         with pytest.raises(RuntimeError):
                             task_id = asyncio.ensure_future(fixture_sp._task_send_data(STREAM_ID))
@@ -2044,7 +2048,6 @@ class TestSendingProcess:
         patched_audit.assert_called_with(SendingProcess._AUDIT_CODE, ANY)
 
         assert fixture_sp._memory_buffer == expected_buffer
-
 
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):

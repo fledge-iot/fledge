@@ -26,6 +26,44 @@ __version__ = "${VERSION}"
 
 STREAM_ID = 1
 
+
+async def mock_async_call():
+    """ mocks a generic async function """
+    return True
+
+
+async def mock_audit_failure():
+    """ mocks audit.failure """
+
+    return True
+
+
+@pytest.mark.asyncio
+@pytest.fixture
+def fixture_sp(event_loop):
+    """"  Configures the sending process instance for the tests """
+    
+    with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+        sp = SendingProcess()
+
+    SendingProcess._logger = MagicMock(spec=logging)
+
+    sp._logger = MagicMock(spec=logging)
+    sp._audit = MagicMock(spec=AuditLogger)
+
+    sp._config_from_manager = {
+        'applyFilter': {'value': "FALSE"}
+    }
+
+    sp._task_fetch_data_run = True
+    sp._task_send_data_run = True
+
+    sp._task_fetch_data_sem = asyncio.Semaphore(0)
+    sp._task_send_data_sem = asyncio.Semaphore(0)
+    
+    return sp
+
+
 @pytest.mark.parametrize(
     "p_data, "
     "expected_data",
@@ -1269,18 +1307,13 @@ class TestSendingProcess:
             """ mock rows retrieval from the storage layer - used for the first fill """
             return p_rows[idx]
 
-        async def mock_audit_failure():
-            """ mock_audit_failure """
-
-            return True
-
         # GIVEN
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
-        SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
+        SendingProcess._logger = MagicMock(spec=logging)
 
         # Configures properly the SendingProcess
         sp._config = {
@@ -1619,10 +1652,6 @@ class TestSendingProcess:
             """ mock the results of the sending operation """
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
-        async def mock_async_call():
-            """ mock a generic async function """
-            return True
-
         # GIVEN
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
@@ -1798,10 +1827,6 @@ class TestSendingProcess:
             """ mock the results of the sending operation """
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
-        async def mock_async_call():
-            """ mock a generic async function """
-            return True
-
         # GIVEN
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
@@ -1833,11 +1858,15 @@ class TestSendingProcess:
 
         # WHEN - Starts the fetch 'task'
         # 2 calls of _update_position_reached will be executed
-        with patch.object(sp, '_update_position_reached', side_effect=[asyncio.ensure_future(mock_async_call()) for x in range(2)]) \
-                as patched_update_position_reached:
+        with patch.object(sp,
+                          '_update_position_reached',
+                          side_effect=[asyncio.ensure_future(mock_async_call()) for x in range(2)]
+                          ) as patched_update_position_reached:
 
-            with patch.object(sp._plugin, 'plugin_send',
-                              side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+            with patch.object(
+                    sp._plugin,
+                    'plugin_send',
+                    side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
 
                 task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
 
@@ -1871,6 +1900,151 @@ class TestSendingProcess:
 
         assert sp._memory_buffer == expected_buffer
         patched_update_position_reached.assert_called_with(STREAM_ID, expected_new_last_object_id, expected_num_sent_step2)
+
+    @pytest.mark.parametrize(
+        "p_rows, "                  # GIVEN, information available in the in memory buffer
+        "p_buffer_size, "           # size of the in memory buffer
+        "p_send_result, "           # Values returned by the _plugin.plugin_send
+        "expected_num_sent, "       # THEN, expected elements sent
+        "expected_buffer ",         # expected in memory buffer after the _task_send_data operations
+        [
+            (
+                # p_rows
+                [
+                    [
+                        {
+                            "id": 1,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 11, "temperature": 38
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 2,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 20, "temperature": 201
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ],
+                    [
+                        {
+                            "id": 4,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 30, "temperature": 301
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ]
+                ],
+                # p_buffer_size
+                3,
+
+                # p_send_result - only to elements to force an error calling the plugin_send function
+                [
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 1,
+                        "num_sent": 1,
+                     },
+                    {
+                        "data_sent": True,
+                        "new_last_object_id": 2,
+                        "num_sent": 1,
+                    }
+
+                ],
+
+                # expected_num_sent
+                3,
+
+                #  expected_buffer - The third element was not sent for the occuring of the error
+                [
+                    None,
+                    None,
+                    [
+                        {
+                            "id": 4,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {
+                                "humidity": 30, "temperature": 301
+                            },
+                            "user_ts": "16/04/2018 16:32:55"
+                        }
+                    ]
+                ]
+
+            ),
+        ]
+    )
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_task_send_data_error(
+                                            self,
+                                            event_loop,
+                                            p_rows,
+                                            p_buffer_size,
+                                            p_send_result,
+                                            expected_num_sent,
+                                            expected_buffer,
+                                            fixture_sp):
+        """ Unit tests - _task_send_data - simulates and error while sending """
+
+        async def mock_send_rows(x):
+            """ mock the results of the sending operation """
+            return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
+
+        # Configures properly the SendingProcess, enabling JQFilter
+        fixture_sp._config = {
+            'memory_buffer_size': p_buffer_size
+        }
+
+        # Allocates the in memory buffer
+        fixture_sp._memory_buffer = [None for x in range(p_buffer_size)]
+
+        # Fills the buffer
+        for x in range(len(p_rows)):
+            fixture_sp._memory_buffer[x] = p_rows[x]
+
+        # WHEN - Starts the fetch 'task'
+        with patch.object(fixture_sp, '_update_position_reached', return_value=mock_async_call()) \
+                as patched_update_position_reached:
+
+            with patch.object(SendingProcess._logger, 'error') as patched_logger:
+                with patch.object(fixture_sp._audit, 'failure', return_value=mock_audit_failure()) as patched_audit:
+
+                    with patch.object(fixture_sp._plugin, 'plugin_send',
+                                      side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+
+                        with pytest.raises(RuntimeError):
+                            task_id = asyncio.ensure_future(fixture_sp._task_send_data(STREAM_ID))
+
+                            # Lets the _task_fetch_data to run for a while
+                            await asyncio.sleep(3)
+
+                            # Tear down
+                            fixture_sp._task_send_data_run = False
+                            fixture_sp._task_fetch_data_sem.release()
+
+                            await task_id
+
+        # THEN - Checks log and audit are called in case of en error and the in memory buffer is as expected
+        assert patched_logger.called
+        assert patched_audit.called
+        patched_audit.assert_called_with(SendingProcess._AUDIT_CODE, ANY)
+
+        assert fixture_sp._memory_buffer == expected_buffer
+
 
     @pytest.mark.asyncio
     async def test_update_position_reached(self, event_loop):

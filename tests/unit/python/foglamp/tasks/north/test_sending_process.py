@@ -1483,13 +1483,12 @@ class TestSendingProcess:
 
         assert sp._memory_buffer == expected_buffer
 
-# FIXME:
     @pytest.mark.parametrize(
         "p_rows, "                  # GIVEN, information available in the in memory buffer
         "p_num_element_to_fetch, " 
         "p_buffer_size, "           # size of the in memory buffer
         "p_send_result, "           # Values returned by the _plugin.plugin_send
-        "expected_buffer ",         # THEN, expected in memory buffer loaded by the _task_fetch_data function
+        "expected_buffer ",         # THEN, expected in memory buffer after the _task_send_data operations
         [
             (
                 # p_rows
@@ -1555,45 +1554,9 @@ class TestSendingProcess:
 
                 #  expected_buffer - 2 dimensions list
                 [
-                    [
-                        {
-                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
-                            'id': 1,
-                            'reading': {
-                                'humidity': 11,
-                                'temperature': 38,
-                                'addedField': 512
-                            },
-                            'asset_code': 'test_asset_code',
-                            'user_ts': '16/04/2018 16:32:55'
-                        }
-                    ],
-                    [
-                        {
-                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
-                            'id': 2,
-                            'reading': {
-                                'humidity': 20,
-                                'temperature': 201,
-                                'addedField': 512
-                            },
-                            'asset_code': 'test_asset_code',
-                            'user_ts': '16/04/2018 16:32:55'
-                        }
-                    ],
-                    [
-                        {
-                            'read_key': 'ef6e1368-4182-11e8-842f-0ed5f89f718b',
-                            'id': 3,
-                            'reading': {
-                                'humidity': 30,
-                                'temperature': 301,
-                                'addedField': 512
-                            },
-                            'asset_code': 'test_asset_code',
-                            'user_ts': '16/04/2018 16:32:55'
-                        }
-                    ],
+                    None,
+                    None,
+                    None
                 ]
 
             )
@@ -1616,12 +1579,13 @@ class TestSendingProcess:
             """ mock the results of the sending operation """
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
+        async def mock_async_call():
+            """ mock a generic async function """
+            return True
+
         # GIVEN
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
-
-        dummy = p_send_result[0]["new_last_object_id"]
-        dummy = p_send_result[1]["new_last_object_id"]
 
         sp._logger = MagicMock(spec=logging)
         SendingProcess._logger = MagicMock(spec=logging)
@@ -1645,9 +1609,9 @@ class TestSendingProcess:
         sp._memory_buffer = p_rows
 
         # WHEN - Starts the fetch 'task'
-        with patch.object(sp, '_last_object_id_read', return_value=0):
+        with patch.object(sp, '_update_position_reached', return_value=mock_async_call()) as patched_update_position_reached:
             with patch.object(sp._plugin, 'plugin_send',
-                              side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
+                              side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
                 task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
 
@@ -1660,9 +1624,8 @@ class TestSendingProcess:
 
                 await task_id
 
-        assert True
-        #assert sp._memory_buffer == expected_buffer
-
+        assert sp._memory_buffer == expected_buffer
+        assert patched_update_position_reached.called
 
 
 

@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <config_category.h>
 #include <string>
@@ -312,7 +312,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		m_value = "";
 	}
 	if (item.HasMember("default") && item["default"].IsString())
+	{
 		m_default = item["default"].GetString();
+		m_itemType = StringItem;
+	}
 	else if (item.HasMember("default") && item["default"].IsObject())
 	{
 		rapidjson::StringBuffer strbuf;

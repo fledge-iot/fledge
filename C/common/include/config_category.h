@@ -1,6 +1,16 @@
 #ifndef _CONFIG_CATEGORY_H
 #define _CONFIG_CATEGORY_H
 
+/*
+ * FogLAMP category management
+ *
+ * Copyright (c) 2017-2018 OSisoft, LLC
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch, Massimiliano Pinto
+ */
+
 #include <string>
 #include <vector>
 #include <rapidjson/document.h>

@@ -90,9 +90,11 @@ async def add_service(request):
         if not service_type in ['south', 'north']:
             raise web.HTTPBadRequest(reason='Only north and south types are supported.')
         if enabled is not None:
-            if enabled not in ['t', 'f', 'true', 'false']:
+            if enabled not in ['t', 'f', 'true', 'false', 0, 1]:
                 raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
-        is_enabled = True if enabled.lower() in ['t', 'true'] else False
+        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
+            (type(enabled) is bool and enabled is True))) else False
+
 
         storage = connect.get_storage()
 

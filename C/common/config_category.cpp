@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <config_category.h>
 #include <string>
@@ -335,7 +335,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 		m_value = "";
 	}
 	if (item.HasMember("default") && item["default"].IsString())
+	{
 		m_default = item["default"].GetString();
+		m_itemType = StringItem;
+	}
 	else if (item.HasMember("default") && item["default"].IsObject())
 	{
 		rapidjson::StringBuffer strbuf;
@@ -368,5 +371,71 @@ ostringstream convert;
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default << " }";
 	}
+	return convert.str();
+}
+
+/**
+ * Return only "default" item values
+ */
+string ConfigCategory::CategoryItem::defaultToJSON() const
+{
+ostringstream convert;
+
+	convert << "\"" << m_name << "\" : { ";
+	convert << "\"description\" : \"" << m_description << "\", ";
+	convert << "\"type\" : \"" << m_type << "\", ";
+	if (m_itemType == StringItem)
+	{
+		convert << "\"default\" : \"" << m_default << "\" }";
+	}
+	else if (m_itemType == JsonItem)
+	{
+		convert << "\"default\" : " << m_default << " }";
+	}
+	return convert.str();
+}
+
+// DefaultConfigCategory constructor
+DefaultConfigCategory::DefaultConfigCategory(const string& name, const string& json) :
+                                            ConfigCategory::ConfigCategory(name, json)
+{
+}
+
+/**
+ * Return JSON string of all category components
+ * of a DefaultConfigCategory class
+ */
+string DefaultConfigCategory::toJSON() const
+{
+ostringstream convert;
+
+	convert << "{ ";
+	convert << "\"key\" : \"" << m_name << "\", ";
+	convert << "\"description\" : \"" << m_description << "\", \"value\" : ";
+	// Add items
+	convert << DefaultConfigCategory::itemsToJSON();
+	convert << " }";
+
+	return convert.str();
+}
+
+/**
+ * Return DefaultConfigCategory "default" items only
+ */
+string DefaultConfigCategory::itemsToJSON() const
+{
+ostringstream convert;
+        
+	convert << "{";
+	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
+	{       
+		convert << (*it)->defaultToJSON();
+		if (it + 1 != m_items.cend() )
+		{       
+			convert << ", ";
+		}
+	}
+	convert << "}";
+
 	return convert.str();
 }

@@ -42,6 +42,7 @@ ReadingSet::ReadingSet(const std::string& json)
 			const Value& readings = doc["rows"];
 			if (readings.IsArray())
 			{
+				unsigned long id = 0;
 				// Process every rows and create the result set
 				for (auto& reading : readings.GetArray())
 				{
@@ -51,17 +52,28 @@ ReadingSet::ReadingSet(const std::string& json)
 					}
 					JSONReading *value = new JSONReading(reading);
 					m_readings.push_back(value);
+
+					// Get the Reading Id
+					id = value->getId();
+
 				}
+				// Set the last id
+				m_last_id = id;
 			}
 			else
 			{
 				throw new ReadingSetException("Expected array of rows in result set");
 			}
 		}
+		else
+		{
+			m_last_id = 0;
+		}
 	}
 	else
 	{
 		m_count = 0;
+		m_last_id = 0;
 	}
 }
 

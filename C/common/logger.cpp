@@ -1,11 +1,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <logger.h>
 #include <stdio.h>
@@ -13,6 +13,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <memory>
+#include <string.h>
 
 using namespace std;
 
@@ -20,13 +21,15 @@ Logger *Logger::instance = 0;
 
 Logger::Logger(const string& application)
 {
-	openlog(application.c_str(), LOG_PID|LOG_CONS, LOG_USER);
+	m_app_name = new string(application);
+	openlog(m_app_name->c_str(), LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 }
 
 Logger::~Logger()
 {
 	closelog();
+	delete m_app_name;
 }
 
 Logger *Logger::getLogger()

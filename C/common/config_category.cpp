@@ -403,7 +403,7 @@ string DefaultConfigCategory::itemsToJSON() const
 {
 ostringstream convert;
         
-	convert << "{ ";
+	convert << "{";
 	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
 	{       
 		convert << (*it)->defaultToJSON();
@@ -412,7 +412,7 @@ ostringstream convert;
 			convert << ", ";
 		}
 	}
-	convert << " }";
+	convert << "}";
 
 	return convert.str();
 }

@@ -10,3 +10,6 @@ pytest-aiohttp==0.3.0
 aiopg==0.13.0
 SQLAlchemy==1.1.10
 asyncpg==0.12.0
+
+# Duplicate requirement
+aiohttp==2.3.8

@@ -22,7 +22,11 @@ class FogLampProcess
 	public:
 		FogLampProcess(int argc, char** argv);
 		virtual ~FogLampProcess();
-	private:
+		StorageClient*          getStorageClient() const;
+		ManagementClient*	getManagementClient() const;
+		time_t			getStartTime() const { return m_stime; };
+
+	protected:
 		std::string getArgValue(const std::string& name) const;
 
 	private:

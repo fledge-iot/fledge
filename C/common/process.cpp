@@ -109,3 +109,19 @@ string FogLampProcess::getArgValue(const string& name) const
 	// Return empty string
 	return string("");
 }
+
+/**
+ * Return storage client
+ */
+StorageClient* FogLampProcess::getStorageClient() const
+{
+        return m_storage;
+}
+
+/**
+ * Return management client
+ */
+ManagementClient* FogLampProcess::getManagementClient() const
+{
+	return m_client;
+}

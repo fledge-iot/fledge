@@ -38,4 +38,6 @@ typedef void * PLUGIN_HANDLE;
  */
 #define PLUGIN_TYPE_STORAGE     "storage"
 #define PLUGIN_TYPE_SOUTH       "south"
+#define PLUGIN_TYPE_NORTH       "north"
+
 #endif

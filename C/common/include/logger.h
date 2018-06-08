@@ -3,11 +3,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <string>
@@ -22,19 +22,20 @@
  * method getLogger.
  */
 class Logger {
-  public:
-    Logger(const std::string& application);
-    ~Logger();
-    static Logger *getLogger();
-    void debug(const std::string& msg, ...);
-    void info(const std::string& msg, ...);
-    void warn(const std::string& msg, ...);
-    void error(const std::string& msg, ...);
-    void fatal(const std::string& msg, ...);
+	public:
+		Logger(const std::string& application);
+		~Logger();
+		static Logger *getLogger();
+		void debug(const std::string& msg, ...);
+		void info(const std::string& msg, ...);
+		void warn(const std::string& msg, ...);
+		void error(const std::string& msg, ...);
+		void fatal(const std::string& msg, ...);
 
-  private:
-    std::string *format(const std::string& msg, va_list ap);
-    static Logger   *instance;
+	private:
+		std::string 	*format(const std::string& msg, va_list ap);
+		static Logger   *instance;
+		std::string 	*m_app_name;
 };
 
 #endif

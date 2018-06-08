@@ -161,7 +161,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
-		Ingest ingest(storage);
+		Ingest ingest(storage, 5000, 100);
 
 		while (! m_shutdown)
 		{

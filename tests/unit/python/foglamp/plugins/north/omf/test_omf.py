@@ -10,6 +10,7 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+import logging
 import pytest
 import json
 import time
@@ -22,7 +23,11 @@ from foglamp.tasks.north.sending_process import SendingProcess
 from foglamp.plugins.north.omf import omf
 import foglamp.tasks.north.sending_process as module_sp
 
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client import payload_builder
+
+from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+
+_STREAM_ID = 1
 
 
 # noinspection PyPep8Naming
@@ -32,6 +37,44 @@ class to_dev_null(object):
     def write(self, _data):
         """" """
         pass
+
+
+async def mock_async_call():
+    """ mocks a generic async function """
+    return True
+
+
+# noinspection PyProtectedMember
+@pytest.fixture
+def fixture_omf(event_loop):
+    """"  Configures the OMF instance for the tests """
+
+    _omf = MagicMock()
+    #omf.omf_north._sending_process_instance = MagicMock()
+
+    omf._logger = MagicMock(spec=logging)
+    omf._config_omf_types = {"type-id": {"value": "0001"}}
+
+    return omf
+
+
+# noinspection PyProtectedMember
+@pytest.fixture
+def fixture_omf_north(event_loop):
+    """"  Configures the OMF instance for the tests """
+
+    sending_process_instance = MagicMock()
+    config = []
+    config_omf_types = []
+
+    _logger = MagicMock(spec=logging)
+
+    omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
+
+    omf_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
+    omf_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
+
+    return omf_north
 
 
 # noinspection PyUnresolvedReferences
@@ -148,75 +191,165 @@ class TestOMF:
         with pytest.raises(Exception):
             omf.plugin_init(data)
 
-    def test_plugin_send_ok(self):
-        """Tests plugin _plugin_send function, case everything went fine """
+    @pytest.mark.parametrize(
+        "ret_transform_in_memory_data, "
+        "p_raw_data, ",
+        [
+            (
+                # ret_transform_in_memory_data
+                # is_data_available - new_position - num_sent
+                [True,                20,            10],
 
-        def dummy_ok():
-            """" """
-            return True, 1, 1
+                # raw_data
+                {
+                    "id": 10,
+                    "asset_code": "test_asset_code",
+                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                    "reading": {"humidity": 100, "temperature": 1001},
+                    "user_ts": '2018-04-20 09:38:50.163164+00'
+                }
+             ),
+            (
+                # ret_transform_in_memory_data
+                # is_data_available - new_position - num_sent
+                [False, 20, 10],
 
-        def data_send_ok():
-            """" """
-            return True
+                # raw_data
+                {
+                    "id": 10,
+                    "asset_code": "test_asset_code",
+                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                    "reading": {"humidity": 100, "temperature": 1001},
+                    "user_ts": '2018-04-20 09:38:50.163164+00'
+                }
+            ),
 
-        def omf_types_create():
-            """" """
-            return True
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_plugin_send_success(
+                                        self,
+                                        event_loop,
+                                        fixture_omf,
+                                        ret_transform_in_memory_data,
+                                        p_raw_data
+                                        ):
+        """ Unit test for - plugin_send - successful case """
 
-        omf._logger = MagicMock()
-        omf._config_omf_types = {"type-id": {"value": "0001"}}
         data = MagicMock()
 
-        raw_data = []
-        stream_id = 1
+        with patch.object(fixture_omf.OmfNorthPlugin,
+                          'transform_in_memory_data',
+                          return_value=ret_transform_in_memory_data):
 
-        # Test good case
-        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
-            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
-                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf', return_value=data_send_ok()):
-                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
-                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
-                        omf.plugin_send(data, raw_data, stream_id)
+            with patch.object(fixture_omf.OmfNorthPlugin,
+                              'create_omf_objects',
+                              return_value=mock_async_call()
+                              ) as patched_create_omf_objects:
 
-        assert not mocked_deleted_omf_types_already_created.called
+                with patch.object(fixture_omf.OmfNorthPlugin,
+                                  'send_in_memory_data_to_picromf',
+                                  return_value=mock_async_call()
+                                  ) as patched_send_in_memory_data_to_picromf:
 
-    def test_plugin_send_bad(self):
-        """Tests plugin _plugin_send function,
+                    with patch.object(fixture_omf.OmfNorthPlugin,
+                                      'deleted_omf_types_already_created',
+                                      return_value=mock_async_call()
+                                      ) as patched_deleted_omf_types_already_created:
+
+                        data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
+
+        if ret_transform_in_memory_data[0]:
+            # data_available
+
+            assert patched_create_omf_objects.called
+            assert patched_send_in_memory_data_to_picromf.called
+            assert not patched_deleted_omf_types_already_created.called
+
+            assert data_sent
+            assert new_position == ret_transform_in_memory_data[1]
+            assert num_sent == ret_transform_in_memory_data[2]
+
+        else:
+            # no data_available
+
+            assert not patched_create_omf_objects.called
+            assert not patched_send_in_memory_data_to_picromf.called
+            assert not patched_deleted_omf_types_already_created.called
+
+            assert not data_sent
+
+    @pytest.mark.parametrize(
+        "ret_transform_in_memory_data, "
+        "p_raw_data, ",
+        [
+            (
+                # ret_transform_in_memory_data
+                # is_data_available - new_position - num_sent
+                [True,                20,            10],
+
+                # raw_data
+                {
+                    "id": 10,
+                    "asset_code": "test_asset_code",
+                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                    "reading": {"humidity": 100, "temperature": 1001},
+                    "user_ts": '2018-04-20 09:38:50.163164+00'
+                }
+             )
+
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_plugin_send_error(
+                                        self,
+                                        event_loop,
+                                        fixture_omf,
+                                        ret_transform_in_memory_data,
+                                        p_raw_data
+                                        ):
+        """ Unit test for - plugin_send - error handling case
            it tests especially if the omf objects are created again in case of a communication error
            NOTE : the test will print a message to the stderr containing 'mocked object generated an exception'
-                  the message could/should be ignored.
+                  the message is not to be intended an as error as it is part of the successful test.
         """
 
-        def dummy_ok():
-            """" """
-            return True, 1, 1
-
-        def omf_types_create():
-            """" """
-            return True
-
-        omf._logger = MagicMock()
-        omf._config_omf_types = {"type-id": {"value": "0001"}}
         data = MagicMock()
 
-        raw_data = []
-        stream_id = 1
+        with patch.object(fixture_omf.OmfNorthPlugin,
+                          'transform_in_memory_data',
+                          return_value=ret_transform_in_memory_data
+                          ) as patched_transform_in_memory_data:
 
-        # Test bad case - send operation raise an exception
-        with patch.object(omf.OmfNorthPlugin, 'transform_in_memory_data', return_value=dummy_ok()):
-            with patch.object(omf.OmfNorthPlugin, 'create_omf_objects', return_value=dummy_ok()):
-                with patch.object(omf.OmfNorthPlugin, 'send_in_memory_data_to_picromf',
-                                  side_effect=KeyError('mocked object generated an exception')):
-                    with patch.object(omf.OmfNorthPlugin, 'deleted_omf_types_already_created',
-                                      return_value=omf_types_create()) as mocked_deleted_omf_types_already_created:
+            with patch.object(fixture_omf.OmfNorthPlugin,
+                              'create_omf_objects',
+                              return_value=mock_async_call()
+                              ) as patched_create_omf_objects:
+
+                with patch.object(fixture_omf.OmfNorthPlugin,
+                                  'send_in_memory_data_to_picromf',
+                                  side_effect=KeyError('mocked object generated an exception')
+                                  ) as patched_send_in_memory_data_to_picromf:
+
+                    with patch.object(fixture_omf.OmfNorthPlugin,
+                                      'deleted_omf_types_already_created',
+                                      return_value=mock_async_call()
+                                      ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
                             # To ignore messages sent to the stderr
                             sys.stderr = to_dev_null()
 
-                            omf.plugin_send(data, raw_data, stream_id)
+                            data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data,
+                                                                                              _STREAM_ID)
 
-                        assert mocked_deleted_omf_types_already_created.called
+        if ret_transform_in_memory_data[0]:
+            # data_available
+
+            assert patched_transform_in_memory_data.calles
+            assert patched_create_omf_objects.called
+            assert patched_send_in_memory_data_to_picromf.called
+            assert patched_deleted_omf_types_already_created.called
 
     def test_plugin_shutdown(self):
 
@@ -232,6 +365,333 @@ class TestOMF:
 
 class TestOmfNorthPlugin:
     """Unit tests related to OmfNorthPlugin, methods used internally to the plugin"""
+
+    @pytest.mark.parametrize(
+        "p_configuration_key, "
+        "p_type_id, "
+        "p_data_from_storage, "
+        "expected_data, ",
+        [
+
+            # Case 1
+            (
+                    # p_configuration_key
+                    "SEND_PR1",
+
+                    # p_type_id
+                    "0001",
+
+                    # p_data_from_storage
+                    {
+                        "rows":
+                            [
+
+                                {
+                                    "configuration_key": "SEND_PR1",
+                                    "type_id": "0001",
+                                    "asset_code": "asset_code_1"
+                                },
+                                {
+                                    "configuration_key": "SEND_PR1",
+                                    "type_id": "0001",
+                                    "asset_code": "asset_code_2"
+                                }
+
+                            ]
+                    },
+
+                    # expected_data
+                    [
+                        "asset_code_1",
+                        "asset_code_2"
+                    ]
+            )
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_retrieve_omf_types_already_created(
+            self,
+            p_configuration_key,
+            p_type_id,
+            p_data_from_storage,
+            expected_data,
+            fixture_omf_north
+    ):
+        """ Unit test for - _retrieve_omf_types_already_created - successful case """
+
+        _payload_builder = MagicMock(spec=payload_builder)
+
+        @pytest.mark.asyncio
+        async def mock_query_tbl_with_payload():
+            """ mock _query_tbl_with_payload """
+
+            return p_data_from_storage
+
+        with patch.object(_payload_builder, 'PayloadBuilder', return_value=True):
+            with patch.object(fixture_omf_north._sending_process_instance._storage_async,
+                              'query_tbl_with_payload',
+                              return_value=mock_query_tbl_with_payload()):
+
+                retrieved_rows = await fixture_omf_north._retrieve_omf_types_already_created(p_configuration_key, p_type_id)
+
+        assert retrieved_rows == expected_data
+
+    @pytest.mark.parametrize(
+        "p_asset_code, "
+        "expected_asset_code, ",
+        [
+            # p_asset_code   # expected_asset_code
+            ("asset_code_1 ",  "asset_code_1"),
+            (" asset_code_2 ", "asset_code_2"),
+            ("asset_ code_3",  "asset_code_3"),
+        ]
+    )
+    def test_generate_omf_asset_id(
+            self,
+            p_asset_code,
+            expected_asset_code
+    ):
+        """Tests _generate_omf_asset_id """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        generated_asset_code = omf_north._generate_omf_asset_id(p_asset_code)
+
+        assert generated_asset_code == expected_asset_code
+
+    @pytest.mark.parametrize(
+        "p_type_id, "
+        "p_asset_code, "
+        "expected_measurement_id, ",
+        [
+            # p_type_id  - p_asset_code    - expected_asset_code
+            ("0001",     "asset_code_1 ",  "0001measurement_asset_code_1"),
+            ("0002",     " asset_code_2 ", "0002measurement_asset_code_2"),
+            ("0003",     "asset_ code_3",  "0003measurement_asset_code_3"),
+        ]
+    )
+    def test_generate_omf_measurement(
+            self,
+            p_type_id,
+            p_asset_code,
+            expected_measurement_id
+    ):
+        """Tests _generate_omf_measurement """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
+
+        generated_measurement_id = omf_north._generate_omf_measurement(p_asset_code)
+
+        assert generated_measurement_id == expected_measurement_id
+
+    @pytest.mark.parametrize(
+        "p_asset_code, "
+        "expected_typename, ",
+        [
+            # p_asset_code     - expected_asset_code
+            ("asset_code_1 ",  "asset_code_1_typename"),
+            (" asset_code_2 ", "asset_code_2_typename"),
+            ("asset_ code_3",  "asset_code_3_typename"),
+        ]
+    )
+    def test_generate_omf_typename_automatic(
+            self,
+            p_asset_code,
+            expected_typename
+    ):
+        """Tests _generate_omf_typename_automatic """
+
+        sending_process_instance = MagicMock()
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        generated_typename = omf_north._generate_omf_typename_automatic(p_asset_code)
+
+        assert generated_typename == expected_typename
+
+    @pytest.mark.parametrize(
+        "p_test_data, "
+        "p_type_id, "
+        "p_static_data, "
+        "expected_typename,"
+        "expected_omf_type",
+        [
+            # Case 1 - pressure / Number
+            (
+                # Origin - Sensor data
+                {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
+
+                # type_id
+                "0001",
+
+                # Static Data
+                {
+                    "Location": "Palo Alto",
+                    "Company": "Dianomic"
+                },
+
+                # Expected
+                'pressure_typename',
+                {
+                    'pressure_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0001_pressure_typename_sensor',
+                            'properties': {
+                                            'Company': {'type': 'string'},
+                                            'Name': {'isindex': True, 'type': 'string'},
+                                            'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0001_pressure_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'pressure': {'type': 'number'}
+                            },
+                            'type': 'object'
+                         }
+                    ]
+                }
+            ),
+            # Case 2 - luxometer / Integer
+            (
+                    # Origin - Sensor data
+                    {"asset_code": "luxometer", "asset_data": {"lux": 20}},
+
+                    # type_id
+                    "0002",
+
+                    # Static Data
+                    {
+                        "Location": "Palo Alto",
+                        "Company": "Dianomic"
+                    },
+
+                    # Expected
+                    'luxometer_typename',
+                    {
+                        'luxometer_typename':
+                        [
+                            {
+                                'classification': 'static',
+                                'id': '0002_luxometer_typename_sensor',
+                                'properties': {
+                                    'Company': {'type': 'string'},
+                                    'Name': {'isindex': True, 'type': 'string'},
+                                    'Location': {'type': 'string'}
+                                },
+                                'type': 'object'
+                            },
+                            {
+                                'classification': 'dynamic',
+                                'id': '0002_luxometer_typename_measurement',
+                                'properties': {
+                                    'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                    'lux': {'type': 'integer'}
+                                },
+                                'type': 'object'
+                            }
+                        ]
+                    }
+
+            ),
+
+            # Case 3 - switch / string
+            (
+                # Origin - Sensor data
+                {"asset_code": "switch", "asset_data": {"button": "up"}},
+
+                # type_id
+                "0002",
+
+                # Static Data
+                {
+                    "Location": "Palo Alto",
+                    "Company": "Dianomic"
+                },
+
+                # Expected
+                'switch_typename',
+                {
+                    'switch_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0002_switch_typename_sensor',
+                            'properties': {
+                                'Company': {'type': 'string'},
+                                'Name': {'isindex': True, 'type': 'string'},
+                                'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0002_switch_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'button': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        }
+                    ]
+                }
+
+            )
+
+        ]
+    )
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_create_omf_type_automatic(
+                                                self,
+                                                p_test_data,
+                                                p_type_id,
+                                                p_static_data,
+                                                expected_typename,
+                                                expected_omf_type,
+                                                fixture_omf_north
+                                            ):
+        """ Unit test for - _create_omf_type_automatic - successful case 
+            Tests the generation of the OMF messages starting from Asset name and data
+            using Automatic OMF Type Mapping
+        """
+
+        fixture_omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
+        fixture_omf_north._config = {"StaticData": p_static_data}
+
+        with patch.object(
+                            fixture_omf_north,
+                            'send_in_memory_data_to_picromf',
+                            return_value=mock_async_call()
+                          ) as patched_send_in_memory_data_to_picromf:
+
+            typename, omf_type = await fixture_omf_north._create_omf_type_automatic(p_test_data)
+
+        assert typename == expected_typename
+        assert omf_type == expected_omf_type
+
+        assert patched_send_in_memory_data_to_picromf.called
 
     @pytest.mark.parametrize(
         "p_data_origin, "
@@ -589,171 +1049,6 @@ class TestOmfNorthPlugin:
         else:
             raise Exception("ERROR : creation type not defined !")
 
-    @pytest.mark.parametrize(
-        "p_test_data, "
-        "p_type_id, "
-        "p_static_data, "
-        "expected_typename,"
-        "expected_omf_type",
-        [
-            # Case 1 - pressure / Number
-            (
-                # Origin - Sensor data
-                {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
-                # type_id
-                "0001",
-
-                # Static Data
-                {
-                    "Location": "Palo Alto",
-                    "Company": "Dianomic"
-                },
-
-                # Expected
-                'pressure_typename',
-                {
-                    'pressure_typename':
-                    [
-                        {
-                            'classification': 'static',
-                            'id': '0001_pressure_typename_sensor',
-                            'properties': {
-                                            'Company': {'type': 'string'},
-                                            'Name': {'isindex': True, 'type': 'string'},
-                                            'Location': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        },
-                        {
-                            'classification': 'dynamic',
-                            'id': '0001_pressure_typename_measurement',
-                            'properties': {
-                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'pressure': {'type': 'number'}
-                            },
-                            'type': 'object'
-                         }
-                    ]
-                }
-            ),
-            # Case 2 - luxometer / Integer
-            (
-                    # Origin - Sensor data
-                    {"asset_code": "luxometer", "asset_data": {"lux": 20}},
-
-                    # type_id
-                    "0002",
-
-                    # Static Data
-                    {
-                        "Location": "Palo Alto",
-                        "Company": "Dianomic"
-                    },
-
-                    # Expected
-                    'luxometer_typename',
-                    {
-                        'luxometer_typename':
-                        [
-                            {
-                                'classification': 'static',
-                                'id': '0002_luxometer_typename_sensor',
-                                'properties': {
-                                    'Company': {'type': 'string'},
-                                    'Name': {'isindex': True, 'type': 'string'},
-                                    'Location': {'type': 'string'}
-                                },
-                                'type': 'object'
-                            },
-                            {
-                                'classification': 'dynamic',
-                                'id': '0002_luxometer_typename_measurement',
-                                'properties': {
-                                    'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                    'lux': {'type': 'integer'}
-                                },
-                                'type': 'object'
-                            }
-                        ]
-                    }
-
-            ),
-
-            # Case 3 - switch / string
-            (
-                # Origin - Sensor data
-                {"asset_code": "switch", "asset_data": {"button": "up"}},
-
-                # type_id
-                "0002",
-
-                # Static Data
-                {
-                    "Location": "Palo Alto",
-                    "Company": "Dianomic"
-                },
-
-                # Expected
-                'switch_typename',
-                {
-                    'switch_typename':
-                    [
-                        {
-                            'classification': 'static',
-                            'id': '0002_switch_typename_sensor',
-                            'properties': {
-                                'Company': {'type': 'string'},
-                                'Name': {'isindex': True, 'type': 'string'},
-                                'Location': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        },
-                        {
-                            'classification': 'dynamic',
-                            'id': '0002_switch_typename_measurement',
-                            'properties': {
-                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'button': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        }
-                    ]
-                }
-
-            )
-
-        ]
-    )
-    def test_create_omf_type_automatic(self,
-                                       p_test_data,
-                                       p_type_id,
-                                       p_static_data,
-                                       expected_typename,
-                                       expected_omf_type):
-        """ Tests the generation of the OMF messages starting from Asset name and data
-            using Automatic OMF Type Mapping"""
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        type_id = p_type_id
-        omf_north._config_omf_types = {"type-id": {"value": type_id}}
-        omf_north._config = {"StaticData": p_static_data}
-
-        with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) \
-                as patched_send_in_memory_data_to_picromf:
-
-            typename, omf_type = omf_north._create_omf_type_automatic(p_test_data)
-
-        assert typename == expected_typename
-        assert omf_type == expected_omf_type
-
-        assert patched_send_in_memory_data_to_picromf.called
 
     @pytest.mark.parametrize(
         "p_test_data ",
@@ -1095,164 +1390,6 @@ class TestOmfNorthPlugin:
         patched_send_to_picromf.assert_any_call("Data", expected_static_data)
         patched_send_to_picromf.assert_any_call("Data", expected_link_data)
 
-    @pytest.mark.parametrize(
-        "p_configuration_key, "
-        "p_type_id, "
-        "p_data_from_storage, "
-        "expected_data, ",
-        [
-
-            # Case 1
-            (
-                # p_configuration_key
-                "SEND_PR1",
-                
-                # p_type_id
-                "0001",
-
-                # p_data_from_storage
-                {
-                    "rows":
-                    [
-
-                        {
-                            "configuration_key": "SEND_PR1",
-                            "type_id": "0001",
-                            "asset_code": "asset_code_1"
-                        },
-                        {
-                            "configuration_key": "SEND_PR1",
-                            "type_id": "0001",
-                            "asset_code": "asset_code_2"
-                        }
-
-                    ]
-                },
-
-                # expected_data
-                [
-                    "asset_code_1",
-                    "asset_code_2"
-                ]
-            )
-        ]
-    )
-    def test_retrieve_omf_types_already_created(
-                                                self,
-                                                p_configuration_key,
-                                                p_type_id,
-                                                p_data_from_storage,
-                                                expected_data
-    ):
-        """Tests _retrieve_omf_types_already_created """
-
-        sending_process_instance = MagicMock()
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-        payload_builder = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
-
-        with patch.object(payload_builder, 'PayloadBuilder', return_value=True):
-
-            with patch.object(omf_north._sending_process_instance._storage,
-                              'query_tbl_with_payload',
-                              return_value=p_data_from_storage):
-
-                retrieved_rows = omf_north._retrieve_omf_types_already_created(p_configuration_key, p_type_id)
-
-        assert retrieved_rows == expected_data
-
-    @pytest.mark.parametrize(
-        "p_asset_code, "
-        "expected_asset_code, ",
-        [
-            # p_asset_code   # expected_asset_code
-            ("asset_code_1 ",  "asset_code_1"),
-            (" asset_code_2 ", "asset_code_2"),
-            ("asset_ code_3",  "asset_code_3"),
-        ]
-    )
-    def test_generate_omf_asset_id(
-            self,
-            p_asset_code,
-            expected_asset_code
-    ):
-        """Tests _generate_omf_asset_id """
-
-        sending_process_instance = MagicMock()
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        generated_asset_code = omf_north._generate_omf_asset_id(p_asset_code)
-
-        assert generated_asset_code == expected_asset_code
-
-    @pytest.mark.parametrize(
-        "p_type_id, "
-        "p_asset_code, "
-        "expected_measurement_id, ",
-        [
-            # p_type_id  - p_asset_code    - expected_asset_code
-            ("0001",     "asset_code_1 ",  "0001measurement_asset_code_1"),
-            ("0002",     " asset_code_2 ", "0002measurement_asset_code_2"),
-            ("0003",     "asset_ code_3",  "0003measurement_asset_code_3"),
-        ]
-    )
-    def test_generate_omf_measurement(
-            self,
-            p_type_id,
-            p_asset_code,
-            expected_measurement_id
-    ):
-        """Tests _generate_omf_measurement """
-
-        sending_process_instance = MagicMock()
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
-
-        generated_measurement_id = omf_north._generate_omf_measurement(p_asset_code)
-
-        assert generated_measurement_id == expected_measurement_id
-
-    @pytest.mark.parametrize(
-        "p_asset_code, "
-        "expected_typename, ",
-        [
-            # p_asset_code     - expected_asset_code
-            ("asset_code_1 ",  "asset_code_1_typename"),
-            (" asset_code_2 ", "asset_code_2_typename"),
-            ("asset_ code_3",  "asset_code_3_typename"),
-        ]
-    )
-    def test_generate_omf_typename_automatic(
-            self,
-            p_asset_code,
-            expected_typename
-    ):
-        """Tests _generate_omf_typename_automatic """
-
-        sending_process_instance = MagicMock()
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        generated_typename = omf_north._generate_omf_typename_automatic(p_asset_code)
-
-        assert generated_typename == expected_typename
 
     @pytest.mark.parametrize(
         "p_type_id, "

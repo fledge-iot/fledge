@@ -133,7 +133,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 				  DATA_BUFFER_ELMS);
 
 	Logger::getLogger()->info("SendingProcess reads data from last id %lu",
-				  this->getLastSentReadingId());
+				  this->getLastSentId());
 }
 
 // While running check signals and execution time

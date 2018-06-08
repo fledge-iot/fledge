@@ -244,18 +244,27 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Build an HTTPS POST with 'readingData headers
 	// and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON readings data error: %d", res);
+		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+		if (res != 200 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON readings data error: %d", res);
+			m_lastError = true;
+			return 0;
+		}
+
+		m_lastError = false;
+
+		// Return number of sen t readings to the caller
+		return readings.size();
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON data error: %s", e.what());
 		m_lastError = true;
 		return 0;
 	}
-
-	m_lastError = false;
-
-	// Return number of sen t readings to the caller
-	return readings.size();
 }
 
 /**

@@ -91,10 +91,18 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Build an HTTPS POST with 'resType' headers
 	// and 'typeData' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	res = m_sender.sendRequest("POST", m_path, resType, typeData);
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Type' error: %d", res);
+		res = m_sender.sendRequest("POST", m_path, resType, typeData);
+		if (res != 200 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON dataType message 'Type' error: HTTP code %d", res);
+			return false;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON dataType message 'Type' error: %s", e.what());
 		return false;
 	}
 
@@ -106,10 +114,18 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Build an HTTPS POST with 'resContainer' headers
 	// and 'typeContainer' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	res = m_sender.sendRequest("POST", m_path, resContainer, typeContainer);
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' error: %d", res);
+		res = m_sender.sendRequest("POST", m_path, resContainer, typeContainer);
+		if (res != 200 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON dataType message 'Container' error: HTTP code %d", res);
+			return false;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON dataType message 'Container' error: %s", e.what());
 		return false;
 	}
 
@@ -121,10 +137,18 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Build an HTTPS POST with 'resStaticData' headers
 	// and 'typeStaticData' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	res = m_sender.sendRequest("POST", m_path, resStaticData, typeStaticData);
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'StaticData' error: %d", res);
+		res = m_sender.sendRequest("POST", m_path, resStaticData, typeStaticData);
+		if (res != 200 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON dataType message 'StaticData' error: HTTP code %d", res);
+			return false;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::getLogger()->error("Sending JSON dataType message 'StaticData' error: %s", e.what());
 		return false;
 	}
 
@@ -136,17 +160,24 @@ bool OMF::sendDataTypes(const Reading& row) const
 	// Build an HTTPS POST with 'resLinkData' headers
 	// and 'typeLinkData' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
-	res = m_sender.sendRequest("POST", m_path, resLinkData, typeLinkData);
-
-	if (res != 200 && res != 204)
+	try
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) error: %d", res);
-		return false;
+		res = m_sender.sendRequest("POST", m_path, resLinkData, typeLinkData);
+		if (res != 200 && res != 204)
+		{
+			Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) error: %d", res);
+			return false;
+		}
+		else
+		{
+			// All data types sent: success
+			return true;
+		}
 	}
-	else
+	catch (const std::exception& e)
 	{
-		// All data types sent: success
-		return true;
+		Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) error: %s", e.what());
+		return false;
 	}
 }
 

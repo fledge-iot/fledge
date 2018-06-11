@@ -37,7 +37,7 @@ const char *two_translated_readings = "[{\"containerid\": \"measurement_luxomete
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, TwoTranslationsCompareResult)
 {
-	// Build a ReadingSewt from JSON
+	// Build a ReadingSet from JSON
 	ReadingSet readingSet(two_readings);
 
         ostringstream jsonData;

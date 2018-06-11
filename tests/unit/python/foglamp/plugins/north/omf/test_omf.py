@@ -61,7 +61,6 @@ def fixture_omf(event_loop):
 
     return omf
 
-
 # noinspection PyProtectedMember
 @pytest.fixture
 def fixture_omf_north(event_loop):
@@ -79,6 +78,40 @@ def fixture_omf_north(event_loop):
     omf_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
 
     return omf_north
+
+    
+class MockAiohttpClientSessionSuccess(MagicMock):
+    """" mock the aiohttp.ClientSession context manager """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def __aenter__(self):
+        mock_response = MagicMock(spec=aiohttp.ClientResponse)
+        mock_response.status = 200
+        mock_response.text.side_effect = [mock_async_call('SUCCESS')]
+
+        return mock_response
+
+    async def __aexit__(self, *args):
+        return None
+
+
+class MockAiohttpClientSessionError(MagicMock):
+    """" mock the aiohttp.ClientSession context manager """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def __aenter__(self):
+        mock_response = MagicMock(spec=aiohttp.ClientResponse)
+        mock_response.status = 400
+        mock_response.text.side_effect = [mock_async_call('ERROR')]
+
+        return mock_response
+
+    async def __aexit__(self, *args):
+        return None
 
 
 # noinspection PyUnresolvedReferences
@@ -240,6 +273,18 @@ class TestOMF:
                                         ):
         """ Unit test for - plugin_send - successful case """
 
+        async def mock_async_call_1(p1=ANY):
+            """ mocks a generic async function """
+            return p1
+
+        async def mock_async_call_2(p1=ANY):
+            """ mocks a generic async function """
+            return p1
+
+        async def mock_async_call_3(p1=ANY):
+            """ mocks a generic async function """
+            return p1
+
         data = MagicMock()
 
         with patch.object(fixture_omf.OmfNorthPlugin,
@@ -248,19 +293,13 @@ class TestOMF:
 
             with patch.object(fixture_omf.OmfNorthPlugin,
                               'create_omf_objects',
-                              return_value=mock_async_call()
+                              return_value=mock_async_call_1()
                               ) as patched_create_omf_objects:
 
                 with patch.object(fixture_omf.OmfNorthPlugin,
                                   'send_in_memory_data_to_picromf',
-                                  return_value=mock_async_call()
+                                  return_value=mock_async_call_2()
                                   ) as patched_send_in_memory_data_to_picromf:
-
-                    with patch.object(fixture_omf.OmfNorthPlugin,
-                                      'deleted_omf_types_already_created',
-                                      return_value=mock_async_call()
-                                      ) as patched_deleted_omf_types_already_created:
-
                         data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
 
         if ret_transform_in_memory_data[0]:
@@ -268,7 +307,6 @@ class TestOMF:
 
             assert patched_create_omf_objects.called
             assert patched_send_in_memory_data_to_picromf.called
-            assert not patched_deleted_omf_types_already_created.called
 
             assert data_sent
             assert new_position == ret_transform_in_memory_data[1]
@@ -279,7 +317,6 @@ class TestOMF:
 
             assert not patched_create_omf_objects.called
             assert not patched_send_in_memory_data_to_picromf.called
-            assert not patched_deleted_omf_types_already_created.called
 
             assert not data_sent
 
@@ -320,6 +357,14 @@ class TestOMF:
 
         data = MagicMock()
 
+        async def mock_async_call_1(p1=ANY):
+            """ mocks a generic async function """
+            return p1
+
+        async def mock_async_call_2(p1=ANY):
+            """ mocks a generic async function """
+            return p1
+
         with patch.object(fixture_omf.OmfNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data
@@ -327,7 +372,7 @@ class TestOMF:
 
             with patch.object(fixture_omf.OmfNorthPlugin,
                               'create_omf_objects',
-                              return_value=mock_async_call()
+                              return_value=mock_async_call_1()
                               ) as patched_create_omf_objects:
 
                 with patch.object(fixture_omf.OmfNorthPlugin,
@@ -337,13 +382,10 @@ class TestOMF:
 
                     with patch.object(fixture_omf.OmfNorthPlugin,
                                       'deleted_omf_types_already_created',
-                                      return_value=mock_async_call()
+                                      return_value=mock_async_call_2()
                                       ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
-                            # To ignore messages sent to the stderr
-                            sys.stderr = to_dev_null()
-
                             data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data,
                                                                                               _STREAM_ID)
 
@@ -664,6 +706,8 @@ class TestOmfNorthPlugin:
 
         ]
     )
+    # FIXME:
+    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_create_omf_type_automatic(
                                                 self,
@@ -1130,8 +1174,6 @@ class TestOmfNorthPlugin:
 
         ]
     )
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_send_in_memory_data_to_picromf_success(
                                                 self,
@@ -1140,23 +1182,6 @@ class TestOmfNorthPlugin:
         """ Unit test for - send_in_memory_data_to_picromf - successful case
             Tests a successful communication
         """
-
-        class MockAiohttpClientSession(MagicMock):
-            """" mock the aiohttp.ClientSession context manager """
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-            async def __aenter__(self):
-
-                mock_response = MagicMock(spec=aiohttp.ClientResponse)
-                mock_response.status = 200
-                mock_response.text.side_effect = [mock_async_call('text OK')]
-
-                return mock_response
-
-            async def __aexit__(self, *args):
-                return None
 
         fixture_omf_north._config = dict(producerToken="dummy_producerToken")
         fixture_omf_north._config["URL"] = "dummy_URL"
@@ -1171,7 +1196,7 @@ class TestOmfNorthPlugin:
 
             with patch.object(aiohttp.ClientSession,
                               'post',
-                              return_value=MockAiohttpClientSession()
+                              return_value=MockAiohttpClientSessionSuccess()
                               ) as patched_aiohttp:
 
                 await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
@@ -1216,23 +1241,15 @@ class TestOmfNorthPlugin:
 
         ]
     )
-    def test_send_in_memory_data_to_picromf_data(
+    @pytest.mark.asyncio
+    async def test_send_in_memory_data_to_picromf_data(
                                                 self,
                                                 p_type,
-                                                p_test_data):
-        """ Tests the data sent to the PI Server in relation of an OMF type"""
-
-        class Response:
-            """ Used to mock the Response object, simulating a successful communication"""
-            status_code = 200
-            text = "OR"
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+                                                p_test_data,
+                                                fixture_omf_north):
+        """ Unit test for - send_in_memory_data_to_picromf - successful case
+            Tests the data sent to the PI Server in relation of an OMF type
+        """
 
         # Values for the test
         test_url = "test_URL"
@@ -1245,41 +1262,33 @@ class TestOmfNorthPlugin:
                         'messageformat': 'JSON',
                         'omfversion': '1.0'}
 
-        omf_north._config = dict(producerToken=test_producer_token)
-        omf_north._config["URL"] = test_url
-        omf_north._config["OMFRetrySleepTime"] = 1
-        omf_north._config["OMFHttpTimeout"] = test_omf_http_timeout
-        omf_north._config["OMFMaxRetry"] = 1
-
-        response_ok = Response()
-        response_ok.status_code = 200
-        response_ok.text = "OK"
+        fixture_omf_north._config = dict(producerToken=test_producer_token)
+        fixture_omf_north._config["URL"] = test_url
+        fixture_omf_north._config["OMFRetrySleepTime"] = 1
+        fixture_omf_north._config["OMFHttpTimeout"] = test_omf_http_timeout
+        fixture_omf_north._config["OMFMaxRetry"] = 1
 
         # To avoid the wait time
         with patch.object(time, 'sleep', return_value=True):
 
-            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
+            with patch.object(fixture_omf_north._logger, 'warning', return_value=True) as patched_logger:
 
-                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
+                with patch.object(aiohttp.ClientSession,
+                                  'post',
+                                  return_value=MockAiohttpClientSessionSuccess()
+                                  ) as patched_aiohttp:
 
-                    # To ignore messages sent to the stderr
-                    sys.stderr = to_dev_null()
-
-                    omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
+                    await fixture_omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
 
         assert not patched_logger.called
 
         str_data = json.dumps(p_test_data)
-        patched_requests.assert_called_with(
-                                            test_url,
+        assert patched_aiohttp.call_count == 1
+        patched_aiohttp.assert_called_with(
+                                            url=test_url,
                                             headers=test_headers,
                                             data=str_data,
-                                            verify=False,
                                             timeout=test_omf_http_timeout)
-        assert patched_requests.call_count == 1
-
-
-
 
     @pytest.mark.parametrize(
         "p_test_data ",
@@ -1294,55 +1303,42 @@ class TestOmfNorthPlugin:
 
         ]
     )
-    def test_send_in_memory_data_to_picromf_bad(self,
-                                                p_test_data):
-        """ Tests the behaviour  in case of communication error:
+    @pytest.mark.asyncio
+    async def test_send_in_memory_data_to_picromf_error(
+                                                    self,
+                                                    p_test_data,
+                                                    fixture_omf_north):
+        """ Unit test for - send_in_memory_data_to_picromf - successful case
+            Tests the behaviour  in case of communication error:
             exception erased,
             message logged
-            and number of retries """
+            and number of retries 
+        """
 
-        class Response:
-            """ Used to mock the Response object, simulating an error"""
+        max_retry = 3
 
-            status_code = 400
-            text = "ERROR"
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._config = dict(producerToken="dummy_producerToken")
-        omf_north._config["URL"] = "dummy_URL"
-        omf_north._config["OMFRetrySleepTime"] = 1
-        omf_north._config["OMFHttpTimeout"] = 1
-
-        # Bad Case
-        omf_north._config["OMFMaxRetry"] = 3
-
-        response_ok = Response()
-        response_ok.status_code = 400
-        response_ok.text = "ERROR"
+        fixture_omf_north._config = dict(producerToken="dummy_producerToken")
+        fixture_omf_north._config["URL"] = "dummy_URL"
+        fixture_omf_north._config["OMFRetrySleepTime"] = 1
+        fixture_omf_north._config["OMFHttpTimeout"] = 1
+        fixture_omf_north._config["OMFMaxRetry"] = max_retry
 
         # To avoid the wait time
         with patch.object(time, 'sleep', return_value=True):
 
-            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
+            with patch.object(fixture_omf_north._logger, 'warning', return_value=True) as patched_logger:
 
-                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
+                with patch.object(aiohttp.ClientSession,
+                                  'post',
+                                  return_value=MockAiohttpClientSessionError()
+                                  ) as patched_aiohttp:
 
                     # Tests the raising of the exception
                     with pytest.raises(Exception):
-                        # To ignore messages sent to the stderr
-                        sys.stderr = to_dev_null()
+                        await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
 
-                        omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
-
-        assert patched_requests.call_count == 3
+        assert patched_aiohttp.call_count == max_retry
         assert patched_logger.called
-
 
     @pytest.mark.parametrize(
         "p_data_origin, "
@@ -1351,129 +1347,123 @@ class TestOmfNorthPlugin:
         "expected_is_data_available, "
         "expected_new_position, "
         "expected_num_sent", [
-                                # Case 1
-                                (
-                                    # Origin
-                                    [
-                                        {
-                                            "id": 10,
-                                            "asset_code": "test_asset_code",
-                                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                            "reading": {"humidity": 11, "temperature": 38},
-                                            "user_ts": '2018-04-20 09:38:50.163164+00'
-                                        }
-                                    ],
-                                    "0001",
-                                    # Transformed
-                                    [
-                                        {
-                                            "containerid": "0001measurement_test_asset_code",
-                                            "values": [
-                                                {
-                                                    "Time": "2018-04-20T09:38:50.163164Z",
-                                                    "humidity": 11,
-                                                    "temperature": 38
-                                                }
-                                            ]
-                                        }
-                                    ],
-                                    True, 10, 1
-                                ),
-                                # Case 2
-                                (
-                                        # Origin
-                                        [
-                                            {
-                                                "id": 11,
-                                                "asset_code": "test_asset_code",
-                                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                                "reading": {"tick": "tock"},
-                                                "user_ts": '2018-04-20 09:38:50.163164+00'
-                                            }
-                                        ],
-                                        "0001",
-                                        # Transformed
-                                        [
-                                            {
-                                                "containerid": "0001measurement_test_asset_code",
-                                                "values": [
-                                                    {
-                                                        "Time": "2018-04-20T09:38:50.163164Z",
-                                                        "tick": "tock"
-                                                    }
-                                                ]
-                                            }
-                                        ],
-                                        True, 11, 1
-                                ),
+            # Case 1
+            (
+                    # Origin
+                    [
+                        {
+                            "id": 10,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 11, "temperature": 38},
+                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                        }
+                    ],
+                    "0001",
+                    # Transformed
+                    [
+                        {
+                            "containerid": "0001measurement_test_asset_code",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163Z",
+                                    "humidity": 11,
+                                    "temperature": 38
+                                }
+                            ]
+                        }
+                    ],
+                    True, 10, 1
+            ),
+            # Case 2
+            (
+                    # Origin
+                    [
+                        {
+                            "id": 11,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"tick": "tock"},
+                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                        }
+                    ],
+                    "0001",
+                    # Transformed
+                    [
+                        {
+                            "containerid": "0001measurement_test_asset_code",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163Z",
+                                    "tick": "tock"
+                                }
+                            ]
+                        }
+                    ],
+                    True, 11, 1
+            ),
 
-                                # Case 3 - 2 rows
-                                (
-                                        # Origin
-                                        [
-                                            {
-                                                "id": 12,
-                                                "asset_code": "test_asset_code",
-                                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                                "reading": {"pressure": 957.2},
-                                                "user_ts": '2018-04-20 09:38:50.163164+00'
-                                            },
-                                            {
-                                                "id": 20,
-                                                "asset_code": "test_asset_code",
-                                                "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                                                "reading": {"y": 34, "z": 114, "x": -174},
-                                                "user_ts": '2018-04-20 09:38:50.163164+00'
-                                            }
-                                        ],
-                                        "0001",
-                                        # Transformed
-                                        [
-                                            {
-                                                "containerid": "0001measurement_test_asset_code",
-                                                "values": [
-                                                    {
-                                                        "Time": "2018-04-20T09:38:50.163164Z",
-                                                        "pressure": 957.2
-                                                    }
-                                                ]
-                                            },
-                                            {
-                                                "containerid": "0001measurement_test_asset_code",
-                                                "values": [
-                                                    {
-                                                        "Time": "2018-04-20T09:38:50.163164Z",
-                                                        "y": 34,
-                                                        "z": 114,
-                                                        "x": -174,
-                                                    }
-                                                ]
-                                            },
-                                        ],
-                                        True, 20, 2
-                                )
-
-        ])
+            # Case 3 - 2 rows
+            (
+                    # Origin
+                    [
+                        {
+                            "id": 12,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"pressure": 957.2},
+                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                        },
+                        {
+                            "id": 20,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"y": 34, "z": 114, "x": -174},
+                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                        }
+                    ],
+                    "0001",
+                    # Transformed
+                    [
+                        {
+                            "containerid": "0001measurement_test_asset_code",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163Z",
+                                    "pressure": 957.2
+                                }
+                            ]
+                        },
+                        {
+                            "containerid": "0001measurement_test_asset_code",
+                            "values": [
+                                {
+                                    "Time": "2018-04-20T09:38:50.163Z",
+                                    "y": 34,
+                                    "z": 114,
+                                    "x": -174,
+                                }
+                            ]
+                        },
+                    ],
+                    True, 20, 2
+            )
+    ])
     def test_plugin_transform_in_memory_data(self,
                                              p_data_origin,
                                              type_id,
                                              expected_data_to_send,
                                              expected_is_data_available,
                                              expected_new_position,
-                                             expected_num_sent):
+                                             expected_num_sent,
+                                             fixture_omf_north):
         """Tests the plugin in memory transformations """
 
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-        generated_data_to_send = []
+        generated_data_to_send = [None for x in range( len(expected_data_to_send) )]
 
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+        fixture_omf_north._config_omf_types = {"type-id": {"value": type_id}}
 
-        omf_north._config_omf_types = {"type-id": {"value": type_id}}
-
-        is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(generated_data_to_send,
+        is_data_available, new_position, num_sent = fixture_omf_north.transform_in_memory_data(generated_data_to_send,
                                                                                        p_data_origin)
 
         assert generated_data_to_send == expected_data_to_send
@@ -1481,116 +1471,4 @@ class TestOmfNorthPlugin:
         assert is_data_available == expected_is_data_available
         assert new_position == expected_new_position
         assert num_sent == expected_num_sent
-
-    @pytest.mark.parametrize(
-        "p_data_origin, "
-        "p_stream_id, "
-        "expected_data_to_send, ",
-        [
-                # Case 1 - Two integer values
-                (
-                    # Origin
-                    {
-                        "id": 10,
-                        "asset_code": "test_asset_code_1",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 11, "temperature": 38},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    },
-
-                    # p_stream_id
-                    "0001measurement_""test_asset_code_1",
-
-                    # Expected transformation
-                    [
-                        {
-                            "containerid": "0001measurement_""test_asset_code_1",
-                            "values": [
-                                {
-                                    "Time": "2018-04-20T09:38:50.163164Z",
-                                    "humidity": 11,
-                                    "temperature": 38
-                                }
-                            ]
-                        }
-                    ]
-                ),
-                # Case 2 - String
-                (
-                    # Origin
-                    {
-                        "id": 11,
-                        "asset_code": "test_asset_code_2",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"tick": "tock"},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    },
-
-                    # p_stream_id
-                    "0001measurement_""test_asset_code_2",
-
-                    # Expected transformation
-                    [
-                        {
-                            "containerid": "0001measurement_""test_asset_code_2",
-                            "values": [
-                                {
-                                    "Time": "2018-04-20T09:38:50.163164Z",
-                                    "tick": "tock"
-                                }
-                            ]
-                        }
-                    ]
-                ),
-
-                # Case 3 - Number 957.2
-                (
-                    # Origin
-                    {
-                        "id": 12,
-                        "asset_code": "test_asset_code_3",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"pressure": 957.2},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    },
-
-                    # p_stream_id
-                    "0001measurement_""test_asset_code_3",
-
-                    # Expected transformation
-                    [
-
-                        {
-                            "containerid": "0001measurement_""test_asset_code_3",
-                            "values": [
-                                {
-                                    "Time": "2018-04-20T09:38:50.163164Z",
-                                    "pressure": 957.2
-                                }
-                            ]
-                        }
-                    ]
-                )
-
-        ]
-    )
-    def test_transform_in_memory_row(
-                                        self,
-                                        p_data_origin,
-                                        p_stream_id,
-                                        expected_data_to_send
-    ):
-        """Tests the in memory transformations of a single row - _transform_in_memory_row"""
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-        generated_data_to_send = []
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._transform_in_memory_row(generated_data_to_send, p_data_origin, p_stream_id)
-
-        assert generated_data_to_send == expected_data_to_send
 

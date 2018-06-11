@@ -109,7 +109,7 @@ static void loadDataThread(SendingProcess *loadData)
 
                 if (canLoad)
                 {
-			Logger::getLogger()->info("SendingProcess loadDataThread: "
+			Logger::getLogger()->info("-- loadDataThread: "
 						  "(stream id %d), readIdx %u, buffer is NOT empty, waiting ...",
 						  loadData->getStreamId(),
 						  readIdx);
@@ -148,6 +148,9 @@ static void loadDataThread(SendingProcess *loadData)
 				// Update last fetched reading Id
 				loadData->setLastSentId(readings->getLastId());
 
+				//Logger::getLogger()->info("-- loadDataThread: Read data, Id of last reading element is = [%d]/[%d]",
+				//			  readings->getLastId(), loadData->getLastSentId());
+
 				/**
 				 * The buffer access is protected by a mutex
 				 */
@@ -163,6 +166,12 @@ static void loadDataThread(SendingProcess *loadData)
 	                      	loadData->m_buffer.at(readIdx) = readings;
 
                         	readMutex.unlock();
+
+				//Logger::getLogger()->info("-- loadDataThread: (stream id %d), "
+				//			  "readIdx %u. Loading done, data Buffer SET "
+				//			  "with %d readings",
+				//			  loadData->getStreamId(),
+				//			  readIdx, readings->getCount());
 
                         	readIdx++;
 
@@ -215,7 +224,6 @@ static void sendDataThread(SendingProcess *sendData)
 				// Reset current sent readings
 				sendData->resetSentReadings();	
 
-				// DB update done
 				sendData->setUpdateDb(false);
 			}
 
@@ -233,7 +241,7 @@ static void sendDataThread(SendingProcess *sendData)
 
                 if (canSend == NULL)
                 {
-                        Logger::getLogger()->info("SendingProcess sendDataThread: " \
+                        Logger::getLogger()->info("++ sendDataThread: " \
                                                   "(stream id %d), sendIdx %u, buffer is empty, waiting ...",
                                                   sendData->getStreamId(),
                                                   sendIdx);
@@ -249,13 +257,14 @@ static void sendDataThread(SendingProcess *sendData)
 				// Reset current sent readings
 				sendData->resetSentReadings();	
 
-				// DB update done
 				sendData->setUpdateDb(false);
 			}
 
 			// Send thread is put on hold
                         unique_lock<mutex> lock(waitMutex);
                         cond_var.wait(lock);
+
+			Logger::getLogger()->info("++ sendDataThread is now ready");
                 }
                 else
                 {
@@ -280,6 +289,7 @@ static void sendDataThread(SendingProcess *sendData)
 				 */
 				readMutex.lock();
 
+				// if persistent commment delete
 				delete sendData->m_buffer.at(sendIdx);
 				sendData->m_buffer.at(sendIdx) = NULL;
 
@@ -287,6 +297,11 @@ static void sendDataThread(SendingProcess *sendData)
 				sendData->updateSentReadings(sentReadings);
 
 				readMutex.unlock();
+
+				Logger::getLogger()->info("++ sendDataThread: "
+							  "(stream id %d), sendIdx %u. Sending done. Data Buffer SET to empty",
+							  sendData->getStreamId(),
+							  sendIdx);
 
 				sendIdx++;
 
@@ -296,7 +311,7 @@ static void sendDataThread(SendingProcess *sendData)
 			}
 			else
 			{
-				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending" \
+				Logger::getLogger()->error("++ sendDataThread: Error while sending" \
 							   "(stream id %d), sendIdx %u. N. (%d readings)",
 							   sendData->getStreamId(),
 							   sendIdx,
@@ -313,7 +328,6 @@ static void sendDataThread(SendingProcess *sendData)
 					// Reset current sent readings
 					sendData->resetSentReadings();	
 
-					// DB update done
 					sendData->setUpdateDb(false);
 				}
 

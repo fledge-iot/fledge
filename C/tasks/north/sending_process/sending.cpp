@@ -133,7 +133,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 				  DATA_BUFFER_ELMS);
 
 	Logger::getLogger()->info("SendingProcess reads data from last id %lu",
-				  this->getLastSentReadingId());
+				  this->getLastSentId());
 }
 
 // While running check signals and execution time
@@ -232,9 +232,9 @@ void SendingProcess::updateDatabaseCounters()
 
 	string streamId = to_string(this->getStreamId());
 
-	// Prepare WHERE destination_id = val
+	// Prepare WHERE id = val
 	const Condition conditionStream(Equals);
-	Where wStreamId("destination_id",
+	Where wStreamId("id",
 			conditionStream,
 			streamId);
 
@@ -243,7 +243,7 @@ void SendingProcess::updateDatabaseCounters()
 	lastId.push_back(InsertValue("last_object",
 			 (long)this->getLastSentId()));
 
-	// Perform UPDATE foglamp.streams SET destination_id = x WHERE destination_id = y
+	// Perform UPDATE foglamp.streams SET last_object = x WHERE id = y
 	this->getStorageClient()->updateTable("streams",
 					      lastId,
 					      wStreamId);
@@ -279,11 +279,11 @@ bool SendingProcess::getLastSentReadingId()
 	bool foundId = false;
 	const Condition conditionId(Equals);
 	string streamId = to_string(this->getStreamId());
-	Where* wStreamId = new Where("destination_id",
+	Where* wStreamId = new Where("id",
 				     conditionId,
 				     streamId);
 
-	// SELECT * FROM foglamp.streams WHERE destination_id = x
+	// SELECT * FROM foglamp.streams WHERE id = x
 	Query qLastId(wStreamId);
 
 	ResultSet* lastObjectId = this->getStorageClient()->queryTable("streams", qLastId);

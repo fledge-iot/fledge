@@ -70,10 +70,11 @@ int SimpleHttps::sendRequest(const string& method,
 	{
 		auto res = m_sender->request(method, path, payload, header);
 		retCode = res->status_code;
-		//cerr << "Server reply: " << res->content.string() << endl;
 	} catch (exception& ex) {
-		cerr << "Failed to send data: " << ex.what() << endl;
-		return 0;
+		string errMsg("Failed to send data: ");
+		errMsg.append(ex.what());
+
+		throw runtime_error(errMsg); 
 	}
 
 	return atoi(retCode.c_str());

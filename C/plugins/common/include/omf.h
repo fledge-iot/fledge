@@ -134,7 +134,7 @@ class OMFData
 {
 	public:
 		OMFData(const Reading& reading);
-		const std::string OMFdataVal() const;
+		const std::string& OMFdataVal() const;
 	private:
 		std::string	m_value;
 };

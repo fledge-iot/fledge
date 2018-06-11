@@ -37,6 +37,29 @@ char	uuid_str[37];
 }
 
 /**
+ * Reading constructor
+ *
+ * A reading is a container for the values related to a single asset.
+ * Each actual datavalue that relates to that asset is held within an
+ * instance of a Datapoint class.
+ */
+Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asset)
+{
+uuid_t	uuid;
+char	uuid_str[37];
+
+	for (auto it = values.cbegin(); it != values.cend(); it++)
+	{
+		m_values.push_back(*it);
+	}
+	uuid_generate_time_safe(uuid);
+	uuid_unparse_lower(uuid, uuid_str);
+	m_uuid = string(uuid_str);
+	// Store seconds and microseconds
+	gettimeofday(&m_timestamp, NULL);
+}
+
+/**
  * Reading copy constructor
  */
 Reading::Reading(const Reading& orig) : m_asset(orig.m_asset),

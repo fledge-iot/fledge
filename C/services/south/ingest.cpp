@@ -23,7 +23,7 @@ static void ingestThread(Ingest *ingest)
 {
 	while (ingest->running())
 	{
-		this_thread::sleep_for(chrono::milliseconds(5000));
+		ingest->waitForQueue();
 		ingest->processQueue();
 	}
 }
@@ -34,8 +34,13 @@ static void ingestThread(Ingest *ingest)
  * storage layer based on time. This thread in created in
  * the constructor and will terminate when the destructor
  * is called.
+ *
+ * @param storage	The storage client to use
+ * @param timeout	Maximum time before sending a queue of readings in milliseconds
+ * @param threshold	Length of queue before sending readings
  */
-Ingest::Ingest(StorageClient& storage) : m_storage(storage)
+Ingest::Ingest(StorageClient& storage, unsigned long timeout, unsigned int threshold) :
+			m_storage(storage), m_timeout(timeout), m_queueSizeThreshold(threshold)
 {
 	m_running = true;
 	m_queue = new vector<Reading *>();
@@ -79,7 +84,16 @@ void Ingest::ingest(const Reading& reading)
 {
 	lock_guard<mutex> guard(m_qMutex);
 	m_queue->push_back(new Reading(reading));
+	if (m_queue->size() >= m_queueSizeThreshold)
+		m_cv.notify_all();
 	
+}
+
+void Ingest::waitForQueue()
+{
+	mutex mtx;
+	unique_lock<mutex> lck(mtx);
+	m_cv.wait_for(lck,chrono::milliseconds(m_timeout));
 }
 
 /**

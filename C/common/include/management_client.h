@@ -65,7 +65,7 @@ class ManagementClient {
 					return true;
 				}
 			} catch (const SimpleWeb::system_error &e) {
-				m_logger->error("Get config categories failed %s.", e.what());
+				m_logger->error("Add config category failed %s.", e.what());
 			}
 			return false;
 		};

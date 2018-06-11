@@ -16,6 +16,7 @@ typedef struct {
         unsigned int	options;
         const char	*type;
         const char	*interface;
+	const char	*config;
 } PLUGIN_INFORMATION;
  
 typedef struct {

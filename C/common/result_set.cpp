@@ -94,6 +94,8 @@ ResultSet::ResultSet(const std::string& json)
 							rowValue->append(new ColumnValue(item->value.GetDouble()));
 							break;
 						case JSON_COLUMN:
+							rowValue->append(new ColumnValue(item->value));
+							break;
 						case BOOL_COLUMN:
 							// TODO Add support
 							rowValue->append(new ColumnValue(string("TODO")));

@@ -525,12 +525,12 @@ Document doc;
 		{
 			m_logger->info("%s completed with result %s", operation, 
 							responseCode.c_str());
-			m_logger->error("%s: %s",
+			m_logger->error("%s: %s", operation,
 				doc["message"].GetString());
 		}
 	}
 	else
 	{
-		m_logger->error("%s completed with result %s", responseCode.c_str());
+		m_logger->error("%s completed with result %s", operation, responseCode.c_str());
 	}
 }

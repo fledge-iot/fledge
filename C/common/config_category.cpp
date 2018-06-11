@@ -30,7 +30,7 @@ ConfigCategories::ConfigCategories(const std::string& json)
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		throw new exception();
+		throw new ConfigMalformed();
 	}
 	if (doc.HasMember("categories"))
 	{
@@ -42,7 +42,7 @@ ConfigCategories::ConfigCategories(const std::string& json)
 			{
 				if (!cat.IsObject())
 				{
-					throw new exception();
+					throw new ConfigMalformed();
 				}
 				ConfigCategoryDescription *value = new ConfigCategoryDescription(cat["key"].GetString(),
 							cat["description"].GetString());
@@ -51,7 +51,7 @@ ConfigCategories::ConfigCategories(const std::string& json)
 		}
 		else
 		{
-			throw new exception();
+			throw new ConfigMalformed();
 		}
 	}
 }
@@ -79,11 +79,22 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		throw new exception();
+		throw new ConfigMalformed();
 	}
 	for (Value::ConstMemberIterator itr = doc.MemberBegin(); itr != doc.MemberEnd(); ++itr)
 	{
 		m_items.push_back(new CategoryItem(itr->name.GetString(), itr->value));
+	}
+}
+
+/**
+ * Copy constructor for a configuration category
+ */
+ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
+{
+	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
 	}
 }
 
@@ -97,6 +108,29 @@ ConfigCategory::~ConfigCategory()
 		delete *it;
 	}
 }
+
+/**
+ * Operator= for ConfigCategory
+ */
+ConfigCategory& ConfigCategory::operator=(ConfigCategory const& rhs)
+{
+	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
+	}
+	return *this;
+}
+
+/**
+ * Add an item to a configuration category
+ */
+void ConfigCategory::addItem(const std::string& name, const std::string description,
+                             const std::string& type, const std::string def,
+                             const std::string& value)
+{
+	m_items.push_back(new CategoryItem(name, description, type, def, value));
+}
+
 
 /**
  * Check for the existance of an item within the configuration category
@@ -131,7 +165,7 @@ string ConfigCategory::getValue(const string& name) const
 			return m_items[i]->m_value;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -150,7 +184,7 @@ string ConfigCategory::getType(const string& name) const
 			return m_items[i]->m_type;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -169,7 +203,7 @@ string ConfigCategory::getDescription(const string& name) const
 			return m_items[i]->m_description;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -188,7 +222,7 @@ string ConfigCategory::getDefault(const string& name) const
 			return m_items[i]->m_default;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -207,7 +241,7 @@ bool ConfigCategory::isString(const string& name) const
 			return m_items[i]->m_itemType == CategoryItem::StringItem;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -226,7 +260,7 @@ bool ConfigCategory::isJSON(const string& name) const
 			return m_items[i]->m_itemType == CategoryItem::JsonItem;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -284,7 +318,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 	m_name = name;
 	if (! item.IsObject())
 	{
-		throw new exception();
+		throw new ConfigMalformed();
 	}
 	if (item.HasMember("type"))
 		m_type = item["type"].GetString();
@@ -329,6 +363,21 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 }
 
 /**
+ * Constructor for a configuration item
+ */
+ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string& description,
+                                           const std::string& type, const std::string def,
+                                           const std::string& value)
+{
+	m_name = name;
+	m_description = description;
+	m_type = type;
+	m_default = def;
+	m_value = value;
+	m_itemType = StringItem;
+}
+
+/**
  * Create a JSON representation of the configuration item
  */
 string ConfigCategory::CategoryItem::toJSON() const
@@ -367,7 +416,7 @@ ostringstream convert;
 	}
 	else if (m_itemType == JsonItem)
 	{
-		convert << "\"default\" : " << m_default << " }";
+		convert << "\"default\" : \"" << escape(m_default) << "\" }";
 	}
 	return convert.str();
 }
@@ -415,4 +464,18 @@ ostringstream convert;
 	convert << "}";
 
 	return convert.str();
+}
+
+std::string ConfigCategory::CategoryItem::escape(const std::string& subject) const
+{
+size_t pos = 0;
+string replace("\\\"");
+string escaped = subject;
+
+	while ((pos = escaped.find("\"", pos)) != std::string::npos)
+	{
+		escaped.replace(pos, 1, replace);
+		pos += replace.length();
+	}
+	return escaped;
 }

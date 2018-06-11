@@ -115,7 +115,7 @@ class Server(FoglampMicroservice):
                 "key": category,
                 "description": '{} Device'.format(self._name),
                 "value": default_config,
-                "keep_original_items": False
+                "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)

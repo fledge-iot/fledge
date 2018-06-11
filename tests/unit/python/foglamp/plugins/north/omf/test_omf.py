@@ -40,9 +40,9 @@ class to_dev_null(object):
         pass
 
 
-async def mock_async_call():
+async def mock_async_call(p1=True):
     """ mocks a generic async function """
-    return True
+    return p1
 
 
 # noinspection PyProtectedMember
@@ -51,6 +51,7 @@ def fixture_omf(event_loop):
     """"  Configures the OMF instance for the tests """
 
     _omf = MagicMock()
+    # FIXME:
     #omf.omf_north._sending_process_instance = MagicMock()
 
     omf._logger = MagicMock(spec=logging)
@@ -903,8 +904,6 @@ class TestOmfNorthPlugin:
 
         ]
     )
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_create_omf_object_links(
                                         self,
@@ -934,6 +933,407 @@ class TestOmfNorthPlugin:
         patched_send_to_picromf.assert_any_call("Container", expected_container)
         patched_send_to_picromf.assert_any_call("Data", expected_static_data)
         patched_send_to_picromf.assert_any_call("Data", expected_link_data)
+
+    @pytest.mark.parametrize(
+        "p_creation_type, "
+        "p_data_origin, "
+        "p_asset_codes_already_created, "
+        "p_omf_objects_configuration_based ",
+        [
+            # Case 1 - automatic
+            (
+                # p_creation_type
+                "automatic",
+
+                # Origin
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 10, "temperature": 20},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ],
+
+                # asset_codes_already_created
+                [
+                    "test_none"
+                ],
+
+                # omf_objects_configuration_based
+                {"none": "none"}
+            ),
+            # Case 2 - configuration
+            (
+                    # p_creation_type
+                    "configuration",
+
+                    # Origin
+                    [
+                        {
+                            "id": 10,
+                            "asset_code": "test_asset_code",
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                            "reading": {"humidity": 10, "temperature": 20},
+                            "user_ts": '2018-04-20 09:38:50.163164+00'
+                        }
+                    ],
+
+                    # asset_codes_already_created
+                    [
+                        "test_none"
+                    ],
+
+                    # omf_objects_configuration_based
+                    {"test_asset_code": {"value": "test_asset_code"}}
+            )
+
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_create_omf_objects(
+                                        self,
+                                        p_creation_type,
+                                        p_data_origin,
+                                        p_asset_codes_already_created,
+                                        p_omf_objects_configuration_based,
+                                        fixture_omf_north
+                                        ):
+        """ Unit test for - create_omf_objects - successful case
+            Tests the evaluation of the 2 ways of creating OMF objects: automatic or configuration based
+        """
+
+        config_category_name = "SEND_PR"
+        type_id = "0001"
+
+        fixture_omf_north._config_omf_types = {"type-id": {"value": type_id}}
+        fixture_omf_north._config_omf_types = p_omf_objects_configuration_based
+
+        with patch.object(fixture_omf_north,
+                          '_retrieve_omf_types_already_created',
+                          return_value=mock_async_call(p_asset_codes_already_created)):
+
+            with patch.object(
+                                fixture_omf_north,
+                                '_create_omf_objects_configuration_based',
+                                return_value=mock_async_call()
+                              ) as patched_create_omf_objects_configuration_based:
+
+                with patch.object(
+                                    fixture_omf_north,
+                                    '_create_omf_objects_automatic',
+                                    return_value=mock_async_call()
+                                    ) as patched_create_omf_objects_automatic:
+
+                    with patch.object(fixture_omf_north,
+                                      '_flag_created_omf_type',
+                                      return_value=mock_async_call()
+                                      ) as patched_flag_created_omf_type:
+
+                        await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
+
+        if p_creation_type == "automatic":
+
+            assert not patched_create_omf_objects_configuration_based.called
+            assert patched_create_omf_objects_automatic.called
+            assert patched_flag_created_omf_type.called
+
+        elif p_creation_type == "configuration":
+
+            assert patched_create_omf_objects_configuration_based.called
+            assert not patched_create_omf_objects_automatic.called
+            assert patched_flag_created_omf_type.called
+
+        else:
+            raise Exception("ERROR : creation type not defined !")
+
+    @pytest.mark.parametrize(
+        "p_key, "
+        "p_value, "
+        "expected, ",
+        [
+            # Good cases
+            ('producerToken', "xxx", "good"),
+
+            # Bad cases
+            ('NO-producerToken', "", "exception"),
+            ('producerToken', "", "exception")
+        ]
+    )
+    def test_validate_configuration(
+                                    self,
+                                    p_key,
+                                    p_value,
+                                    expected):
+        """ Tests the validation of the configurations retrieved from the Configuration Manager
+            handled by _validate_configuration """
+
+        omf._logger = MagicMock()
+
+        data = {p_key: {'value': p_value}}
+
+        if expected == "good":
+            assert not omf._logger.error.called
+
+        elif expected == "exception":
+            with pytest.raises(ValueError):
+                omf._validate_configuration(data)
+
+            assert omf._logger.error.called
+
+    @pytest.mark.parametrize(
+        "p_key, "
+        "p_value, "
+        "expected, ",
+        [
+            # Good cases
+            ('type-id', "xxx", "good"),
+
+            # Bad cases
+            ('NO-type-id', "", "exception"),
+            ('type-id', "", "exception")
+        ]
+    )
+    def test_validate_configuration_omf_type(
+                                    self,
+                                    p_key,
+                                    p_value,
+                                    expected):
+        """ Tests the validation of the configurations retrieved from the Configuration Manager
+            related to the OMF types """
+
+        omf._logger = MagicMock()
+
+        data = {p_key: {'value': p_value}}
+
+        if expected == "good":
+            assert not omf._logger.error.called
+
+        elif expected == "exception":
+            with pytest.raises(ValueError):
+                omf._validate_configuration_omf_type(data)
+
+            assert omf._logger.error.called
+
+    @pytest.mark.parametrize(
+        "p_test_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                {
+                    'dummy': 'dummy'
+                }
+            ),
+
+        ]
+    )
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_send_in_memory_data_to_picromf_ok(
+                                                self,
+                                                p_test_data):
+        class Response:
+            """ Used to mock the Response object, simulating a successful communication"""
+
+            status_code = 200
+            text = "OK"
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config = dict(producerToken="dummy_producerToken")
+        omf_north._config["URL"] = "dummy_URL"
+        omf_north._config["OMFRetrySleepTime"] = 1
+        omf_north._config["OMFHttpTimeout"] = 1
+
+        # Good Case
+        omf_north._config["OMFMaxRetry"] = 1
+
+        response_ok = Response()
+        response_ok.status_code = 200
+        response_ok.text = "OK"
+
+        with patch.object(omf_north._logger, 'warning', return_value=True) \
+                as patched_logger:
+
+            with patch.object(requests, 'post', return_value=response_ok) \
+                    as patched_requests:
+
+                omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+
+        assert patched_requests.called
+        assert patched_requests.call_count == 1
+        assert not patched_logger.called
+
+    @pytest.mark.parametrize(
+        "p_type, "
+        "p_test_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                "Type",
+                {
+                    'pressure_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0001_pressure_typename_sensor',
+                            'properties': {
+                                            'Company': {'type': 'string'},
+                                            'Name': {'isindex': True, 'type': 'string'},
+                                            'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0001_pressure_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'pressure': {'type': 'number'}
+                            },
+                            'type': 'object'
+                         }
+                    ]
+                }
+
+            ),
+
+        ]
+    )
+    def test_send_in_memory_data_to_picromf_data(
+                                                self,
+                                                p_type,
+                                                p_test_data):
+        """ Tests the data sent to the PI Server in relation of an OMF type"""
+
+        class Response:
+            """ Used to mock the Response object, simulating a successful communication"""
+            status_code = 200
+            text = "OR"
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        # Values for the test
+        test_url = "test_URL"
+        test_producer_token = "test_producerToken"
+        test_omf_http_timeout = 1
+        test_headers = {
+                        'producertoken': test_producer_token,
+                        'messagetype': p_type,
+                        'action': 'create',
+                        'messageformat': 'JSON',
+                        'omfversion': '1.0'}
+
+        omf_north._config = dict(producerToken=test_producer_token)
+        omf_north._config["URL"] = test_url
+        omf_north._config["OMFRetrySleepTime"] = 1
+        omf_north._config["OMFHttpTimeout"] = test_omf_http_timeout
+        omf_north._config["OMFMaxRetry"] = 1
+
+        response_ok = Response()
+        response_ok.status_code = 200
+        response_ok.text = "OK"
+
+        # To avoid the wait time
+        with patch.object(time, 'sleep', return_value=True):
+
+            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
+
+                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
+
+                    # To ignore messages sent to the stderr
+                    sys.stderr = to_dev_null()
+
+                    omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
+
+        assert not patched_logger.called
+
+        str_data = json.dumps(p_test_data)
+        patched_requests.assert_called_with(
+                                            test_url,
+                                            headers=test_headers,
+                                            data=str_data,
+                                            verify=False,
+                                            timeout=test_omf_http_timeout)
+        assert patched_requests.call_count == 1
+
+
+
+
+    @pytest.mark.parametrize(
+        "p_test_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                {
+                    'dummy': 'dummy'
+                }
+
+            ),
+
+        ]
+    )
+    def test_send_in_memory_data_to_picromf_bad(self,
+                                                p_test_data):
+        """ Tests the behaviour  in case of communication error:
+            exception erased,
+            message logged
+            and number of retries """
+
+        class Response:
+            """ Used to mock the Response object, simulating an error"""
+
+            status_code = 400
+            text = "ERROR"
+
+        sending_process_instance = []
+        config = []
+        config_omf_types = []
+        logger = MagicMock()
+
+        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+
+        omf_north._config = dict(producerToken="dummy_producerToken")
+        omf_north._config["URL"] = "dummy_URL"
+        omf_north._config["OMFRetrySleepTime"] = 1
+        omf_north._config["OMFHttpTimeout"] = 1
+
+        # Bad Case
+        omf_north._config["OMFMaxRetry"] = 3
+
+        response_ok = Response()
+        response_ok.status_code = 400
+        response_ok.text = "ERROR"
+
+        # To avoid the wait time
+        with patch.object(time, 'sleep', return_value=True):
+
+            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
+
+                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
+
+                    # Tests the raising of the exception
+                    with pytest.raises(Exception):
+                        # To ignore messages sent to the stderr
+                        sys.stderr = to_dev_null()
+
+                        omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+
+        assert patched_requests.call_count == 3
+        assert patched_logger.called
+
 
     @pytest.mark.parametrize(
         "p_data_origin, "
@@ -1185,390 +1585,3 @@ class TestOmfNorthPlugin:
 
         assert generated_data_to_send == expected_data_to_send
 
-    @pytest.mark.parametrize(
-        "p_creation_type, "
-        "p_data_origin, "
-        "p_asset_codes_already_created, "
-        "p_omf_objects_configuration_based ",
-        [
-            # Case 1 - automatic
-            (
-                # p_creation_type
-                "automatic",
-
-                # Origin
-                [
-                    {
-                        "id": 10,
-                        "asset_code": "test_asset_code",
-                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                        "reading": {"humidity": 10, "temperature": 20},
-                        "user_ts": '2018-04-20 09:38:50.163164+00'
-                    }
-                ],
-
-                # asset_codes_already_created
-                [
-                    "test_none"
-                ],
-
-                # omf_objects_configuration_based
-                {"none": "none"}
-            ),
-            # Case 2 - configuration
-            (
-                    # p_creation_type
-                    "configuration",
-
-                    # Origin
-                    [
-                        {
-                            "id": 10,
-                            "asset_code": "test_asset_code",
-                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
-                            "reading": {"humidity": 10, "temperature": 20},
-                            "user_ts": '2018-04-20 09:38:50.163164+00'
-                        }
-                    ],
-
-                    # asset_codes_already_created
-                    [
-                        "test_none"
-                    ],
-
-                    # omf_objects_configuration_based
-                    {"test_asset_code": {"value": "test_asset_code"}}
-            )
-
-        ]
-    )
-    def test_create_omf_objects_test_creation(self,
-                                              p_creation_type,
-                                              p_data_origin,
-                                              p_asset_codes_already_created,
-                                              p_omf_objects_configuration_based
-                                              ):
-        """ Tests the evaluation of the 2 ways of creating OMF objects: automatic or configuration based """
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        config_category_name = "SEND_PR"
-        type_id = "0001"
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._config_omf_types = {"type-id": {"value": type_id}}
-        omf_north._config_omf_types = p_omf_objects_configuration_based
-
-        with patch.object(omf_north, '_retrieve_omf_types_already_created', return_value=p_asset_codes_already_created):
-
-            with patch.object(omf_north, '_create_omf_objects_configuration_based') \
-                    as patched_create_omf_objects_configuration_based:
-
-                with patch.object(omf_north, '_create_omf_objects_automatic') \
-                        as patched_create_omf_objects_automatic:
-
-                    with patch.object(omf_north, '_flag_created_omf_type') \
-                            as patched_flag_created_omf_type:
-
-                        omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
-
-        if p_creation_type == "automatic":
-
-            assert not patched_create_omf_objects_configuration_based.called
-            assert patched_create_omf_objects_automatic.called
-            assert patched_flag_created_omf_type.called
-
-        elif p_creation_type == "configuration":
-
-            assert patched_create_omf_objects_configuration_based.called
-            assert not patched_create_omf_objects_automatic.called
-            assert patched_flag_created_omf_type.called
-
-        else:
-            raise Exception("ERROR : creation type not defined !")
-
-
-    @pytest.mark.parametrize(
-        "p_test_data ",
-        [
-            # Case 1 - pressure / Number
-            (
-                {
-                    'dummy': 'dummy'
-                }
-            ),
-
-        ]
-    )
-    def test_send_in_memory_data_to_picromf_ok(
-                                                self,
-                                                p_test_data):
-        class Response:
-            """ Used to mock the Response object, simulating a successful communication"""
-
-            status_code = 200
-            text = "OK"
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._config = dict(producerToken="dummy_producerToken")
-        omf_north._config["URL"] = "dummy_URL"
-        omf_north._config["OMFRetrySleepTime"] = 1
-        omf_north._config["OMFHttpTimeout"] = 1
-
-        # Good Case
-        omf_north._config["OMFMaxRetry"] = 1
-
-        response_ok = Response()
-        response_ok.status_code = 200
-        response_ok.text = "OK"
-
-        with patch.object(omf_north._logger, 'warning', return_value=True) \
-                as patched_logger:
-
-            with patch.object(requests, 'post', return_value=response_ok) \
-                    as patched_requests:
-
-                omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
-
-        assert patched_requests.called
-        assert patched_requests.call_count == 1
-        assert not patched_logger.called
-
-    @pytest.mark.parametrize(
-        "p_test_data ",
-        [
-            # Case 1 - pressure / Number
-            (
-                {
-                    'dummy': 'dummy'
-                }
-
-            ),
-
-        ]
-    )
-    def test_send_in_memory_data_to_picromf_bad(self,
-                                                p_test_data):
-        """ Tests the behaviour  in case of communication error:
-            exception erased,
-            message logged
-            and number of retries """
-
-        class Response:
-            """ Used to mock the Response object, simulating an error"""
-
-            status_code = 400
-            text = "ERROR"
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._config = dict(producerToken="dummy_producerToken")
-        omf_north._config["URL"] = "dummy_URL"
-        omf_north._config["OMFRetrySleepTime"] = 1
-        omf_north._config["OMFHttpTimeout"] = 1
-
-        # Bad Case
-        omf_north._config["OMFMaxRetry"] = 3
-
-        response_ok = Response()
-        response_ok.status_code = 400
-        response_ok.text = "ERROR"
-
-        # To avoid the wait time
-        with patch.object(time, 'sleep', return_value=True):
-
-            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
-
-                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
-
-                    # Tests the raising of the exception
-                    with pytest.raises(Exception):
-                        # To ignore messages sent to the stderr
-                        sys.stderr = to_dev_null()
-
-                        omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
-
-        assert patched_requests.call_count == 3
-        assert patched_logger.called
-
-    @pytest.mark.parametrize(
-        "p_type, "
-        "p_test_data ",
-        [
-            # Case 1 - pressure / Number
-            (
-                "Type",
-                {
-                    'pressure_typename':
-                    [
-                        {
-                            'classification': 'static',
-                            'id': '0001_pressure_typename_sensor',
-                            'properties': {
-                                            'Company': {'type': 'string'},
-                                            'Name': {'isindex': True, 'type': 'string'},
-                                            'Location': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        },
-                        {
-                            'classification': 'dynamic',
-                            'id': '0001_pressure_typename_measurement',
-                            'properties': {
-                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'pressure': {'type': 'number'}
-                            },
-                            'type': 'object'
-                         }
-                    ]
-                }
-
-            ),
-
-        ]
-    )
-    def test_send_in_memory_data_to_picromf_data(
-                                                self,
-                                                p_type,
-                                                p_test_data):
-        """ Tests the data sent to the PI Server in relation of an OMF type"""
-
-        class Response:
-            """ Used to mock the Response object, simulating a successful communication"""
-            status_code = 200
-            text = "OR"
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        # Values for the test
-        test_url = "test_URL"
-        test_producer_token = "test_producerToken"
-        test_omf_http_timeout = 1
-        test_headers = {
-                        'producertoken': test_producer_token,
-                        'messagetype': p_type,
-                        'action': 'create',
-                        'messageformat': 'JSON',
-                        'omfversion': '1.0'}
-
-        omf_north._config = dict(producerToken=test_producer_token)
-        omf_north._config["URL"] = test_url
-        omf_north._config["OMFRetrySleepTime"] = 1
-        omf_north._config["OMFHttpTimeout"] = test_omf_http_timeout
-        omf_north._config["OMFMaxRetry"] = 1
-
-        response_ok = Response()
-        response_ok.status_code = 200
-        response_ok.text = "OK"
-
-        # To avoid the wait time
-        with patch.object(time, 'sleep', return_value=True):
-
-            with patch.object(omf_north._logger, 'warning', return_value=True) as patched_logger:
-
-                with patch.object(requests, 'post', return_value=response_ok) as patched_requests:
-
-                    # To ignore messages sent to the stderr
-                    sys.stderr = to_dev_null()
-
-                    omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
-
-        assert not patched_logger.called
-
-        str_data = json.dumps(p_test_data)
-        patched_requests.assert_called_with(
-                                            test_url,
-                                            headers=test_headers,
-                                            data=str_data,
-                                            verify=False,
-                                            timeout=test_omf_http_timeout)
-        assert patched_requests.call_count == 1
-
-
-    @pytest.mark.parametrize(
-        "p_key, "
-        "p_value, "
-        "expected, ",
-        [
-            # Good cases
-            ('producerToken', "xxx", "good"),
-
-            # Bad cases
-            ('NO-producerToken', "", "exception"),
-            ('producerToken', "", "exception")
-        ]
-    )
-    def test_validate_configuration(
-                                    self,
-                                    p_key,
-                                    p_value,
-                                    expected):
-        """ Tests the validation of the configurations retrieved from the Configuration Manager
-            handled by _validate_configuration """
-
-        omf._logger = MagicMock()
-
-        data = {p_key: {'value': p_value}}
-
-        if expected == "good":
-            assert not omf._logger.error.called
-
-        elif expected == "exception":
-            with pytest.raises(ValueError):
-                omf._validate_configuration(data)
-
-            assert omf._logger.error.called
-
-    @pytest.mark.parametrize(
-        "p_key, "
-        "p_value, "
-        "expected, ",
-        [
-            # Good cases
-            ('type-id', "xxx", "good"),
-
-            # Bad cases
-            ('NO-type-id', "", "exception"),
-            ('type-id', "", "exception")
-        ]
-    )
-    def test_validate_configuration_omf_type(
-                                    self,
-                                    p_key,
-                                    p_value,
-                                    expected):
-        """ Tests the validation of the configurations retrieved from the Configuration Manager
-            related to the OMF types """
-
-        omf._logger = MagicMock()
-
-        data = {p_key: {'value': p_value}}
-
-        if expected == "good":
-            assert not omf._logger.error.called
-
-        elif expected == "exception":
-            with pytest.raises(ValueError):
-                omf._validate_configuration_omf_type(data)
-
-            assert omf._logger.error.called

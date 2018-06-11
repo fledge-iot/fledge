@@ -10,6 +10,7 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+import asyncio
 import logging
 import pytest
 import json
@@ -780,8 +781,6 @@ class TestOmfNorthPlugin:
             )
         ]
     )
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_create_omf_type_configuration_based(
             self,
@@ -808,6 +807,133 @@ class TestOmfNorthPlugin:
         assert generated_omf_type == expected_omf_type
 
         patched_send_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])
+
+
+    @pytest.mark.parametrize(
+        "p_asset,"
+        "p_type_id, "
+        "p_static_data, "        
+        "p_typename,"
+        "p_omf_type, "
+        "expected_container, "
+        "expected_static_data, "
+        "expected_link_data ",
+        [
+            # Case 1 - pressure / Number
+            (
+                # p_asset
+                {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
+
+                # type_id
+                "0001",
+
+                # Static Data
+                {
+                    "Location": "Palo Alto",
+                    "Company": "Dianomic"
+                },
+
+                # p_typename
+                'pressure_typename',
+
+                # p_omf_type
+                {
+                    'pressure_typename':
+                    [
+                        {
+                            'classification': 'static',
+                            'id': '0001_pressure_typename_sensor',
+                            'properties': {
+                                            'Company': {'type': 'string'},
+                                            'Name': {'isindex': True, 'type': 'string'},
+                                            'Location': {'type': 'string'}
+                            },
+                            'type': 'object'
+                        },
+                        {
+                            'classification': 'dynamic',
+                            'id': '0001_pressure_typename_measurement',
+                            'properties': {
+                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
+                                'pressure': {'type': 'number'}
+                            },
+                            'type': 'object'
+                         }
+                    ]
+                },
+
+                # expected_container
+                [
+                    {
+                        'typeid': '0001_pressure_typename_measurement',
+                        'id': '0001measurement_pressure'
+                    }
+                ],
+
+                # expected_static_data
+                [
+                    {
+                        'typeid': '0001_pressure_typename_sensor',
+                        'values': [
+                                    {
+                                        'Company': 'Dianomic',
+                                        'Location': 'Palo Alto',
+                                        'Name': 'pressure'
+                                    }
+                        ]
+                    }
+                ],
+
+                # expected_link_data
+                [
+                    {
+                        'typeid': '__Link', 'values': [
+                            {
+                                    'source': {'typeid': '0001_pressure_typename_sensor', 'index': '_ROOT'},
+                                    'target': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}
+                            },
+                            {
+                                    'source': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'},
+                                    'target': {'containerid': '0001measurement_pressure'}
+                            }
+                        ]
+                     }
+                ]
+            )
+
+        ]
+    )
+    # FIXME:
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_create_omf_object_links(
+                                        self,
+                                        p_asset,
+                                        p_type_id,
+                                        p_static_data,
+                                        p_typename,
+                                        p_omf_type,
+                                        expected_container,
+                                        expected_static_data,
+                                        expected_link_data,
+                                        fixture_omf_north
+    ):
+
+        fixture_omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
+        fixture_omf_north._config = {"StaticData": p_static_data}
+
+        with patch.object(fixture_omf_north,
+                          'send_in_memory_data_to_picromf',
+                          side_effect=[asyncio.ensure_future(mock_async_call()) for x in range(3)]
+                          ) as patched_send_to_picromf:
+
+            await fixture_omf_north._create_omf_object_links(p_asset["asset_code"], p_typename, p_omf_type)
+
+        assert patched_send_to_picromf.call_count == 3
+
+        patched_send_to_picromf.assert_any_call("Container", expected_container)
+        patched_send_to_picromf.assert_any_call("Data", expected_static_data)
+        patched_send_to_picromf.assert_any_call("Data", expected_link_data)
 
     @pytest.mark.parametrize(
         "p_data_origin, "
@@ -1378,133 +1504,6 @@ class TestOmfNorthPlugin:
                                             timeout=test_omf_http_timeout)
         assert patched_requests.call_count == 1
 
-    @pytest.mark.parametrize(
-        "p_asset,"
-        "p_type_id, "
-        "p_static_data, "        
-        "p_typename,"
-        "p_omf_type, "
-        "expected_container, "
-        "expected_static_data, "
-        "expected_link_data ",
-        [
-            # Case 1 - pressure / Number
-            (
-                # p_asset
-                {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
-                # type_id
-                "0001",
-
-                # Static Data
-                {
-                    "Location": "Palo Alto",
-                    "Company": "Dianomic"
-                },
-
-                # p_typename
-                'pressure_typename',
-
-                # p_omf_type
-                {
-                    'pressure_typename':
-                    [
-                        {
-                            'classification': 'static',
-                            'id': '0001_pressure_typename_sensor',
-                            'properties': {
-                                            'Company': {'type': 'string'},
-                                            'Name': {'isindex': True, 'type': 'string'},
-                                            'Location': {'type': 'string'}
-                            },
-                            'type': 'object'
-                        },
-                        {
-                            'classification': 'dynamic',
-                            'id': '0001_pressure_typename_measurement',
-                            'properties': {
-                                'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                'pressure': {'type': 'number'}
-                            },
-                            'type': 'object'
-                         }
-                    ]
-                },
-
-                # expected_container
-                [
-                    {
-                        'typeid': '0001_pressure_typename_measurement',
-                        'id': '0001measurement_pressure'
-                    }
-                ],
-
-                # expected_static_data
-                [
-                    {
-                        'typeid': '0001_pressure_typename_sensor',
-                        'values': [
-                                    {
-                                        'Company': 'Dianomic',
-                                        'Location': 'Palo Alto',
-                                        'Name': 'pressure'
-                                    }
-                        ]
-                    }
-                ],
-
-                # expected_link_data
-                [
-                    {
-                        'typeid': '__Link', 'values': [
-                            {
-                                    'source': {'typeid': '0001_pressure_typename_sensor', 'index': '_ROOT'},
-                                    'target': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'}
-                            },
-                            {
-                                    'source': {'typeid': '0001_pressure_typename_sensor', 'index': 'pressure'},
-                                    'target': {'containerid': '0001measurement_pressure'}
-                            }
-                        ]
-                     }
-                ]
-            )
-
-        ]
-    )
-    def test_create_omf_object_links(
-                                        self,
-                                        p_asset,
-                                        p_type_id,
-                                        p_static_data,
-                                        p_typename,
-                                        p_omf_type,
-                                        expected_container,
-                                        expected_static_data,
-                                        expected_link_data
-    ):
-
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        type_id = p_type_id
-        omf_north._config_omf_types = {"type-id": {"value": type_id}}
-        omf_north._config = {"StaticData": p_static_data}
-
-        with patch.object(omf_north, 'send_in_memory_data_to_picromf', return_value=True) \
-                as patched_send_to_picromf:
-
-            omf_north._create_omf_object_links(p_asset["asset_code"], p_typename, p_omf_type)
-
-        assert patched_send_to_picromf.call_count == 3
-
-        patched_send_to_picromf.assert_any_call("Container", expected_container)
-        patched_send_to_picromf.assert_any_call("Data", expected_static_data)
-        patched_send_to_picromf.assert_any_call("Data", expected_link_data)
 
     @pytest.mark.parametrize(
         "p_key, "

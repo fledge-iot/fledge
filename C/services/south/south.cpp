@@ -167,14 +167,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		try {
 			threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
 			timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
-		} catch (exception e) {
+		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 		Ingest ingest(storage, timeout, threshold);
 
 		try {
 			m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
-		} catch (exception e) {
+		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
 		while (! m_shutdown)
@@ -257,6 +257,12 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	// TODO action configuration change
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
+	m_config = m_mgtClient->getCategory(m_name);
+	try {
+		m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+	} catch (ConfigItemNotFound e) {
+		logger->error("Failed to update poll interval following configuration change");
+	}
 }
 
 /**

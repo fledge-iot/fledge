@@ -30,7 +30,7 @@ ConfigCategories::ConfigCategories(const std::string& json)
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		throw new exception();
+		throw new ConfigMalformed();
 	}
 	if (doc.HasMember("categories"))
 	{
@@ -42,7 +42,7 @@ ConfigCategories::ConfigCategories(const std::string& json)
 			{
 				if (!cat.IsObject())
 				{
-					throw new exception();
+					throw new ConfigMalformed();
 				}
 				ConfigCategoryDescription *value = new ConfigCategoryDescription(cat["key"].GetString(),
 							cat["description"].GetString());
@@ -51,7 +51,7 @@ ConfigCategories::ConfigCategories(const std::string& json)
 		}
 		else
 		{
-			throw new exception();
+			throw new ConfigMalformed();
 		}
 	}
 }
@@ -76,10 +76,10 @@ ConfigCategories::~ConfigCategories()
 ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(name)
 {
 	Document doc;
-	ParseResult ok = doc.Parse(json.c_str());
+	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		throw new exception();
+		throw new ConfigMalformed();
 	}
 	for (Value::ConstMemberIterator itr = doc.MemberBegin(); itr != doc.MemberEnd(); ++itr)
 	{
@@ -165,7 +165,7 @@ string ConfigCategory::getValue(const string& name) const
 			return m_items[i]->m_value;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -184,7 +184,7 @@ string ConfigCategory::getType(const string& name) const
 			return m_items[i]->m_type;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -203,7 +203,7 @@ string ConfigCategory::getDescription(const string& name) const
 			return m_items[i]->m_description;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -222,7 +222,7 @@ string ConfigCategory::getDefault(const string& name) const
 			return m_items[i]->m_default;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -241,7 +241,7 @@ bool ConfigCategory::isString(const string& name) const
 			return m_items[i]->m_itemType == CategoryItem::StringItem;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -260,7 +260,7 @@ bool ConfigCategory::isJSON(const string& name) const
 			return m_items[i]->m_itemType == CategoryItem::JsonItem;
 		}
 	}
-	throw new exception;
+	throw new ConfigItemNotFound();
 }
 
 /**
@@ -318,7 +318,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 	m_name = name;
 	if (! item.IsObject())
 	{
-		throw new exception();
+		throw new ConfigMalformed();
 	}
 	if (item.HasMember("type"))
 		m_type = item["type"].GetString();

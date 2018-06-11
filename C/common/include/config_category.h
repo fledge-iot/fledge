@@ -109,4 +109,19 @@ class DefaultConfigCategory : public ConfigCategory
 		std::string	itemsToJSON() const;
 };
 
+class ConfigItemNotFound : public std::exception {
+	public:
+		virtual const char *what() const throw()
+		{
+			return "Configuration item not found in configuration category";
+		}
+};
+
+class ConfigMalformed : public std::exception {
+	public:
+		virtual const char *what() const throw()
+		{
+			return "Configuration category JSON is malformed";
+		}
+};
 #endif

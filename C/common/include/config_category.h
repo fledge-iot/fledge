@@ -45,7 +45,11 @@ class ConfigCategory {
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
 		~ConfigCategory();
+		void				addItem(const std::string& name, const std::string description,
+							const std::string& type, const std::string def,
+							const std::string& value);
 		void				setDescription(const std::string& description);
+		std::string			getDescription() { return m_description; };
 		unsigned int			getCount() const { return m_items.size(); };
 		bool				itemExists(const std::string& name) const;
 		std::string			getValue(const std::string& name) const;
@@ -63,10 +67,14 @@ class ConfigCategory {
 			public:
 				enum ItemType { StringItem, JsonItem };
 				CategoryItem(const std::string& name, const rapidjson::Value& item);
+				CategoryItem(const std::string& name, const std::string& description,
+							const std::string& type, const std::string def,
+							const std::string& value);
 				// Return both "value" and "default" items
 				std::string	toJSON() const;
 				// Return only "default" items
 				std::string	defaultToJSON() const;
+				std::string	escape(const std::string& str) const;
 				std::string 	m_name;
 				std::string 	m_type;
 				std::string 	m_default;
@@ -91,11 +99,14 @@ class ConfigCategory {
 
 class DefaultConfigCategory : public ConfigCategory
 {
-public:
-	DefaultConfigCategory(const std::string& name, const std::string& json);
-
-	std::string	toJSON() const;
-	std::string	itemsToJSON() const;
+	public:
+		DefaultConfigCategory(const std::string& name, const std::string& json);
+		DefaultConfigCategory(const ConfigCategory& orig) : ConfigCategory(orig)
+		{
+		};
+	
+		std::string	toJSON() const;
+		std::string	itemsToJSON() const;
 };
 
 #endif

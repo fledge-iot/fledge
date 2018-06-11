@@ -122,6 +122,17 @@ ConfigCategory& ConfigCategory::operator=(ConfigCategory const& rhs)
 }
 
 /**
+ * Add an item to a configuration category
+ */
+void ConfigCategory::addItem(const std::string& name, const std::string description,
+                             const std::string& type, const std::string def,
+                             const std::string& value)
+{
+	m_items.push_back(new CategoryItem(name, description, type, def, value));
+}
+
+
+/**
  * Check for the existance of an item within the configuration category
  *
  * @param name	Item name to check within the category
@@ -352,6 +363,21 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name, const Value& item
 }
 
 /**
+ * Constructor for a configuration item
+ */
+ConfigCategory::CategoryItem::CategoryItem(const string& name, const std::string& description,
+                                           const std::string& type, const std::string def,
+                                           const std::string& value)
+{
+	m_name = name;
+	m_description = description;
+	m_type = type;
+	m_default = def;
+	m_value = value;
+	m_itemType = StringItem;
+}
+
+/**
  * Create a JSON representation of the configuration item
  */
 string ConfigCategory::CategoryItem::toJSON() const
@@ -390,7 +416,7 @@ ostringstream convert;
 	}
 	else if (m_itemType == JsonItem)
 	{
-		convert << "\"default\" : " << m_default << " }";
+		convert << "\"default\" : \"" << escape(m_default) << "\" }";
 	}
 	return convert.str();
 }
@@ -438,4 +464,18 @@ ostringstream convert;
 	convert << "}";
 
 	return convert.str();
+}
+
+std::string ConfigCategory::CategoryItem::escape(const std::string& subject) const
+{
+size_t pos = 0;
+string replace("\\\"");
+string escaped = subject;
+
+	while ((pos = escaped.find("\"", pos)) != std::string::npos)
+	{
+		escaped.replace(pos, 1, replace);
+		pos += replace.length();
+	}
+	return escaped;
 }

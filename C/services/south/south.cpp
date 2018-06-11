@@ -18,6 +18,7 @@
 #include <reading.h>
 #include <ingest.h>
 #include <iostream>
+#include <defaults.h>
 
 extern int makeDaemon(void);
 
@@ -103,7 +104,7 @@ pid_t pid;
 /**
  * Constructor for the south service
  */
-SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false)
+SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000)
 {
 	logger = new Logger(myName);
 }
@@ -161,11 +162,24 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
-		Ingest ingest(storage, 5000, 100);
+		unsigned int threshold = 100;
+		unsigned long timeout = 5000;
+		try {
+			threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
+			timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+		} catch (exception e) {
+			logger->info("Defaulting to inline defaults for south configuration");
+		}
+		Ingest ingest(storage, timeout, threshold);
 
+		try {
+			m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+		} catch (exception e) {
+			logger->info("Defaulting to inline default for poll interval");
+		}
 		while (! m_shutdown)
 		{
-			sleep(1);
+			std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
 			Reading reading = southPlugin->poll();
 			ingest.ingest(reading);
 		}
@@ -191,24 +205,34 @@ void SouthService::stop()
  */
 bool SouthService::loadPlugin()
 {
-	PluginManager *manager = PluginManager::getInstance();
+	try {
+		PluginManager *manager = PluginManager::getInstance();
 
-	if (! m_config.itemExists("plugin"))
-	{
-		logger->error("Unable to fetch plugin name from configuration.\n");
-		return false;
-	}
-	string plugin = m_config.getValue("plugin");
-	logger->info("Load south plugin %s.", plugin.c_str());
-	PLUGIN_HANDLE handle;
-	if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
-	{
-		// Deal with registering and fetching the configuration
-		ConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
-		
-		southPlugin = new SouthPlugin(handle, m_config);
-		logger->info("Loaded south plugin %s.", plugin.c_str());
-		return true;
+		if (! m_config.itemExists("plugin"))
+		{
+			logger->error("Unable to fetch plugin name from configuration.\n");
+			return false;
+		}
+		string plugin = m_config.getValue("plugin");
+		logger->info("Load south plugin %s.", plugin.c_str());
+		PLUGIN_HANDLE handle;
+		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
+		{
+			// Deal with registering and fetching the configuration
+			DefaultConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
+			addConfigDefaults(defConfig);
+			defConfig.setDescription(m_config.getDescription());
+			m_mgtClient->addCategory(defConfig);
+			// Must now relaod the configuration to obtain any items added from
+			// the plugin
+			m_config = m_mgtClient->getCategory(m_name);
+			
+			southPlugin = new SouthPlugin(handle, m_config);
+			logger->info("Loaded south plugin %s.", plugin.c_str());
+			return true;
+		}
+	} catch (exception e) {
+		logger->fatal("Failed to load south plugin: %s\n", e.what());
 	}
 	return false;
 }
@@ -233,4 +257,19 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	// TODO action configuration change
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
+}
+
+/**
+ * Add the generic south service configuration options to the default retrieved
+ * from the specific plugin.
+ *
+ * @param defaultConfiguration	The default configuration from the plugin
+ */
+void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
+{
+	for (int i = 0; defaults[i].name; i++)
+	{
+		defaultConfig.addItem(defaults[i].name, defaults[i].description,
+			defaults[i].type, defaults[i].value, defaults[i].value);	
+	}
 }

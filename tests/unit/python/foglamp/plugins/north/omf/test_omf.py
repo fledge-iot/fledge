@@ -17,8 +17,10 @@ import json
 import time
 import sys
 import requests
+import aiohttp
 
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import patch, MagicMock, ANY
 
 from foglamp.tasks.north.sending_process import SendingProcess
 from foglamp.plugins.north.omf import omf
@@ -40,7 +42,7 @@ class to_dev_null(object):
         pass
 
 
-async def mock_async_call(p1=True):
+async def mock_async_call(p1=ANY):
     """ mocks a generic async function """
     return p1
 
@@ -1131,44 +1133,51 @@ class TestOmfNorthPlugin:
     # FIXME:
     @pytest.mark.this
     @pytest.mark.asyncio
-    async def test_send_in_memory_data_to_picromf_ok(
+    async def test_send_in_memory_data_to_picromf_success(
                                                 self,
-                                                p_test_data):
-        class Response:
-            """ Used to mock the Response object, simulating a successful communication"""
+                                                p_test_data,
+                                                fixture_omf_north):
+        """ Unit test for - send_in_memory_data_to_picromf - successful case
+            Tests a successful communication
+        """
 
-            status_code = 200
-            text = "OK"
+        class MockAiohttpClientSession(MagicMock):
+            """" mock the aiohttp.ClientSession context manager """
 
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
+            async def __aenter__(self):
 
-        omf_north._config = dict(producerToken="dummy_producerToken")
-        omf_north._config["URL"] = "dummy_URL"
-        omf_north._config["OMFRetrySleepTime"] = 1
-        omf_north._config["OMFHttpTimeout"] = 1
+                mock_response = MagicMock(spec=aiohttp.ClientResponse)
+                mock_response.status = 200
+                mock_response.text.side_effect = [mock_async_call('text OK')]
 
-        # Good Case
-        omf_north._config["OMFMaxRetry"] = 1
+                return mock_response
 
-        response_ok = Response()
-        response_ok.status_code = 200
-        response_ok.text = "OK"
+            async def __aexit__(self, *args):
+                return None
 
-        with patch.object(omf_north._logger, 'warning', return_value=True) \
-                as patched_logger:
+        fixture_omf_north._config = dict(producerToken="dummy_producerToken")
+        fixture_omf_north._config["URL"] = "dummy_URL"
+        fixture_omf_north._config["OMFRetrySleepTime"] = 1
+        fixture_omf_north._config["OMFHttpTimeout"] = 1
+        fixture_omf_north._config["OMFMaxRetry"] = 1
 
-            with patch.object(requests, 'post', return_value=response_ok) \
-                    as patched_requests:
+        with patch.object(fixture_omf_north._logger,
+                          'warning',
+                          return_value=True
+                          ) as patched_logger:
 
-                omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+            with patch.object(aiohttp.ClientSession,
+                              'post',
+                              return_value=MockAiohttpClientSession()
+                              ) as patched_aiohttp:
 
-        assert patched_requests.called
-        assert patched_requests.call_count == 1
+                await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+
+        assert patched_aiohttp.called
+        assert patched_aiohttp.call_count == 1
         assert not patched_logger.called
 
     @pytest.mark.parametrize(

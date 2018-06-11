@@ -43,7 +43,7 @@ const char *default_json = "{ \"key\" : \"test\", \"description\" : \"Test descr
 	"\"complex\" : { " 
 		"\"description\" : \"A JSON configuration parameter\", "
 		"\"type\" : \"json\", "
-		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
+		"\"default\" : \"{\\\"first\\\":\\\"FogLAMP\\\",\\\"second\\\":\\\"json\\\"}\" }} }";
 
 TEST(DefaultCategoriesTest, Count)
 {

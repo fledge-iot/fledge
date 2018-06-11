@@ -45,9 +45,9 @@ OMFData::OMFData(const Reading& reading)
 }
 
 /**
- * Return the JSOIN data in m_value
+ * Return the (reference) JSON data in m_value
  */
-const string OMFData::OMFdataVal() const
+const string& OMFData::OMFdataVal() const
 {
 	return m_value;
 }

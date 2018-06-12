@@ -55,8 +55,8 @@ class ResultSet {
 				};
 				ColumnValue(const rapidjson::Value& value)
 				{
-					rapidjson::Document *d = new rapidjson::Document();
-					rapidjson::Document::AllocatorType& a = d->GetAllocator();
+					m_doc = new rapidjson::Document();
+					rapidjson::Document::AllocatorType& a = m_doc->GetAllocator();
 					m_value.json = new rapidjson::Value(value, a);
 					m_type = JSON_COLUMN;
 				};
@@ -65,7 +65,10 @@ class ResultSet {
 					if (m_type == STRING_COLUMN)
 						free(m_value.str);
 					else if (m_type == JSON_COLUMN)
+					{
+						delete m_doc;
 						delete m_value.json;
+					}
 				};
 				ColumnType 	getType() { return m_type; };
 				long	getInteger() const;
@@ -82,6 +85,7 @@ class ResultSet {
 					double			fval;
 					rapidjson::Value	*json;
 					}	m_value;
+				rapidjson::Document *m_doc;
 		};
 
 		class Row {

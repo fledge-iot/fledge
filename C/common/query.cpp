@@ -71,6 +71,10 @@ Query::~Query()
 	{
 		delete *it;
 	}
+	if (m_timebucket)
+	{
+		delete m_timebucket;
+	}
 }
 
 void Query::aggregate(Aggregate *aggregate)

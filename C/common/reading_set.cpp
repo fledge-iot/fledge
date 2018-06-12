@@ -96,6 +96,7 @@ static void convert_timestamp(const char *str, struct timeval *tv)
 {
 struct tm tm;
 
+	memset(&tm, 0, sizeof(tm));
 	strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
 	tv->tv_sec = mktime(&tm);
 

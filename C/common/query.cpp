@@ -13,32 +13,36 @@
 
 using namespace std;
 
-Query::Query(Where *where) : m_where(where), m_limit(0), m_timebucket(0)
+Query::Query(Where *where) : m_where(where), m_limit(0), m_timebucket(0), m_distinct(false)
 {
 }
 
 Query::Query(Aggregate *aggregate, Where *where) : m_where(where),
 						   m_limit(0),
-						   m_timebucket(0)
+						   m_timebucket(0),
+						   m_distinct(false)
 {
 	m_aggregates.push_back(aggregate);
 }
 
 Query::Query(Timebucket *timebucket, Where *where) : m_where(where),
 						     m_limit(0),
-						     m_timebucket(timebucket)
+						     m_timebucket(timebucket),
+						     m_distinct(false)
 {
 }
 
 Query::Query(Timebucket *timebucket, Where *where, unsigned int limit) : m_where(where),
 									 m_limit(limit),
-									 m_timebucket(timebucket)
+									 m_timebucket(timebucket),
+									 m_distinct(false)
 {
 }
 
 Query::Query(vector<Returns *> returns, Where *where) : m_where(where),
 							m_limit(0),
-							m_timebucket(0)
+							m_timebucket(0),
+							m_distinct(false)
 {
 	for (auto it = returns.cbegin(); it != returns.cend(); ++it)
 	{
@@ -48,12 +52,32 @@ Query::Query(vector<Returns *> returns, Where *where) : m_where(where),
 
 Query::Query(vector<Returns *> returns, Where *where, unsigned int limit) : m_where(where),
 									    m_limit(limit),
-									    m_timebucket(0)
+									    m_timebucket(0),
+									    m_distinct(false)
 {
 	for (auto it = returns.cbegin(); it != returns.cend(); ++it)
 	{
 		m_returns.push_back(*it);
 	}
+}
+
+Query::Query(vector<Returns *> returns) : m_where(0),
+					  m_limit(0),
+					  m_timebucket(0),
+					  m_distinct(false)
+{
+	for (auto it = returns.cbegin(); it != returns.cend(); ++it)
+	{
+		m_returns.push_back(*it);
+	}
+}
+
+Query::Query(Returns *returns) : m_where(0),
+				 m_limit(0),
+				 m_timebucket(0),
+				 m_distinct(false)
+{
+		m_returns.push_back(returns);
 }
 
 Query::~Query()
@@ -115,23 +139,41 @@ void Query::returns(vector<Returns *> returns)
 	}
 }
 
+void Query::distinct()
+{
+	m_distinct = true;
+}
+
 /**
  * Return the JSON payload for a where clause
  */
 const string Query::toJSON() const
 {
-ostringstream json;
+ostringstream   json;
+bool 		first = true;
 
-	json << "{ \"where\" : " << m_where->toJSON();
+	json << "{ ";
+	if (m_where)
+	{
+		if (! first)
+			json << ", ";
+		json << "\"where\" : " << m_where->toJSON();
+		first = false;
+	}
 	switch (m_aggregates.size())
 	{
 	case 0:
 		break;
 	case 1:
-		json << ", \"aggregate\" : " << m_aggregates.front()->toJSON();
+		if (! first)
+			json << ", ";
+		json << "\"aggregate\" : " << m_aggregates.front()->toJSON();
+		first = false;
 		break;
 	default:
-		json << ", \"aggregate\" : [ ";
+		if (! first)
+			json << ", ";
+		json << "\"aggregate\" : [ ";
 		for (auto it = m_aggregates.cbegin(); it != m_aggregates.cend(); ++it)
 		{
 			if (it != m_aggregates.cbegin())
@@ -139,41 +181,59 @@ ostringstream json;
 			json << (*it)->toJSON();
 		}
 		json << " ]";
+		first = false;
 		break;
 	}
 	if (!m_group.empty())
 	{
-		json << ", \"group\" : \"" << m_group << "\"";
+		if (! first)
+			json << ", ";
+		json << "\"group\" : \"" << m_group << "\"";
+		first = false;
 	}
 	switch (m_sort.size())
 	{
 	case 0:
 		break;
 	case 1:
-		json << ", \"sort\" : " << m_sort.front()->toJSON();
+		if (! first)
+			json << ", ";
+		json << "\"sort\" : " << m_sort.front()->toJSON();
+		first = false;
 		break;
 	default:
-		json << ", \"sort\" : [ ";
+		if (! first)
+			json << ", ";
+		json << "\"sort\" : [ ";
 		for (auto it = m_sort.cbegin(); it != m_sort.cend(); ++it)
 		{
 			if (it != m_sort.cbegin())
 				json << ", ";
 			json << (*it)->toJSON();
 		}
-		json << " ]";
+		json << " ], ";
+		first = false;
 		break;
 	}
 	if (m_timebucket)
 	{
-		json << ", \"timebucket\" : " << m_timebucket->toJSON();
+		if (! first)
+			json << ", ";
+		json << "\"timebucket\" : " << m_timebucket->toJSON();
+		first = false;
 	}
 	if (m_limit)
 	{
-		json << ", \"limit\" : " << m_limit;
+		if (! first)
+			json << ", ";
+		json << "\"limit\" : " << m_limit;
+		first = false;
 	}
 	if (m_returns.size())
 	{
-		json << ", \"returns\" : [ ";
+		if (! first)
+			json << ", ";
+		json << "\"returns\" : [ ";
 		for (auto it = m_returns.cbegin(); it != m_returns.cend(); ++it)
 		{
 			if (it != m_returns.cbegin())
@@ -181,6 +241,14 @@ ostringstream json;
 			json << (*it)->toJSON();
 		}
 		json << " ]";
+		first = false;
+	}
+	if (m_distinct)
+	{
+		if (! first)
+			json << ", ";
+		json << "\"modifier\" : \"distinct\"";
+		first = false;
 	}
 	json << " }";
 	return json.str();

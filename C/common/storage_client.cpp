@@ -268,17 +268,18 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
 		auto res = m_client->request("POST", url, convert.str());
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
 		{
-			ostringstream resultPayload;
-			resultPayload << res->content.rdbuf();
 			Document doc;
-			doc.Parse(res->content.string().c_str());
+			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())
 			{
 				m_logger->info("POST result %s.", res->status_code.c_str());
-				m_logger->error("Failed to parse result of insertTable. %s",
-						GetParseError_En(doc.GetParseError()));
+				m_logger->error("Failed to parse result of insertTable. %s. Document is %s",
+						GetParseError_En(doc.GetParseError()),
+						resultPayload.str().c_str());
 				return -1;
 			}
 			else if (doc.HasMember("message"))
@@ -289,8 +290,6 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 			}
 			return doc["rows_affected"].GetInt();
 		}
-		ostringstream resultPayload;
-		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		m_logger->error("Failed to insert into table %s: %s", tableName.c_str(), ex.what());

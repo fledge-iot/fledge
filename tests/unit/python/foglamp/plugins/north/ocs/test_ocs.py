@@ -16,12 +16,14 @@ import sys
 import logging
 
 from foglamp.common import logger
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 
 from foglamp.plugins.north.ocs import ocs
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as module_sp
+from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
 
+_STREAM_ID = 1
 
 # noinspection PyPep8Naming
 class to_dev_null(object):
@@ -30,6 +32,43 @@ class to_dev_null(object):
     def write(self, _data):
         """" """
         pass
+
+
+async def mock_async_call(p1=ANY):
+    """ mocks a generic async function """
+    return p1
+
+
+# noinspection PyProtectedMember
+@pytest.fixture
+def fixture_ocs(event_loop):
+    """"  Configures the OMF instance for the tests """
+
+    _omf = MagicMock()
+
+    ocs._logger = MagicMock(spec=logging)
+    ocs._config_omf_types = {"type-id": {"value": "0001"}}
+
+    return ocs
+
+
+# noinspection PyProtectedMember
+@pytest.fixture
+def fixture_ocs_north(event_loop):
+    """"  Configures the OMF instance for the tests """
+
+    sending_process_instance = MagicMock()
+    config = []
+    config_omf_types = []
+
+    _logger = MagicMock(spec=logging)
+
+    ocs_north = ocs.OCSNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
+
+    ocs_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
+    ocs_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
+
+    return ocs_north
 
 
 # noinspection PyUnresolvedReferences
@@ -207,37 +246,53 @@ class TestOCS:
         with pytest.raises(Exception):
             ocs.plugin_init(data)
 
-    def test_plugin_send_ok(self):
-        """Tests plugin _plugin_send function, case everything went fine """
+    # FIXME:
+    @pytest.mark.parametrize(
+        "ret_transform_in_memory_data, "
+        "p_raw_data, ",
+        [
+            (
+                # ret_transform_in_memory_data
+                # is_data_available - new_position - num_sent
+                [True,                20,            10],
 
-        def transform_return():
-            """" """
-            return True, 1, 1
+                # raw_data
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 100, "temperature": 1001},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ]
+             )
+        ]
+    )
+    @pytest.mark.this
+    @pytest.mark.asyncio
+    async def test_plugin_send_success(self,
+                                       ret_transform_in_memory_data,
+                                       p_raw_data,
+                                       fixture_ocs,
+                                       fixture_ocs_north):
 
-        ocs._logger = MagicMock()
-        ocs._config_omf_types = {"type-id": {"value": "0001"}}
         data = MagicMock()
 
-        raw_data = []
-        stream_id = 1
+        with patch.object(fixture_ocs.OCSNorthPlugin,
+                          'transform_in_memory_data',
+                          return_value=ret_transform_in_memory_data) as patched_transform_in_memory_data:
+            with patch.object(fixture_ocs.OCSNorthPlugin,
+                              'create_omf_objects',
+                              return_value=mock_async_call()) as patched_create_omf_objects:
+                with patch.object(fixture_ocs.OCSNorthPlugin,
+                                  'send_in_memory_data_to_picromf',
+                                  return_value=mock_async_call()) as patched_send_in_memory_data_to_picromf:
+                    await fixture_ocs.plugin_send(data, p_raw_data, _STREAM_ID)
 
-        # Test good case
-        with patch.object(ocs.OCSNorthPlugin, 'transform_in_memory_data', return_value=transform_return())\
-                as mocked_transform_in_memory_data:
-            with patch.object(ocs.OCSNorthPlugin, 'create_omf_objects') as mocked_create_omf_objects:
-                with patch.object(ocs.OCSNorthPlugin, 'send_in_memory_data_to_picromf')\
-                        as mocked_send_in_memory_data_to_picromf:
-                    with patch.object(
-                                        ocs.OCSNorthPlugin, 
-                                        'deleted_omf_types_already_created'
-                                        ) as mocked_deleted_omf_types_already_created:
-                        ocs.plugin_send(data, raw_data, stream_id)
-
-        assert mocked_transform_in_memory_data.called
-        assert mocked_create_omf_objects.called
-        assert mocked_send_in_memory_data_to_picromf.called
-
-        assert not mocked_deleted_omf_types_already_created.called
+        assert patched_transform_in_memory_data.called
+        assert patched_create_omf_objects.called
+        assert patched_send_in_memory_data_to_picromf.called
 
     def test_plugin_send_bad(self):
         """Tests plugin _plugin_send function,

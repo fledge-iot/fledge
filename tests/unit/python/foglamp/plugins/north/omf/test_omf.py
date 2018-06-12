@@ -15,10 +15,8 @@ import logging
 import pytest
 import json
 import time
-import sys
-import requests
-import aiohttp
 
+import aiohttp
 
 from unittest.mock import patch, MagicMock, ANY
 
@@ -33,28 +31,12 @@ from foglamp.common.storage_client.storage_client import StorageClient, StorageC
 _STREAM_ID = 1
 
 
-# noinspection PyPep8Naming
-class to_dev_null(object):
-    """ Used to ignore messages sent to the stderr """
-
-    def write(self, _data):
-        """" """
-        pass
-
-
-async def mock_async_call(p1=ANY):
-    """ mocks a generic async function """
-    return p1
-
-
 # noinspection PyProtectedMember
 @pytest.fixture
 def fixture_omf(event_loop):
     """"  Configures the OMF instance for the tests """
 
     _omf = MagicMock()
-    # FIXME:
-    #omf.omf_north._sending_process_instance = MagicMock()
 
     omf._logger = MagicMock(spec=logging)
     omf._config_omf_types = {"type-id": {"value": "0001"}}
@@ -79,7 +61,12 @@ def fixture_omf_north(event_loop):
 
     return omf_north
 
-    
+
+async def mock_async_call(p1=ANY):
+    """ mocks a generic async function """
+    return p1
+
+
 class MockAiohttpClientSessionSuccess(MagicMock):
     """" mock the aiohttp.ClientSession context manager """
 
@@ -273,37 +260,24 @@ class TestOMF:
                                         ):
         """ Unit test for - plugin_send - successful case """
 
-        async def mock_async_call_1(p1=ANY):
-            """ mocks a generic async function """
-            return p1
-
-        async def mock_async_call_2(p1=ANY):
-            """ mocks a generic async function """
-            return p1
-
-        async def mock_async_call_3(p1=ANY):
-            """ mocks a generic async function """
-            return p1
-
         data = MagicMock()
-
-        with patch.object(fixture_omf.OmfNorthPlugin,
-                          'transform_in_memory_data',
-                          return_value=ret_transform_in_memory_data):
-
-            with patch.object(fixture_omf.OmfNorthPlugin,
-                              'create_omf_objects',
-                              return_value=mock_async_call_1()
-                              ) as patched_create_omf_objects:
-
-                with patch.object(fixture_omf.OmfNorthPlugin,
-                                  'send_in_memory_data_to_picromf',
-                                  return_value=mock_async_call_2()
-                                  ) as patched_send_in_memory_data_to_picromf:
-                        data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
 
         if ret_transform_in_memory_data[0]:
             # data_available
+
+            with patch.object(fixture_omf.OmfNorthPlugin,
+                              'transform_in_memory_data',
+                              return_value=ret_transform_in_memory_data):
+
+                with patch.object(fixture_omf.OmfNorthPlugin,
+                                  'create_omf_objects',
+                                  return_value=mock_async_call()
+                                  ) as patched_create_omf_objects:
+                    with patch.object(fixture_omf.OmfNorthPlugin,
+                                      'send_in_memory_data_to_picromf',
+                                      return_value=mock_async_call()
+                                      ) as patched_send_in_memory_data_to_picromf:
+                        data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
 
             assert patched_create_omf_objects.called
             assert patched_send_in_memory_data_to_picromf.called
@@ -315,8 +289,11 @@ class TestOMF:
         else:
             # no data_available
 
-            assert not patched_create_omf_objects.called
-            assert not patched_send_in_memory_data_to_picromf.called
+            with patch.object(fixture_omf.OmfNorthPlugin,
+                              'transform_in_memory_data',
+                              return_value=ret_transform_in_memory_data):
+
+                data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
 
             assert not data_sent
 
@@ -357,13 +334,6 @@ class TestOMF:
 
         data = MagicMock()
 
-        async def mock_async_call_1(p1=ANY):
-            """ mocks a generic async function """
-            return p1
-
-        async def mock_async_call_2(p1=ANY):
-            """ mocks a generic async function """
-            return p1
 
         with patch.object(fixture_omf.OmfNorthPlugin,
                           'transform_in_memory_data',
@@ -372,7 +342,7 @@ class TestOMF:
 
             with patch.object(fixture_omf.OmfNorthPlugin,
                               'create_omf_objects',
-                              return_value=mock_async_call_1()
+                              return_value=mock_async_call()
                               ) as patched_create_omf_objects:
 
                 with patch.object(fixture_omf.OmfNorthPlugin,
@@ -382,7 +352,7 @@ class TestOMF:
 
                     with patch.object(fixture_omf.OmfNorthPlugin,
                                       'deleted_omf_types_already_created',
-                                      return_value=mock_async_call_2()
+                                      return_value=mock_async_call()
                                       ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
@@ -495,18 +465,12 @@ class TestOmfNorthPlugin:
     def test_generate_omf_asset_id(
             self,
             p_asset_code,
-            expected_asset_code
+            expected_asset_code,
+            fixture_omf_north
     ):
         """Tests _generate_omf_asset_id """
 
-        sending_process_instance = MagicMock()
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
-
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        generated_asset_code = omf_north._generate_omf_asset_id(p_asset_code)
+        generated_asset_code = fixture_omf_north._generate_omf_asset_id(p_asset_code)
 
         assert generated_asset_code == expected_asset_code
 
@@ -525,20 +489,14 @@ class TestOmfNorthPlugin:
             self,
             p_type_id,
             p_asset_code,
-            expected_measurement_id
+            expected_measurement_id,
+            fixture_omf_north
     ):
         """Tests _generate_omf_measurement """
 
-        sending_process_instance = MagicMock()
-        config = []
-        config_omf_types = []
-        logger = MagicMock()
+        fixture_omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
 
-        omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, logger)
-
-        omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
-
-        generated_measurement_id = omf_north._generate_omf_measurement(p_asset_code)
+        generated_measurement_id = fixture_omf_north._generate_omf_measurement(p_asset_code)
 
         assert generated_measurement_id == expected_measurement_id
 
@@ -706,8 +664,6 @@ class TestOmfNorthPlugin:
 
         ]
     )
-    # FIXME:
-    @pytest.mark.this
     @pytest.mark.asyncio
     async def test_create_omf_type_automatic(
                                                 self,
@@ -1056,21 +1012,17 @@ class TestOmfNorthPlugin:
         fixture_omf_north._config_omf_types = {"type-id": {"value": type_id}}
         fixture_omf_north._config_omf_types = p_omf_objects_configuration_based
 
-        with patch.object(fixture_omf_north,
-                          '_retrieve_omf_types_already_created',
-                          return_value=mock_async_call(p_asset_codes_already_created)):
+        if p_creation_type == "automatic":
 
-            with patch.object(
-                                fixture_omf_north,
-                                '_create_omf_objects_configuration_based',
-                                return_value=mock_async_call()
-                              ) as patched_create_omf_objects_configuration_based:
+            with patch.object(fixture_omf_north,
+                              '_retrieve_omf_types_already_created',
+                              return_value=mock_async_call(p_asset_codes_already_created)):
 
                 with patch.object(
-                                    fixture_omf_north,
-                                    '_create_omf_objects_automatic',
-                                    return_value=mock_async_call()
-                                    ) as patched_create_omf_objects_automatic:
+                        fixture_omf_north,
+                        '_create_omf_objects_automatic',
+                        return_value=mock_async_call()
+                ) as patched_create_omf_objects_automatic:
 
                     with patch.object(fixture_omf_north,
                                       '_flag_created_omf_type',
@@ -1079,18 +1031,29 @@ class TestOmfNorthPlugin:
 
                         await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
 
-        if p_creation_type == "automatic":
-
-            assert not patched_create_omf_objects_configuration_based.called
             assert patched_create_omf_objects_automatic.called
             assert patched_flag_created_omf_type.called
 
         elif p_creation_type == "configuration":
 
-            assert patched_create_omf_objects_configuration_based.called
-            assert not patched_create_omf_objects_automatic.called
-            assert patched_flag_created_omf_type.called
+            with patch.object(fixture_omf_north,
+                              '_retrieve_omf_types_already_created',
+                              return_value=mock_async_call(p_asset_codes_already_created)):
 
+                with patch.object(
+                        fixture_omf_north,
+                        '_create_omf_objects_configuration_based',
+                        return_value=mock_async_call()
+                ) as patched_create_omf_objects_configuration_based:
+
+                    with patch.object(fixture_omf_north,
+                                      '_flag_created_omf_type',
+                                      return_value=mock_async_call()
+                                      ) as patched_flag_created_omf_type:
+                        await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
+
+            assert patched_create_omf_objects_configuration_based.called
+            assert patched_flag_created_omf_type.called
         else:
             raise Exception("ERROR : creation type not defined !")
 
@@ -1189,21 +1152,15 @@ class TestOmfNorthPlugin:
         fixture_omf_north._config["OMFHttpTimeout"] = 1
         fixture_omf_north._config["OMFMaxRetry"] = 1
 
-        with patch.object(fixture_omf_north._logger,
-                          'warning',
-                          return_value=True
-                          ) as patched_logger:
+        with patch.object(aiohttp.ClientSession,
+                          'post',
+                          return_value=MockAiohttpClientSessionSuccess()
+                          ) as patched_aiohttp:
 
-            with patch.object(aiohttp.ClientSession,
-                              'post',
-                              return_value=MockAiohttpClientSessionSuccess()
-                              ) as patched_aiohttp:
-
-                await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
+            await fixture_omf_north.send_in_memory_data_to_picromf("Type", p_test_data)
 
         assert patched_aiohttp.called
         assert patched_aiohttp.call_count == 1
-        assert not patched_logger.called
 
     @pytest.mark.parametrize(
         "p_type, "
@@ -1271,16 +1228,12 @@ class TestOmfNorthPlugin:
         # To avoid the wait time
         with patch.object(time, 'sleep', return_value=True):
 
-            with patch.object(fixture_omf_north._logger, 'warning', return_value=True) as patched_logger:
+            with patch.object(aiohttp.ClientSession,
+                              'post',
+                              return_value=MockAiohttpClientSessionSuccess()
+                              ) as patched_aiohttp:
 
-                with patch.object(aiohttp.ClientSession,
-                                  'post',
-                                  return_value=MockAiohttpClientSessionSuccess()
-                                  ) as patched_aiohttp:
-
-                    await fixture_omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
-
-        assert not patched_logger.called
+                await fixture_omf_north.send_in_memory_data_to_picromf(p_type, p_test_data)
 
         str_data = json.dumps(p_test_data)
         assert patched_aiohttp.call_count == 1
@@ -1312,7 +1265,7 @@ class TestOmfNorthPlugin:
             Tests the behaviour  in case of communication error:
             exception erased,
             message logged
-            and number of retries 
+            and number of retries
         """
 
         max_retry = 3

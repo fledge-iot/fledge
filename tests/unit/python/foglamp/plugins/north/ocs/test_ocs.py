@@ -12,10 +12,8 @@ __version__ = "${VERSION}"
 
 import pytest
 import json
-import sys
 import logging
 
-from foglamp.common import logger
 from unittest.mock import patch, MagicMock, ANY
 
 from foglamp.plugins.north.ocs import ocs
@@ -460,63 +458,19 @@ class TestOCSNorthPlugin:
                             ]
                     }
 
-            ),
-
-            # Case 3 - switch / string
-            (
-                    # Origin - Sensor data
-                    {"asset_code": "switch", "asset_data": {"button": "up"}},
-
-                    # type_id
-                    "0002",
-
-                    # Static Data
-                    {
-                        "Location": "Palo Alto",
-                        "Company": "Dianomic"
-                    },
-
-                    # Expected
-                    'switch_typename',
-                    {
-                        'switch_typename':
-                            [
-                                {
-                                    'classification': 'static',
-                                    'id': '0002_switch_typename_sensor',
-                                    'properties': {
-                                        'Company': {'type': 'string'},
-                                        'Name': {'isindex': True, 'type': 'string'},
-                                        'Location': {'type': 'string'}
-                                    },
-                                    'type': 'object'
-                                },
-                                {
-                                    'classification': 'dynamic',
-                                    'id': '0002_switch_typename_measurement',
-                                    'properties': {
-                                        'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                        'button': {
-                                            'type': 'string'
-                                        }
-                                    },
-                                    'type': 'object'
-                                }
-                            ]
-                    }
-
             )
 
         ]
     )
     @pytest.mark.asyncio
-    async def test_create_omf_type_automatic(self,
-                                       p_test_data,
-                                       p_type_id,
-                                       p_static_data,
-                                       expected_typename,
-                                       expected_omf_type,
-                                       fixture_ocs_north):
+    async def test_create_omf_type_automatic(
+                                        self,
+                                        p_test_data,
+                                        p_type_id,
+                                        p_static_data,
+                                        expected_typename,
+                                        expected_omf_type,
+                                        fixture_ocs_north):
         """ Unit test for - _create_omf_type_automatic - successful case
             Tests the generation of the OMF messages starting from Asset name and data
             using Automatic OMF Type Mapping"""

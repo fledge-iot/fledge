@@ -1,0 +1,51 @@
+#!/bin/bash
+
+declare FOGLAMP_ROOT
+declare FOGLAMP_DATA
+declare PYTHONPATH
+
+# Run a FogLAMP task written in Python
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+	logger "FogLAMP home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}/python" ]; then
+	logger "FogLAMP home directory is missing the Python installation"
+	exit 1
+fi
+
+# Adds required paths for the execution of the python module if not already defined
+if [ "${PYTHONPATH}" = "" ]; then
+
+	export PYTHONPATH="${FOGLAMP_ROOT}/python"
+fi
+
+export FOGLAMP_DATA=$FOGLAMP_ROOT/data
+
+# Include common code
+source "${FOGLAMP_ROOT}/scripts/common/get_storage_plugin.sh"
+
+# Evaluates which storage engine is enabled and it uses the proper command
+storage=`get_storage_plugin`
+
+if [ "${storage}" == "sqlite" ]; then
+
+    command="python3 -m foglamp.plugins.storage.sqlite.backup_restore.restore_sqlite $@"
+    # Avoid FogLAMP termination at the FogLAMP stop
+    nohup $command </dev/null >/dev/null 2>&1 &
+
+elif [ "${storage}" == "postgres" ]; then
+
+    command="python3 -m foglamp.plugins.storage.postgres.backup_restore.restore_postgres $@"
+    # Avoid FogLAMP termination at the FogLAMP stop
+    nohup $command </dev/null >/dev/null 2>&1 &
+
+else
+    logger "ERROR: the restore functionality for the storage engine :${storage}: is not implemented."
+    exit 1
+fi

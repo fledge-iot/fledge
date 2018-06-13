@@ -1,0 +1,6 @@
+{
+  "timebucket" : {
+                    "timestamp" : "user_ts",
+                    "size"      : "5"
+  }
+}

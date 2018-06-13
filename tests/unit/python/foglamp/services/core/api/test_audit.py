@@ -7,6 +7,7 @@
 
 import json
 from unittest.mock import MagicMock, patch
+from collections import Counter
 from aiohttp import web
 import pytest
 
@@ -85,11 +86,11 @@ class TestAudit:
                 result = await resp.text()
                 json_response = json.loads(result)
                 codes = [key['code'] for key in json_response['logCode']]
-                actual_code_list = [key['code'] for key in get_log_codes['rows']]
+                expected_code_list = [key['code'] for key in get_log_codes['rows']]
 
                 # verify the default log_codes with their values which are defined in init.sql
                 assert 18 == len(codes)
-                assert all([a == b for a, b in zip(actual_code_list, codes)])
+                assert Counter(expected_code_list) == Counter(codes)
             log_code_patch.assert_called_once_with('log_codes')
 
     @pytest.mark.parametrize("request_params, payload", [
@@ -140,9 +141,10 @@ class TestAudit:
                 assert response_message == resp.reason
 
     async def test_get_audit_http_exception(self, client):
-        resp = await client.get('/foglamp/audit')
-        assert 500 == resp.status
-        assert 'Internal Server Error' == resp.reason
+        with patch.object(connect, 'get_storage', return_value=Exception):
+            resp = await client.get('/foglamp/audit')
+            assert 500 == resp.status
+            assert 'Internal Server Error' == resp.reason
 
     async def test_create_audit_entry(self, client):
         request_data = {"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}

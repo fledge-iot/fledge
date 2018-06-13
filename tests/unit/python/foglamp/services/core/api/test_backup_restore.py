@@ -12,9 +12,11 @@ from aiohttp import web
 import pytest
 from foglamp.services.core import routes
 from foglamp.services.core import connect
-from foglamp.plugins.storage.postgres.backup_restore.backup_postgres import Backup
-from foglamp.plugins.storage.postgres.backup_restore.restore_postgres import Restore
-from foglamp.plugins.storage.postgres.backup_restore import exceptions
+
+from foglamp.plugins.storage.common.backup import Backup
+from foglamp.plugins.storage.common.restore import Restore
+from foglamp.plugins.storage.common import exceptions
+
 from foglamp.services.core.api import backup_restore
 from foglamp.common.storage_client.storage_client import StorageClient
 
@@ -88,9 +90,10 @@ class TestBackup:
         assert response_message == resp.reason
 
     async def test_get_backups_exceptions(self, client):
-        resp = await client.get('/foglamp/backup')
-        assert 500 == resp.status
-        assert "Internal Server Error" == resp.reason
+        with patch.object(connect, 'get_storage', return_value=Exception):
+            resp = await client.get('/foglamp/backup')
+            assert 500 == resp.status
+            assert "Internal Server Error" == resp.reason
 
     async def test_create_backup(self, client):
         async def mock_create():
@@ -104,9 +107,11 @@ class TestBackup:
                 assert '{"status": "running_or_failed"}' == await resp.text()
 
     async def test_create_backup_exception(self, client):
-        resp = await client.post('/foglamp/backup')
-        assert 500 == resp.status
-        assert "Internal Server Error" == resp.reason
+        with patch.object(connect, 'get_storage', return_value=Exception):
+            with patch.object(Backup, 'create_backup', return_value=Exception):
+                resp = await client.post('/foglamp/backup')
+                assert 500 == resp.status
+                assert "Internal Server Error" == resp.reason
 
     async def test_get_backup_details(self, client):
         storage_client_mock = MagicMock(StorageClient)

@@ -13,16 +13,16 @@ These 2 def shall be tested via python/foglamp/services/core/server.py
 This test file assumes those 2 units are tested
 """
 
-import asyncio
 import json
 import ssl
 import pathlib
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 import aiohttp
 from aiohttp import web
 import pytest
 from foglamp.services.core import routes
 from foglamp.services.core import connect
+from foglamp.services.core.api.common import _logger
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.storage_client import StorageClient
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -187,22 +187,25 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
                 with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
-                    app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
-                    # fill route table
-                    routes.setup(app)
+                    with patch.object(_logger, 'warning') as logger_warn:
+                        app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
+                        # fill route table
+                        routes.setup(app)
 
-                    server = await test_server(app)
-                    server.start_server(loop=loop)
+                        server = await test_server(app)
+                        server.start_server(loop=loop)
 
-                    client = await test_client(server)
-                    # note: If the parameter is app aiohttp.web.Application
-                    # the tool creates TestServer implicitly for serving the application.
-                    resp = await client.get('/foglamp/ping')
-                    assert 403 == resp.status
+                        client = await test_client(server)
+                        # note: If the parameter is app aiohttp.web.Application
+                        # the tool creates TestServer implicitly for serving the application.
+                        resp = await client.get('/foglamp/ping')
+                        assert 403 == resp.status
+                    logger_warn.assert_called_once_with('Permission denied for Ping when Auth is mandatory.')
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
-        log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
-        logger_info.assert_called_once_with(*log_params)
+    log_params = 'Received %s request for %s', 'GET', '/foglamp/ping'
+    logger_info.assert_called_once_with(*log_params)
+
 
 @pytest.fixture
 def certs_path():
@@ -248,7 +251,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await test_client(server)
-                        resp = await client.get('/foglamp/ping')
+                        await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
@@ -307,7 +310,7 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
                         client = await test_client(server)
-                        resp = await client.get('/foglamp/ping')
+                        await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                     with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
@@ -367,7 +370,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                         # and we are not using SSL context here for client as verifier
                         connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
                         client = await test_client(server, connector=connector)
-                        resp = await client.get('/foglamp/ping')
+                        await client.get('/foglamp/ping')
                     assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
                     connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
@@ -409,32 +412,34 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
         with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
             with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
                 with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat:
-                    app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
-                    # fill route table
-                    routes.setup(app)
+                    with patch.object(_logger, 'warning') as logger_warn:
+                        app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
+                        # fill route table
+                        routes.setup(app)
 
-                    server = await test_server(app, ssl=ssl_ctx)
-                    server.start_server(loop=loop)
+                        server = await test_server(app, ssl=ssl_ctx)
+                        server.start_server(loop=loop)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
-                        client = await test_client(server)
-                        await client.get('/foglamp/ping')
-                    assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
+                        with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                            client = await test_client(server)
+                            await client.get('/foglamp/ping')
+                        assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
 
-                    with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
-                        # self signed certificate,
-                        # and we are not using SSL context here for client as verifier
-                        connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
+                        with pytest.raises(aiohttp.ClientConnectorSSLError) as error_exec:
+                            # self signed certificate,
+                            # and we are not using SSL context here for client as verifier
+                            connector = aiohttp.TCPConnector(verify_ssl=True, loop=loop)
+                            client = await test_client(server, connector=connector)
+                            await client.get('/foglamp/ping')
+                        assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
+
+                        connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
                         client = await test_client(server, connector=connector)
                         resp = await client.get('/foglamp/ping')
-                    assert "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed" in str(error_exec)
-
-                    connector = aiohttp.TCPConnector(verify_ssl=False, loop=loop)
-                    client = await test_client(server, connector=connector)
-                    resp = await client.get('/foglamp/ping')
-                    s = resp.request_info.url.human_repr()
-                    assert "https" == s[:5]
-                    assert 403 == resp.status
+                        s = resp.request_info.url.human_repr()
+                        assert "https" == s[:5]
+                        assert 403 == resp.status
+                    logger_warn.assert_called_once_with('Permission denied for Ping when Auth is mandatory.')
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             assert 0 == query_patch.call_count
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/foglamp/ping')

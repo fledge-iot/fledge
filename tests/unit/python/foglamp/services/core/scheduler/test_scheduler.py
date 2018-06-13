@@ -661,12 +661,20 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_new(self, mocker):
+        @asyncio.coroutine
+        def mock_coro():
+            return ""
+
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
         audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
         log_info = mocker.patch.object(scheduler._logger, "info")
+
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+
         schedule_id = uuid.uuid4()
         schedule_row = scheduler._ScheduleRow(
             id=schedule_id,
@@ -693,9 +701,65 @@ class TestScheduler:
         audit_logger.assert_has_calls(calls, any_order=True)
         assert 1 == first_task.call_count
         assert 1 == resume_sch.call_count
+        assert 0 == enable_schedule.call_count
+        assert 0 == disable_schedule.call_count
+
+    @pytest.mark.asyncio
+    async def test_save_schedule_new_with_enable_modified(self, mocker):
+        @asyncio.coroutine
+        def mock_coro():
+            return ""
+
+        # GIVEN
+        scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        first_task = mocker.patch.object(scheduler, '_schedule_first_task')
+        resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
+        log_info = mocker.patch.object(scheduler._logger, "info")
+
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+
+        schedule_id = uuid.uuid4()
+        schedule_row = scheduler._ScheduleRow(
+            id=schedule_id,
+            name='Test Schedule',
+            type=Schedule.Type.INTERVAL,
+            day=0,
+            time=0,
+            repeat=datetime.timedelta(seconds=30),
+            repeat_seconds=30,
+            exclusive=False,
+            enabled=True,
+            process_name='TestProcess')
+        schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
+
+        # WHEN
+        await scheduler.save_schedule(schedule, is_enabled_modified=True)
+
+        # THEN
+        assert len(scheduler._storage.schedules) + 1 == len(scheduler._schedules)
+        assert 1 == audit_logger.call_count
+        calls =[call('SCHAD', {'schedule': {'name': 'Test Schedule', 'processName': 'TestProcess',
+                                            'type': Schedule.Type.INTERVAL, 'repeat': 30.0, 'enabled': True,
+                                            'exclusive': False}})]
+        audit_logger.assert_has_calls(calls, any_order=True)
+        assert 1 == first_task.call_count
+        assert 1 == resume_sch.call_count
+        assert 1 == enable_schedule.call_count
+        assert 0 == disable_schedule.call_count
+
+        # WHEN
+        await scheduler.save_schedule(schedule, is_enabled_modified=False)
+        # THEN
+        assert 1 == disable_schedule.call_count
 
     @pytest.mark.asyncio
     async def test_save_schedule_update(self, mocker):
+        @asyncio.coroutine
+        def mock_coro():
+            return ""
+
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
         audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
@@ -716,6 +780,9 @@ class TestScheduler:
             process_name='TestProcess')
         schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
 
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+
         # WHEN
         await scheduler.save_schedule(schedule)
 
@@ -728,6 +795,57 @@ class TestScheduler:
         audit_logger.assert_has_calls(calls, any_order=True)
         assert 1 == first_task.call_count
         assert 1 == resume_sch.call_count
+        assert 0 == enable_schedule.call_count
+        assert 0 == disable_schedule.call_count
+
+    @pytest.mark.asyncio
+    async def test_save_schedule_update_with_enable_modified(self, mocker):
+        @asyncio.coroutine
+        def mock_coro():
+            return ""
+
+        # GIVEN
+        scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        first_task = mocker.patch.object(scheduler, '_schedule_first_task')
+        resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
+        log_info = mocker.patch.object(scheduler._logger, "info")
+        schedule_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
+        schedule_row = scheduler._ScheduleRow(
+            id=schedule_id,
+            name='Test Schedule',
+            type=Schedule.Type.TIMED,
+            day=1,
+            time=datetime.time(),
+            repeat=datetime.timedelta(seconds=30),
+            repeat_seconds=30,
+            exclusive=False,
+            enabled=True,
+            process_name='TestProcess')
+        schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
+
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+
+        # WHEN
+        await scheduler.save_schedule(schedule, is_enabled_modified=True)
+
+        # THEN
+        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert 1 == audit_logger.call_count
+        calls = [call('SCHCH', {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0,
+                                             'exclusive': False, 'day': 1, 'time': '0:0:0',
+                                             'processName': 'TestProcess', 'type': Schedule.Type.TIMED}})]
+        audit_logger.assert_has_calls(calls, any_order=True)
+        assert 1 == first_task.call_count
+        assert 1 == resume_sch.call_count
+        assert 1 == enable_schedule.call_count
+        assert 0 == disable_schedule.call_count
+
+        # WHEN
+        await scheduler.save_schedule(schedule, is_enabled_modified=False)
+        # THEN
+        assert 1 == disable_schedule.call_count
 
     @pytest.mark.asyncio
     async def test_save_schedule_exception(self, mocker):

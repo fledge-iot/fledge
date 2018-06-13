@@ -13,6 +13,7 @@ __version__ = "${VERSION}"
 
 __all__ = ('NorthPluginException', 'HttpNorthException', 'ConfigurationError')
 
+
 class URLFetchError(RuntimeError):
     """ Unable to fetch from the HTTP server """
     pass
@@ -37,4 +38,11 @@ class HttpNorthException(NorthPluginException):
 class ConfigurationError(HttpNorthException):
     def __init__(self, reason):
         super(ConfigurationError, self).__init__(reason)
+        self.reason = reason
+
+
+class DataSendError(NorthPluginException):
+    """ Unable to send the data to the destination """
+    def __init__(self, reason):
+        super(DataSendError, self).__init__(reason)
         self.reason = reason

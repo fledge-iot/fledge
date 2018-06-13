@@ -204,11 +204,11 @@ class PayloadBuilder(object):
                      (col, operation, alias) because col can be repeated in aggregate with different "operations".
         :return:
         :example:
-        PayloadBuilder().SELECT(("name", "id")).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload() prints
+        PayloadBuilder().SELECT(("name", "id")).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload() returns
             {"return": [{"column": "name", "alias": "my_name"},
                         {"column": "id", "alias": "my_id"}]}
 
-        PayloadBuilder().SELECT(("name", ["id", "reason"]).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload() prints
+        PayloadBuilder().SELECT(("name", ["id", "reason"]).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload() returns
             {"return": [{"alias": "my_name", "column": "name"},
                         {
                               "json" : {
@@ -223,13 +223,13 @@ class PayloadBuilder(object):
         PayloadBuilder().AGGREGATE((["min", "values"], ["max", "values"], ["avg", "values"])).ALIAS('aggregate',
                                                            ('values', 'min', 'min_values'),
                                                            ('values', 'max', 'max_values'),
-                                                           ('values', 'avg', 'avg_values')).payload() prints
+                                                           ('values', 'avg', 'avg_values')).payload() returns
             {"aggregate": [{"operation": "min", "column": "values", "alias": "min_values"},
                            {"operation": "max", "column": "values", "alias": "max_values"},
                            {"operation": "avg", "column": "values", "alias": "avg_values"}]}
 
         PayloadBuilder().AGGREGATE((["min", ["values", "rate"]], ["max", ["values", "rate"]], ["avg", ["values", "rate"]])).\
-        ALIAS('aggregate', ('values', 'min', 'Minimum'), ('values', 'max', 'Maximum'), ('values', 'avg', 'Average')).payload() prints
+        ALIAS('aggregate', ('values', 'min', 'Minimum'), ('values', 'max', 'Maximum'), ('values', 'avg', 'Average')).payload() returns
             {
               "aggregate": [
                 {
@@ -274,7 +274,7 @@ class PayloadBuilder(object):
         :return:
         :example:
         PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS('return', ('user_ts', 'timestamp')).\
-            FORMAT('return', ('user_ts', "YYYY-MM-DD HH24:MI:SS.MS")).payload() prints
+            FORMAT('return', ('user_ts', "YYYY-MM-DD HH24:MI:SS.MS")).payload() returns
             {"return": ["reading", {"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts", "alias": "timestamp"}]}
         """
         return cls._add_clause('format', main_key, args)
@@ -447,7 +447,7 @@ class PayloadBuilder(object):
         PayloadBuilder().AGGREGATE((["min", "values"], ["max", "values"], ["avg", "values"])).ALIAS('aggregate',
                                                            ('values', 'min', 'min_values'),
                                                            ('values', 'max', 'max_values'),
-                                                           ('values', 'avg', 'avg_values')).payload() prints
+                                                           ('values', 'avg', 'avg_values')).payload() returns
             {"aggregate": [{"operation": "min", "column": "values", "alias": "min_values"},
                            {"operation": "max", "column": "values", "alias": "max_values"},
                            {"operation": "avg", "column": "values", "alias": "avg_values"}]}
@@ -533,7 +533,7 @@ class PayloadBuilder(object):
                      col and value should be a str and path should be a list.
         :return:
         :example:
-        PayloadBuilder().JSON_PROPERTY(("data", [ "url", "value" ], "new value")).payload() prints
+        PayloadBuilder().JSON_PROPERTY(("data", [ "url", "value" ], "new value")).payload() returns
             {
                 "json_properties" : [
                             {
@@ -558,6 +558,50 @@ class PayloadBuilder(object):
                     cls.query_payload['json_properties'].append(json_property)
                 else:
                     cls.query_payload["json_properties"] = [json_property]
+        return cls
+
+    @classmethod
+    def TIMEBUCKET(cls, timestamp, size="1", fmt=None, alias=None):
+        """
+        Forms a json to return a dict of timebucket col
+
+        :param timestamp: timestamp col
+        :param size: bucket size in seconds, defaults to "1"
+        :param fmt: format string, optional
+        :param alias: alias, optional
+        :return:
+        :example:
+        PayloadBuilder().TIMEBUCKET("user_ts", "5").payload() returns
+            "timebucket" :  {
+                               "timestamp" : "user_ts",
+                               "size"      : "5"
+                        }
+
+        PayloadBuilder().TIMEBUCKET("user_ts", "5", format="DD-MM-YYYYY HH24:MI:SS").payload() returns
+            "timebucket" :  {
+                               "timestamp" : "user_ts",
+                               "size"      : "5",
+                               "format"    : "DD-MM-YYYYY HH24:MI:SS"
+                        }
+
+        PayloadBuilder().TIMEBUCKET("user_ts", "5", format="DD-MM-YYYYY HH24:MI:SS", alias="bucket").payload() returns
+            "timebucket" :  {
+                               "timestamp" : "user_ts",
+                               "size"      : "5",
+                               "format"    : "DD-MM-YYYYY HH24:MI:SS",
+                               "alias"     : "bucket"
+                        }
+        """
+
+        timebucket = OrderedDict()
+        timebucket["timestamp"] = timestamp
+        timebucket["size"] = size
+        if fmt is not None:
+            timebucket["format"] = fmt
+        if alias is not None:
+            timebucket["alias"] = alias
+        cls.query_payload["timebucket"] = timebucket
+
         return cls
 
     @classmethod

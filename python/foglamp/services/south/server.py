@@ -115,7 +115,7 @@ class Server(FoglampMicroservice):
                 "key": category,
                 "description": '{} Device'.format(self._name),
                 "value": default_config,
-                "keep_original_items": False
+                "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
@@ -135,7 +135,7 @@ class Server(FoglampMicroservice):
 
             self._plugin_handle = self._plugin.plugin_init(config)
 
-            await Ingest.start(self._core_management_host, self._core_management_port, self)
+            await Ingest.start(self)
 
             # Executes the requested plugin type
             if self._plugin_info['mode'] == 'async':

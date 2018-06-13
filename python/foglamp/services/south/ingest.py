@@ -13,11 +13,10 @@ import uuid
 from typing import List, Union
 import json
 from foglamp.common import logger
-from foglamp.common.statistics import Statistics
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
+from foglamp.common import statistics
 from foglamp.common.storage_client.exceptions import StorageServerError
 
-__author__ = "Terris Linenbach"
+__author__ = "Terris Linenbach, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -38,12 +37,10 @@ class Ingest(object):
 
     # Class attributes
 
-    _core_management_host = ""
-    _core_management_port = 0
     _parent_service = None
 
-    readings_storage = None  # type: Readings
-    storage = None  # type: Storage
+    readings_storage_async = None  # type: Readings
+    storage_async = None  # type: Storage
 
     _readings_stats = 0  # type: int
     """Number of readings accepted before statistics were written to storage"""
@@ -97,14 +94,14 @@ class Ingest(object):
     _write_statistics_frequency_seconds = 5
     """The number of seconds to wait before writing readings-related statistics to storage"""
 
-    _readings_buffer_size = 500
-    """Maximum number of readings to buffer in memory"""
+    _readings_buffer_size = 4096
+    """Maximum number of readings to buffer in memory(_max_concurrent_readings_inserts x _readings_insert_batch_size)"""
 
-    _max_concurrent_readings_inserts = 5
-    """Maximum number of concurrent processes that send batches of readings to storage"""
+    _max_concurrent_readings_inserts = 4
+    """Maximum number of concurrent processes that send batches of readings to storage. Preferably in multiples of 2."""
 
-    _readings_insert_batch_size = 100
-    """Maximum number of readings in a batch of inserts"""
+    _readings_insert_batch_size = 1024
+    """Maximum number of readings in a batch of inserts. Preferably in multiples of 2."""
 
     _readings_insert_batch_timeout_seconds = 1
     """Number of seconds to wait for a readings list to reach the minimum batch size"""
@@ -195,17 +192,15 @@ class Ingest(object):
             config['max_readings_insert_batch_reconnect_wait_seconds']['value'])
 
     @classmethod
-    async def start(cls, core_mgt_host, core_mgt_port, parent):
+    async def start(cls, parent):
         """Starts the server"""
         if cls._started:
             return
 
-        cls._core_management_host = core_mgt_host
-        cls._core_management_port = core_mgt_port
         cls._parent_service = parent
 
-        cls.readings_storage = ReadingsStorageClient(cls._core_management_host, cls._core_management_port)
-        cls.storage = StorageClient(cls._core_management_host, cls._core_management_port)
+        cls.readings_storage_async = cls._parent_service._readings_storage_async
+        cls.storage_async = cls._parent_service._storage_async
 
         await cls._read_config()
 
@@ -227,7 +222,6 @@ class Ingest(object):
 
         cls._last_insert_time = 0
 
-        cls._insert_readings_tasks = []
         cls._insert_readings_wait_tasks = []
         cls._readings_list_batch_size_reached = []
         cls._readings_list_not_empty = []
@@ -236,10 +230,10 @@ class Ingest(object):
         for _ in range(cls._max_concurrent_readings_inserts):
             cls._readings_lists.append([])
             cls._insert_readings_wait_tasks.append(None)
-            cls._insert_readings_tasks.append(asyncio.ensure_future(cls._insert_readings(_)))
             cls._readings_list_batch_size_reached.append(asyncio.Event())
             cls._readings_list_not_empty.append(asyncio.Event())
 
+        cls._insert_readings_task = asyncio.ensure_future(cls._insert_readings())
         cls._readings_lists_not_full = asyncio.Event()
 
         cls._stop = False
@@ -259,12 +253,11 @@ class Ingest(object):
         for task in cls._insert_readings_wait_tasks:
             if task is not None:
                 task.cancel()
-
-        for task in cls._insert_readings_tasks:
-            try:
-                await task
-            except Exception:
-                _LOGGER.exception('An exception was raised by Ingest._insert_readings')
+        try:
+            await cls._insert_readings_task
+            cls._insert_readings_task = None
+        except Exception:
+            _LOGGER.exception('An exception was raised by Ingest._insert_readings')
 
         cls._insert_readings_wait_tasks = None
         cls._insert_readings_tasks = None
@@ -292,19 +285,27 @@ class Ingest(object):
         cls._discarded_readings_stats += 1
 
     @classmethod
-    async def _insert_readings(cls, list_index):
+    async def _insert_readings(cls):
         """Inserts rows into the readings table
 
-        Use ReadingsStorageClient().append(json_payload_of_readings)
+        Use ReadingsStorageClientAsync().append(json_payload_of_readings)
         """
         _LOGGER.info('Insert readings loop started')
 
-        readings_list = cls._readings_lists[list_index]
-        min_readings_reached = cls._readings_list_batch_size_reached[list_index]
-        list_not_empty = cls._readings_list_not_empty[list_index]
-        lists_not_full = cls._readings_lists_not_full
+        list_index = 0
 
-        while True:
+        while list_index <= cls._max_concurrent_readings_inserts-1:
+            list_index += 1
+            if list_index > cls._max_concurrent_readings_inserts-1:
+                list_index = 0
+
+            # _LOGGER.debug('Insert readings for list_index: %s', list_index)
+
+            readings_list = cls._readings_lists[list_index]
+            min_readings_reached = cls._readings_list_batch_size_reached[list_index]
+            list_not_empty = cls._readings_list_not_empty[list_index]
+            lists_not_full = cls._readings_lists_not_full
+
             # Wait for enough items in the list to fill a batch
             # for some minimum amount of time
             while not cls._stop:
@@ -315,20 +316,16 @@ class Ingest(object):
                 waiter = asyncio.ensure_future(min_readings_reached.wait())
                 cls._insert_readings_wait_tasks[list_index] = waiter
 
-                # _LOGGER.debug('Waiting for entire batch: Queue index: %s Size: %s',
-                #               list_index, len(list))
+                # _LOGGER.debug('Waiting for entire batch: Queue index: %s Size: %s', list_index, len(readings_list))
 
                 try:
                     await asyncio.wait_for(waiter, cls._readings_insert_batch_timeout_seconds)
-                    # _LOGGER.debug('Released: Queue index: %s Size: %s',
-                    #               list_index, len(list))
+                    # _LOGGER.debug('Released: Queue index: %s Size: %s', list_index, len(readings_list))
                 except asyncio.CancelledError:
-                    # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
-                    #               list_index, len(list))
+                    # _LOGGER.debug('Cancelled: Queue index: %s Size: %s', list_index, len(readings_list))
                     break
                 except asyncio.TimeoutError:
-                    # _LOGGER.debug('Timed out: Queue index: %s Size: %s',
-                    #               list_index, len(list))
+                    # _LOGGER.debug('Timed out: Queue index: %s Size: %s', list_index, len(readings_list))
                     break
                 finally:
                     cls._insert_readings_wait_tasks[list_index] = None
@@ -372,16 +369,13 @@ class Ingest(object):
 
             # Perform insert. Retry when fails.
             while True:
-                # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index,
-                #               len(list))
-
                 try:
                     payload = dict()
                     payload['readings'] = readings_list
-
+                    batch_size = len(payload['readings'])
+                    # _LOGGER.debug('Begin insert: Queue index: %s Batch size: %s', list_index, batch_size)
                     try:
-                        cls.readings_storage.append(json.dumps(payload))
-                        batch_size = len(readings_list)
+                        await cls.readings_storage_async.append(json.dumps(payload))
                         cls._readings_stats += batch_size
                     except StorageServerError as ex:
                         err_response = ex.error
@@ -395,23 +389,20 @@ class Ingest(object):
                             _LOGGER.error("%s, %s", err_response["source"], err_response["message"])
                             batch_size = len(readings_list)
                             cls._discarded_readings_stats += batch_size
-
-                    # _LOGGER.debug('End insert: Queue index: %s Batch size: %s',
-                    #               list_index, batch_size)
+                    # _LOGGER.debug('End insert: Queue index: %s Batch size: %s', list_index, batch_size)
                     break
                 except Exception as ex:
                     attempt += 1
 
                     # TODO logging each time is overkill
-                    _LOGGER.exception('Insert failed on attempt #%s, list index: %s | %s',
-                                      attempt, list_index, str(ex))
+                    _LOGGER.exception('Insert failed on attempt #%s, list index: %s | %s', attempt, list_index, str(ex))
 
                     if cls._stop or attempt >= _MAX_ATTEMPTS:
                         # Stopping. Discard the entire list upon failure.
                         batch_size = len(readings_list)
                         cls._discarded_readings_stats += batch_size
                         _LOGGER.warning('Insert failed: Queue index: %s Batch size: %s', list_index, batch_size)
-                    break
+                        break
 
             del readings_list[:batch_size]
 
@@ -425,7 +416,7 @@ class Ingest(object):
         """Periodically commits collected readings statistics"""
         _LOGGER.info('South statistics writer started')
 
-        stats = Statistics(cls.storage)
+        stats = await statistics.create_statistics(cls.storage_async)
 
         # Register static statistics
         await stats.register('READINGS', 'The number of readings received by FogLAMP since startup')
@@ -452,7 +443,7 @@ class Ingest(object):
             cls._readings_stats = 0
 
             try:
-                await stats.update('READINGS', readings)
+                asyncio.ensure_future(stats.update('READINGS', readings))
             except Exception as ex:
                 cls._readings_stats += readings
                 _LOGGER.exception('An error occurred while writing readings statistics, %s', str(ex))
@@ -461,7 +452,7 @@ class Ingest(object):
             cls._discarded_readings_stats = 0
 
             try:
-                await stats.update('DISCARDED', readings)
+                asyncio.ensure_future(stats.update('DISCARDED', readings))
             except Exception as ex:
                 cls._discarded_readings_stats += readings
                 _LOGGER.exception('An error occurred while writing discarded statistics, Error: %s', str(ex))
@@ -471,7 +462,7 @@ class Ingest(object):
                 description = 'The number of readings received by FogLAMP since startup for sensor {}'.format(key)
                 await stats.register(key, description)
             try:
-                await stats.add_update(cls._sensor_stats)
+                asyncio.ensure_future(stats.add_update(cls._sensor_stats))
                 cls._sensor_stats = {}
             except Exception as ex:
                 _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
@@ -499,7 +490,7 @@ class Ingest(object):
                     cls._current_readings_list_index = list_index
                     return True
 
-        _LOGGER.warning('The ingest service is unavailable')
+        _LOGGER.warning('The ingest service is unavailable %s', list_index)
         return False
 
     @classmethod
@@ -594,16 +585,14 @@ class Ingest(object):
 
         list_size = len(readings_list)
 
-        # _LOGGER.debug('Add readings list index: %s size: %s', cls._current_readings_list_index,
-        #               list_size)
+        # _LOGGER.debug('Add readings list index: %s size: %s', cls._current_readings_list_index, list_size)
 
         if list_size == 1:
             cls._readings_list_not_empty[list_index].set()
 
         if list_size == cls._readings_insert_batch_size:
             cls._readings_list_batch_size_reached[list_index].set()
-            # _LOGGER.debug('Set event list index: %s size: %s',
-            #               cls._current_readings_list_index, len(list))
+            # _LOGGER.debug('Set event list index: %s size: %s', cls._current_readings_list_index, len(readings_list))
 
         # When the current list is full, move on to the next list
         if cls._max_concurrent_readings_inserts > 1 and (
@@ -612,4 +601,6 @@ class Ingest(object):
             for list_index in range(cls._max_concurrent_readings_inserts):
                 if len(cls._readings_lists[list_index]) < cls._readings_insert_batch_size:
                     cls._current_readings_list_index = list_index
+                    # _LOGGER.debug('Change Ingest Queue: from #%s (len %s) to #%s', cls._current_readings_list_index,
+                    #               len(cls._readings_lists[list_index]), list_index)
                     break

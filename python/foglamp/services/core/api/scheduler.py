@@ -135,11 +135,20 @@ def _extract_args(data, curr_value):
 
         _schedule['schedule_exclusive'] = data.get('exclusive') if 'exclusive' in data else curr_value[
             'schedule_exclusive'] if curr_value else 'True'
-        _schedule['schedule_exclusive'] = 'True' if _schedule['schedule_exclusive'] else 'False'
+        _schedule['schedule_exclusive'] = 'True' if (
+            (type(_schedule['schedule_exclusive']) is str and _schedule['schedule_exclusive'].lower() in ['t', 'true']) or (
+            (type(_schedule['schedule_exclusive']) is bool and _schedule['schedule_exclusive'] is True))) else 'False'
 
         _schedule['schedule_enabled'] = data.get('enabled') if 'enabled' in data else curr_value[
             'schedule_enabled'] if curr_value else 'True'
-        _schedule['schedule_enabled'] = 'True' if _schedule['schedule_enabled'] else 'False'
+        _schedule['schedule_enabled'] = 'True' if (
+            (type(_schedule['schedule_enabled']) is str and _schedule['schedule_enabled'].lower() in ['t', 'true']) or (
+            (type(_schedule['schedule_enabled']) is bool and _schedule['schedule_enabled'] is True))) else 'False'
+
+        _schedule['is_enabled_modified'] = None
+        if 'enabled' in data:
+            _schedule['is_enabled_modified'] = True if _schedule['schedule_enabled'] == 'True' else False
+
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
 
@@ -259,7 +268,7 @@ async def _execute_add_update_schedule(data, curr_value=None):
     schedule.enabled = True if _schedule.get('schedule_enabled') == 'True' else False
 
     # Save schedule
-    await server.Server.scheduler.save_schedule(schedule)
+    await server.Server.scheduler.save_schedule(schedule, _schedule['is_enabled_modified'])
 
     updated_schedule_id = schedule.schedule_id
 

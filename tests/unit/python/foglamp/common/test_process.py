@@ -4,7 +4,7 @@ import pytest
 
 from unittest.mock import patch
 
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient, ReadingsStorageClientAsync, StorageClientAsync
 from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
@@ -50,10 +50,14 @@ class TestFoglampProcess:
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
                     with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
-                        fp = FoglampProcessImp()
+                        with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                            with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                                fp = FoglampProcessImp()
         mmc_patch.assert_called_once_with('corehost', 0)
         rsc_patch.assert_called_once_with('corehost', 0)
         sc_patch.assert_called_once_with('corehost', 0)
+        rsc_async_patch.assert_called_once_with('corehost', 0)
+        sc_async_patch.assert_called_once_with('corehost', 0)
         assert fp._core_management_host is 'corehost'
         assert fp._core_management_port is 0
         assert fp._name is 'sname'
@@ -71,8 +75,11 @@ class TestFoglampProcess:
                 with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
                     with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
                         with patch.object(MicroserviceManagementClient, 'get_services', return_value=None) as get_patch:
-                            fp = FoglampProcessImp()
-                            fp.get_services_from_core('foo', 'bar')
+                            with patch.object(ReadingsStorageClientAsync, '__init__',
+                                              return_value=None) as rsc_async_patch:
+                                with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                                    fp = FoglampProcessImp()
+                                    fp.get_services_from_core('foo', 'bar')
         get_patch.assert_called_once_with('foo', 'bar')
 
     def test_register_service_with_core(self):
@@ -84,8 +91,11 @@ class TestFoglampProcess:
                 with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
                     with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
                         with patch.object(MicroserviceManagementClient, 'register_service', return_value=None) as register_patch:
-                            fp = FoglampProcessImp()
-                            fp.register_service_with_core('payload')
+                            with patch.object(ReadingsStorageClientAsync, '__init__',
+                                              return_value=None) as rsc_async_patch:
+                                with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                                    fp = FoglampProcessImp()
+                                    fp.register_service_with_core('payload')
         register_patch.assert_called_once_with('payload')
 
     def test_unregister_service_with_core(self):
@@ -97,6 +107,9 @@ class TestFoglampProcess:
                 with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
                     with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
                         with patch.object(MicroserviceManagementClient, 'unregister_service', return_value=None) as unregister_patch:
-                            fp = FoglampProcessImp()
-                            fp.unregister_service_with_core('id')
+                            with patch.object(ReadingsStorageClientAsync, '__init__',
+                                              return_value=None) as rsc_async_patch:
+                                with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                                    fp = FoglampProcessImp()
+                                    fp.unregister_service_with_core('id')
         unregister_patch.assert_called_once_with('id')

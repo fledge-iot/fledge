@@ -185,7 +185,7 @@ class TestService:
                         resp = await client.post('/foglamp/service', data=json.dumps(data))
                         assert 400 == resp.status
                         assert 'A schedule with that name already exists' == resp.reason
-                    patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=False)
+                    patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=True)
                 args, kwargs = insert_table_patch.call_args
                 assert 'scheduled_processes' == args[0]
                 p = json.loads(args[1])
@@ -231,7 +231,7 @@ class TestService:
                                 assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'furnace4'} == json_response
                             patch_get_schedule.assert_called_once_with(data['name'])
                         patch_save_schedule.called_once_with()
-                    patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=False)
+                    patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=True)
 
                 args, kwargs = insert_table_patch.call_args
                 assert 'scheduled_processes' == args[0]

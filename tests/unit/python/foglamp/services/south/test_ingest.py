@@ -43,8 +43,8 @@ class TestIngest:
         # Important - We need to initialize class variables before each test
         Ingest._core_management_host = ""
         Ingest._core_management_port = 0
-        Ingest.readings_storage = None  # type: Readings
-        Ingest.storage = None  # type: Storage
+        Ingest.readings_storage_async = None  # type: Readings
+        Ingest.storage_async = None  # type: Storage
         Ingest._readings_stats = 0  # type: int
         Ingest._discarded_readings_stats = 0  # type: int
         Ingest._sensor_stats = {}  # type: dict
@@ -115,8 +115,8 @@ class TestIngest:
     @pytest.mark.asyncio
     async def test_read_config(self, mocker):
         # GIVEN
-        Ingest.storage = MagicMock(spec=StorageClient)
-        Ingest.readings_storage = MagicMock(spec=ReadingsStorageClient)
+        Ingest.storage_async = MagicMock(spec=StorageClientAsync)
+        Ingest.readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
@@ -145,8 +145,8 @@ class TestIngest:
     @pytest.mark.asyncio
     async def test_start(self, mocker):
         # GIVEN
-        mocker.patch.object(StorageClient, "__init__", return_value=None)
-        mocker.patch.object(ReadingsStorageClient, "__init__", return_value=None)
+        mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
+        mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)
@@ -176,8 +176,8 @@ class TestIngest:
     @pytest.mark.asyncio
     async def test_stop(self, mocker):
         # GIVEN
-        mocker.patch.object(StorageClient, "__init__", return_value=None)
-        mocker.patch.object(ReadingsStorageClient, "__init__", return_value=None)
+        mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
+        mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
         log_exception = mocker.patch.object(ingest._LOGGER, "exception")
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         create_cfg = mocker.patch.object(MicroserviceManagementClient, "create_configuration_category", return_value=None)

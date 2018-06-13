@@ -141,8 +141,7 @@ class TestServicesSouthServer:
 
         # THEN
         assert 1 == ingest_start.call_count
-        ingest_start_params = None, None, south_server
-        ingest_start.assert_called_with(*ingest_start_params)
+        ingest_start.assert_called_with(south_server)
         assert 1 == log_info.call_count
         assert 0 == log_exception.call_count
         assert south_server._task_main.done() is True
@@ -228,8 +227,7 @@ class TestServicesSouthServer:
 
         # THEN
         assert 1 == ingest_start.call_count
-        ingest_start_params = None, None, south_server
-        ingest_start.assert_called_with(*ingest_start_params)
+        ingest_start.assert_called_with(south_server)
         assert 1 == log_info.call_count
         assert 1 == log_exception.call_count
         assert south_server._task_main.done() is False  # because of exception occurred

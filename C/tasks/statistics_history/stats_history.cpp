@@ -79,6 +79,7 @@ void StatsHistory::processKey(const string& key) const
 {
 Query	query(new Where("key", Equals, key));
 
+	// Fetch the current and previous valaues for the key
 	query.returns(new Returns("value"));
 	query.returns(new Returns("previous_value"));
 	ResultSet *values = getStorageClient()->queryTable("statistics", query);
@@ -91,6 +92,7 @@ Query	query(new Where("key", Equals, key));
 	int prev = ((*values)[0])->getColumn("previous_value")->getInteger();
 	delete values;
 	
+	// Insert the row into the configuration history
 	InsertValues historyValues;
 	historyValues.push_back(InsertValue("key", key.c_str()));
 	historyValues.push_back(InsertValue("value", val - prev));
@@ -101,6 +103,7 @@ Query	query(new Where("key", Equals, key));
 		getLogger()->error("Failed to insert single row to statisitics history table for key %s", key.c_str());
 	}
 
+	// Update the previous value in the statistics row
 	InsertValues updateValues;
 	updateValues.push_back(InsertValue("previous_value", val));
 	if (getStorageClient()->updateTable("statistics", updateValues, Where("key", Equals, key)) != 1)

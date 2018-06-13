@@ -78,14 +78,14 @@ class Server:
 
     _SERVICE_DEFAULT_CONFIG = {
         'name': {
-            'description': 'The name of this FogLAMP service',
+            'description': 'Name of this FogLAMP service',
             'type': 'string',
             'default': 'FogLAMP'
         },
         'description': {
-            'description': 'The description of this FogLAMP service',
+            'description': 'Description of this FogLAMP service',
             'type': 'string',
-            'default': 'The FogLAMP administrative API'
+            'default': 'FogLAMP administrative API'
         }
     }
 
@@ -127,23 +127,22 @@ class Server:
 
     _REST_API_DEFAULT_CONFIG = {
         'httpPort': {
-            'description': 'The port to accept HTTP connections on',
+            'description': 'Port to accept HTTP connections on',
             'type': 'integer',
             'default': '8081'
         },
         'httpsPort': {
-            'description': 'The port to accept HTTPS connections on',
+            'description': 'Port to accept HTTPS connections on',
             'type': 'integer',
             'default': '1995'
         },
         'enableHttp': {
-            'description': 'Enable or disable the connection via HTTP',
+            'description': 'Enable HTTP (disable to use HTTPS)',
             'type': 'boolean',
             'default': 'true'
         },
         'authProviders': {
-            'description': 'A JSON object which is an array of authentication providers to use '
-                           'for the interface',
+            'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }'
         },
@@ -153,18 +152,18 @@ class Server:
             'default': 'foglamp'
         },
         'authentication': {
-            'description': 'To make the authentication mandatory or optional for API calls',
+            'description': 'API Call Authentication (mandatory or optional)',
             'type': 'string',
             'default': 'optional'
         },
         'allowPing': {
-            'description': 'To allow access to the ping, regardless of the authentication required and'
+            'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
             'default': 'true'
         },
         'passwordChange': {
-            'description': 'Number of days which a password must be changed',
+            'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
             'default': '0'
         }
@@ -199,26 +198,26 @@ class Server:
         else:
             certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
 
-        """ Generated using      
+        """ Generated using
                 $ openssl version
                 OpenSSL 1.0.2g  1 Mar 2016
-                 
+
         The openssl library is required to generate your own certificate. Run the following command in your local environment to see if you already have openssl installed installed.
-        
+
         $ which openssl
         /usr/bin/openssl
-        
+
         If the which command does not return a path then you will need to install openssl yourself:
-        
+
         $ apt-get install openssl
-        
+
         Generate private key and certificate signing request:
-        
+
         A private key and certificate signing request are required to create an SSL certificate.
-        When the openssl req command asks for a “challenge password”, just press return, leaving the password empty. 
-        This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke 
+        When the openssl req command asks for a “challenge password”, just press return, leaving the password empty.
+        This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke
         their certificate. Since this is a self-signed certificate, there’s no way to revoke it via CRL(Certificate Revocation List).
-        
+
         $ openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
         ...
         $ openssl rsa -passin pass:x -in server.pass.key -out foglamp.key
@@ -231,17 +230,17 @@ class Server:
         ...
         A challenge password []:
         ...
-       
+
         Generate SSL certificate:
-       
+
         The self-signed SSL certificate is generated from the server.key private key and server.csr files.
-        
+
         $ openssl x509 -req -sha256 -days 365 -in server.csr -signkey server.key -out server.cert
-        
+
         The server.cert file is the certificate suitable for use along with the server.key private key.
-        
+
         Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/data/etc/certs or /usr/local/foglamp/data/etc/certs
-        
+
         """
         cert = certs_dir + '/{}.cert'.format(cls.cert_file_name)
         key = certs_dir + '/{}.key'.format(cls.cert_file_name)
@@ -266,7 +265,7 @@ class Server:
             config = cls._REST_API_DEFAULT_CONFIG
             category = 'rest_api'
 
-            await cls._configuration_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True)
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -313,7 +312,7 @@ class Server:
 
             if cls._configuration_manager is None:
                 _logger.error("No configuration manager available")
-            await cls._configuration_manager.create_category(category, config, 'The FogLAMP service configuration', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True)
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -417,7 +416,7 @@ class Server:
             path = _FOGLAMP_ROOT + "/data"
         else:
             path = _FOGLAMP_DATA
-        return path + _FOGLAMP_PID_DIR + "/" + _FOGLAMP_PID_FILE 
+        return path + _FOGLAMP_PID_DIR + "/" + _FOGLAMP_PID_FILE
 
     @classmethod
     def _pidfile_exists(cls):
@@ -504,10 +503,10 @@ class Server:
 
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
-            
+
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
-            
+
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)

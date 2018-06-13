@@ -17,13 +17,13 @@
 --
 -- init.sql
 --
--- SQLite script to create the FogLAMP persistent Layer 
+-- SQLite script to create the FogLAMP persistent Layer
 --
 
 -- NOTE:
--- 
+--
 -- This schema has to be used with Sqlite3 JSON1 extension
--- 
+--
 -- This script must be launched with sqlite3 commamd line tool:
 --  sqlite3 /path/foglamp.db
 --   > ATTACH DATABASE '/path/foglamp.db' AS 'foglamp'
@@ -32,11 +32,11 @@
 
 ----------------------------------------------------------------------
 -- DDL CONVENTIONS
--- 
+--
 -- Tables:
 -- * Names are in plural, terms are separated by _
 -- * Columns are, when possible, not null and have a default value.
--- 
+--
 -- Columns:
 -- id      : It is commonly the PK of the table, a smallint, integer or bigint.
 -- xxx_id  : It usually refers to a FK, where "xxx" is name of the table.
@@ -307,7 +307,7 @@ CREATE UNIQUE INDEX statistics_history_ix1
     ON statistics_history (key, history_ts);
 
 -- Resources table
--- A resource and be anything that is available or can be done in FogLAMP. Examples: 
+-- A resource and be anything that is available or can be done in FogLAMP. Examples:
 -- - Access to assets
 -- - Access to readings
 -- - Access to streams
@@ -564,7 +564,7 @@ CREATE TABLE foglamp.version (id CHAR(10));
 -- Roles
 DELETE FROM foglamp.roles;
 INSERT INTO foglamp.roles ( name, description )
-     VALUES ('admin', 'for the users having all CRUD privileges including other admin users'),
+     VALUES ('admin', 'All CRUD privileges'),
             ('user', 'all CRUD operations and self profile management');
 
 -- Users
@@ -613,29 +613,29 @@ DELETE FROM foglamp.configuration;
 -- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_1',
-              'OMF North Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+              'OMF North Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
 -- SEND_PR_2 - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_2',
-              'OMF North Statistics Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+              'FogLAMP Statistics Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that FogLAMP Statistics Plugin will load" } } '
             );
 
 -- SEND_PR_3 - HTTP Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_3',
-              'HTTP North Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } '
+              'HTTP North Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Module that HTTP North Plugin will load" } } '
             );
 
 -- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_4',
-              'OCS North Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } '
+              'OCS North Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
             );
 
 -- South plugins
@@ -643,49 +643,49 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- POLL: South Microservice - POLL Plugin template
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'POLL',
-              'South Plugin polling template',
-              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } '
+              'South Polling Plugin template',
+              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Module that South Polling Template Plugin will load" } } '
             );
 
 -- HTTP South template
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'HTTP_SOUTH',
-             'HTTP Listener South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } '
+             'HTTP South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
            );
 
 -- COAP: CoAP Listener Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'COAP',
               'CoAP Listener South Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } '
+              ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Module that CoAP Listener South Plugin will load" } } '
             );
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650POLL',
-             'TI SensorTag CC2650 polling South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } '
+             'TI SensorTag CC2650 Polling South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Module that TI SensorTag Polling South Plugin will load" } } '
            );
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650ASYN',
-             'TI SensorTag CC2650 async South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } '
+             'TI SensorTag CC2650 Async South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Module that TI SensorTag Async South Plugin will load" } } '
            );
 
 
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
-     VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0 ),
-            ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
-            ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
-            ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
-            ( 'SENT_3',     'The number of readings data sent to the HTTP north', 0, 0 ),
-            ( 'SENT_4',     'The number of readings sent to OCS', 0, 0 ),
-            ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
-            ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
-            ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
-            ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0 );
+     VALUES ( 'READINGS',   'Readings received by FogLAMP since startup', 0, 0 ),
+            ( 'BUFFERED',   'Readings currently in FogLAMP buffer', 0, 0 ),
+            ( 'SENT_1',     'Readings sent to historian', 0, 0 ),
+            ( 'SENT_2',     'FogLAMP statistics data sent to historian', 0, 0 ),
+            ( 'SENT_3',     'Readings sent via HTTP north', 0, 0 ),
+            ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
+            ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
+            ( 'PURGED',     'Readings removed from buffer by purge process', 0, 0 ),
+            ( 'UNSNPURGED', 'Readings that were purged from the buffer before being sent', 0, 0 ),
+            ( 'DISCARDED',  'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
 
 --
 -- Scheduled processes

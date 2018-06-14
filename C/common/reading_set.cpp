@@ -98,6 +98,9 @@ struct tm tm;
 
 	memset(&tm, 0, sizeof(tm));
 	strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
+
+    // mktime handles timezones, so UTC is configured
+	setenv("TZ","UTC",1);
 	tv->tv_sec = mktime(&tm);
 
 	// Work out the microseconds from the fractional part of the seconds

@@ -20,7 +20,7 @@ __version__ = "${VERSION}"
 
 _NEW_CONFIG = {
     'plugin': {
-        'description': 'Sensortag CC2650 async type plugin',
+        'description': 'TI SensorTag Async South Plugin',
         'type': 'string',
         'default': 'cc2650async'
     },

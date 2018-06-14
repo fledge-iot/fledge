@@ -29,7 +29,7 @@ _LOGGER.setLevel(logging.INFO)
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Python module name of the plugin to load',
+         'description': 'CoAP Listener South Plugin',
          'type': 'string',
          'default': 'coap_listen'
     },

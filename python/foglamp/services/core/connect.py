@@ -7,6 +7,7 @@
 
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient
 from foglamp.common import logger
 
 __author__ = "Ashish Jabble"
@@ -32,3 +33,17 @@ def get_storage():
         _logger.exception(str(ex))
         raise
     return _storage
+
+# TODO: Needs refactoring or better way to allow global discovery in core process
+def get_readings():
+    """ Storage Object """
+    try:
+        services = ServiceRegistry.get(name="FogLAMP Storage")
+        storage_svc = services[0]
+        _readings = ReadingsStorageClient(core_mgt_host=None, core_mgt_port=None,
+                                 svc=storage_svc)
+        # _logger.info(type(_storage))
+    except Exception as ex:
+        _logger.exception(str(ex))
+        raise
+    return _readings

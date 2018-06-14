@@ -39,6 +39,7 @@ from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
 from foglamp.services.core.user_model import User
+from foglamp.common.storage_client import payload_builder
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
@@ -507,7 +508,18 @@ class Server:
             
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
-            
+
+            # If readings table is empty, set last_object of all streams to 0
+            total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")).payload()
+            result = cls._storage_client.query_tbl_with_payload('readings', total_count_payload)
+            total_count = result['rows'][0]['count']
+            if (total_count == 0):
+                _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
+                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
+                cls._storage_client.update_tbl("streams", payload)
+            else:
+                _logger.info("'foglamp.readings' has " + str(total_count) + " rows, 'foglamp.streams' last_objects reset is not required")    
+
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)

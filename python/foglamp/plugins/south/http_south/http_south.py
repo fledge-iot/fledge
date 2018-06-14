@@ -27,7 +27,7 @@ _CONFIG_CATEGORY_NAME = 'HTTP_SOUTH'
 _CONFIG_CATEGORY_DESCRIPTION = 'South Plugin HTTP Listener'
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'South Plugin HTTP Listener',
+         'description': 'HTTP South Plugin',
          'type': 'string',
          'default': 'http_south'
     },

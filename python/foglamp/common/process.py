@@ -61,13 +61,13 @@ class FoglampProcess(ABC):
     """ foglamp.common.storage_client.storage_client.ReadingsStorageClient """
 
     _readings_storage_async = None
-    """ foglamp.common.storage_client.storage_client.ReadingsStorageClient """
+    """ foglamp.common.storage_client.storage_client.ReadingsStorageClientAsync """
 
     _storage = None
     """ foglamp.common.storage_client.storage_client.StorageClient """
     
     _storage_async = None
-    """ async foglamp.common.storage_client.storage_client.StorageClient """
+    """ async foglamp.common.storage_client.storage_client.StorageClientAsync """
 
     _start_time = None
     """ time at which this python process started """

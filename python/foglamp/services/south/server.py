@@ -135,7 +135,7 @@ class Server(FoglampMicroservice):
 
             self._plugin_handle = self._plugin.plugin_init(config)
 
-            await Ingest.start(self._core_management_host, self._core_management_port, self)
+            await Ingest.start(self)
 
             # Executes the requested plugin type
             if self._plugin_info['mode'] == 'async':

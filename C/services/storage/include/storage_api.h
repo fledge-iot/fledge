@@ -39,10 +39,11 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 class StorageApi {
 
 public:
-	StorageApi(const unsigned short port, const int threads);
+	StorageApi(const unsigned short port, const unsigned  int threads);
         static StorageApi *getInstance();
 	void	initResources();
 	void	setPlugin(StoragePlugin *);
+	void	setReadingPlugin(StoragePlugin *);
 	void	start();
 	void	startServer();
 	void	wait();
@@ -63,9 +64,10 @@ private:
         static StorageApi       *m_instance;
         HttpServer              *m_server;
 	unsigned short          m_port;
-	int		        m_threads;
+	unsigned int		m_threads;
         thread                  *m_thread;
 	StoragePlugin		*plugin;
+	StoragePlugin		*readingPlugin;
 	StorageStats		stats;
 	void			respond(shared_ptr<HttpServer::Response>, const string&);
 	void			respond(shared_ptr<HttpServer::Response>, SimpleWeb::StatusCode, const string&);

@@ -2,9 +2,12 @@
 	"plugin" : {
 			"value":"sqlite"
 		   },
+	"readingPlugin" : {
+			"value":"sqlitememory"
+		   },
 	"threads":
 		   {
-			"value":"1"
+			"value":"2"
 		   },
 	"port":    {
 			"value":"8080"

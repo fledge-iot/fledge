@@ -130,8 +130,14 @@ unsigned short servicePort;
 	{
 		servicePort = (unsigned short)atoi(config->getValue("port"));
 	}
+	unsigned int threads = 1;
+	if (config->hasValue("threads"))
+	{
+		threads = (unsigned int)atoi(config->getValue("threads"));
+	}
 
-	api = new StorageApi(servicePort, 1);
+
+	api = new StorageApi(servicePort, threads);
 }
 
 /**
@@ -196,9 +202,9 @@ void StorageService::stop()
 }
 
 /**
- * Load the configured storage plugin
+ * Load the configured storage plugin or plugins
  *
- * TODO Should search for the plugin in specified locations
+ * @return bool	True if the plugins have been l;oaded and support the correct operations
  */
 bool StorageService::loadPlugin()
 {
@@ -215,11 +221,59 @@ bool StorageService::loadPlugin()
 	if ((handle = manager->loadPlugin(string(plugin), PLUGIN_TYPE_STORAGE)) != NULL)
 	{
 		storagePlugin = new StoragePlugin(handle);
+		if ((storagePlugin->getInfo()->options & SP_COMMON) == 0)
+		{
+			logger->error("Defined storage plugin %s does not support common table operations.\n",
+					plugin);
+			return false;
+		}
+		if (config->hasValue("raedingPlugin") == false && (storagePlugin->getInfo()->options & SP_READINGS) == 0)
+		{
+			logger->error("Defined storage plugin %s does not support readings operations.\n",
+					plugin);
+			return false;
+		}
 		api->setPlugin(storagePlugin);
 		logger->info("Loaded storage plugin %s.", plugin);
+	}
+	else
+	{
+		return false;
+	}
+	if (! config->hasValue("readingPlugin"))
+	{
+		// Single plugin does everything
 		return true;
 	}
-	return false;
+	const char *readingPluginName = config->getValue("readingPlugin");
+	if (! *readingPluginName)
+	{
+		// Single plugin does everything
+		return true;
+	}
+	if (plugin == NULL)
+	{
+		logger->error("Unable to fetch reading plugin name from configuration.\n");
+		return false;
+	}
+	logger->info("Load reading plugin %s.", readingPluginName);
+	if ((handle = manager->loadPlugin(string(readingPluginName), PLUGIN_TYPE_STORAGE)) != NULL)
+	{
+		readingPlugin = new StoragePlugin(handle);
+		if ((storagePlugin->getInfo()->options & SP_READINGS) == 0)
+		{
+			logger->error("Defined readings storage plugin %s does not support readings operations.\n",
+					readingPluginName);
+			return false;
+		}
+		api->setReadingPlugin(readingPlugin);
+		logger->info("Loaded reading plugin %s.", readingPluginName);
+	}
+	else
+	{
+		return false;
+	}
+	return true;
 }
 
 /**

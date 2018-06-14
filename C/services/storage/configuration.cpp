@@ -17,7 +17,8 @@
 #include <unistd.h>
 
 static const char *defaultConfiguration =
-" { \"plugin\" : { \"value\" : \"sqlite\", \"description\" : \"The storage plugin to load\"},"
+" { \"plugin\" : { \"value\" : \"sqlite\", \"description\" : \"The main storage plugin to load\"},"
+" \"readingPlugin\" : { \"value\" : \"\", \"description\" : \"The storage plugin to load for readings data. If blank the main storage plugin is used.\"},"
 " \"threads\" : { \"value\" : \"1\", \"description\" : \"The number of threads to run\" },"
 " \"managedStatus\" : { \"value\" : \"false\", \"description\" : \"Control if FogLAMP should manage the storage provider\" },"
 " \"port\" : { \"value\" : \"0\", \"description\" : \"The port to listen on\" },"
@@ -33,6 +34,21 @@ StorageConfiguration::StorageConfiguration()
 {
 	logger = Logger::getLogger();
 	readCache();
+}
+
+/**
+ * Return if a value exsits for the cached configuration category
+ */
+bool StorageConfiguration::hasValue(const string& key)
+{
+	if (document.HasParseError())
+	{
+		logger->error("Configuration cache failed to parse.");
+		return false;
+	}
+	if (!document.HasMember(key.c_str()))
+		return false;
+	return true;
 }
 
 /**

@@ -79,7 +79,7 @@ class Server(FoglampMicroservice):
             # Configuration handling - initial configuration
             category = self._name
             config = self._DEFAULT_CONFIG
-            config_descr = '{} Device'.format(self._name)
+            config_descr = self._name if (config['plugin']['description']).strip() == "" else config['plugin']['description']
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,
@@ -109,11 +109,13 @@ class Server(FoglampMicroservice):
             # Plugin initialization
             self._plugin_info = self._plugin.plugin_info()
             default_config = self._plugin_info['config']
+            default_plugin_descr = self._name if (default_config['plugin']['description']).strip() == "" else \
+                default_config['plugin']['description']
 
             # Configuration handling - updates the configuration using information specific to the plugin
             config_payload = json.dumps({
                 "key": category,
-                "description": '{} Device'.format(self._name),
+                "description": default_plugin_descr,
                 "value": default_config,
                 "keep_original_items": True
             })

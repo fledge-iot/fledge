@@ -295,6 +295,9 @@ class Ingest(object):
         list_index = 0
 
         while list_index <= cls._max_concurrent_readings_inserts-1:
+            if cls._stop:
+                break  # Terminate this method
+
             list_index += 1
             if list_index > cls._max_concurrent_readings_inserts-1:
                 list_index = 0
@@ -330,36 +333,11 @@ class Ingest(object):
                 finally:
                     cls._insert_readings_wait_tasks[list_index] = None
 
+            # If list is still empty, then proceed to next list
             if not len(readings_list):
-                if cls._stop:
-                    break  # Terminate this method
+                continue
 
-                # Wait for one item in the list
-                list_not_empty.clear()
-                waiter = asyncio.ensure_future(list_not_empty.wait())
-                cls._insert_readings_wait_tasks[list_index] = waiter
-
-                # _LOGGER.debug('Waiting for first item: Queue index: %s', list_index)
-
-                try:
-                    await asyncio.wait_for(
-                        waiter,
-                        cls._max_readings_insert_batch_connection_idle_seconds)
-                except asyncio.CancelledError:
-                    # Don't assume the list is empty
-
-                    # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
-                    #               list_index, len(list))
-                    continue
-                except asyncio.TimeoutError:
-                    # _LOGGER.debug('Closing idle connection: Queue index: %s',
-                    #               list_index)
-                    continue
-                finally:
-                    cls._insert_readings_wait_tasks[list_index] = None
-
-            # If batch size still not reached but another list has inserted
-            # recently, wait some more
+            # If batch size still not reached and if there is time then let this list wait and move to next list
             if (not cls._stop) and (len(readings_list) < cls._readings_insert_batch_size) and ((
                     time.time() - cls._last_insert_time) < cls._readings_insert_batch_timeout_seconds):
                 continue

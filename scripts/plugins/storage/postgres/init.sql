@@ -810,8 +810,8 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- SEND_PR_2 - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_2',
-              'FogLAMP Statistics Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that FogLAMP Statistics Plugin will load" } } '
+              'OMF North Statistics Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Statistics Plugin will load" } } '
             );
 
 -- SEND_PR_3 - HTTP Plugin

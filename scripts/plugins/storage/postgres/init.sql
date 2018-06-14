@@ -782,7 +782,7 @@ INSERT INTO foglamp.log_codes ( code, description )
             ( 'CONAD', 'Configuration Addition' ),
             ( 'SCHCH', 'Schedule Change' ),
             ( 'SCHAD', 'Schedule Addition' ),
-            ( 'SRV_REG', 'Service Registered' ),
+            ( 'SRVRG', 'Service Registered' ),
             ( 'SRVUN', 'Service Unregistered' ),
             ( 'SRVFL', 'Service Fail' ),
             ( 'NHCOM', 'North Process Complete' ),
@@ -803,28 +803,28 @@ DELETE FROM foglamp.configuration;
 -- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_1',
-              'OMF North Plugin Configuration',
+              'OMF North Plugin',
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
 -- SEND_PR_2 - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_2',
-              'OMF North Statistics Plugin Configuration',
+              'FogLAMP Statistics Plugin Configuration',
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that FogLAMP Statistics Plugin will load" } } '
             );
 
 -- SEND_PR_3 - HTTP Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_3',
-              'HTTP North Plugin Configuration',
+              'HTTP North Plugin',
               ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Module that HTTP North Plugin will load" } } '
             );
 
 -- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_4',
-              'OCS North Plugin Configuration',
+              'OCS North Plugin',
               ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
             );
 
@@ -834,14 +834,14 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- POLL: South Microservice - POLL Plugin template
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'POLL',
-              'South Plugin polling template',
+              'South Polling Plugin template',
               ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Module that South Polling Template Plugin will load" } } '
             );
 
 -- HTTP South template
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'HTTP_SOUTH',
-             'HTTP Listener South Plugin',
+             'HTTP South Plugin',
              ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
            );
 
@@ -854,13 +854,13 @@ INSERT INTO foglamp.configuration ( key, description, value )
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650POLL',
-             'TI SensorTag CC2650 polling South Plugin',
+             'TI SensorTag CC2650 Polling South Plugin',
              ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Module that TI SensorTag Polling South Plugin will load" } } '
            );
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650ASYN',
-             'TI SensorTag CC2650 async South Plugin',
+             'TI SensorTag CC2650 Async South Plugin',
              ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Module that TI SensorTag Async South Plugin will load" } } '
            );
 
@@ -871,12 +871,12 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',   'Readings currently in the FogLAMP buffer', 0, 0 ),
             ( 'SENT_1',     'Readings sent to the historian', 0, 0 ),
             ( 'SENT_2',     'Statistics data sent to the historian', 0, 0 ),
-            ( 'SENT_3',     'Readings data sent to the HTTP north', 0, 0 ),
+            ( 'SENT_3',     'Readings data sent via HTTP north', 0, 0 ),
             ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
             ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'Readings removed from the buffer by the purge process', 0, 0 ),
             ( 'UNSNPURGED', 'Readings that were purged from the buffer before being sent', 0, 0 ),
-            ( 'DISCARDED',  'Readings discarded by the South Service before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0 );
+            ( 'DISCARDED',  'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
 
 
 --

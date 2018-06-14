@@ -565,7 +565,7 @@ CREATE TABLE foglamp.version (id CHAR(10));
 DELETE FROM foglamp.roles;
 INSERT INTO foglamp.roles ( name, description )
      VALUES ('admin', 'All CRUD privileges'),
-            ('user', 'all CRUD operations and self profile management');
+            ('user', 'All CRUD operations and self profile management');
 
 -- Users
 DELETE FROM foglamp.users;

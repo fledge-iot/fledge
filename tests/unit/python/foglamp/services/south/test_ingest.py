@@ -363,7 +363,7 @@ class TestIngest:
         # THEN
         assert 0 == len(Ingest._readings_lists[0])
         assert 1 == log_warning.call_count
-        log_warning.assert_called_with('The South server is stopping')
+        log_warning.assert_called_with('The South Service is stopping')
 
     @pytest.mark.asyncio
     async def test_add_readings_not_started(self, mocker):

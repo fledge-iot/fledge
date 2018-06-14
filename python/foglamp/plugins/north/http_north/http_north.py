@@ -40,17 +40,17 @@ _DEFAULT_CONFIG = {
         'default': 'http://localhost:8118/ingress/messages'
     },
     'shutdown_wait_time': {
-        'description': 'how long (x seconds) the plugin should wait for pending tasks to complete or cancel otherwise',
+        'description': 'Time in seconds the plugin should wait for pending tasks to complete',
         'type': 'integer',
         'default': '10'
     },
     "applyFilter": {
-        "description": "Whether to apply filter before processing the data",
+        "description": "Should filter be applied before processing data",
         "type": "boolean",
         "default": "False"
     },
     "filterRule": {
-        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]"
     }
@@ -80,8 +80,6 @@ async def plugin_send(data, payload, stream_id):
     is_data_sent, new_last_object_id, num_sent = await http_north.send_payloads(payload, stream_id)
 
     return is_data_sent, new_last_object_id, num_sent
-
-
 
 
 def plugin_shutdown(data):

@@ -711,13 +711,13 @@ class Scheduler(object):
         """Reads configuration"""
         default_config = {
             "max_running_tasks": {
-                "description": "The maximum number of tasks that can be running at any given time",
+                "description": "Maximum number of tasks that can be running at any given time",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_RUNNING_TASKS)
             },
             "max_completed_task_age_days": {
-                "description": "The maximum age, in days (based on the start time), for a rows "
-                               "in the tasks table that do not have a status of running",
+                "description": "Maximum age in days (based on the start time) for a row "
+                               "in the tasks table that does not have a status of running",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
             },

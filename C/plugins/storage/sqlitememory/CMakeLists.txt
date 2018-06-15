@@ -27,6 +27,3 @@ target_link_libraries(${PROJECT_NAME} -lsqlite3)
 
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/plugins/storage/${PROJECT_NAME})
-
-# Install init.sql
-install(FILES ${CMAKE_SOURCE_DIR}/scripts/plugins/storage/${PROJECT_NAME}/init.sql DESTINATION foglamp/plugins/storage/${PROJECT_NAME})

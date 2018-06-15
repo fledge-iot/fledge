@@ -1,5 +1,3 @@
-#.PHONY: generate_selfcertificate
-
 ###############################################################################
 ################################### COMMANDS ##################################
 ###############################################################################
@@ -153,6 +151,7 @@ schema_check : apply_version
 # Destination may be overridden by use of the DESTDIR=<location> directive
 # This first does a make to build anything needed for the installation.
 install : $(INSTALL_DIR) \
+    generate_selfcertificate \
 	schema_check \
 	foglamp_version_file_install \
 	c_install \

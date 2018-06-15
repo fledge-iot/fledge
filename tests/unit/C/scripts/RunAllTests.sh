@@ -1,7 +1,11 @@
-cmakefile=`find $FOGLAMP_ROOT/tests/unit/C -name CMakeLists.txt`
+#!/bin/sh
+cd $FOGLAMP_ROOT/tests/unit/C
+if [ ! -d results ] ; then
+	mkdir results
+fi
+cmakefile=`find . -name CMakeLists.txt`
 for f in $cmakefile; do	
 	dir=`dirname $f`
-	echo $dir
 	(
 		cd $dir;
 		rm -rf build;
@@ -11,6 +15,6 @@ for f in $cmakefile; do
 		make ;
 		./RunTests --gtest_output=xml;
 	) > /dev/null
+	file=`echo $dir | sed -e 's#./##' -e 's#/#_#g'`
+	mv $dir/build/test_detail.xml results/${file}.xml
 done
-outputs=`find $FOGLAMP_ROOT/tests/unit/C  -name test_detail.xml`
-# TODO merge the files in $outputs into a single XML file

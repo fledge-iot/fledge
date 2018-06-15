@@ -116,6 +116,8 @@ struct tm tm;
 
 /**
  * Construct a reading from a JSON document
+ *
+ * @param json	The JSON document that contains the reading
  */
 JSONReading::JSONReading(const Value& json)
 {

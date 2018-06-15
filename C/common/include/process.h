@@ -24,6 +24,7 @@ class FogLampProcess
 		virtual ~FogLampProcess();
 		StorageClient*          getStorageClient() const;
 		ManagementClient*	getManagementClient() const;
+		Logger			*getLogger() const;
 		time_t			getStartTime() const { return m_stime; };
 
 	protected:

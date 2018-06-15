@@ -27,6 +27,8 @@ class Query {
 		Query(Aggregate *aggreate, Where *where);
 		Query(Timebucket *timebucket, Where *where);
 		Query(Timebucket *timebucket, Where *where, unsigned int limit);
+		Query(Returns *returns);
+		Query(std::vector<Returns *> returns);
 		Query(std::vector<Returns *> returns, Where *where);
 		Query(std::vector<Returns *> returns, Where *where, unsigned int limit);
 		~Query();
@@ -37,6 +39,7 @@ class Query {
 		void				timebucket(Timebucket*);
 		void				returns(Returns *);
 		void				returns(std::vector<Returns *>);
+		void				distinct();
 		const std::string		toJSON() const;
 	private:
 		Query(const Query&);		// Disable copy of query
@@ -48,6 +51,7 @@ class Query {
 		unsigned int			m_limit;
 		Timebucket*			m_timebucket;
 		std::vector<Returns *>		m_returns;
+		bool				m_distinct;
 };
 #endif
 

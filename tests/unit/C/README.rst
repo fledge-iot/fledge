@@ -14,7 +14,7 @@ These tests are written using the Google Test framework. This should be installe
 Unfortunately this does not install the libraries and a manual build set is required
 
 - cd /usr/src/gtest
-- sudo cmake -E make-directory bui;d
+- sudo cmake -E make-directory build
 - sudo cmake -E chdir build cmake ..
 - sudo cmake --build build
 - sudo cp build/libgtest* /usr/lib

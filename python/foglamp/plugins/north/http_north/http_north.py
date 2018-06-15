@@ -40,17 +40,17 @@ _DEFAULT_CONFIG = {
         'default': 'http://localhost:8118/ingress/messages'
     },
     'shutdown_wait_time': {
-        'description': 'how long (x seconds) the plugin should wait for pending tasks to complete or cancel otherwise',
+        'description': 'Time in seconds the plugin should wait for pending tasks to complete',
         'type': 'integer',
         'default': '10'
     },
     "applyFilter": {
-        "description": "Whether to apply filter before processing the data",
+        "description": "Should filter be applied before processing data",
         "type": "boolean",
         "default": "False"
     },
     "filterRule": {
-        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]"
     }
@@ -75,8 +75,11 @@ def plugin_init(data):
     return config
 
 
-def plugin_send(data, payload, stream_id):
-    return http_north.send_payloads(payload, stream_id)
+async def plugin_send(data, payload, stream_id):
+
+    is_data_sent, new_last_object_id, num_sent = await http_north.send_payloads(payload, stream_id)
+
+    return is_data_sent, new_last_object_id, num_sent
 
 
 def plugin_shutdown(data):
@@ -123,12 +126,12 @@ class HttpNorthPlugin(object):
         for pending_task in pending:
             pending_task.cancel()
 
-    def send_payloads(self, payloads, stream_id):
+    async def send_payloads(self, payloads, stream_id):
         is_data_sent = False
         new_last_object_id = 0
         num_sent = 0
         try:
-            new_last_object_id, num_sent = self.event_loop.run_until_complete(self._send_payloads(payloads))
+            new_last_object_id, num_sent = await self._send_payloads(payloads)
             is_data_sent = True
         except Exception as ex:
             _LOGGER.exception("Data could not be sent, %s", str(ex))

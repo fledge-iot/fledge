@@ -6,7 +6,6 @@
 
 import os
 from aiohttp import web
-from foglamp.common import logger
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 
@@ -19,8 +18,6 @@ __version__ = "${VERSION}"
 _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 
-
-_logger = logger.setup(__name__, level=20)
 
 _help = """
     -------------------------------------------------------------------------------

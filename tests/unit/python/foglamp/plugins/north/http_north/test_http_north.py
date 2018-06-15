@@ -8,6 +8,7 @@ from unittest.mock import patch
 from aiohttp import web
 from aiohttp.test_utils import unused_port
 import pytest
+import asyncio
 
 from foglamp.tasks.north.sending_process import SendingProcess
 from foglamp.plugins.north.http_north import http_north
@@ -117,7 +118,7 @@ async def test_plugin_send(loop):
     http_north.http_north = HttpNorthPlugin()
     http_north.http_north.event_loop = loop
     with patch.object(http_north.http_north, '_send_payloads', return_value=mock_coro()) as patch_send_payload:
-        is_data_sent, new_last_object_id, num_sent = http_north.plugin_send(data=data, payload=payload, stream_id=3)
+        is_data_sent, new_last_object_id, num_sent = await http_north.plugin_send(data=data, payload=payload, stream_id=3)
         assert (True, 1, 2) == (is_data_sent, new_last_object_id, num_sent)
     args, kwargs = patch_send_payload.call_args
     assert (payload, ) == args

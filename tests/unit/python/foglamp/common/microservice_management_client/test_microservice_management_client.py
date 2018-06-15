@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import pytest
-
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from http.client import HTTPConnection, HTTPResponse
 import json
-from foglamp.common import logger
+import pytest
+
 from foglamp.common.microservice_management_client import exceptions as client_exceptions
-from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient, _logger
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,9 +39,10 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.register_service({'keys': 'vals'})
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(
             body='{"keys": "vals"}', method='POST', url='/foglamp/service')
-        assert ret_value == {'id': 'bla'}
+        assert {'id': 'bla'} == ret_value
 
     def test_register_service_no_id(self):
         microservice_management_host = 'host1'
@@ -56,11 +56,18 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(KeyError) as excinfo:
-                    ms_mgt_client.register_service({})
+                with patch.object(_logger, "exception") as log_exc:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.register_service({})
+                    assert excinfo.type is KeyError
+                assert 1 == log_exc.call_count
+                log_exc.assert_called_once_with('Could not register the microservice, From request %s, Reason: %s', '{}'
+                                                , "'id'")
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(body='{}', method='POST', url='/foglamp/service')
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_register_service_status_client_err(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_register_service_status_client_err(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -70,8 +77,15 @@ class TestMicroserviceManagementClient:
         response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ms_mgt_client.register_service({})
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.register_service({})
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(body='{}', method='POST', url='/foglamp/service')
 
     def test_unregister_service_good_id(self):
         microservice_management_host = 'host1'
@@ -85,9 +99,9 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                ret_value = ms_mgt_client.unregister_service('someid')
-        request_patch.assert_called_once_with(
-            method='DELETE', url='/foglamp/service/someid')
+                ms_mgt_client.unregister_service('someid')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/someid')
 
     def test_unregister_service_no_id(self):
         microservice_management_host = 'host1'
@@ -101,11 +115,18 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(KeyError) as excinfo:
-                    ret_value = ms_mgt_client.unregister_service('someid')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.unregister_service('someid')
+                        assert excinfo.type is KeyError
+                    assert 1 == log_error.call_count
+                    log_error.assert_called_once_with('Could not unregister the micro-service having '
+                                                      'uuid %s, Reason: %s', 'someid', "'id'", exc_info=True)
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/someid')
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_unregister_service_client_err(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_unregister_service_client_err(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -115,10 +136,18 @@ class TestMicroserviceManagementClient:
         response_mock.read.return_value = undecoded_data_mock
         undecoded_data_mock.decode.return_value = json.dumps({'notid': 'bla'})
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.unregister_service('someid')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.unregister_service('someid')
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/someid')
 
     def test_register_interest_good_id(self):
         microservice_management_host = 'host1'
@@ -133,9 +162,10 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.register_interest('cat', 'msid')
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(
             body='{"category": "cat", "service": "msid"}', method='POST', url='/foglamp/interest')
-        assert ret_value == {'id': 'bla'}
+        assert {'id': 'bla'} == ret_value
 
     def test_register_interest_no_id(self):
         microservice_management_host = 'host1'
@@ -149,11 +179,19 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(KeyError) as excinfo:
-                    ms_mgt_client.register_interest('cat', 'msid')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.register_interest('cat', 'msid')
+                        assert excinfo.type is KeyError
+                assert 1 == log_error.call_count
+                log_error.assert_called_once_with('Could not register interest, for request payload %s, Reason: %s',
+                                                  '{"category": "cat", "service": "msid"}', "'id'", exc_info=True)
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(body='{"category": "cat", "service": "msid"}', method='POST',
+                                              url='/foglamp/interest')
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_register_interest_status_client_err(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_register_interest_status_client_err(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -163,8 +201,16 @@ class TestMicroserviceManagementClient:
         response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ms_mgt_client.register_interest('cat', 'msid')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.register_interest('cat', 'msid')
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(body='{"category": "cat", "service": "msid"}', method='POST',
+                                              url='/foglamp/interest')
 
     def test_unregister_interest_good_id(self):
         microservice_management_host = 'host1'
@@ -178,9 +224,9 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                ret_value = ms_mgt_client.unregister_interest('someid')
-        request_patch.assert_called_once_with(
-            method='DELETE', url='/foglamp/interest/someid')
+                ms_mgt_client.unregister_interest('someid')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/interest/someid')
 
     def test_unregister_interest_no_id(self):
         microservice_management_host = 'host1'
@@ -194,11 +240,18 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(KeyError) as excinfo:
-                    ret_value = ms_mgt_client.unregister_interest('someid')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.unregister_interest('someid')
+                    assert excinfo.type is KeyError
+                assert 1 == log_error.call_count
+                log_error.assert_called_once_with('Could not unregister interest for %s, Reason: %s', 'someid',
+                                                  "'id'", exc_info=True)
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/interest/someid')
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_unregister_interest_client_err(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_unregister_interest_client_err(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -208,16 +261,24 @@ class TestMicroserviceManagementClient:
         response_mock.read.return_value = undecoded_data_mock
         undecoded_data_mock.decode.return_value = json.dumps({'notid': 'bla'})
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.unregister_interest('someid')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.unregister_interest('someid')
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/interest/someid')
 
-    @pytest.mark.parametrize("name, type, url",
+    @pytest.mark.parametrize("name, _type, url",
                              [('foo', None, '/foglamp/service?name=foo'),
                               (None, 'bar', '/foglamp/service?type=bar'),
                               ('foo', 'bar', '/foglamp/service?name=foo&type=bar')])
-    def test_get_services_good(self, name, type, url):
+    def test_get_services_good(self, name, _type, url):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -230,10 +291,10 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                ret_value = ms_mgt_client.get_services(name, type)
-        request_patch.assert_called_once_with(
-            method='GET', url=url)
-        assert ret_value == {'services': 'bla'}
+                ret_value = ms_mgt_client.get_services(name, _type)
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url=url)
+        assert {'services': 'bla'} == ret_value
 
     def test_get_services_no_services(self):
         microservice_management_host = 'host1'
@@ -248,11 +309,18 @@ class TestMicroserviceManagementClient:
         response_mock.status = 200
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(KeyError) as excinfo:
-                    ret_value = ms_mgt_client.get_services('foo', 'bar')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.get_services('foo', 'bar')
+                    assert excinfo.type is KeyError
+                assert 1 == log_error.call_count
+                log_error.assert_called_once_with('Could not find the micro-service for requested url %s, Reason: %s',
+                                                  '/foglamp/service?name=foo&type=bar', "'services'", exc_info=True)
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url='/foglamp/service?name=foo&type=bar')
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_get_services_client_err(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_get_services_client_err(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -263,10 +331,18 @@ class TestMicroserviceManagementClient:
         undecoded_data_mock.decode.return_value = json.dumps(
             {'services': 'bla'})
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.get_services('foo', 'bar')
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.get_services('foo', 'bar')
+                        assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url='/foglamp/service?name=foo&type=bar')
 
     def test_get_configuration_category(self):
         microservice_management_host = 'host1'
@@ -294,11 +370,12 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.get_configuration_category("SMNTR")
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='GET', url='/foglamp/service/category/SMNTR')
-        assert ret_value == test_dict
+        assert test_dict == ret_value
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_get_configuration_category_exception(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_get_configuration_category_exception(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -307,10 +384,18 @@ class TestMicroserviceManagementClient:
         undecoded_data_mock = MagicMock()
         response_mock.read.return_value = undecoded_data_mock
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.get_configuration_category("SMNTR")
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.get_configuration_category("SMNTR")
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url='/foglamp/service/category/SMNTR')
 
     def test_get_configuration_item(self):
         microservice_management_host = 'host1'
@@ -332,11 +417,12 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.get_configuration_item("SMNTR", "ping_timeout")
+                assert test_dict == ret_value
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='GET', url='/foglamp/service/category/SMNTR/ping_timeout')
-        assert ret_value == test_dict
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_get_configuration_item_exception(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_get_configuration_item_exception(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -345,10 +431,18 @@ class TestMicroserviceManagementClient:
         undecoded_data_mock = MagicMock()
         response_mock.read.return_value = undecoded_data_mock
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.get_configuration_item("SMNTR", "ping_timeout")
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.get_configuration_item("SMNTR", "ping_timeout")
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='GET', url='/foglamp/service/category/SMNTR/ping_timeout')
 
     def test_create_configuration_category(self):
         microservice_management_host = 'host1'
@@ -382,11 +476,12 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.create_configuration_category(test_dict)
+                assert test_dict == ret_value
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='POST', url='/foglamp/service/category', body=test_dict)
-        assert ret_value == test_dict
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_create_configuration_category_exception(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_create_configuration_category_exception(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -415,10 +510,18 @@ class TestMicroserviceManagementClient:
         undecoded_data_mock.decode.return_value = json.dumps(test_dict)
         response_mock.read.return_value = undecoded_data_mock
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.create_configuration_category(test_dict)
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.create_configuration_category(test_dict)
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(body=test_dict, method='POST', url='/foglamp/service/category')
 
     def test_create_configuration_category_keep_original(self):
         microservice_management_host = 'host1'
@@ -453,8 +556,8 @@ class TestMicroserviceManagementClient:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.create_configuration_category(test_dict)
             response_patch.assert_called_once_with()
-        request_patch.assert_called_once_with(method='POST', url='/foglamp/service/category', body=test_dict)
-        assert ret_value == test_dict
+        request_patch.assert_called_once_with(body=test_dict, method='POST', url='/foglamp/service/category')
+        assert test_dict == ret_value
 
     def test_update_configuration_item(self):
         microservice_management_host = 'host1'
@@ -471,11 +574,12 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.update_configuration_item("TEST", "blah", test_dict)
+                assert test_dict == ret_value
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='PUT', url='/foglamp/service/category/TEST/blah', body=test_dict)
-        assert ret_value == test_dict
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_update_configuration_item_exception(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_update_configuration_item_exception(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -486,10 +590,19 @@ class TestMicroserviceManagementClient:
         test_dict = {'value': '5'}
 
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.update_configuration_item("TEST", "blah", test_dict)
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.update_configuration_item("TEST", "blah", test_dict)
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(body={'value': '5'}, method='PUT',
+                                              url='/foglamp/service/category/TEST/blah')
 
     def test_delete_configuration_item(self):
         microservice_management_host = 'host1'
@@ -506,11 +619,12 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.delete_configuration_item("TEST", "blah")
+                assert test_dict == ret_value
+            response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/category/TEST/blah/value')
-        assert ret_value == test_dict
 
-    @pytest.mark.parametrize("status_code", [450, 550])
-    def test_delete_configuration_item_exception(self, status_code):
+    @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
+    def test_delete_configuration_item_exception(self, status_code, host):
         microservice_management_host = 'host1'
         microservice_management_port = 1
         ms_mgt_client = MicroserviceManagementClient(
@@ -519,8 +633,15 @@ class TestMicroserviceManagementClient:
         undecoded_data_mock = MagicMock()
         response_mock.read.return_value = undecoded_data_mock
         response_mock.status = status_code
+        response_mock.reason = 'this is the reason'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
-                with pytest.raises(client_exceptions.MicroserviceManagementClientError) as excinfo:
-                    ret_value = ms_mgt_client.delete_configuration_item("TEST", "blah")
-
+                with patch.object(_logger, "error") as log_error:
+                    with pytest.raises(Exception) as excinfo:
+                        ms_mgt_client.delete_configuration_item("TEST", "blah")
+                    assert excinfo.type is client_exceptions.MicroserviceManagementClientError
+                assert 1 == log_error.call_count
+                msg = '{} error code: %d, Reason: %s'.format(host)
+                log_error.assert_called_once_with(msg, status_code, 'this is the reason')
+            response_patch.assert_called_once_with()
+        request_patch.assert_called_once_with(method='DELETE', url='/foglamp/service/category/TEST/blah/value')

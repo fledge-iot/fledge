@@ -90,10 +90,10 @@ When you have a running FogLAMP, check the extra information provided by the ``f
   foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=44180 --address=127.0.0.1 --name=sending process
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=44180 --address=127.0.0.1 --name=statistics to pi
   $
- 
+
 Let's analyze the output of the command:
 
-- ``FogLAMP running.`` - The FogLAMP Core microservice is running on this machine and it is responding to the status command as *running* because other basic microservices are also running. 
+- ``FogLAMP running.`` - The FogLAMP Core microservice is running on this machine and it is responding to the status command as *running* because other basic microservices are also running.
 - ``FogLAMP uptime:  282 seconds.`` - This is a simple uptime in second provided by the Core microservice. It is equivalent to the ``ping`` method called via the REST API.
 - ``FogLAMP records:`` - This is a summary of the number of records received from sensors and devices (South), sent to other services (North) and purged from the buffer.
 - ``FogLAMP authentication`` - This row describes if a user or an application must authenticate to ogLAMP in order to operate with the REST API.
@@ -158,8 +158,8 @@ The default port for the REST API is 8081. Using curl, try this command:
   $ curl -s http://localhost:8081/foglamp/ping ; echo
   {"dataPurged": 0, "dataRead": 10, "uptime": 2646.8824095726013, "dataSent": 0, "authenticationOptional": true}
   $
- 
-The ``echo`` at the end of the line is simply used to add an extra new line to the output. 
+
+The ``echo`` at the end of the line is simply used to add an extra new line to the output.
 |br| |br|
 If you are using Postman, select the *GET* method and type ``http://localhost:8081/foglamp/ping`` in the URI line. If you are accessing a remote machine, replace *localhost* with the correct IP address. The output should be something like:
 
@@ -277,7 +277,7 @@ The template file looks like this:
       "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
     { "name"          : "wall clock",
       "sensor_values" : [ { "name": "tick", "type": "enum", "list": [ "tock" ] } ] }
-  ] 
+  ]
   $
 
 In the array, each element simulates a message from a sensor, with a name, a set of data points that have their name, value type and range.
@@ -394,7 +394,7 @@ Let's see the JSON output on a more readable format:
     { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
     { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
     { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7} } ] 
+    { "timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7} } ]
 
 The JSON structure depends on the sensor and the plugin used to capture the data. In this case, the values shown are:
 
@@ -470,7 +470,7 @@ If you are curious to see which categories are available in FogLAMP, simply type
                     { "key": "SEND_PR_3",  "description": "HTTP North Plugin Configuration"           },
                     { "key": "SEND_PR_4",  "description": "OCS North Plugin Configuration"            },
                     { "key": "SMNTR",      "description": "Service Monitor configuration"             },
-                    { "key": "South",      "description": "South server configuration"                },
+                    { "key": "South",      "description": "South Service configuration"               },
                     { "key": "rest_api",   "description": "The FogLAMP Admin and User REST API"       },
                     { "key": "service",    "description": "The FogLAMP service configuration"         }
                   ]
@@ -586,7 +586,7 @@ Now, the output returned does not say much: this is because the plugin has never
                   "processName": "North Readings to PI",
                   "enabled":     true
                 }
-  }  
+  }
   $
 
 Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 seconds, so you have to wait up to 30 seconds to see the new, full configuration. After 30 seconds or so, you should see something like this:

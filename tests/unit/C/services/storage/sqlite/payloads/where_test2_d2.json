@@ -2,7 +2,7 @@
 	"where" : {
 				"column" : "id",
 				"condition" : "<",
-				"value" : "6"
+				"value" : "10"
 			},
 	"return" : [ "key", "description", 
 			{

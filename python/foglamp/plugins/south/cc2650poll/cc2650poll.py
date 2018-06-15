@@ -23,7 +23,7 @@ __version__ = "${VERSION}"
 
 _DEFAULT_CONFIG = {
     'plugin': {
-         'description': 'Sensortag CC2650 poll type plugin',
+         'description': 'TI SensorTag Polling South Plugin',
          'type': 'string',
          'default': 'cc2650poll'
     },
@@ -129,7 +129,7 @@ def plugin_poll(handle):
     if 'tag' not in handle:
         raise RuntimeError
 
-    time_stamp = str(datetime.datetime.now(tz=datetime.timezone.utc))
+    time_stamp = utils.local_timestamp()
     data = list()
     bluetooth_adr = handle['bluetoothAddress']['value']
     tag = handle['tag']

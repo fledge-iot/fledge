@@ -8,7 +8,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, call, MagicMock
 from foglamp.common import logger
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient, StorageClientAsync
 from foglamp.common.statistics import Statistics
 from foglamp.tasks.purge.purge import Purge
 from foglamp.common.process import FoglampProcess
@@ -49,14 +49,16 @@ class TestPurge:
             return ""
 
         mockStorageClient = MagicMock(spec=StorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClient)
         with patch.object(FoglampProcess, '__init__'):
-            with patch.object(Statistics, 'update', return_value=mock_s_update()) as mock_stats_update:
-                with patch.object(mockAuditLogger, "__init__", return_value=None):
-                    p = Purge(loop=event_loop)
-                    p._storage = mockStorageClient
-                    p.write_statistics(1, 2)
-                    mock_stats_update.assert_has_calls([call('PURGED', 1), call('UNSNPURGED', 2)])
+            with patch.object(Statistics, '_load_keys', return_value=mock_s_update()):
+                with patch.object(Statistics, 'update', return_value=mock_s_update()) as mock_stats_update:
+                    with patch.object(mockAuditLogger, "__init__", return_value=None):
+                        p = Purge(loop=event_loop)
+                        p._storage_async = mockStorageClientAsync
+                        p.write_statistics(1, 2)
+                        mock_stats_update.assert_has_calls([call('PURGED', 1), call('UNSNPURGED', 2)])
 
     def test_set_configuration(self, event_loop):
         """Test that purge's set_configuration returns configuration item with key 'PURGE_READ' """

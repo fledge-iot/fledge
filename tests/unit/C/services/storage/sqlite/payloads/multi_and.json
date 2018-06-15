@@ -6,7 +6,7 @@
 			"and" : {
 				"column" : "id",
 				"condition" : "<",
-				"value" : "7"
+				"value" : "9"
 			}
 		}
 }

@@ -79,7 +79,7 @@ class Server(FoglampMicroservice):
             # Configuration handling - initial configuration
             category = self._name
             config = self._DEFAULT_CONFIG
-            config_descr = '{} Device'.format(self._name)
+            config_descr = self._name if (config['plugin']['description']).strip() == "" else config['plugin']['description']
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,
@@ -109,13 +109,15 @@ class Server(FoglampMicroservice):
             # Plugin initialization
             self._plugin_info = self._plugin.plugin_info()
             default_config = self._plugin_info['config']
+            default_plugin_descr = self._name if (default_config['plugin']['description']).strip() == "" else \
+                default_config['plugin']['description']
 
             # Configuration handling - updates the configuration using information specific to the plugin
             config_payload = json.dumps({
                 "key": category,
-                "description": '{} Device'.format(self._name),
+                "description": default_plugin_descr,
                 "value": default_config,
-                "keep_original_items": False
+                "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
@@ -135,7 +137,7 @@ class Server(FoglampMicroservice):
 
             self._plugin_handle = self._plugin.plugin_init(config)
 
-            await Ingest.start(self._core_management_host, self._core_management_port, self)
+            await Ingest.start(self)
 
             # Executes the requested plugin type
             if self._plugin_info['mode'] == 'async':

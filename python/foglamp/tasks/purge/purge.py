@@ -27,14 +27,14 @@ import time
 
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
-from foglamp.common.statistics import Statistics
+from foglamp.common import statistics
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common import logger
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.process import FoglampProcess
 
 
-__author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch"
+__author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -44,14 +44,14 @@ class Purge(FoglampProcess):
 
     _DEFAULT_PURGE_CONFIG = {
         "age": {
-            "description": "Age of data to be retained, all data that is older than this value will be removed," +
-                           "unless retained. (in Hours)",
+            "description": "Age of data to be retained (in hours). All data older than this value will be removed," +
+                           "unless retained.",
             "type": "integer",
             "default": "72"
         },
         "size": {
-            "description": "Maximum size of data to be retained, the oldest data will be removed to keep below this "
-                           "size, unless retained. (in Kbytes)",
+            "description": "Maximum size of data to be retained (in Kbytes). Oldest data will be removed to keep "
+                           "below this size, unless retained.",
             "type": "integer",
             "default": "1000000"
         },
@@ -71,7 +71,7 @@ class Purge(FoglampProcess):
         self.loop = asyncio.get_event_loop() if loop is None else loop
 
     def write_statistics(self, total_purged, unsent_purged):
-        stats = Statistics(self._storage)
+        stats = self.loop.run_until_complete(statistics.create_statistics(self._storage_async))
         self.loop.run_until_complete(stats.update('PURGED', total_purged))
         self.loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
 

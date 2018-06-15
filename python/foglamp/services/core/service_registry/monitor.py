@@ -107,7 +107,7 @@ class Monitor(object):
         """Reads configuration"""
         default_config = {
             "sleep_interval": {
-                "description": "The time (in seconds) to sleep between health checks. (must be greater than 5)",
+                "description": "Time in seconds to sleep between health checks. (must be greater than 5)",
                 "type": "integer",
                 "default": str(self._DEFAULT_SLEEP_INTERVAL)
             },
@@ -117,7 +117,7 @@ class Monitor(object):
                 "default": str(self._DEFAULT_PING_TIMEOUT)
             },
             "max_attempts": {
-                "description": "Number of max attempts for finding a heartbeat of service",
+                "description": "Maximum number of attempts for finding a heartbeat of service",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_ATTEMPTS)
             },
@@ -125,7 +125,7 @@ class Monitor(object):
 
         storage_client = connect.get_storage()
         cfg_manager = ConfigurationManager(storage_client)
-        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor configuration')
+        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor')
 
         config = await cfg_manager.get_category_all_items('SMNTR')
 

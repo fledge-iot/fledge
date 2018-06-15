@@ -33,6 +33,7 @@ class StorageService : public ServiceHandler {
 		void			configChange(const std::string&, const std::string&);
 		string			getPluginName();
 		string			getPluginManagedStatus();
+		string			getReadingPluginName();
 	private:
 		const string&		m_name;
 		bool 			loadPlugin();
@@ -40,6 +41,7 @@ class StorageService : public ServiceHandler {
 		StorageConfiguration	*config;
 		Logger        		*logger;
 		StoragePlugin 		*storagePlugin;
+		StoragePlugin 		*readingPlugin;
 		bool			m_shutdown;
 };
 #endif

@@ -289,58 +289,58 @@ class BackupRestoreLib(object):
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'BACK_REST'
-    _CONFIG_CATEGORY_DESCRIPTION = 'Configuration for backup and restore operations'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Backup and Restore'
 
     _CONFIG_DEFAULT = {
         "host": {
-            "description": "Host server for backup and restore operations.",
+            "description": "Host server",
             "type": "string",
             "default": "localhost"
         },
         "port": {
-            "description": "PostgreSQL port for backup and restore operations.",
+            "description": "PostgreSQL port",
             "type": "integer",
             "default": "5432"
         },
         "database": {
-            "description": "Database to manage for backup and restore operations.",
+            "description": "Database to backup/restore",
             "type": "string",
             "default": "foglamp"
         },
         "schema": {
-            "description": "Schema for backup and restore operations.",
+            "description": "Schema",
             "type": "string",
             "default": "foglamp"
         },
         "backup-dir": {
             "description": "Directory where backups will be created, "
-                           "it uses FOGLAMP_BACKUP or FOGLAMP_DATA or FOGLAMP_BACKUP if none.",
+                           "if not specified, FOGLAMP_BACKUP, FOGLAMP_DATA or FOGLAMP_BACKUP will be used.",
             "type": "string",
             "default": "none"
         },
         "semaphores-dir": {
-            "description": "Directory used to store semaphores for backup/restore synchronization."
-                           "it uses backup-dir if none.",
+            "description": "Directory for semaphores for backup/restore synchronization."
+                           "if not specified, backup-dir will be used.",
             "type": "string",
             "default": "none"
         },
         "retention": {
-            "description": "Number of backups to maintain, old ones will be deleted.",
+            "description": "Number of backups to maintain. Old backups will be deleted.",
             "type": "integer",
             "default": "5"
         },
         "max_retry": {
-            "description": "Number of retries for the operations.",
+            "description": "Number of retries",
             "type": "integer",
             "default": "5"
         },
         "timeout": {
-            "description": "Timeout in seconds for the execution of the external commands.",
+            "description": "Timeout in seconds for execution of external commands.",
             "type": "integer",
             "default": "1200"
         },
         "restart-max-retries": {
-            "description": "Maximum number of retries at the restart of Foglamp to ensure it is started.",
+            "description": "Maximum number of retries at restarting Foglamp",
             "type": "integer",
             "default": "10"
         },

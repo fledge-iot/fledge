@@ -49,6 +49,24 @@ _log_performance = False
 
 _MODULE_NAME = "ocs_north"
 
+# Messages used for Information, Warning and Error notice
+MESSAGES_LIST = {
+
+    # Information messages
+    "i000000": "information.",
+
+    # Warning / Error messages
+    "e000000": "general error.",
+
+    "e000001": "the producerToken must be defined, use the FogLAMP API to set a proper value.",
+    "e000002": "the producerToken cannot be an empty string, use the FogLAMP API to set a proper value.",
+
+    "e000010": "the type-id must be defined, use the FogLAMP API to set a proper value.",
+    "e000011": "the type-id cannot be an empty string, use the FogLAMP API to set a proper value.",
+
+}
+
+
 # Configurations retrieved from the Configuration Manager
 _config_omf_types = {}
 _config = {}
@@ -226,6 +244,51 @@ def plugin_info():
         'config': _CONFIG_DEFAULT_OMF
     }
 
+def _validate_configuration(data):
+    """ Validates the configuration retrieved from the Configuration Manager
+    Args:
+        data: configuration retrieved from the Configuration Manager
+    Returns:
+    Raises:
+        ValueError
+    """
+
+    _message = ""
+
+    if 'producerToken' not in data:
+        _message = MESSAGES_LIST["e000001"]
+
+    else:
+        if data['producerToken']['value'] == "":
+
+            _message = MESSAGES_LIST["e000002"]
+
+    if _message != "":
+        _logger.error(_message)
+        raise ValueError(_message)
+
+
+def _validate_configuration_omf_type(data):
+    """ Validates the configuration retrieved from the Configuration Manager related to the OMF types
+    Args:
+        data: configuration retrieved from the Configuration Manager
+    Returns:
+    Raises:
+        ValueError
+    """
+
+    _message = ""
+
+    if 'type-id' not in data:
+        _message = MESSAGES_LIST["e000010"]
+    else:
+        if data['type-id']['value'] == "":
+
+            _message = MESSAGES_LIST["e000011"]
+
+    if _message != "":
+        _logger.error(_message)
+        raise ValueError(_message)
 
 def plugin_init(data):
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
@@ -258,6 +321,8 @@ def plugin_init(data):
         raise ex
     _logger.debug("{0} - ".format("plugin_info"))
 
+    _validate_configuration(data)
+
     # Retrieves the configurations and apply the related conversions
     _config['_CONFIG_CATEGORY_NAME'] = data['_CONFIG_CATEGORY_NAME']
     _config['URL'] = data['URL']['value']
@@ -282,6 +347,8 @@ def plugin_init(data):
                                   cat_desc=_CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION,
                                   cat_config=_CONFIG_DEFAULT_OMF_TYPES,
                                   cat_keep_original=True)
+
+    _validate_configuration_omf_type(_config_omf_types)
 
     # Converts the value field from str to a dict
     for item in _config_omf_types:
@@ -309,8 +376,7 @@ def plugin_init(data):
 
 
 # noinspection PyUnusedLocal
-@_performance_log
-def plugin_send(data, raw_data, stream_id):
+async def plugin_send(data, raw_data, stream_id):
     """ Translates and sends to the destination system the data provided by the Sending Process
     Args:
         data: plugin_handle from sending_process
@@ -327,7 +393,6 @@ def plugin_send(data, raw_data, stream_id):
 
     is_data_sent = False
     config_category_name = data['_CONFIG_CATEGORY_NAME']
-    data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
     # Sets globals for the OMF module
@@ -338,14 +403,18 @@ def plugin_send(data, raw_data, stream_id):
     ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
+        # Alloc the in memory buffer
+        buffer_size = len(raw_data)
+        data_to_send = [None for x in range(buffer_size)]
+
         is_data_available, new_position, num_sent = ocs_north.transform_in_memory_data(data_to_send, raw_data)
 
         if is_data_available:
 
-            ocs_north.create_omf_objects(raw_data, config_category_name, type_id)
+            await ocs_north.create_omf_objects(raw_data, config_category_name, type_id)
 
             try:
-                ocs_north.send_in_memory_data_to_picromf("Data", data_to_send)
+                await ocs_north.send_in_memory_data_to_picromf("Data", data_to_send)
 
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
@@ -398,7 +467,7 @@ class OCSNorthPlugin(omf.OmfNorthPlugin):
 
         super().__init__(sending_process_instance, config, config_omf_types, _logger)
 
-    def _create_omf_type_automatic(self, asset_info):
+    async def _create_omf_type_automatic(self, asset_info):
         """ Automatic OMF Type Mapping - Handles the OMF type creation
 
             Overwrite omf._create_omf_type_automatic function
@@ -461,6 +530,6 @@ class OCSNorthPlugin(omf.OmfNorthPlugin):
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| "
                                .format(sensor_id, str(omf_type)))
 
-        self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
 
         return typename, omf_type

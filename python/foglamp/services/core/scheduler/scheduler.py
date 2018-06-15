@@ -711,13 +711,13 @@ class Scheduler(object):
         """Reads configuration"""
         default_config = {
             "max_running_tasks": {
-                "description": "The maximum number of tasks that can be running at any given time",
+                "description": "Maximum number of tasks that can be running at any given time",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_RUNNING_TASKS)
             },
             "max_completed_task_age_days": {
-                "description": "The maximum age, in days (based on the start time), for a rows "
-                               "in the tasks table that do not have a status of running",
+                "description": "Maximum age in days (based on the start time) for a row "
+                               "in the tasks table that does not have a status of running",
                 "type": "integer",
                 "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
             },
@@ -980,7 +980,7 @@ class Scheduler(object):
 
         return self._schedule_row_to_schedule(found_id, schedule_row)
 
-    async def save_schedule(self, schedule: Schedule):
+    async def save_schedule(self, schedule: Schedule, is_enabled_modified=None):
         """Creates or update a schedule
 
         Args:
@@ -1078,6 +1078,11 @@ class Scheduler(object):
         if schedule.repeat is not None and schedule.repeat != datetime.timedelta(0):
             repeat_seconds = schedule.repeat.total_seconds()
 
+        if not is_new_schedule:
+            previous_enabled = self._schedules[schedule.schedule_id].enabled
+        else:
+            previous_enabled = None
+
         schedule_row = self._ScheduleRow(
             id=schedule.schedule_id,
             name=schedule.name,
@@ -1092,6 +1097,19 @@ class Scheduler(object):
 
         self._schedules[schedule.schedule_id] = schedule_row
 
+        # Add process to self._process_scripts if not present.
+        try:
+            assert self._process_scripts[schedule.process_name]
+        except KeyError:
+            select_payload = PayloadBuilder().WHERE(['name', '=', schedule.process_name]).payload()
+            try:
+                self._logger.debug('Database command: %s', select_payload)
+                res = self._storage.query_tbl_with_payload("scheduled_processes", select_payload)
+                for row in res['rows']:
+                    self._process_scripts[row.get('name')] = row.get('script')
+            except Exception:
+                self._logger.exception('Select failed: %s', select_payload)
+
         # Did the schedule change in a way that will affect task scheduling?
         if schedule.schedule_type in [Schedule.Type.INTERVAL, Schedule.Type.TIMED] and (
                                 is_new_schedule or
@@ -1102,6 +1120,20 @@ class Scheduler(object):
             now = self.current_time if self.current_time else time.time()
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
+
+        if is_enabled_modified is not None:
+            if previous_enabled is None:  # New Schedule
+                # For a new schedule, if enabled is set to True, the schedule will be enabled.
+                bypass_check = True if schedule.enabled is True else None
+            else:  # Existing Schedule
+                # During update, if a schedule's enabled attribute is not changed then it will return unconditionally
+                # otherwise suitable action will be invoked.
+                bypass_check = True if previous_enabled != schedule.enabled else None
+
+            if is_enabled_modified is True:
+                await self.enable_schedule(schedule.schedule_id, bypass_check=bypass_check)
+            else:
+                await self.disable_schedule(schedule.schedule_id, bypass_check=bypass_check)
 
     async def remove_service_from_task_processes(self, service_name):
         """
@@ -1145,7 +1177,7 @@ class Scheduler(object):
         self._logger.exception("Service {} records could not be removed with task id {} type {}".format(service_name, str(task_id), schedule_type))
         return False
 
-    async def disable_schedule(self, schedule_id: uuid.UUID):
+    async def disable_schedule(self, schedule_id: uuid.UUID, bypass_check=None):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
 
@@ -1163,7 +1195,7 @@ class Scheduler(object):
             self._logger.exception("No such Schedule %s", str(schedule_id))
             return False, "No such Schedule"
 
-        if schedule.enabled is False:
+        if bypass_check is None and schedule.enabled is False:
             self._logger.info("Schedule %s already disabled", str(schedule_id))
             return True, "Schedule {} already disabled".format(str(schedule_id))
 
@@ -1246,7 +1278,7 @@ class Scheduler(object):
         await audit.information('SCHCH', {'schedule': sch.toDict()})
         return True, "Schedule successfully disabled"
 
-    async def enable_schedule(self, schedule_id: uuid.UUID):
+    async def enable_schedule(self, schedule_id: uuid.UUID, bypass_check=None):
         """
         Get Schedule, Enable Schedule, Update database, Start Schedule
 
@@ -1262,7 +1294,7 @@ class Scheduler(object):
             self._logger.exception("No such Schedule %s", str(schedule_id))
             return False, "No such Schedule"
 
-        if schedule.enabled is True:
+        if bypass_check is None and schedule.enabled is True:
             self._logger.info("Schedule %s already enabled", str(schedule_id))
             return True, "Schedule is already enabled"
 

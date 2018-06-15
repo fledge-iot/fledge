@@ -79,7 +79,7 @@ echo $n_failed Tests Failed 		>  tests.result
 echo $n_passed Tests Passed 		>> tests.result
 echo $n_unchecked Tests Unchecked	>> tests.result
 done
-#./testCleanup.sh > /dev/null
+./testCleanup.sh > /dev/null
 cat tests.result
 rm -f tests.result
 if [ -f "failed" ]; then

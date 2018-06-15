@@ -17,7 +17,7 @@
 --
 -- init.sql
 --
--- PostgreSQL script to create the FogLAMP persistent Layer 
+-- PostgreSQL script to create the FogLAMP persistent Layer
 --
 
 -- NOTE:
@@ -27,12 +27,12 @@
 
 ----------------------------------------------------------------------
 -- DDL CONVENTIONS
--- 
+--
 -- Tables:
 -- * Names are in plural, terms are separated by _
 -- * Columns are, when possible, not null and have a default value.
 --   For example, jsonb columns are '{}' by default.
--- 
+--
 -- Columns:
 -- id      : It is commonly the PK of the table, a smallint, integer or bigint.
 -- xxx_id  : It usually refers to a FK, where "xxx" is name of the table.
@@ -219,7 +219,7 @@ CREATE TABLE foglamp.asset_status (
 -- Type of asset (for example south, sensor etc.)
 CREATE TABLE foglamp.asset_types (
        id          integer                NOT NULL DEFAULT nextval('foglamp.asset_types_id_seq'::regclass),
-       description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default", 
+       description character varying(255) NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
         CONSTRAINT asset_types_pkey PRIMARY KEY (id) );
 
 
@@ -470,7 +470,7 @@ CREATE SEQUENCE foglamp.statistics_history_id_seq
     CACHE 1;
 
 CREATE TABLE foglamp.statistics_history (
-       id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass), 
+       id          bigint                      NOT NULL DEFAULT nextval('foglamp.statistics_history_id_seq'::regclass),
        key         character varying(56)       NOT NULL COLLATE pg_catalog."default",                         -- Coumpund primary key, all uppercase
        history_ts  timestamp(6) with time zone NOT NULL,                                                      -- Compound primary key, the highest value of statistics.ts when statistics are copied here.
        value       bigint                      NOT NULL DEFAULT 0,                                            -- Integer value, the statistics
@@ -479,7 +479,7 @@ CREATE TABLE foglamp.statistics_history (
 
 
 -- Resources table
--- A resource and be anything that is available or can be done in FogLAMP. Examples: 
+-- A resource and be anything that is available or can be done in FogLAMP. Examples:
 -- - Access to assets
 -- - Access to readings
 -- - Access to streams
@@ -751,8 +751,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 -- Roles
 DELETE FROM foglamp.roles;
 INSERT INTO foglamp.roles ( name, description )
-     VALUES ('admin', 'for the users having all CRUD privileges including other admin users'),
-            ('user', 'all CRUD operations and self profile management');
+     VALUES ('admin', 'All CRUD privileges'),
+            ('user', 'All CRUD operations and self profile management');
 
 
 -- Users
@@ -803,29 +803,29 @@ DELETE FROM foglamp.configuration;
 -- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_1',
-              'OMF North Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+              'OMF North Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
 -- SEND_PR_2 - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_2',
-              'OMF North Statistics Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Python module name of the plugin to load" } } '
+              'OMF North Statistics Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Statistics Plugin will load" } } '
             );
 
 -- SEND_PR_3 - HTTP Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_3',
-              'HTTP North Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Python module name of the plugin to load" } } '
+              'HTTP North Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Module that HTTP North Plugin will load" } } '
             );
 
 -- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_4',
-              'OCS North Plugin Configuration',
-              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Python module name of the plugin to load" } } '
+              'OCS North Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
             );
 
 
@@ -834,49 +834,49 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- POLL: South Microservice - POLL Plugin template
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'POLL',
-              'South Plugin polling template',
-              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Python module name of the plugin to load" } } '
+              'South Polling Plugin template',
+              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Module that South Polling Template Plugin will load" } } '
             );
 
 -- HTTP South template
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'HTTP_SOUTH',
-             'HTTP Listener South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Python module name of the plugin to load" } } '
+             'HTTP South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
            );
 
 -- COAP: CoAP Listener Plugin
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'COAP',
               'CoAP Listener South Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Python module name of the plugin to load" } } '
+              ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Module that CoAP Listener South Plugin will load" } } '
             );
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650POLL',
-             'TI SensorTag CC2650 polling South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Python module name of the plugin to load" } } '
+             'TI SensorTag CC2650 Polling South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Module that TI SensorTag Polling South Plugin will load" } } '
            );
 
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650ASYN',
-             'TI SensorTag CC2650 async South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Python module name of the plugin to load" } } '
+             'TI SensorTag CC2650 Async South Plugin',
+             ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Module that TI SensorTag Async South Plugin will load" } } '
            );
 
 
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
-     VALUES ( 'READINGS',   'The number of readings received by FogLAMP since startup', 0, 0 ),
-            ( 'BUFFERED',   'The number of readings currently in the FogLAMP buffer', 0, 0 ),
-            ( 'SENT_1',     'The number of readings sent to the historian', 0, 0 ),
-            ( 'SENT_2',     'The number of statistics data sent to the historian', 0, 0 ),
-            ( 'SENT_3',     'The number of readings data sent to the HTTP north', 0, 0 ),
-            ( 'SENT_4',     'The number of readings sent to OCS', 0, 0 ),
-            ( 'UNSENT',     'The number of readings filtered out in the send process', 0, 0 ),
-            ( 'PURGED',     'The number of readings removed from the buffer by the purge process', 0, 0 ),
-            ( 'UNSNPURGED', 'The number of readings that were purged from the buffer before being sent', 0, 0 ),
-            ( 'DISCARDED',  'The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.', 0, 0 );
+     VALUES ( 'READINGS',   'Readings received by FogLAMP', 0, 0 ),
+            ( 'BUFFERED',   'Readings currently in the FogLAMP buffer', 0, 0 ),
+            ( 'SENT_1',     'Readings sent to the historian', 0, 0 ),
+            ( 'SENT_2',     'Statistics data sent to the historian', 0, 0 ),
+            ( 'SENT_3',     'Readings data sent via HTTP north', 0, 0 ),
+            ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
+            ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
+            ( 'PURGED',     'Readings removed from the buffer by the purge process', 0, 0 ),
+            ( 'UNSNPURGED', 'Readings that were purged from the buffer before being sent', 0, 0 ),
+            ( 'DISCARDED',  'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
 
 
 --
@@ -894,8 +894,8 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'certificate c
 
 -- Storage Tasks
 --
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup_postgres"]'  );
-INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore_postgres"]' );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
+INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
 
 -- South Microservices
 --
@@ -992,7 +992,7 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 true,                                   -- exclusive
                 true                                    -- enabled
               );
-  
+
 -- On demand Restore
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
@@ -1139,15 +1139,15 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 -- Readings to OMF to PI
 INSERT INTO foglamp.destinations ( id, description, ts )
        VALUES ( 1, 'OMF', now() );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts ) 
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts )
        VALUES ( 1, 1, 'OMF north', 0, now() );
 
 -- Stats to OMF to PI
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts ) 
+INSERT INTO foglamp.streams ( id, destination_id, description, last_object,ts )
        VALUES ( 2, 1, 'FogLAMP statistics into PI', 0, now() );
 
 -- Readings to HTTP
-INSERT INTO foglamp.destinations ( id, description, ts ) 
+INSERT INTO foglamp.destinations ( id, description, ts )
        VALUES ( 2, 'HTTP_TR', now() );
 INSERT INTO foglamp.streams ( id, destination_id, description, last_object, ts )
        VALUES ( 3, 2, 'HTTP north', 0, now() );

@@ -19,7 +19,7 @@ __version__ = "${VERSION}"
 
 _NEW_CONFIG = {
     'plugin': {
-        'description': 'Sensortag CC2650 poll type plugin',
+        'description': 'TI SensorTag Polling South Plugin',
         'type': 'string',
         'default': 'cc2650poll'
     },

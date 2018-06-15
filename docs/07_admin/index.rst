@@ -10,3 +10,4 @@ Administrators' and Users' Guide
     02_RESTadmin
     03_RESTuser
     04_utilities
+    05_tasks

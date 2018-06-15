@@ -12,27 +12,52 @@ __version__ = "${VERSION}"
 
 import pytest
 import json
-import sys
 import logging
 
-from foglamp.common import logger
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 
 from foglamp.plugins.north.ocs import ocs
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as module_sp
+from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+
+_STREAM_ID = 1
+
+async def mock_async_call(p1=ANY):
+    """ mocks a generic async function """
+    return p1
 
 
-# noinspection PyPep8Naming
-class to_dev_null(object):
-    """ Used to ignore messages sent to the stderr """
+@pytest.fixture
+def fixture_ocs(event_loop):
+    """"  Configures the OMF instance for the tests """
 
-    def write(self, _data):
-        """" """
-        pass
+    _omf = MagicMock()
+
+    ocs._logger = MagicMock(spec=logging)
+    ocs._config_omf_types = {"type-id": {"value": "0001"}}
+
+    return ocs
 
 
-# noinspection PyUnresolvedReferences
+@pytest.fixture
+def fixture_ocs_north(event_loop):
+    """"  Configures the OMF instance for the tests """
+
+    sending_process_instance = MagicMock()
+    config = []
+    config_omf_types = []
+
+    _logger = MagicMock(spec=logging)
+
+    ocs_north = ocs.OCSNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
+
+    ocs_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
+    ocs_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
+
+    return ocs_north
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("plugin", "north", "ocs")
 class TestOCS:
@@ -207,72 +232,115 @@ class TestOCS:
         with pytest.raises(Exception):
             ocs.plugin_init(data)
 
-    def test_plugin_send_ok(self):
-        """Tests plugin _plugin_send function, case everything went fine """
+    @pytest.mark.parametrize(
+        "ret_transform_in_memory_data, "
+        "p_raw_data, ",
+        [
+            (
+                # ret_transform_in_memory_data
+                # is_data_available - new_position - num_sent
+                [True,                20,            10],
 
-        def transform_return():
-            """" """
-            return True, 1, 1
+                # raw_data
+                [
+                    {
+                        "id": 10,
+                        "asset_code": "test_asset_code",
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                        "reading": {"humidity": 100, "temperature": 1001},
+                        "user_ts": '2018-04-20 09:38:50.163164+00'
+                    }
+                ]
+             )
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_plugin_send_success(self,
+                                       ret_transform_in_memory_data,
+                                       p_raw_data,
+                                       fixture_ocs
+                                       ):
 
-        ocs._logger = MagicMock()
-        ocs._config_omf_types = {"type-id": {"value": "0001"}}
         data = MagicMock()
 
-        raw_data = []
-        stream_id = 1
+        with patch.object(fixture_ocs.OCSNorthPlugin,
+                          'transform_in_memory_data',
+                          return_value=ret_transform_in_memory_data) as patched_transform_in_memory_data:
+            with patch.object(fixture_ocs.OCSNorthPlugin,
+                              'create_omf_objects',
+                              return_value=mock_async_call()) as patched_create_omf_objects:
+                with patch.object(fixture_ocs.OCSNorthPlugin,
+                                  'send_in_memory_data_to_picromf',
+                                  return_value=mock_async_call()) as patched_send_in_memory_data_to_picromf:
+                    await fixture_ocs.plugin_send(data, p_raw_data, _STREAM_ID)
 
-        # Test good case
-        with patch.object(ocs.OCSNorthPlugin, 'transform_in_memory_data', return_value=transform_return())\
-                as mocked_transform_in_memory_data:
-            with patch.object(ocs.OCSNorthPlugin, 'create_omf_objects') as mocked_create_omf_objects:
-                with patch.object(ocs.OCSNorthPlugin, 'send_in_memory_data_to_picromf')\
-                        as mocked_send_in_memory_data_to_picromf:
-                    with patch.object(
-                                        ocs.OCSNorthPlugin, 
-                                        'deleted_omf_types_already_created'
-                                        ) as mocked_deleted_omf_types_already_created:
-                        ocs.plugin_send(data, raw_data, stream_id)
+        assert patched_transform_in_memory_data.called
+        assert patched_create_omf_objects.called
+        assert patched_send_in_memory_data_to_picromf.called
 
-        assert mocked_transform_in_memory_data.called
-        assert mocked_create_omf_objects.called
-        assert mocked_send_in_memory_data_to_picromf.called
+    @pytest.mark.parametrize(
+        "ret_transform_in_memory_data, "
+        "p_raw_data, ",
+        [
+            (
+                # ret_transform_in_memory_data
+                # is_data_available - new_position - num_sent
+                [True,                20,            10],
 
-        assert not mocked_deleted_omf_types_already_created.called
+                # raw_data
+                {
+                    "id": 10,
+                    "asset_code": "test_asset_code",
+                    "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
+                    "reading": {"humidity": 100, "temperature": 1001},
+                    "user_ts": '2018-04-20 09:38:50.163164+00'
+                }
+             )
 
-    def test_plugin_send_bad(self):
-        """Tests plugin _plugin_send function,
+        ]
+    )
+    @pytest.mark.asyncio
+    async def test_plugin_send_error(
+                                    self,
+                                    fixture_ocs,
+                                    ret_transform_in_memory_data,
+                                    p_raw_data
+                                     ):
+        """ Unit test for - plugin_send - error handling case
            it tests especially if the ocs objects are created again in case of a communication error
            
            NOTE : the stderr is redirected to avoid the print of an error message that could be ignored.
         """
 
-        def transform_return():
-            """" """
-            return True, 1, 1
-
-        ocs._logger = MagicMock()
-        ocs._config_omf_types = {"type-id": {"value": "0001"}}
         data = MagicMock()
 
-        raw_data = []
-        stream_id = 1
+        with patch.object(fixture_ocs.OCSNorthPlugin,
+                          'transform_in_memory_data',
+                          return_value=ret_transform_in_memory_data
+                          ) as patched_transform_in_memory_data:
 
-        # Test bad case - send operation raise an exception
-        with patch.object(ocs.OCSNorthPlugin, 'transform_in_memory_data', return_value=transform_return()):
-            with patch.object(ocs.OCSNorthPlugin, 'create_omf_objects'):
-                with patch.object(ocs.OCSNorthPlugin, 'send_in_memory_data_to_picromf',
-                                  side_effect=KeyError('mocked object generated an exception')):
-                    with patch.object(ocs.OCSNorthPlugin, 
+            with patch.object(fixture_ocs.OCSNorthPlugin,
+                              'create_omf_objects',
+                              return_value=mock_async_call()
+                              ) as patched_create_omf_objects:
+
+                with patch.object(fixture_ocs.OCSNorthPlugin,
+                                  'send_in_memory_data_to_picromf',
+                                  side_effect=KeyError('mocked object generated an exception')
+                                  ) as patched_send_in_memory_data_to_picromf:
+
+                    with patch.object(fixture_ocs.OCSNorthPlugin,
                                       'deleted_omf_types_already_created',
-                                      ) as mocked_deleted_omf_types_already_created:
+                                      return_value=mock_async_call()
+                                      ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
-                            # To ignore messages sent to the stderr
-                            sys.stderr = to_dev_null()
-
-                            ocs.plugin_send(data, raw_data, stream_id)
-
-                        assert mocked_deleted_omf_types_already_created.called
+                            await fixture_ocs.plugin_send(data, p_raw_data,
+                                                                                              _STREAM_ID)
+        assert patched_transform_in_memory_data.called
+        assert patched_create_omf_objects.called
+        assert patched_send_in_memory_data_to_picromf.called
+        assert patched_deleted_omf_types_already_created.called
 
     def test_plugin_shutdown(self):
 
@@ -390,90 +458,39 @@ class TestOCSNorthPlugin:
                             ]
                     }
 
-            ),
-
-            # Case 3 - switch / string
-            (
-                    # Origin - Sensor data
-                    {"asset_code": "switch", "asset_data": {"button": "up"}},
-
-                    # type_id
-                    "0002",
-
-                    # Static Data
-                    {
-                        "Location": "Palo Alto",
-                        "Company": "Dianomic"
-                    },
-
-                    # Expected
-                    'switch_typename',
-                    {
-                        'switch_typename':
-                            [
-                                {
-                                    'classification': 'static',
-                                    'id': '0002_switch_typename_sensor',
-                                    'properties': {
-                                        'Company': {'type': 'string'},
-                                        'Name': {'isindex': True, 'type': 'string'},
-                                        'Location': {'type': 'string'}
-                                    },
-                                    'type': 'object'
-                                },
-                                {
-                                    'classification': 'dynamic',
-                                    'id': '0002_switch_typename_measurement',
-                                    'properties': {
-                                        'Time': {'isindex': True, 'format': 'date-time', 'type': 'string'},
-                                        'button': {
-                                            'type': 'string'
-                                        }
-                                    },
-                                    'type': 'object'
-                                }
-                            ]
-                    }
-
             )
 
         ]
     )
-    def test_create_omf_type_automatic(self,
-                                       p_test_data,
-                                       p_type_id,
-                                       p_static_data,
-                                       expected_typename,
-                                       expected_omf_type):
-        """ Tests the generation of the OMF messages starting from Asset name and data
+    @pytest.mark.asyncio
+    async def test_create_omf_type_automatic(
+                                        self,
+                                        p_test_data,
+                                        p_type_id,
+                                        p_static_data,
+                                        expected_typename,
+                                        expected_omf_type,
+                                        fixture_ocs_north):
+        """ Unit test for - _create_omf_type_automatic - successful case
+            Tests the generation of the OMF messages starting from Asset name and data
             using Automatic OMF Type Mapping"""
 
-        sending_process_instance = []
-        config = []
-        config_omf_types = []
+        fixture_ocs_north._config_omf_types = {"type-id": {"value": p_type_id}}
 
-        _logger = MagicMock(spec=logger)
+        fixture_ocs_north._config = {}
+        fixture_ocs_north._config["StaticData"] = p_static_data
+        fixture_ocs_north._config["formatNumber"] = "float64"
+        fixture_ocs_north._config["formatInteger"] = "int32"
 
-        ocs_north = ocs.OCSNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
+        with patch.object(fixture_ocs_north,
+                          'send_in_memory_data_to_picromf',
+                          return_value=mock_async_call()
+                          ) as patched_send_in_memory_data_to_picromf:
 
-        type_id = p_type_id
-        ocs_north._config_omf_types = {"type-id": {"value": type_id}}
-
-        # noinspection PyDictCreation
-        ocs_north._config = {}
-        ocs_north._config["StaticData"] = p_static_data
-        ocs_north._config["formatNumber"] = "float64"
-        ocs_north._config["formatInteger"] = "int32"
-
-        ocs_north._logger = MagicMock(spec=logging)
-
-        with patch.object(ocs_north, 'send_in_memory_data_to_picromf', return_value=True) \
-                as mocked_send_in_memory_data_to_picromf:
-
-            typename, omf_type = ocs_north._create_omf_type_automatic(p_test_data)
+            typename, omf_type = await fixture_ocs_north._create_omf_type_automatic(p_test_data)
 
         assert typename == expected_typename
         assert omf_type == expected_omf_type
 
-        assert mocked_send_in_memory_data_to_picromf.called
-        mocked_send_in_memory_data_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])
+        assert patched_send_in_memory_data_to_picromf.called
+        patched_send_in_memory_data_to_picromf.assert_any_call("Type", expected_omf_type[expected_typename])

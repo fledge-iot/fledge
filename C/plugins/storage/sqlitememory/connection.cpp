@@ -113,13 +113,14 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	 * Thus we apply default FOGLAMP formatting:
 	 * "%Y-%m-%d %H:%M:%f" with 'localtime'
 	 */
+
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
 		sqlite3_column_table_name(pStmt, i) != NULL &&
 		(strcmp(sqlite3_column_origin_name(pStmt, i),
 			sqlite3_column_name(pStmt, i)) == 0))
 	{
 		const char* pzDataType;
-		int retType = sqlite3_table_column_metadata(dbHandle,
+		int retType = sqlite3_table_column_metadata(inMemory,
 					sqlite3_column_database_name(pStmt, i),
 					sqlite3_column_table_name(pStmt, i),
 					sqlite3_column_name(pStmt, i),
@@ -144,7 +145,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			char formattedData[100] = "";
 
 			// Exec the format SQL
-			int rc = sqlite3_exec(dbHandle,
+			int rc = sqlite3_exec(inMemory,
 					      formatStmt.c_str(),
 					      dateCallback,
 					      formattedData,
@@ -172,7 +173,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			// Just log the error if present
 			if (retType != SQLITE_OK)
 			{
-				Logger::getLogger()->error("SQLite3 failed " \
+				Logger::getLogger()->error("SQLite3 memory failed " \
 						"to call sqlite3_table_column_metadata() " \
 						"for column '%s'",
 						sqlite3_column_name(pStmt, i));
@@ -282,103 +283,81 @@ Connection::Connection()
 	string dbPath;
 	const char *rootDir = getenv("FOGLAMP_ROOT");
 	const char *dataDir = getenv("FOGLAMP_DATA");
-	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
-
-	if (defaultConnection == NULL)
-	{
-		// Set DB base path
-		dbPath = (rootDir == NULL ? _FOGLAMP_ROOT_PATH : rootDir);
-		if (dataDir == NULL)
-		{
-			dbPath += "/data";
-		}
-		else
-		{
-			dbPath = dataDir;
-		}
-
-		// Add the filename
-		dbPath += _DB_NAME;
-	}
-	else
-	{
-		dbPath = defaultConnection;
-	}
-
-	// Allow usage of URI for filename
-	sqlite3_config(SQLITE_CONFIG_URI, 1);
 
 	/**
-	 * Make a connection to the database
-	 * and chewck backend connection was successfully made
-	 * Note:
-	 *   we assume the database already exists, so the flag
-	 *   SQLITE_OPEN_CREATE is not added in sqlite3_open_v2 call
+	 * Create IN MEMORY database for "readings" table: set empty file
 	 */
-	if (sqlite3_open_v2(dbPath.c_str(),
-			    &dbHandle,
-			    SQLITE_OPEN_READWRITE,
-			    NULL) != SQLITE_OK)
-	{
-		const char* dbErrMsg = sqlite3_errmsg(dbHandle);
-		const char* errMsg = "Failed to open the SQLite3 database";
+	const char *inMemoryConn = "file:?cache=shared";
 
-		Logger::getLogger()->error("%s '%s': %s",
+	const char * createReadings = "CREATE TABLE foglamp.readings (" \
+					"id		INTEGER			PRIMARY KEY AUTOINCREMENT," \
+					"asset_code	character varying(50)	NOT NULL," \
+					"read_key	uuid			UNIQUE," \
+					"reading	JSON			NOT NULL DEFAULT '{}'," \
+					"user_ts	DATETIME 		DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))," \
+					"ts		DATETIME 		DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))" \
+					");";
+
+	const char * createReadingsFk = "CREATE INDEX fki_readings_fk1 ON readings (asset_code);";
+
+	const char * createReadingsIdx = "CREATE INDEX readings_ix1 ON readings (read_key);";
+
+	// Allow usage of URI for filename
+        sqlite3_config(SQLITE_CONFIG_URI, 1);
+
+	if (sqlite3_open(inMemoryConn, &inMemory) != SQLITE_OK)
+        {
+		const char* dbErrMsg = sqlite3_errmsg(inMemory);
+		const char* errMsg = "Failed to open the IN_MEMORY SQLite3 database";
+
+		Logger::getLogger()->error("%s '%s'",
 					   dbErrMsg,
-					   dbPath.c_str(),
-					   dbErrMsg);
+					   inMemoryConn);
 		connectErrorTime = time(0);
 
-		raiseError("Connection", "%s '%s': '%s'",
+		raiseError("InMemory Connection", "%s '%s'",
 			   dbErrMsg,
-			   dbPath.c_str(),
-			   dbErrMsg);
+			   inMemoryConn);
 
-		sqlite3_close_v2(dbHandle);
-		dbHandle = NULL;
+		sqlite3_close_v2(inMemory);
 	}
-	else
+        else
 	{
+		Logger::getLogger()->info("Connected to IN_MEMORY SQLite3 database: %s",
+					  inMemoryConn);
+
 		int rc;
-		char *zErrMsg = NULL;
-		/*
-		 * Build the ATTACH DATABASE command in order to get
-		 * 'foglamp.' prefix in all SQL queries
-		 */
-		SQLBuffer attachDb;
-		attachDb.append("ATTACH DATABASE '");
-		attachDb.append(dbPath + "' AS foglamp;");
+                // Exec the statements without getting error messages, for now
 
-		const char *sqlStmt = attachDb.coalesce();
-
-		// Exec the statement
-		rc = sqlite3_exec(dbHandle,
-				  sqlStmt,
+		// ATTACH 'foglamp' as in memory shared DB
+		rc = sqlite3_exec(inMemory,
+				  "ATTACH DATABASE 'file::memory:?cache=shared' AS 'foglamp'",
 				  NULL,
 				  NULL,
-				  &zErrMsg);
+				  NULL);
 
-		// Check result
-		if (rc != SQLITE_OK)
-		{
-			const char* errMsg = "Failed to attach 'foglamp' database in";
-			Logger::getLogger()->error("%s '%s': error %s",
-						   errMsg,
-						   sqlStmt,
-						   zErrMsg);
-			connectErrorTime = time(0);
+		// CREATE TABLE readings
+		rc = sqlite3_exec(inMemory,
+				  createReadings,
+				  NULL,
+				  NULL,
+				  NULL);
 
-			sqlite3_free(zErrMsg);
-			sqlite3_close_v2(dbHandle);
-		}
-		else
-		{
-			Logger::getLogger()->info("Connected to SQLite3 database: %s",
-						  dbPath.c_str());
-		}
-		//Release sqlStmt buffer
-		delete[] sqlStmt;
+                // FK
+		rc = sqlite3_exec(inMemory,
+				  createReadingsFk,
+				  NULL,
+				  NULL,
+				  NULL);
+
+		// INDEX
+		rc = sqlite3_exec(inMemory,
+				  createReadingsIdx,
+				  NULL,
+				  NULL,
+				  NULL);
 	}
+
 }
 
 /**
@@ -387,7 +366,6 @@ Connection::Connection()
  */
 Connection::~Connection()
 {
-	sqlite3_close_v2(dbHandle);
 }
 
 /**
@@ -576,8 +554,7 @@ int *nRows = (int *)data;
  * Perform a query against a common table
  *
  */
-bool Connection::retrieve(const string& table,
-			  const string& condition,
+bool Connection::retrieveReadings(const string& condition,
 			  string& resultSet)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
@@ -587,7 +564,7 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 
 	try {
-		if (dbHandle == NULL)
+		if (inMemory == NULL)
 		{
 			raiseError("retrieve", "No SQLite 3 db connection available");
 			return false;
@@ -595,8 +572,7 @@ SQLBuffer	jsonConstraints;
 
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM foglamp.");
-			sql.append(table);
+			sql.append("SELECT * FROM readings");
 		}
 		else
 		{
@@ -681,7 +657,7 @@ SQLBuffer	jsonConstraints;
 								if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
 								{
 									raiseError("retrieve",
-										   "SQLite3 plugin does not support timezones in qeueries");
+										   "SQLite3 Memory plugin does not support timezones in qeueries");
 									return false;
 								}
 								else
@@ -733,7 +709,7 @@ SQLBuffer	jsonConstraints;
 				}
 				sql.append(" * FROM foglamp.");
 			}
-			sql.append(table);
+			sql.append("readings");
 			if (document.HasMember("where"))
 			{
 				sql.append(" WHERE ");
@@ -772,14 +748,14 @@ SQLBuffer	jsonConstraints;
 		sqlite3_stmt *stmt;
 
 		// Prepare the SQL statement and get the result set
-		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+		rc = sqlite3_prepare_v2(inMemory, query, -1, &stmt, NULL);
 
 		// Release memory for 'query' var
 		delete[] query;
 
 		if (rc != SQLITE_OK)
 		{
-			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			raiseError("retrieve", sqlite3_errmsg(inMemory));
 			return false;
 		}
 
@@ -792,7 +768,7 @@ SQLBuffer	jsonConstraints;
 		// Check result set mapping errors
 		if (rc != SQLITE_DONE)
 		{
-			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			raiseError("retrieve", sqlite3_errmsg(inMemory));
 			// Failure
 			return false;
 		}
@@ -800,487 +776,6 @@ SQLBuffer	jsonConstraints;
 		return true;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
-	}
-}
-
-/**
- * Insert data into a table
- */
-int Connection::insert(const std::string& table, const std::string& data)
-{
-SQLBuffer	sql;
-Document	document;
-SQLBuffer	values;
-int		col = 0;
- 
-	if (document.Parse(data.c_str()).HasParseError())
-	{
-		raiseError("insert", "Failed to parse JSON payload\n");
-		return -1;
-	}
- 	sql.append("INSERT INTO foglamp.");
-	sql.append(table);
-	sql.append(" (");
-	for (Value::ConstMemberIterator itr = document.MemberBegin();
-		itr != document.MemberEnd(); ++itr)
-	{
-		if (col)
-			sql.append(", ");
-		sql.append(itr->name.GetString());
- 
-		if (col)
-			values.append(", ");
-		if (itr->value.IsString())
-		{
-			const char *str = itr->value.GetString();
-			if (strcmp(str, "now()") == 0)
-			{
-				values.append(SQLITE3_NOW);
-			}
-			else
-			{
-				values.append('\'');
-				values.append(escape(str));
-				values.append('\'');
-			}
-		}
-		else if (itr->value.IsDouble())
-			values.append(itr->value.GetDouble());
-		else if (itr->value.IsNumber())
-			values.append(itr->value.GetInt());
-		else if (itr->value.IsObject())
-		{
-			StringBuffer buffer;
-			Writer<StringBuffer> writer(buffer);
-			itr->value.Accept(writer);
-			values.append('\'');
-			values.append(escape(buffer.GetString()));
-			values.append('\'');
-		}
-		col++;
-	}
-	sql.append(") values (");
-	const char *vals = values.coalesce();
-	sql.append(vals);
-	delete[] vals;
-	sql.append(");");
-
-	const char *query = sql.coalesce();
-	char *zErrMsg = NULL;
-	int rc;
-
-	// Exec INSERT statement: no callback, no result set
-	rc = sqlite3_exec(dbHandle,
-			  query,
-			  NULL,
-			  NULL,
-			  &zErrMsg);
-
-	// Release memory for 'query' var
-	delete[] query;
-
-	// Check exec result
-	if (rc == SQLITE_OK )
-	{
-		// Success
-		return sqlite3_changes(dbHandle);
-	}
-
-	raiseError("insert", zErrMsg);
-	sqlite3_free(zErrMsg);
-
-	// Failure
-	return -1;
-}
-
-/**
- * Perform an update against a common table
- * This routine uses SQLite 3 JSON1 extension:
- *
- *    json_set(field, '$.key.value', the_value)
- *
- */
-int Connection::update(const string& table, const string& payload)
-{
-// Default template parameter uses UTF8 and MemoryPoolAllocator.
-Document	document;
-SQLBuffer	sql;
-int		col = 0;
- 
-	if (document.Parse(payload.c_str()).HasParseError())
-	{
-		raiseError("update", "Failed to parse JSON payload");
-		return -1;
-	}
-	else
-	{
-		sql.append("UPDATE foglamp.");
-		sql.append(table);
-		sql.append(" SET ");
-
-		if (document.HasMember("values"))
-		{
-			Value& values = document["values"];
-			for (Value::ConstMemberIterator itr = values.MemberBegin();
-					itr != values.MemberEnd(); ++itr)
-			{
-				if (col != 0)
-				{
-					sql.append( ", ");
-				}
-				sql.append(itr->name.GetString());
-				sql.append(" = ");
-	 
-				if (itr->value.IsString())
-				{
-					const char *str = itr->value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sql.append(SQLITE3_NOW);
-					}
-					else
-					{
-						sql.append('\'');
-						sql.append(escape(str));
-						sql.append('\'');
-					}
-				}
-				else if (itr->value.IsDouble())
-					sql.append(itr->value.GetDouble());
-				else if (itr->value.IsNumber())
-					sql.append(itr->value.GetInt());
-				else if (itr->value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					itr->value.Accept(writer);
-					sql.append('\'');
-					sql.append(escape(buffer.GetString()));
-					sql.append('\'');
-				}
-				col++;
-			}
-		}
-		if (document.HasMember("expressions"))
-		{
-			Value& exprs = document["expressions"];
-			if (!exprs.IsArray())
-			{
-				raiseError("update", "The property exressions must be an array");
-				return -1;
-			}
-			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
-			{
-				if (col != 0)
-				{
-					sql.append( ", ");
-				}
-				if (!itr->IsObject())
-				{
-					raiseError("update",
-						   "expressions must be an array of objects");
-					return -1;
-				}
-				if (!itr->HasMember("column"))
-				{
-					raiseError("update",
-						   "Missing column property in expressions array item");
-					return -1;
-				}
-				if (!itr->HasMember("operator"))
-				{
-					raiseError("update",
-						   "Missing operator property in expressions array item");
-					return -1;
-				}
-				if (!itr->HasMember("value"))
-				{
-					raiseError("update",
-						   "Missing value property in expressions array item");
-					return -1;
-				}
-				sql.append((*itr)["column"].GetString());
-				sql.append(" = ");
-				sql.append((*itr)["column"].GetString());
-				sql.append(' ');
-				sql.append((*itr)["operator"].GetString());
-				sql.append(' ');
-				const Value& value = (*itr)["value"];
-	 
-				if (value.IsString())
-				{
-					const char *str = value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sql.append(SQLITE3_NOW);
-					}
-					else
-					{
-						sql.append('\'');
-						sql.append(str);
-						sql.append('\'');
-					}
-				}
-				else if (value.IsDouble())
-					sql.append(value.GetDouble());
-				else if (value.IsNumber())
-					sql.append(value.GetInt());
-				else if (value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					value.Accept(writer);
-					sql.append('\'');
-					sql.append(buffer.GetString());
-					sql.append('\'');
-				}
-				col++;
-			}
-		}
-		if (document.HasMember("json_properties"))
-		{
-			Value& exprs = document["json_properties"];
-			if (!exprs.IsArray())
-			{
-				raiseError("update",
-					   "The property json_properties must be an array");
-				return -1;
-			}
-			for (Value::ConstValueIterator itr = exprs.Begin(); itr != exprs.End(); ++itr)
-			{
-				if (col != 0)
-				{
-					sql.append( ", ");
-				}
-				if (!itr->IsObject())
-				{
-					raiseError("update",
-						   "json_properties must be an array of objects");
-					return -1;
-				}
-				if (!itr->HasMember("column"))
-				{
-					raiseError("update",
-						   "Missing column property in json_properties array item");
-					return -1;
-				}
-				if (!itr->HasMember("path"))
-				{
-					raiseError("update",
-						   "Missing path property in json_properties array item");
-					return -1;
-				}
-				if (!itr->HasMember("value"))
-				{
-					raiseError("update",
-						  "Missing value property in json_properties array item");
-					return -1;
-				}
-				sql.append((*itr)["column"].GetString());
-
-				// SQLite 3 JSON1 extension: json_set
-				// json_set(field, '$.key.value', the_value)
-				sql.append(" = json_set(");
-				sql.append((*itr)["column"].GetString());
-				sql.append(", '$.");
-
-				const Value& path = (*itr)["path"];
-				if (!path.IsArray())
-				{
-					raiseError("update",
-						   "The property path must be an array");
-					return -1;
-				}
-				int pathElement = 0;
-				for (Value::ConstValueIterator itr2 = path.Begin();
-					itr2 != path.End(); ++itr2)
-				{
-					if (pathElement > 0)
-					{
-						sql.append('.');
-					}
-					if (itr2->IsString())
-					{
-						sql.append(itr2->GetString());
-					}
-					else
-					{
-						raiseError("update",
-							   "The elements of path must all be strings");
-						return -1;
-					}
-					pathElement++;
-				}
-				sql.append("', ");
-				const Value& value = (*itr)["value"];
-	 
-				if (value.IsString())
-				{
-					const char *str = value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sql.append(SQLITE3_NOW);
-					}
-					else
-					{
-						sql.append("\"");
-						sql.append(str);
-						sql.append("\"");
-					}
-				}
-				else if (value.IsDouble())
-				{
-					sql.append(value.GetDouble());
-				}
-				else if (value.IsNumber())
-				{
-					sql.append(value.GetInt());
-				}
-				else if (value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					value.Accept(writer);
-					sql.append('\'');
-					sql.append(buffer.GetString());
-					sql.append('\'');
-				}
-				sql.append(")");
-				col++;
-			}
-		}
-
-		if (col == 0)
-		{
-			raiseError("update",
-				   "Missing values or expressions object in payload");
-			return -1;
-		}
-
-		if (document.HasMember("condition"))
-		{
-			sql.append(" WHERE ");
-			if (!jsonWhereClause(document["condition"], sql))
-			{
-				return false;
-			}
-		}
-		else if (document.HasMember("where"))
-		{
-			sql.append(" WHERE ");
-			if (!jsonWhereClause(document["where"], sql))
-			{
-				return false;
-			}
-		}
-	}
-	sql.append(';');
-
-	const char *query = sql.coalesce();
-	char *zErrMsg = NULL;
-	int update = 0;
-	int rc;
-
-	// Exec the UPDATE statement: no callback, no result set
-	rc = sqlite3_exec(dbHandle,
-			  query,
-			  NULL,
-			  NULL,
-			  &zErrMsg);
-	// Release memory for 'query' var
-	delete[] query;
-
-	// Check result code
-	if (rc != SQLITE_OK)
-	{
-		raiseError("update", zErrMsg);
-		sqlite3_free(zErrMsg);
-		return -1;
-	}
-	else
-	{
-		update = sqlite3_changes(dbHandle);
-		if (update == 0)
-		{
- 			raiseError("update", "No rows where updated");
-			return -1;
-		}
-
-		// Return success
-		return update;
-	}
-
-	// Return failure
-	return -1;
-}
-
-/**
- * Perform a delete against a common table
- *
- */
-int Connection::deleteRows(const string& table, const string& condition)
-{
-// Default template parameter uses UTF8 and MemoryPoolAllocator.
-Document document;
-SQLBuffer	sql;
- 
-	sql.append("DELETE FROM foglamp.");
-	sql.append(table);
-	if (! condition.empty())
-	{
-		sql.append(" WHERE ");
-		if (document.Parse(condition.c_str()).HasParseError())
-		{
-			raiseError("delete", "Failed to parse JSON payload");
-			return -1;
-		}
-		else
-		{
-			if (document.HasMember("where"))
-			{
-				if (!jsonWhereClause(document["where"], sql))
-				{
-					return -1;
-				}
-			}
-			else
-			{
-				raiseError("delete",
-					   "JSON does not contain where clause");
-				return -1;
-			}
-		}
-	}
-	sql.append(';');
-
-	const char *query = sql.coalesce();
-	char *zErrMsg = NULL;
-	int delete_rows;
-	int rc;
-
-	// Exec the DELETE statement: no callback, no result set
-	rc = sqlite3_exec(dbHandle,
-			  query,
-			  NULL,
-			  NULL,
-			  &zErrMsg);
-
-	// Release memory for 'query' var
-	delete[] query;
-
-	// Check result code
-	if (rc == SQLITE_OK)
-	{
-		// Success
-        	return sqlite3_changes(dbHandle);
-	}
-	else
-	{
- 		raiseError("delete", zErrMsg);
-		sqlite3_free(zErrMsg);	
-
-		// Failure
-		return -1;
 	}
 }
 
@@ -1372,7 +867,7 @@ int		row = 0;
 	int rc;
 
 	// Exec the INSERT statement: no callback, no result set
-	rc = sqlite3_exec(dbHandle,
+	rc = sqlite3_exec(inMemory,
 			  query,
 			  NULL,
 			  NULL,
@@ -1385,7 +880,7 @@ int		row = 0;
 	if (rc == SQLITE_OK)
 	{
 		// Success
-		return sqlite3_changes(dbHandle);
+		return sqlite3_changes(inMemory);
 	}
 	else
 	{
@@ -1399,7 +894,6 @@ int		row = 0;
 
 /**
  * Fetch a block of readings from the reading table
- * It might not work with SQLite 3
  */
 bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
@@ -1413,6 +907,7 @@ int retrieve;
 	/*
 	 * This query assumes datetime values are in 'localtime'
 	 */
+
 	snprintf(sqlbuffer,
 		 sizeof(sqlbuffer),
 		 "SELECT id, " \
@@ -1430,13 +925,13 @@ int retrieve;
 
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
-	if (sqlite3_prepare_v2(dbHandle,
+	if (sqlite3_prepare_v2(inMemory,
 			       sqlbuffer,
 			       -1,
 			       &stmt,
 			       NULL) != SQLITE_OK)
 	{
-		raiseError("retrieve", sqlite3_errmsg(dbHandle));
+		raiseError("retrieve", sqlite3_errmsg(inMemory));
 
 		// Failure
 		return false;
@@ -1452,7 +947,7 @@ int retrieve;
 		// Check result set errors
 		if (rc != SQLITE_DONE)
 		{
-			raiseError("retrieve", sqlite3_errmsg(dbHandle));
+			raiseError("retrieve", sqlite3_errmsg(inMemory));
 
 			// Failure
 			return false;
@@ -1492,7 +987,7 @@ long numReadings = 0;
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = sqlite3_exec(dbHandle,
+		rc = sqlite3_exec(inMemory,
 				  query,
 				  selectCallback,
 				  &purge_readings,
@@ -1526,7 +1021,7 @@ long numReadings = 0;
 		int unsent = 0;
 
 		// Exec query and get result in 'unsent' via 'countCallback'
-		rc = sqlite3_exec(dbHandle,
+		rc = sqlite3_exec(inMemory,
 				  query,
 				  countCallback,
 				  &unsent,
@@ -1562,7 +1057,7 @@ long numReadings = 0;
 	int rows_deleted;
 
 	// Exec DELETE query: no callback, no resultset
-	rc = sqlite3_exec(dbHandle,
+	rc = sqlite3_exec(inMemory,
 			  query,
 			  NULL,
 			  NULL,
@@ -1579,7 +1074,7 @@ long numReadings = 0;
 	}
 
 	// Get db changes
-	unsigned int deletedRows = sqlite3_changes(dbHandle);
+	unsigned int deletedRows = sqlite3_changes(inMemory);
 
 	SQLBuffer retainedBuffer;
 	retainedBuffer.append("SELECT count(*) FROM foglamp.readings WHERE id > ");
@@ -1589,7 +1084,7 @@ long numReadings = 0;
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
-	rc = sqlite3_exec(dbHandle,
+	rc = sqlite3_exec(inMemory,
 			  query_r,
 			  countCallback,
 			  &retained_unsent,
@@ -1610,7 +1105,7 @@ long numReadings = 0;
 
 	int readings_num = 0;
 	// Exec query and get result in 'readings_num' via 'countCallback'
-	rc = sqlite3_exec(dbHandle, "SELECT count(*) FROM foglamp.readings",
+	rc = sqlite3_exec(inMemory, "SELECT count(*) FROM foglamp.readings",
 			  countCallback,
 			  &readings_num,
 			  &zErrMsg);
@@ -2416,14 +1911,14 @@ char *ptr;
  */
 void Connection::raiseError(const char *operation, const char *reason, ...)
 {
-ConnectionManager *manager = ConnectionManager::getInstance();
+MemConnectionManager *manager = MemConnectionManager::getInstance();
 char	tmpbuf[512];
 
 	va_list ap;
 	va_start(ap, reason);
 	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
 	va_end(ap);
-	Logger::getLogger()->error("SQLite3 storage plugin raising error: %s", tmpbuf);
+	Logger::getLogger()->error("SQLite3 Memory storage plugin raising error: %s", tmpbuf);
 	manager->setError(operation, tmpbuf, false);
 }
 
@@ -2434,7 +1929,7 @@ long Connection::tableSize(const string& table)
 {
 SQLBuffer buf;
 
- 	raiseError("tableSize", "Not available in SQLite3 storage plugin");
+ 	raiseError("tableSize", "Not available in SQLite3 Memory storage plugin");
 	return -1;
 }
 

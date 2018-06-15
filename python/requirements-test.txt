@@ -6,6 +6,9 @@ pytest-mock==1.10.0
 pytest-cov==2.5.1
 pytest-aiohttp==0.3.0
 
+# Common - REST interface
+requests==2.18.4
+
 # postgreSQL
 aiopg==0.13.0
 SQLAlchemy==1.1.10

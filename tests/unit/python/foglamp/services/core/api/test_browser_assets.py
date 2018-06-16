@@ -7,12 +7,14 @@
 
 import json
 from unittest.mock import MagicMock, patch
+
 from aiohttp import web
 from aiohttp.web_urldispatcher import PlainResource, DynamicResource
 import pytest
+
 from foglamp.services.core.api import browser
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import ReadingsStorageClient
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -92,9 +94,9 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url, payload, result", FIXTURE_1)
     async def test_end_points(self, client, request_url, payload, result):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=result) as query_table_patch:
+        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
+        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=result) as query_patch:
                 resp = await client.get(request_url)
                 assert 200 == resp.status
                 r = await resp.text()
@@ -106,36 +108,26 @@ class TestBrowserAssets:
                     assert result['rows'] == json_response
                 else:
                     assert result['rows'] == json_response
-            # Now we want to check - query_table_patch.assert_called_once_with('readings', payload)
-            # but as the order of key-values in a dict is not guarantee in a dict when converted to
-            # string, we need to check it indirectly. We now first confirm that args[1] of the call made
-            # is indeed the payload meant to be sent and secondly, we check that the method is indeed
-            # called with the intended arguments.
-            args, kwargs = query_table_patch.call_args
-            assert json.loads(payload) == json.loads(args[1])
-            query_table_patch.assert_called_once_with('readings', args[1])
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])
 
     @pytest.mark.parametrize("request_url, response_code, payload", FIXTURE_2)
     async def test_bad_request(self, client, request_url, response_code, payload):
-        storage_client_mock = MagicMock(StorageClient)
+        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
         result = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'retrieve'}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=result) as query_table_patch:
+        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=result) as query_patch:
                 resp = await client.get(request_url)
                 assert response_code == resp.status
                 assert result['message'] == resp.reason
-            # Now we want to check - query_table_patch.assert_called_once_with('readings', payload)
-            # but as the order of key-values in a dict is not guarantee in a dict when converted to
-            # string, we need to check it indirectly. We now first confirm that args[1] of the call made
-            # is indeed the payload meant to be sent and secondly, we check that the method is indeed
-            # called with the intended arguments.
-            args, kwargs = query_table_patch.call_args
-            assert json.loads(payload) == json.loads(args[1])
-            query_table_patch.assert_called_once_with('readings', args[1])
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])
 
     @pytest.mark.parametrize("request_url", URLS)
     async def test_http_exception(self, client, request_url):
-        with patch.object(connect, 'get_storage', return_value=Exception):
+        with patch.object(connect, 'get_readings', return_value=Exception):
             resp = await client.get(request_url)
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
@@ -149,23 +141,18 @@ class TestBrowserAssets:
          {'count': 1, 'rows': [{'min': '9', 'average': '9', 'max': '9', 'timestamp': '2018-02-19 17'}]})
     ])
     async def test_asset_averages_with_valid_group_name(self, client, group_name, payload, result):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=result) as query_table_patch:
+        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
+        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=result) as query_patch:
                 resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature/series?group={}'
                                         .format(group_name))
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
                 assert result['rows'] == json_response
-            # Now we want to check - query_table_patch.assert_called_once_with('readings', payload)
-            # but as the order of key-values in a dict is not guarantee in a dict when converted to
-            # string, we need to check it indirectly. We now first confirm that args[1] of the call made
-            # is indeed the payload meant to be sent and secondly, we check that the method is indeed
-            # called with the intended arguments.
-            args, kwargs = query_table_patch.call_args
-            assert json.loads(payload) == json.loads(args[1])
-            query_table_patch.assert_called_once_with('readings', args[1])
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])
 
     @pytest.mark.parametrize("request_param, response_message", [
         ('?group=BLA', "BLA is not a valid group"),
@@ -199,16 +186,15 @@ class TestBrowserAssets:
         ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}')
     ])
     async def test_limit_skip_time_units_payload(self, client, request_params, payload):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'count': 0, 'rows': []}) \
-                    as query_table_patch:
+        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
+        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value={'count': 0, 'rows': []}) \
+                    as query_patch:
                 resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature{}'.format(request_params))
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
                 assert [] == json_response
-
-            args, kwargs = query_table_patch.call_args
-            assert json.loads(payload) == json.loads(args[1])
-            query_table_patch.assert_called_once_with('readings', args[1])
+            args, kwargs = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])

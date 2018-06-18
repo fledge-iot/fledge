@@ -29,11 +29,6 @@ class Server(FoglampMicroservice):
 
     # Configuration handled through the Configuration Manager
     _DEFAULT_CONFIG = {
-        'plugin': {
-            'description': 'Python module name of the plugin to load',
-            'type': 'string',
-            'default': 'coap_listen'
-        },
         'management_host': {
             'description': 'Management host',
             'type': 'string',
@@ -79,7 +74,7 @@ class Server(FoglampMicroservice):
             # Configuration handling - initial configuration
             category = self._name
             config = self._DEFAULT_CONFIG
-            config_descr = self._name if (config['plugin']['description']).strip() == "" else config['plugin']['description']
+            config_descr = self._name
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,

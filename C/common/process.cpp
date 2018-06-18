@@ -125,3 +125,11 @@ ManagementClient* FogLampProcess::getManagementClient() const
 {
 	return m_client;
 }
+
+/**
+ * Return Logger
+ */
+Logger *FogLampProcess::getLogger() const
+{
+	return m_logger;
+}

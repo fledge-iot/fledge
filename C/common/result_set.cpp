@@ -19,6 +19,8 @@ using namespace rapidjson;
 /**
  * Construct a result set from a JSON document returned from
  * the FogLAMP storage service.
+ *
+ * @param json	The JSON document to construct the result set from
  */
 ResultSet::ResultSet(const std::string& json)
 {

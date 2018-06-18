@@ -201,3 +201,24 @@ string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"v
 	json = query.toJSON();
 	ASSERT_EQ(json.compare(expected), 0);
 }
+
+TEST(QueryTest, fullTable)
+{
+Query query(new Returns("c1"));
+string json;
+string expected("{ \"returns\" : [ \"c1\" ] }");
+
+	json = query.toJSON();
+	ASSERT_EQ(json.compare(expected), 0);
+}
+
+TEST(QueryTest, distinctTable)
+{
+Query query(new Returns("c1"));
+string json;
+string expected("{ \"returns\" : [ \"c1\" ], \"modifier\" : \"distinct\" }");
+
+	query.distinct();
+	json = query.toJSON();
+	ASSERT_EQ(json.compare(expected), 0);
+}

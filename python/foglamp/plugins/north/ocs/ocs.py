@@ -419,7 +419,7 @@ async def plugin_send(data, raw_data, stream_id):
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
-                    ocs_north.deleted_omf_types_already_created(config_category_name, type_id)
+                    await ocs_north.deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
                     _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
                 raise ex

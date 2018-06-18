@@ -15,6 +15,7 @@ that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
 
+import aiohttp
 import resource
 import asyncio
 import sys
@@ -290,44 +291,41 @@ class SendingProcess:
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'SEND_PR'
-    _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of the Sending Process'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Sending Process'
     _CONFIG_DEFAULT = {
         "enable": {
-            "description": "A switch that can be used to enable or disable execution of "
-                           "the sending process.",
+            "description": "Enable execution of the sending process",
             "type": "boolean",
             "default": "True"
         },
         "duration": {
-            "description": "How long the sending process should run (in seconds) before stopping.",
+            "description": "Time in seconds the sending process should run",
             "type": "integer",
             "default": "60"
         },
         "sleepInterval": {
-            "description": "A period of time, expressed in seconds, "
-                           "the main task will wait before evaluate if the duration has expired",
+            "description": "Time in seconds to wait between duration checks",
             "type": "integer",
             "default": "1"
         },
         "source": {
-            "description": "Defines the source of the data to be sent on the stream, "
-                           "this may be one of either readings, statistics or audit.",
+            "description": "Source of data to be sent on the stream. "
+                           "May be either readings, statistics or audit.",
             "type": "string",
             "default": _DATA_SOURCE_READINGS
         },
         "blockSize": {
-            "description": "The size of a block of readings to send in each transmission.",
+            "description": "Bytes to send in each transmission",
             "type": "integer",
             "default": "500"
         },
         "memory_buffer_size": {
-            "description": "Number of elements of blockSize size that should be managed as an in memory buffer"
-                           " for the fetch/send operations",
+            "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
             "default": "10"
         },
         "north": {
-            "description": "The name of the north to use to translate the readings "
+            "description": "Name of the north plugin to use to translate readings "
                            "into the output format and send them",
             "type": "string",
             "default": "omf"
@@ -517,12 +515,19 @@ class SendingProcess:
         """
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
+
+        converted_data = []
         try:
             # Loads data, +1 as > is needed
             readings = await self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
+
+        except aiohttp.client_exceptions.ClientPayloadError as _ex:
+
+            _message = _MESSAGES_LIST["e000009"].format(str(_ex))
+            SendingProcess._logger.warning(_message)
 
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000009"].format(str(_ex))

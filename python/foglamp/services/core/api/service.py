@@ -14,7 +14,7 @@ from foglamp.services.core import server
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 
-__author__ = "Mark Riddoch, Ashwin Gopalakrishnan"
+__author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -95,57 +95,70 @@ async def add_service(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-
         storage = connect.get_storage()
 
-        # Check that the process is not already registered
+        # Check that the process name is not already registered
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         result = storage.query_tbl_with_payload('scheduled_processes', payload)
         count = result['count']
         if count != 0:
             raise web.HTTPBadRequest(reason='A service with that name already exists')
 
-        # First create the scheduled process entry for our new service
-        if service_type == 'south':
-            script = '["services/south"]'
-        if service_type == 'north':
-            script = '["services/north"]'
-        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
-        try:
-            res = storage.insert_into_tbl("scheduled_processes", payload)
-        except Exception as ins_ex:
-            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
-
-        # Now create a configuration category with the minimum to load the plugin
-        # TODO It would be better to load the default configuration from the plugin
-        # and use this, however we should extract the plugin loading code so that is shared
-        new_category = {"plugin":
-                            {"type": "string",
-                             "default": plugin,
-                             "description": "Python module name of the plugin to load"}
-                       }
-        category_desc = '{} service configuration'.format(name)
-        config_mgr = ConfigurationManager(storage)
-        await config_mgr.create_category(category_name=name, category_description=category_desc,
-                                     category_value=new_category, keep_original_items=True)
-
-        # Check that the process is not already registered
+        # Check that the schedule name is not already registered
         payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', name]).payload()
         result = storage.query_tbl_with_payload('schedules', payload)
         count = result['count']
         if count != 0:
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
 
-        # Finally add a schedule to run the new service at startup
-        schedule = StartUpSchedule()
+        # First create the scheduled process entry for our new service
+        if service_type == 'south':
+            script = '["services/south"]'
+            plugin_module_path = "foglamp.plugins.south"
+        if service_type == 'north':
+            script = '["services/north"]'
+            plugin_module_path = "foglamp.plugins.north"
+        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
+        try:
+            res = storage.insert_into_tbl("scheduled_processes", payload)
+        except Exception as ins_ex:
+            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
+
+        # Now load the plugin to fetch its configuration
+        try:
+            # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
+            # folder, within the plugin_module_path.
+            import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
+            _plugin = __import__(import_file_name, fromlist=[''])
+
+            # Fetch configuration from the configuration defined in the plugin
+            plugin_info = _plugin.plugin_info()
+            plugin_config = plugin_info['config']
+
+            # Create a configuration category from the configuration defined in the plugin
+            category_desc = plugin_config['plugin']['description']
+            config_mgr = ConfigurationManager(storage)
+            await config_mgr.create_category(category_name=name,
+                                             category_description=category_desc,
+                                             category_value=plugin_config,
+                                             keep_original_items=True)
+        except ImportError as ex:
+            raise web.HTTPInternalServerError(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+
+        # Next add a schedule to run the new service at startup
+        schedule = StartUpSchedule()  # TODO: For North plugin also?
         schedule.name = name
         schedule.process_name = name
         schedule.repeat = datetime.timedelta(0)
         schedule.exclusive = True
-        schedule.enabled = False
+        schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
+
         # Save schedule
         await server.Server.scheduler.save_schedule(schedule, is_enabled)
         schedule = await server.Server.scheduler.get_schedule_by_name(name)
+
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
     except ValueError as ex:

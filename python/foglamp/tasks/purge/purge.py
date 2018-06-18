@@ -44,14 +44,14 @@ class Purge(FoglampProcess):
 
     _DEFAULT_PURGE_CONFIG = {
         "age": {
-            "description": "Age of data to be retained, all data that is older than this value will be removed," +
-                           "unless retained. (in Hours)",
+            "description": "Age of data to be retained (in hours). All data older than this value will be removed," +
+                           "unless retained.",
             "type": "integer",
             "default": "72"
         },
         "size": {
-            "description": "Maximum size of data to be retained, the oldest data will be removed to keep below this "
-                           "size, unless retained. (in Kbytes)",
+            "description": "Maximum size of data to be retained (in Kbytes). Oldest data will be removed to keep "
+                           "below this size, unless retained.",
             "type": "integer",
             "default": "1000000"
         },

@@ -90,10 +90,10 @@ When you have a running FogLAMP, check the extra information provided by the ``f
   foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=44180 --address=127.0.0.1 --name=sending process
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=44180 --address=127.0.0.1 --name=statistics to pi
   $
- 
+
 Let's analyze the output of the command:
 
-- ``FogLAMP running.`` - The FogLAMP Core microservice is running on this machine and it is responding to the status command as *running* because other basic microservices are also running. 
+- ``FogLAMP running.`` - The FogLAMP Core microservice is running on this machine and it is responding to the status command as *running* because other basic microservices are also running.
 - ``FogLAMP uptime:  282 seconds.`` - This is a simple uptime in second provided by the Core microservice. It is equivalent to the ``ping`` method called via the REST API.
 - ``FogLAMP records:`` - This is a summary of the number of records received from sensors and devices (South), sent to other services (North) and purged from the buffer.
 - ``FogLAMP authentication`` - This row describes if a user or an application must authenticate to ogLAMP in order to operate with the REST API.
@@ -158,8 +158,8 @@ The default port for the REST API is 8081. Using curl, try this command:
   $ curl -s http://localhost:8081/foglamp/ping ; echo
   {"dataPurged": 0, "dataRead": 10, "uptime": 2646.8824095726013, "dataSent": 0, "authenticationOptional": true}
   $
- 
-The ``echo`` at the end of the line is simply used to add an extra new line to the output. 
+
+The ``echo`` at the end of the line is simply used to add an extra new line to the output.
 |br| |br|
 If you are using Postman, select the *GET* method and type ``http://localhost:8081/foglamp/ping`` in the URI line. If you are accessing a remote machine, replace *localhost* with the correct IP address. The output should be something like:
 
@@ -249,25 +249,25 @@ The template file looks like this:
 
   $ cat /snap/foglamp/current/usr/local/foglamp/data/extras/fogbench/fogbench_sensor_coap.template.json
   [
-    { "name"          : "TI sensorTag/luxometer",
+    { "name"          : "fogbench/luxometer",
       "sensor_values" : [ { "name": "lux", "type": "number", "min": 0, "max": 130000, "precision":3 } ] },
-    { "name"          : "TI sensorTag/pressure",
+    { "name"          : "fogbench/pressure",
       "sensor_values" : [ { "name": "pressure", "type": "number", "min": 800.0, "max": 1100.0, "precision":1 } ] },
-    { "name"          : "TI sensorTag/humidity",
+    { "name"          : "fogbench/humidity",
       "sensor_values" : [ { "name": "humidity",    "type": "number", "min": 0.0, "max": 100.0 },
                           { "name": "temperature", "type": "number", "min": 0.0, "max": 50.0  } ] },
-    { "name"          : "TI sensorTag/temperature",
+    { "name"          : "fogbench/temperature",
       "sensor_values" : [ { "name": "object", "type": "number", "min": 0.0, "max": 50.0 },
                           { "name": "ambient", "type": "number", "min": 0.0, "max": 50.0 } ] },
-    { "name"          : "TI sensorTag/accelerometer",
+    { "name"          : "fogbench/accelerometer",
       "sensor_values" : [ { "name": "x", "type": "number", "min": -2.0, "max": 2.0 },
                           { "name": "y", "type": "number", "min": -2.0, "max": 2.0 },
                           { "name": "z", "type": "number", "min": -2.0, "max": 2.0 } ] },
-    { "name"          : "TI sensorTag/gyroscope",
+    { "name"          : "fogbench/gyroscope",
       "sensor_values" : [ { "name": "x", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "y", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
-    { "name"          : "TI sensorTag/magnetometer",
+    { "name"          : "fogbench/magnetometer",
       "sensor_values" : [ { "name": "x", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "y", "type": "number", "min": -255.0, "max": 255.0 },
                           { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
@@ -277,7 +277,7 @@ The template file looks like this:
       "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
     { "name"          : "wall clock",
       "sensor_values" : [ { "name": "tick", "type": "enum", "list": [ "tock" ] } ] }
-  ] 
+  ]
   $
 
 In the array, each element simulates a message from a sensor, with a name, a set of data points that have their name, value type and range.
@@ -360,7 +360,7 @@ We can check if FogLAMP has now stored what we have inserted from the South micr
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/asset ; echo
-  [{"asset_code": "switch", "count": 11}, {"asset_code": "TI sensorTag/temperature", "count": 11}, {"asset_code": "TI sensorTag/humidity", "count": 11}, {"asset_code": "TI sensorTag/luxometer", "count": 11}, {"asset_code": "TI sensorTag/accelerometer", "count": 11}, {"asset_code": "wall clock", "count": 11}, {"asset_code": "TI sensorTag/magnetometer", "count": 11}, {"asset_code": "mouse", "count": 11}, {"asset_code": "TI sensorTag/pressure", "count": 11}, {"asset_code": "TI sensorTag/gyroscope", "count": 11}]
+  [{"asset_code": "switch", "count": 11}, {"asset_code": "fogbench/temperature", "count": 11}, {"asset_code": "fogbench/humidity", "count": 11}, {"asset_code": "fogbench/luxometer", "count": 11}, {"asset_code": "fogbench/accelerometer", "count": 11}, {"asset_code": "wall clock", "count": 11}, {"asset_code": "fogbench/magnetometer", "count": 11}, {"asset_code": "mouse", "count": 11}, {"asset_code": "fogbench/pressure", "count": 11}, {"asset_code": "fogbench/gyroscope", "count": 11}]
   $
 
 The output of the asset entry point provides a list of assets buffered in FogLAMP and the count of elements stored. The output is a JSON array with two elements:
@@ -372,11 +372,11 @@ The output of the asset entry point provides a list of assets buffered in FogLAM
 Feeding East/West Applications
 ------------------------------
 
-Let's suppose that we are interested in the data collected for one of the assets listed in the previous query, for example *TI sensorTag/temperature*. The *asset* entry point can be used to retrieve the data points for individual assets by simply adding the code of the asset to the URI:
+Let's suppose that we are interested in the data collected for one of the assets listed in the previous query, for example *fogbench/temperature*. The *asset* entry point can be used to retrieve the data points for individual assets by simply adding the code of the asset to the URI:
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/TI%20sensorTag%2Ftemperature ; echo
+  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Ftemperature ; echo
   [{"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7}}] 
   $
 
@@ -394,7 +394,7 @@ Let's see the JSON output on a more readable format:
     { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
     { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
     { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7} } ] 
+    { "timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7} } ]
 
 The JSON structure depends on the sensor and the plugin used to capture the data. In this case, the values shown are:
 
@@ -409,7 +409,7 @@ You can dig even more in the data and extract only a subset of the reading. Fog 
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/foglamp/asset/TI%20sensorTag%2Ftemperature/ambient?limit=5 ; echo
+  $ curl -s http://localhost:8081/foglamp/asset/fogbench%2Ftemperature/ambient?limit=5 ; echo
   [ { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
     { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" }
     { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
@@ -470,7 +470,7 @@ If you are curious to see which categories are available in FogLAMP, simply type
                     { "key": "SEND_PR_3",  "description": "HTTP North Plugin Configuration"           },
                     { "key": "SEND_PR_4",  "description": "OCS North Plugin Configuration"            },
                     { "key": "SMNTR",      "description": "Service Monitor configuration"             },
-                    { "key": "South",      "description": "South server configuration"                },
+                    { "key": "South",      "description": "South Service configuration"               },
                     { "key": "rest_api",   "description": "The FogLAMP Admin and User REST API"       },
                     { "key": "service",    "description": "The FogLAMP service configuration"         }
                   ]
@@ -586,7 +586,7 @@ Now, the output returned does not say much: this is because the plugin has never
                   "processName": "North Readings to PI",
                   "enabled":     true
                 }
-  }  
+  }
   $
 
 Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 seconds, so you have to wait up to 30 seconds to see the new, full configuration. After 30 seconds or so, you should see something like this:

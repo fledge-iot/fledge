@@ -123,29 +123,29 @@ class Ingest(object):
 
         default_config = {
             "write_statistics_frequency_seconds": {
-                "description": "The number of seconds to wait before writing readings-related "
+                "description": "Seconds to wait before writing readings-related "
                                "statistics to storage",
                 "type": "integer",
                 "default": str(cls._write_statistics_frequency_seconds)
             },
             "readings_buffer_size": {
-                "description": "The maximum number of readings to buffer in memory",
+                "description": "Maximum number of readings to buffer in memory",
                 "type": "integer",
                 "default": str(cls._readings_buffer_size)
             },
             "max_concurrent_readings_inserts": {
-                "description": "The maximum number of concurrent processes that send batches of "
+                "description": "Maximum number of concurrent processes that send batches of "
                                "readings to storage",
                 "type": "integer",
                 "default": str(cls._max_concurrent_readings_inserts)
             },
             "readings_insert_batch_size": {
-                "description": "The maximum number of readings in a batch of inserts",
+                "description": "Maximum number of readings in a batch of inserts",
                 "type": "integer",
                 "default": str(cls._readings_insert_batch_size)
             },
             "readings_insert_batch_timeout_seconds": {
-                "description": "The number of seconds to wait for a readings list to reach the "
+                "description": "Number of seconds to wait for a readings list to reach the "
                                "minimum batch size",
                 "type": "integer",
                 "default": str(cls._readings_insert_batch_timeout_seconds)
@@ -157,7 +157,7 @@ class Ingest(object):
                 "default": str(cls._max_readings_insert_batch_connection_idle_seconds)
             },
             "max_readings_insert_batch_reconnect_wait_seconds": {
-                "description": "The maximum number of seconds to wait before reconnecting to "
+                "description": "Maximum number of seconds to wait before reconnecting to "
                                "storage when inserting readings",
                 "type": "integer",
                 "default": str(cls._max_readings_insert_batch_reconnect_wait_seconds)
@@ -167,7 +167,7 @@ class Ingest(object):
         # Create configuration category and any new keys within it
         config_payload = json.dumps({
             "key": category,
-            "description": 'South server configuration',
+            "description": 'South Service configuration',
             "value": default_config,
             "keep_original_items": False
         })
@@ -295,6 +295,9 @@ class Ingest(object):
         list_index = 0
 
         while list_index <= cls._max_concurrent_readings_inserts-1:
+            if cls._stop:
+                break  # Terminate this method
+
             list_index += 1
             if list_index > cls._max_concurrent_readings_inserts-1:
                 list_index = 0
@@ -330,36 +333,11 @@ class Ingest(object):
                 finally:
                     cls._insert_readings_wait_tasks[list_index] = None
 
+            # If list is still empty, then proceed to next list
             if not len(readings_list):
-                if cls._stop:
-                    break  # Terminate this method
+                continue
 
-                # Wait for one item in the list
-                list_not_empty.clear()
-                waiter = asyncio.ensure_future(list_not_empty.wait())
-                cls._insert_readings_wait_tasks[list_index] = waiter
-
-                # _LOGGER.debug('Waiting for first item: Queue index: %s', list_index)
-
-                try:
-                    await asyncio.wait_for(
-                        waiter,
-                        cls._max_readings_insert_batch_connection_idle_seconds)
-                except asyncio.CancelledError:
-                    # Don't assume the list is empty
-
-                    # _LOGGER.debug('Cancelled: Queue index: %s Size: %s',
-                    #               list_index, len(list))
-                    continue
-                except asyncio.TimeoutError:
-                    # _LOGGER.debug('Closing idle connection: Queue index: %s',
-                    #               list_index)
-                    continue
-                finally:
-                    cls._insert_readings_wait_tasks[list_index] = None
-
-            # If batch size still not reached but another list has inserted
-            # recently, wait some more
+            # If batch size still not reached and if there is time then let this list wait and move to next list
             if (not cls._stop) and (len(readings_list) < cls._readings_insert_batch_size) and ((
                     time.time() - cls._last_insert_time) < cls._readings_insert_batch_timeout_seconds):
                 continue
@@ -419,8 +397,8 @@ class Ingest(object):
         stats = await statistics.create_statistics(cls.storage_async)
 
         # Register static statistics
-        await stats.register('READINGS', 'The number of readings received by FogLAMP since startup')
-        await stats.register('DISCARDED', 'The number of readings discarded at the input side by FogLAMP, i.e. '
+        await stats.register('READINGS', 'Readings received by FogLAMP')
+        await stats.register('DISCARDED', 'Readings discarded at the input side by FogLAMP, i.e. '
                                           'discarded before being  placed in the buffer. This may be due to some '
                                           'error in the readings themselves.')
 
@@ -459,7 +437,7 @@ class Ingest(object):
 
             """ Register the statistics keys as this may be the first time the key has come into existence """
             for key in cls._sensor_stats:
-                description = 'The number of readings received by FogLAMP since startup for sensor {}'.format(key)
+                description = 'Readings received by FogLAMP since startup for sensor {}'.format(key)
                 await stats.register(key, description)
             try:
                 asyncio.ensure_future(stats.add_update(cls._sensor_stats))
@@ -517,11 +495,11 @@ class Ingest(object):
                 An invalid value was provided
         """
         if cls._stop:
-            _LOGGER.warning('The South server is stopping')
+            _LOGGER.warning('The South Service is stopping')
             return
 
         if not cls._started:
-            raise RuntimeError('The South server was not started')
+            raise RuntimeError('The South Service was not started')
             # cls._logger = logger.setup(__name__, destination=logger.CONSOLE, level=logging.DEBUG)
 
         try:
@@ -564,7 +542,7 @@ class Ingest(object):
             cls._readings_lists_not_full.clear()
             await cls._readings_lists_not_full.wait()
             if cls._stop:
-                raise RuntimeError('The South server is stopping')
+                raise RuntimeError('The South Service is stopping')
 
         # Increment the count of received readings to be used for statistics update
         if asset.upper() in cls._sensor_stats:

@@ -8,7 +8,7 @@
 .. Images
 
 .. |DHT11 in PI| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg
-   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg 
+   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg
 
 .. Links
 .. _here: 05_testing.html#setting-the-omf-translator-plugin
@@ -87,7 +87,7 @@ The JSON payload returned, as a Python dictionary, should contain the properties
 | readings  | The reading data itself as a JSON object              |
 +-----------+-------------------------------------------------------+
 
-It is important that the *poll* method does not block as this will prevent the proper operation of the South microservice. 
+It is important that the *poll* method does not block as this will prevent the proper operation of the South microservice.
 Using the example of our simple DHT11 device attached to a GPIO pin, the *poll* routine could be:
 
 .. code-block:: python
@@ -130,7 +130,7 @@ Using the example of our simple DHT11 device attached to a GPIO pin, the *poll* 
 Async IO Mode
 -------------
 
-In asyncio mode the plugin inserts itself into the event processing loop of the South server itself. This is a more complex mechanism and is intended for plugins that need to block or listen for incoming data via a network.
+In asyncio mode the plugin inserts itself into the event processing loop of the South Service itself. This is a more complex mechanism and is intended for plugins that need to block or listen for incoming data via a network.
 
 
 Plugin Start
@@ -141,7 +141,7 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
 .. code-block:: python
 
   loop = asyncio.get_event_loop()
- 
+
   app = web.Application( middlewares=[middleware.error_middleware] )
   app.router.add_route( 'POST', '/', SensorPhoneIngest.render_post )
   handler = app.make_handler()
@@ -184,6 +184,6 @@ It would then respond to the HTTP request and return. Since the handler is embed
 
   message['status'] = code
   return web.json_response(message)
- 
+
 
 .. include:: 03_01_DHT11.rst

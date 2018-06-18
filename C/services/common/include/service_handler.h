@@ -12,7 +12,7 @@
 #include <string>
 
 /**
- * SewrviceHandler abstract class - the interface that services using the
+ * ServiceHandler abstract class - the interface that services using the
  * management API must provide.
  */
 class ServiceHandler

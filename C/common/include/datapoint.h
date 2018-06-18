@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <string>
 #include <sstream>
@@ -70,6 +70,7 @@ class DatapointValue {
 				delete m_value.str;
 			}
 		};
+
 		/**
 		 * Assignment Operator
 		 */
@@ -77,9 +78,12 @@ class DatapointValue {
 		{
 			if (m_type == T_STRING)
 			{
+				// Remove previous value
 				delete m_value.str;
 			}
+
 			m_type = rhs.m_type;
+
 			switch (m_type)
 			{
 			case T_STRING:
@@ -89,8 +93,10 @@ class DatapointValue {
 				m_value = rhs.m_value;
 				break;
 			}
+
 			return *this;
-		}
+		};
+
 		/**
 		 * Return the value as a string
 		 */
@@ -107,11 +113,23 @@ class DatapointValue {
 				return ss.str();
 			case T_STRING:
 			default:
-				return *m_value.str;
+				ss << "\"";
+				ss << *m_value.str;
+				ss << "\"";
+				return ss.str();
 			}
 		};
+
+		typedef enum DatapointTag { T_STRING, T_INTEGER, T_FLOAT } dataTagType;
+
+		/**
+		 * Return the Tag type
+		 */
+		dataTagType getType() const
+		{
+			return m_type;
+		}
 	private:
-		enum DatapointTag { T_STRING, T_INTEGER, T_FLOAT };
 		union data_t {
 			std::string	*str;
 			int		i;
@@ -139,11 +157,22 @@ class Datapoint {
 		 */
 		std::string	toJSONProperty()
 		{
-			std::string rval = "\"" + m_name;
-			rval += "\" : \"";
+			std::string rval = "\"" + m_name + "\" : ";
 			rval += m_value.toString();
-			rval += "\"";
+
 			return rval;
+		}
+
+		// Return get Datapoint name
+		const std::string getName() const
+		{
+			return m_name;
+		}
+
+		// Return Datapoint value
+		const DatapointValue getData() const
+		{
+			return m_value;
 		}
 	private:
 		const std::string	m_name;

@@ -9,7 +9,6 @@
  */
 #include <south_service.h>
 #include <management_api.h>
-#include <management_client.h>
 #include <storage_client.h>
 #include <service_record.h>
 #include <plugin_manager.h>
@@ -19,6 +18,7 @@
 #include <reading.h>
 #include <ingest.h>
 #include <iostream>
+#include <defaults.h>
 
 extern int makeDaemon(void);
 
@@ -104,7 +104,7 @@ pid_t pid;
 /**
  * Constructor for the south service
  */
-SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false)
+SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_pollInterval(1000)
 {
 	logger = new Logger(myName);
 }
@@ -114,11 +114,6 @@ SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(fa
  */
 void SouthService::start(string& coreAddress, unsigned short corePort)
 {
-	if (!loadPlugin())
-	{
-		logger->fatal("Failed to load south plugin.");
-		return;
-	}
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting south service...");
@@ -135,20 +130,27 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name, "Southbound", "http", "localhost", 0, managementListener);
-		ManagementClient *client = new ManagementClient(coreAddress, corePort);
-		if (!client->registerService(record))
+		m_mgtClient = new ManagementClient(coreAddress, corePort);
+
+		m_config = m_mgtClient->getCategory(m_name);
+		if (!loadPlugin())
+		{
+			logger->fatal("Failed to load south plugin.");
+			return;
+		}
+		if (!m_mgtClient->registerService(record))
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
 		unsigned int retryCount = 0;
-		while (client->registerCategory(m_name) == false && ++retryCount < 10)
+		while (m_mgtClient->registerCategory(m_name) == false && ++retryCount < 10)
 		{
 			sleep(2 * retryCount);
 		}
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("FogLAMP%20Storage");
-		if (!client->getService(storageRecord))
+		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
 			return;
@@ -160,17 +162,30 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
-		Ingest ingest(storage);
+		unsigned int threshold = 100;
+		unsigned long timeout = 5000;
+		try {
+			threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
+			timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+		} catch (ConfigItemNotFound e) {
+			logger->info("Defaulting to inline defaults for south configuration");
+		}
+		Ingest ingest(storage, timeout, threshold);
 
+		try {
+			m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+		} catch (ConfigItemNotFound e) {
+			logger->info("Defaulting to inline default for poll interval");
+		}
 		while (! m_shutdown)
 		{
-			sleep(1);
+			std::this_thread::sleep_for(std::chrono::milliseconds(m_pollInterval));
 			Reading reading = southPlugin->poll();
 			ingest.ingest(reading);
 		}
 
 		// Clean shutdown, unregister the storage service
-		client->unregisterService();
+		m_mgtClient->unregisterService();
 	}
 	logger->info("South service shut down.");
 }
@@ -190,21 +205,34 @@ void SouthService::stop()
  */
 bool SouthService::loadPlugin()
 {
-	PluginManager *manager = PluginManager::getInstance();
+	try {
+		PluginManager *manager = PluginManager::getInstance();
 
-	const char *plugin = "dummy";
-	if (plugin == NULL)
-	{
-		logger->error("Unable to fetch plugin name from configuration.\n");
-		return false;
-	}
-	logger->info("Load south plugin %s.", plugin);
-	PLUGIN_HANDLE handle;
-	if ((handle = manager->loadPlugin(string(plugin), PLUGIN_TYPE_SOUTH)) != NULL)
-	{
-		southPlugin = new SouthPlugin(handle);
-		logger->info("Loaded south plugin %s.", plugin);
-		return true;
+		if (! m_config.itemExists("plugin"))
+		{
+			logger->error("Unable to fetch plugin name from configuration.\n");
+			return false;
+		}
+		string plugin = m_config.getValue("plugin");
+		logger->info("Load south plugin %s.", plugin.c_str());
+		PLUGIN_HANDLE handle;
+		if ((handle = manager->loadPlugin(plugin, PLUGIN_TYPE_SOUTH)) != NULL)
+		{
+			// Deal with registering and fetching the configuration
+			DefaultConfigCategory defConfig(plugin, manager->getInfo(handle)->config);
+			addConfigDefaults(defConfig);
+			defConfig.setDescription(m_config.getDescription());
+			m_mgtClient->addCategory(defConfig);
+			// Must now relaod the configuration to obtain any items added from
+			// the plugin
+			m_config = m_mgtClient->getCategory(m_name);
+			
+			southPlugin = new SouthPlugin(handle, m_config);
+			logger->info("Loaded south plugin %s.", plugin.c_str());
+			return true;
+		}
+	} catch (exception e) {
+		logger->fatal("Failed to load south plugin: %s\n", e.what());
 	}
 	return false;
 }
@@ -226,5 +254,28 @@ void SouthService::shutdown()
  */
 void SouthService::configChange(const string& categoryName, const string& category)
 {
-    // TODO action configuration change
+	// TODO action configuration change
+	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
+			category.c_str());
+	m_config = m_mgtClient->getCategory(m_name);
+	try {
+		m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+	} catch (ConfigItemNotFound e) {
+		logger->error("Failed to update poll interval following configuration change");
+	}
+}
+
+/**
+ * Add the generic south service configuration options to the default retrieved
+ * from the specific plugin.
+ *
+ * @param defaultConfiguration	The default configuration from the plugin
+ */
+void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
+{
+	for (int i = 0; defaults[i].name; i++)
+	{
+		defaultConfig.addItem(defaults[i].name, defaults[i].description,
+			defaults[i].type, defaults[i].value, defaults[i].value);	
+	}
 }

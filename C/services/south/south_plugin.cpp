@@ -8,6 +8,7 @@
  * Author: Mark Riddoch
  */
 #include <south_plugin.h>
+#include <config_category.h>
 
 using namespace std;
 
@@ -18,12 +19,12 @@ using namespace std;
  * enclose in the class.
  *
  */
-SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle) : Plugin(handle)
+SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) : Plugin(handle)
 {
 	// Call the init method of the plugin
-	PLUGIN_HANDLE (*pluginInit)() = (PLUGIN_HANDLE (*)())
+	PLUGIN_HANDLE (*pluginInit)(const void *) = (PLUGIN_HANDLE (*)(const void *))
 					manager->resolveSymbol(handle, "plugin_init");
-	instance = (*pluginInit)();
+	instance = (*pluginInit)(&category);
 
 
 	// Setup the function pointers to the plugin

@@ -21,6 +21,8 @@ class ConfigCategoryDescription {
 				m_name(name), m_description(description) {};
 		std::string	getName() const { return m_name; };
 		std::string	getDescription() const { return m_description; };
+		// JSON string with m_name and m_description
+		std::string 	toJSON() const;
 	private:
 		const std::string	m_name;
 		const std::string	m_description;
@@ -28,12 +30,18 @@ class ConfigCategoryDescription {
 
 class ConfigCategories {
 	public:
-		ConfigCategories(const std::string& json);
+		ConfigCategories(const std::string& json); 
+		ConfigCategories(); // Constructor without parameters
 		~ConfigCategories();
 		unsigned int			length() { return m_categories.size(); };
 		ConfigCategoryDescription 	*operator[] (const unsigned int idx) {
 						return m_categories[idx];
 					};
+		// Add one category name with description
+		void			addCategoryDescription(ConfigCategoryDescription* elem);
+		// JSON string of all categories
+		std::string		toJSON() const;
+
 	private:
 		std::vector<ConfigCategoryDescription *> 	m_categories;
 	

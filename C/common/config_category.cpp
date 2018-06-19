@@ -21,6 +21,15 @@ using namespace std;
 using namespace rapidjson;
 
 /**
+ * ConfigCategories constructor without parameters
+ *
+ * Elements can be added with ConfigCategories::addCategoryDescription
+ */
+ConfigCategories::ConfigCategories()
+{
+}
+
+/**
  * Construct a ConfigCategories object from a JSON document returned from
  * the FogLAMP configuratrion service.
  */
@@ -65,6 +74,51 @@ ConfigCategories::~ConfigCategories()
 	{
 		delete *it;
 	}
+}
+
+/**
+ * Add a ConfigCategoryDescription element
+ *
+ * @param  elem    The ConfigCategoryDescription elemen to add
+ */
+void ConfigCategories::addCategoryDescription(ConfigCategoryDescription* elem)
+{
+	m_categories.push_back(elem);
+}
+
+/**
+ * Return the JSON string of a ConfigCategoryDescription element
+ */
+string ConfigCategoryDescription::toJSON() const
+{
+	ostringstream convert;
+
+	convert << "{\"key\": \"" << m_name << "\", ";
+	convert << "\"description\" : \"" << m_description << "\"}";
+
+	return convert.str();
+}
+
+/**
+ * Return the JSON string of all ConfigCategoryDescription
+ * elements in m_categories
+ */
+string ConfigCategories::toJSON() const
+{
+	ostringstream convert;
+
+	convert << "[";
+	for (auto it = m_categories.cbegin(); it != m_categories.cend(); it++)
+	{
+		convert << (*it)->toJSON();
+		if (it + 1 != m_categories.cend() )
+		{
+                        convert << ", ";
+		}
+	}
+	convert << "]";
+
+	return convert.str();
 }
 
 /**

@@ -146,7 +146,6 @@ class Server(FoglampMicroservice):
             if error is None:
                 error = 'Failed to initialize plugin {}'.format(self._name)
             _LOGGER.exception(error)
-            print(error, str(ex))
             asyncio.ensure_future(self._stop(loop))
 
     async def _exec_plugin_async(self) -> None:

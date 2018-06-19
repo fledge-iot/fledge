@@ -18,7 +18,7 @@
  */
 class ServiceRegistry {
 	public:
-		ServiceRegistry			*getInstance();
+		static ServiceRegistry		*getInstance();
 		bool				registerService(ServiceRecord *service);
 		bool				unRegisterService(ServiceRecord *service);
 		ServiceRecord			*findService(const std::string& name);

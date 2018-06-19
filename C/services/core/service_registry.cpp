@@ -9,7 +9,9 @@
  */
 #include <service_registry.h>
 
-static *ServiceRegistry::m_instance = 0;
+using namespace std;
+
+ServiceRegistry *ServiceRegistry::m_instance = 0;
 
 /**
  * Create the service registry singleton class
@@ -33,7 +35,7 @@ ServiceRegistry::~ServiceRegistry()
 /**
  * Return the singleton instance of the service registry
  */
-ServiceRegistry::getInstance()
+ServiceRegistry *ServiceRegistry::getInstance()
 {
 	if (m_instance == 0)
 		m_instance = new ServiceRegistry();
@@ -48,10 +50,11 @@ ServiceRegistry::getInstance()
  */
 bool ServiceRegistry::registerService(ServiceRecord *service)
 {
-	if ((ServiceRecord *existing = findService(service)) != 0)
+	ServiceRecord *existing;
+	if ((existing = findService(service->getName())) != 0)
 	{
-		if (existing->getAddress().compare(service.getAddress()) ||
-			existing->getType().compare(service.getType()) ||
+		if (existing->getAddress().compare(service->getAddress()) ||
+			existing->getType().compare(service->getType()) ||
 			existing->getPort() != service->getPort())
 		{
 			/* Service already registered with the same name on

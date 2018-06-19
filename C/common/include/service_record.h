@@ -59,9 +59,9 @@ class ServiceRecord : public JSONProvider {
 		bool			operator==(const ServiceRecord& b) const
 					{
 						return m_name.compare(b.m_name) == 0
-							&& m_type.compare(b.m_type)
-							&& m_protocol.compare(b.m_protocol)
-							&& m_address.compare(b.m_address)
+							&& m_type.compare(b.m_type) == 0
+							&& m_protocol.compare(b.m_protocol) == 0
+							&& m_address.compare(b.m_address) == 0
 							&& m_port == b.m_port
 							&& m_managementPort == b.m_managementPort;
 					}

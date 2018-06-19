@@ -20,6 +20,7 @@ SQLBuffer	sql;
 		sql.append(' ');
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(100, strlen(buf));
+	delete[] buf;
 }
 
 /**
@@ -33,6 +34,7 @@ SQLBuffer	sql;
 		sql.append(' ');
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(10000, strlen(buf));
+	delete[] buf;
 }
 
 /**
@@ -48,6 +50,7 @@ SQLBuffer	sql;
 	sql.append('e');
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(buf, "abcde"));
+	delete[] buf;
 }
 
 /**
@@ -76,6 +79,7 @@ int		i;
 		}
 	}
 	ASSERT_EQ(0, result);
+	delete[] buf;
 }
 
 /**
@@ -88,6 +92,7 @@ SQLBuffer	sql;
 		sql.append("    ");
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(400, strlen(buf));
+	delete[] buf;
 }
 
 /**
@@ -100,6 +105,7 @@ SQLBuffer	sql;
 		sql.append("1234567890");
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(100000, strlen(buf));
+	delete[] buf;
 }
 
 /**
@@ -111,6 +117,7 @@ SQLBuffer	sql;
 	sql.append(1234);
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(buf, "1234"));
+	delete[] buf;
 }
 
 /**
@@ -124,6 +131,7 @@ unsigned int	value = 4321;
 	sql.append(value);
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(buf, "43214321"));
+	delete[] buf;
 }
 
 /**
@@ -136,6 +144,7 @@ long		value = 491572107;
 	sql.append(value);
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(buf, "491572107"));
+	delete[] buf;
 }
 
 /**
@@ -148,6 +157,7 @@ long		value = -491572107;
 	sql.append(value);
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(buf, "-491572107"));
+	delete[] buf;
 }
 
 /**
@@ -160,6 +170,7 @@ double		value = 3.141526;
 	sql.append(value);
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(3.141526, atof(buf));
+	delete[] buf;
 }
 
 /**
@@ -172,6 +183,7 @@ string		str("A C++ String");
 	sql.append(str);
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(str.c_str(), buf));
+	delete[] buf;
 }
 
 /**
@@ -186,5 +198,6 @@ SQLBuffer	sql;
 	sql.append(string(" world"));
 	const char *buf = sql.coalesce();
 	ASSERT_EQ(0, strcmp(buf, "Hello 123456 world"));
+	delete[] buf;
 }
 

@@ -13,6 +13,8 @@
 #include <logger.h>
 #include <south_plugin.h>
 #include <service_handler.h>
+#include <management_client.h>
+#include <config_category.h>
 
 #define SERVICE_NAME  "FogLAMP South"
 
@@ -29,10 +31,16 @@ class SouthService : public ServiceHandler {
 		void			shutdown();
 		void			configChange(const std::string&, const std::string&);
 	private:
+		void			addConfigDefaults(DefaultConfigCategory& defaults);
+		bool 			loadPlugin();
 		SouthPlugin		*southPlugin;
 		const std::string&	m_name;
-		bool 			loadPlugin();
 		Logger        		*logger;
 		bool			m_shutdown;
+		ConfigCategory		m_config;
+		ManagementClient	*m_mgtClient;
+		unsigned long		m_pollInterval;
+		unsigned int		m_threshold;
+		unsigned long		m_timeout;
 };
 #endif

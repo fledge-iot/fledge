@@ -42,7 +42,7 @@ class ServiceAnnouncer:
                     self._service_name = '%s #%s' % (name, str(index))
                 else:
                     break
-            
+
             self._group.Commit()
         except Exception:
             _LOGGER.error("Avahi not available, continuing without service discovery available")

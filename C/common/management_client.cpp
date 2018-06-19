@@ -1,11 +1,11 @@
 /*
  * FogLAMP storage service.
  *
- * Copyright (c) 2017 OSisoft, LLC
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <management_client.h>
 #include <rapidjson/document.h>
@@ -54,11 +54,12 @@ string payload;
 		service.asJSON(payload);
 		auto res = m_client->request("POST", "/foglamp/service", payload);
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of registration: %s\n",
-				res->content.string().c_str());
+					response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -74,7 +75,8 @@ string payload;
 		}
 		else
 		{
-			m_logger->error("Unexpected result from service registration %s", res->content.string().c_str());
+			m_logger->error("Unexpected result from service registration %s",
+					response.c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Register service failed %s.", e.what());
@@ -98,11 +100,12 @@ bool ManagementClient::unregisterService()
 		url += *m_uuid;
 		auto res = m_client->request("DELETE", url.c_str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of unregistration: %s\n",
-				res->content.string().c_str());
+					response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -142,11 +145,12 @@ string payload;
 		}
 		auto res = m_client->request("GET", url.c_str());
 		Document doc;
-		doc.Parse(res->content.string().c_str());
+		string response = res->content.string();
+		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of fetching service record: %s\n",
-				res->content.string().c_str());
+					response.c_str());
 			return false;
 		}
 		else if (doc.HasMember("message"))
@@ -194,7 +198,7 @@ ostringstream convert;
 		if (doc.HasParseError())
 		{
 			m_logger->error("Failed to parse result of category registration: %s\n",
-				res->content.string().c_str());
+					content.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
@@ -238,4 +242,75 @@ ostringstream convert;
                 return false;
         }
         return false;
+}
+
+/**
+ * Get the set of all categories from the core micro service.
+ */
+ConfigCategories ManagementClient::getCategories()
+{
+	try {
+		string url = "/foglamp/service/category";
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetching configuration categories: %s\n",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch configuration categories: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return ConfigCategories(response);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config categories failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Return the content of the named category by calling the
+ * management API of the FogLAMP core.
+ *
+ * @param categoryName	The name of the categpry to return
+ * @return ConfigCategory	The configuration category
+ * @throw	exception	If the category does not exist or theresult can not be parsed
+ */
+ConfigCategory ManagementClient::getCategory(const string& categoryName)
+{
+	try {
+		string url = "/foglamp/service/category/" + categoryName;
+		auto res = m_client->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of fetching configuration category: %s\n",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch configuration category: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return ConfigCategory(categoryName, response);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config category failed %s.", e.what());
+		throw;
+	}
 }

@@ -44,10 +44,8 @@ PLUGIN_INFORMATION *plugin_info()
 
 /**
  * Initialise the plugin, called to get the plugin handle
- * In the case of Postgres we also get a pool of connections
- * to use.
  */
-PLUGIN_HANDLE plugin_init()
+PLUGIN_HANDLE plugin_init(void *config)
 {
 Random *random = new Random();
 

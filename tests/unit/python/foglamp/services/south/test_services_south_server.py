@@ -202,7 +202,7 @@ class TestServicesSouthServer:
             await south_server._start(loop)
             await asyncio.sleep(.5)
         assert 1 == log_error.call_count
-        log_error.assert_called_once_with('cannot proceed the execution, only the type -device- is allowed'
+        log_error.assert_called_once_with('cannot proceed the execution, only the type -south- is allowed'
                                           ' - plugin name |{}| plugin type |bad|'.format(south_server._name))
 
         # THEN
@@ -447,6 +447,6 @@ class TestServicesSouthServer:
         log_info.assert_has_calls(calls, any_order=True)
 
         assert 1 == log_exception.call_count
-        calls = [call('Data retreival error in plugin test during reconfigure')]
+        calls = [call('Data retrieval error in plugin test during reconfigure')]
         log_exception.assert_has_calls(calls, any_order=True)
 

@@ -27,7 +27,7 @@ TEST(ConfigurationTest, getplugin)
 {
 StorageConfiguration	conf;
 
-	ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "postgres"), 0);
+	ASSERT_EQ(strcmp(conf.getValue(string("plugin")), "sqlite"), 0);
 }
 
 /**

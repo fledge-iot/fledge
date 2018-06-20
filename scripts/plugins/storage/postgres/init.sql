@@ -838,14 +838,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Module that South Polling Template Plugin will load" } } '
             );
 
--- HTTP South template
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'HTTP_SOUTH',
-             'HTTP South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
-           );
-
-
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650POLL',
              'TI SensorTag CC2650 Polling South Plugin',
@@ -894,7 +886,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 -- South Microservices
 --
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'POLL',       '["services/south"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]' );
 
@@ -1015,20 +1006,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 true,                                   -- exclusive
                 false                                   -- disabled
               );
-
----- HTTP Listener
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( 'a2caca59-1241-478d-925a-79584e7096e0', -- id
-                'HTTP listener south',                  -- schedule_name
-                'HTTP_SOUTH',                           -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
-              );
-
 
 -- TI CC2650 Poll
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,

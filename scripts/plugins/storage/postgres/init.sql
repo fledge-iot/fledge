@@ -831,13 +831,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
 
 -- South plugins
 
--- POLL: South Microservice - POLL Plugin template
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'POLL',
-              'South Polling Plugin template',
-              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Module that South Polling Template Plugin will load" } } '
-            );
-
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650POLL',
              'TI SensorTag CC2650 Polling South Plugin',
@@ -885,7 +878,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 
 -- South Microservices
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'POLL',       '["services/south"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]' );
 
@@ -993,19 +985,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 
 --
 -- South Microsevices
-
--- Poll template
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '543a59ce-a9ca-11e7-abc4-cec278b6b50b', -- id
-                'Poll south',                           -- schedule_name
-                'POLL',                                 -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
-              );
 
 -- TI CC2650 Poll
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,

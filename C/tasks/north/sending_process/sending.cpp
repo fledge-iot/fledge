@@ -146,7 +146,7 @@ void SendingProcess::run() const
 
 	// Check running time
 	time_t elapsedSeconds = 0;
-	while (elapsedSeconds < m_duration)
+	while (elapsedSeconds < (time_t)m_duration)
 	{
 		// Check whether a signal has been received
 		if (signalReceived != 0)

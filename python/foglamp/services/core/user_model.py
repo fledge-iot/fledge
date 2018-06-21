@@ -74,13 +74,13 @@ class User:
 
         @classmethod
         def get_roles(cls):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             result = storage_client.query_tbl('roles')
             return result["rows"]
 
         @classmethod
         def get_role_id_by_name(cls, name):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("id").WHERE(['name', '=', name]).payload()
             result = storage_client.query_tbl_with_payload('roles', payload)
             return result["rows"]
@@ -98,7 +98,7 @@ class User:
                    user json info
             """
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
                                               role_id=role_id).payload()
             try:
@@ -123,7 +123,7 @@ class User:
             if int(user_id) == 1:
                 raise ValueError("Super admin user can not be deleted")
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             try:
                 # first delete the active login references
                 cls.delete_user_tokens(user_id)
@@ -151,7 +151,7 @@ class User:
             if 'role_id' in user_data:
                 kwargs.update({"role_id": user_data['role_id']})
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
 
             hashed_pwd = None
             pwd_history_list = []
@@ -188,7 +188,7 @@ class User:
         @classmethod
         def is_user_exists(cls, username, password):
             payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(['enabled', '=', 't']).payload()
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             result = storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
                 return None
@@ -200,7 +200,7 @@ class User:
         # utility
         @classmethod
         def all(cls):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 't']).payload()
             result = storage_client.query_tbl_with_payload('users', payload)
             return result['rows']
@@ -218,7 +218,7 @@ class User:
             if user_name is not None:
                 q = q.AND_WHERE(['uname', '=', user_name])
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             q_payload = PayloadBuilder(q.chain_payload()).payload()
             result = storage_client.query_tbl_with_payload('users', q_payload)
             return result['rows']
@@ -240,7 +240,7 @@ class User:
 
         @classmethod
         def refresh_token_expiry(cls, token):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             payload = PayloadBuilder().SET(token_expiration=str(exp)).WHERE(['token', '=', token]).payload()
             storage_client.update_tbl("user_logins", payload)
@@ -253,7 +253,7 @@ class User:
             :param token:
             :return:
             """
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("token_expiration") \
                 .ALIAS("return", ("token_expiration", 'token_expiration')) \
                 .FORMAT("return", ("token_expiration", "YYYY-MM-DD HH24:MI:SS.MS")) \
@@ -292,7 +292,7 @@ class User:
 
             """
             # check password change configuration
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             cfg_mgr = ConfigurationManager(storage_client)
             category_item = await cfg_mgr.get_category_item('rest_api', 'passwordChange')
             age = int(category_item['value'])
@@ -349,7 +349,7 @@ class User:
 
         @classmethod
         def delete_user_tokens(cls, user_id):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
             try:
                 res = storage_client.delete_from_tbl("user_logins", payload)
@@ -362,7 +362,7 @@ class User:
 
         @classmethod
         def delete_token(cls, token):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().WHERE(['token', '=', token]).payload()
             try:
                 res = storage_client.delete_from_tbl("user_logins", payload)
@@ -375,7 +375,7 @@ class User:
 
         @classmethod
         def delete_all_user_tokens(cls):
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             storage_client.delete_from_tbl("user_logins")
 
         @classmethod

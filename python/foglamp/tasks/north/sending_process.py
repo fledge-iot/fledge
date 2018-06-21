@@ -1068,7 +1068,7 @@ class SendingProcess:
     def _fetch_configuration(self, cat_name=None, cat_desc=None, cat_config=None, cat_keep_original=False):
         """ Retrieves the configuration from the Configuration Manager"""
         SendingProcess._logger.debug("{0} - ".format("_fetch_configuration"))
-        cfg_manager = ConfigurationManager(self._storage)
+        cfg_manager = ConfigurationManager(self._storage_async)
         try:
             self._event_loop.run_until_complete(cfg_manager.create_category(cat_name,
                                                                             cat_config,
@@ -1202,7 +1202,7 @@ class SendingProcess:
             self._storage_async = StorageClientAsync(self._mgt_address, self._mgt_port)
             self._readings = ReadingsStorageClientAsync(self._mgt_address, self._mgt_port)
             self._storage = StorageClient(self._mgt_address, self._mgt_port)
-            self._audit = AuditLogger(self._storage)
+            self._audit = AuditLogger(self._storage_async)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))
             SendingProcess._logger.exception(message)

@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.services.core.user_model import User
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -48,8 +48,8 @@ class TestUserModel:
 
     def test_get_roles(self):
         expected = {'rows': [], 'count': 0}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=expected) as query_tbl_patch:
                 actual = User.Objects.get_roles()
                 assert actual == expected['rows']
@@ -58,8 +58,8 @@ class TestUserModel:
     def test_get_role_id_by_name(self):
         expected = {'rows': [{'id': '1'}], 'count': 1}
         payload = '{"return": ["id"], "where": {"column": "name", "condition": "=", "value": "admin"}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=expected) as query_tbl_patch:
                 actual = User.Objects.get_role_id_by_name("admin")
                 assert actual == expected['rows']
@@ -68,8 +68,8 @@ class TestUserModel:
     def test_get_all(self):
         expected = {'rows': [], 'count': 0}
         payload = '{"return": ["id", "uname", "role_id"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=expected) as query_tbl_patch:
                 actual = User.Objects.all()
                 assert actual == expected['rows']
@@ -83,8 +83,8 @@ class TestUserModel:
     ])
     def test_get_filter(self, kwargs, payload):
         expected = {'rows': [], 'count': 0}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=expected) as query_tbl_patch:
                 actual = User.Objects.filter(**kwargs)
                 assert actual == expected['rows']
@@ -125,8 +125,8 @@ class TestUserModel:
         hashed_password = "dd7171406eaf4baa8bc805857f719bca"
         expected = {'rows_affected': 1, "response": "inserted"}
         payload = {"pwd": "dd7171406eaf4baa8bc805857f719bca", "role_id": 1, "uname": "aj"}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(User.Objects, 'hash_password', return_value=hashed_password) as hash_pwd_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=expected) as insert_tbl_patch:
                     actual = User.Objects.create("aj", "foglamp", 1)
@@ -143,8 +143,8 @@ class TestUserModel:
         hashed_password = "dd7171406eaf4baa8bc805857f719bca"
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'insert'}
         payload = {"pwd": "dd7171406eaf4baa8bc805857f719bca", "role_id": 1, "uname": "aj"}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(User.Objects, 'hash_password', return_value=hashed_password) as hash_pwd_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as insert_tbl_patch:
                     with pytest.raises(ValueError) as excinfo:
@@ -162,8 +162,8 @@ class TestUserModel:
         r1 = {'response': 'deleted', 'rows_affected': 1}
         r2 = {'response': 'updated', 'rows_affected': 1}
 
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', return_value=r1) as delete_tbl_patch:
                 with patch.object(storage_client_mock, 'update_tbl', return_value=r2) as update_tbl_patch:
                     actual = User.Objects.delete(2)
@@ -179,8 +179,8 @@ class TestUserModel:
     def test_delete_user_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"values": {"enabled": "f"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(code=400, reason="blah",
                                                                                                 error=expected)) as update_tbl_patch:
                 with pytest.raises(ValueError) as excinfo:
@@ -194,8 +194,8 @@ class TestUserModel:
     ])
     def test_update_user_role(self, user_data, payload):
         expected = {'response': 'updated', 'rows_affected': 1}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
                 with patch.object(User.Objects, 'delete_user_tokens') as delete_token_patch:
                     actual = User.Objects.update(2, user_data)
@@ -211,8 +211,8 @@ class TestUserModel:
     ])
     def test_update_user_password(self, user_data, payload):
         expected = {'response': 'updated', 'rows_affected': 1}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(User.Objects, 'hash_password', return_value='HASHED_PWD') as hash_pwd_patch:
                 with patch.object(User.Objects, '_get_password_history', return_value=['HASHED_PWD']) as pwd_list_patch:
                     with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
@@ -232,8 +232,8 @@ class TestUserModel:
     def test_update_user_storage_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'update'}
         payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as update_tbl_patch:
                 with pytest.raises(ValueError) as excinfo:
                     User.Objects.update(2, {'role_id': 2})
@@ -243,8 +243,8 @@ class TestUserModel:
     def test_update_user_exception(self):
         payload = '{"values": {"role_id": "blah"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         msg = 'Bad role id'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', side_effect=ValueError(msg)) as update_tbl_patch:
                 with pytest.raises(Exception) as excinfo:
                     User.Objects.update(2, {'role_id': 'blah'})
@@ -257,8 +257,8 @@ class TestUserModel:
             return {"value": "0"}
 
         payload = {"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': [], 'count': 0}) as query_tbl_patch:
                     with pytest.raises(Exception) as excinfo:
@@ -278,8 +278,8 @@ class TestUserModel:
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
         payload = {"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
                     with patch.object(User.Objects, 'check_password', return_value=False) as check_pwd_patch:
@@ -301,8 +301,8 @@ class TestUserModel:
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159'}]}
         payload = {"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
                     with pytest.raises(Exception) as excinfo:
@@ -325,8 +325,8 @@ class TestUserModel:
             return {"value": "0"}
 
         payload = {"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=user_data) as query_tbl_patch:
                     with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
@@ -355,8 +355,8 @@ class TestUserModel:
         pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = {"return": ["pwd", "id", "role_id", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=mock_get_category_item()) as mock_get_cat_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=pwd_result) as query_tbl_patch:
                     with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
@@ -374,8 +374,8 @@ class TestUserModel:
     def test_delete_user_tokens(self):
         expected = {'response': 'deleted', 'rows_affected': 1}
         payload = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', return_value=expected) as delete_tbl_patch:
                 actual = User.Objects.delete_user_tokens(2)
                 assert actual == expected
@@ -384,8 +384,8 @@ class TestUserModel:
     def test_delete_user_tokens_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"where": {"column": "user_id", "condition": "=", "value": 2}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as delete_tbl_patch:
                 with pytest.raises(ValueError) as excinfo:
                     User.Objects.delete_user_tokens(2)
@@ -396,8 +396,8 @@ class TestUserModel:
         expected = {'rows_affected': 1, "response": "updated"}
         token = "RDSlaEtgXuxbYHlDgJURbEeBua2ccwvHeB7MVDeIHq4"
         payload = {"values": {"token_expiration": "2018-03-13 15:33:25.959408"}, "where": {"column": "token", "condition": "=", "value": "RDSlaEtgXuxbYHlDgJURbEeBua2ccwvHeB7MVDeIHq4"}}
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'update_tbl', return_value=expected) as update_tbl_patch:
                 User.Objects.refresh_token_expiry(token)
             # FIXME: datetime.now() patch and then payload assertion
@@ -405,9 +405,9 @@ class TestUserModel:
             assert 'user_logins' == args[0]
 
     def test_invalid_token(self):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         payload = {"return": [{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "token_expiration"}], "where": {"column": "token", "condition": "=", "value": "blah"}}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': [], 'count': 0}) as query_tbl_patch:
                 with pytest.raises(Exception) as excinfo:
                     User.Objects.validate_token('blah')
@@ -422,9 +422,9 @@ class TestUserModel:
     def test_validate_token(self):
         token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE1MjEwNDAxNTksInVpZCI6IjIifQ.oeWfDuRStunPQciCuRSSGdZaT42wnh4ODavJ62LSEvI"
         valid_token_result = {'rows': [{"token_expiration": "2017-03-14 15:09:19.800648"}], 'count': 1}
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         payload = {"return": [{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "token_expiration"}], "where": {"column": "token", "condition": "=", "value": token}}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=valid_token_result) as query_tbl_patch:
                 # FIXME: jwt.decode patch
                 uid = User.Objects.validate_token(token)
@@ -442,8 +442,8 @@ class TestUserModel:
     def test_delete_token(self):
         expected = {'response': 'deleted', 'rows_affected': 1}
         payload = '{"where": {"column": "token", "condition": "=", "value": "eyz"}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', return_value=expected) as delete_tbl_patch:
                 actual = User.Objects.delete_token("eyz")
                 assert actual == expected
@@ -452,8 +452,8 @@ class TestUserModel:
     def test_delete_token_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = '{"where": {"column": "token", "condition": "=", "value": "eyx"}}'
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as delete_tbl_patch:
                 with pytest.raises(ValueError) as excinfo:
                     User.Objects.delete_token("eyx")
@@ -461,15 +461,15 @@ class TestUserModel:
         delete_tbl_patch.assert_called_once_with('user_logins', payload)
 
     def test_delete_all_user_tokens(self):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
                 User.Objects.delete_all_user_tokens()
         delete_tbl_patch.assert_called_once_with('user_logins')
 
     def test_no_user_exists(self):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value={'rows': []}) as query_tbl_patch:
                 result = User.Objects.is_user_exists('blah', 'blah')
                 assert result is None
@@ -477,9 +477,9 @@ class TestUserModel:
 
     @pytest.mark.parametrize("ret_val_check_pwd, expected", [(True, 1), (False, None)])
     def test_user_exists(self, ret_val_check_pwd, expected):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         ret_val = {'rows': [{'id': 1, 'pwd': 'HASHED_PWD'}]}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=ret_val) as query_tbl_patch:
                 with patch.object(User.Objects, 'check_password', return_value=ret_val_check_pwd) as check_pwd_patch:
                     actual = User.Objects.is_user_exists('admin', 'admin')
@@ -488,7 +488,7 @@ class TestUserModel:
             query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}')
 
     def test__get_password_history(self):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         user_data = {'password': 'HASHED_PWD'}
         ret_val = {'rows': [{'id': 1, 'user_id': 2, 'pwd': 'HASHED_PWD'}]}
         row = ret_val['rows'][0]
@@ -500,7 +500,7 @@ class TestUserModel:
         query_tbl_patch.assert_called_once_with('user_pwd_history', '{"where": {"column": "user_id", "condition": "=", "value": 2}}')
 
     def test__get_password_history_exception(self):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         user_data = {'password': 'HASHED_PWD'}
         ret_val = {'rows': [{'id': 1, 'user_id': 2, 'pwd': 'HASHED_PWD'}]}
         row = ret_val['rows'][0]
@@ -519,7 +519,7 @@ class TestUserModel:
         ('HASHED_PWD_2', ['HASHED_PWD_2', 'HASHED_PWD_1'], {"pwd": "HASHED_PWD_2", "user_id": 2})
     ])
     def test__insert_pwd_history(self, hashed_pwd, pwd_history_list, payload):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(storage_client_mock, 'insert_into_tbl') as insert_tbl_patch:
             User.Objects._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client_mock, 2, hashed_pwd, pwd_history_list)
         args, kwargs = insert_tbl_patch.call_args
@@ -531,7 +531,7 @@ class TestUserModel:
         ('HASHED_PWD_4', ['HASHED_PWD_3', 'HASHED_PWD_2', 'HASHED_PWD_1'])
     ])
     def test__insert_pwd_history_and_delete_oldest_pwd_if_count_exceeds(self, hashed_pwd, pwd_history_list):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         payload = {"where": {"column": "user_id", "condition": "=", "value": 2, "and": {"column": "pwd", "condition": "=", "value": "HASHED_PWD_1"}}}
         with patch.object(storage_client_mock, 'delete_from_tbl') as delete_tbl_patch:
             with patch.object(storage_client_mock, 'insert_into_tbl') as insert_tbl_patch:

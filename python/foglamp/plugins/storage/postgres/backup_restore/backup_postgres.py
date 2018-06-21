@@ -379,7 +379,7 @@ class BackupProcess(FoglampProcess):
 
         self._backup_lib.sl_backup_status_update(backup_information['id'], status, exit_code)
 
-        audit = AuditLogger(self._storage)
+        audit = AuditLogger(self._storage_async)
         loop = asyncio.get_event_loop()
         if status != lib.BackupStatus.COMPLETED:
 

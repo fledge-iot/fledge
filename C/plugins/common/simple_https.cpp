@@ -26,8 +26,8 @@ SimpleHttps::SimpleHttps(const string& host_port,
 {
 	// Passing false to second parameter avoids certificate verification
 	m_sender = new HttpsClient(host_port, false);
-	m_sender->config.timeout = request_timeout;
-	m_sender->config.timeout_connect = connect_timeout;
+	m_sender->config.timeout = (time_t)request_timeout;
+	m_sender->config.timeout_connect = (time_t)connect_timeout;
 }
 
 /**

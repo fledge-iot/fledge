@@ -633,7 +633,7 @@ class Server:
     @classmethod
     async def stop_rest_server(cls):
         # Delete all user tokens
-        User.Objects.delete_all_user_tokens()
+        await User.Objects.delete_all_user_tokens()
         cls.service_server.close()
         await cls.service_server.wait_closed()
         await cls.service_app.shutdown()

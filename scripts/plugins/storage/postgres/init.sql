@@ -828,16 +828,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
             );
 
-
--- South plugins
-
--- HTTP South
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'HTTP_SOUTH',
-             'HTTP South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
-           );
-
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
      VALUES ( 'READINGS',   'Readings received by FogLAMP', 0, 0 ),
@@ -869,10 +859,6 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'certificate c
 --
 INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
 INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
-
--- South Microservices
---
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]' );
 
 -- North Tasks
 --
@@ -975,23 +961,7 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 true                                    -- enabled
               );
 
-
 --
--- South Microsevices
-
----- HTTP Listener
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( 'a2caca59-1241-478d-925a-79584e7096e0', -- id
-                'HTTP listener south',                  -- schedule_name
-                'HTTP_SOUTH',                           -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                true,                                   -- exclusive
-                true                                    -- enabled
-              );
-
 -- North Tasks
 --
 

@@ -505,11 +505,9 @@ class Server:
             address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
-            print(1)
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
 
-            print(2)
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
 
@@ -524,18 +522,15 @@ class Server:
             else:
                 _logger.info("'foglamp.readings' has " + str(total_count) + " rows, 'foglamp.streams' last_objects reset is not required")    
 
-            print(3)
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
-            print(4)
             # start scheduler
             # see scheduler.py start def FIXME
             # scheduler on start will wait for storage service registration
             loop.run_until_complete(cls._start_scheduler())
 
-            print(5)
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
@@ -551,7 +546,6 @@ class Server:
                 _logger.info('Loading certificates %s and key %s', cert, key)
                 ssl_ctx.load_cert_chain(cert, key)
 
-            print(6)
             # Get the service data and advertise the management port of the core
             # to allow other microservices to find FogLAMP
             loop.run_until_complete(cls.service_config())

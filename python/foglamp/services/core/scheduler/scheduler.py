@@ -724,12 +724,9 @@ class Scheduler(object):
                 "default": str(self._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
             },
         }
-        print(421, self._storage_async)
 
         cfg_manager = ConfigurationManager(self._storage_async)
-        print(422)
         await cfg_manager.create_category('SCHEDULER', default_config, 'Scheduler configuration')
-        print(423)
 
         config = await cfg_manager.get_category_all_items('SCHEDULER')
         self._max_running_tasks = int(config['max_running_tasks']['value'])
@@ -764,7 +761,6 @@ class Scheduler(object):
         #        Also provide a timeout option.
         # ************ make sure that it go forward only when storage service is ready
         storage_service = None
-        print(41)
 
         while storage_service is None and self._storage is None and self._storage_async is None:
             try:
@@ -780,7 +776,6 @@ class Scheduler(object):
                 # traceback.print_exc()
                 await asyncio.sleep(5)
         # **************
-        print(42)
 
         # Everything OK, so now start Scheduler and create Storage instance
         self._logger.info("Starting Scheduler: Management port received is %d", self._core_management_port)
@@ -788,7 +783,6 @@ class Scheduler(object):
         await self._read_config()
         await self._mark_tasks_interrupted()
         await self._read_storage()
-        print(43)
 
         self._ready = True
 

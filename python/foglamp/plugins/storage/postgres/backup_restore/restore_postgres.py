@@ -17,7 +17,7 @@ The restore operation executes the following macro steps :
     - executes the restore
     - starts FogLAMP again
 
-so it needs also to interact with Postgres directly using psycopg2 and executing SQL commands
+so it needs also to interact with Postgres directly using psql and executing SQL commands
 because at the restart of FogLAMP the reference to the Storage Layer, previously obtained through
 the FoglampProcess class, will be no more valid.
 
@@ -334,32 +334,32 @@ class RestoreProcess(FoglampProcess):
 
         sql_cmd = """
             SELECT id, file_name FROM foglamp.backups WHERE (ts,id)=
-            (SELECT  max(ts),MAX(id) FROM foglamp.backups WHERE status={0} or status={1});
+            (SELECT  max(ts),MAX(id) FROM foglamp.backups WHERE status={0} or status={1}) LIMIT 1;
         """.format(lib.BackupStatus.COMPLETED,
                    lib.BackupStatus.RESTORED)
 
-        data = self._restore_lib.storage_retrieve(sql_cmd)
+        data = self._restore_lib.psql_cmd(sql_cmd)
 
-        if len(data) == 0:
+        if len(data) <= 1:
             raise exceptions.NoBackupAvailableError
 
-        elif len(data) == 1:
-            _backup_id = data[0]['id']
-            _file_name = data[0]['file_name']
+        elif len(data) == 2:
+            _backup_id = data[0]
+            _file_name = data[1]
 
         else:
             raise exceptions.FileNameError
 
         return _backup_id, _file_name
 
-    def get_backup_details_from_file_name(self, _file_name):
+    def get_backup_id_from_file_name(self, _file_name):
         """ Retrieves backup information from file name
 
         Args:
             _file_name: file name to search in the Storage layer
 
         Returns:
-            backup_information: Backup information related to the file name
+            backup_id: Backup id related to the file name
 
         Raises:
             exceptions.NoBackupAvailableError
@@ -368,22 +368,24 @@ class RestoreProcess(FoglampProcess):
 
         self._logger.debug("{func} ".format(func="get_backup_details_from_file_name"))
 
+        # We retrieve file_name to avoid the false negative of len == 1
         sql_cmd = """
-            SELECT * FROM foglamp.backups WHERE file_name='{file}'
+            SELECT id, file_name FROM foglamp.backups WHERE file_name='{file}' LIMIT 1
         """.format(file=_file_name)
 
-        data = self._restore_lib.storage_retrieve(sql_cmd)
+        data = self._restore_lib.psql_cmd( sql_cmd )
 
-        if len(data) == 0:
+        if len(data) <= 1:
             raise exceptions.NoBackupAvailableError
 
-        elif len(data) == 1:
-            backup_information = data[0]
+        elif len(data) == 2:   # It means exactly one row retrieved
+            backup_id = data[0]
 
         else:
             raise exceptions.FileNameError
 
-        return backup_information
+        return backup_id
+
 
     def _foglamp_stop(self):
         """ Stops FogLAMP before for the execution of the backup, doing a cold backup
@@ -637,8 +639,7 @@ class RestoreProcess(FoglampProcess):
 
             if self._force_restore:
                 # Retrieve the backup-id after the restore operation
-                backup_info = self.get_backup_details_from_file_name(file_name)
-                backup_id = backup_info["id"]
+                backup_id = self.get_backup_id_from_file_name( file_name )
 
             # Updates the backup as restored
             self._restore_lib.backup_status_update(backup_id, lib.BackupStatus.RESTORED)

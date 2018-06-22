@@ -106,7 +106,7 @@ class TestAudit:
         ('?severity=INFORMATION&limit=1&skip=1', {'limit': 1, 'sort': {'direction': 'desc', 'column': 'ts'}, 'return': ['code', 'level', 'log', {'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'alias': 'timestamp'}], 'skip': 1, 'where': {'value': 1, 'condition': '=', 'and': {'value': 4, 'condition': '=', 'column': 'level'}, 'column': '1'}}),
         ('?source=&severity=&limit=&skip=', {'limit': 20, 'sort': {'direction': 'desc', 'column': 'ts'}, 'return': ['code', 'level', 'log', {'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'alias': 'timestamp'}], 'where': {'value': 1, 'condition': '=', 'column': '1'}})
     ])
-    async def test_get_audit_with_params(self, client, request_params, payload, get_log_codes):
+    async def test_get_audit_with_params(self, client, request_params, payload, get_log_codes, loop):
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {"rows": [{"log": {"end_time": "2018-01-30 18:39:48.1517317788", "rowsRemaining": 0,
                                       "start_time": "2018-01-30 18:39:48.1517317788", "rowsRemoved": 0,
@@ -122,8 +122,8 @@ class TestAudit:
             return get_log_codes
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=asyncio.ensure_future(async_mock_log())):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=asyncio.ensure_future(async_mock())) as log_code_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=asyncio.ensure_future(async_mock_log(), loop=loop)):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=asyncio.ensure_future(async_mock(), loop=loop)) as log_code_patch:
                     resp = await client.get('/foglamp/audit{}'.format(request_params))
                     assert 200 == resp.status
                     result = await resp.text()
@@ -144,14 +144,14 @@ class TestAudit:
         ('?skip=-1', 400, "Skip/Offset must be a positive integer"),
         ('?severity=BLA', 400, "'BLA' is not a valid severity")
     ])
-    async def test_source_param_with_bad_data(self, client, request_params, response_code, response_message, get_log_codes):
+    async def test_source_param_with_bad_data(self, client, request_params, response_code, response_message, get_log_codes, loop):
         @asyncio.coroutine
         def async_mock_log():
             return get_log_codes
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=asyncio.ensure_future(async_mock_log())):
+            with patch.object(storage_client_mock, 'query_tbl', return_value=asyncio.ensure_future(async_mock_log(), loop=loop)):
                 resp = await client.get('/foglamp/audit{}'.format(request_params))
                 assert response_code == resp.status
                 assert response_message == resp.reason
@@ -162,7 +162,7 @@ class TestAudit:
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
 
-    async def test_create_audit_entry(self, client):
+    async def test_create_audit_entry(self, client, loop):
         request_data = {"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}
         response = {'details': {'message': 'Engine oil pressure low'}, 'source': 'LMTR',
                     'timestamp': '2018-03-05 07:36:52.823', 'severity': 'warning'}
@@ -172,7 +172,7 @@ class TestAudit:
 
         storage_mock = MagicMock(spec=StorageClientAsync)
         AuditLogger(storage_mock)
-        with patch.object(storage_mock, 'insert_into_tbl', return_value=asyncio.ensure_future(async_mock())) as insert_tbl_patch:
+        with patch.object(storage_mock, 'insert_into_tbl', return_value=asyncio.ensure_future(async_mock(), loop=loop)) as insert_tbl_patch:
             resp = await client.post('/foglamp/audit', data=json.dumps(request_data))
             assert 200 == resp.status
             result = await resp.text()

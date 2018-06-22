@@ -335,7 +335,7 @@ class TestConfiguration:
         ({"default": "1", "type": "integer"}, "Missing entry_name description for item_name info"),
         ({"description": "1", "type": "integer"}, "entry_val must be a string for item_name info and entry_name value")
     ])
-    async def test_validate_data_for_add_config_item(self, client, payload, message):
+    async def test_validate_data_for_add_config_item(self, client, payload, message, loop):
         @asyncio.coroutine
         def async_mock():
             return message
@@ -343,7 +343,7 @@ class TestConfiguration:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              return_value=asyncio.ensure_future(async_mock())) as log_code_patch:
+                              return_value=asyncio.ensure_future(async_mock(), loop=loop)) as log_code_patch:
                 resp = await client.post('/foglamp/category/{}/{}'.format("cat", "info"), data=json.dumps(payload))
                 assert 400 == resp.status
                 assert message == resp.reason
@@ -382,7 +382,7 @@ class TestConfiguration:
         ({"default": "true", "description": "Test description", "type": "boolean"}, '{"values": {"value": {"info": {"default": "1", "type": "integer", "description": "Test description"}, "info1": {"value": "true", "default": "true", "type": "boolean", "description": "Test description"}}}, "where": {"column": "key", "condition": "=", "value": "cat"}}'),
         ({"default": "true", "description": "Test description", "type": "boolean", "value": "false"}, '{"values": {"value": {"info": {"default": "1", "type": "integer", "description": "Test description"}, "info1": {"value": "false", "default": "true", "type": "boolean", "description": "Test description"}}}, "where": {"column": "key", "condition": "=", "value": "cat"}}')
     ])
-    async def test_add_config_item(self, client, data, payload):
+    async def test_add_config_item(self, client, data, payload, loop):
         @asyncio.coroutine
         def async_mock():
             return {"info": {"default": "1", "description": "Test description", "type": "integer"}}
@@ -403,10 +403,10 @@ class TestConfiguration:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=asyncio.ensure_future(async_mock())) as patch_get_all_items:
-                with patch.object(storage_client_mock, 'update_tbl', return_value=asyncio.ensure_future(async_mock_expected())) as update_tbl_patch:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=asyncio.ensure_future(async_mock(), loop=loop)) as patch_get_all_items:
+                with patch.object(storage_client_mock, 'update_tbl', return_value=asyncio.ensure_future(async_mock_expected(), loop=loop)) as update_tbl_patch:
                     with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(async_audit_mock(None))) as audit_info_patch:
+                        with patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(async_audit_mock(None), loop=loop)) as audit_info_patch:
                             resp = await client.post('/foglamp/category/{}/{}'.format(category_name, new_config_item), data=json.dumps(data))
                             assert 200 == resp.status
                             r = await resp.text()

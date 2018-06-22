@@ -640,14 +640,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
 
 -- South plugins
 
--- HTTP South
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'HTTP_SOUTH',
-             'HTTP South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
-           );
-
-
 INSERT INTO foglamp.configuration ( key, description, value )
     VALUES ( 'CC2650POLL',
              'TI SensorTag CC2650 Polling South Plugin',
@@ -694,7 +686,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 
 -- South Microservices
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]' );
 
@@ -801,20 +792,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 
 --
 -- South Microsevices
-
-
----- HTTP Listener
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( 'a2caca59-1241-478d-925a-79584e7096e0', -- id
-                'HTTP listener south',                  -- schedule_name
-                'HTTP_SOUTH',                           -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                't',                                   -- exclusive
-                't'                                    -- enabled
-              );
 
 -- TI CC2650 Poll
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
@@ -924,4 +901,3 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
 -- Readings to OMF to OCS
 INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );
 INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );
-

@@ -85,7 +85,6 @@ When you have a running FogLAMP, check the extra information provided by the ``f
   FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
-  foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP
   === FogLAMP tasks:
   foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=44180 --address=127.0.0.1 --name=sending process
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=44180 --address=127.0.0.1 --name=statistics to pi
@@ -109,7 +108,7 @@ The following lines provide a list of the modules running in this installation o
 - ``=== FogLAMP services:`` - This block contains the list of microservices running in the FogLAMP plaftorm.
 
   - ``foglamp.services.core`` is the Core microservice itself
-  - ``foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to FogLAMP via a CoAP protocol
+  - ``foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to FogLAMP via a CoAP protocol (foglamp-south-coap plugin)
 
 - ``=== FogLAMP tasks:`` - This block contains the list of tasks running in the FogLAMP platform.
 
@@ -161,7 +160,7 @@ The default port for the REST API is 8081. Using curl, try this command:
 
 The ``echo`` at the end of the line is simply used to add an extra new line to the output.
 |br| |br|
-If you are using Postman, select the *GET* method and type ``http://localhost:8081/foglamp/ping`` in the URI line. If you are accessing a remote machine, replace *localhost* with the correct IP address. The output should be something like:
+If you are using Postman, select the *GET* method and type ``http://localhost:8081/foglamp/ping`` in the URI address input. If you are accessing a remote machine, replace *localhost* with the correct IP address. The output should be something like:
 
 |postman_ping|
 
@@ -192,7 +191,7 @@ Regardless of the position or environment, the *fogbench* tool, responds to your
 .. code-block:: console
 
   $ foglamp.fogbench
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south service is running & CoAP server is listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
                   [-i INTERVAL] [-S {total}]
@@ -204,7 +203,7 @@ Regardless of the position or environment, the *fogbench* tool, responds to your
 .. code-block:: console
 
   $ foglamp.fogbench -h
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
                   [-i INTERVAL] [-S {total}]
@@ -298,7 +297,7 @@ The output of your command should be:
 .. code-block:: console
 
   $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP service is running & listening on specified host and port
   Total Statistics:
 
   Start Time: 2017-12-17 07:17:50.615433
@@ -327,7 +326,7 @@ If you want to stress FogLAMP a bit, you may insert the same data sample several
 .. code-block:: console
 
   $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json -I 100
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP service is running & listening on specified host and port
   Total Statistics:
 
   Start Time: 2017-12-17 07:33:40.568130
@@ -459,12 +458,7 @@ If you are curious to see which categories are available in FogLAMP, simply type
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/category ; echo
-  { "categories": [ { "key": "CC2650ASYN", "description": "TI SensorTag CC2650 async South Plugin"    },
-                    { "key": "CC2650POLL", "description": "TI SensorTag CC2650 polling South Plugin"  },
-                    { "key": "COAP",       "description": "COAP Device"                               },
-                    { "key": "HTTP_SOUTH", "description": "HTTP_SOUTH Device"                         },
-                    { "key": "POLL",       "description": "South Plugin polling template"             },
-                    { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
+  { "categories": [ { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
                     { "key": "SEND_PR_1",  "description": "OMF North Plugin Configuration"            },
                     { "key": "SEND_PR_2",  "description": "OMF North Statistics Plugin Configuration" },
                     { "key": "SEND_PR_3",  "description": "HTTP North Plugin Configuration"           },
@@ -477,6 +471,8 @@ If you are curious to see which categories are available in FogLAMP, simply type
   }
   $
 
+
+For each plugin, you will see corresponding category e.g. for foglamp-south-coap the registered category will be ``{ "key": "COAP", "description": "CoAP Listener South Plugin"}``.
 The configuration for the OMF Translator used to stream the South data is initially disabled, all you can see about the settings is:
 
 .. code-block:: console

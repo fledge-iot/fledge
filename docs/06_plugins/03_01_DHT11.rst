@@ -26,7 +26,7 @@
 
 .. |DHT Repo| raw:: html
 
-   <a href="https://github.com/foglamp/foglamp-south-dht11 target="_blank">FogLAMP DHT11 South Plugin</a>
+   <a href="https://github.com/foglamp/foglamp-south-dht11" target="_blank">FogLAMP DHT11 South Plugin</a>
 
 .. |ADAFruit| raw:: html
 
@@ -301,8 +301,7 @@ If you have not built FogLAMP yet, follow the steps described |Getting Started|.
 
    $ curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "dht11", "type": "south", "plugin": "dht11", "enabled": true}'
 
-.. note:: Each plugin repo has its own debian packaging script and documentation, And that is the recommended way to go! As above method(s) may need explicit action for
-linux and/or python dependencies installation.
+.. note:: Each plugin repo has its own debian packaging script and documentation, And that is the recommended way to go! As above method(s) may need explicit action for linux and/or python dependencies installation.
 
 Using the Plugin
 ~~~~~~~~~~~~~~~~

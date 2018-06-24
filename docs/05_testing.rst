@@ -108,7 +108,7 @@ The following lines provide a list of the modules running in this installation o
 - ``=== FogLAMP services:`` - This block contains the list of microservices running in the FogLAMP plaftorm.
 
   - ``foglamp.services.core`` is the Core microservice itself
-  - ``foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to FogLAMP via a CoAP protocol (foglamp-south-coap plugin)
+  - ``foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP`` - This South microservice is a listener of data pushed to FogLAMP via a CoAP protocol
 
 - ``=== FogLAMP tasks:`` - This block contains the list of tasks running in the FogLAMP platform.
 
@@ -191,7 +191,7 @@ Regardless of the position or environment, the *fogbench* tool, responds to your
 .. code-block:: console
 
   $ foglamp.fogbench
-  >>> Make sure south service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
                   [-i INTERVAL] [-S {total}]
@@ -297,7 +297,7 @@ The output of your command should be:
 .. code-block:: console
 
   $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json
-  >>> Make sure south CoAP service is running & listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   Total Statistics:
 
   Start Time: 2017-12-17 07:17:50.615433
@@ -326,7 +326,7 @@ If you want to stress FogLAMP a bit, you may insert the same data sample several
 .. code-block:: console
 
   $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json -I 100
-  >>> Make sure south CoAP service is running & listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   Total Statistics:
 
   Start Time: 2017-12-17 07:33:40.568130
@@ -472,7 +472,7 @@ If you are curious to see which categories are available in FogLAMP, simply type
   $
 
 
-For each plugin, you will see corresponding category e.g. for foglamp-south-coap the registered category will be ``{ "key": "COAP", "description": "CoAP Listener South Plugin"}``.
+For each plugin, you will see corresponding category e.g. For foglamp-south-coap the registered category will be ``{ "key": "COAP", "description": "CoAP Listener South Plugin"}``.
 The configuration for the OMF Translator used to stream the South data is initially disabled, all you can see about the settings is:
 
 .. code-block:: console

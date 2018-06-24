@@ -277,19 +277,19 @@ Building FogLAMP and Adding the Plugin
 If you have not built FogLAMP yet, follow the steps described |Getting Started|. After the build, you can optionally install FogLAMP following |these INSTALLATION| steps.
 
 
-- If you have started FogLAMP from the build folder: copy the structure of the *foglamp-south-dht11/python/* directory into the *python* directory:
+- If you have started FogLAMP from the build directory, copy the structure of the *foglamp-south-dht11/python/* directory into the *python* directory:
 
 .. code-block:: console
 
   $ cd ~/FogLAMP
-  $ cp -r ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 python/foglamp/plugin/south/
+  $ cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 python/foglamp/plugin/south/
   $
 
 - If you have installed FogLAMP by executing ``sudo make install``, copy the structure of the *foglamp-south-dht11/python/* directory into the installed *python* directory:
 
 .. code-block:: console
 
-  $ sudo cp -r ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 /usr/local/foglamp/python/foglamp/plugin/south/
+  $ sudo cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 /usr/local/foglamp/python/foglamp/plugin/south/
   $
 
 .. note:: If you have installed FogLAMP using an alternative *DESTDIR*, remember to add the path to the destination directory to the ``cp`` command.

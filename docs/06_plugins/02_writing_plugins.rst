@@ -47,7 +47,7 @@ A typical Python implementation of this would simply return a fixed dictionary o
           'mode': 'poll',
           'type': 'south',
           'interface': '1.0',
-          'config': DEFAULT_CONFIG
+          'config': _DEFAULT_CONFIG
       }
 
 These are the properties returned by the JSON document:

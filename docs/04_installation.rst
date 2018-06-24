@@ -582,5 +582,3 @@ Snap is designed to be self-contained and it does not require any user setting, 
   -rw------- 1 ubuntu ubuntu   121 Dec 11 15:07 postmaster.opts
   -rw------- 1 ubuntu ubuntu   117 Dec 11 15:07 postmaster.pid
   $
-
-

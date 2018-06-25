@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017
+# Copyright (C) 2017, 2018
 
 """ Backups the entire FogLAMP repository into a file in the local filesystem,
 it executes a full warm backup.

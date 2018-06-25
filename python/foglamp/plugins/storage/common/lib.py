@@ -10,8 +10,6 @@ import os
 import asyncio
 import json
 from enum import IntEnum
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
@@ -703,74 +701,6 @@ class BackupRestoreLib(object):
             raise exceptions.NotUniqueBackup
 
         return backup_information
-
-    def storage_retrieve(self, sql_cmd):
-        """  Executes a sql command against the Storage layer that retrieves data
-
-        Args:
-        Returns:
-            raw_data:list - Python list containing the rows retrieved from the Storage layer
-        Raises:
-        """
-
-        _logger.debug("{func} - sql cmd |{cmd}| ".format(func="storage_retrieve",
-                                                         cmd=sql_cmd))
-
-        db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
-
-        _pg_conn = psycopg2.connect(db_connection_string, cursor_factory=RealDictCursor)
-
-        _pg_cur = _pg_conn.cursor()
-
-        _pg_cur.execute(sql_cmd)
-        raw_data = _pg_cur.fetchall()
-        _pg_conn.close()
-
-        return raw_data
-
-    def storage_update(self, sql_cmd):
-        """Executes a sql command against the Storage layer that updates data
-
-        Args:
-            sql_cmd: sql command to execute
-        Returns:
-        Raises:
-        """
-
-        _logger.debug("{func} - sql cmd |{cmd}| ".format(
-                                                            func="storage_update",
-                                                            cmd=sql_cmd))
-
-        db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
-
-        _pg_conn = psycopg2.connect(db_connection_string)
-        _pg_cur = _pg_conn.cursor()
-
-        _pg_cur.execute(sql_cmd)
-        _pg_conn.commit()
-        _pg_conn.close()
-
-    def backup_status_update(self, backup_id, status):
-        """ Updates the status of the backup in the Storage layer
-
-        Args:
-            backup_id: int -
-            status: BackupStatus -
-        Returns:
-        Raises:
-        """
-
-        _logger.debug("{func} - backup id |{id}| ".format(func="backup_status_update",
-                                                          id=backup_id))
-
-        sql_cmd = """
-
-            UPDATE foglamp.backups SET  status={status} WHERE id='{id}';
-
-            """.format(status=status,
-                       id=backup_id, )
-
-        self.storage_update(sql_cmd)
 
     def retrieve_configuration(self):
         """  Retrieves the configuration either from the manager or from a local file.

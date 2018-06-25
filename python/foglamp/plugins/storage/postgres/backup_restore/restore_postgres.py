@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017
+# Copyright (C) 2017, 2018
 
 """ Restores the entire FogLAMP repository from a previous backup.
 
@@ -344,8 +344,8 @@ class RestoreProcess(FoglampProcess):
             raise exceptions.NoBackupAvailableError
 
         elif len(data) == 2:
-            _backup_id = data[0]
-            _file_name = data[1]
+            _backup_id = data[0].strip()
+            _file_name = data[1].strip()
 
         else:
             raise exceptions.FileNameError
@@ -373,19 +373,18 @@ class RestoreProcess(FoglampProcess):
             SELECT id, file_name FROM foglamp.backups WHERE file_name='{file}' LIMIT 1
         """.format(file=_file_name)
 
-        data = self._restore_lib.psql_cmd( sql_cmd )
+        data = self._restore_lib.psql_cmd(sql_cmd)
 
         if len(data) <= 1:
             raise exceptions.NoBackupAvailableError
 
         elif len(data) == 2:   # It means exactly one row retrieved
-            backup_id = data[0]
+            backup_id = data[0].strip()
 
         else:
             raise exceptions.FileNameError
 
         return backup_id
-
 
     def _foglamp_stop(self):
         """ Stops FogLAMP before for the execution of the backup, doing a cold backup
@@ -639,7 +638,7 @@ class RestoreProcess(FoglampProcess):
 
             if self._force_restore:
                 # Retrieve the backup-id after the restore operation
-                backup_id = self.get_backup_id_from_file_name( file_name )
+                backup_id = self.get_backup_id_from_file_name(file_name)
 
             # Updates the backup as restored
             self._restore_lib.backup_status_update(backup_id, lib.BackupStatus.RESTORED)

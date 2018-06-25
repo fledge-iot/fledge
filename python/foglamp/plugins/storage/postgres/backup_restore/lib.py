@@ -1,5 +1,5 @@
-#raw_data -*- coding: utf-8 -*-
-# Copyright (C) 2017
+# -*- coding: utf-8 -*-
+# Copyright (C) 2017, 2018
 
 """ Library used for backup and restore operations
 """
@@ -35,7 +35,8 @@ _MESSAGES_LIST = {
     "e000001": "semaphore file deleted because it was already in existence - file |{0}|",
     "e000002": "semaphore file deleted because it existed even if the corresponding process was not running "
                "- file |{0}| - pid |{1}|",
-    "e000003": "ERROR - the library cannot be executed directly.",
+    "e000003": "ERROR - the library cannot be executed directly."
+
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -267,6 +268,7 @@ class BackupRestoreLib(object):
                    " - command |{0}| - full command |{1}|",
         "e000020": "It is not possible to evaluate if the storage is managed or unmanaged"
                    " - storage plugin |{0}|",
+        "e000021": "the SQL command generates an error - error details |{0}| - full command |{1}|",
 
     }
     """ Messages used for Information, Warning and Error notice """
@@ -590,9 +592,12 @@ class BackupRestoreLib(object):
 
         plugin_type = False
 
+        # The storage executable requires the environment FOGLAMP_DATA, so it ensures it is valued
+        cmd = "export FOGLAMP_DATA={data_dir};".format(data_dir=self.dir_foglamp_data)
+
         # Inquires the storage
         file_full_path = self.dir_foglamp_root + self.STORAGE_EXE
-        cmd = file_full_path + " --plugin"
+        cmd += file_full_path + " --plugin"
 
         # noinspection PyArgumentEqualDefault
         _exit_code, output = exec_wait(
@@ -692,7 +697,7 @@ class BackupRestoreLib(object):
         return backup_information
 
     def psql_cmd(self, sql_cmd):
-        """  Execute a psql command and return results
+        """  Execute a sql command and return the results using the psql command line tool
 
         Args:
             sql_cmd - the SQL Command
@@ -701,21 +706,23 @@ class BackupRestoreLib(object):
         Raises:
         """
 
-        psql_lead  = 'psql -qt -d foglamp -c "'
-        psql_trail = '" | tr -d "\n"'
+        cmd_psql = self.PG_COMMANDS[self.PG_COMMAND_PSQL]
 
-        cmd = psql_lead + sql_cmd + psql_trail
-        psql_result = exec_wait(cmd, True)
+        cmd = '{psql} -qt -d {db} -c "{sql}"'.format(
+                                                        psql=cmd_psql,
+                                                        db=self.config['database'],
+                                                        sql=sql_cmd)
 
-        result_code = psql_result[0]
-        result_data = psql_result[1].spli('|')
+        result_code, output_1 = exec_wait(cmd, True)
 
-        #####
-        ##### Error handling required
-        #####
+        output_2 = output_1.replace("\n", "")
+        result_data = output_2.split('|')
+
+        # Error handling required
+        if result_code != 0:
+            raise exceptions.SQLCommandExecutionError(self._MESSAGES_LIST["e000021"].format(output_1, cmd))
 
         return result_data
-
 
     def backup_status_update(self, backup_id, status):
         """ Updates the status of the backup in the Storage layer
@@ -735,8 +742,7 @@ class BackupRestoreLib(object):
             """.format(status=status,
                        id=backup_id, )
 
-        data = self.psql_cmd( sql_cmd )
-
+        self.psql_cmd(sql_cmd)
 
     def retrieve_configuration(self):
         """  Retrieves the configuration either from the manager or from a local file.

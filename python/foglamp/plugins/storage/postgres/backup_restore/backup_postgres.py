@@ -126,7 +126,7 @@ class Backup(object):
         if status:
             payload.WHERE(['status', '=', status])
             
-        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
+        backups_from_storage = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload()))
 
         backups_information = backups_from_storage['rows']
 
@@ -207,7 +207,7 @@ class Backup(object):
             .WHERE(['id', '=', _id]) \
             .payload()
 
-        self._storage.delete_from_tbl(self._backup_lib.STORAGE_TABLE_BACKUPS, payload)
+        asyncio.get_event_loop().run_until_complete(self._storage.delete_from_tbl(self._backup_lib.STORAGE_TABLE_BACKUPS, payload))
 
     async def create_backup(self):
         """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
@@ -295,14 +295,14 @@ class BackupProcess(FoglampProcess):
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
 
-        self._backup = Backup(self._storage)
-        self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self._backup = Backup(self._storage_async)
+        self._backup_lib = lib.BackupRestoreLib(self._storage_async, self._logger)
 
         self._job = lib.Job()
 
         # Creates the objects references used by the library
         lib._logger = self._logger
-        lib._storage = self._storage
+        lib._storage = self._storage_async
 
     def _generate_file_name(self):
         """ Generates the file name for the backup operation, it uses hours/minutes/seconds for the file name generation

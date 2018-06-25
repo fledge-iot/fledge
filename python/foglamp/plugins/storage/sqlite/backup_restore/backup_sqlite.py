@@ -111,14 +111,14 @@ class BackupProcess(FoglampProcess):
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
 
-        self._backup = Backup(self._storage)
-        self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self._backup = Backup(self._storage_async)
+        self._backup_lib = lib.BackupRestoreLib(self._storage_async, self._logger)
 
         self._job = lib.Job()
 
         # Creates the objects references used by the library
         lib._logger = self._logger
-        lib._storage = self._storage
+        lib._storage = self._storage_async
 
     def _generate_file_name(self):
         """ Generates the file name for the backup operation, it uses hours/minutes/seconds for the file name generation

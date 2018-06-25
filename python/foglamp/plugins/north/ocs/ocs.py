@@ -21,7 +21,6 @@ import time
 import json
 import logging
 # noinspection PyPackageRequirements
-import urllib3
 import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
@@ -368,9 +367,6 @@ def plugin_init(data):
     except Exception as ex:
         _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)
-
-    # Avoids the warning message - InsecureRequestWarning
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     return _config
 

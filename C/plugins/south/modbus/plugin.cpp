@@ -130,9 +130,9 @@ string	device, address;
 				string value = config->getValue("bits");
 				bits = atoi(value.c_str());
 			}
-			if (config->itemExists("stopBits"))
+			if (config->itemExists("stopbits"))
 			{
-				string value = config->getValue("stopBits");
+				string value = config->getValue("stopbits");
 				stopBits = atoi(value.c_str());
 			}
 			modbus = new Modbus(device.c_str(), baud, parity, bits, stopBits);

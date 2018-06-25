@@ -11,6 +11,8 @@
  */
 #include <reading.h>
 #include <modbus/modbus.h>
+#include <modbus/modbus-rtu.h>
+#include <modbus/modbus-tcp.h>
 #include <string>
 
 class Modbus {

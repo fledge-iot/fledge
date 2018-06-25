@@ -165,15 +165,19 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		unsigned int threshold = 100;
 		unsigned long timeout = 5000;
 		try {
-			threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
-			timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
+			if (m_config.itemExists("bufferThreshold"))
+				threshold = (unsigned int)atoi(m_config.getValue("bufferThreshold").c_str());
+			if (m_config.itemExists("maxSendLatency"))
+				timeout = (unsigned long)atoi(m_config.getValue("maxSendLatency").c_str());
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 		Ingest ingest(storage, timeout, threshold);
 
 		try {
-			m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
+			m_pollInterval = 500;
+			if (m_config.itemExists("pollInterval"))
+				m_pollInterval = (unsigned long)atoi(m_config.getValue("pollInterval").c_str());
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}

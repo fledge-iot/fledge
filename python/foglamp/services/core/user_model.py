@@ -225,7 +225,7 @@ class User:
 
         @classmethod
         async def get(cls, uid=None, username=None):
-            users = cls.filter(uid=uid, username=username)
+            users = await cls.filter(uid=uid, username=username)
             if len(users) == 0:
                 msg = ''
                 if uid:

@@ -102,7 +102,7 @@ class TestUserModel:
         ({'username': 'aj', 'uid': 1}, 'User with id:<1> and name:<aj> does not exist')
     ])
     async def test_get_exception(self, exp_kwargs, error_msg):
-        with patch.object(User.Objects, 'filter', return_value=[]) as filter_patch:
+        with patch.object(User.Objects, 'filter', return_value=mock_coro([])) as filter_patch:
             with pytest.raises(Exception) as excinfo:
                 await User.Objects.get(uid=exp_kwargs['uid'], username=exp_kwargs['username'])
             assert str(excinfo.value) == error_msg
@@ -114,7 +114,7 @@ class TestUserModel:
     async def test_get(self):
         expected = [{'role_id': '1', 'id': '1', 'uname': 'admin'}]
         exp_kwargs = {'uid': 1, 'username': 'admin'}
-        with patch.object(User.Objects, 'filter', return_value=expected) as filter_patch:
+        with patch.object(User.Objects, 'filter', return_value=mock_coro(expected)) as filter_patch:
             actual = await User.Objects.get(uid=exp_kwargs['uid'], username=exp_kwargs['username'])
             assert actual == expected[0]
         args, kwargs = filter_patch.call_args

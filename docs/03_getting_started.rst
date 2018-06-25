@@ -61,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP on Ubuntu 16.04.3 LTS (Server or Desktop).  Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `here <92_downloads.html>`_).
+In this section we will describe how to build FogLAMP on Ubuntu 16.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `here <92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -85,9 +85,10 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - libtool 
 - make
 - postgresql
-- python-dbus
-- python-dev
+- python3-dbus
+- python3-dev
 - python3-pip
+- python3-setuptools
 - sqlite3
 - uuid-dev
 
@@ -113,7 +114,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   Building dependency tree
   ...
   $
-  $ sudo apt-get install python-dev python3-pip python-dbus
+  $ sudo apt-get install python3-dev python3-pip python3-dbus python3-setuptools
   Reading package lists... Done
   Building dependency tree
   ...
@@ -797,5 +798,3 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
   $ ps -ef | grep foglamp
   ...
   $
-
-

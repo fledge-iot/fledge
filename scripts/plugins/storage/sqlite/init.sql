@@ -624,12 +624,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Statistics Plugin will load" } } '
             );
 
--- SEND_PR_3 - HTTP Plugin
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_3',
-              'HTTP North Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Module that HTTP North Plugin will load" } } '
-            );
 
 -- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
@@ -644,7 +638,6 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',   'Readings currently in FogLAMP buffer', 0, 0 ),
             ( 'SENT_1',     'Readings sent to historian', 0, 0 ),
             ( 'SENT_2',     'FogLAMP statistics data sent to historian', 0, 0 ),
-            ( 'SENT_3',     'Readings sent via HTTP north', 0, 0 ),
             ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
             ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'Readings removed from buffer by purge process', 0, 0 ),
@@ -671,7 +664,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 
 -- North Tasks
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North HTTP',             '["tasks/north", "--stream_id", "3", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );

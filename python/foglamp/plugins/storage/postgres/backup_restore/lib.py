@@ -315,39 +315,39 @@ class BackupRestoreLib(object):
         "backup-dir": {
             "description": "Directory where backups will be created, "
                            "it uses backup-dir if it is specified "
-                           "or FOGLAMP_BACKUP if defined or FOGLAMP_DATA/backup as the last resort.",
+                           "or FOGLAMP_BACKUP if defined or FOGLAMP_DATA/backup as the last resort",
             "type": "string",
             "default": "none"
         },
         "semaphores-dir": {
-            "description": "Directory for semaphores for backup/restore synchronization."
-                           "if not specified, backup-dir will be used.",
+            "description": "Directory for semaphores for backup/restore synchronization, "
+                           "if not specified, backup-dir will be used",
             "type": "string",
             "default": "none"
         },
         "retention": {
-            "description": "Number of backups to maintain. Old backups will be deleted.",
+            "description": "Number of backups to maintain. Old backups will be deleted",
             "type": "integer",
             "default": "5"
         },
         "max_retry": {
-            "description": "Number of retries.",
+            "description": "Number of retries",
             "type": "integer",
             "default": "5"
         },
         "timeout": {
-            "description": "Timeout in seconds for execution of external commands.",
+            "description": "Timeout in seconds for execution of external commands",
             "type": "integer",
             "default": "1200"
         },
         "restart-max-retries": {
-            "description": "Maximum number of retries at restarting Foglamp.",
+            "description": "Maximum number of retries at restarting Foglamp",
             "type": "integer",
             "default": "10"
         },
         "restart-sleep": {
             "description": "Sleep time between each check of the status at the restart of Foglamp "
-                           "to ensure it is started successfully.",
+                           "to ensure it is started successfully",
             "type": "integer",
             "default": "5"
         },

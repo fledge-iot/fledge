@@ -90,7 +90,8 @@ In addition to the plugins in the main repository, these plugins are also availa
 |       |                |                              |                                       | Ubuntu Core   |                                        |
 |       |                |                              |                                       | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
-| South | HTTP           | foglamp-north-http           | HTTP Sender                           | Ubuntu x86_64 |                                        |
+| North | HTTP           | foglamp-north-http           | HTTP Sender                           | Ubuntu x86_64 |                                        |
+|       |                |                              |                                       | Ubuntu Core   |                                        |
 |       |                |                              |                                       | Raspbian      |                                        |
 +-------+----------------+------------------------------+---------------------------------------+---------------+----------------------------------------+
 

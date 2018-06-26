@@ -308,7 +308,7 @@ class BackupRestoreLib(object):
             "default": "foglamp"
         },
         "schema": {
-            "description": "Schema.",
+            "description": "Schema",
             "type": "string",
             "default": "foglamp"
         },

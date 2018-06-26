@@ -102,7 +102,7 @@ _CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of OCS (OSIsoft Cloud Services) ",
         "type": "string",
-        "default": "https://qi-data.osisoft.com/api/omf"
+        "default": "https://dat-a.osisoft.com/api/omf"
     },
     "producerToken": {
         "description": "The producer token used to authenticate as a valid publisher and "

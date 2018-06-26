@@ -29,7 +29,7 @@ import foglamp.plugins.storage.postgres.backup_restore.lib as lib
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017, 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 

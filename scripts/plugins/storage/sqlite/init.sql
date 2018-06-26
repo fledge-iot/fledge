@@ -772,19 +772,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 -- North Tasks
 --
 
--- Run the sending process using HTTP North translator every 15 seconds
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '81bdf749-8aa0-468e-b229-9ff695668e8c', -- id
-                'sending via HTTP',                     -- schedule_name
-                'North HTTP',                           -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
 -- Readings OMF to PI
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
@@ -839,12 +826,6 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
 -- Stats to OMF to PI
 INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
        VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
-
--- Readings to HTTP
-INSERT INTO foglamp.destinations ( id, description )
-       VALUES ( 2, 'HTTP_TR' );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 3, 2, 'HTTP north', 0 );
 
 -- Readings to OMF to OCS
 INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );

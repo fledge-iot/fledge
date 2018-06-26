@@ -6,8 +6,7 @@
 
 
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
-from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, ReadingsStorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
 
 __author__ = "Ashish Jabble"
@@ -19,20 +18,6 @@ __version__ = "${VERSION}"
 # _logger = logger.setup(__name__, level=20)
 _logger = logger.setup(__name__)
 
-
-# TODO: Needs refactoring or better way to allow global discovery in core process
-def get_storage():
-    """ Storage Object """
-    try:
-        services = ServiceRegistry.get(name="FogLAMP Storage")
-        storage_svc = services[0]
-        _storage = StorageClient(core_management_host=None, core_management_port=None,
-                                 svc=storage_svc)
-        # _logger.info(type(_storage))
-    except Exception as ex:
-        _logger.exception(str(ex))
-        raise
-    return _storage
 
 # TODO: Needs refactoring or better way to allow global discovery in core process
 def get_storage_async():
@@ -47,20 +32,6 @@ def get_storage_async():
         _logger.exception(str(ex))
         raise
     return _storage
-
-# TODO: Needs refactoring or better way to allow global discovery in core process
-def get_readings():
-    """ Storage Object """
-    try:
-        services = ServiceRegistry.get(name="FogLAMP Storage")
-        storage_svc = services[0]
-        _readings = ReadingsStorageClient(core_mgt_host=None, core_mgt_port=None,
-                                 svc=storage_svc)
-        # _logger.info(type(_storage))
-    except Exception as ex:
-        _logger.exception(str(ex))
-        raise
-    return _readings
 
 # TODO: Needs refactoring or better way to allow global discovery in core process
 def get_readings_async():

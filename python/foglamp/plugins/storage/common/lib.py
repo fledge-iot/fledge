@@ -446,14 +446,10 @@ class BackupRestoreLib(object):
             .payload()
 
         backups_from_storage = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload))
-
         if backups_from_storage['count'] == 1:
-
             backup_information = backups_from_storage['rows'][0]
-
         elif backups_from_storage['count'] == 0:
             raise exceptions.DoesNotExist
-
         else:
             raise exceptions.NotUniqueBackup
 
@@ -466,7 +462,6 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         self._check_commands()
 
     def check_for_execution_backup(self):
@@ -476,7 +471,6 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         self._check_commands()
         self._check_db()
 
@@ -488,31 +482,25 @@ class BackupRestoreLib(object):
         Raises:
             exceptions.CannotReadPostgres
         """
-
         cmd_psql = self.PG_COMMANDS[self.PG_COMMAND_PSQL]
-
         cmd = '{psql} -d {db} -t -c "SELECT id FROM {schema}.{table} LIMIT 1;"'.format(
                                                                 psql=cmd_psql,
                                                                 db=self.config['database'],
                                                                 schema=self.config['schema'],
                                                                 table=self.STORAGE_TABLE_BACKUPS)
-
         _exit_code, output = exec_wait(
                                         _cmd=cmd,
                                         _output_capture=True,
                                         _timeout=self.config['timeout']
                                         )
-
         self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
                             func="_check_db",
                             cmd=cmd,
                             exit_code=_exit_code,
                             output=cr_strip(output)))
-
         if _exit_code != 0:
             _message = self._MESSAGES_LIST["e000018"].format(cmd, _exit_code, output)
             self._logger.error("{0}".format(_message))
-
             raise exceptions.CannotReadPostgres(_message)
 
     def _check_commands(self):
@@ -522,9 +510,7 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         for cmd in self.PG_COMMANDS:
-
             cmd_identified = self._check_command_identification(cmd)
             self._check_command_test(cmd_identified)
 
@@ -543,22 +529,18 @@ class BackupRestoreLib(object):
         Raises:
             exceptions.PgCommandUnAvailable
         """
-
         is_managed = self._is_plugin_managed("postgres")
-
         if is_managed:
             # Checks for Managed
             cmd_managed = "{root}/{path}/{cmd}".format(
                                                         root=self.dir_foglamp_root,
                                                         path=self._DIR_MANAGED_FOGLAMP_PG_COMMANDS,
                                                         cmd=cmd_to_identify)
-
             if os.path.exists(cmd_managed):
                 cmd_identified = cmd_managed
             else:
                 _message = self._MESSAGES_LIST["e000019"].format(cmd_to_identify, cmd_managed)
                 self._logger.error("{0}".format(_message))
-
                 raise exceptions.PgCommandUnAvailable(_message)
         else:
             # Checks for Unmanaged
@@ -571,19 +553,16 @@ class BackupRestoreLib(object):
                                             _output_capture=True,
                                             _timeout=0
                                             )
-
             self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
                                                                             func="_check_command_identification",
                                                                             cmd=cmd,
                                                                             exit_code=_exit_code,
                                                                             output=output))
-
             if _exit_code == 0:
                 cmd_identified = cr_strip(output)
             else:
                 _message = self._MESSAGES_LIST["e000015"].format(cmd)
                 self._logger.error("{0}".format(_message))
-
                 raise exceptions.PgCommandUnAvailable(_message)
 
         self.PG_COMMANDS[cmd_to_identify] = cmd_identified
@@ -599,7 +578,6 @@ class BackupRestoreLib(object):
             type: boolean - True if it is a managed plugin
         Raises:
         """
-
         # noinspection PyUnusedLocal
         plugin_type = False
 
@@ -622,7 +600,6 @@ class BackupRestoreLib(object):
 
         # Evaluates the storage answer
         if plugin_to_identify in output:
-
             if "false" in output:
                 plugin_type = False
             else:
@@ -630,7 +607,6 @@ class BackupRestoreLib(object):
         else:
             _message = self._MESSAGES_LIST["e000020"].format(plugin_to_identify)
             self._logger.error("{0}".format(_message))
-
             raise exceptions.UndefinedStorage(_message)
 
         return plugin_type
@@ -646,32 +622,25 @@ class BackupRestoreLib(object):
             exceptions.PgCommandUnAvailable
             exceptions.PgCommandNotExecutable
         """
-
         if os.access(cmd_to_test, os.X_OK):
             cmd = cmd_to_test + " -V"
-
             _exit_code, output = exec_wait(
                                             _cmd=cmd,
                                             _output_capture=True,
                                             _timeout=self.config['timeout']
                                             )
-
             self._logger.debug("{func} - cmd |{cmd}| - exit_code |{exit_code}| output |{output}| ".format(
                                                                             func="_check_command_test",
                                                                             cmd=cmd,
                                                                             exit_code=_exit_code,
                                                                             output=output))
-
             if _exit_code != 0:
                 _message = self._MESSAGES_LIST["e000017"].format(cmd, output)
                 self._logger.error("{0}".format(_message))
-
                 raise exceptions.PgCommandUnAvailable(_message)
-
         else:
             _message = self._MESSAGES_LIST["e000016"].format(cmd_to_test)
             self._logger.error("{0}".format(_message))
-
             raise exceptions.PgCommandNotExecutable(_message)
 
     def sl_get_backup_details(self, backup_id: int) -> dict:
@@ -695,9 +664,7 @@ class BackupRestoreLib(object):
 
         if backup_from_storage['count'] == 0:
             raise exceptions.DoesNotExist
-
         elif backup_from_storage['count'] == 1:
-
             backup_information = backup_from_storage['rows'][0]
         else:
             raise exceptions.NotUniqueBackup
@@ -712,16 +679,12 @@ class BackupRestoreLib(object):
             raw_data:list - Python list containing the rows retrieved from the Storage layer
         Raises:
         """
-
         _logger.debug("{func} - sql cmd |{cmd}| ".format(func="storage_retrieve",
                                                          cmd=sql_cmd))
-
         db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
 
         _pg_conn = psycopg2.connect(db_connection_string, cursor_factory=RealDictCursor)
-
         _pg_cur = _pg_conn.cursor()
-
         _pg_cur.execute(sql_cmd)
         raw_data = _pg_cur.fetchall()
         _pg_conn.close()
@@ -736,16 +699,13 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         _logger.debug("{func} - sql cmd |{cmd}| ".format(
                                                             func="storage_update",
                                                             cmd=sql_cmd))
-
         db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
 
         _pg_conn = psycopg2.connect(db_connection_string)
         _pg_cur = _pg_conn.cursor()
-
         _pg_cur.execute(sql_cmd)
         _pg_conn.commit()
         _pg_conn.close()
@@ -759,17 +719,14 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         _logger.debug("{func} - backup id |{id}| ".format(func="backup_status_update",
                                                           id=backup_id))
-
         sql_cmd = """
 
             UPDATE foglamp.backups SET  status={status} WHERE id='{id}';
 
             """.format(status=status,
                        id=backup_id, )
-
         self.storage_update(sql_cmd)
 
     def retrieve_configuration(self):
@@ -787,25 +744,20 @@ class BackupRestoreLib(object):
 
         try:
             self._retrieve_configuration_from_manager()
-
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000002"].format(_ex)
             self._logger.warning(_message)
-
             try:
                 self._retrieve_configuration_from_file()
-
             except Exception as _ex:
                 _message = self._MESSAGES_LIST["e000003"].format(_ex)
                 self._logger.error(_message)
-
                 raise exceptions.ConfigRetrievalError(_message)
         else:
             self._update_configuration_file()
 
         # Identifies the directory of backups and checks its existence
         if self.config['backup-dir'] != "none":
-
             self.dir_backups = self.config['backup-dir']
         else:
             self.dir_backups = self.dir_foglamp_backup
@@ -815,7 +767,6 @@ class BackupRestoreLib(object):
         # Identifies the directory for the semaphores and checks its existence
         # Stores semaphores in the _backups_dir if semaphores-dir is not defined
         if self.config['semaphores-dir'] != "none":
-
             self.dir_semaphores = self.config['semaphores-dir']
         else:
             self.dir_semaphores = self.dir_backups
@@ -831,7 +782,6 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         # Evaluates FOGLAMP_ROOT
         if "FOGLAMP_ROOT" in os.environ:
             self.dir_foglamp_root = os.getenv("FOGLAMP_ROOT")
@@ -863,18 +813,14 @@ class BackupRestoreLib(object):
         Raises:
             exceptions.InvalidBackupsPath
         """
-
         # Check the path existence
         if not os.path.isdir(path):
-
             # The path doesn't exists, tries to create it
             try:
                 os.makedirs(path)
-
             except OSError as _ex:
                 _message = self._MESSAGES_LIST["e000014"].format(path, _ex)
                 self._logger.error("{0}".format(_message))
-
                 raise exceptions.InvalidPath(_message)
 
     def _retrieve_configuration_from_manager(self):
@@ -884,9 +830,7 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         _event_loop = asyncio.get_event_loop()
-
         cfg_manager = ConfigurationManager(self._storage)
 
         _event_loop.run_until_complete(cfg_manager.create_category(
@@ -895,7 +839,6 @@ class BackupRestoreLib(object):
             self._CONFIG_CATEGORY_DESCRIPTION))
         self._config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                                    (self._CONFIG_CATEGORY_NAME))
-
         self._decode_configuration_from_manager(self._config_from_manager)
 
     def _decode_configuration_from_manager(self, _config_from_manager):
@@ -906,20 +849,16 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         self.config['host'] = _config_from_manager['host']['value']
-
         self.config['port'] = int(_config_from_manager['port']['value'])
         self.config['database'] = _config_from_manager['database']['value']
         self.config['database-filename'] = _config_from_manager['database-filename']['value']
-
         self.config['schema'] = _config_from_manager['schema']['value']
         self.config['backup-dir'] = _config_from_manager['backup-dir']['value']
         self.config['semaphores-dir'] = _config_from_manager['semaphores-dir']['value']
         self.config['retention'] = int(_config_from_manager['retention']['value'])
         self.config['max_retry'] = int(_config_from_manager['max_retry']['value'])
         self.config['timeout'] = int(_config_from_manager['timeout']['value'])
-
         self.config['restart-max-retries'] = int(_config_from_manager['restart-max-retries']['value'])
         self.config['restart-sleep'] = int(_config_from_manager['restart-sleep']['value'])
 
@@ -930,12 +869,9 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         file_full_path = self._identify_configuration_file_path()
-
         with open(file_full_path) as file:
             self._config_from_manager = json.load(file)
-
         self._decode_configuration_from_manager(self._config_from_manager)
 
     def _update_configuration_file(self):
@@ -945,9 +881,7 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         file_full_path = self._identify_configuration_file_path()
-
         with open(file_full_path, 'w') as file:
             json.dump(self._config_from_manager, file)
 
@@ -958,9 +892,7 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         file_full_path = self.dir_foglamp_data_etc + "/" + self._CONFIG_CACHE_FILE
-
         return file_full_path
 
 
@@ -977,12 +909,9 @@ class Job:
             pid: pid retrieved from the semaphore file
         Raises:
         """
-
         with open(file_name) as f:
             pid = f.read()
-
         pid = int(pid)
-
         return pid
 
     @classmethod
@@ -995,7 +924,6 @@ class Job:
         Returns:
         Raises:
         """
-
         file = open(file_name, "w")
         file.write(str(pid))
         file.close()
@@ -1010,11 +938,8 @@ class Job:
             pid: 0= no operation is in execution or the pid retrieved from the semaphore file
         Raises:
         """
-
         _logger.debug("{func}".format(func="check_semaphore_file"))
-
         pid = 0
-
         if os.path.exists(file_name):
             pid = cls._pid_file_retrieve(file_name)
 
@@ -1024,10 +949,8 @@ class Job:
             except ProcessLookupError:
                 # Process is not running, removing the semaphore file
                 os.remove(file_name)
-
                 _message = _MESSAGES_LIST["e000002"].format(file_name, pid)
                 _logger.warning("{0}".format(_message))
-
                 pid = 0
 
         return pid
@@ -1041,7 +964,6 @@ class Job:
             pid: 0= no operation is in execution or the pid retrieved from the semaphore file
         Raises:
         """
-
         _logger.debug("{func}".format(func="is_running"))
 
         # Checks if a backup process is still running
@@ -1065,15 +987,11 @@ class Job:
         Returns:
         Raises:
         """
-
         _logger.debug("{func}".format(func="set_as_running"))
-
         full_path = JOB_SEM_FILE_PATH + "/" + file_name
 
         if os.path.exists(full_path):
-
             os.remove(full_path)
-
             _message = _MESSAGES_LIST["e000001"].format(full_path)
             _logger.warning("{0}".format(_message))
 
@@ -1090,7 +1008,6 @@ class Job:
         """
 
         _logger.debug("{func}".format(func="set_as_completed"))
-
         full_path = JOB_SEM_FILE_PATH + "/" + file_name
 
         if os.path.exists(full_path):

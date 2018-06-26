@@ -88,7 +88,7 @@ async def get_backups(request):
             raise web.HTTPBadRequest(reason="{} is not a valid status".format(ex))
     try:
         backup = Backup(connect.get_storage_async())
-        backup_json = backup.get_all_backups(limit=limit, skip=skip, status=status)
+        backup_json = await backup.get_all_backups(limit=limit, skip=skip, status=status)
 
         res = []
         for row in backup_json:
@@ -127,7 +127,7 @@ async def get_backup_details(request):
     try:
         backup_id = int(backup_id)
         backup = Backup(connect.get_storage_async())
-        backup_json = backup.get_backup_details(backup_id)
+        backup_json = await backup.get_backup_details(backup_id)
 
         resp = {"status": _get_status(int(backup_json["status"])),
                 'id': backup_json["id"],
@@ -153,7 +153,7 @@ async def delete_backup(request):
     try:
         backup_id = int(backup_id)
         backup = Backup(connect.get_storage_async())
-        backup.delete_backup(backup_id)
+        await backup.delete_backup(backup_id)
         return web.json_response({'message': "Backup deleted successfully"})
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')

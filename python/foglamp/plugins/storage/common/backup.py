@@ -72,6 +72,7 @@ class Backup(object):
     """ Messages used for Information, Warning and Error notice """
 
     _logger = None
+    STORAGE_TABLE_BACKUPS = None
 
     def __init__(self, _storage):
         self._storage = _storage
@@ -82,8 +83,9 @@ class Backup(object):
                                           level=_LOGGER_LEVEL)
 
         self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self.STORAGE_TABLE_BACKUPS = self._backup_lib.STORAGE_TABLE_BACKUPS
 
-    def get_all_backups(
+    async def get_all_backups(
                         self,
                         limit: int,
                         skip: int,
@@ -108,17 +110,16 @@ class Backup(object):
 
         payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
             .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
+
         if status:
             payload.WHERE(['status', '=', status])
             
-        backups_from_storage = self._storage.query_tbl_with_payload(
-            self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
-
+        backups_from_storage = await self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload.payload())
         backups_information = backups_from_storage['rows']
 
         return backups_information
 
-    def get_backup_details(self, backup_id: int) -> dict:
+    async def get_backup_details(self, backup_id: int) -> dict:
         """ Returns the details of a backup
 
         Args:
@@ -131,12 +132,22 @@ class Backup(object):
             exceptions.DoesNotExist
             exceptions.NotUniqueBackup
         """
+        payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+            .WHERE(['id', '=', backup_id]).payload()
 
-        backup_information = self._backup_lib.sl_get_backup_details(backup_id)
+        backup_from_storage = await self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+
+        if backup_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+        elif backup_from_storage['count'] == 1:
+            backup_information = backup_from_storage['rows'][0]
+        else:
+            raise exceptions.NotUniqueBackup
 
         return backup_information
 
-    def delete_backup(self, backup_id: int):
+    async def delete_backup(self, backup_id: int):
         """ Deletes a backup
 
         Args:
@@ -145,10 +156,8 @@ class Backup(object):
         Returns:
         Raises:
         """
-
         try:
-            backup_information = self._backup_lib.sl_get_backup_details(backup_id)
-
+            backup_information = await self.get_backup_details(backup_id)
             file_name = backup_information['file_name']
 
             # Deletes backup file from the file system
@@ -156,31 +165,25 @@ class Backup(object):
 
                 try:
                     os.remove(file_name)
-
                 except Exception as _ex:
                     _message = self._MESSAGES_LIST["e000001"].format(backup_id, file_name, _ex)
                     Backup._logger.error(_message)
-
                     raise
 
             # Deletes backup information from the Storage layer
             # only if it was possible to delete the file from the file system
             try:
-                self._delete_backup_information(backup_id)
-
+                await self._delete_backup_information(backup_id)
             except Exception as _ex:
                 _message = self._MESSAGES_LIST["e000002"].format(backup_id, file_name, _ex)
                 self._logger.error(_message)
-
                 raise
-
         except exceptions.DoesNotExist:
             _message = self._MESSAGES_LIST["e000003"].format(backup_id)
             self._logger.warning(_message)
-
             raise
 
-    def _delete_backup_information(self, _id):
+    async def _delete_backup_information(self, _id):
         """ Deletes backup information from the Storage layer
 
         Args:
@@ -188,12 +191,10 @@ class Backup(object):
         Returns:
         Raises:
         """
-
         payload = payload_builder.PayloadBuilder() \
             .WHERE(['id', '=', _id]) \
             .payload()
-
-        self._storage.delete_from_tbl(self._backup_lib.STORAGE_TABLE_BACKUPS, payload)
+        await self._storage.delete_from_tbl(self.STORAGE_TABLE_BACKUPS, payload)
 
     async def create_backup(self):
         """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
@@ -204,20 +205,15 @@ class Backup(object):
             status: str - {"running"|"failed"}
         Raises:
         """
-
         self._logger.debug("{func}".format(func="create_backup"))
-
         try:
             await server.Server.scheduler.queue_task(uuid.UUID(Backup._SCHEDULE_BACKUP_ON_DEMAND))
-
             _message = self._MESSAGES_LIST["i000003"]
             Backup._logger.info("{0}".format(_message))
             status = "running"
-
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000004"].format(_ex)
             Backup._logger.error("{0}".format(_message))
-
             status = "failed"
 
         return status

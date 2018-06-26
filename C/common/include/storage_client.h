@@ -11,6 +11,12 @@
  */
 #include <client_http.hpp>
 #include <reading.h>
+#include <reading_set.h>
+#include <resultset.h>
+#include <purge_result.h>
+#include <query.h>
+#include <insert.h>
+#include <expression.h>
 #include <logger.h>
 #include <string>
 #include <vector>
@@ -22,11 +28,25 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
  */
 class StorageClient {
 	public:
+		StorageClient(HttpClient *client) : m_client(client) {};
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
-		bool readingAppend(Reading& reading);
-		bool readingAppend(const std::vector<Reading *> & readings);
+		ResultSet	*queryTable(const std::string& tablename, const Query& query);
+		int 		insertTable(const std::string& tableName, const InsertValues& values);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Where& where);
+		int		deleteTable(const std::string& tableName, const Query& query);
+		bool		readingAppend(Reading& reading);
+		bool		readingAppend(const std::vector<Reading *> & readings);
+		ResultSet	*readingQuery(const Query& query);
+		ReadingSet	*readingFetch(const unsigned long readingId, const unsigned long count);
+		PurgeResult	readingPurgeByAge(unsigned long age, unsigned long sent, bool purgeUnsent);
+		PurgeResult	readingPurgeBySize(unsigned long size, unsigned long sent, bool purgeUnsent);
 	private:
+		void  		handleUnexpectedResponse(const char *operation,
+						const std::string& responseCode,
+						const std::string& payload);
 		HttpClient		*m_client;
 		Logger			*m_logger;
 };

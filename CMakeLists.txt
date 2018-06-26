@@ -9,4 +9,5 @@ add_subdirectory(C/plugins/storage/sqlite)
 add_subdirectory(C/plugins/storage/sqlitememory)
 add_subdirectory(C/services/south)
 add_subdirectory(C/plugins/south/dummy)
-
+add_subdirectory(C/tasks/north)
+add_subdirectory(C/plugins/north/omf)

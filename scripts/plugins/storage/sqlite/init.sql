@@ -643,42 +643,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "ocs", "default" : "ocs", "description" : "Module that OCS North Plugin will load" } } '
             );
 
--- South plugins
-
--- POLL: South Microservice - POLL Plugin template
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'POLL',
-              'South Polling Plugin template',
-              ' { "plugin" : { "type" : "string", "value" : "poll_template", "default" : "poll_template", "description" : "Module that South Polling Template Plugin will load" } } '
-            );
-
--- HTTP South template
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'HTTP_SOUTH',
-             'HTTP South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "http_south", "default" : "http_south", "description" : "Module that HTTP South Plugin will load" } } '
-           );
-
--- COAP: CoAP Listener Plugin
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'COAP',
-              'CoAP Listener South Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "coap_listen", "default" : "coap_listen", "description" : "Module that CoAP Listener South Plugin will load" } } '
-            );
-
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650POLL',
-             'TI SensorTag CC2650 Polling South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "cc2650poll", "default" : "cc2650poll", "description" : "Module that TI SensorTag Polling South Plugin will load" } } '
-           );
-
-INSERT INTO foglamp.configuration ( key, description, value )
-    VALUES ( 'CC2650ASYN',
-             'TI SensorTag CC2650 Async South Plugin',
-             ' { "plugin" : { "type" : "string", "value" : "cc2650async", "default" : "cc2650async", "description" : "Module that TI SensorTag Async South Plugin will load" } } '
-           );
-
-
 -- Statistics
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
      VALUES ( 'READINGS',   'Readings received by FogLAMP since startup', 0, 0 ),
@@ -709,14 +673,6 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'certificate c
 --
 INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
 INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
-
--- South Microservices
---
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'POLL',       '["services/south"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'HTTP_SOUTH', '["services/south"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'COAP',       '["services/south"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650POLL', '["services/south"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'CC2650ASYN', '["services/south"]' );
 
 -- North Tasks
 --
@@ -818,77 +774,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 't'                                    -- enabled
               );
 
-
---
--- South Microsevices
-
--- Poll template
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '543a59ce-a9ca-11e7-abc4-cec278b6b50b', -- id
-                'Poll south',                           -- schedule_name
-                'POLL',                                 -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
----- HTTP Listener
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( 'a2caca59-1241-478d-925a-79584e7096e0', -- id
-                'HTTP listener south',                  -- schedule_name
-                'HTTP_SOUTH',                           -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                't',                                   -- exclusive
-                't'                                    -- enabled
-              );
-
--- COAP Listener
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( 'ada12840-68d3-11e7-907b-a6006ad3dba0', -- id
-                'COAP listener south',                  -- schedule_name
-                'COAP',                                 -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                't',                                   -- exclusive
-                't'                                    -- enabled
-              );
-
--- TI CC2650 Poll
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '543a59ce-a9ca-11e7-abc4-cec278b6b50a', -- id
-                'CC2650 poll south',                    -- schedule_name
-                'CC2650POLL',                           -- proceess_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
-
--- TI CC2650 Async
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '716a16ea-c736-490b-86d5-10204585ca8c', -- id
-                'CC2650 async south',                   -- schedule_name
-                'CC2650ASYN',                           -- process_name
-                1,                                      -- schedule_type (startup)
-                NULL,                                   -- schedule_time
-                '00:00:00',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
-
 -- North Tasks
 --
 
@@ -969,4 +854,3 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
 -- Readings to OMF to OCS
 INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );
 INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );
-

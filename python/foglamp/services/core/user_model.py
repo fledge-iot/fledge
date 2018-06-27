@@ -73,20 +73,20 @@ class User:
     class Objects:
 
         @classmethod
-        def get_roles(cls):
-            storage_client = connect.get_storage()
-            result = storage_client.query_tbl('roles')
+        async def get_roles(cls):
+            storage_client = connect.get_storage_async()
+            result = await storage_client.query_tbl('roles')
             return result["rows"]
 
         @classmethod
-        def get_role_id_by_name(cls, name):
-            storage_client = connect.get_storage()
+        async def get_role_id_by_name(cls, name):
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("id").WHERE(['name', '=', name]).payload()
-            result = storage_client.query_tbl_with_payload('roles', payload)
+            result = await storage_client.query_tbl_with_payload('roles', payload)
             return result["rows"]
 
         @classmethod
-        def create(cls, username, password, role_id):
+        async def create(cls, username, password, role_id):
             """
             Args:
                 username: user name
@@ -98,11 +98,11 @@ class User:
                    user json info
             """
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
                                               role_id=role_id).payload()
             try:
-                result = storage_client.insert_into_tbl("users", payload)
+                result = await storage_client.insert_into_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
@@ -110,7 +110,7 @@ class User:
             return result
 
         @classmethod
-        def delete(cls, user_id):
+        async def delete(cls, user_id):
             """
             Args:
                 user_id: user id to delete
@@ -123,13 +123,13 @@ class User:
             if int(user_id) == 1:
                 raise ValueError("Super admin user can not be deleted")
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             try:
                 # first delete the active login references
-                cls.delete_user_tokens(user_id)
+                await cls.delete_user_tokens(user_id)
 
                 payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 't']).payload()
-                result = storage_client.update_tbl("users", payload)
+                result = await storage_client.update_tbl("users", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
@@ -137,7 +137,7 @@ class User:
             return result
 
         @classmethod
-        def update(cls, user_id, user_data):
+        async def update(cls, user_id, user_data):
             """
             Args:
                  user_id: logged user id
@@ -151,7 +151,7 @@ class User:
             if 'role_id' in user_data:
                 kwargs.update({"role_id": user_data['role_id']})
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
 
             hashed_pwd = None
             pwd_history_list = []
@@ -162,20 +162,20 @@ class User:
                     kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
-                    pwd_history_list = cls._get_password_history(storage_client, user_id, user_data)
+                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data)
             try:
                 payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 't']).payload()
-                result = storage_client.update_tbl("users", payload)
+                result = await storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
                     # FIXME: FOGL-1226 active session delete only in case of role_id and password updation
 
                     # delete all active sessions
-                    cls.delete_user_tokens(user_id)
+                    await cls.delete_user_tokens(user_id)
 
                     if 'password' in user_data:
                         # insert pwd history and delete oldest pwd if USED_PASSWORD_HISTORY_COUNT exceeds
-                        cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client, user_id, hashed_pwd, pwd_history_list)
+                        await cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client, user_id, hashed_pwd, pwd_history_list)
 
                     return True
             except StorageServerError as ex:
@@ -186,10 +186,10 @@ class User:
                 raise
 
         @classmethod
-        def is_user_exists(cls, username, password):
+        async def is_user_exists(cls, username, password):
             payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(['enabled', '=', 't']).payload()
-            storage_client = connect.get_storage()
-            result = storage_client.query_tbl_with_payload('users', payload)
+            storage_client = connect.get_storage_async()
+            result = await storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
                 return None
 
@@ -199,14 +199,14 @@ class User:
 
         # utility
         @classmethod
-        def all(cls):
-            storage_client = connect.get_storage()
+        async def all(cls):
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 't']).payload()
-            result = storage_client.query_tbl_with_payload('users', payload)
+            result = await storage_client.query_tbl_with_payload('users', payload)
             return result['rows']
 
         @classmethod
-        def filter(cls, **kwargs):
+        async def filter(cls, **kwargs):
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
@@ -218,14 +218,14 @@ class User:
             if user_name is not None:
                 q = q.AND_WHERE(['uname', '=', user_name])
 
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             q_payload = PayloadBuilder(q.chain_payload()).payload()
-            result = storage_client.query_tbl_with_payload('users', q_payload)
+            result = await storage_client.query_tbl_with_payload('users', q_payload)
             return result['rows']
 
         @classmethod
-        def get(cls, uid=None, username=None):
-            users = cls.filter(uid=uid, username=username)
+        async def get(cls, uid=None, username=None):
+            users = await cls.filter(uid=uid, username=username)
             if len(users) == 0:
                 msg = ''
                 if uid:
@@ -239,26 +239,26 @@ class User:
             return users[0]
 
         @classmethod
-        def refresh_token_expiry(cls, token):
-            storage_client = connect.get_storage()
+        async def refresh_token_expiry(cls, token):
+            storage_client = connect.get_storage_async()
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             payload = PayloadBuilder().SET(token_expiration=str(exp)).WHERE(['token', '=', token]).payload()
-            storage_client.update_tbl("user_logins", payload)
+            await storage_client.update_tbl("user_logins", payload)
 
         @classmethod
-        def validate_token(cls, token):
+        async def validate_token(cls, token):
             """ check existence and validity of token
                     * exists in user_logins table
                     * its not expired
             :param token:
             :return:
             """
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("token_expiration") \
                 .ALIAS("return", ("token_expiration", 'token_expiration')) \
                 .FORMAT("return", ("token_expiration", "YYYY-MM-DD HH24:MI:SS.MS")) \
                 .WHERE(['token', '=', token]).payload()
-            result = storage_client.query_tbl_with_payload('user_logins', payload)
+            result = await storage_client.query_tbl_with_payload('user_logins', payload)
 
             if len(result['rows']) == 0:
                 raise User.InvalidToken("Token appears to be invalid")
@@ -292,7 +292,7 @@ class User:
 
             """
             # check password change configuration
-            storage_client = connect.get_storage()
+            storage_client = connect.get_storage_async()
             cfg_mgr = ConfigurationManager(storage_client)
             category_item = await cfg_mgr.get_category_item('rest_api', 'passwordChange')
             age = int(category_item['value'])
@@ -302,7 +302,7 @@ class User:
                 .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
                 .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
                 .AND_WHERE(['enabled', '=', 't']).payload()
-            result = storage_client.query_tbl_with_payload('users', payload)
+            result = await storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
                 raise User.DoesNotExist('User does not exist')
 
@@ -335,7 +335,7 @@ class User:
 
             # Insert token, uid, expiration into user_login table
             try:
-                storage_client.insert_into_tbl("user_logins", payload)
+                await storage_client.insert_into_tbl("user_logins", payload)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
@@ -348,11 +348,11 @@ class User:
             return uid, jwt_token, False
 
         @classmethod
-        def delete_user_tokens(cls, user_id):
-            storage_client = connect.get_storage()
+        async def delete_user_tokens(cls, user_id):
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
             try:
-                res = storage_client.delete_from_tbl("user_logins", payload)
+                res = await storage_client.delete_from_tbl("user_logins", payload)
             except StorageServerError as ex:
                 if not ex.error["retryable"]:
                     pass
@@ -361,11 +361,11 @@ class User:
             return res
 
         @classmethod
-        def delete_token(cls, token):
-            storage_client = connect.get_storage()
+        async def delete_token(cls, token):
+            storage_client = connect.get_storage_async()
             payload = PayloadBuilder().WHERE(['token', '=', token]).payload()
             try:
-                res = storage_client.delete_from_tbl("user_logins", payload)
+                res = await storage_client.delete_from_tbl("user_logins", payload)
             except StorageServerError as ex:
                 if not ex.error["retryable"]:
                     pass
@@ -374,9 +374,9 @@ class User:
             return res
 
         @classmethod
-        def delete_all_user_tokens(cls):
-            storage_client = connect.get_storage()
-            storage_client.delete_from_tbl("user_logins")
+        async def delete_all_user_tokens(cls):
+            storage_client = connect.get_storage_async()
+            await storage_client.delete_from_tbl("user_logins")
 
         @classmethod
         def hash_password(cls, password):
@@ -390,10 +390,10 @@ class User:
             return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
 
         @classmethod
-        def _get_password_history(cls, storage_client, user_id, user_data):
+        async def _get_password_history(cls, storage_client, user_id, user_data):
             pwd_history_list = []
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
-            result = storage_client.query_tbl_with_payload("user_pwd_history", payload)
+            result = await storage_client.query_tbl_with_payload("user_pwd_history", payload)
             for row in result['rows']:
                 if cls.check_password(row['pwd'], user_data['password']):
                     raise User.PasswordAlreadyUsed
@@ -401,13 +401,13 @@ class User:
             return pwd_history_list
 
         @classmethod
-        def _insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(cls, storage_client, user_id, hashed_pwd, pwd_history_list):
+        async def _insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(cls, storage_client, user_id, hashed_pwd, pwd_history_list):
             # delete oldest password for user, as storage result in sorted order so its safe to delete its last index from pwd_history_list
             if len(pwd_history_list) >= USED_PASSWORD_HISTORY_COUNT:
                 payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).AND_WHERE(
                     ['pwd', '=', pwd_history_list[-1]]).payload()
-                storage_client.delete_from_tbl("user_pwd_history", payload)
+                await storage_client.delete_from_tbl("user_pwd_history", payload)
 
             # insert into password history table
             payload = PayloadBuilder().INSERT(user_id=user_id, pwd=hashed_pwd).payload()
-            storage_client.insert_into_tbl("user_pwd_history", payload)
+            await storage_client.insert_into_tbl("user_pwd_history", payload)

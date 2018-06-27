@@ -256,7 +256,7 @@ class RestoreProcess(FoglampProcess):
 
         # Creates the objects references used by the library
         lib._logger = self._logger
-        lib._storage = self._storage
+        lib._storage = self._storage_async
 
     def _identifies_backup_to_restore(self):
         """Identifies the backup to restore either

@@ -13,7 +13,7 @@ from enum import IntEnum
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.configuration_manager import ConfigurationManager
 
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
@@ -394,7 +394,7 @@ class BackupRestoreLib(object):
                     exit_code=0) \
             .payload()
 
-        self._storage.insert_into_tbl(self.STORAGE_TABLE_BACKUPS, payload)
+        asyncio.get_event_loop().run_until_complete(self._storage.insert_into_tbl(self.STORAGE_TABLE_BACKUPS, payload))
 
     def sl_backup_status_update(self, _id, _status, _exit_code):
         """ Updates the status of the backup using the Storage layer
@@ -416,7 +416,7 @@ class BackupRestoreLib(object):
             .WHERE(['id', '=', _id]) \
             .payload()
 
-        self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload)
+        asyncio.get_event_loop().run_until_complete(self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload))
 
     def sl_get_backup_details_from_file_name(self, _file_name):
         """ Retrieves backup information from file name
@@ -436,7 +436,7 @@ class BackupRestoreLib(object):
             .WHERE(['file_name', '=', _file_name]) \
             .payload()
 
-        backups_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+        backups_from_storage = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload))
 
         if backups_from_storage['count'] == 1:
 
@@ -684,7 +684,7 @@ class BackupRestoreLib(object):
             .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .WHERE(['id', '=', backup_id]).payload()
 
-        backup_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+        backup_from_storage = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload))
 
         if backup_from_storage['count'] == 0:
             raise exceptions.DoesNotExist
@@ -1075,5 +1075,5 @@ if __name__ == "__main__":
 
     if False:
         # Used to assign the proper objects type without actually executing them
-        _storage = StorageClient("127.0.0.1", "0")
+        _storage = StorageClientAsync("127.0.0.1", "0")
         _logger = logger.setup(_MODULE_NAME)

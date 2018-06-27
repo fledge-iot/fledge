@@ -646,7 +646,6 @@ class RestoreProcess(FoglampProcess):
             if self._force_restore:
                 # Retrieve the backup-id after the restore operation
                 backup_info = self.get_backup_details_from_file_name(file_name)
-                # FIXME:
                 backup_id = backup_info[0]
 
             # Updates the backup as restored

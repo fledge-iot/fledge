@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# Reads configuration setting
+source ${SUITE_BASEDIR}/suite.cfg

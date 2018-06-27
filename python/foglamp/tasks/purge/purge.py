@@ -79,7 +79,7 @@ class Purge(FoglampProcess):
         :return:
             Configuration information that was set for purge process
         """
-        cfg_manager = ConfigurationManager(self._storage_async)
+        cfg_manager = ConfigurationManager(self._readings_storage_async)
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
                                           self._CONFIG_CATEGORY_DESCRIPTION)

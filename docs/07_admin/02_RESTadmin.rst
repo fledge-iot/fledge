@@ -235,8 +235,6 @@ The response payload is a JSON object with an array of JSON objects, one per val
                       "description" : "OMF North Plugin Configuration" },
                     { "key"         : "SEND_PR_2",
                       "description" : "OMF North Statistics Plugin Configuration" },
-                    { "key"         : "SEND_PR_3",
-                      "description" : "HTTP North Plugin Configuration" },
                     { "key"         : "SEND_PR_4",
                       "description" : "OCS North Plugin Configuration" },
                     { "key"         : "SMNTR",

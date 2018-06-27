@@ -4,7 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
-
+import asyncio
 import json
 from unittest.mock import MagicMock, patch
 from collections import Counter
@@ -18,13 +18,20 @@ from foglamp.plugins.storage.common.restore import Restore
 from foglamp.plugins.storage.common import exceptions
 
 from foglamp.services.core.api import backup_restore
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+@asyncio.coroutine
+def mock_coro(*args, **kwargs):
+    if len(args) > 0:
+        return args[0]
+    else:
+        return ""
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "backup")
@@ -63,13 +70,13 @@ class TestBackup:
         '?status=&limit=&skip='
     ])
     async def test_get_backups(self, client, request_params):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = [{'file_name': '1.dump',
                      'id': 1, 'type': '1', 'status': '2',
                      'ts': '2018-02-15 15:18:41.821978+05:30',
                      'exit_code': '0'}]
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(Backup, 'get_all_backups', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(Backup, 'get_all_backups', return_value=mock_coro(response)):
                 resp = await client.get('/foglamp/backup{}'.format(request_params))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -90,7 +97,7 @@ class TestBackup:
         assert response_message == resp.reason
 
     async def test_get_backups_exceptions(self, client):
-        with patch.object(connect, 'get_storage', return_value=Exception):
+        with patch.object(connect, 'get_storage_async', return_value=Exception):
             resp = await client.get('/foglamp/backup')
             assert 500 == resp.status
             assert "Internal Server Error" == resp.reason
@@ -99,26 +106,26 @@ class TestBackup:
         async def mock_create():
             return "running_or_failed"
 
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'create_backup', return_value=mock_create()):
                 resp = await client.post('/foglamp/backup')
                 assert 200 == resp.status
                 assert '{"status": "running_or_failed"}' == await resp.text()
 
     async def test_create_backup_exception(self, client):
-        with patch.object(connect, 'get_storage', return_value=Exception):
+        with patch.object(connect, 'get_storage_async', return_value=Exception):
             with patch.object(Backup, 'create_backup', return_value=Exception):
                 resp = await client.post('/foglamp/backup')
                 assert 500 == resp.status
                 assert "Internal Server Error" == resp.reason
 
     async def test_get_backup_details(self, client):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'id': 1, 'file_name': '1.dump', 'ts': '2018-02-15 15:18:41.821978+05:30',
                     'status': '2', 'type': '1', 'exit_code': '0'}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(Backup, 'get_backup_details', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(Backup, 'get_backup_details', return_value=mock_coro(response)):
                 resp = await client.get('/foglamp/backup/{}'.format(1))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -131,8 +138,8 @@ class TestBackup:
         (Exception, 500, "Internal Server Error")
     ])
     async def test_get_backup_details_exceptions(self, client, input_exception, response_code, response_message):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
                 resp = await client.get('/foglamp/backup/{}'.format(8))
                 assert response_code == resp.status
@@ -144,9 +151,9 @@ class TestBackup:
         assert "Invalid backup id" == resp.reason
 
     async def test_delete_backup(self, client):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(Backup, 'delete_backup', return_value=None):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(Backup, 'delete_backup', return_value=mock_coro(None)):
                 resp = await client.delete('/foglamp/backup/{}'.format(1))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -158,8 +165,8 @@ class TestBackup:
         (Exception, 500, "Internal Server Error")
     ])
     async def test_delete_backup_exceptions(self, client, input_exception, response_code, response_message):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'delete_backup', side_effect=input_exception):
                 resp = await client.delete('/foglamp/backup/{}'.format(8))
                 assert response_code == resp.status
@@ -199,8 +206,8 @@ class TestRestore:
         async def mock_restore():
             return "running"
 
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Restore, 'restore_backup', return_value=mock_restore()):
                 resp = await client.put('/foglamp/backup/{}/restore'.format(1))
                 assert 200 == resp.status
@@ -213,8 +220,8 @@ class TestRestore:
         ('blah', ValueError, 400, 'Invalid backup id')
     ])
     async def test_restore_backup_exceptions(self, client, backup_id, input_exception, code, message):
-        storage_client_mock = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Restore, 'restore_backup', side_effect=input_exception):
                 resp = await client.put('/foglamp/backup/{}/restore'.format(backup_id))
                 assert code == resp.status

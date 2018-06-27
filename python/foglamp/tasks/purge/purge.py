@@ -67,7 +67,7 @@ class Purge(FoglampProcess):
     def __init__(self, loop=None):
         super().__init__()
         self._logger = logger.setup("Data Purge")
-        self._audit = AuditLogger(self._storage)
+        self._audit = AuditLogger(self._storage_async)
         self.loop = asyncio.get_event_loop() if loop is None else loop
 
     def write_statistics(self, total_purged, unsent_purged):
@@ -80,7 +80,7 @@ class Purge(FoglampProcess):
         :return:
             Configuration information that was set for purge process
         """
-        cfg_manager = ConfigurationManager(self._storage)
+        cfg_manager = ConfigurationManager(self._readings_storage_async)
         self.loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME, self._DEFAULT_PURGE_CONFIG,
                                                                  self._CONFIG_CATEGORY_DESCRIPTION))
         return self.loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))

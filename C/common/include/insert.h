@@ -14,6 +14,10 @@
 #include <iostream>
 #include <vector>
 #include <resultset.h>
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/error/error.h"
 
 
 /**
@@ -46,6 +50,17 @@ class InsertValue {
 			m_value.fval = value;
 			m_type = NUMBER_COLUMN;
 		};
+		InsertValue(const std::string& column, const rapidjson::Value& value) :
+				m_column(column)
+		{
+			rapidjson::StringBuffer sb;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+			value.Accept(writer);
+			std::string s = sb.GetString();
+			m_value.str = (char *)malloc(s.length() + 1);
+			strncpy(m_value.str, s.c_str(), s.length() + 1);
+			m_type = JSON_COLUMN;
+		};
 		InsertValue(const InsertValue& rhs) : m_column(rhs.m_column)
 		{
 			m_type = rhs.m_type;
@@ -60,15 +75,17 @@ class InsertValue {
 			case STRING_COLUMN:
 				m_value.str = strdup(rhs.m_value.str);
 				break;
+			case JSON_COLUMN:	// Internally stored a a string
+				m_value.str = strdup(rhs.m_value.str);
+				break;
 			case BOOL_COLUMN:
-			case JSON_COLUMN:
 				// TODO
 				break;
 			}
 		}
 		~InsertValue()
 		{
-			if (m_type == STRING_COLUMN)
+			if (m_type == STRING_COLUMN || m_type == JSON_COLUMN)
 			{
 				free(m_value.str);
 			}
@@ -81,7 +98,7 @@ class InsertValue {
 			switch (m_type)
 			{
 			case JSON_COLUMN:
-				// TODO support JSON
+				json << m_value.str;
 				break;
 			case BOOL_COLUMN:
 				json << m_value.ival;

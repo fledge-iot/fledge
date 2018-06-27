@@ -83,7 +83,7 @@ async def login(request):
         return web.HTTPNotFound(reason=str(ex))
     except User.PasswordExpired as ex:
         # delete all user token for this user
-        User.Objects.delete_user_tokens(str(ex))
+        await User.Objects.delete_user_tokens(str(ex))
 
         msg = 'Your password has been expired. Please set your password again'
         _logger.warning(msg)
@@ -106,7 +106,7 @@ async def logout_me(request):
         # no action needed
         return web.json_response({"logout": True})
 
-    result = User.Objects.delete_token(request.token)
+    result = await User.Objects.delete_token(request.token)
 
     if not result['rows_affected']:
         _logger.warning("Logout requested with bad user token")
@@ -128,7 +128,7 @@ async def logout(request):
 
     check_authorization(request, user_id, "logout")
 
-    result = User.Objects.delete_user_tokens(user_id)
+    result = await User.Objects.delete_user_tokens(user_id)
 
     if not result['rows_affected']:
         _logger.warning("Logout requested with bad user")
@@ -144,7 +144,7 @@ async def get_roles(request):
     :Example:
         curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user/role --insecure
     """
-    result = User.Objects.get_roles()
+    result = await User.Objects.get_roles()
     return web.json_response({'roles': result})
 
 
@@ -174,7 +174,7 @@ async def get_user(request):
 
     if user_id or user_name:
         try:
-            user = User.Objects.get(user_id, user_name)
+            user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
@@ -184,7 +184,7 @@ async def get_user(request):
             _logger.warning(str(ex))
             raise web.HTTPNotFound(reason=str(ex))
     else:
-        users = User.Objects.all()
+        users = await User.Objects.all()
         res = []
         for row in users:
             u = OrderedDict()
@@ -226,7 +226,7 @@ async def create_user(request):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
-    if not is_valid_role(role_id):
+    if not (await is_valid_role(role_id)):
         _logger.warning("Create user requested with bad role id")
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
@@ -238,7 +238,7 @@ async def create_user(request):
         raise web.HTTPBadRequest(reason=msg)
 
     try:
-        User.Objects.get(username=username)
+        await User.Objects.get(username=username)
     except User.DoesNotExist:
         pass
     else:
@@ -247,11 +247,11 @@ async def create_user(request):
 
     u = dict()
     try:
-        result = User.Objects.create(username, password, role_id)
+        result = await User.Objects.create(username, password, role_id)
         if result['rows_affected']:
             # FIXME: we should not do get again!
             # we just need inserted user id; insert call should return that
-            user = User.Objects.get(username=username)
+            user = await User.Objects.get(username=username)
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
@@ -307,14 +307,14 @@ async def update_password(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    user_id = User.Objects.is_user_exists(username, current_password)
+    user_id = await User.Objects.is_user_exists(username, current_password)
     if not user_id:
         msg = 'Invalid current password'
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
 
     try:
-        User.Objects.update(int(user_id), {'password': new_password})
+        await User.Objects.update(int(user_id), {'password': new_password})
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -362,7 +362,7 @@ async def reset(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    if role_id and not is_valid_role(role_id):
+    if role_id and not (await is_valid_role(role_id)):
         msg = "Invalid or bad role id"
         _logger.warning(msg)
         return web.HTTPBadRequest(reason=msg)
@@ -381,7 +381,7 @@ async def reset(request):
         user_data.update({'password': data['password']})
 
     try:
-        User.Objects.update(user_id, user_data)
+        await User.Objects.update(user_id, user_data)
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -432,7 +432,7 @@ async def delete_user(request):
         raise web.HTTPBadRequest(reason=msg)
 
     try:
-        result = User.Objects.delete(user_id)
+        result = await User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist
 
@@ -452,8 +452,8 @@ async def delete_user(request):
     return web.json_response({'message': "User has been deleted successfully"})
 
 
-def is_valid_role(role_id):
-    roles = [int(r["id"]) for r in User.Objects.get_roles()]
+async def is_valid_role(role_id):
+    roles = [int(r["id"]) for r in await User.Objects.get_roles()]
     try:
         role = int(role_id)
         if role not in roles:

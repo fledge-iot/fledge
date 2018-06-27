@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 
+import asyncio
 import json
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +15,7 @@ import pytest
 
 from foglamp.services.core.api import browser
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient
+from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -43,6 +44,14 @@ RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'co
 
 FIXTURE_1 = [(url, payload, result) for url, payload, result in zip(URLS, PAYLOADS, RESULTS)]
 FIXTURE_2 = [(url, 400, payload) for url, payload in zip(URLS, PAYLOADS)]
+
+
+@asyncio.coroutine
+def mock_coro(*args, **kwargs):
+    if len(args) > 0:
+        return args[0]
+    else:
+        return ""
 
 
 @pytest.allure.feature("unit")
@@ -94,9 +103,9 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url, payload, result", FIXTURE_1)
     async def test_end_points(self, client, request_url, payload, result):
-        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
-        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=result) as query_patch:
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
                 resp = await client.get(request_url)
                 assert 200 == resp.status
                 r = await resp.text()
@@ -114,10 +123,10 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url, response_code, payload", FIXTURE_2)
     async def test_bad_request(self, client, request_url, response_code, payload):
-        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
         result = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'retrieve'}
-        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=result) as query_patch:
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
                 resp = await client.get(request_url)
                 assert response_code == resp.status
                 assert result['message'] == resp.reason
@@ -127,7 +136,7 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url", URLS)
     async def test_http_exception(self, client, request_url):
-        with patch.object(connect, 'get_readings', return_value=Exception):
+        with patch.object(connect, 'get_readings_async', return_value=Exception):
             resp = await client.get(request_url)
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
@@ -141,9 +150,9 @@ class TestBrowserAssets:
          {'count': 1, 'rows': [{'min': '9', 'average': '9', 'max': '9', 'timestamp': '2018-02-19 17'}]})
     ])
     async def test_asset_averages_with_valid_group_name(self, client, group_name, payload, result):
-        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
-        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=result) as query_patch:
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
                 resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature/series?group={}'
                                         .format(group_name))
                 assert 200 == resp.status
@@ -186,9 +195,9 @@ class TestBrowserAssets:
         ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "limit": 20, "sort": {"column": "timestamp", "direction": "desc"}}')
     ])
     async def test_limit_skip_time_units_payload(self, client, request_params, payload):
-        readings_storage_client_mock = MagicMock(ReadingsStorageClient)
-        with patch.object(connect, 'get_readings', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value={'count': 0, 'rows': []}) \
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) \
                     as query_patch:
                 resp = await client.get('foglamp/asset/fogbench%2Fhumidity/temperature{}'.format(request_params))
                 assert 200 == resp.status

@@ -95,18 +95,18 @@ async def add_service(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-        storage = connect.get_storage()
+        storage = connect.get_storage_async()
 
         # Check that the process name is not already registered
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
-        result = storage.query_tbl_with_payload('scheduled_processes', payload)
+        result = await storage.query_tbl_with_payload('scheduled_processes', payload)
         count = result['count']
         if count != 0:
             raise web.HTTPBadRequest(reason='A service with that name already exists')
 
         # Check that the schedule name is not already registered
         payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', name]).payload()
-        result = storage.query_tbl_with_payload('schedules', payload)
+        result = await storage.query_tbl_with_payload('schedules', payload)
         count = result['count']
         if count != 0:
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
@@ -120,7 +120,7 @@ async def add_service(request):
             plugin_module_path = "foglamp.plugins.north"
         payload = PayloadBuilder().INSERT(name=name, script=script).payload()
         try:
-            res = storage.insert_into_tbl("scheduled_processes", payload)
+            res = await storage.insert_into_tbl("scheduled_processes", payload)
         except Exception as ins_ex:
             raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
 

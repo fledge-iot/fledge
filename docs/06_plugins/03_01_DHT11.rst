@@ -13,16 +13,16 @@
 .. Links
 .. |these INSTALLATION| raw:: html
 
-   <a href="04_installation.html">these</a>
+   <a href="../04_installation.html">these</a>
 
 .. |Getting Started| raw:: html
 
-   <a href="03_getting_started.html#building-foglamp">here</a>
+   <a href="../03_getting_started.html#building-foglamp">here</a>
 
 .. Links in new tabs
 .. |setting OMF| raw:: html
 
-   <a href="05_testing.html#setting-the-omf-translator-plugin">here</a>
+   <a href="../05_testing.html#setting-the-omf-translator-plugin">here</a>
 
 .. |DHT Repo| raw:: html
 
@@ -34,7 +34,7 @@
 
 .. |DHT Description| raw:: html
 
-   <a href="http://www.aosong.com/en/products/details.asp?id=109" target="_blank">DHT11 Product Description</a>
+   <a href="https://www.adafruit.com/product/386" target="_blank">DHT11 Product Description</a>
 
 .. |DHT Manual| raw:: html
 
@@ -54,7 +54,7 @@
 
 .. |GPIO| raw:: html
 
-   <a href="https://www.raspberrypi.org/documentation/usage/gpio-plus-and-raspi2/README.md" target="_blank">here</a>
+   <a href="https://www.raspberrypi.org/documentation/usage/gpio/README.md" target="_blank">here</a>
 
 
 .. =============================================
@@ -123,6 +123,12 @@ This is the code for the plugin:
 
 .. code-block:: python
 
+  # -*- coding: utf-8 -*-
+
+  # FOGLAMP_BEGIN
+  # See: http://foglamp.readthedocs.io/
+  # FOGLAMP_END
+
   """ Plugin for a DHT11 temperature and humidity sensor attached directly
       to the GPIO pins of a Raspberry Pi
 
@@ -140,10 +146,9 @@ This is the code for the plugin:
       allow FogLAMP access to the device.
       """
 
+
   from datetime import datetime, timezone
-  import Adafruit_DHT
   import uuid
-  import copy
 
   from foglamp.common import logger
   from foglamp.services.south import exceptions
@@ -155,25 +160,26 @@ This is the code for the plugin:
 
   _DEFAULT_CONFIG = {
       'plugin': {
-          'description': 'Python module name of the plugin to load',
-          'type':        'string',
-          'default':     'dht11'
+           'description': 'Python module name of the plugin to load',
+           'type': 'string',
+           'default': 'dht11'
       },
       'pollInterval': {
           'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
-          'type':        'integer',
-          'default':     '1000'
+          'type': 'integer',
+          'default': '1000'
       },
       'gpiopin': {
-          'description': 'The GPIO pin into which the DHT11 data pin is connected',
-          'type':        'integer',
-          'default':     '4'
+          'description': 'The GPIO pin into which the DHT11 data pin is connected', 
+          'type': 'integer',
+          'default': '4'
       }
 
   }
 
   _LOGGER = logger.setup(__name__)
   """ Setup the access to the logging system of FogLAMP """
+
 
   def plugin_info():
       """ Returns information about the plugin.
@@ -185,12 +191,12 @@ This is the code for the plugin:
       """
 
       return {
-          'name':      'DHT11 GPIO',
-          'version':   '1.0',
-          'mode':      'poll',
-          'type':      'south',
+          'name': 'DHT11 GPIO',
+          'version': '1.0',
+          'mode': 'poll',
+          'type': 'south',
           'interface': '1.0',
-          'config':    _DEFAULT_CONFIG
+          'config': _DEFAULT_CONFIG
       }
 
 
@@ -226,7 +232,7 @@ This is the code for the plugin:
           humidity, temperature = Adafruit_DHT.read_retry(Adafruit_DHT.DHT11, handle)
           if humidity is not None and temperature is not None:
               time_stamp = str(datetime.now(tz=timezone.utc))
-              readings =  { 'temperature': temperature , 'humidity' : humidity }
+              readings = {'temperature': temperature, 'humidity': humidity}
               wrapper = {
                       'asset':     'dht11',
                       'timestamp': time_stamp,

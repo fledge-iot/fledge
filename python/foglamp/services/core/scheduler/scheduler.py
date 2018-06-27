@@ -24,7 +24,7 @@ from foglamp.services.core.scheduler.entities import *
 from foglamp.services.core.scheduler.exceptions import *
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
-from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.common import utils
@@ -143,7 +143,6 @@ class Scheduler(object):
 
         # Instance attributes
 
-        self._storage = None
         self._storage_async = None
 
         self._ready = False
@@ -762,12 +761,10 @@ class Scheduler(object):
         # ************ make sure that it go forward only when storage service is ready
         storage_service = None
 
-        while storage_service is None and self._storage is None and self._storage_async is None:
+        while storage_service is None and self._storage_async is None:
             try:
                 found_services = ServiceRegistry.get(name="FogLAMP Storage")
                 storage_service = found_services[0]
-                self._storage = StorageClient(self._core_management_host, self._core_management_port,
-                                              svc=storage_service)
                 self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port,
                                               svc=storage_service)
 

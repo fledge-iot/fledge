@@ -46,7 +46,7 @@ class SupportBuilder:
 
             self._out_file_path = support_dir
             self._interim_file_path = support_dir
-            self._storage = get_storage()  # from foglamp.services.core.connect
+            self._storage = get_storage_async()  # from foglamp.services.core.connect
         except (OSError, Exception) as ex:
             _LOGGER.error("Error in initializing SupportBuilder class: %s ", str(ex))
             raise RuntimeError(str(ex))

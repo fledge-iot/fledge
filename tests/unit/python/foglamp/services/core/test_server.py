@@ -27,7 +27,7 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.api import configuration as conf_api
-from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.audit_logger import AuditLogger
 
@@ -557,7 +557,7 @@ class TestServer:
         async def async_mock(return_value):
             return return_value
 
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._storage_client_async = MagicMock(StorageClientAsync)
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
         with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
@@ -596,7 +596,7 @@ class TestServer:
         data = []
         record = ServiceRecord(service_id, sname, stype, sprotocol, saddress, sport, smgtport)
         data.append(record)
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._storage_client_async = MagicMock(StorageClientAsync)
         with patch.object(ServiceRegistry, 'get', return_value=data) as patch_get_unregister:
             with patch.object(ServiceRegistry, 'unregister') as patch_unregister:

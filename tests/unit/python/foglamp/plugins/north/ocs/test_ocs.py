@@ -19,7 +19,7 @@ from unittest.mock import patch, MagicMock, ANY
 from foglamp.plugins.north.ocs import ocs
 from foglamp.tasks.north.sending_process import SendingProcess
 import foglamp.tasks.north.sending_process as module_sp
-from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 _STREAM_ID = 1
 
@@ -52,7 +52,6 @@ def fixture_ocs_north(event_loop):
 
     ocs_north = ocs.OCSNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
 
-    ocs_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
     ocs_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
 
     return ocs_north

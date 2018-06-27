@@ -15,7 +15,7 @@ import pytest
 
 import foglamp.tasks.north.sending_process as sp_module
 from foglamp.common.audit_logger import AuditLogger
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.tasks.north.sending_process import SendingProcess
 
 __author__ = "Stefano Simonelli"
@@ -24,7 +24,16 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+pytestmark = pytest.mark.asyncio
+
 STREAM_ID = 1
+
+@asyncio.coroutine
+def mock_coro(*args, **kwargs):
+    if len(args) > 0:
+        return args[0]
+    else:
+        return ""
 
 
 async def mock_async_call():
@@ -89,7 +98,7 @@ def fixture_sp(event_loop):
 
     ]
 )
-def test_apply_date_format(p_data, expected_data):
+async def test_apply_date_format(p_data, expected_data):
 
     assert expected_data == sp_module.apply_date_format(p_data)
 
@@ -193,7 +202,7 @@ def test_apply_date_format(p_data, expected_data):
         ),
     ]
 )
-def test_handling_input_parameters(
+async def test_handling_input_parameters(
                                     p_parameter,
                                     expected_param_mgt_name,
                                     expected_param_mgt_port,
@@ -318,7 +327,7 @@ class TestSendingProcess:
 
         ]
     )
-    def test_is_stream_id_valid(self,
+    async def test_is_stream_id_valid(self,
                                 p_stream_id,
                                 p_rows,
                                 expected_stream_id_valid,
@@ -331,12 +340,12 @@ class TestSendingProcess:
 
         SendingProcess._logger = MagicMock(spec=logging)
         sp._logger = MagicMock(spec=logging)
-        sp._storage = MagicMock(spec=StorageClient)
+        sp._storage_async = MagicMock(spec=StorageClientAsync)
 
         if expected_execution == "good":
 
-            with patch.object(sp._storage, 'query_tbl', return_value=p_rows):
-                generate_stream_id = sp._is_stream_id_valid(p_stream_id)
+            with patch.object(sp._storage_async, 'query_tbl', return_value=mock_coro(p_rows)):
+                generate_stream_id = await sp._is_stream_id_valid(p_stream_id)
 
             # noinspection PyProtectedMember
             assert not SendingProcess._logger.error.called
@@ -345,8 +354,9 @@ class TestSendingProcess:
 
         elif expected_execution == "exception":
 
-            with pytest.raises(ValueError):
-                sp._is_stream_id_valid(p_stream_id)
+            with patch.object(sp._storage_async, 'query_tbl', side_effect=ValueError):
+                with pytest.raises(ValueError):
+                    await sp._is_stream_id_valid(p_stream_id)
 
             # noinspection PyProtectedMember
             assert SendingProcess._logger.error.called
@@ -356,7 +366,7 @@ class TestSendingProcess:
         ("omf", "north", "Empty North Plugin", False),
         ("omf", "south", "OMF North", False)
     ])
-    def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
+    async def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
         """Tests the possible cases of the function is_north_valid """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -396,7 +406,7 @@ class TestSendingProcess:
         # Tests - STATISTICS
         sp._config['source'] = sp._DATA_SOURCE_STATISTICS
 
-        with patch.object(sp, '_load_data_into_memory_statistics', return_value=True) \
+        with patch.object(sp, '_load_data_into_memory_statistics', return_value=mock_coro(True)) \
                 as mocked_load_data_into_memory_statistics:
 
             await  sp._load_data_into_memory(5)
@@ -405,7 +415,7 @@ class TestSendingProcess:
         # Tests - AUDIT
         sp._config['source'] = sp._DATA_SOURCE_AUDIT
 
-        with patch.object(sp, '_load_data_into_memory_audit', return_value=True) \
+        with patch.object(sp, '_load_data_into_memory_audit', return_value=mock_coro(True)) \
                 as mocked_load_data_into_memory_audit:
 
             await  sp._load_data_into_memory(5)
@@ -532,7 +542,7 @@ class TestSendingProcess:
             )
         ]
     )
-    def test_transform_in_memory_data_readings(self,
+    async def test_transform_in_memory_data_readings(self,
                                                event_loop,
                                                p_rows,
                                                expected_rows):
@@ -614,7 +624,7 @@ class TestSendingProcess:
 
         ]
     )
-    def test_load_data_into_memory_statistics(self,
+    async def test_load_data_into_memory_statistics(self,
                                               event_loop,
                                               p_rows,
                                               expected_rows):
@@ -626,12 +636,12 @@ class TestSendingProcess:
 
         sp._config['source'] = sp._DATA_SOURCE_STATISTICS
 
-        sp._storage = MagicMock(spec=StorageClient)
+        sp._storage_async = MagicMock(spec=StorageClientAsync)
 
         # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        with patch.object(sp._storage, 'query_tbl_with_payload', return_value=p_rows):
+        with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro(p_rows)):
 
-            generated_rows = sp._load_data_into_memory_statistics(5)
+            generated_rows = await sp._load_data_into_memory_statistics(5)
 
             assert len(generated_rows) == 1
             assert generated_rows == expected_rows
@@ -698,7 +708,7 @@ class TestSendingProcess:
 
         ]
     )
-    def test_transform_in_memory_data_statistics(self,
+    async def test_transform_in_memory_data_statistics(self,
                                                  event_loop,
                                                  p_rows,
                                                  expected_rows):
@@ -708,13 +718,16 @@ class TestSendingProcess:
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
 
-        # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        generated_rows = sp._transform_in_memory_data_statistics(p_rows)
+        sp._storage_async = MagicMock(spec=StorageClientAsync)
+        with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro()):
 
-        assert len(generated_rows) == 1
-        assert generated_rows == expected_rows
+            # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
+            generated_rows = sp._transform_in_memory_data_statistics(p_rows)
 
-    def test_load_data_into_memory_audit(self,
+            assert len(generated_rows) == 1
+            assert generated_rows == expected_rows
+
+    async def test_load_data_into_memory_audit(self,
                                          event_loop
                                          ):
         """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
@@ -724,30 +737,30 @@ class TestSendingProcess:
             sp = SendingProcess()
 
         sp._config['source'] = sp._DATA_SOURCE_AUDIT
-        sp._storage = MagicMock(spec=StorageClient)
+        sp._storage_async = MagicMock(spec=StorageClientAsync)
 
-        generated_rows = sp._load_data_into_memory_audit(5)
+        generated_rows = await sp._load_data_into_memory_audit(5)
 
         assert len(generated_rows) == 0
         assert generated_rows == ""
 
-    def test_last_object_id_read(self, event_loop):
+    async def test_last_object_id_read(self, event_loop):
         """Tests the possible cases for the function last_object_id_read """
 
-        def mock_query_tbl_row_1():
-            """Mocks the query_tbl function of the StorageClient object - good case"""
+        async def mock_query_tbl_row_1():
+            """Mocks the query_tbl function of the StorageClientAsync object - good case"""
 
             rows = {"rows": [{"last_object": 10}]}
             return rows
 
-        def mock_query_tbl_row_0():
-            """Mocks the query_tbl function of the StorageClient object - base case"""
+        async def mock_query_tbl_row_0():
+            """Mocks the query_tbl function of the StorageClientAsync object - base case"""
 
             rows = {"rows": []}
             return rows
 
-        def mock_query_tbl_row_2():
-            """Mocks the query_tbl function of the StorageClient object - base case"""
+        async def mock_query_tbl_row_2():
+            """Mocks the query_tbl function of the StorageClientAsync object - base case"""
 
             rows = {"rows": [{"last_object": 10}, {"last_object": 11}]}
             return rows
@@ -755,30 +768,30 @@ class TestSendingProcess:
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
 
-        sp._storage = MagicMock(spec=StorageClient)
+        sp._storage_async = MagicMock(spec=StorageClientAsync)
 
         # Good Case
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_1()) as sp_mocked:
-            position = sp._last_object_id_read(1)
+        with patch.object(sp._storage_async, 'query_tbl', return_value=mock_query_tbl_row_1()) as sp_mocked:
+            position = await sp._last_object_id_read(1)
             sp_mocked.assert_called_once_with('streams', 'id=1')
             assert position == 10
 
         # Bad cases
         sp._logger.error = MagicMock()
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_0()):
+        with patch.object(sp._storage_async, 'query_tbl', return_value=mock_query_tbl_row_0()):
             # noinspection PyBroadException
             try:
-                sp._last_object_id_read(1)
+                await sp._last_object_id_read(1)
             except Exception:
                 pass
 
             sp._logger.error.assert_called_once_with(sp_module._MESSAGES_LIST["e000019"])
 
         sp._logger.error = MagicMock()
-        with patch.object(sp._storage, 'query_tbl', return_value=mock_query_tbl_row_2()):
+        with patch.object(sp._storage_async, 'query_tbl', return_value=mock_query_tbl_row_2()):
             # noinspection PyBroadException
             try:
-                sp._last_object_id_read(1)
+                await sp._last_object_id_read(1)
             except Exception:
                 pass
 
@@ -965,7 +978,7 @@ class TestSendingProcess:
             )
         ]
     )
-    @pytest.mark.asyncio
+
     async def test_task_fetch_data_fill_buffer(
                                                 self,
                                                 event_loop,
@@ -1007,7 +1020,7 @@ class TestSendingProcess:
         sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
 
         # WHEN
-        with patch.object(sp, '_last_object_id_read', return_value=0):
+        with patch.object(sp, '_last_object_id_read', return_value=mock_coro(0)):
 
             with patch.object(sp, '_load_data_into_memory',
                               side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
@@ -1192,7 +1205,7 @@ class TestSendingProcess:
 
         # WHEN
         # Starts the fetch 'task'
-        with patch.object(sp, '_last_object_id_read', return_value=0):
+        with patch.object(sp, '_last_object_id_read', return_value=mock_coro(0)):
             with patch.object(sp, '_load_data_into_memory',
                               side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
@@ -1333,7 +1346,7 @@ class TestSendingProcess:
         sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
 
         # WHEN - Starts the fetch 'task'
-        with patch.object(sp, '_last_object_id_read', return_value=0):
+        with patch.object(sp, '_last_object_id_read', return_value=mock_coro(0)):
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
                 with patch.object(sp._audit, 'failure', return_value=mock_audit_failure()) as patched_audit:
                     with patch.object(sp, '_load_data_into_memory',
@@ -1499,7 +1512,7 @@ class TestSendingProcess:
         sp._memory_buffer = [None for x in range(sp._config['memory_buffer_size'])]
 
         # WHEN - Starts the fetch 'task'
-        with patch.object(sp, '_last_object_id_read', return_value=0):
+        with patch.object(sp, '_last_object_id_read', return_value=mock_coro(0)):
             with patch.object(sp, '_load_data_into_memory',
                               side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
@@ -2077,7 +2090,7 @@ class TestSendingProcess:
         ("ocs",        "north", "OCS North"),
         ("http_north", "north", "http_north")
     ])
-    def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
+    async def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -2130,7 +2143,7 @@ class TestSendingProcess:
             ),
         ]
     )
-    def test_retrieve_configuration_good(self,
+    async def test_retrieve_configuration_good(self,
                                          event_loop,
                                          p_config,
                                          expected_config):
@@ -2150,20 +2163,20 @@ class TestSendingProcess:
         assert sp._config['sleepInterval'] == expected_config['sleepInterval']
         assert sp._config['north'] == expected_config['north']
 
-    def test_start_stream_not_valid(self, event_loop):
+    async def test_start_stream_not_valid(self, event_loop):
         """ Unit tests - _start - stream_id is not valid """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
             sp = SendingProcess()
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=False):
+        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(False)):
             with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                result = sp._start(STREAM_ID)
+                result = await sp._start(STREAM_ID)
 
         assert not result
         assert not mocked_plugin_load.called
 
-    def test_start_sp_disabled(self, event_loop):
+    async def test_start_sp_disabled(self, event_loop):
         """ Unit tests - _start - sending process is disabled """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -2173,15 +2186,15 @@ class TestSendingProcess:
         sp._config['enable'] = False
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=True):
+        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(True)):
             with patch.object(sp, '_retrieve_configuration'):
                 with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                    result = sp._start(STREAM_ID)
+                    result = await sp._start(STREAM_ID)
 
         assert not result
         assert not mocked_plugin_load.called
 
-    def test_start_not_north(self, event_loop):
+    async def test_start_not_north(self, event_loop):
         """ Unit tests - _start - it is not a north plugin """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -2191,20 +2204,19 @@ class TestSendingProcess:
         sp._config['enable'] = True
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=True):
+        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(True)):
             with patch.object(sp, '_retrieve_configuration'):
                 with patch.object(sp, '_plugin_load') as mocked_plugin_load:
                     with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
                         with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
-
-                            result = sp._start(STREAM_ID)
+                            result = await sp._start(STREAM_ID)
 
         assert not result
         assert mocked_plugin_load.called
         assert mocked_plugin_info.called
         assert mocked_is_north_valid.called
 
-    def test_start_good(self, event_loop):
+    async def test_start_good(self, event_loop):
         """ Unit tests - _start """
 
         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
@@ -2214,13 +2226,13 @@ class TestSendingProcess:
         sp._config['enable'] = True
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=True) as mocked_is_stream_id_valid:
+        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(True)) as mocked_is_stream_id_valid:
             with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
                 with patch.object(sp, '_plugin_load') as mocked_plugin_load:
                     with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
                         with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
                             with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
-                                result = sp._start(STREAM_ID)
+                                result = await sp._start(STREAM_ID)
 
         assert result
         mocked_is_stream_id_valid.called_with(STREAM_ID)

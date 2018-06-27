@@ -11,7 +11,7 @@ import pytest
 from datetime import datetime
 import ast
 from foglamp.common import logger
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common.process import FoglampProcess
 
@@ -41,11 +41,11 @@ class TestStatisticsHistory:
                           'rows': [{'key': 'PURGED'}, {'key': 'SENT_4'}, {'key': 'UNSENT'}, {'key': 'SENT_2'},
                                    {'key': 'SENT_1'}, {'key': 'READINGS'}, {'key': 'BUFFERED'}, {'key': 'UNSNPURGED'},
                                    {'key': 'SENT_3'}, {'key': 'DISCARDED'}]}
-        mockStorageClient = MagicMock(spec=StorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage = mockStorageClient
+                sh._storage = mockStorageClientAsync
                 with patch.object(sh._storage, "query_tbl_with_payload", return_value=storage_return) as patch_storage:
                     assert sh._stats_keys() == ['PURGED', 'SENT_4', 'UNSENT', 'SENT_2', 'SENT_1',
                                                 'READINGS', 'BUFFERED', 'UNSNPURGED', 'SENT_3', 'DISCARDED']
@@ -53,11 +53,11 @@ class TestStatisticsHistory:
                     patch_storage.assert_called_once_with('statistics', '{"modifier": "distinct", "return": ["key"]}')
 
     def test_insert_into_stats_history(self):
-        mockStorageClient = MagicMock(spec=StorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage = mockStorageClient
+                sh._storage = mockStorageClientAsync
                 with patch.object(sh._storage, "insert_into_tbl", return_value=None) as patch_storage:
                     ts = datetime.now()
                     sh._insert_into_stats_history(key='Bla', value=1, history_ts=ts)
@@ -73,11 +73,11 @@ class TestStatisticsHistory:
                         assert False
 
     def test_update_previous_value(self):
-        mockStorageClient = MagicMock(spec=StorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage = mockStorageClient
+                sh._storage = mockStorageClientAsync
                 with patch.object(sh._storage, "update_tbl", return_value=None) as patch_storage:
                     sh._update_previous_value(key='Bla', value=1)
                     args, kwargs = patch_storage.call_args
@@ -87,11 +87,11 @@ class TestStatisticsHistory:
                     assert payload["values"]["previous_value"] == 1
 
     def test_select_from_statistics(self):
-        mockStorageClient = MagicMock(spec=StorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
-                sh._storage = mockStorageClient
+                sh._storage = mockStorageClientAsync
                 with patch.object(sh._storage, "query_tbl_with_payload", return_value={"a": 1}) as patch_storage:
                     val = sh._select_from_statistics(key='Bla')
                     assert val == {"a": 1}

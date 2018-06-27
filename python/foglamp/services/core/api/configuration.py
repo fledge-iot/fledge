@@ -16,12 +16,14 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | GET POST        | /foglamp/category                                         |
-    | GET             | /foglamp/category/{category_name}                         |
-    | GET POST PUT    | /foglamp/category/{category_name}/{config_item}           |
-    | DELETE          | /foglamp/category/{category_name}/{config_item}/value     |
-    -------------------------------------------------------------------------------
+    --------------------------------------------------------------------------------
+    | GET POST       | /foglamp/category                                           |
+    | GET            | /foglamp/category/{category_name}                           |
+    | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
+    | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
+    | GET POST       | /foglamp/category/{category_name}/children                  |
+    | DELETE         | /foglamp/category/{category_name}/children/{child_category} |
+    --------------------------------------------------------------------------------
 """
 
 #################################
@@ -286,3 +288,68 @@ async def delete_configuration_item_value(request):
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
 
     return web.json_response(result)
+
+
+async def get_child_category(request):
+    """
+    Args:
+         request: category_name is required
+
+    Returns:
+            list of categories that are children of name category
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/category/south/children
+    """
+    category_name = request.match_info.get('category_name', None)
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+
+    # TODO: add def in configuration manager
+
+    return web.json_response({"reason": "To be implemented"})
+
+
+async def create_child_category(request):
+    """
+    Args:
+         request: category_name is required and JSON object that defines the child category
+
+    Returns:
+        parent of the children being added
+
+    :Example:
+            curl -d '{"children": ["coap", "http", "sinusoid"]}' -X POST http://localhost:8081/foglamp/category/south/children
+    """
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    data = await request.json()
+    if not isinstance(data, dict):
+        raise ValueError('Data payload must be a dictionary')
+
+    config_item = request.match_info.get('category_name', None)
+    children = data.get('children')
+
+    # TODO: add def in configuration manager
+
+    return web.json_response({"reason": "To be implemented"})
+
+
+async def delete_child_category(request):
+    """
+    Args:
+        request: category_name, child_category are required
+
+    Returns:
+        remove the link b/w child category and its parent
+
+    :Example:
+        curl -X DELETE http://localhost:8081/foglamp/category/{category_name}/children/{child_category}
+
+    """
+    category_name = request.match_info.get('category_name', None)
+    child_category = request.match_info.get('child_category', None)
+
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+
+    # TODO: add def in configuration manager
+
+    return web.json_response({"reason": "To be implemented"})

@@ -391,7 +391,6 @@ class TestConfiguration:
         def async_audit_mock(return_value):
             return return_value
 
-
         @asyncio.coroutine
         def async_mock_expected():
             expected = {'rows_affected': 1, "response": "updated"}
@@ -431,3 +430,32 @@ class TestConfiguration:
             resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
+
+    async def test_get_child_categories(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            resp = await client.get('/foglamp/category/south/children')
+            assert 200 == resp.status
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert {'reason': 'To be implemented'} == json_response
+
+    async def test_create_child_category(self, client):
+        data = {"children": ["coap", "http", "sinusoid"]}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            resp = await client.post('/foglamp/category/{}/children'.format("south"), data=json.dumps(data))
+            assert 200 == resp.status
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert {'reason': 'To be implemented'} == json_response
+
+    async def test_delete_child_category(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            resp = await client.delete('/foglamp/category/{}/children/{}'.format("south", "coap"))
+            assert 200 == resp.status
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert {'reason': 'To be implemented'} == json_response

@@ -97,7 +97,7 @@ class Monitor(object):
                     ServiceRegistry.mark_as_failed(service_record._id)
                     check_count[service_record._id] = 0
                     try:
-                        audit = AuditLogger(connect.get_storage())
+                        audit = AuditLogger(connect.get_storage_async())
                         await audit.failure('SRVFL', {'name':service_record._name})
                     except Exception as ex:
                         self._logger.info("Failed to audit service failure %s", str(ex))
@@ -123,7 +123,7 @@ class Monitor(object):
             },
         }
 
-        storage_client = connect.get_storage()
+        storage_client = connect.get_storage_async()
         cfg_manager = ConfigurationManager(storage_client)
         await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor')
 

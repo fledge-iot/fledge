@@ -168,8 +168,8 @@ async def get_audit_entries(request):
         try:
             source = request.query.get('source')
             # SELECT * FROM log_codes
-            storage_client = connect.get_storage()
-            result = storage_client.query_tbl("log_codes")
+            storage_client = connect.get_storage_async()
+            result = await storage_client.query_tbl("log_codes")
             log_codes = [key['code'] for key in result['rows']]
             if source not in log_codes:
                 raise ValueError
@@ -204,8 +204,8 @@ async def get_audit_entries(request):
             .ALIAS("aggregate", ("*", "count", "count")).payload()
 
         # SELECT count (*) FROM log <_and_where_payload>
-        storage_client = connect.get_storage()
-        result = storage_client.query_tbl_with_payload('log', total_count_payload)
+        storage_client = connect.get_storage_async()
+        result = await storage_client.query_tbl_with_payload('log', total_count_payload)
         total_count = result['rows'][0]['count']
 
         payload = PayloadBuilder(_and_where_payload)
@@ -216,7 +216,7 @@ async def get_audit_entries(request):
             payload.OFFSET(offset)
 
         # SELECT * FROM log <payload.payload()>
-        results = storage_client.query_tbl_with_payload('log', payload.payload())
+        results = await storage_client.query_tbl_with_payload('log', payload.payload())
         res = []
         for row in results['rows']:
             r = dict()
@@ -246,8 +246,8 @@ async def get_audit_log_codes(request):
 
         curl -X GET http://localhost:8081/foglamp/audit/logcode
     """
-    storage_client = connect.get_storage()
-    result = storage_client.query_tbl('log_codes')
+    storage_client = connect.get_storage_async()
+    result = await storage_client.query_tbl('log_codes')
 
     return web.json_response({'logCode': result['rows']})
 

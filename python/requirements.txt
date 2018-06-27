@@ -1,7 +1,4 @@
 
-# PostreSQL Storage Plugin
-psycopg2==2.7.1
-
 # Common - REST interface
 aiohttp==2.3.8
 aiohttp_cors==0.5.3

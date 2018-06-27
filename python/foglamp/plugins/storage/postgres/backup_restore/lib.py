@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017
+# Copyright (C) 2017, 2018
 
 """ Library used for backup and restore operations
 """
@@ -10,18 +10,16 @@ import os
 import asyncio
 import json
 from enum import IntEnum
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
 from foglamp.common import logger
 from foglamp.common.storage_client import payload_builder
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.configuration_manager import ConfigurationManager
 
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017, 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -37,7 +35,8 @@ _MESSAGES_LIST = {
     "e000001": "semaphore file deleted because it was already in existence - file |{0}|",
     "e000002": "semaphore file deleted because it existed even if the corresponding process was not running "
                "- file |{0}| - pid |{1}|",
-    "e000003": "ERROR - the library cannot be executed directly.",
+    "e000003": "ERROR - the library cannot be executed directly."
+
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -269,6 +268,7 @@ class BackupRestoreLib(object):
                    " - command |{0}| - full command |{1}|",
         "e000020": "It is not possible to evaluate if the storage is managed or unmanaged"
                    " - storage plugin |{0}|",
+        "e000021": "the SQL command generates an error - error details |{0}| - full command |{1}|",
 
     }
     """ Messages used for Information, Warning and Error notice """
@@ -314,18 +314,19 @@ class BackupRestoreLib(object):
         },
         "backup-dir": {
             "description": "Directory where backups will be created, "
-                           "if not specified, FOGLAMP_BACKUP, FOGLAMP_DATA or FOGLAMP_BACKUP will be used.",
+                           "it uses backup-dir if it is specified "
+                           "or FOGLAMP_BACKUP if defined or FOGLAMP_DATA/backup as the last resort",
             "type": "string",
             "default": "none"
         },
         "semaphores-dir": {
-            "description": "Directory for semaphores for backup/restore synchronization."
-                           "if not specified, backup-dir will be used.",
+            "description": "Directory for semaphores for backup/restore synchronization, "
+                           "if not specified, backup-dir will be used",
             "type": "string",
             "default": "none"
         },
         "retention": {
-            "description": "Number of backups to maintain. Old backups will be deleted.",
+            "description": "Number of backups to maintain. Old backups will be deleted",
             "type": "integer",
             "default": "5"
         },
@@ -335,7 +336,7 @@ class BackupRestoreLib(object):
             "default": "5"
         },
         "timeout": {
-            "description": "Timeout in seconds for execution of external commands.",
+            "description": "Timeout in seconds for execution of external commands",
             "type": "integer",
             "default": "1200"
         },
@@ -346,7 +347,7 @@ class BackupRestoreLib(object):
         },
         "restart-sleep": {
             "description": "Sleep time between each check of the status at the restart of Foglamp "
-                           "to ensure it is started successfully.",
+                           "to ensure it is started successfully",
             "type": "integer",
             "default": "5"
         },
@@ -393,7 +394,7 @@ class BackupRestoreLib(object):
                     exit_code=0) \
             .payload()
 
-        self._storage.insert_into_tbl(self.STORAGE_TABLE_BACKUPS, payload)
+        asyncio.get_event_loop().run_until_complete(self._storage.insert_into_tbl(self.STORAGE_TABLE_BACKUPS, payload))
 
     def sl_backup_status_update(self, _id, _status, _exit_code):
         """ Updates the status of the backup using the Storage layer
@@ -415,7 +416,7 @@ class BackupRestoreLib(object):
             .WHERE(['id', '=', _id]) \
             .payload()
 
-        self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload)
+        asyncio.get_event_loop().run_until_complete(self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload))
 
     def sl_get_backup_details_from_file_name(self, _file_name):
         """ Retrieves backup information from file name
@@ -435,7 +436,7 @@ class BackupRestoreLib(object):
             .WHERE(['file_name', '=', _file_name]) \
             .payload()
 
-        backups_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+        backups_from_storage = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload))
 
         if backups_from_storage['count'] == 1:
 
@@ -592,9 +593,12 @@ class BackupRestoreLib(object):
 
         plugin_type = False
 
+        # The storage executable requires the environment FOGLAMP_DATA, so it ensures it is valued
+        cmd = "export FOGLAMP_DATA={data_dir};".format(data_dir=self.dir_foglamp_data)
+
         # Inquires the storage
         file_full_path = self.dir_foglamp_root + self.STORAGE_EXE
-        cmd = file_full_path + " --plugin"
+        cmd += file_full_path + " --plugin"
 
         # noinspection PyArgumentEqualDefault
         _exit_code, output = exec_wait(
@@ -680,7 +684,7 @@ class BackupRestoreLib(object):
             .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
             .WHERE(['id', '=', backup_id]).payload()
 
-        backup_from_storage = self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+        backup_from_storage = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload))
 
         if backup_from_storage['count'] == 0:
             raise exceptions.DoesNotExist
@@ -693,51 +697,33 @@ class BackupRestoreLib(object):
 
         return backup_information
 
-    def storage_retrieve(self, sql_cmd):
-        """  Executes a sql command against the Storage layer that retrieves data
+    def psql_cmd(self, sql_cmd):
+        """  Execute a sql command and return the results using the psql command line tool
 
         Args:
+            sql_cmd - the SQL Command
         Returns:
-            raw_data:list - Python list containing the rows retrieved from the Storage layer
+            result_data - data returned from the execution
         Raises:
         """
 
-        _logger.debug("{func} - sql cmd |{cmd}| ".format(func="storage_retrieve",
-                                                         cmd=sql_cmd))
+        cmd_psql = self.PG_COMMANDS[self.PG_COMMAND_PSQL]
 
-        db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
+        cmd = '{psql} -qt -d {db} -c "{sql}"'.format(
+                                                        psql=cmd_psql,
+                                                        db=self.config['database'],
+                                                        sql=sql_cmd)
 
-        _pg_conn = psycopg2.connect(db_connection_string, cursor_factory=RealDictCursor)
+        result_code, output_1 = exec_wait(cmd, True)
 
-        _pg_cur = _pg_conn.cursor()
+        output_2 = output_1.replace("\n", "")
+        result_data = output_2.split('|')
 
-        _pg_cur.execute(sql_cmd)
-        raw_data = _pg_cur.fetchall()
-        _pg_conn.close()
+        # Error handling required
+        if result_code != 0:
+            raise exceptions.SQLCommandExecutionError(self._MESSAGES_LIST["e000021"].format(output_1, cmd))
 
-        return raw_data
-
-    def storage_update(self, sql_cmd):
-        """Executes a sql command against the Storage layer that updates data
-
-        Args:
-            sql_cmd: sql command to execute
-        Returns:
-        Raises:
-        """
-
-        _logger.debug("{func} - sql cmd |{cmd}| ".format(
-                                                            func="storage_update",
-                                                            cmd=sql_cmd))
-
-        db_connection_string = self._DB_CONNECTION_STRING.format(db=self.config["database"])
-
-        _pg_conn = psycopg2.connect(db_connection_string)
-        _pg_cur = _pg_conn.cursor()
-
-        _pg_cur.execute(sql_cmd)
-        _pg_conn.commit()
-        _pg_conn.close()
+        return result_data
 
     def backup_status_update(self, backup_id, status):
         """ Updates the status of the backup in the Storage layer
@@ -753,13 +739,11 @@ class BackupRestoreLib(object):
                                                           id=backup_id))
 
         sql_cmd = """
-
-            UPDATE foglamp.backups SET  status={status} WHERE id='{id}';
-
+            UPDATE foglamp.backups SET status={status} WHERE id='{id}';
             """.format(status=status,
                        id=backup_id, )
 
-        self.storage_update(sql_cmd)
+        self.psql_cmd(sql_cmd)
 
     def retrieve_configuration(self):
         """  Retrieves the configuration either from the manager or from a local file.
@@ -1091,5 +1075,5 @@ if __name__ == "__main__":
 
     if False:
         # Used to assign the proper objects type without actually executing them
-        _storage = StorageClient("127.0.0.1", "0")
+        _storage = StorageClientAsync("127.0.0.1", "0")
         _logger = logger.setup(_MODULE_NAME)

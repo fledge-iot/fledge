@@ -66,16 +66,17 @@ async def ping(request):
     data_read = get_stats('READINGS')
     data_sent_1 = get_stats('SENT_1')
     data_sent_2 = get_stats('SENT_2')
-    data_sent_3 = get_stats('SENT_3')
+    # data_sent_3 = get_stats('SENT_3')
     data_sent_4 = get_stats('SENT_4')
     data_purged = get_stats('PURGED')
 
     return web.json_response({'uptime': since_started,
                               'dataRead': data_read,
-                              'dataSent': data_sent_1 + data_sent_2 + data_sent_3 + data_sent_4,
+                              'dataSent': data_sent_1 + data_sent_2 + data_sent_4,
                               'dataPurged': data_purged,
                               'authenticationOptional': request.is_auth_optional
                               })
+
 
 async def shutdown(request):
     """

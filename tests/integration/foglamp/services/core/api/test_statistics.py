@@ -84,10 +84,6 @@ class TestStatistics:
         assert res[5]['value'] == 0
         assert len(res[5]['description']) > 0
 
-        assert res[6]['key'] == 'SENT_3'
-        assert res[6]['value'] == 0
-        assert len(res[6]['description']) > 0
-
         assert res[7]['key'] == 'UNSENT'
         assert res[7]['value'] == 0
         assert len(res[7]['description']) > 0

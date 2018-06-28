@@ -16,7 +16,7 @@ import pytest
 from foglamp.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
 from foglamp.services.core.scheduler.entities import *
 from foglamp.services.core.scheduler.exceptions import *
-from foglamp.common.storage_client.storage_client import StorageClientAsync, StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -1417,7 +1417,7 @@ class TestScheduler:
     async def test__terminate_child_processes(self, mocker):
         pass
 
-class MockStorage(StorageClient):
+class MockStorage(StorageClientAsync):
     def __init__(self, core_management_host=None, core_management_port=None):
         super().__init__(core_management_host, core_management_port)
 

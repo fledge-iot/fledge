@@ -24,7 +24,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
-from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
@@ -394,11 +394,10 @@ class Server:
     @classmethod
     async def _get_storage_client(cls):
         storage_service = None
-        while storage_service is None and cls._storage_client is None and cls._storage_client_async is None:
+        while storage_service is None and cls._storage_client_async is None:
             try:
                 found_services = ServiceRegistry.get(name="FogLAMP Storage")
                 storage_service = found_services[0]
-                cls._storage_client = StorageClient(cls._host, cls.core_management_port, svc=storage_service)
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)

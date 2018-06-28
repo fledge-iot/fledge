@@ -107,7 +107,7 @@ class HttpNorthPlugin(object):
         pending =  the requests (tasks) waiting for response Or in queue
 
         """
-        self.event_loop.run_until_complete(self.cancel_tasks())
+        asyncio.ensure_future(self.cancel_tasks())
 
     async def cancel_tasks(self):
         # cancel pending tasks

@@ -184,7 +184,7 @@ class RestoreProcess(FoglampProcess):
 
             raise exceptions.ArgumentParserError(_message)
 
-        self._restore_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self._restore_lib = lib.BackupRestoreLib(self._storage_async, self._logger)
 
         self._job = lib.Job()
 

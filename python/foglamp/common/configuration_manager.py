@@ -525,7 +525,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # FIXME: if re-create same data
                 payload = PayloadBuilder().INSERT(parent=category_name, child=child).payload()
                 result = await self._storage.insert_into_tbl("category_children", payload)
-                response = result['response']
+
+            if result['response'] == 'inserted':
+                cat_dict = await self.get_category_all_items(category_name)
+                child_dict = await self._read_all_child_category_names(category_name)
+                _children = []
+                for item in child_dict:
+                    _children.append(item['child'])
+
+                cat_dict["children"] = _children
+
             # TODO: Shall we write audit trail code entry here? log_code?
         except KeyError:
             raise ValueError(result['message'])
@@ -533,14 +542,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-        return response
+        return cat_dict
 
     async def delete_child_category(self, category_name, child_category):
-        """Create a new child category in the database.
+        """Delete a parent-child relationship
 
         Keyword Arguments:
         category_name -- name of the category (required)
-        child_category --
+        child_category -- child name
 
         Return Values:
         None
@@ -559,10 +568,25 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if child is None:
             raise ValueError('No such {} child exist'.format(child_category))
 
-        payload = PayloadBuilder().WHERE(["parent", "=", category_name]).AND_WHERE(["child", "=", child_category]).payload()
-        result = await self._storage.delete_from_tbl("category_children", payload)
-        # TODO: Shall we write audit trail code entry here? log_code?
-        return result
+        try:
+            payload = PayloadBuilder().WHERE(["parent", "=", category_name]).AND_WHERE(["child", "=", child_category]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+
+            if result['response'] == 'deleted':
+                child_dict = await self._read_all_child_category_names(category_name)
+                _children = []
+                for item in child_dict:
+                    _children.append(item['child'])
+
+            # TODO: Shall we write audit trail code entry here? log_code?
+
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return _children
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

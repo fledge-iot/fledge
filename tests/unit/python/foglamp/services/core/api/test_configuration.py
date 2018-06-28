@@ -448,11 +448,13 @@ class TestConfiguration:
         patch_get_child_cat.assert_called_once_with('south')
 
     async def test_create_child_category(self, client):
+        data = {"children": ["coap", "http", "sinusoid"]}
+        result = {"management_host": {"description": "Management host", "type": "string", "default": "127.0.0.1"}, "children": data["children"]}
+
         @asyncio.coroutine
         def async_mock():
-            return None
+            return result
 
-        data = {"children": ["coap", "http", "sinusoid"]}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -461,13 +463,13 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert {'message': "['coap', 'http', 'sinusoid'] has been created for south category"} == json_response
+                assert result == json_response
             patch_create_child_cat.assert_called_once_with('south', data['children'])
 
     async def test_delete_child_category(self, client):
         @asyncio.coroutine
         def async_mock():
-            return None
+            return ["http", "sinusoid"]
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -477,5 +479,5 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert {'message': 'coap child link removed for south category'} == json_response
+                assert {"children": ["http", "sinusoid"]} == json_response
             patch_delete_child_cat.assert_called_once_with('south', 'coap')

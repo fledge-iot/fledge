@@ -309,7 +309,7 @@ async def get_child_category(request):
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response({"categories":result})
+    return web.json_response({"categories": result})
 
 
 async def create_child_category(request):
@@ -332,13 +332,13 @@ async def create_child_category(request):
     children = data.get('children')
 
     try:
-        await cf_mgr.create_child_category(category_name, children)
+        r = await cf_mgr.create_child_category(category_name, children)
     except TypeError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response({"message": "{} has been created for {} category".format(children, category_name)})
+    return web.json_response(r)
 
 
 async def delete_child_category(request):
@@ -358,11 +358,11 @@ async def delete_child_category(request):
 
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:
-        await cf_mgr.delete_child_category(category_name, child_category)
+        result = await cf_mgr.delete_child_category(category_name, child_category)
 
     except TypeError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response({"message": "{} child link removed for {} category".format(child_category, category_name)})
+    return web.json_response({"children": result})

@@ -434,7 +434,7 @@ class TestConfiguration:
     async def test_get_child_category(self, client):
         @asyncio.coroutine
         def async_mock():
-            return ""
+            return []
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -444,21 +444,7 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert "" == json_response
-        patch_get_child_cat.assert_called_once_with('south')
-
-    async def test_get_child_category_no_found(self, client):
-        @asyncio.coroutine
-        def async_mock():
-            return None
-
-        storage_client_mock = MagicMock(StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_child', return_value=async_mock()) as patch_get_child_cat:
-                resp = await client.get('/foglamp/category/south/children')
-                assert 404 == resp.status
-                assert 'No children found for the category_name: south' == resp.reason
+                assert {"categories": []} == json_response
         patch_get_child_cat.assert_called_once_with('south')
 
     async def test_create_child_category(self, client):
@@ -475,7 +461,7 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert json_response is None
+                assert {'message': "['coap', 'http', 'sinusoid'] has been created for south category"} == json_response
             patch_create_child_cat.assert_called_once_with('south', data['children'])
 
     async def test_delete_child_category(self, client):
@@ -491,5 +477,5 @@ class TestConfiguration:
                 assert 200 == resp.status
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert json_response is None
+                assert {'message': 'coap child link removed for south category'} == json_response
             patch_delete_child_cat.assert_called_once_with('south', 'coap')

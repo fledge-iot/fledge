@@ -315,18 +315,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
-    async def get_category_child(self, category_name):
-        """Get the list of categories that are children of a given category.
-
-        Keyword Arguments:
-        category_name -- name of the category (required)
-
-        Return Values:
-        None
-        """
-        # TODO: To be implemented
-        return None
-
     async def set_category_item_value_entry(self, category_name, item_name, new_value_entry):
         """Set the "value" entry of a given item within a given category.
 
@@ -467,6 +455,46 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise
         return None
 
+    async def _read_all_child_category_names(self, category_name):
+        _children = []
+        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).payload()
+        results = await self._storage.query_tbl_with_payload('category_children', payload)
+        for row in results['rows']:
+            _children.append(row)
+
+        return _children
+
+    async def _read_child_info(self, child_list):
+        info = []
+        for item in child_list:
+            payload = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", item['child']]).payload()
+            results = await self._storage.query_tbl_with_payload('configuration', payload)
+            for row in results['rows']:
+                info.append(row)
+
+        return info
+
+    async def get_category_child(self, category_name):
+        """Get the list of categories that are children of a given category.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        None
+        """
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        try:
+            child_cat_names = await self._read_all_child_category_names(category_name)
+            return await self._read_child_info(child_cat_names)
+        except:
+            _logger.exception(
+                'Unable to read all child category names')
+            raise
+
     async def create_child_category(self, category_name, children):
         """Create a new child category in the database.
 
@@ -483,8 +511,29 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if not isinstance(children, list):
             raise TypeError('children must be a list')
 
-        # TODO: To be implemented
-        return None
+        try:
+            category = await self._read_category_val(category_name)
+            if category is None:
+                raise ValueError('No such {} category exist'.format(category_name))
+
+            for child in children:
+                category = await self._read_category_val(child)
+                if category is None:
+                    raise ValueError('No such {} child exist'.format(child))
+
+            for child in children:
+                # FIXME: if re-create same data
+                payload = PayloadBuilder().INSERT(parent=category_name, child=child).payload()
+                result = await self._storage.insert_into_tbl("category_children", payload)
+                response = result['response']
+            # TODO: Shall we write audit trail code entry here? log_code?
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return response
 
     async def delete_child_category(self, category_name, child_category):
         """Create a new child category in the database.
@@ -502,8 +551,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if not isinstance(child_category, str):
             raise TypeError('child_category must be a string')
 
-        # TODO: To be implemented
-        return None
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        child = await self._read_category_val(child_category)
+        if child is None:
+            raise ValueError('No such {} child exist'.format(child_category))
+
+        payload = PayloadBuilder().WHERE(["parent", "=", category_name]).AND_WHERE(["child", "=", child_category]).payload()
+        result = await self._storage.delete_from_tbl("category_children", payload)
+        # TODO: Shall we write audit trail code entry here? log_code?
+        return result
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

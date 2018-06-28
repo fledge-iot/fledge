@@ -304,11 +304,12 @@ async def get_child_category(request):
     category_name = request.match_info.get('category_name', None)
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
-    result = await cf_mgr.get_category_child(category_name)
-    if result is None:
-        raise web.HTTPNotFound(reason="No children found for the category_name: {}".format(category_name))
+    try:
+        result = await cf_mgr.get_category_child(category_name)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response(result)
+    return web.json_response({"categories":result})
 
 
 async def create_child_category(request):
@@ -331,11 +332,13 @@ async def create_child_category(request):
     children = data.get('children')
 
     try:
-        result = await cf_mgr.create_child_category(category_name, children)
+        await cf_mgr.create_child_category(category_name, children)
     except TypeError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
 
-    return web.json_response(result)
+    return web.json_response({"message": "{} has been created for {} category".format(children, category_name)})
 
 
 async def delete_child_category(request):
@@ -354,5 +357,12 @@ async def delete_child_category(request):
     child_category = request.match_info.get('child_category', None)
 
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-    result = await cf_mgr.delete_child_category(category_name, child_category)
-    return web.json_response(result)
+    try:
+        await cf_mgr.delete_child_category(category_name, child_category)
+
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+
+    return web.json_response({"message": "{} child link removed for {} category".format(child_category, category_name)})

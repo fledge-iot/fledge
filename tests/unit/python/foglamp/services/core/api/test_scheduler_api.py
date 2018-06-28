@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 
+import asyncio
 import json
 from unittest.mock import MagicMock, patch, call
 from datetime import timedelta, datetime
@@ -14,7 +15,7 @@ import pytest
 from aiohttp import web
 from foglamp.services.core import routes
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core import server
 from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.scheduler.entities import ScheduledProcess, Task, IntervalSchedule, TimedSchedule, StartUpSchedule, ManualSchedule
@@ -25,6 +26,13 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+@asyncio.coroutine
+def mock_coro_response(*args, **kwargs):
+    if len(args) > 0:
+        return args[0]
+    else:
+        return ""
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("core", "api", "schedule")
@@ -60,12 +68,12 @@ class TestScheduledProcesses:
         assert {'processes': ['foo']} == json_response
 
     async def test_get_scheduled_process(self, client):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         payload = '{"return": ["name"], "where": {"column": "name", "condition": "=", "value": "purge"}}'
         response = {'rows': [{'name': 'purge'}], 'count': 1}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  return_value=response) as mock_storage_call:
+                                  return_value=mock_coro_response(response)) as mock_storage_call:
                     resp = await client.get('/foglamp/schedule/process/purge')
                     assert 200 == resp.status
                     result = await resp.text()
@@ -74,11 +82,11 @@ class TestScheduledProcesses:
                 mock_storage_call.assert_called_with('scheduled_processes', payload)
 
     async def test_get_scheduled_process_bad_data(self, client):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [], 'count': 0}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  return_value=response):
+                                  return_value=mock_coro_response(response)):
                     resp = await client.get('/foglamp/schedule/process/bla')
                     assert 404 == resp.status
                     assert 'No such Scheduled Process: bla.' == resp.reason
@@ -302,10 +310,10 @@ class TestSchedules:
             schedule.process_name = "bar"
             return schedule
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'p1'}], 'count': 1}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()) \
                         as patch_save_schedule:
                     with patch.object(server.Server.scheduler, 'get_schedule',
@@ -345,10 +353,10 @@ class TestSchedules:
          {'rows': [], 'count': 0}),
     ])
     async def test_post_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = storage_return
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 resp = await client.post('/foglamp/schedule', data=json.dumps(request_data))
                 assert response_code == resp.status
                 assert error_message == resp.reason
@@ -377,10 +385,10 @@ class TestSchedules:
                 schedule.name = "new"
             return schedule
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'p1'}], 'count': 1}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'save_schedule', return_value=mock_coro()) \
                         as patch_save_schedule:
                     with patch.object(server.Server.scheduler, 'get_schedule',
@@ -446,10 +454,10 @@ class TestSchedules:
             schedule.day = None
             return schedule
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = storage_return
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'get_schedule',
                                   return_value=mock_coro()) as patch_get_schedule:
                     resp = await client.put('/foglamp/schedule/{}'.format(self._random_uuid),
@@ -526,10 +534,10 @@ class TestTasks:
             task.reason = None
             return task
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 1, 'rows': [{'process_name': 'bla'}]}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'get_task', return_value=mock_coro()):
                     resp = await client.get('/foglamp/task/{}'.format(self._random_uuid))
                     assert 200 == resp.status
@@ -576,10 +584,10 @@ class TestTasks:
             tasks.append(task)
             return tasks
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 1, 'rows': [{'process_name': 'bla'}]}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'get_tasks', return_value=patch_get_tasks()):
                     resp = await client.get('/foglamp/task{}'.format(request_params))
                     assert 200 == resp.status
@@ -604,10 +612,10 @@ class TestTasks:
             tasks = []
             return tasks
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 0, 'rows': []}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 with patch.object(server.Server.scheduler, 'get_tasks', return_value=patch_get_tasks()):
                     resp = await client.get('/foglamp/task{}'.format('?name=bla&state=running'))
                     assert 404 == resp.status
@@ -615,12 +623,12 @@ class TestTasks:
 
     @pytest.mark.parametrize("request_params", ['', '?name=bla'])
     async def test_get_tasks_latest(self, client, request_params):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 2, 'rows': [
             {'pid': '1', 'reason': '', 'exit_code': '0', 'id': '1',
              'process_name': 'bla', 'end_time': '2018', 'start_time': '2018', 'state': '2'}]}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 resp = await client.get('/foglamp/task/latest{}'.format(request_params))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -631,10 +639,10 @@ class TestTasks:
 
     @pytest.mark.parametrize("request_params", ['', '?name=not_exist'])
     async def test_get_tasks_latest_no_task_exception(self, client, request_params):
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 0, 'rows': []}
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=response):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro_response(response)):
                 resp = await client.get('/foglamp/task/latest{}'.format(request_params))
                 assert 404 == resp.status
                 assert "No Tasks found" == resp.reason

@@ -41,8 +41,8 @@ async def get_statistics(request):
             curl -X GET http://localhost:8081/foglamp/statistics
     """
     payload = PayloadBuilder().SELECT(("key", "description", "value")).ORDER_BY(["key"]).payload()
-    storage_client = connect.get_storage()
-    result = storage_client.query_tbl_with_payload('statistics', payload)
+    storage_client = connect.get_storage_async()
+    result = await storage_client.query_tbl_with_payload('statistics', payload)
     return web.json_response(result['rows'])
 
 
@@ -57,12 +57,12 @@ async def get_statistics_history(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/statistics/history?limit=1
     """
-    storage_client = connect.get_storage()
+    storage_client = connect.get_storage_async()
 
     # To find the interval in secs from stats collector schedule
     scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(
         ['process_name', '=', 'stats collector']).payload()
-    result = storage_client.query_tbl_with_payload('schedules', scheduler_payload)
+    result = await storage_client.query_tbl_with_payload('schedules', scheduler_payload)
     if len(result['rows']) > 0:
         scheduler = Scheduler()
         interval_days, interval_dt = scheduler.extract_day_time_from_interval(result['rows'][0]['schedule_interval'])
@@ -87,7 +87,7 @@ async def get_statistics_history(request):
             # SELECT date_trunc('second', history_ts::timestamptz)::varchar as history_ts
 
             count_payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
-            result = storage_client.query_tbl_with_payload("statistics", count_payload)
+            result = await storage_client.query_tbl_with_payload("statistics", count_payload)
             key_count = result['rows'][0]['count_*']
 
             stats_history_chain_payload = PayloadBuilder(stats_history_chain_payload).LIMIT(limit * key_count).chain_payload()
@@ -95,7 +95,7 @@ async def get_statistics_history(request):
             raise web.HTTPBadRequest(reason="Limit must be a positive integer")
 
     stats_history_payload = PayloadBuilder(stats_history_chain_payload).payload()
-    result_from_storage = storage_client.query_tbl_with_payload('statistics_history', stats_history_payload)
+    result_from_storage = await storage_client.query_tbl_with_payload('statistics_history', stats_history_payload)
     group_dict = []
     for row in result_from_storage['rows']:
         new_dict = {'history_ts': row['history_ts'], row['key']: row['value']}

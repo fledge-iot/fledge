@@ -16,7 +16,7 @@ import pytest
 from foglamp.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
 from foglamp.services.core.scheduler.entities import *
 from foglamp.services.core.scheduler.exceptions import *
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,6 +40,7 @@ class TestScheduler:
     async def scheduler_fixture(self, mocker):
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_paused', False)
@@ -74,6 +75,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
 
         # WHEN
         # Check IF part
@@ -96,6 +98,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
 
         mock_schedules = dict()
@@ -149,6 +152,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
@@ -203,6 +207,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.multiple(scheduler, _ready=True, _paused=False)
         mocker.patch.object(scheduler, '_max_completed_task_age', datetime.datetime.now())
 
@@ -219,6 +224,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.multiple(scheduler, _purge_tasks_task=None,
                               _last_task_purge_time=None)
         mocker.patch.object(scheduler, 'purge_tasks', return_value=asyncio.ensure_future(mock_task()))
@@ -235,6 +241,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
 
         current_time = time.time()
@@ -267,6 +274,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
 
         current_time = time.time()
@@ -301,6 +309,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
 
         current_time = time.time()
@@ -337,6 +346,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
 
         current_time = time.time()
@@ -372,18 +382,20 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
 
         # WHEN
         await scheduler._get_process_scripts()
 
         # THEN
-        assert len(scheduler._storage.scheduled_processes) == len(scheduler._process_scripts)
+        assert len(scheduler._storage_async.scheduled_processes) == len(scheduler._process_scripts)
 
     @pytest.mark.asyncio
     async def test__get_process_scripts_exception(self, mocker):
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_debug = mocker.patch.object(scheduler._logger, "debug", side_effect=Exception())
         log_exception = mocker.patch.object(scheduler._logger, "exception")
 
@@ -409,12 +421,13 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         log_exception = mocker.patch.object(scheduler._logger, "exception")
 
-        new_schedules = copy.deepcopy(MockStorage.schedules)
+        new_schedules = copy.deepcopy(MockStorageAsync.schedules)
         new_schedules[5]['schedule_interval'] = test_interval
-        mocker.patch.object(MockStorage, 'schedules', new_schedules)
+        mocker.patch.object(MockStorageAsync, 'schedules', new_schedules)
 
         # WHEN
         # THEN
@@ -424,13 +437,14 @@ class TestScheduler:
                 assert 1 == log_exception.call_count
         else:
             await scheduler._get_schedules()
-            assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+            assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
 
     @pytest.mark.asyncio
     async def test__get_schedules_exception(self, mocker):
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_debug = mocker.patch.object(scheduler._logger, "debug", side_effect=Exception())
         log_exception = mocker.patch.object(scheduler._logger, "exception")
         mocker.patch.object(scheduler, '_schedule_first_task', side_effect=Exception())
@@ -448,14 +462,15 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
 
         # WHEN
         await scheduler._read_storage()
 
         # THEN
-        assert len(scheduler._storage.scheduled_processes) == len(scheduler._process_scripts)
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.scheduled_processes) == len(scheduler._process_scripts)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
 
     @pytest.mark.asyncio
     @pytest.mark.skip("_mark_tasks_interrupted() not implemented in main Scheduler class.")
@@ -483,6 +498,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=asyncio.ensure_future(mock_task()))
         get_cat = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat())
 
@@ -503,6 +519,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_debug = mocker.patch.object(scheduler._logger, "debug")
         log_info = mocker.patch.object(scheduler._logger, "info")
 
@@ -523,8 +540,8 @@ class TestScheduler:
 
         # THEN
         assert scheduler._ready is True
-        assert len(scheduler._storage.scheduled_processes) == len(scheduler._process_scripts)
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.scheduled_processes) == len(scheduler._process_scripts)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
         calls = [call('Starting'),
                  call('Starting Scheduler: Management port received is %d', 9999)]
         log_info.assert_has_calls(calls, any_order=True)
@@ -538,6 +555,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
         log_exception = mocker.patch.object(scheduler._logger, "exception")
 
@@ -577,6 +595,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         await scheduler._get_process_scripts()
         mocker.patch.object(scheduler, '_ready', True)
 
@@ -584,7 +603,7 @@ class TestScheduler:
         processes = await scheduler.get_scheduled_processes()
 
         # THEN
-        assert len(scheduler._storage.scheduled_processes) == len(processes)
+        assert len(scheduler._storage_async.scheduled_processes) == len(processes)
 
     @pytest.mark.asyncio
     async def test_schedule_row_to_schedule(self, mocker):
@@ -627,7 +646,7 @@ class TestScheduler:
         schedules = await scheduler.get_schedules()
 
         # THEN
-        assert len(scheduler._storage.schedules) == len(schedules)
+        assert len(scheduler._storage_async.schedules) == len(schedules)
 
     @pytest.mark.asyncio
     async def test_get_schedule(self, mocker):
@@ -693,7 +712,7 @@ class TestScheduler:
         await scheduler.save_schedule(schedule)
 
         # THEN
-        assert len(scheduler._storage.schedules) + 1 == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) + 1 == len(scheduler._schedules)
         assert 1 == audit_logger.call_count
         calls =[call('SCHAD', {'schedule': {'name': 'Test Schedule', 'processName': 'TestProcess',
                                             'type': Schedule.Type.INTERVAL, 'repeat': 30.0, 'enabled': True,
@@ -738,7 +757,7 @@ class TestScheduler:
         await scheduler.save_schedule(schedule, is_enabled_modified=True)
 
         # THEN
-        assert len(scheduler._storage.schedules) + 1 == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) + 1 == len(scheduler._schedules)
         assert 1 == audit_logger.call_count
         calls =[call('SCHAD', {'schedule': {'name': 'Test Schedule', 'processName': 'TestProcess',
                                             'type': Schedule.Type.INTERVAL, 'repeat': 30.0, 'enabled': True,
@@ -787,7 +806,7 @@ class TestScheduler:
         await scheduler.save_schedule(schedule)
 
         # THEN
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
         assert 1 == audit_logger.call_count
         calls = [call('SCHCH', {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0,
                                              'exclusive': False, 'day': 1, 'time': '0:0:0',
@@ -831,7 +850,7 @@ class TestScheduler:
         await scheduler.save_schedule(schedule, is_enabled_modified=True)
 
         # THEN
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
         assert 1 == audit_logger.call_count
         calls = [call('SCHCH', {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0,
                                              'exclusive': False, 'day': 1, 'time': '0:0:0',
@@ -919,6 +938,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
@@ -951,6 +971,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
@@ -970,6 +991,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
@@ -1047,6 +1069,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         log_info = mocker.patch.object(scheduler._logger, "info")
         await scheduler._get_schedules()
@@ -1072,6 +1095,7 @@ class TestScheduler:
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_resume_check_schedules')
@@ -1089,7 +1113,7 @@ class TestScheduler:
         await scheduler._get_schedules()
 
         # Confirm no. of schedules
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
 
         mocker.patch.object(scheduler, '_ready', True)
 
@@ -1099,7 +1123,7 @@ class TestScheduler:
 
         # THEN
         # Now confirm there is one schedule less
-        assert len(scheduler._storage.schedules) - 1 == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) - 1 == len(scheduler._schedules)
 
     @pytest.mark.asyncio
     async def test_delete_schedule_enabled_schedule(self, mocker):
@@ -1110,7 +1134,7 @@ class TestScheduler:
         mocker.patch.object(scheduler, '_ready', True)
 
         # Confirm there are 14 schedules
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
 
         # WHEN
         # Now delete schedule
@@ -1119,7 +1143,7 @@ class TestScheduler:
 
         # THEN
         # Now confirm no schedule is deleted
-        assert len(scheduler._storage.schedules) == len(scheduler._schedules)
+        assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
         assert 1 == log_exception.call_count
         log_params = 'Attempt to delete an enabled Schedule %s. Not deleted.', str(sch_id)
         log_exception.assert_called_with(*log_params)
@@ -1393,8 +1417,22 @@ class TestScheduler:
     async def test__terminate_child_processes(self, mocker):
         pass
 
+class MockStorage(StorageClientAsync):
+    def __init__(self, core_management_host=None, core_management_port=None):
+        super().__init__(core_management_host, core_management_port)
 
-class MockStorage(StorageClient):
+    def _get_storage_service(self, host, port):
+        return {
+                "id": uuid.uuid4(),
+                "name": "FogLAMP Storage",
+                "type": "Storage",
+                "service_port": 9999,
+                "management_port": 9999,
+                "address": "0.0.0.0",
+                "protocol": "http"
+        }
+
+class MockStorageAsync(StorageClientAsync):
     schedules = [
         {
             "id": "cea17db8-6ccc-11e7-907b-a6006ad3dba0",
@@ -1538,37 +1576,37 @@ class MockStorage(StorageClient):
         }
 
     @classmethod
-    def insert_into_tbl(cls, table_name, payload):
+    async def insert_into_tbl(cls, table_name, payload):
         pass
 
     @classmethod
-    def update_tbl(cls, table_name, payload):
+    async def update_tbl(cls, table_name, payload):
         # Only valid for test_save_schedule_update
         if table_name == "schedules":
             return {"count": 1}
 
     @classmethod
-    def delete_from_tbl(cls, table_name, condition=None):
+    async def delete_from_tbl(cls, table_name, condition=None):
         pass
 
     @classmethod
-    def query_tbl_with_payload(cls, table_name, query_payload):
+    async def query_tbl_with_payload(cls, table_name, query_payload):
         if table_name == 'tasks':
             return {
-                "count": len(MockStorage.tasks),
-                "rows": MockStorage.tasks
+                "count": len(MockStorageAsync.tasks),
+                "rows": MockStorageAsync.tasks
             }
 
     @classmethod
-    def query_tbl(cls, table_name, query=None):
+    async def query_tbl(cls, table_name, query=None):
         if table_name == 'schedules':
             return {
-                "count": len(MockStorage.schedules),
-                "rows": MockStorage.schedules
+                "count": len(MockStorageAsync.schedules),
+                "rows": MockStorageAsync.schedules
             }
 
         if table_name == 'scheduled_processes':
             return {
-                "count": len(MockStorage.scheduled_processes),
-                "rows": MockStorage.scheduled_processes
+                "count": len(MockStorageAsync.scheduled_processes),
+                "rows": MockStorageAsync.scheduled_processes
             }

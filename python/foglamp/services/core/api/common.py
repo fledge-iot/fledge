@@ -46,7 +46,7 @@ async def ping(request):
     try:
         auth_token = request.token
     except AttributeError:
-        cfg_mgr = ConfigurationManager(connect.get_storage())
+        cfg_mgr = ConfigurationManager(connect.get_storage_async())
         category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
         allow_ping = True if category_item['value'].lower() == 'true' else False
         if request.is_auth_optional is False and allow_ping is False:

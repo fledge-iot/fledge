@@ -7,6 +7,7 @@
 
 """Purge process starter"""
 
+import asyncio
 from foglamp.tasks.purge.purge import Purge
 from foglamp.common import logger
 
@@ -17,5 +18,6 @@ __version__ = "${VERSION}"
 
 if __name__ == '__main__':
     _logger = logger.setup("Purge")
+    loop = asyncio.get_event_loop()
     purge_process = Purge()
-    purge_process.run()
+    loop.run_until_complete(purge_process.run())

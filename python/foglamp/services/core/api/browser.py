@@ -108,8 +108,8 @@ async def asset_counts(request):
 
     results = {}
     try:
-        _readings = connect.get_readings()
-        results = _readings.query(payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
         asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
@@ -146,8 +146,8 @@ async def asset(request):
 
     results = {}
     try:
-        _readings = connect.get_readings()
-        results = _readings.query(payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
@@ -201,8 +201,8 @@ async def asset_reading(request):
 
     results = {}
     try:
-        _readings = connect.get_readings()
-        results = _readings.query(payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
@@ -249,8 +249,8 @@ async def asset_summary(request):
 
     results = {}
     try:
-        _readings = connect.get_readings()
-        results = _readings.query(payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]
     except KeyError:
@@ -337,8 +337,8 @@ async def asset_averages(request):
 
     results = {}
     try:
-        _readings = connect.get_readings()
-        results = _readings.query(payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])

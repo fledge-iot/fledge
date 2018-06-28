@@ -111,14 +111,14 @@ class BackupProcess(FoglampProcess):
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
 
-        self._backup = Backup(self._storage)
-        self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self._backup = Backup(self._storage_async)
+        self._backup_lib = lib.BackupRestoreLib(self._storage_async, self._logger)
 
         self._job = lib.Job()
 
         # Creates the objects references used by the library
         lib._logger = self._logger
-        lib._storage = self._storage
+        lib._storage = self._storage_async
 
     def _generate_file_name(self):
         """ Generates the file name for the backup operation, it uses hours/minutes/seconds for the file name generation
@@ -203,7 +203,7 @@ class BackupProcess(FoglampProcess):
 
         self._backup_lib.sl_backup_status_update(backup_information['id'], status, exit_code)
 
-        audit = AuditLogger(self._storage)
+        audit = AuditLogger(self._storage_async)
         loop = asyncio.get_event_loop()
         if status != lib.BackupStatus.COMPLETED:
 
@@ -221,11 +221,11 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        backups_info = self._backup.get_all_backups(
+        backups_info = asyncio.get_event_loop().run_until_complete(self._backup.get_all_backups(
                                             self._backup_lib.MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE,
                                             0,
                                             None,
-                                            lib.SortOrder.ASC)
+                                            lib.SortOrder.ASC))
 
         # Evaluates which backup should be deleted
         backups_n = len(backups_info)
@@ -244,7 +244,7 @@ class BackupProcess(FoglampProcess):
                 self._logger.debug("{func} - id |{id}| - file_name |{file}|".format(func="_purge_old_backups",
                                                                                     id=backup_id,
                                                                                     file=file_name))
-                self._backup.delete_backup(backup_id)
+                asyncio.get_event_loop().run_until_complete(self._backup.delete_backup(backup_id))
 
     def _run_backup_command(self, _backup_file):
         """ Backups the entire FogLAMP repository into a file in the local file system

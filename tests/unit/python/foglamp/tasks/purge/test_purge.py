@@ -8,7 +8,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, call, MagicMock
 from foglamp.common import logger
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient, StorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common.statistics import Statistics
 from foglamp.tasks.purge.purge import Purge
 from foglamp.common.process import FoglampProcess
@@ -30,8 +30,8 @@ class TestPurge:
 
     def test_init(self, event_loop):
         """Test that creating an instance of Purge calls init of FoglampProcess and creates loggers"""
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, "__init__") as mock_process:
             with patch.object(logger, "setup") as log:
                 with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -48,9 +48,9 @@ class TestPurge:
         def mock_s_update():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(Statistics, '_load_keys', return_value=mock_s_update()):
                 with patch.object(Statistics, 'update', return_value=mock_s_update()) as mock_stats_update:
@@ -67,12 +67,12 @@ class TestPurge:
         def mock_cm_return():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
                 p = Purge(loop=event_loop)
-                p._storage = MagicMock(spec=StorageClient)
+                p._storage = MagicMock(spec=StorageClientAsync)
                 mock_cm = ConfigurationManager(p._storage)
                 with patch.object(mock_cm, 'create_category', return_value=mock_cm_return()) as mock_create_cat:
                     with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_return()) \
@@ -111,8 +111,8 @@ class TestPurge:
         def mock_audit_info():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -120,8 +120,8 @@ class TestPurge:
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
-                p._storage = MagicMock(spec=StorageClient)
-                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                p._storage = MagicMock(spec=StorageClientAsync)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge) as mock_storage_purge:
                     with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
@@ -142,8 +142,8 @@ class TestPurge:
         def mock_audit_info():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -151,8 +151,8 @@ class TestPurge:
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
-                p._storage = MagicMock(spec=StorageClient)
-                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                p._storage = MagicMock(spec=StorageClientAsync)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
                     with patch.object(audit, 'information', return_value=mock_audit_info()):
@@ -169,8 +169,8 @@ class TestPurge:
         def mock_audit_info():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -178,8 +178,8 @@ class TestPurge:
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
-                p._storage = MagicMock(spec=StorageClient)
-                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                p._storage = MagicMock(spec=StorageClientAsync)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
                     with patch.object(audit, 'information', return_value=mock_audit_info()):
@@ -197,8 +197,8 @@ class TestPurge:
         def mock_audit_info():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -206,8 +206,8 @@ class TestPurge:
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
-                p._storage = MagicMock(spec=StorageClient)
-                p._readings_storage = MagicMock(spec=ReadingsStorageClient)
+                p._storage = MagicMock(spec=StorageClientAsync)
+                p._readings_storage = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
                     with patch.object(audit, 'information', return_value=mock_audit_info()):
@@ -222,8 +222,8 @@ class TestPurge:
         def mock_audit_info():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -245,8 +245,8 @@ class TestPurge:
         def mock_audit_info():
             return ""
 
-        mockStorageClient = MagicMock(spec=StorageClient)
-        mockAuditLogger = AuditLogger(mockStorageClient)
+        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+        mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):

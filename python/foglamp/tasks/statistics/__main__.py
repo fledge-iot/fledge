@@ -7,6 +7,7 @@
 
 """Statistics history process starter"""
 
+import asyncio
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common import logger
 
@@ -18,4 +19,5 @@ __version__ = "${VERSION}"
 if __name__ == '__main__':
     _logger = logger.setup("StatisticsHistory")
     statistics_history_process = StatisticsHistory()
-    statistics_history_process.run()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(statistics_history_process.run())

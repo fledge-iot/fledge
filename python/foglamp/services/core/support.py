@@ -46,12 +46,12 @@ class SupportBuilder:
 
             self._out_file_path = support_dir
             self._interim_file_path = support_dir
-            self._storage = get_storage()  # from foglamp.services.core.connect
+            self._storage = get_storage_async()  # from foglamp.services.core.connect
         except (OSError, Exception) as ex:
             _LOGGER.error("Error in initializing SupportBuilder class: %s ", str(ex))
             raise RuntimeError(str(ex))
 
-    def build(self):
+    async def build(self):
         try:
             today = datetime.datetime.now()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
@@ -60,10 +60,10 @@ class SupportBuilder:
             try:
                 self.add_syslog_foglamp(pyz, file_spec)
                 self.add_syslog_storage(pyz, file_spec)
-                self.add_table_configuration(pyz, file_spec)
-                self.add_table_audit_log(pyz, file_spec)
-                self.add_table_schedules(pyz, file_spec)
-                self.add_table_scheduled_processes(pyz, file_spec)
+                await self.add_table_configuration(pyz, file_spec)
+                await self.add_table_audit_log(pyz, file_spec)
+                await self.add_table_schedules(pyz, file_spec)
+                await self.add_table_scheduled_processes(pyz, file_spec)
                 self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)
@@ -114,27 +114,27 @@ class SupportBuilder:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
         pyz.add(temp_file, arcname=basename(temp_file))
 
-    def add_table_configuration(self, pyz, file_spec):
+    async def add_table_configuration(self, pyz, file_spec):
         # The contents of the configuration table from the storage layer
         temp_file = self._interim_file_path + "/" + "configuration-{}".format(file_spec)
-        data = self._storage.query_tbl("configuration")
+        data = await self._storage.query_tbl("configuration")
         self.write_to_tar(pyz, temp_file, data)
 
-    def add_table_audit_log(self, pyz, file_spec):
+    async def add_table_audit_log(self, pyz, file_spec):
         # The contents of the audit log from the storage layer
         temp_file = self._interim_file_path + "/" + "audit-{}".format(file_spec)
-        data = self._storage.query_tbl("log")
+        data = await self._storage.query_tbl("log")
         self.write_to_tar(pyz, temp_file, data)
 
-    def add_table_schedules(self, pyz, file_spec):
+    async def add_table_schedules(self, pyz, file_spec):
         # The contents of the schedules table from the storage layer
         temp_file = self._interim_file_path + "/" + "schedules-{}".format(file_spec)
-        data = self._storage.query_tbl("schedules")
+        data = await self._storage.query_tbl("schedules")
         self.write_to_tar(pyz, temp_file, data)
 
-    def add_table_scheduled_processes(self, pyz, file_spec):
+    async def add_table_scheduled_processes(self, pyz, file_spec):
         temp_file = self._interim_file_path + "/" + "scheduled_processes-{}".format(file_spec)
-        data = self._storage.query_tbl("scheduled_processes")
+        data = await self._storage.query_tbl("scheduled_processes")
         self.write_to_tar(pyz, temp_file, data)
 
     def add_service_registry(self, pyz, file_spec):

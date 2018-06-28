@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+
 import pytest
 import asyncio
 from unittest.mock import patch, call, MagicMock
@@ -28,20 +29,20 @@ __version__ = "${VERSION}"
 class TestPurge:
     """Test the units of purge.py"""
 
-    def test_init(self, event_loop):
+    def test_init(self):
         """Test that creating an instance of Purge calls init of FoglampProcess and creates loggers"""
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, "__init__") as mock_process:
             with patch.object(logger, "setup") as log:
                 with patch.object(mockAuditLogger, "__init__", return_value=None):
-                    p = Purge(loop=event_loop)
+                    p = Purge()
                 assert isinstance(p, Purge)
                 assert isinstance(p._audit, AuditLogger)
             log.assert_called_once_with("Data Purge")
         mock_process.assert_called_once_with()
 
-    def test_write_statistics(self, event_loop):
+    async def test_write_statistics(self):
         """Test that write_statistics calls update statistics with defined keys and value increments"""
 
         @asyncio.coroutine
@@ -49,18 +50,17 @@ class TestPurge:
             return ""
 
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
-        mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(Statistics, '_load_keys', return_value=mock_s_update()):
                 with patch.object(Statistics, 'update', return_value=mock_s_update()) as mock_stats_update:
                     with patch.object(mockAuditLogger, "__init__", return_value=None):
-                        p = Purge(loop=event_loop)
+                        p = Purge()
                         p._storage_async = mockStorageClientAsync
-                        p.write_statistics(1, 2)
+                        await p.write_statistics(1, 2)
                         mock_stats_update.assert_has_calls([call('PURGED', 1), call('UNSNPURGED', 2)])
 
-    def test_set_configuration(self, event_loop):
+    async def test_set_configuration(self):
         """Test that purge's set_configuration returns configuration item with key 'PURGE_READ' """
 
         @asyncio.coroutine
@@ -71,13 +71,13 @@ class TestPurge:
         mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 p._storage = MagicMock(spec=StorageClientAsync)
                 mock_cm = ConfigurationManager(p._storage)
                 with patch.object(mock_cm, 'create_category', return_value=mock_cm_return()) as mock_create_cat:
                     with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_return()) \
                             as mock_get_cat:
-                        p.set_configuration()
+                        await p.set_configuration()
                         mock_get_cat.assert_called_once_with('PURGE_READ')
                     args, kwargs = mock_create_cat.call_args
                     assert len(args) == 3
@@ -104,7 +104,7 @@ class TestPurge:
         (config["retainAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'retain'}),
         (config["retainSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retain'})
     ])
-    def test_purge_data(self, event_loop, conf, expected_return, expected_calls):
+    async def test_purge_data(self, conf, expected_return, expected_calls):
         """Test that purge_data calls Storage's purge with defined configuration"""
 
         @asyncio.coroutine
@@ -116,7 +116,7 @@ class TestPurge:
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
@@ -126,7 +126,7 @@ class TestPurge:
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge) as mock_storage_purge:
                     with patch.object(audit, 'information', return_value=mock_audit_info()) as audit_info:
                         # Test the positive case when all if conditions in purge_data pass
-                        assert expected_return == p.purge_data(conf)
+                        assert expected_return == await p.purge_data(conf)
                         assert audit_info.called
                         args, kwargs = mock_storage_purge.call_args
                         assert kwargs == expected_calls
@@ -147,7 +147,7 @@ class TestPurge:
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
@@ -162,7 +162,7 @@ class TestPurge:
     @pytest.mark.parametrize("conf, expected_return", [
         ({"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}}, (0, 0))
     ])
-    def test_purge_error_storage_response(self, event_loop, conf, expected_return):
+    async def test_purge_error_storage_response(self, event_loop, conf, expected_return):
         """Test that purge_data logs error when storage purge returns an error response"""
 
         @asyncio.coroutine
@@ -174,7 +174,7 @@ class TestPurge:
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
@@ -190,7 +190,7 @@ class TestPurge:
                                "age"),
                               ({"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "bla"}},
                                "size")])
-    def test_purge_data_invalid_conf(self, event_loop, conf, expected_error_key):
+    async def test_purge_data_invalid_conf(self, event_loop, conf, expected_error_key):
         """Test that purge_data raises exception when called with invalid configuration"""
 
         @asyncio.coroutine
@@ -202,7 +202,7 @@ class TestPurge:
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
@@ -212,11 +212,11 @@ class TestPurge:
                 with patch.object(p._readings_storage, 'purge', side_effect=self.store_purge):
                     with patch.object(audit, 'information', return_value=mock_audit_info()):
                         # Test the code block when purge failed because of invalid configuration
-                        p.purge_data(conf)
+                        await p.purge_data(conf)
                         p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
                                                            format(expected_error_key))
 
-    def test_run(self, event_loop):
+    async def test_run(self, event_loop):
         """Test that run calls all units of purge process"""
         @asyncio.coroutine
         def mock_audit_info():
@@ -227,35 +227,32 @@ class TestPurge:
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 config = "Some config"
                 p._logger.exception = MagicMock()
                 with patch.object(p, 'set_configuration', return_value=config) as mock_set_config:
                     with patch.object(p, 'purge_data', return_value=(1, 2)) as mock_purge_data:
                         with patch.object(p, 'write_statistics') as mock_write_stats:
-                            p.run()
+                            await p.run()
                 # Test the positive case when no error in try block
                 mock_set_config.assert_called_once_with()
                 mock_purge_data.assert_called_once_with(config)
                 mock_write_stats.assert_called_once_with(1, 2)
 
-    def test_run_exception(self, event_loop):
+    async def test_run_exception(self, event_loop):
         """Test that run calls all units of purge process and checks the exception handling"""
-        @asyncio.coroutine
-        def mock_audit_info():
-            return ""
 
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClientAsync)
 
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
                 config = "Some config"
                 p._logger.exception = MagicMock()
                 with patch.object(p, 'set_configuration', return_value=config):
                     with patch.object(p, 'purge_data', return_value=Exception()):
                         with patch.object(p, 'write_statistics'):
-                            p.run()
+                            await p.run()
                 # Test the negative case when function purge_data raise some exception
                 p._logger.exception.assert_called_once_with("'Exception' object is not iterable")

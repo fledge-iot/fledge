@@ -26,13 +26,13 @@ __version__ = "${VERSION}"
 
 
 @pytest.fixture
-async def _purge_instance(event_loop):
+async def _purge_instance():
     mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
     mockAuditLogger = AuditLogger(mockStorageClientAsync)
     with patch.object(FoglampProcess, "__init__"):
         with patch.object(logger, "setup"):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
     return p
 
 

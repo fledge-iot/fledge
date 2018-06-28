@@ -304,9 +304,11 @@ async def get_child_category(request):
     category_name = request.match_info.get('category_name', None)
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
-    # TODO: add def in configuration manager
+    result = await cf_mgr.get_category_child(category_name)
+    if result is None:
+        raise web.HTTPNotFound(reason="No children found for the category_name: {}".format(category_name))
 
-    return web.json_response({"reason": "To be implemented"})
+    return web.json_response(result)
 
 
 async def create_child_category(request):
@@ -325,12 +327,15 @@ async def create_child_category(request):
     if not isinstance(data, dict):
         raise ValueError('Data payload must be a dictionary')
 
-    config_item = request.match_info.get('category_name', None)
+    category_name = request.match_info.get('category_name', None)
     children = data.get('children')
 
-    # TODO: add def in configuration manager
+    try:
+        result = await cf_mgr.create_child_category(category_name, children)
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
-    return web.json_response({"reason": "To be implemented"})
+    return web.json_response(result)
 
 
 async def delete_child_category(request):
@@ -349,7 +354,5 @@ async def delete_child_category(request):
     child_category = request.match_info.get('child_category', None)
 
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-
-    # TODO: add def in configuration manager
-
-    return web.json_response({"reason": "To be implemented"})
+    result = await cf_mgr.delete_child_category(category_name, child_category)
+    return web.json_response(result)

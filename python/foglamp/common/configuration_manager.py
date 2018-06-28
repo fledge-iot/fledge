@@ -315,6 +315,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
+    async def get_category_child(self, category_name):
+        """Get the list of categories that are children of a given category.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        None
+        """
+        # TODO: To be implemented
+        return None
+
     async def set_category_item_value_entry(self, category_name, item_name, new_value_entry):
         """Set the "value" entry of a given item within a given category.
 
@@ -453,6 +465,44 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)
             raise
+        return None
+
+    async def create_child_category(self, category_name, children):
+        """Create a new child category in the database.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        children -- an array of child categories
+
+        Return Values:
+        None
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        if not isinstance(children, list):
+            raise TypeError('children must be a list')
+
+        # TODO: To be implemented
+        return None
+
+    async def delete_child_category(self, category_name, child_category):
+        """Create a new child category in the database.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        child_category --
+
+        Return Values:
+        None
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        if not isinstance(child_category, str):
+            raise TypeError('child_category must be a string')
+
+        # TODO: To be implemented
         return None
 
     def register_interest(self, category_name, callback):

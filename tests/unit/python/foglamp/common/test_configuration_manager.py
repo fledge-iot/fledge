@@ -1268,3 +1268,15 @@ class TestConfigurationManager:
                 pbwherepatch.assert_called_once_with(["key", "=", category_name])
             pbsetpatch.assert_called_once_with(description='catdesc', value='catval')
         storage_client_mock.update_tbl.assert_called_once_with('configuration', None)
+
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_get_category_child(self):
+        pass
+
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_create_child_category(self):
+        pass
+
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_delete_child_category(self):
+        pass

@@ -431,31 +431,65 @@ class TestConfiguration:
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
 
-    async def test_get_child_categories(self, client):
+    async def test_get_child_category(self, client):
+        @asyncio.coroutine
+        def async_mock():
+            return ""
+
         storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            resp = await client.get('/foglamp/category/south/children')
-            assert 200 == resp.status
-            r = await resp.text()
-            json_response = json.loads(r)
-            assert {'reason': 'To be implemented'} == json_response
+            with patch.object(c_mgr, 'get_category_child', return_value=async_mock()) as patch_get_child_cat:
+                resp = await client.get('/foglamp/category/south/children')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert "" == json_response
+        patch_get_child_cat.assert_called_once_with('south')
+
+    async def test_get_child_category_no_found(self, client):
+        @asyncio.coroutine
+        def async_mock():
+            return None
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_child', return_value=async_mock()) as patch_get_child_cat:
+                resp = await client.get('/foglamp/category/south/children')
+                assert 404 == resp.status
+                assert 'No children found for the category_name: south' == resp.reason
+        patch_get_child_cat.assert_called_once_with('south')
 
     async def test_create_child_category(self, client):
-        data = {"children": ["coap", "http", "sinusoid"]}
+        @asyncio.coroutine
+        def async_mock():
+            return None
 
+        data = {"children": ["coap", "http", "sinusoid"]}
         storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            resp = await client.post('/foglamp/category/{}/children'.format("south"), data=json.dumps(data))
-            assert 200 == resp.status
-            r = await resp.text()
-            json_response = json.loads(r)
-            assert {'reason': 'To be implemented'} == json_response
+            with patch.object(c_mgr, 'create_child_category', return_value=async_mock()) as patch_create_child_cat:
+                resp = await client.post('/foglamp/category/{}/children'.format("south"), data=json.dumps(data))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert json_response is None
+            patch_create_child_cat.assert_called_once_with('south', data['children'])
 
     async def test_delete_child_category(self, client):
+        @asyncio.coroutine
+        def async_mock():
+            return None
+
         storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            resp = await client.delete('/foglamp/category/{}/children/{}'.format("south", "coap"))
-            assert 200 == resp.status
-            r = await resp.text()
-            json_response = json.loads(r)
-            assert {'reason': 'To be implemented'} == json_response
+            with patch.object(c_mgr, 'delete_child_category', return_value=async_mock()) as patch_delete_child_cat:
+                resp = await client.delete('/foglamp/category/{}/children/{}'.format("south", "coap"))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert json_response is None
+            patch_delete_child_cat.assert_called_once_with('south', 'coap')

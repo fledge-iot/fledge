@@ -110,6 +110,11 @@ async def create_category(request):
         if category_info is None:
             raise LookupError('No such %s found' % category_name)
 
+        result = {"key": category_name, "description": category_desc, "value": category_info}
+        if data.get('children'):
+            r = await cf_mgr.create_child_category(category_name, data.get('children'))
+            result.update(r)
+
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
 
@@ -119,7 +124,7 @@ async def create_category(request):
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
 
-    return web.json_response({"key": category_name, "description": category_desc, "value": category_info})
+    return web.json_response(result)
 
 
 async def get_category_item(request):

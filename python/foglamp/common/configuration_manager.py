@@ -474,6 +474,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return info
 
+    async def _create_child(self, category_name, child):
+        # FIXME: Handle the case if re-create same data, it throws UNIQUE constraint failed
+        try:
+            payload = PayloadBuilder().INSERT(parent=category_name, child=child).payload()
+            result = await self._storage.insert_into_tbl("category_children", payload)
+            response = result['response']
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return response
+
     async def get_category_child(self, category_name):
         """Get the list of categories that are children of a given category.
 
@@ -522,11 +536,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('No such {} child exist'.format(child))
 
             for child in children:
-                # FIXME: if re-create same data
-                payload = PayloadBuilder().INSERT(parent=category_name, child=child).payload()
-                result = await self._storage.insert_into_tbl("category_children", payload)
+                result = await self._create_child(category_name, child)
 
-            if result['response'] == 'inserted':
+            if result == 'inserted':
                 cat_dict = await self.get_category_all_items(category_name)
                 child_dict = await self._read_all_child_category_names(category_name)
                 _children = []
@@ -538,9 +550,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # TODO: Shall we write audit trail code entry here? log_code?
         except KeyError:
             raise ValueError(result['message'])
-        except StorageServerError as ex:
-            err_response = ex.error
-            raise ValueError(err_response)
 
         return cat_dict
 

@@ -1288,3 +1288,7 @@ class TestConfigurationManager:
     @pytest.mark.skip(reason="To be implemented")
     async def test__read_child_info(self):
         pass
+
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__create_child(self):
+        pass

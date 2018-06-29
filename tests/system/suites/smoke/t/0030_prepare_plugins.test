@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Declares used variables
+declare TEST_BASEDIR
+
+$TEST_BASEDIR/bash/enable_plugin_coap.bash
+

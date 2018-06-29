@@ -17,4 +17,4 @@ declare OMF_TYPE_ID
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
 tail -n1 ${RESULT_DIR}/$TEST_NAME.temp
 
-$TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING
+$TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"

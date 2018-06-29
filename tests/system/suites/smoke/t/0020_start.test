@@ -2,7 +2,7 @@
 
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash start                                                                  1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
-$TEST_BASEDIR/bash/sleep.bash 20
+$TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
 $TEST_BASEDIR/bash/check_foglamp_status.bash > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
 

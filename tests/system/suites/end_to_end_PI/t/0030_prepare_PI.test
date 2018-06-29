@@ -17,9 +17,6 @@ declare OMF_TYPE_ID
 # Reads configuration setting
 source ${SUITE_BASEDIR}/suite.cfg
 
-$TEST_BASEDIR/bash/enable_plugin_coap.bash
-
-
 # Enables the OMF plugin
 curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID_OMF_PLUGIN} -d '{ "enabled" : true }' &>>  ${RESULT_DIR}/${TEST_NAME}.1.temp
 
@@ -33,6 +30,8 @@ curl -s -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/category/OMF_TYP
 
 # Restarts FogLAMP to ensure the new configurations are used
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash stop  > /dev/null 2>&1
+
+$TEST_BASEDIR/bash/wait_foglamp_status.bash STOPPED                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
 
 ${TEST_BASEDIR}/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/${TEST_NAME}.2.temp 2>&1
 tail  -n1 ${RESULT_DIR}/${TEST_NAME}.2.temp

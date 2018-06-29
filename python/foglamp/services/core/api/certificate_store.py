@@ -145,7 +145,7 @@ async def delete_certificate(request):
 
     # read config
     # if cert_name is currently set for 'certificateName' in config for 'rest_api'
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
     result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
     if cert_name == result['value']:
         raise web.HTTPConflict(reason='Certificate with name {} is already in use, you can not delete'

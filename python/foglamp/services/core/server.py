@@ -24,7 +24,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
@@ -175,6 +175,9 @@ class Server:
 
     _storage_client = None
     """ Storage client to storage service """
+
+    _storage_client_async = None
+    """ Async Storage client to storage service """
 
     _configuration_manager = None
     """ Instance of configuration manager (singleton) """
@@ -391,11 +394,11 @@ class Server:
     @classmethod
     async def _get_storage_client(cls):
         storage_service = None
-        while storage_service is None and cls._storage_client is None:
+        while storage_service is None and cls._storage_client_async is None:
             try:
                 found_services = ServiceRegistry.get(name="FogLAMP Storage")
                 storage_service = found_services[0]
-                cls._storage_client = StorageClient(cls._host, cls.core_management_port, svc=storage_service)
+                cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
 
@@ -501,7 +504,6 @@ class Server:
             address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
-
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
 
@@ -510,17 +512,17 @@ class Server:
 
             # If readings table is empty, set last_object of all streams to 0
             total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")).payload()
-            result = cls._storage_client.query_tbl_with_payload('readings', total_count_payload)
+            result = loop.run_until_complete(cls._storage_client_async.query_tbl_with_payload('readings', total_count_payload))
             total_count = result['rows'][0]['count']
             if (total_count == 0):
                 _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
                 payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
-                cls._storage_client.update_tbl("streams", payload)
+                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
             else:
                 _logger.info("'foglamp.readings' has " + str(total_count) + " rows, 'foglamp.streams' last_objects reset is not required")    
 
             # obtain configuration manager and interest registry
-            cls._configuration_manager = ConfigurationManager(cls._storage_client)
+            cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
             # start scheduler
@@ -571,7 +573,7 @@ class Server:
             cls._register_core(host, cls.core_management_port, service_server_port)
 
             # Everything is complete in the startup sequence, write the audit log entry
-            cls._audit = AuditLogger(cls._storage_client)
+            cls._audit = AuditLogger(cls._storage_client_async)
             loop.run_until_complete(cls._audit.information('START', None))
 
             loop.run_forever()
@@ -613,7 +615,7 @@ class Server:
             await cls.stop_rest_server()
 
             # Must write the audit log entry before we stop the storage service
-            cls._audit = AuditLogger(cls._storage_client)
+            cls._audit = AuditLogger(cls._storage_client_async)
             await cls._audit.information('FSTOP', None)
 
             # stop storage
@@ -630,7 +632,7 @@ class Server:
     @classmethod
     async def stop_rest_server(cls):
         # Delete all user tokens
-        User.Objects.delete_all_user_tokens()
+        await User.Objects.delete_all_user_tokens()
         cls.service_server.close()
         await cls.service_server.wait_closed()
         await cls.service_app.shutdown()
@@ -759,8 +761,8 @@ class Server:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                    service_port, service_management_port, service_protocol)
                 try:
-                    if not cls._storage_client is None:
-                        cls._audit = AuditLogger(cls._storage_client)
+                    if not cls._storage_client_async is None:
+                        cls._audit = AuditLogger(cls._storage_client_async)
                         await cls._audit.information('SRVRG', { 'name' : service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
@@ -804,9 +806,9 @@ class Server:
 
             ServiceRegistry.unregister(service_id)
 
-            if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
+            if cls._storage_client_async is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
-                    cls._audit = AuditLogger(cls._storage_client)
+                    cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(str(ex))

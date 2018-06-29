@@ -92,7 +92,7 @@ These are the main steps of the installation:
 - Create all the necessary destination directories and copy the executables, scripts and configuration files
 - Change the ownership of the *data* directory, if the install user is a superuser (we recommend to run FogLAMP as regular user, i.e. not as superuser).
 
-FogLAMP is now present in */usr/local/foglamp* and ready to start. The start script is in the *bin* directory
+FogLAMP is now present in */usr/local/foglamp* and ready to start. The start script is in the */usr/local/foglamp/bin* directory
 
 .. code-block:: console
 
@@ -261,11 +261,7 @@ You can install FogLAMP as a service following these simple steps:
         CPU: 2.888s
      CGroup: /system.slice/foglamp.service
              ├─1759 python3 -m foglamp.services.core
-             ├─1764 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=46309
-             ├─1814 /bin/sh services/south --port=46309 --address=127.0.0.1 --name=COAP
-             ├─1815 python3 -m foglamp.services.south --port=46309 --address=127.0.0.1 --name=COAP
-             ├─1816 /bin/sh services/south --port=46309 --address=127.0.0.1 --name=HTTP_SOUTH
-             └─1817 python3 -m foglamp.services.south --port=46309 --address=127.0.0.1 --name=HTTP_SOUTH
+             └─1764 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=46309
   $
 
 |br|
@@ -284,7 +280,7 @@ Check the |Downloads page| to find the package to install.
 
 Once you have downloaded the package, install it using the ``apt-get`` command. You can use ``apt-get`` to install a local Debian package and automatically retrieve all the necessary packages that are defined as pre-requisites for FogLAMP.  Note that you may need to install the package as superuser (or by using the ``sudo`` command) and move the package to the apt cache directory first (``/var/cache/apt/archives``).
 
-For example, if you are installing FogLAMP on an Intel x86/64 machine, you can type this command to download the package:
+For example, if you are installing FogLAMP on an Intel x86_64 machine, you can type this command to download the package:
 
 .. code-block:: console
 
@@ -363,11 +359,8 @@ You can also check the service currently running:
       CPU: 2.603s
    CGroup: /system.slice/foglamp.service
            ├─1218 python3 -m foglamp.services.core
-           ├─1226 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=44530
-           ├─1277 /bin/sh services/south --port=44530 --address=127.0.0.1 --name=COAP
-           ├─1278 /bin/sh services/south --port=44530 --address=127.0.0.1 --name=HTTP_SOUTH
-           ├─1279 python3 -m foglamp.services.south --port=44530 --address=127.0.0.1 --name=COAP
-           └─1280 python3 -m foglamp.services.south --port=44530 --address=127.0.0.1 --name=HTTP_SOUTH
+           └─1226 /usr/local/foglamp/services/storage --address=0.0.0.0 --port=44530
+
   ...
   $
 
@@ -383,9 +376,9 @@ Check if FogLAMP is up and running with the ``foglamp`` command:
   FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
-  foglamp.services.south --port=46141 --address=127.0.0.1 --name=COAP
-  foglamp.services.south --port=46141 --address=127.0.0.1 --name=HTTP_SOUTH
+  ...
   === FogLAMP tasks:
+  ...
   $
 
 
@@ -589,5 +582,3 @@ Snap is designed to be self-contained and it does not require any user setting, 
   -rw------- 1 ubuntu ubuntu   121 Dec 11 15:07 postmaster.opts
   -rw------- 1 ubuntu ubuntu   117 Dec 11 15:07 postmaster.pid
   $
-
-

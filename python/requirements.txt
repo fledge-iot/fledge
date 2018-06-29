@@ -1,15 +1,9 @@
 
-# PostreSQL Storage Plugin
-psycopg2==2.7.1
-
 # Common - REST interface
 aiohttp==2.3.8
 aiohttp_cors==0.5.3
 cchardet==2.1.1
 pyjwt==1.6.0
-
-# TI SensorTag Microservice Plugin
-pexpect==4.0.1
 
 # Transformation of data, Apply JqFilter
 pyjq==2.1.0

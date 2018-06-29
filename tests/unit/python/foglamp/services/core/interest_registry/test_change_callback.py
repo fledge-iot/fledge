@@ -4,7 +4,7 @@ import pytest
 import aiohttp
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry, InterestRegistrySingleton
 import foglamp.services.core.interest_registry.change_callback as cb
 
@@ -29,7 +29,7 @@ class TestChangeCallback:
 
     @pytest.mark.asyncio
     async def test_run_good(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         cfg_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
@@ -88,7 +88,7 @@ class TestChangeCallback:
 
     @pytest.mark.asyncio
     async def test_run_empty_interests(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         cfg_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
@@ -125,7 +125,7 @@ class TestChangeCallback:
 
     @pytest.mark.asyncio
     async def test_run_no_interests_in_cat(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         cfg_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
@@ -167,7 +167,7 @@ class TestChangeCallback:
 
     @pytest.mark.asyncio
     async def test_run_missing_service_record(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         cfg_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
@@ -218,7 +218,7 @@ class TestChangeCallback:
 
     @pytest.mark.asyncio
     async def test_run_general_exception(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         cfg_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info:

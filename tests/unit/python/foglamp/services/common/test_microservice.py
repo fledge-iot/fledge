@@ -5,7 +5,7 @@ import time
 from unittest.mock import patch, MagicMock
 from aiohttp import web
 import asyncio
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient, StorageClient, ReadingsStorageClientAsync, StorageClientAsync
+from foglamp.common.storage_client.storage_client import ReadingsStorageClientAsync, StorageClientAsync
 from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
 from foglamp.services.common.microservice import FoglampMicroservice, _logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
@@ -87,24 +87,22 @@ class TestFoglampMicroservice:
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'get_configuration_category', return_value=_DEFAULT_CONFIG):
-                            with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
-                                with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
-                                    with patch.object(ReadingsStorageClientAsync, '__init__',
-                                                      return_value=None) as rsc_async_patch:
-                                        with patch.object(StorageClientAsync, '__init__',
-                                                          return_value=None) as sc_async_patch:
-                                            with patch.object(FoglampMicroservice, '_make_microservice_management_app', return_value=None) as make_patch:
-                                                 with patch.object(FoglampMicroservice, '_run_microservice_management_app', side_effect=None) as run_patch:
-                                                     with patch.object(FoglampProcess, 'register_service_with_core', return_value={'id':'bla'}) as reg_patch:
-                                                         with patch.object(FoglampMicroservice, '_get_service_registration_payload', return_value=None) as payload_patch:
-                                                            fm = FoglampMicroserviceImp()
+                            with patch.object(ReadingsStorageClientAsync, '__init__',
+                                              return_value=None) as rsc_async_patch:
+                                with patch.object(StorageClientAsync, '__init__',
+                                                  return_value=None) as sc_async_patch:
+                                    with patch.object(FoglampMicroservice, '_make_microservice_management_app', return_value=None) as make_patch:
+                                         with patch.object(FoglampMicroservice, '_run_microservice_management_app', side_effect=None) as run_patch:
+                                             with patch.object(FoglampProcess, 'register_service_with_core', return_value={'id':'bla'}) as reg_patch:
+                                                 with patch.object(FoglampMicroservice, '_get_service_registration_payload', return_value=None) as payload_patch:
+                                                    fm = FoglampMicroserviceImp()
         # from FoglampProcess
         assert fm._core_management_host is 'corehost'
         assert fm._core_management_port is 0
         assert fm._name is 'sname'
         assert hasattr(fm, '_core_microservice_management_client')
-        assert hasattr(fm, '_readings_storage')
-        assert hasattr(fm, '_storage')
+        assert hasattr(fm, '_readings_storage_async')
+        assert hasattr(fm, '_storage_async')
         assert hasattr(fm, '_start_time')
         # from FoglampMicroservice
         assert hasattr(fm, '_microservice_management_app')
@@ -133,16 +131,14 @@ class TestFoglampMicroservice:
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'get_configuration_category', return_value=_DEFAULT_CONFIG):
-                            with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
-                                with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
-                                    with patch.object(ReadingsStorageClientAsync, '__init__',
-                                                      return_value=None) as rsc_async_patch:
-                                        with patch.object(StorageClientAsync, '__init__',
-                                                          return_value=None) as sc_async_patch:
-                                            with patch.object(FoglampMicroservice, '_make_microservice_management_app', side_effect=Exception()) as make_patch:
-                                                with patch.object(_logger, 'exception') as logger_patch:
-                                                    with pytest.raises(Exception) as excinfo:
-                                                        fm = FoglampMicroserviceImp()
+                            with patch.object(ReadingsStorageClientAsync, '__init__',
+                                              return_value=None) as rsc_async_patch:
+                                with patch.object(StorageClientAsync, '__init__',
+                                                  return_value=None) as sc_async_patch:
+                                    with patch.object(FoglampMicroservice, '_make_microservice_management_app', side_effect=Exception()) as make_patch:
+                                        with patch.object(_logger, 'exception') as logger_patch:
+                                            with pytest.raises(Exception) as excinfo:
+                                                fm = FoglampMicroserviceImp()
         logger_patch.assert_called_once_with('Unable to intialize FoglampMicroservice due to exception %s', '')
 
     @pytest.mark.asyncio
@@ -163,19 +159,17 @@ class TestFoglampMicroservice:
                 with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                     with patch.object(MicroserviceManagementClient, 'create_configuration_category', return_value=None):
                         with patch.object(MicroserviceManagementClient, 'get_configuration_category', return_value=_DEFAULT_CONFIG):
-                            with patch.object(ReadingsStorageClient, '__init__', return_value=None) as rsc_patch:
-                                with patch.object(StorageClient, '__init__', return_value=None) as sc_patch:
-                                    with patch.object(ReadingsStorageClientAsync, '__init__',
-                                                      return_value=None) as rsc_async_patch:
-                                        with patch.object(StorageClientAsync, '__init__',
-                                                          return_value=None) as sc_async_patch:
-                                            with patch.object(FoglampMicroservice, '_make_microservice_management_app', return_value=None) as make_patch:
-                                                 with patch.object(FoglampMicroservice, '_run_microservice_management_app', side_effect=None) as run_patch:
-                                                     with patch.object(FoglampProcess, 'register_service_with_core', return_value={'id':'bla'}) as reg_patch:
-                                                         with patch.object(FoglampMicroservice, '_get_service_registration_payload', return_value=None) as payload_patch:
-                                                             with patch.object(web, 'json_response', return_value=None) as response_patch:
-                                                                 # called once on FoglampProcess init for _start_time, once for ping
-                                                                 with patch.object(time, 'time', return_value=1) as time_patch:
-                                                                     fm = FoglampMicroserviceImp()
-                                                                     await fm.ping(None)
+                            with patch.object(ReadingsStorageClientAsync, '__init__',
+                                              return_value=None) as rsc_async_patch:
+                                with patch.object(StorageClientAsync, '__init__',
+                                                  return_value=None) as sc_async_patch:
+                                    with patch.object(FoglampMicroservice, '_make_microservice_management_app', return_value=None) as make_patch:
+                                         with patch.object(FoglampMicroservice, '_run_microservice_management_app', side_effect=None) as run_patch:
+                                             with patch.object(FoglampProcess, 'register_service_with_core', return_value={'id':'bla'}) as reg_patch:
+                                                 with patch.object(FoglampMicroservice, '_get_service_registration_payload', return_value=None) as payload_patch:
+                                                     with patch.object(web, 'json_response', return_value=None) as response_patch:
+                                                         # called once on FoglampProcess init for _start_time, once for ping
+                                                         with patch.object(time, 'time', return_value=1) as time_patch:
+                                                             fm = FoglampMicroserviceImp()
+                                                             await fm.ping(None)
         response_patch.assert_called_once_with({'uptime': 0})

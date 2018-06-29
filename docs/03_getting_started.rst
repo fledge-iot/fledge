@@ -61,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP on Ubuntu 16.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `here <92_downloads.html>`_).
+In this section we will describe how to build FogLAMP on Ubuntu 16.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -74,6 +74,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - avahi-daemon
 - build-essential
 - cmake
+- curl
 - g++
 - git
 - libboost-dev
@@ -99,7 +100,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt-get install avahi-daemon git cmake g++ make build-essential autoconf automake
+  $ sudo apt-get install avahi-daemon curl git cmake g++ make build-essential autoconf automake
   Reading package lists... Done
   Building dependency tree
   ...
@@ -669,41 +670,6 @@ We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 
       def __init__(self, name, service, port, txt):
 
-
-Building FogLAMP
-----------------
-
-We are finally ready to install FogLAMP, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
-
-First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory. 
-
-We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
-
-- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
-- Replace the content of *python/foglamp/services/common/service_announcer.py* with this code:
-
-.. code-block:: python
-
-  # -*- coding: utf-8 -*-
-  # FOGLAMP_BEGIN
-  # See: http://foglamp.readthedocs.io/
-  # FOGLAMP_END
-  """Common FoglampMicroservice Class"""
-
-  import foglamp.services.common.avahi as avahi
-  from foglamp.common import logger
-
-  _LOGGER = logger.setup(__name__)
-
-  class ServiceAnnouncer:
-      _service_name = None
-      """ The name of the service to advertise """
-
-      _group = None
-      """ The Avahi group """
-
-      def __init__(self, name, service, port, txt):
-
         self._service_name = name
         _LOGGER.error("Avahi not available, continuing without service discovery available")
 
@@ -727,7 +693,7 @@ Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
   #        r.append(dbus.Byte(ord(c)))
 
 
-You are now ready to execute the ``make`` command, as described `here`_.
+You are now ready to execute the ``make`` command, as described here_.
  
 
 Further Notes

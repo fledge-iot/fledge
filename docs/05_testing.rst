@@ -461,7 +461,6 @@ If you are curious to see which categories are available in FogLAMP, simply type
   { "categories": [ { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
                     { "key": "SEND_PR_1",  "description": "OMF North Plugin Configuration"            },
                     { "key": "SEND_PR_2",  "description": "OMF North Statistics Plugin Configuration" },
-                    { "key": "SEND_PR_3",  "description": "HTTP North Plugin Configuration"           },
                     { "key": "SEND_PR_4",  "description": "OCS North Plugin Configuration"            },
                     { "key": "SMNTR",      "description": "Service Monitor configuration"             },
                     { "key": "South",      "description": "South Service configuration"               },

@@ -51,7 +51,7 @@ class TestStatisticsHistory:
         storage_return = {'count': 10,
                           'rows': [{'key': 'PURGED'}, {'key': 'SENT_4'}, {'key': 'UNSENT'}, {'key': 'SENT_2'},
                                    {'key': 'SENT_1'}, {'key': 'READINGS'}, {'key': 'BUFFERED'}, {'key': 'UNSNPURGED'},
-                                   {'key': 'SENT_3'}, {'key': 'DISCARDED'}]}
+                                   {'key': 'DISCARDED'}]}
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
             with patch.object(logger, "setup"):
@@ -59,8 +59,8 @@ class TestStatisticsHistory:
                 sh._storage_async = mockStorageClientAsync
                 with patch.object(sh._storage_async, "query_tbl_with_payload", return_value=mock_coro(storage_return)) as patch_storage:
                     stats_keys = await sh._stats_keys()
-                    assert stats_keys == ['PURGED', 'SENT_4', 'UNSENT', 'SENT_2', 'SENT_1','READINGS', 'BUFFERED', 'UNSNPURGED',
-                                          'SENT_3', 'DISCARDED']
+                    assert stats_keys == ['PURGED', 'SENT_4', 'UNSENT', 'SENT_2', 'SENT_1',
+                                                'READINGS', 'BUFFERED', 'UNSNPURGED', 'DISCARDED']
                     patch_storage.assert_called_once_with('statistics', '{"modifier": "distinct", "return": ["key"]}')
 
     async def test_insert_into_stats_history(self):

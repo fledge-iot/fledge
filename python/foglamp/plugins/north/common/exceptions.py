@@ -11,7 +11,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__all__ = ('NorthPluginException', 'HttpNorthException', 'ConfigurationError')
+__all__ = ('NorthPluginException', 'DataSendError')
 
 
 class URLFetchError(RuntimeError):
@@ -26,18 +26,6 @@ class PluginInitializeFailed(RuntimeError):
 
 class NorthPluginException(Exception):
     def __init__(self, reason):
-        self.reason = reason
-
-
-class HttpNorthException(NorthPluginException):
-    def __init__(self, reason):
-        super(HttpNorthException, self).__init__(reason)
-        self.reason = reason
-
-
-class ConfigurationError(HttpNorthException):
-    def __init__(self, reason):
-        super(ConfigurationError, self).__init__(reason)
         self.reason = reason
 
 

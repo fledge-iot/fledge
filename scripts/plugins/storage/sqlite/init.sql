@@ -629,12 +629,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Statistics Plugin will load" } } '
             );
 
--- SEND_PR_3 - HTTP Plugin
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'SEND_PR_3',
-              'HTTP North Plugin',
-              ' { "plugin" : { "type" : "string", "value" : "http_north", "default" : "http_north", "description" : "Module that HTTP North Plugin will load" } } '
-            );
 
 -- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
@@ -649,7 +643,6 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'BUFFERED',   'Readings currently in FogLAMP buffer', 0, 0 ),
             ( 'SENT_1',     'Readings sent to historian', 0, 0 ),
             ( 'SENT_2',     'FogLAMP statistics data sent to historian', 0, 0 ),
-            ( 'SENT_3',     'Readings sent via HTTP north', 0, 0 ),
             ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
             ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',     'Readings removed from buffer by purge process', 0, 0 ),
@@ -676,7 +669,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 
 -- North Tasks
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North HTTP',             '["tasks/north", "--stream_id", "3", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
@@ -777,19 +769,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 -- North Tasks
 --
 
--- Run the sending process using HTTP North translator every 15 seconds
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '81bdf749-8aa0-468e-b229-9ff695668e8c', -- id
-                'sending via HTTP',                     -- schedule_name
-                'North HTTP',                           -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
-              );
-
 -- Readings OMF to PI
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
@@ -844,12 +823,6 @@ INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
 -- Stats to OMF to PI
 INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
        VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
-
--- Readings to HTTP
-INSERT INTO foglamp.destinations ( id, description )
-       VALUES ( 2, 'HTTP_TR' );
-INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
-       VALUES ( 3, 2, 'HTTP north', 0 );
 
 -- Readings to OMF to OCS
 INSERT INTO foglamp.destinations( id, description ) VALUES ( 3, 'OCS' );

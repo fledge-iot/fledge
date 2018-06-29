@@ -123,7 +123,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise TypeError('item_name must be a string')
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
+
+            optional_item_entries = {'readonly': "false", 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
+
             if require_entry_value:
                 expected_item_entries['value'] = 0
             for entry_name, entry_val in item_val.items():
@@ -132,6 +135,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if type(entry_val) is not str:
                     raise TypeError(
                         'entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                # If Entry item exists in optional list, then update expected item entries
+                if entry_name in optional_item_entries:
+                    d = {entry_name: entry_val}
+                    expected_item_entries.update(d)
+
                 num_entries = expected_item_entries.get(entry_name)
                 if set_value_val_from_default_val and entry_name == 'value':
                     raise ValueError(
@@ -150,6 +158,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
             if set_value_val_from_default_val:
                 item_val['value'] = item_val['default']
+
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
@@ -495,7 +504,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         category_name -- name of the category (required)
 
         Return Values:
-        None
+        JSON
         """
         category = await self._read_category_val(category_name)
         if category is None:
@@ -517,7 +526,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         children -- an array of child categories
 
         Return Values:
-        None
+        JSON
         """
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
@@ -561,7 +570,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         child_category -- child name
 
         Return Values:
-        None
+        JSON
         """
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
@@ -596,6 +605,36 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
 
         return _children
+
+    async def delete_parent_category(self, category_name):
+        """Delete a parent-child relationship for a parent
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        try:
+            payload = PayloadBuilder().WHERE(["parent", "=", category_name]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            response = result["response"]
+            # TODO: Shall we write audit trail code entry here? log_code?
+
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return result
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

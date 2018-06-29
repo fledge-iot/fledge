@@ -1282,6 +1282,10 @@ class TestConfigurationManager:
         pass
 
     @pytest.mark.skip(reason="To be implemented")
+    async def test_delete_parent_category(self):
+        pass
+
+    @pytest.mark.skip(reason="To be implemented")
     async def test__read_all_child_category_names(self):
         pass
 

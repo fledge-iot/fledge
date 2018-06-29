@@ -28,11 +28,21 @@ void registerMicroServiceWrapper(shared_ptr<HttpServer::Response> response, shar
 }
 
 /**
+ * Wrapper for service registration method
+ */
+void unRegisterMicroServiceWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        CoreManagementApi *api = CoreManagementApi::getInstance();
+        api->unRegisterMicroService(response, request);
+}
+
+/**
  * Construct a microservices management API manager class
  */
 CoreManagementApi::CoreManagementApi(const string& name, const unsigned short port) : ManagementApi(name, port)
 {
 	m_server->resource[REGISTER_SERVICE]["POST"] = registerMicroServiceWrapper;
+	m_server->resource[UNREGISTER_SERVICE]["DELETE"] = unRegisterMicroServiceWrapper;
 
 	m_instance = this;
 }
@@ -54,7 +64,7 @@ CoreManagementApi *CoreManagementApi::getInstance()
 void CoreManagementApi::registerMicroService(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 ostringstream convert;
-string payload, responsePayload;
+string uuid, payload, responsePayload;
 
 	try {
 		ServiceRegistry *registry = ServiceRegistry::getInstance();
@@ -98,8 +108,8 @@ string payload, responsePayload;
 				errorResponse(response, SimpleWeb::StatusCode::client_error_bad_request, "register service", "Failed to register service");
 				return;
 			}
+			uuid = registry->getUUID(srv);
 		}
-		string uuid;
 
 		convert << "{ \"id\" : " << uuid << ",";
 		convert << "\"message\" : \"Service registered successfully\"";
@@ -111,6 +121,34 @@ string payload, responsePayload;
 	}
 }
 
+/**
+ * Received a service unregister request
+ */
+void CoreManagementApi::unRegisterMicroService(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+
+	try {
+		ServiceRegistry *registry = ServiceRegistry::getInstance();
+                string uuid = request->path_match[UUID_COMPONENT];
+
+		if (registry->unRegisterService(uuid))
+		{
+			convert << "{ \"id\" : " << uuid << ",";
+			convert << "\"message\" : \"Service unregistered successfully\"";
+			convert << " }";
+			string payload = convert.str();
+			respond(response, payload);
+		}
+		else
+		{
+			errorResponse(response, SimpleWeb::StatusCode::client_error_bad_request, "unregister service", "Failed to unregister service");
+		}
+
+	} catch (exception ex) {
+		internalError(response, ex);
+	}
+}
 /**
  * Send back an error response
  *

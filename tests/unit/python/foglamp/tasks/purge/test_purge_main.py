@@ -14,7 +14,7 @@ from unittest.mock import patch, MagicMock
 from foglamp.tasks import purge
 
 from foglamp.common import logger
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.tasks.purge.purge import Purge
 from foglamp.common.process import FoglampProcess
 from foglamp.common.audit_logger import AuditLogger
@@ -26,13 +26,13 @@ __version__ = "${VERSION}"
 
 
 @pytest.fixture
-async def _purge_instance(event_loop):
-    mockStorageClient = MagicMock(spec=StorageClient)
-    mockAuditLogger = AuditLogger(mockStorageClient)
+async def _purge_instance():
+    mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
+    mockAuditLogger = AuditLogger(mockStorageClientAsync)
     with patch.object(FoglampProcess, "__init__"):
         with patch.object(logger, "setup"):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
-                p = Purge(loop=event_loop)
+                p = Purge()
     return p
 
 

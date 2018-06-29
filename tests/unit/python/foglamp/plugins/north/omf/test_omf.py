@@ -26,7 +26,7 @@ import foglamp.tasks.north.sending_process as module_sp
 
 from foglamp.common.storage_client import payload_builder
 
-from foglamp.common.storage_client.storage_client import StorageClient, StorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 _STREAM_ID = 1
 
@@ -56,7 +56,6 @@ def fixture_omf_north(event_loop):
 
     omf_north = omf.OmfNorthPlugin(sending_process_instance, config, config_omf_types, _logger)
 
-    omf_north._sending_process_instance._storage = MagicMock(spec=StorageClient)
     omf_north._sending_process_instance._storage_async = MagicMock(spec=StorageClientAsync)
 
     return omf_north

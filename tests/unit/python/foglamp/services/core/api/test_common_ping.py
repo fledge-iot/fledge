@@ -52,13 +52,13 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
         {"value": 2, "key": "READINGS", "description": "blah1"},
         {"value": 3, "key": "SENT_1", "description": "blah2"},
         {"value": 4, "key": "SENT_2", "description": "blah3"},
-        {"value": 5, "key": "SENT_3", "description": "blah4"},
-        {"value": 6, "key": "SENT_4", "description": "blah5"},
+        {"value": 10, "key": "SENT_4", "description": "blah5"},
     ]}
 
     @asyncio.coroutine
     def mock_coro(*args, **kwargs):
         return result
+
     async def mock_get_category_item():
         return {"value": "true"}
 
@@ -84,7 +84,7 @@ async def test_ping_http_allow_ping_true(test_server, test_client, loop):
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 18 == content_dict["dataSent"]
+                    assert 17 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
@@ -105,8 +105,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
             {"value": 2, "key": "READINGS", "description": "blah1"},
             {"value": 3, "key": "SENT_1", "description": "blah2"},
             {"value": 4, "key": "SENT_2", "description": "blah3"},
-            {"value": 5, "key": "SENT_3", "description": "blah4"},
-            {"value": 6, "key": "SENT_4", "description": "blah5"},
+            {"value": 10, "key": "SENT_4", "description": "blah5"},
         ]}
         return result
 
@@ -134,7 +133,7 @@ async def test_ping_http_allow_ping_false(test_server, test_client, loop):
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 18 == content_dict["dataSent"]
+                    assert 17 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
@@ -152,8 +151,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                 {"value": 2, "key": "READINGS", "description": "blah1"},
                 {"value": 3, "key": "SENT_1", "description": "blah2"},
                 {"value": 4, "key": "SENT_2", "description": "blah3"},
-                {"value": 5, "key": "SENT_3", "description": "blah4"},
-                {"value": 6, "key": "SENT_4", "description": "blah5"},
+                {"value": 10, "key": "SENT_4", "description": "blah5"},
                ]}
 
     @asyncio.coroutine
@@ -183,7 +181,7 @@ async def test_ping_http_auth_required_allow_ping_true(test_server, test_client,
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 18 == content_dict["dataSent"]
+                    assert 17 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is False
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
@@ -201,8 +199,7 @@ async def test_ping_http_auth_required_allow_ping_false(test_server, test_client
         {"value": 2, "key": "READINGS", "description": "blah1"},
         {"value": 3, "key": "SENT_1", "description": "blah2"},
         {"value": 4, "key": "SENT_2", "description": "blah3"},
-        {"value": 5, "key": "SENT_3", "description": "blah4"},
-        {"value": 6, "key": "SENT_4", "description": "blah5"},
+        {"value": 5, "key": "SENT_4", "description": "blah5"},
     ]}
 
     @asyncio.coroutine
@@ -245,8 +242,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                 {"value": 2, "key": "READINGS", "description": "blah1"},
                 {"value": 3, "key": "SENT_1", "description": "blah2"},
                 {"value": 4, "key": "SENT_2", "description": "blah3"},
-                {"value": 5, "key": "SENT_3", "description": "blah4"},
-                {"value": 6, "key": "SENT_4", "description": "blah5"},
+                {"value": 10, "key": "SENT_4", "description": "blah5"},
                ]}
 
     @asyncio.coroutine
@@ -290,7 +286,7 @@ async def test_ping_https_allow_ping_true(test_server, ssl_ctx, test_client, loo
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 18 == content_dict["dataSent"]
+                    assert 17 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is True
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
@@ -307,7 +303,6 @@ async def test_ping_https_allow_ping_false(test_server, ssl_ctx, test_client, lo
         {"value": 2, "key": "READINGS", "description": "blah1"},
         {"value": 3, "key": "SENT_1", "description": "blah2"},
         {"value": 4, "key": "SENT_2", "description": "blah3"},
-        {"value": 5, "key": "SENT_3", "description": "blah4"},
         {"value": 6, "key": "SENT_4", "description": "blah5"},
     ]}
 
@@ -362,8 +357,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                 {"value": 2, "key": "READINGS", "description": "blah1"},
                 {"value": 3, "key": "SENT_1", "description": "blah2"},
                 {"value": 4, "key": "SENT_2", "description": "blah3"},
-                {"value": 5, "key": "SENT_3", "description": "blah4"},
-                {"value": 6, "key": "SENT_4", "description": "blah5"},
+                {"value": 10, "key": "SENT_4", "description": "blah5"},
                ]}
 
     @asyncio.coroutine
@@ -407,7 +401,7 @@ async def test_ping_https_auth_required_allow_ping_true(test_server, ssl_ctx, te
                     content_dict = json.loads(content)
                     assert 0.0 < content_dict["uptime"]
                     assert 2 == content_dict["dataRead"]
-                    assert 18 == content_dict["dataSent"]
+                    assert 17 == content_dict["dataSent"]
                     assert 1 == content_dict["dataPurged"]
                     assert content_dict["authenticationOptional"] is False
                     mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
@@ -427,7 +421,6 @@ async def test_ping_https_auth_required_allow_ping_false(test_server, ssl_ctx, t
             {"value": 2, "key": "READINGS", "description": "blah1"},
             {"value": 3, "key": "SENT_1", "description": "blah2"},
             {"value": 4, "key": "SENT_2", "description": "blah3"},
-            {"value": 5, "key": "SENT_3", "description": "blah4"},
             {"value": 6, "key": "SENT_4", "description": "blah5"},
         ]}
         return result

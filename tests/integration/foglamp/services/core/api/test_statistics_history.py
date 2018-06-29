@@ -95,7 +95,6 @@ class TestStatisticsHistory:
         assert 10 == res2['statistics'][-1]['UNSENT']
         assert 10 == res2['statistics'][-1]['SENT_1']
         assert 10 == res2['statistics'][-1]['SENT_2']
-        assert 10 == res2['statistics'][-1]['SENT_3']
         assert 10 == res2['statistics'][-1]['UNSNPURGED']
         assert 10 == res2['statistics'][-1]['READINGS']
         assert 10 == res2['statistics'][-1]['PURGED']

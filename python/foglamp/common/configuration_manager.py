@@ -123,7 +123,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise TypeError('item_name must be a string')
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
+
+            optional_item_entries = {'readonly': "false", 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
+
             if require_entry_value:
                 expected_item_entries['value'] = 0
             for entry_name, entry_val in item_val.items():
@@ -132,6 +135,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if type(entry_val) is not str:
                     raise TypeError(
                         'entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+                # If Entry item exists in optional list, then update expected item entries
+                if entry_name in optional_item_entries:
+                    d = {entry_name: entry_val}
+                    expected_item_entries.update(d)
+
                 num_entries = expected_item_entries.get(entry_name)
                 if set_value_val_from_default_val and entry_name == 'value':
                     raise ValueError(
@@ -150,6 +158,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
             if set_value_val_from_default_val:
                 item_val['value'] = item_val['default']
+
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
@@ -454,6 +463,178 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 'Unable to run callbacks for category_name %s', category_name)
             raise
         return None
+
+    async def _read_all_child_category_names(self, category_name):
+        _children = []
+        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).payload()
+        results = await self._storage.query_tbl_with_payload('category_children', payload)
+        for row in results['rows']:
+            _children.append(row)
+
+        return _children
+
+    async def _read_child_info(self, child_list):
+        info = []
+        for item in child_list:
+            payload = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", item['child']]).payload()
+            results = await self._storage.query_tbl_with_payload('configuration', payload)
+            for row in results['rows']:
+                info.append(row)
+
+        return info
+
+    async def _create_child(self, category_name, child):
+        # FIXME: Handle the case if re-create same data, it throws UNIQUE constraint failed
+        try:
+            payload = PayloadBuilder().INSERT(parent=category_name, child=child).payload()
+            result = await self._storage.insert_into_tbl("category_children", payload)
+            response = result['response']
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return response
+
+    async def get_category_child(self, category_name):
+        """Get the list of categories that are children of a given category.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        JSON
+        """
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        try:
+            child_cat_names = await self._read_all_child_category_names(category_name)
+            return await self._read_child_info(child_cat_names)
+        except:
+            _logger.exception(
+                'Unable to read all child category names')
+            raise
+
+    async def create_child_category(self, category_name, children):
+        """Create a new child category in the database.
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        children -- an array of child categories
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        if not isinstance(children, list):
+            raise TypeError('children must be a list')
+
+        try:
+            category = await self._read_category_val(category_name)
+            if category is None:
+                raise ValueError('No such {} category exist'.format(category_name))
+
+            for child in children:
+                category = await self._read_category_val(child)
+                if category is None:
+                    raise ValueError('No such {} child exist'.format(child))
+
+            for child in children:
+                result = await self._create_child(category_name, child)
+
+            if result == 'inserted':
+                cat_dict = await self.get_category_all_items(category_name)
+                child_dict = await self._read_all_child_category_names(category_name)
+                _children = []
+                for item in child_dict:
+                    _children.append(item['child'])
+
+                cat_dict["children"] = _children
+
+            # TODO: Shall we write audit trail code entry here? log_code?
+        except KeyError:
+            raise ValueError(result['message'])
+
+        return cat_dict
+
+    async def delete_child_category(self, category_name, child_category):
+        """Delete a parent-child relationship
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+        child_category -- child name
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        if not isinstance(child_category, str):
+            raise TypeError('child_category must be a string')
+
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        child = await self._read_category_val(child_category)
+        if child is None:
+            raise ValueError('No such {} child exist'.format(child_category))
+
+        try:
+            payload = PayloadBuilder().WHERE(["parent", "=", category_name]).AND_WHERE(["child", "=", child_category]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+
+            if result['response'] == 'deleted':
+                child_dict = await self._read_all_child_category_names(category_name)
+                _children = []
+                for item in child_dict:
+                    _children.append(item['child'])
+
+            # TODO: Shall we write audit trail code entry here? log_code?
+
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return _children
+
+    async def delete_parent_category(self, category_name):
+        """Delete a parent-child relationship for a parent
+
+        Keyword Arguments:
+        category_name -- name of the category (required)
+
+        Return Values:
+        JSON
+        """
+        if not isinstance(category_name, str):
+            raise TypeError('category_name must be a string')
+
+        category = await self._read_category_val(category_name)
+        if category is None:
+            raise ValueError('No such {} category exist'.format(category_name))
+
+        try:
+            payload = PayloadBuilder().WHERE(["parent", "=", category_name]).payload()
+            result = await self._storage.delete_from_tbl("category_children", payload)
+            response = result["response"]
+            # TODO: Shall we write audit trail code entry here? log_code?
+
+        except KeyError:
+            raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
+
+        return result
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

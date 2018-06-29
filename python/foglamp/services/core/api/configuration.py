@@ -16,12 +16,15 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | GET POST        | /foglamp/category                                         |
-    | GET             | /foglamp/category/{category_name}                         |
-    | GET POST PUT    | /foglamp/category/{category_name}/{config_item}           |
-    | DELETE          | /foglamp/category/{category_name}/{config_item}/value     |
-    -------------------------------------------------------------------------------
+    --------------------------------------------------------------------------------
+    | GET POST       | /foglamp/category                                           |
+    | GET            | /foglamp/category/{category_name}                           |
+    | GET POST PUT   | /foglamp/category/{category_name}/{config_item}             |
+    | DELETE         | /foglamp/category/{category_name}/{config_item}/value       |
+    | GET POST       | /foglamp/category/{category_name}/children                  |
+    | DELETE         | /foglamp/category/{category_name}/children/{child_category} |
+    | DELETE         | /foglamp/category/{category_name}/parent                    |
+    --------------------------------------------------------------------------------
 """
 
 #################################
@@ -81,6 +84,7 @@ async def create_category(request):
 
     :Example:
             curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}' -X POST http://localhost:8081/foglamp/category
+            curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}, "children":["child1", "child2"]}' -X POST http://localhost:8081/foglamp/category
     """
     try:
         cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -108,6 +112,11 @@ async def create_category(request):
         if category_info is None:
             raise LookupError('No such %s found' % category_name)
 
+        result = {"key": category_name, "description": category_desc, "value": category_info}
+        if data.get('children'):
+            r = await cf_mgr.create_child_category(category_name, data.get('children'))
+            result.update(r)
+
     except (KeyError, ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
 
@@ -117,7 +126,7 @@ async def create_category(request):
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
 
-    return web.json_response({"key": category_name, "description": category_desc, "value": category_info})
+    return web.json_response(result)
 
 
 async def get_category_item(request):
@@ -286,3 +295,106 @@ async def delete_configuration_item_value(request):
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
 
     return web.json_response(result)
+
+
+async def get_child_category(request):
+    """
+    Args:
+         request: category_name is required
+
+    Returns:
+            list of categories that are children of name category
+
+    :Example:
+            curl -X GET http://localhost:8081/foglamp/category/south/children
+    """
+    category_name = request.match_info.get('category_name', None)
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+
+    try:
+        result = await cf_mgr.get_category_child(category_name)
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+
+    return web.json_response({"categories": result})
+
+
+async def create_child_category(request):
+    """
+    Args:
+         request: category_name is required and JSON object that defines the child category
+
+    Returns:
+        parent of the children being added
+
+    :Example:
+            curl -d '{"children": ["coap", "http", "sinusoid"]}' -X POST http://localhost:8081/foglamp/category/south/children
+    """
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    data = await request.json()
+    if not isinstance(data, dict):
+        raise ValueError('Data payload must be a dictionary')
+
+    category_name = request.match_info.get('category_name', None)
+    children = data.get('children')
+
+    try:
+        r = await cf_mgr.create_child_category(category_name, children)
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+
+    return web.json_response(r)
+
+
+async def delete_child_category(request):
+    """
+    Args:
+        request: category_name, child_category are required
+
+    Returns:
+        remove the link b/w child category and its parent
+
+    :Example:
+        curl -X DELETE http://localhost:8081/foglamp/category/{category_name}/children/{child_category}
+
+    """
+    category_name = request.match_info.get('category_name', None)
+    child_category = request.match_info.get('child_category', None)
+
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    try:
+        result = await cf_mgr.delete_child_category(category_name, child_category)
+
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+
+    return web.json_response({"children": result})
+
+
+async def delete_parent_category(request):
+    """
+    Args:
+        request: category_name
+
+    Returns:
+        remove the link b/w parent-child category for the parent
+
+    :Example:
+        curl -X DELETE http://localhost:8081/foglamp/category/{category_name}/parent
+
+    """
+    category_name = request.match_info.get('category_name', None)
+
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
+    try:
+        await cf_mgr.delete_parent_category(category_name)
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))
+
+    return web.json_response({"message": "Parent-child relationship for the parent-{} is deleted".format(category_name)})

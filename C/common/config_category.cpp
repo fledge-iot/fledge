@@ -146,6 +146,9 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
  */
 ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 {
+	m_name = rhs.m_name;
+	m_description = rhs.m_description;
+
 	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
 	{
 		m_items.push_back(new CategoryItem(**it));
@@ -168,11 +171,42 @@ ConfigCategory::~ConfigCategory()
  */
 ConfigCategory& ConfigCategory::operator=(ConfigCategory const& rhs)
 {
+	m_name = rhs.m_name;
+	m_description = rhs.m_description;
+
 	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
 	{
 		m_items.push_back(new CategoryItem(**it));
 	}
 	return *this;
+}
+
+/**
+ * Set the m_value from m_default for each item
+ */
+void ConfigCategory::setItemsValueFromDefault()
+{
+	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
+	{
+		(*it)->m_value = string((*it)->m_default);
+	}
+}
+
+/**
+ * Check whether at least one item in the category object
+ * has both 'value' and 'default' set.
+ *
+ * @throws ConfigValueFoundWithDefault
+ */
+void ConfigCategory::checkDefaultValuesOnly() const
+{
+	for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
+	{
+		if (!(*it)->m_value.empty())
+		{
+			throw new ConfigValueFoundWithDefault((*it)->m_name);
+		}
+	}
 }
 
 /**
@@ -532,4 +566,27 @@ string escaped = subject;
 		pos += replace.length();
 	}
 	return escaped;
+}
+
+/**
+ * Return JSON string of a category item
+ * @param itemName	The given item within current category
+ * @return		The JSON string version of itemName
+ *			If not found {} is returned
+ */
+string ConfigCategory::itemToJSON(const string& itemName) const
+{
+	ostringstream convert;
+        
+        convert << "{";
+        for (auto it = m_items.cbegin(); it != m_items.cend(); it++)
+        {
+		if ((*it)->m_name.compare(itemName) == 0)
+		{
+                	convert << (*it)->toJSON();
+		}
+	}
+	convert << "}";
+        
+	return convert.str();
 }

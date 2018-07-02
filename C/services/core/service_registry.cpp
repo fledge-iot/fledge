@@ -8,6 +8,7 @@
  * Author: Mark Riddoch
  */
 #include <service_registry.h>
+#include <uuid/uuid.h>
 
 using namespace std;
 
@@ -50,7 +51,10 @@ ServiceRegistry *ServiceRegistry::getInstance()
  */
 bool ServiceRegistry::registerService(ServiceRecord *service)
 {
-	ServiceRecord *existing;
+uuid_t		uuid;
+char		uuid_str[37];
+ServiceRecord	*existing;
+
 	if ((existing = findService(service->getName())) != 0)
 	{
 		if (existing->getAddress().compare(service->getAddress()) ||
@@ -66,6 +70,9 @@ bool ServiceRegistry::registerService(ServiceRecord *service)
 		unRegisterService(existing);
 	}
 	m_services.push_back(service);
+	uuid_generate_time_safe(uuid);
+	uuid_unparse_lower(uuid, uuid_str);
+	m_uuids[string(uuid_str)] = service;
 	return true;
 }
 
@@ -83,6 +90,43 @@ bool ServiceRegistry::unRegisterService(ServiceRecord *service)
 		if (*service == **it)
 		{
 			m_services.erase(it);
+			for (map<string, ServiceRecord *>::iterator uit = m_uuids.begin(); uit != m_uuids.end(); ++ uit)
+			{
+				if (uit->second == service)
+				{
+					m_uuids.erase(uit);
+					break;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Unregister a service with the service registry
+ *
+ * @param uuid		The uuid of the service to unregister
+ * @return bool		True if the service was unregistered
+ */
+bool ServiceRegistry::unRegisterService(const string& uuid)
+{
+ServiceRecord	*service;
+map<string, ServiceRecord *>::iterator	uuidIt;
+	
+	if ((uuidIt = m_uuids.find(uuid)) == m_uuids.end())
+	{
+		return false;
+	}
+	service = m_uuids[uuid];
+	for (vector<ServiceRecord *>::iterator it = m_services.begin();
+		it != m_services.end(); ++it)
+	{
+		if (*service == **it)
+		{
+			m_services.erase(it);
+			m_uuids.erase(uuidIt);
 			return true;
 		}
 	}
@@ -104,4 +148,25 @@ ServiceRecord *ServiceRegistry::findService(const string& name)
 			return *it;
 	}
 	return 0;
+}
+
+/**
+ * Return the uuid of the registration record for a given service
+ *
+ * @param	service	The service to return the uuid for
+ * @return string	The uud of the service registration
+ * @throws eception	If the service could not be found
+ */
+string ServiceRegistry::getUUID(ServiceRecord *service)
+{
+map<string, ServiceRecord *>::const_iterator  it;
+
+	for (it = m_uuids.cbegin(); it != m_uuids.cend(); ++it)
+	{
+		if (it->second == service)
+		{
+			return it->first;
+		}
+	}
+	throw new exception();
 }

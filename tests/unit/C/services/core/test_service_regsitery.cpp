@@ -74,3 +74,14 @@ TEST(ServiceRegistryTest, UnregisterNoExistant)
 	ServiceRegistry *registry = ServiceRegistry::getInstance();
 	ASSERT_EQ(registry->unRegisterService(record), false);
 }
+
+TEST(ServiceRegistryTest, uuid)
+{
+	ServiceRecord *record = new ServiceRecord("testuuid", "south", "http", "hostname", 1234, 4321);
+	
+	ServiceRegistry *registry = ServiceRegistry::getInstance();
+	ASSERT_EQ(registry->registerService(record), true);
+	string uuid = registry->getUUID(record);
+	ASSERT_EQ(true, registry->unRegisterService(uuid));
+}
+

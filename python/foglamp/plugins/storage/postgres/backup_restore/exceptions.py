@@ -7,6 +7,11 @@
 """Exceptions module """
 
 
+class SQLCommandExecutionError(Exception):
+    """ the SQL command generates an error """
+    pass
+
+
 class ConfigRetrievalError(Exception):
     """ Unable to retrieve the parameters from the configuration manager """
     pass

@@ -7,51 +7,7 @@
 
 .. Images
 
-.. |DHT11 in PI| image:: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg
-   :target: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg
-
 .. Links
-.. _here: 05_testing.html#setting-the-omf-translator-plugin
-.. _these steps: 04_installation.html
-
-.. |Getting Started| raw:: html
-
-   <a href="03_getting_started.html#building-foglamp">here</a>
-
-.. Links in new tabs
-
-.. |ADAFruit| raw:: html
-
-   <a href="https://github.com/adafruit/Adafruit_Python_DHT" target="_blank">ADAFruit DHT Library</a>
-
-.. |here BT| raw:: html
-
-   <a href="https://bugs.launchpad.net/snappy/+bug/1674509" target="_blank">here</a>
-
-.. |DHT Description| raw:: html
-
-   <a href="http://www.aosong.com/en/products/details.asp?id=109" target="_blank">DHT11 Product Description</a>
-
-.. |DHT Manual| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11.pdf" target="_blank">DHT11 Product Manual</a>
-
-.. |DHT Resistor| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-with-resistor.jpg" target="_blank">This picture</a>
-
-.. |DHT Wired| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-wired.jpg" target="_blank">This picture</a>
-
-.. |DHT Pins| raw:: html
-
-   <a href="https://s3.amazonaws.com/foglamp/docs/v1/Common/plugins/South/DHT11/DHT11-RaspPI-pins.jpg" target="_blank">this</a>
-
-.. |GPIO| raw:: html
-
-   <a href="https://www.raspberrypi.org/documentation/usage/gpio-plus-and-raspi2/README.md" target="_blank">here</a>
-
 
 .. =============================================
 
@@ -112,10 +68,10 @@ Using the example of our simple DHT11 device attached to a GPIO pin, the *poll* 
               time_stamp = str(datetime.now(tz=timezone.utc))
               readings =  { 'temperature': temperature , 'humidity' : humidity }
               wrapper = {
-                      'asset':     'dht11',
+                      'asset': 'dht11',
                       'timestamp': time_stamp,
-                       'key':       str(uuid.uuid4()),
-                      'readings':  readings
+                      'key': str(uuid.uuid4()),
+                      'readings': readings
               }
               return wrapper
           else:
@@ -141,12 +97,11 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
 .. code-block:: python
 
   loop = asyncio.get_event_loop()
-
-  app = web.Application( middlewares=[middleware.error_middleware] )
-  app.router.add_route( 'POST', '/', SensorPhoneIngest.render_post )
+  app = web.Application(middlewares=[middleware.error_middleware])
+  app.router.add_route('POST', '/', SensorPhoneIngest.render_post)
   handler = app.make_handler()
-  coro = loop.create_server( handler, host, port )
-  server = asyncio.ensure_future( coro )
+  coro = loop.create_server(handler, host, port)
+  server = asyncio.ensure_future(coro)
 
 This code first gets the event loop for this Python execution, it then creates the web application and adds a route for the POST request. In this case it is calling the *render_post* method of the object *SensorPhone*. It then goes on to create the handler and install the web server instance into the event system.
 
@@ -174,7 +129,7 @@ The async handler is defined for incoming message has the responsibility of taki
 
           for readings in messages:
                key = str(uuid.uuid4())
-  await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
+      await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 
   except ...
 

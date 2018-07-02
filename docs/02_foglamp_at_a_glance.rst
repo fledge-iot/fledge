@@ -96,8 +96,8 @@ Details of the Architecture
 - **Southbound Microservice** - A microservice that offers bi-directional communication with data and metadata exchange between the platform and Edge devices, such as sensors, actuators, PLCs or other FogLAMP installations. Smaller systems may have this service installed on board Edge devices.
 
 
-To Know More About the Archicture
----------------------------------
+To Know More About the Architecture
+-----------------------------------
 
 You can know more about the FogLAMP architecture downloading this document or by checking the content of the |Dianomic Website|.
 

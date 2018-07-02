@@ -1,0 +1,3 @@
+#!/bin/bash
+
+$TEST_BASEDIR/bash/sleep.bash 10

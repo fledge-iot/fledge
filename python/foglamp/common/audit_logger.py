@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
 
 from foglamp.common import logger
@@ -48,7 +48,7 @@ class AuditLogger(AuditLoggerSingleton):
     def __init__(self, storage=None):
         AuditLoggerSingleton.__init__(self)
         if self._storage is None:
-            if not isinstance(storage, StorageClient):
+            if not isinstance(storage, StorageClientAsync):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
 
@@ -59,7 +59,7 @@ class AuditLogger(AuditLoggerSingleton):
             else:
                 payload = PayloadBuilder().INSERT(code=code, level=level, log=log).payload()
 
-            self._storage.insert_into_tbl("log", payload)
+            await self._storage.insert_into_tbl("log", payload)
 
         except (StorageServerError, Exception) as ex:
             _logger.exception("Failed to log audit trail entry '%s': %s", code, str(ex))

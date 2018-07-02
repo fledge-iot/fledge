@@ -48,9 +48,9 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - autoconf 
 - automake 
 - avahi-daemon
-- bluez
-- build-essential 
+- build-essential
 - cmake
+- curl
 - g++
 - libtool 
 - libboost-dev
@@ -69,13 +69,12 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 
 On Ubuntu-based Linux distributions the packages can be installed with *apt-get*:
 ::
-   apt-get install avahi-daemon
+   apt-get install avahi-daemon curl
    apt-get install cmake g++ make build-essential autoconf automake uuid-dev
    apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev
    apt-get install python-dbus python-dev python3-pip
    apt-get install postgresql
    apt-get install sqlite3 libsqlite3-dev
-   apt-get install bluez
 
 You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
 

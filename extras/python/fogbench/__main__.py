@@ -61,7 +61,6 @@ import aiohttp
 from aiocoap import *
 from cbor2 import dumps
 
-# FIXME: remove relative import
 from .exceptions import *
 
 __author__ = "Praveen Garg"
@@ -79,8 +78,8 @@ _tot_byte_transferred = []
 _num_iterated = 0
 """Statistics to be collected"""
 
-# TODO: have its own sys/ console logger
 # _logger = logger.setup(__name__)
+
 
 def local_timestamp():
     """
@@ -225,7 +224,6 @@ async def send_to_coap(payload):
     request = Message(payload=dumps(payload), code=POST)
     request.opt.uri_host = arg_host
     request.opt.uri_port = arg_port
-    # request.opt.uri_path = ("other", "block")
     request.opt.uri_path = ("other", "sensor-values")
 
     response = await context.request(request).response

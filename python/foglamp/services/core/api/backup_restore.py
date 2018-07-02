@@ -87,8 +87,8 @@ async def get_backups(request):
         except KeyError as ex:
             raise web.HTTPBadRequest(reason="{} is not a valid status".format(ex))
     try:
-        backup = Backup(connect.get_storage())
-        backup_json = backup.get_all_backups(limit=limit, skip=skip, status=status)
+        backup = Backup(connect.get_storage_async())
+        backup_json = await backup.get_all_backups(limit=limit, skip=skip, status=status)
 
         res = []
         for row in backup_json:
@@ -110,7 +110,7 @@ async def create_backup(request):
     :Example: curl -X POST http://localhost:8081/foglamp/backup
     """
     try:
-        backup = Backup(connect.get_storage())
+        backup = Backup(connect.get_storage_async())
         status = await backup.create_backup()
     except Exception as ex:
         raise web.HTTPException(reason=str(ex))
@@ -126,8 +126,8 @@ async def get_backup_details(request):
     backup_id = request.match_info.get('backup_id', None)
     try:
         backup_id = int(backup_id)
-        backup = Backup(connect.get_storage())
-        backup_json = backup.get_backup_details(backup_id)
+        backup = Backup(connect.get_storage_async())
+        backup_json = await backup.get_backup_details(backup_id)
 
         resp = {"status": _get_status(int(backup_json["status"])),
                 'id': backup_json["id"],
@@ -152,8 +152,8 @@ async def delete_backup(request):
     backup_id = request.match_info.get('backup_id', None)
     try:
         backup_id = int(backup_id)
-        backup = Backup(connect.get_storage())
-        backup.delete_backup(backup_id)
+        backup = Backup(connect.get_storage_async())
+        await backup.delete_backup(backup_id)
         return web.json_response({'message': "Backup deleted successfully"})
     except ValueError:
         raise web.HTTPBadRequest(reason='Invalid backup id')
@@ -173,7 +173,7 @@ async def restore_backup(request):
     backup_id = request.match_info.get('backup_id', None)
     try:
         backup_id = int(backup_id)
-        restore = Restore(connect.get_storage())
+        restore = Restore(connect.get_storage_async())
         status = await restore.restore_backup(backup_id)
         return web.json_response({'status': status})
     except ValueError:

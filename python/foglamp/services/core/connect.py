@@ -6,8 +6,7 @@
 
 
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
-from foglamp.common.storage_client.storage_client import StorageClient
-from foglamp.common.storage_client.storage_client import ReadingsStorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
 
 __author__ = "Ashish Jabble"
@@ -21,12 +20,12 @@ _logger = logger.setup(__name__)
 
 
 # TODO: Needs refactoring or better way to allow global discovery in core process
-def get_storage():
+def get_storage_async():
     """ Storage Object """
     try:
         services = ServiceRegistry.get(name="FogLAMP Storage")
         storage_svc = services[0]
-        _storage = StorageClient(core_management_host=None, core_management_port=None,
+        _storage = StorageClientAsync(core_management_host=None, core_management_port=None,
                                  svc=storage_svc)
         # _logger.info(type(_storage))
     except Exception as ex:
@@ -35,12 +34,12 @@ def get_storage():
     return _storage
 
 # TODO: Needs refactoring or better way to allow global discovery in core process
-def get_readings():
+def get_readings_async():
     """ Storage Object """
     try:
         services = ServiceRegistry.get(name="FogLAMP Storage")
         storage_svc = services[0]
-        _readings = ReadingsStorageClient(core_mgt_host=None, core_mgt_port=None,
+        _readings = ReadingsStorageClientAsync(core_mgt_host=None, core_mgt_port=None,
                                  svc=storage_svc)
         # _logger.info(type(_storage))
     except Exception as ex:

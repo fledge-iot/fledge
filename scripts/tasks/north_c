@@ -1,0 +1,17 @@
+#!/bin/sh
+# Run a FogLAMP task written in Python
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+	logger "FogLAMP home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+
+# We run the C code of the Sending process
+# fixme
+cd "/home/foglamp/Development/FogLAMP/cmake-build-debug/C"
+
+./tasks/north/sending_process/sending_process $@

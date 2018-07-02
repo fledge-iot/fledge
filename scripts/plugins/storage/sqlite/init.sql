@@ -610,6 +610,15 @@ DELETE FROM foglamp.configuration;
 
 -- North plugins
 
+-- Fixme
+-- SEND_PR_1 - OMF Translator for readings
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'North_Readings_to_PI',
+              'C-OMF to PI north',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
+            );
+
+
 -- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_1',
@@ -668,6 +677,10 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Reading
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north", "--stream_id", "4", "--debug_level", "1"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north", "--stream_id", "2", "--debug_level", "1"]' );
 
+-- North Tasks - C code
+--
+-- Fixme
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
 
 --
 -- Schedules
@@ -763,6 +776,22 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 
 -- North Tasks
 --
+
+
+-- Readings OMF to PI - C Code
+-- Fixme
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '1cdf1ef8-7e02-11e8-adc0-fa7ae01bbebc', -- id
+                'C-OMF to PI north',                    -- schedule_name
+                'North_Readings_to_PI',                 -- process_name
+                3,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '00:00:30',                             -- schedule_interval
+                't',                                   -- exclusive
+                'f'                                   -- disabled
+              );
+
 
 -- Readings OMF to PI
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,

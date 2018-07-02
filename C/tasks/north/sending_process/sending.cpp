@@ -22,7 +22,7 @@
 #define PLUGIN_TYPES_KEY "OMF_TYPES"
 
 // Configuration retrieved from the Configuration Manager
-#define CONFIG_CATEGORY_NAME "SEND_PR_"
+#define CONFIG_CATEGORY_NAME "North"
 #define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process"
 #define CATEGORY_OMF_TYPES_DESCRIPTION "Configuration of OMF types"
 
@@ -80,9 +80,23 @@ SendingProcess::~SendingProcess()
 SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, argv)
 {
 	// Get streamID from command line
-	m_stream_id = atoi(this->getArgValue("--stream-id=").c_str());
+    //fixme
+	// m_stream_id = atoi(this->getArgValue("--stream_id=").c_str());
+    m_stream_id = 1;
 
-	// Set buffer of ReadingSet with NULLs
+    //fixme
+	int i;
+    for(i=0;i<argc-1;i++)
+    {
+        Logger::getLogger()->info("DBG C++ 15: param :%d: :%s:", i, argv[i]);
+    }
+
+    Logger::getLogger()->info("DBG C++ 15: m_stream_id :%d:", m_stream_id);
+    Logger::getLogger()->info("DBG C++ 15: m_name :%s:", getName().c_str());
+
+
+
+    // Set buffer of ReadingSet with NULLs
 	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
 
 	// Mark running state
@@ -320,7 +334,10 @@ bool SendingProcess::getLastSentReadingId()
  */
 const map<string, string>& SendingProcess::fetchConfiguration()
 {
-	string catName(CONFIG_CATEGORY_NAME + to_string(this->getStreamId()));
+        //fixme getName().c_str()
+	//string catName(CONFIG_CATEGORY_NAME + to_string(this->getStreamId()));
+        string catName(getName());
+        Logger::getLogger()->info("DBG C++ 15: catName :%s:", catName.c_str());
 
 	// Build JSON merged configuration (sendingProcess + pluginConfig
 	string config("{ ");

@@ -67,6 +67,10 @@ ConfigCategories ConfigurationManager::getAllCategoryNames() const
 
 	// Query via Storage client
 	ResultSet* allCategories = m_storage->queryTable("configuration", qAllCategories);
+	if (!allCategories)
+	{
+		throw StorageOperationException();
+	}
 
 	ConfigCategories categories;
 
@@ -121,6 +125,10 @@ ConfigCategory ConfigurationManager::getCategoryAllItems(const string& categoryN
 
 	// Query via storage client
 	ResultSet* categoryItems = m_storage->queryTable("configuration", qKey);
+	if (!categoryItems)
+	{
+		throw StorageOperationException();
+	}
 
 	// Cayegory not found
 	if (!categoryItems->rowCount())
@@ -229,6 +237,11 @@ ConfigCategory ConfigurationManager::createCategory(const std::string& categoryN
 
 	// Query via storage client
 	ResultSet* result = m_storage->queryTable("configuration", qKey);
+	if (!result)
+	{
+		throw StorageOperationException();
+	}
+
 	if (!result->rowCount())
 	{
 		// Prepare insert values for insertTable

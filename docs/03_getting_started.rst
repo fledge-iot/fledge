@@ -49,9 +49,8 @@ This version of FogLAMP requires the following software to be installed in the s
 - **Python 3.5+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
-- **Bluez 5.37+**
 
-Bluez is the official Bluetooth stack and we have added plugins that are set on by default and use *gatttool* and other components of *bluez*. In the future we will make this package optional, but for the moment you should install it even if you do not intend to use any Bluetooth device. |br| If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. |br| In this version SQLite is default engine, but we have left libraries to easily switch to PostgreSQL, in case you need it. The PostgreSQL plugin will be moved to a different repository in future versions. Other requirements largely depend on the plugins that run in FogLAMP.
+If you intend to download and build FogLAMP from source (as explained in this page), you also need *git*. |br| In this version SQLite is default engine, but we have left libraries to easily switch to PostgreSQL, in case you need it. The PostgreSQL plugin will be moved to a different repository in future versions. Other requirements largely depend on the plugins that run in FogLAMP.
 
 You may also want to install some utilities to make your life easier when you use or test FogLAMP:
 
@@ -62,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP on Ubuntu 16.04.3 LTS (Server or Desktop).  Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `here <92_downloads.html>`_).
+In this section we will describe how to build FogLAMP on Ubuntu 16.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -73,22 +72,24 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
 - autoconf 
 - automake 
 - avahi-daemon
-- bluez
-- build-essential 
+- build-essential
 - cmake
+- curl
 - g++
 - git
-- libbost-dev
-- libbost-system-dev
-- libbost-thread-dev
+- libboost-dev
+- libboost-system-dev
+- libboost-thread-dev
+- libssl-dev
 - libpq-dev
 - libsqlite3-dev
 - libtool 
 - make
 - postgresql
-- python-dbus
-- python-dev
+- python3-dbus
+- python3-dev
 - python3-pip
+- python3-setuptools
 - sqlite3
 - uuid-dev
 
@@ -99,7 +100,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   ...
   All packages are up-to-date.
   $
-  $ sudo apt-get install avahi-daemon git cmake g++ make build-essential autoconf automake
+  $ sudo apt-get install avahi-daemon curl git cmake g++ make build-essential autoconf automake
   Reading package lists... Done
   Building dependency tree
   ...
@@ -109,23 +110,17 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   Building dependency tree
   ...
   $
-  $ sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev uuid-dev
+  $ sudo apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libssl-dev libpq-dev uuid-dev
   Reading package lists... Done
   Building dependency tree
   ...
   $
-  $ sudo apt-get install python-dev python3-pip python-dbus
+  $ sudo apt-get install python3-dev python3-pip python3-dbus python3-setuptools
   Reading package lists... Done
   Building dependency tree
   ...
   $
   $ sudo apt-get install postgresql
-  Reading package lists... Done
-  Building dependency tree
-  $
-  ...
-  $
-  $ sudo apt-get install bluez
   Reading package lists... Done
   Building dependency tree
   $
@@ -176,8 +171,8 @@ Selecting the Correct Version
 
 The git repository created on your local machine, creates several branches. More specifically:
 
-- The **master** branch is the latest, stable version. You should use this branch if you are interested in using FogLAMP with the latest features and fixes.
-- The **develop** branch is the current working branch used by our developers. The branch contains the lastest version and features, but it may be unstable and there may be issues in the code. You may consider to use this branch if you are curious to see one of the latest features we are working on, but you should not use this branch in production.
+- The **master** branch is the latest, stable version. You should use this branch if you are interested in using FogLAMP with the last release features and fixes.
+- The **develop** branch is the current working branch used by our developers. The branch contains the latest version and features, but it may be unstable and there may be issues in the code. You may consider to use this branch if you are curious to see one of the latest features we are working on, but you should not use this branch in production.
 - The branches with versions **majorID.minorID**, such as *1.0* or *1.4*, contain the code of that specific version. You may use one of these branches if you need to check the code used in those versions.
 - The branches with name **FOGL-XXXX**, where 'XXXX' is a sequence number, are working branches used by developers and contributors to add features, fix issues, modify and release code and documentation of FogLAMP. Those branches are free for you to see and learn from the work of the contributors.
  
@@ -202,7 +197,7 @@ Once you have cloned the FogLAMP project, in order to check the branches availab
   remotes/origin/master
   $
 
-Assuming you want to use the latest, stable version, use the ``git checkout`` command to select the *master* branch:
+Assuming you want to use the latest released, stable version, use the ``git checkout`` command to select the *master* branch:
 
 .. code-block:: console
 
@@ -229,9 +224,10 @@ Move to the *FogLAMP* project directory, type the ``make`` comand and let the ma
   -- The C compiler identification is GNU 5.4.0
   -- The CXX compiler identification is GNU 5.4.0
   ...
-  Successfully built aiocoap pexpect
-  Installing collected packages: aiocoap, cbor2, six, pyparsing, packaging, async-timeout, multidict, yarl, chardet, aiohttp, typing, aiohttp-cors, cchardet, certifi, idna, urllib3, requests, ptyprocess, pexpect
-  Successfully installed aiocoap aiohttp aiohttp-cors async-timeout cbor2 cchardet certifi chardet-2.3.0 idna multidict packaging pexpect ptyprocess pyparsing requests-2.9.1 six-1.10.0 typing urllib3-1.13.1 yarl
+  pip3 install -Ir python/requirements.txt --user --no-cache-dir
+  ...
+  Installing collected packages: multidict, idna, yarl, async-timeout, chardet, aiohttp, typing, aiohttp-cors, cchardet, pyjwt, six, pyjq
+  Successfully installed aiohttp-2.3.8 aiohttp-cors-0.5.3 async-timeout-3.0.0 cchardet-2.1.1 chardet-3.0.4 idna-2.6 multidict-4.3.1 pyjq-2.1.0 pyjwt-1.6.0 six-1.11.0 typing-3.6.4 yarl-1.2.6
   $
 
 
@@ -263,7 +259,7 @@ The other issue is related to the version of pip (more specifically pip3), the P
   You are using pip version 8.1.1, however version 9.0.1 is available.
   You should consider upgrading via the 'pip install --upgrade pip' command.
 
-In this case, what you need to do is to upgrade the pip software for Python 3:
+In this case, what you need to do is to upgrade the pip software for Python3:
 
 .. code-block:: console
 
@@ -288,7 +284,8 @@ If you are eager to test FogLAMP straight away, you can do so! All you need to d
   $ pwd
   /home/ubuntu/FogLAMP
   $ export FOGLAMP_ROOT=/home/ubuntu/FogLAMP
-  $ scripts/foglamp start
+  $ ./scripts/foglamp start
+  Starting FogLAMP vX.X.....
   FogLAMP started.
   $
 
@@ -297,7 +294,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
 
 .. code-block:: console
 
-  $ scripts/foglamp status
+  $ ./scripts/foglamp status
   FogLAMP starting.
   $
   $ scripts/foglamp status
@@ -307,8 +304,6 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
-  foglamp.services.south --port=40417 --address=127.0.0.1 --name=HTTP_SOUTH
-  foglamp.services.south --port=40417 --address=127.0.0.1 --name=COAP
   === FogLAMP tasks:
   foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=40417 --address=127.0.0.1 --name=sending process
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=40417 --address=127.0.0.1 --name=statistics to pi
@@ -322,7 +317,7 @@ If you are curious to see a proper output from FogLAMP, you can query the Core m
   {"dataPurged": 0, "dataRead": 10, "uptime": 308.42881059646606, "dataSent": 0, "authenticationOptional": true}
   $
   $ curl -s http://localhost:8081/foglamp/statistics ; echo
-  [{"key": "BUFFERED", "description": "The number of readings currently in the FogLAMP buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by FogLAMP since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "SENT_3", "description": "The number of readings data sent to the HTTP translator", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
+  [{"key": "BUFFERED", "description": "The number of readings currently in the FogLAMP buffer", "value": 0}, {"key": "DISCARDED", "description": "The number of readings discarded at the input side by FogLAMP, i.e. discarded before being  placed in the buffer. This may be due to some error in the readings themselves.", "value": 0}, {"key": "PURGED", "description": "The number of readings removed from the buffer by the purge process", "value": 0}, {"key": "READINGS", "description": "The number of readings received by FogLAMP since startup", "value": 0}, {"key": "SENT_1", "description": "The number of readings sent to the historian", "value": 0}, {"key": "SENT_2", "description": "The number of statistics data sent to the historian", "value": 0}, {"key": "UNSENT", "description": "The number of readings filtered out in the send process", "value": 0}, {"key": "UNSNPURGED", "description": "The number of readings that were purged from the buffer before being sent", "value": 0}]
   $
 
 Congratulations! You have installed and tested FogLAMP! If you want to go extra mile (and make the output of the REST API more readible, download the *jq* JSON processor and pipe the output of the *curl* command to it:
@@ -365,11 +360,6 @@ Congratulations! You have installed and tested FogLAMP! If you want to go extra 
       "value": 0
     },
     {
-      "key": "SENT_3",
-      "description": "The number of readings data sent to the HTTP translator",
-      "value": 0
-    },
-    {
       "key": "UNSENT",
       "description": "The number of readings filtered out in the send process",
       "value": 0
@@ -392,6 +382,7 @@ Easy, you have learnt ``foglamp start`` and ``foglamp status``, simply type ``fo
 .. code-block:: console
 
   $ scripts/foglamp stop
+  Stopping FogLAMP.........
   FogLAMP stopped.
   $
 
@@ -491,10 +482,8 @@ Pre-Requisites
 Pre-requisites on CentOS are similar to the ones on other distributions, but the name of the packages may differ from Debian-based distros. Starting from a minimal installation, this is the list of packages you need to add:
 
 - libtool
-- bluez
-- git
 - cmake
-- bost-devel
+- boost-devel
 - libuuid-devel
 - gmp-devel
 - mpfr-devel
@@ -508,8 +497,6 @@ This is the complete list of the commands to execute and the installed packages 
 .. code-block:: console
 
   sudo yum install libtool
-  sudo yum install bluez
-  sudo yum install git
   sudo yum install cmake
   sudo yum install boost-devel
   sudo yum install libuuid-devel
@@ -524,7 +511,7 @@ This is the complete list of the commands to execute and the installed packages 
 Building and Installing C++ 5.4
 -------------------------------
 
-FogLAMP, requires C++ 5.4, CentOS 7 provides version 4.8. These are the commands to build and install the new GCC environnment:
+FogLAMP, requires C++ 5.4, CentOS 7 provides version 4.8. These are the commands to build and install the new GCC environment:
 
 .. code-block:: console
 
@@ -678,41 +665,6 @@ We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 
       def __init__(self, name, service, port, txt):
 
-
-Building FogLAMP
-----------------
-
-We are finally ready to install FogLAMP, but we need to apply some little changes to the code and the make files. These changes will be removed in the future, but for the moment they are necessary to complete the procedure.
-
-First, clone the Github repository with the usual command: |br| ``git clone https://github.com/foglamp/FogLAMP.git`` |br| The project should have been added to your machine under the *FogLAMP* directory. 
-
-We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
-
-- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
-- Replace the content of *python/foglamp/services/common/service_announcer.py* with this code:
-
-.. code-block:: python
-
-  # -*- coding: utf-8 -*-
-  # FOGLAMP_BEGIN
-  # See: http://foglamp.readthedocs.io/
-  # FOGLAMP_END
-  """Common FoglampMicroservice Class"""
-
-  import foglamp.services.common.avahi as avahi
-  from foglamp.common import logger
-
-  _LOGGER = logger.setup(__name__)
-
-  class ServiceAnnouncer:
-      _service_name = None
-      """ The name of the service to advertise """
-
-      _group = None
-      """ The Avahi group """
-
-      def __init__(self, name, service, port, txt):
-
         self._service_name = name
         _LOGGER.error("Avahi not available, continuing without service discovery available")
 
@@ -736,7 +688,7 @@ Finally, in *python/foglamp/services/common/avahi.py*, comment these lines:
   #        r.append(dbus.Byte(ord(c)))
 
 
-You are now ready to execute the ``make`` command, as described `here`_.
+You are now ready to execute the ``make`` command, as described here_.
  
 
 Further Notes
@@ -769,8 +721,6 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
   FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
-  foglamp.services.south --port=38994 --address=127.0.0.1 --name=COAP
-  foglamp.services.south --port=38994 --address=127.0.0.1 --name=HTTP_SOUTH
   === FogLAMP tasks:
   $
   $ cat data/core.err
@@ -779,11 +729,6 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
   ...
   foglamp   6174     1  1 08:03 pts/0    00:00:00 python3 -m foglamp.services.core
   foglamp   6179     1  0 08:03 ?        00:00:00 /home/foglamp/FogLAMP/services/storage --address=0.0.0.0 --port=34037
-  foglamp   6197  6174  0 08:03 pts/0    00:00:00 /bin/sh services/south --port=34037 --address=127.0.0.1 --name=COAP
-  foglamp   6198  6197  0 08:03 pts/0    00:00:00 python3 -m foglamp.services.south --port=34037 --address=127.0.0.1 --name=COAP
-  foglamp   6199  6174  0 08:03 pts/0    00:00:00 /bin/sh services/south --port=34037 --address=127.0.0.1 --name=HTTP_SOUTH
-  foglamp   6200  6199  0 08:03 pts/0    00:00:00 python3 -m foglamp.services.south --port=34037 --address=127.0.0.1 --name=HTTP_SOUTH
-  foglamp   6212  6174  0 08:04 pts/0    00:00:00 /bin/sh tasks/statistics --port=34037 --address=127.0.0.1 --name=stats collector
   foglamp   6213  6212  0 08:04 pts/0    00:00:00 python3 -m foglamp.tasks.statistics --port=34037 --address=127.0.0.1 --name=stats collector
   ...
   $
@@ -799,8 +744,6 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
   FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
-  foglamp.services.south --port=38994 --address=127.0.0.1 --name=COAP
-  foglamp.services.south --port=38994 --address=127.0.0.1 --name=HTTP_SOUTH
   === FogLAMP tasks:
   $ foglamp stop
   Stopping FogLAMP.............
@@ -816,5 +759,3 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
   $ ps -ef | grep foglamp
   ...
   $
-
-

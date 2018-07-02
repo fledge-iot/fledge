@@ -29,13 +29,13 @@ import json
 import foglamp.plugins.north.common.common as plugin_common
 
 from foglamp.common.parser import Parser
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient, StorageClientAsync, ReadingsStorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
 from foglamp.common import statistics
 from foglamp.common.jqfilter import JQFilter
 from foglamp.common.audit_logger import AuditLogger
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 
 __author__ = "Stefano Simonelli, Massimiliano Pinto, Mark Riddoch"
@@ -338,7 +338,7 @@ class SendingProcess:
 
     }
 
-    def __init__(self):
+    def __init__(self, loop=None):
         """
         Args:
             _mgt_name: Unique name that represents the microservice
@@ -379,7 +379,6 @@ class SendingProcess:
         self._mgt_address = None
         ''' Parameters for the Storage layer '''
         self._storage_async = None
-        self._storage = None
         self._readings = None
         """" Interfaces to the FogLAMP Storage Layer """
         self._audit = None
@@ -410,7 +409,7 @@ class SendingProcess:
         self._memory_buffer_send_idx = 0
         """" Used to to managed the in memory buffer for the fetch/send operations """
 
-        self._event_loop = asyncio.get_event_loop()
+        self._event_loop = asyncio.get_event_loop() if loop is None else loop
 
     @staticmethod
     def _signal_handler(_signal_num, _stack_frame):
@@ -427,7 +426,7 @@ class SendingProcess:
             func="_signal_handler",
             signal_num=_signal_num))
 
-    def _is_stream_id_valid(self, stream_id):
+    async def _is_stream_id_valid(self, stream_id):
         """ Checks if the provided stream id  is valid
         Args:
             stream_id: managed stream id
@@ -436,7 +435,7 @@ class SendingProcess:
         Raises:
         """
         try:
-            streams = self._storage.query_tbl('streams', 'id={0}'.format(stream_id))
+            streams = await self._storage_async.query_tbl('streams', 'id={0}'.format(stream_id))
             rows = streams['rows']
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -492,9 +491,9 @@ class SendingProcess:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
                 data_to_send = await self._load_data_into_memory_readings(last_object_id)
             elif self._config['source'] == self._DATA_SOURCE_STATISTICS:
-                data_to_send = self._load_data_into_memory_statistics(last_object_id)
+                data_to_send = await self._load_data_into_memory_statistics(last_object_id)
             elif self._config['source'] == self._DATA_SOURCE_AUDIT:
-                data_to_send = self._load_data_into_memory_audit(last_object_id)
+                data_to_send = await self._load_data_into_memory_audit(last_object_id)
             else:
                 _message = _MESSAGES_LIST["e000008"]
                 SendingProcess._logger.error(_message)
@@ -579,7 +578,7 @@ class SendingProcess:
 
         return converted_data
 
-    def _load_data_into_memory_statistics(self, last_object_id):
+    async def _load_data_into_memory_statistics(self, last_object_id):
         """ Extracts statistics data from the DB Layer, converts it into the proper format
             loading into a memory structure
         Args:
@@ -598,7 +597,7 @@ class SendingProcess:
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
 
-            statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+            statistics_history = await self._storage_async.query_tbl_with_payload('statistics_history', payload)
 
             raw_data = statistics_history['rows']
             converted_data = self._transform_in_memory_data_statistics(raw_data)
@@ -645,7 +644,7 @@ class SendingProcess:
             raise e
         return converted_data
 
-    def _load_data_into_memory_audit(self, last_object_id):
+    async def _load_data_into_memory_audit(self, last_object_id):
         """ Extracts from the DB Layer data related to the statistics audit into the memory
         #
         Args:
@@ -667,7 +666,7 @@ class SendingProcess:
             raise
         return raw_data
 
-    def _last_object_id_read(self, stream_id):
+    async def _last_object_id_read(self, stream_id):
         """ Retrieves the starting point for the send operation
         Args:
             stream_id: managed stream id
@@ -677,7 +676,7 @@ class SendingProcess:
         """
         try:
             where = 'id={0}'.format(stream_id)
-            streams = self._storage.query_tbl('streams', where)
+            streams = await self._storage_async.query_tbl('streams', where)
             rows = streams['rows']
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -786,7 +785,7 @@ class SendingProcess:
         """
 
         try:
-            last_object_id = self._last_object_id_read(stream_id)
+            last_object_id = await self._last_object_id_read(stream_id)
             self._memory_buffer_fetch_idx = 0
 
             SendingProcess._logger.debug("task {0} - start".format("_task_fetch_data"))
@@ -1068,13 +1067,15 @@ class SendingProcess:
     def _fetch_configuration(self, cat_name=None, cat_desc=None, cat_config=None, cat_keep_original=False):
         """ Retrieves the configuration from the Configuration Manager"""
         SendingProcess._logger.debug("{0} - ".format("_fetch_configuration"))
-        cfg_manager = ConfigurationManager(self._storage)
         try:
-            self._event_loop.run_until_complete(cfg_manager.create_category(cat_name,
-                                                                            cat_config,
-                                                                            cat_desc,
-                                                                            cat_keep_original))
-            _config_from_manager = self._event_loop.run_until_complete(cfg_manager.get_category_all_items(cat_name))
+            config_payload = json.dumps({
+                "key": cat_name,
+                "description": cat_desc,
+                "value": cat_config,
+                "keep_original_items": cat_keep_original
+            })
+            self._core_task_management_client.create_configuration_category(config_payload)
+            _config_from_manager = self._core_task_management_client.get_configuration_category(category_name=cat_name)
             return _config_from_manager
         except Exception:
             _message = _MESSAGES_LIST["e000003"]
@@ -1102,17 +1103,11 @@ class SendingProcess:
                                                              cat_keep_original)
             # Retrieves the configurations and apply the related conversions
             self._config['enable'] = True if _config_from_manager['enable']['value'].upper() == 'TRUE' else False
-
             self._config['duration'] = int(_config_from_manager['duration']['value'])
-
             self._config['source'] = _config_from_manager['source']['value']
-
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
-
             self._config['memory_buffer_size'] = int(_config_from_manager['memory_buffer_size']['value'])
-
             self._config['sleepInterval'] = float(_config_from_manager['sleepInterval']['value'])
-
             self._config['north'] = _config_from_manager['plugin']['value']
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = config_category_name
             self._config_from_manager = _config_from_manager
@@ -1121,7 +1116,7 @@ class SendingProcess:
             SendingProcess._logger.error(_message)
             raise
 
-    def _start(self, stream_id):
+    async def _start(self, stream_id):
         """ Setup the correct state for the Sending Process
         Args:
             stream_id: managed stream id
@@ -1137,7 +1132,8 @@ class SendingProcess:
             start_message = "" + _MODULE_NAME + "" + prg_text + " " + __copyright__ + " "
             SendingProcess._logger.info("{0}".format(start_message))
             SendingProcess._logger.info(_MESSAGES_LIST["i000001"])
-            if self._is_stream_id_valid(stream_id):
+            is_valid_stream = await self._is_stream_id_valid(stream_id)
+            if is_valid_stream:
                 # config from sending process
                 self._retrieve_configuration(stream_id, cat_keep_original=True)
                 exec_sending_process = self._config['enable']
@@ -1171,12 +1167,11 @@ class SendingProcess:
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000004"].format(str(_ex))
             SendingProcess._logger.error(_message)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on start": _message}))
+            await self._audit.failure(self._AUDIT_CODE, {"error - on start": _message})
             raise
         return exec_sending_process
 
-    def start(self):
+    async def start(self):
         """
 
         """
@@ -1191,7 +1186,6 @@ class SendingProcess:
         try:
             self._mgt_name, self._mgt_port, self._mgt_address, self.input_stream_id, self._log_performance, self._log_debug_level = \
                 handling_input_parameters()
-
             _log_performance = self._log_performance
 
         except Exception as ex:
@@ -1201,8 +1195,7 @@ class SendingProcess:
         try:
             self._storage_async = StorageClientAsync(self._mgt_address, self._mgt_port)
             self._readings = ReadingsStorageClientAsync(self._mgt_address, self._mgt_port)
-            self._storage = StorageClient(self._mgt_address, self._mgt_port)
-            self._audit = AuditLogger(self._storage)
+            self._audit = AuditLogger(self._storage_async)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -1214,6 +1207,9 @@ class SendingProcess:
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
 
             SendingProcess._logger = logger.setup(logger_name, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
+            
+            # TODO: Create a separate "MicroserviceManagementClient" like client for tasks
+            self._core_task_management_client = MicroserviceManagementClient(self._mgt_address, self._mgt_port)
 
             try:
                 # Set the debug level
@@ -1226,8 +1222,9 @@ class SendingProcess:
                 _LOGGER = SendingProcess._logger
 
                 # Start sending
-                if self._start(self.input_stream_id):
-                    self._event_loop.run_until_complete(self.send_data(self.input_stream_id))
+                is_started = await self._start(self.input_stream_id)
+                if is_started:
+                    await self.send_data(self.input_stream_id)
 
                 # Stop Sending
                 self.stop()
@@ -1249,11 +1246,12 @@ class SendingProcess:
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
             SendingProcess._logger.error(_message)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on stop": _message}))
+            self._event_loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on stop": _message}))
             raise
 
 
 if __name__ == "__main__":
 
-    SendingProcess().start()
+    loop = asyncio.get_event_loop()
+    sp = SendingProcess(loop)
+    loop.run_until_complete(sp.start())

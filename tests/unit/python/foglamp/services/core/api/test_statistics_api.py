@@ -6,14 +6,16 @@
 
 """ Test foglamp/services/core/api/statistics.py """
 
+import asyncio
+import json
+
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
-import json
 
 from foglamp.services.core import routes
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -37,9 +39,13 @@ class TestStatistics:
                            {"value": 1, "key": "READINGS", "description": "blah2"}]
                   }
 
-        mockedStorageClient = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result) as query_patch:
+        @asyncio.coroutine
+        def mock_coro():
+            return result
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
                 resp = await client.get("/foglamp/statistics")
                 assert 200 == resp.status
                 r = await resp.text()
@@ -52,9 +58,13 @@ class TestStatistics:
     async def test_get_stats_exception(self, client):
         result = {"message": "error"}
 
-        mockedStorageClient = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result):
+        @asyncio.coroutine
+        def mock_coro():
+            return result
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=mock_coro()):
                 resp = await client.get("/foglamp/statistics")
                 assert 500 == resp.status
                 assert "Internal Server Error" == resp.reason
@@ -92,6 +102,7 @@ class TestStatistics:
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
+        @asyncio.coroutine
         def q_result(*args):
             table = args[0]
             payload = args[1]
@@ -107,9 +118,9 @@ class TestStatistics:
                 assert p2 == json.loads(payload)
                 return {"rows": [{"schedule_interval": schedule_interval}]}
 
-        mockedStorageClient = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
                 resp = await client.get("/foglamp/statistics/history")
             assert 200 == resp.status
             r = await resp.text()
@@ -127,6 +138,7 @@ class TestStatistics:
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
+        @asyncio.coroutine
         def q_result(*args):
             table = args[0]
             payload = args[1]
@@ -146,9 +158,9 @@ class TestStatistics:
                 assert p3 == json.loads(payload)
                 return {"rows": [{"schedule_interval": "00:01:00"}]}
 
-        mockedStorageClient = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
                 resp = await client.get("/foglamp/statistics/history?limit=1")
             assert 200 == resp.status
             r = await resp.text()
@@ -158,10 +170,15 @@ class TestStatistics:
 
     @pytest.mark.parametrize("request_limit", [-1, 'blah'])
     async def test_get_statistics_history_bad_limit(self, client, request_limit):
-        mockedStorageClient = MagicMock(StorageClient)
+        mock_async_storage_client = MagicMock(StorageClientAsync)
         result = {"rows": [{"schedule_interval": "00:01:00"}]}
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', return_value=result):
+
+        @asyncio.coroutine
+        def mock_coro():
+            return result
+
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=mock_coro()):
                 resp = await client.get("/foglamp/statistics/history?limit={}".format(request_limit))
             assert 400 == resp.status
             assert "Limit must be a positive integer" == resp.reason
@@ -170,6 +187,7 @@ class TestStatistics:
         p1 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
+        @asyncio.coroutine
         def q_result(*args):
             table = args[0]
             payload = args[1]
@@ -178,9 +196,9 @@ class TestStatistics:
                 assert p1 == json.loads(payload)
                 return {"rows": []}
 
-        mockedStorageClient = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
                 resp = await client.get("/foglamp/statistics/history")
             assert 404 == resp.status
             assert 'No stats collector schedule found' == resp.reason
@@ -193,6 +211,7 @@ class TestStatistics:
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
+        @asyncio.coroutine
         def q_result(*args):
             table = args[0]
             payload = args[1]
@@ -205,12 +224,107 @@ class TestStatistics:
                 assert p2 == json.loads(payload)
                 return {"rows": [{"schedule_interval": "00:01:00"}]}
 
-        mockedStorageClient = MagicMock(StorageClient)
-        with patch.object(connect, 'get_storage', return_value=mockedStorageClient):
-            with patch.object(mockedStorageClient, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
                 resp = await client.get("/foglamp/statistics/history")
             assert 500 == resp.status
             assert "Internal Server Error" == resp.reason
 
+        assert query_patch.called
+        assert 2 == query_patch.call_count
+
+    async def test_get_statistics_history_by_key(self, client):
+        output = {"interval": 15, 'statistics': [{"READINGS": 1, "history_ts": "2018-02-20 13:16:24.321589"}, {"READINGS": 0, "history_ts": "2018-02-20 13:16:09.321589"}]}
+        p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
+        p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
+        p3 = {'return': [{'column': 'history_ts', 'alias': 'history_ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}, 'key', 'value'], 'where': {'column': 'key', 'condition': '=', 'value': 'READINGS'}, 'sort': {'column': 'history_ts', 'direction': 'desc'}}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'schedules':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:00:15"}]}
+
+            if table == 'statistics':
+                assert p2 == json.loads(payload)
+                return {"rows": [{"count_*": 2}]}
+
+            if table == 'statistics_history':
+                assert p3 == json.loads(payload)
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"},
+                                 {"key": "READINGS", "value": 0, "history_ts": "2018-02-20 13:16:09.321589"}]}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/foglamp/statistics/history?key=READINGS")
+            assert 200 == resp.status
+            r = await resp.text()
+            assert output == json.loads(r)
+        assert query_patch.called
+        assert 2 == query_patch.call_count
+
+    async def test_get_statistics_history_by_key_with_limit(self, client):
+        output = {"interval": 15, 'statistics': [{"READINGS": 1, "history_ts": "2018-02-20 13:16:24.321589"}]}
+        p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
+        p3 = {'return': [{'column': 'history_ts', 'alias': 'history_ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}, 'key', 'value'], 'where': {'column': 'key', 'condition': '=', 'value': 'READINGS'}, 'sort': {'column': 'history_ts', 'direction': 'desc'}, 'limit': 1}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'schedules':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:00:15"}]}
+
+            if table == 'statistics_history':
+                assert p3 == json.loads(payload)
+                return {"rows": [{"key": "READINGS", "value": 1, "history_ts": "2018-02-20 13:16:24.321589"}]}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/foglamp/statistics/history?key=READINGS&limit=1")
+            assert 200 == resp.status
+            r = await resp.text()
+            assert output == json.loads(r)
+        assert query_patch.called
+        assert 2 == query_patch.call_count
+
+    async def test_get_statistics_history_with_bad_key(self, client):
+        output = {"interval": 15, 'statistics': [{}]}
+        p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
+        p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
+        p3 = {'return': [{'column': 'history_ts', 'alias': 'history_ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}, 'key', 'value'], 'where': {'column': 'key', 'condition': '=', 'value': 'blah'}, 'sort': {'column': 'history_ts', 'direction': 'desc'}}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            payload = args[1]
+
+            if table == 'schedules':
+                assert p1 == json.loads(payload)
+                return {"rows": [{"schedule_interval": "00:00:15"}]}
+
+            if table == 'statistics':
+                assert p2 == json.loads(payload)
+                return {"rows": [{"count_*": 0}]}
+
+            if table == 'statistics_history':
+                assert p3 == json.loads(payload)
+                return {"rows": []}
+
+        mock_async_storage_client = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+                resp = await client.get("/foglamp/statistics/history?key=blah")
+            assert 200 == resp.status
+            r = await resp.text()
+            assert output == json.loads(r)
         assert query_patch.called
         assert 2 == query_patch.call_count

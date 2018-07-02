@@ -1,0 +1,2 @@
+Waits until either the requested status of FogLAMP is reached or it reaches the timeout
+sample call: wait_foglamp_status {"RUNNING"|"STOPPED"}.

@@ -9,7 +9,7 @@
 from abc import ABC, abstractmethod
 import argparse
 import time
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient, StorageClientAsync, ReadingsStorageClientAsync
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
 from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
@@ -57,15 +57,9 @@ class FoglampProcess(ABC):
     _core_microservice_management_client = None
     """ MicroserviceManagementClient instance """
 
-    _readings_storage = None
-    """ foglamp.common.storage_client.storage_client.ReadingsStorageClient """
-
     _readings_storage_async = None
     """ foglamp.common.storage_client.storage_client.ReadingsStorageClientAsync """
 
-    _storage = None
-    """ foglamp.common.storage_client.storage_client.StorageClient """
-    
     _storage_async = None
     """ async foglamp.common.storage_client.storage_client.StorageClientAsync """
 
@@ -96,9 +90,6 @@ class FoglampProcess(ABC):
             raise ValueError("--name is not specified")
 
         self._core_microservice_management_client = MicroserviceManagementClient(self._core_management_host,self._core_management_port)
-
-        self._readings_storage = ReadingsStorageClient(self._core_management_host, self._core_management_port)
-        self._storage = StorageClient(self._core_management_host, self._core_management_port)
 
         self._readings_storage_async = ReadingsStorageClientAsync(self._core_management_host, self._core_management_port)
         self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port)

@@ -235,8 +235,6 @@ The response payload is a JSON object with an array of JSON objects, one per val
                       "description" : "OMF North Plugin Configuration" },
                     { "key"         : "SEND_PR_2",
                       "description" : "OMF North Statistics Plugin Configuration" },
-                    { "key"         : "SEND_PR_3",
-                      "description" : "HTTP North Plugin Configuration" },
                     { "key"         : "SEND_PR_4",
                       "description" : "OCS North Plugin Configuration" },
                     { "key"         : "SMNTR",
@@ -928,8 +926,6 @@ The response payload is a JSON document with statistical information (all numeri
 +------------------------+-----------------------------------------------------------------------------+
 | SENT_2                 | The number of statistics sent to the PI system via the OMF plugin           |
 +------------------------+-----------------------------------------------------------------------------+
-| SENT_3                 | The number of readings sent to another system via the HTTP plugin           |
-+------------------------+-----------------------------------------------------------------------------+
 | SENT_4                 | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
 +------------------------+-----------------------------------------------------------------------------+
 | UNSENT                 | The number of readings filtered out in the send process                     |
@@ -991,8 +987,6 @@ A JSON document containing an array of statistical information, these statistics
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].SENT_2       | The number of statistics sent to the PI system via the OMF plugin           |
 +---------------------------+-----------------------------------------------------------------------------+
-| statistics[].SENT_3       | The number of readings sent to another system via the HTTP plugin           |
-+---------------------------+-----------------------------------------------------------------------------+
 | statistics[].SENT_4       | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].UNSENT       | The number of readings filtered out in the send process                     |
@@ -1028,7 +1022,6 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/WALL CLOCK": 0,
                        "SENT_1": 0,
                        "FOGBENCH/PRESSURE": 0,
-                       "SENT_3": 0,
                        "FOGBENCH/SWITCH": 0,
                        "history_ts": "2018-05-15 22:39:10.374" },
                      { "READINGS": 0,
@@ -1049,7 +1042,6 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/WALL CLOCK": 0,
                        "SENT_1": 0,
                        "FOGBENCH/PRESSURE": 0,
-                       "SENT_3": 0,
                        "FOGBENCH/SWITCH": 0,
                        "history_ts": "2018-05-15 22:38:55.653" } ]
   $

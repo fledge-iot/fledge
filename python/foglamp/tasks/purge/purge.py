@@ -64,28 +64,28 @@ class Purge(FoglampProcess):
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
     _CONFIG_CATEGORY_DESCRIPTION = 'Purge the readings table'
 
-    def __init__(self, loop=None):
+    def __init__(self):
         super().__init__()
         self._logger = logger.setup("Data Purge")
-        self._audit = AuditLogger(self._storage)
-        self.loop = asyncio.get_event_loop() if loop is None else loop
+        self._audit = AuditLogger(self._storage_async)
 
-    def write_statistics(self, total_purged, unsent_purged):
-        stats = self.loop.run_until_complete(statistics.create_statistics(self._storage_async))
-        self.loop.run_until_complete(stats.update('PURGED', total_purged))
-        self.loop.run_until_complete(stats.update('UNSNPURGED', unsent_purged))
+    async def write_statistics(self, total_purged, unsent_purged):
+        stats = await statistics.create_statistics(self._storage_async)
+        await stats.update('PURGED', total_purged)
+        await stats.update('UNSNPURGED', unsent_purged)
 
-    def set_configuration(self):
+    async def set_configuration(self):
         """" set the default configuration for purge
         :return:
             Configuration information that was set for purge process
         """
-        cfg_manager = ConfigurationManager(self._storage)
-        self.loop.run_until_complete(cfg_manager.create_category(self._CONFIG_CATEGORY_NAME, self._DEFAULT_PURGE_CONFIG,
-                                                                 self._CONFIG_CATEGORY_DESCRIPTION))
-        return self.loop.run_until_complete(cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME))
+        cfg_manager = ConfigurationManager(self._readings_storage_async)
+        await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
+                                          self._DEFAULT_PURGE_CONFIG,
+                                          self._CONFIG_CATEGORY_DESCRIPTION)
+        return await cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME)
 
-    def purge_data(self, config):
+    async def purge_data(self, config):
         """" Purge readings table based on the set configuration
         :return:
             total rows removed
@@ -97,18 +97,18 @@ class Purge(FoglampProcess):
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
         payload = PayloadBuilder().AGGREGATE(["count", "*"]).payload()
-        result = self._storage.query_tbl_with_payload("readings", payload)
+        result = await self._storage_async.query_tbl_with_payload("readings", payload)
         total_count = result['rows'][0]['count_*']
 
         payload = PayloadBuilder().AGGREGATE(["min", "last_object"]).payload()
-        result = self._storage.query_tbl_with_payload("streams", payload)
+        result = await self._storage_async.query_tbl_with_payload("streams", payload)
         last_id = result["rows"][0]["min_last_object"] if result["count"] == 1 else 0
 
         flag = "purge" if config['retainUnsent']['value'] == "False" else "retain"
         try:
             if int(config['age']['value']) != 0:
 
-                result = self._readings_storage.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
+                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
 
                 total_count = result['readings']
                 total_rows_removed = result['removed']
@@ -124,7 +124,7 @@ class Purge(FoglampProcess):
 
         try:
             if int(config['size']['value']) != 0:
-                result = self._readings_storage.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
+                result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
 
                 total_count += result['readings']
                 total_rows_removed += result['removed']
@@ -142,19 +142,19 @@ class Purge(FoglampProcess):
 
         if total_rows_removed > 0:
             """ Only write an audit log entry when rows are removed """
-            self.loop.run_until_complete(self._audit.information('PURGE', {"start_time": start_time,
-                                                                           "end_time": end_time,
-                                                                           "rowsRemoved": total_rows_removed,
-                                                                           "unsentRowsRemoved": unsent_rows_removed,
-                                                                           "rowsRetained": unsent_retained,
-                                                                           "rowsRemaining": total_count
-                                                                           }))
+            await self._audit.information('PURGE', {"start_time": start_time,
+                                                    "end_time": end_time,
+                                                    "rowsRemoved": total_rows_removed,
+                                                    "unsentRowsRemoved": unsent_rows_removed,
+                                                    "rowsRetained": unsent_retained,
+                                                    "rowsRemaining": total_count
+                                                    })
         else:
             self._logger.info("No rows purged")
 
         return total_rows_removed, unsent_rows_removed
 
-    def run(self):
+    async def run(self):
         """" Starts the purge task
 
             1. Write and read Purge task configuration
@@ -163,8 +163,8 @@ class Purge(FoglampProcess):
             4. Write statistics to statistics table
         """
         try:
-            config = self.set_configuration()
-            total_purged, unsent_purged = self.purge_data(config)
-            self.write_statistics(total_purged, unsent_purged)
+            config = await self.set_configuration()
+            total_purged, unsent_purged = await self.purge_data(config)
+            await self.write_statistics(total_purged, unsent_purged)
         except Exception as ex:
             self._logger.exception(str(ex))

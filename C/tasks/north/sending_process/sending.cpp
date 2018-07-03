@@ -12,7 +12,7 @@
 #include <csignal>
 
 // Used to identifies logs
-#define LOG_MODULE "SendingProcess"
+string LOG_SERVICE_NAME = "SendingProcess";
 
 // historian plugin to load
 #define PLUGIN_NAME "omf"
@@ -97,7 +97,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         int i;
         for(i=0 ; i < argc ; i++)
         {
-                Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_MODULE, i, argv[i]);
+                Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_SERVICE_NAME, i, argv[i]);
         }
 
         // Set buffer of ReadingSet with NULLs
@@ -143,22 +143,16 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	// Fetch last_object sent from foglamp.streams
 	if (!this->getLastSentReadingId())
 	{
-		string warnMsg("Last object id for stream '");
-		warnMsg.append(to_string(m_stream_id));
-		warnMsg += "' NOT found.";
-
-		Logger::getLogger()->warn(warnMsg.c_str());
+		Logger::getLogger()->warn(LOG_SERVICE_NAME + "Last object id for stream '" + to_string(m_stream_id) + "' NOT found, creating a new stream.");
 
 		if (!this->createStream(m_stream_id)) {
 
-                        Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_MODULE, i, argv[i]);
+			string errMsg(LOG_SERVICE_NAME + " - It is not possible to create a new stream for stream_id :" + to_string(m_stream_id) + ":.");
 
-                        string errMsg (LOG_MODULE);
-			errMsg.append(" - It is not possible to create a new stream for stream_id :" + to_string(m_stream_id) + ":.");
-
-                        Logger::getLogger()->fatal(errMsg);
-
+			Logger::getLogger()->fatal(errMsg);
 			throw runtime_error(errMsg);
+		} else {
+			Logger::getLogger()->info(LOG_SERVICE_NAME + " - stream_id :" + to_string(m_stream_id) + ": created.");
 		}
 	}
 
@@ -384,7 +378,7 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 {
         // retrieves the configuration using the value of the --name parameter (received in the command line) as the key
         string catName(getName());
-        Logger::getLogger()->debug("%s - catName :%s:", LOG_MODULE,  catName.c_str());
+        Logger::getLogger()->debug("%s - catName :%s:", LOG_SERVICE_NAME,  catName.c_str());
 
 	// Build JSON merged configuration (sendingProcess + pluginConfig
 	string config("{ ");

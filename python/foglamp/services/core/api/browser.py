@@ -142,7 +142,7 @@ async def asset(request):
 
     # Add the order by and limit, offset clause
     _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:
@@ -197,7 +197,7 @@ async def asset_reading(request):
 
     # Add the order by and limit, offset clause
     _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:
@@ -333,7 +333,7 @@ async def asset_averages(request):
 
     # Add LIMIT, OFFSET, ORDER BY timestamp DESC
     _limit_skip_payload = prepare_limit_skip_payload(request, _group)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:

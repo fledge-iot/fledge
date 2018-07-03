@@ -15,7 +15,6 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core import connect
-from foglamp.services.core import server
 
 __author__ = "Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -101,8 +100,8 @@ class Monitor(object):
                     check_count[service_record._id] += 1
                     self._logger.info("Marked as doubtful micro-service %s", service_record.__repr__())
                 except Exception as ex:  # TODO: Fix too broad exception clause
-                    # Fixme: Investigate as why no exception message can appear, e.g. Apr 16 15:32:08 nerd51-ThinkPad
-                    # FogLAMP[423] INFO: monitor: foglamp.services.core.service_registry.monitor: Exception occurred
+                    # Fixme: Investigate as why no exception message can appear,
+                    # e.g. FogLAMP[423] INFO: monitor: foglamp.services.core.service_registry.monitor: Exception occurred
                     # during monitoring:
 
                     if "" != str(ex).strip():  # i.e. if a genuine exception occurred
@@ -161,6 +160,7 @@ class Monitor(object):
         self._restart_failed = config['restart_failed']['value']
 
     async def restart_service(self, service_record):
+        from foglamp.services.core import server  # To avoid cyclic import as server also imports monitor
         schedule = await server.Server.scheduler.get_schedule_by_name(service_record._name)
         await server.Server.scheduler.queue_task(schedule.schedule_id)
         self.restarted_services.remove(service_record._id)

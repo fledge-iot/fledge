@@ -610,12 +610,11 @@ DELETE FROM foglamp.configuration;
 
 -- North plugins
 
--- Fixme
--- SEND_PR_1 - OMF Translator for readings
+-- North_Readings_to_PI - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North_Readings_to_PI',
-              'C-OMF to PI north',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
+              'OMF North Plugin - C Code',
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" }, "stream_id" : { "type" : "integer", "value" : "1", "default" : "1", "description" : "Stream ID for sending Reading to PI using OMF" } } '
             );
 
 
@@ -679,7 +678,6 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statist
 
 -- North Tasks - C code
 --
--- Fixme
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
 
 --
@@ -779,17 +777,16 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 
 
 -- Readings OMF to PI - C Code
--- Fixme
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
        VALUES ( '1cdf1ef8-7e02-11e8-adc0-fa7ae01bbebc', -- id
-                'C-OMF to PI north',                    -- schedule_name
+                'OMF_to_PI_north_C',                    -- schedule_name
                 'North_Readings_to_PI',                 -- process_name
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval
-                't',                                   -- exclusive
-                'f'                                   -- disabled
+                't',                                    -- exclusive
+                'f'                                     -- disabled
               );
 
 

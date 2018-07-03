@@ -11,6 +11,9 @@
 #include <sending.h>
 #include <csignal>
 
+// Used to identifies logs
+#define LOG_MODULE "SendingProcess"
+
 // historian plugin to load
 #define PLUGIN_NAME "omf"
 
@@ -23,8 +26,14 @@
 
 // Configuration retrieved from the Configuration Manager
 #define CONFIG_CATEGORY_NAME "North"
-#define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process"
+#define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process for sending Readings to PI"
 #define CATEGORY_OMF_TYPES_DESCRIPTION "Configuration of OMF types"
+
+// Default values for the creation of a new stream
+#define NEW_STREAM_DESTINATION 1
+#define NEW_STREAM_DESCRIPTION "OMF north"
+#define NEW_STREAM_LAST_OBJECT 0
+
 
 using namespace std;
 
@@ -34,11 +43,11 @@ static map<string, string> globalConfiguration = {};
 static const string sendingDefaultConfig =
 	"\"enable\": {"
 		"\"description\": \"A switch that can be used to enable or disable execution of "
-			"the sending process.\", \"type\": \"boolean\", \"default\": \"True\" },"
-       	"\"duration\": {"
-            	"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
-            	"\"type\": \"integer\", \"default\": \"60\" }, "
-        "\"source\": {"
+		"the sending process.\", \"type\": \"boolean\", \"default\": \"True\" },"
+	"\"duration\": {"
+		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
+		"\"type\": \"integer\", \"default\": \"60\" }, "
+	"\"source\": {"
 		"\"description\": \"Defines the source of the data to be sent on the stream, "
 		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "
 		"\"default\": \"readings\" }, "
@@ -47,14 +56,17 @@ static const string sendingDefaultConfig =
 		"\"type\": \"integer\", \"default\": \"500\" }, "
 	"\"sleepInterval\": {"
 		"\"description\": \"A period of time, expressed in seconds, "
-			"to wait between attempts to send readings when there are no "
-			"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\" }, "
+		"to wait between attempts to send readings when there are no "
+		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\" }, "
 	"\"north\": {"
 		"\"description\": \"The name of the north to use to translate the readings "
-			"into the output format and send them\", \"type\": \"string\", "
-			"\"default\": \"omf\" }, "
+		"into the output format and send them\", \"type\": \"string\", "
+		"\"default\": \"omf\" }, "
 	"\"stream_id\": {"
-		"\"description\": \"Stream ID\", \"type\": \"integer\", \"default\": \"1\" }";
+		"\"description\": \"Stream ID for sending Reading to PI using OMF\", \"type\": \"integer\", \"default\": \"1\" }";
+
+
+
 
 volatile std::sig_atomic_t signalReceived = 0;
 
@@ -79,24 +91,17 @@ SendingProcess::~SendingProcess()
 // SendingProcess Class Constructor
 SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, argv)
 {
-	// Get streamID from command line
-    //fixme
-	// m_stream_id = atoi(this->getArgValue("--stream_id=").c_str());
-    m_stream_id = 1;
+	// the stream_id to use is retrieved from the configuration
+        m_stream_id = -1;
 
-    //fixme
-	int i;
-    for(i=0;i<argc-1;i++)
-    {
-        Logger::getLogger()->info("DBG C++ 15: param :%d: :%s:", i, argv[i]);
-    }
+        int i;
+        for(i=0 ; i < argc ; i++)
+        {
+                Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_MODULE, i, argv[i]);
+        }
 
-    Logger::getLogger()->info("DBG C++ 15: m_stream_id :%d:", m_stream_id);
-    Logger::getLogger()->info("DBG C++ 15: m_name :%s:", getName().c_str());
-
-
-
-    // Set buffer of ReadingSet with NULLs
+        // Set buffer of ReadingSet with NULLs
+	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
 	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
 
 	// Mark running state
@@ -110,7 +115,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	m_tot_sent = 0;
 	m_update_db = false;
 
-	Logger::getLogger()->info("SendingProcess is starting, stream id = %d", m_stream_id);
+	Logger::getLogger()->info("SendingProcess is starting");
 
         if (!loadPlugin(string(PLUGIN_NAME)))
 	{
@@ -124,23 +129,37 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	}
 
 	/**
-	 * Get Configuration from sending process and loaed plugin
+	 * Get Configuration from sending process and loaded plugin
 	 * Create or update configuration via FogLAMP API
 	 */
 	const map<string, string>& config = this->fetchConfiguration();
 
-	// Init plugin with merged configuration from FogLAMP API
+        Logger::getLogger()->info("SendingProcess stream id = %d", m_stream_id);
+
+
+        // Init plugin with merged configuration from FogLAMP API
 	this->m_plugin->init(config);
 
 	// Fetch last_object sent from foglamp.streams
 	if (!this->getLastSentReadingId())
 	{
-		string errMsg("Last object id for stream '");
-		errMsg.append(to_string(m_stream_id));
-		errMsg += "' NOT found.";
+		string warnMsg("Last object id for stream '");
+		warnMsg.append(to_string(m_stream_id));
+		warnMsg += "' NOT found.";
 
-		Logger::getLogger()->fatal(errMsg.c_str());
-		throw runtime_error(errMsg);
+		Logger::getLogger()->warn(warnMsg.c_str());
+
+		if (!this->createStream(m_stream_id)) {
+
+                        Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_MODULE, i, argv[i]);
+
+                        string errMsg (LOG_MODULE);
+			errMsg.append(" - It is not possible to create a new stream for stream_id :" + to_string(m_stream_id) + ":.");
+
+                        Logger::getLogger()->fatal(errMsg);
+
+			throw runtime_error(errMsg);
+		}
 	}
 
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
@@ -323,6 +342,35 @@ bool SendingProcess::getLastSentReadingId()
 }
 
 /**
+ * Create a new stream, adding a new row into the streams table.
+ *
+ * @return true if successful created, false otherwise
+ */
+bool SendingProcess::createStream(int streamId)
+{
+	bool created = false;
+
+	InsertValues streamValues;
+	streamValues.push_back(InsertValue("id",             streamId));
+	streamValues.push_back(InsertValue("destination_id", NEW_STREAM_DESTINATION));
+	streamValues.push_back(InsertValue("description",    NEW_STREAM_DESCRIPTION));
+	streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
+
+        if (getStorageClient()->insertTable("streams", streamValues) != 1) {
+
+		getLogger()->error("Failed to insert a row into the streams table for the streamId :%d:" ,streamId);
+
+	} else {
+		created = true;
+
+		// Set initial last_object
+		this->setLastSentId((unsigned long) NEW_STREAM_LAST_OBJECT);
+	}
+
+	return created;
+}
+
+/**
  * Create or Update the sending process configuration
  * by accessing FogLAMP rest API service
  *
@@ -334,10 +382,9 @@ bool SendingProcess::getLastSentReadingId()
  */
 const map<string, string>& SendingProcess::fetchConfiguration()
 {
-        //fixme getName().c_str()
-	//string catName(CONFIG_CATEGORY_NAME + to_string(this->getStreamId()));
+        // retrieves the configuration using the value of the --name parameter (received in the command line) as the key
         string catName(getName());
-        Logger::getLogger()->info("DBG C++ 15: catName :%s:", catName.c_str());
+        Logger::getLogger()->debug("%s - catName :%s:", LOG_MODULE,  catName.c_str());
 
 	// Build JSON merged configuration (sendingProcess + pluginConfig
 	string config("{ ");
@@ -393,17 +440,20 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 		string blockSize = sendingProcessConfig.getValue("blockSize");
 		string duration = sendingProcessConfig.getValue("duration");
 		string sleepInterval = sendingProcessConfig.getValue("sleepInterval");
+                string streamId = sendingProcessConfig.getValue("stream_id");
 
                 // Set member variables
 		m_block_size = strtoul(blockSize.c_str(), NULL, 10);
 		m_sleep = strtoul(sleepInterval.c_str(), NULL, 10);
 		m_duration = strtoul(duration.c_str(), NULL, 10);
+                m_stream_id = strtoul(streamId.c_str(), NULL, 10);
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: blockSize=%d, "
-					  "duration=%d, sleepInterval=%d",
+					  "duration=%d, sleepInterval=%d, streamId=%d",
 					  m_block_size,
 					  m_duration,
-					  m_sleep);
+					  m_sleep,
+                                          m_stream_id);
 
 		globalConfiguration[string(GLOBAL_CONFIG_KEY)] = sendingProcessConfig.itemsToJSON();
 		globalConfiguration[string(PLUGIN_TYPES_KEY)] = pluginTypes.itemsToJSON();

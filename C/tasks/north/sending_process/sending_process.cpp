@@ -53,14 +53,7 @@ int main(int argc, char** argv)
 
 		// Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
-
-        tmp_str = sendingProcess.getName();
-
-
-        Logger::getLogger()->info("DBG C++ 11: m_name :%s:", tmp_str.c_str());
-
-        exit(0);
-
+                
 		// Launch the load thread
 		sendingProcess.m_thread_load = new thread(loadDataThread, &sendingProcess);
 		// Launch the send thread

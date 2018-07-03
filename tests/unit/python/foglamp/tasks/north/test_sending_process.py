@@ -2087,8 +2087,7 @@ class TestSendingProcess:
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
         ("empty",      "north", "Empty North Plugin"),
         ("omf",        "north", "OMF North"),
-        ("ocs",        "north", "OCS North"),
-        ("http_north", "north", "http_north")
+        ("ocs",        "north", "OCS North")
     ])
     async def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """

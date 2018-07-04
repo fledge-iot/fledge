@@ -381,7 +381,7 @@ CREATE TABLE foglamp.readings (
     CONSTRAINT readings_pkey PRIMARY KEY (id) );
 
 CREATE INDEX fki_readings_fk1
-    ON foglamp.readings USING btree (asset_code);
+    ON foglamp.readings USING btree (asset_code, user_ts desc);
 
 CREATE INDEX readings_ix1
     ON foglamp.readings USING btree (read_key);

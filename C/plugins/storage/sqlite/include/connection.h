@@ -30,7 +30,9 @@ class Connection {
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags,
 						unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
+		void		setTrace(bool);
 	private:
+		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet);
@@ -47,5 +49,6 @@ class Connection {
 		bool applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						int i,
 						std::string& newDate);
+		void		logSQL(const char *, const char *);
 };
 #endif

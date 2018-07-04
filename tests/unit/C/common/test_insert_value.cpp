@@ -2,8 +2,10 @@
 #include <insert.h>
 #include <string.h>
 #include <string>
+#include <rapidjson/document.h>
 
 using namespace std;
+using namespace rapidjson;
 
 TEST(InsertValueTest, IntColumn)
 {
@@ -45,4 +47,14 @@ string expected("{ \"c1\" : 1, \"c2\" : 2 }");
 	values.push_back(InsertValue("c1", 1));
 	values.push_back(InsertValue("c2", 2));
 	ASSERT_EQ(expected.compare(values.toJSON()), 0);
+}
+
+TEST(InsertValueTest, JSONColumn)
+{
+string expected("\"c1\" : {\"hello\":\"world\"}");
+
+	Document doc;
+	doc.Parse("{\"hello\":\"world\"}");
+	InsertValue value("c1", doc);
+	ASSERT_EQ(expected.compare(value.toJSON()), 0);
 }

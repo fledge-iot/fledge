@@ -193,10 +193,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0, send_to='
                     break
         elif send_to == 'http':
             _start_time.append(datetime.now())
-            for r in readings_list:
-                is_sent = loop.run_until_complete(send_to_http(r))
-                if not is_sent:
-                    break
+            loop.run_until_complete(send_to_http(readings_list))
 
         _end_time.append(datetime.now())  # End time of every iteration
         _tot_msgs_transferred.append(msg_transferred_itr)

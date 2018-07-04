@@ -459,6 +459,113 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 }
 
 /**
+ * Update data into an arbitrary table
+ *
+ * @param tableName	The name of the table into which data will be added
+ * @param json		The values to insert into the table
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
+{
+	try {
+		ostringstream convert;
+
+		convert << "{ \"where\" : ";
+		convert << where.toJSON();
+		convert << ", ";
+		convert << values.toJSON();
+		convert << " }";
+		char url[128];
+		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		auto res = m_client->request("PUT", url, convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			Document doc;
+			doc.Parse(resultPayload.str().c_str());
+			if (doc.HasParseError())
+			{
+				m_logger->info("PUT result %s.", res->status_code.c_str());
+				m_logger->error("Failed to parse result of updateTable. %s",
+						GetParseError_En(doc.GetParseError()));
+				return -1;
+			}
+			else if (doc.HasMember("message"))
+			{
+				m_logger->error("Failed to update table data: %s",
+					doc["message"].GetString());
+				return -1;
+			}
+			return doc["rows_affected"].GetInt();
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+	} catch (exception& ex) {
+		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		throw;
+	}
+	return -1;
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param tableName	The name of the table into which data will be added
+ * @param values	The values to insert into the table
+ * @param jsonProp	The JSON Properties to update
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+{
+	try {
+		ostringstream convert;
+
+		convert << "{ \"where\" : ";
+		convert << where.toJSON();
+		convert << ", \"values\" : ";
+		convert << values.toJSON();
+		convert << ", ";
+		convert << jsonProp.toJSON();
+		convert << " }";
+		char url[128];
+		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		auto res = m_client->request("PUT", url, convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			Document doc;
+			doc.Parse(resultPayload.str().c_str());
+			if (doc.HasParseError())
+			{
+				m_logger->info("PUT result %s.", res->status_code.c_str());
+				m_logger->error("Failed to parse result of updateTable. %s",
+						GetParseError_En(doc.GetParseError()));
+				return -1;
+			}
+			else if (doc.HasMember("message"))
+			{
+				m_logger->error("Failed to update table data: %s",
+					doc["message"].GetString());
+				return -1;
+			}
+			return doc["rows_affected"].GetInt();
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+	} catch (exception& ex) {
+		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		throw;
+	}
+	return -1;
+}
+
+/**
  * Delete from a table
  *
  * @param tablename	The name of the table to delete from
@@ -479,7 +586,7 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			Document doc;
-			doc.Parse(res->content.string().c_str());
+			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())
 			{
 				m_logger->info("PUT result %s.", res->status_code.c_str());

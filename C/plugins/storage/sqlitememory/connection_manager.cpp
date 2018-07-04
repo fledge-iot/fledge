@@ -20,6 +20,10 @@ MemConnectionManager::MemConnectionManager()
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
+	if (getenv("FOGLAMP_TRACE_SQL"))
+		m_trace = true;
+	else
+		m_trace = false;
 }
 
 /**
@@ -55,6 +59,7 @@ void MemConnectionManager::growPool(unsigned int delta)
 	while (delta-- > 0)
 	{
 		Connection *conn = new Connection();
+		conn->setTrace(m_trace);
 		idleLock.lock();
 		idle.push_back(conn);
 		idleLock.unlock();

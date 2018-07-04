@@ -132,7 +132,11 @@ class TestConfigurationManager:
         with patch.object(_logger, "error") as log_error:
             with pytest.raises(Exception) as excinfo:
                 await c_mgr._run_callbacks('name')
-            assert excinfo.type is ImportError
+            import sys
+            if sys.version_info[1] >= 6:
+                assert excinfo.type is ModuleNotFoundError
+            else:
+                assert excinfo.type is ImportError
             assert "No module named 'invalid'" == str(excinfo.value)
         assert 1 == log_error.call_count
         log_error.assert_called_once_with('Unable to import callback module %s for category_name %s', 'invalid', 'name', exc_info=True)

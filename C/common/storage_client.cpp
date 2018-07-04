@@ -586,7 +586,7 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
 			Document doc;
-			doc.Parse(res->content.string().c_str());
+			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())
 			{
 				m_logger->info("PUT result %s.", res->status_code.c_str());

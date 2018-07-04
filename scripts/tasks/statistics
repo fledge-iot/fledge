@@ -17,4 +17,4 @@ fi
 # We run the Python code from the python directory
 cd "${FOGLAMP_ROOT}/python"
 
-python3 -m foglamp.tasks.statistics $@
+python3 -m foglamp.tasks.statistics "$@"

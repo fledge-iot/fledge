@@ -743,6 +743,7 @@ SQLBuffer	jsonConstraints;
 		sql.append(';');
 
 		const char *query = sql.coalesce();
+		logSQL("ReadingsRetrieve", query);
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
@@ -863,6 +864,7 @@ int		row = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("ReadingsAppend", query);
 	char *zErrMsg = NULL;
 	int rc;
 
@@ -923,6 +925,7 @@ int retrieve;
 		 id,
 		 blksize);
 
+	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
 	if (sqlite3_prepare_v2(inMemory,
@@ -1016,6 +1019,7 @@ long numReadings = 0;
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
+		logSQL("RedingsPurge", query);
 		char *zErrMsg = NULL;
 		int rc;
 		int unsent = 0;
@@ -1052,6 +1056,7 @@ long numReadings = 0;
 	}
 	sql.append(';');
 	const char *query = sql.coalesce();
+	logSQL("RedingsPurge", query);
 	char *zErrMsg = NULL;
 	int rc;
 	int rows_deleted;
@@ -1081,6 +1086,7 @@ long numReadings = 0;
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query_r = retainedBuffer.coalesce();
+	logSQL("RedingsPurge", query_r);
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
@@ -2009,4 +2015,18 @@ string  newString;
     newString = string(buffer);
     free(buffer);
     return newString;
+}
+
+/**
+ * Optionally log SQL statement execution
+ *
+ * @param	tag	A string tag that says why the SQL is being executed
+ * @param	stmt	The SQL statement itself
+ */
+void Connection::logSQL(const char *tag, const char *stmt)
+{
+	if (m_logSQL)
+	{
+		Logger::getLogger()->info("%s: %s", tag, stmt);
+	}
 }

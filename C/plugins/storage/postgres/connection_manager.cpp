@@ -20,6 +20,10 @@ ConnectionManager::ConnectionManager()
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
+	if (getenv("FOGLAMP_TRACE_SQL"))
+		m_logSQL = true;
+	else
+		m_logSQL = false;
 }
 
 /**
@@ -55,6 +59,7 @@ void ConnectionManager::growPool(unsigned int delta)
 	while (delta-- > 0)
 	{
 		Connection *conn = new Connection();
+		conn->setTrace(m_logSQL);
 		idleLock.lock();
 		idle.push_back(conn);
 		idleLock.unlock();

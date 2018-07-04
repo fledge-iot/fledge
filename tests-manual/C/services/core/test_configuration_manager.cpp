@@ -56,7 +56,7 @@ TEST(ConfigurationManagerTest, addCategoryWithValueAndDefaultForOneItem)
 		// Test failure
 		ASSERT_TRUE(false);
 	}
-	catch (ConfigValueFoundWithDefault* e)
+	catch (ConfigCategoryDefaultWithValue& e)
 	{
 		// Test success only for found value and default
 		ASSERT_FALSE(false);
@@ -168,9 +168,8 @@ TEST(ConfigurationManagerTest, GetCategoryItemValue)
 	try
 	{
 		string item = cfgManager->getCategoryItemValue("testcategory", "item_4");
-	
+
 		// Test success
-		ASSERT_TRUE(item.compare("") != 0);
 		ASSERT_EQ(0, item.compare("101"));
 	}
 	catch (...)
@@ -213,7 +212,7 @@ TEST(ConfigurationManagerTest, SetCategoryNotExistingItemValue)
 		// Test failure
 		ASSERT_TRUE(false);
 	}
-	catch (NoSuchItemException& e)
+	catch (NoSuchCategoryItem& e)
 	{
 		// Test success
 		ASSERT_TRUE(true);
@@ -224,3 +223,190 @@ TEST(ConfigurationManagerTest, SetCategoryNotExistingItemValue)
 		ASSERT_FALSE(true);
 	}
 }
+
+// Add child categories
+// Success when adding 2 or 1 child categories
+TEST(ConfigurationManagerTest, AddChildCategories)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		string childCategories = cfgManager->addChildCategory("testcategory", "{\"children\": [\"COAP\", \"HTTP_SOUTH\"]}");
+	
+		// Test success
+		ASSERT_TRUE(true);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// Add child categories
+// if both child categories are already set
+// ExistingChildCategories is raised
+// If we catch ExistingChildCategories test is successful
+TEST(ConfigurationManagerTest, AddExistingChildCategories)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		string childCategories = cfgManager->addChildCategory("testcategory", "{\"children\": [\"COAP\", \"HTTP_SOUTH\"]}");
+	
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+	catch (ExistingChildCategories& e)
+	{
+		// Test success
+		ASSERT_TRUE(true);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// A child categories to a noin existent parent
+TEST(ConfigurationManagerTest, AddChildCategoriesToNotExistentParent)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		string childCategories = cfgManager->addChildCategory("not_existent", "{\"children\": [\"COAP\", \"HTTP_SOUTH\"]}");
+	
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+	catch (NoSuchCategory& e)
+	{
+		// Test success
+		ASSERT_TRUE(true);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+// Get the child categories
+TEST(ConfigurationManagerTest, GetChildCategories)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		ConfigCategories childCategories = cfgManager->getChildCategories("testcategory");
+
+		// Test success
+		ASSERT_TRUE(true);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// Delete a non existent child categories
+TEST(ConfigurationManagerTest, DeleteNotExistentChildCategory)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		ConfigCategories beginChildCategories = cfgManager->getChildCategories("testcategory");
+		int numChildCategories = beginChildCategories.length();
+
+		string childCategories = cfgManager->deleteChildCategory("testcategory", "DCOAP");
+
+		ConfigCategories endChildCategories = cfgManager->getChildCategories("testcategory");
+		int finalChildCategories = endChildCategories.length();
+
+		// Test success
+		ASSERT_EQ(numChildCategories, finalChildCategories);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// Delete a category item value (set to "")
+TEST(ConfigurationManagerTest, DeleteCategoryItemValue)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		string modifiedCategory = cfgManager->deleteCategoryItemValue("testcategory", "item_4");
+
+		// Test success
+		ASSERT_EQ(cfgManager->getCategoryItemValue("testcategory", "item_4").compare(""), 0);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// Delete a child category
+TEST(ConfigurationManagerTest, DeleteChildCategory)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		ConfigCategories beginChildCategories = cfgManager->getChildCategories("testcategory");
+		int numChildCategories = beginChildCategories.length();
+
+		string childCategories = cfgManager->deleteChildCategory("testcategory", "COAP");
+
+		ConfigCategories endChildCategories = cfgManager->getChildCategories("testcategory");
+		int finalChildCategories = endChildCategories.length();
+
+		// Test success
+		ASSERT_EQ(numChildCategories - 1, finalChildCategories);
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// Delete a category
+TEST(ConfigurationManagerTest, DeleteCategory)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		ConfigCategories currentCategories = cfgManager->getAllCategoryNames();
+		ConfigCategories modifiedCategories = cfgManager->deleteCategory("testcategory");
+
+		// Test success
+		ASSERT_EQ(currentCategories.length() - 1, modifiedCategories.length());
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+

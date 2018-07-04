@@ -30,28 +30,46 @@ class ConfigurationManager {
 		std::string			getCategoryItem(const std::string& categoryName,
 								const std::string& itemName) const;
 		// Called by PUT /foglamp/category/{categoryName}/{configItem}
-		bool				setCategoryItemValue(const std::string&categoryName,
+		bool				setCategoryItemValue(const std::string& categoryName,
 								     const std::string& itemName,
 								     const std::string& newValue) const;
+		// Called by POST /foglamp/category/south/children
+		std::string			addChildCategory(const std::string& parentCategoryName,
+								 const std::string& childCategories) const;
+		// Called by GET /foglamp/category/{categoryName}/children
+		ConfigCategories		getChildCategories(const std::string& parentCategoryName) const;
+		// Called by DELETE /foglamp/category/{CategoryName}/children/{ChildCategory}
+		std::string			deleteChildCategory(const std::string& parentCategoryName,
+								    const std::string& childCategory) const;
+		// Called by DELETE /foglamp/category/{categoryName}/{configItem}/value
+		std::string 			deleteCategoryItemValue(const std::string& categoryName,
+									const std::string& itemName) const;
+		// Called by DELETE /foglamp/category/{categoryName}
+		ConfigCategories		deleteCategory(const std::string& categoryName) const;
 		// Internal usage
 		std::string			getCategoryItemValue(const std::string& categoryName,
 								     const std::string& itemName) const;
+
 	private:
 		ConfigurationManager(const std::string& host,
 				     unsigned short port);
 		~ConfigurationManager();
-		void mergeCategoryValues(rapidjson::Value& inputValues,
-					 const rapidjson::Value* storedValues,
-					 rapidjson::Document::AllocatorType& allocator) const;
+		void		mergeCategoryValues(rapidjson::Value& inputValues,
+						    const rapidjson::Value* storedValues,
+						    rapidjson::Document::AllocatorType& allocator) const;
+		// Internal usage
+		std::string	fetchChildCategories(const std::string& parentCategoryName) const;
+		std::string	getCategoryDescription(const std::string& categoryName) const;
+
 	private:
 		static  ConfigurationManager*	m_instance;
 		StorageClient*			m_storage;
 };
 
 /**
- * NoSuchCategoryException
+ * NoSuchCategory
  */
-class NoSuchCategoryException : public std::exception {
+class NoSuchCategory : public std::exception {
 	public:
 		virtual const char* what() const throw()
 		{
@@ -60,11 +78,22 @@ class NoSuchCategoryException : public std::exception {
 };
 
 /**
- * NoSuchItemException
+ * NoSuchCategoryItemValue
  */
-class NoSuchItemException : public std::exception {
+class NoSuchCategoryItemValue : public std::exception {
 	public:
-		NoSuchItemException(const std::string& message)
+		virtual const char* what() const throw()
+		{
+			return "Failure while fetching config category item value";
+		}
+};
+
+/**
+ * NoSuchItem
+ */
+class NoSuchCategoryItem : public std::exception {
+	public:
+		NoSuchCategoryItem(const std::string& message)
 		{
 			m_error = message;
 		}
@@ -79,34 +108,90 @@ class NoSuchItemException : public std::exception {
 };
 
 /**
- * CategoryDetailsException
+ * CategoryDetailsEx
  */
-class CategoryDetailsException : public std::exception {
+class CategoryDetailsEx : public std::exception {
 	public:
 		virtual const char* what() const throw()
 		{
-			return "Cannot access row informations";
+			return "Cannot access category informations";
 		}
 };
 
 /**
- * StorageOperationException
+ * StorageOperation
  */
-class StorageOperationException : public std::exception {
+class StorageOperation : public std::exception {
 	public:
 		virtual const char* what() const throw()
 		{
 			return "Failure while performing insert or update operation";
 		}
 };
+
 /**
- * NotSupportedDataTypeException
+ * NotSupportedDataType
  */
-class NotSupportedDataTypeException : public std::exception {
+class NotSupportedDataType : public std::exception {
 	public:
 		virtual const char* what() const throw()
 		{
 			return "Data type not supported";
+		}
+};
+
+/**
+ * AllCategoriesEx
+ */
+class AllCategoriesEx : public std::exception {
+	public:
+		virtual const char* what() const throw()
+		{
+			return "Failure while fetching all config categories";
+		}
+};
+
+/**
+ * ConfigCategoryDefaultWithValue
+ */
+class ConfigCategoryDefaultWithValue : public std::exception {
+	public:
+		virtual const char* what() const throw()
+		{
+			return "The config category being inserted/updated has both default and value properties for items";
+		}
+};
+
+/**
+ * ConfigCategoryEx
+ */
+class ConfigCategoryEx : public std::exception {
+	public:
+		virtual const char* what() const throw()
+		{
+			return "Failure while setting/fetching a config category";
+		}
+};
+
+/**
+ * ChildCategoriesEx
+ */
+class ChildCategoriesEx : public std::exception {
+	public:
+		virtual const char* what() const throw()
+		{
+			return "Failure while setting/fetching child categories";
+		}
+};
+
+/**
+ * ExistingChildCategories
+ */
+class ExistingChildCategories : public std::exception {
+	public:
+		virtual const char* what() const throw()
+		{
+			return "Requested child categories are already set for the given parent category";
 		}
 };
 #endif

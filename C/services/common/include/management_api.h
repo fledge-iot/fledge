@@ -44,7 +44,7 @@ class ManagementApi {
 		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
-	private:
+	protected:
 		static ManagementApi *m_instance;
 		std::string	m_name;
 		Logger		*m_logger;
@@ -53,6 +53,7 @@ class ManagementApi {
 		JSONProvider	*m_statsProvider;
 		ServiceHandler	*m_serviceHandler;
 		std::thread	*m_thread;
+	private:
 		void            respond(std::shared_ptr<HttpServer::Response>, const std::string&);
 };
 #endif

@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <core_management_api.h>
 #include <service_registry.h>
@@ -37,13 +37,42 @@ void unRegisterMicroServiceWrapper(shared_ptr<HttpServer::Response> response, sh
 }
 
 /**
+ * Wrapper function for the default resource call.
+ * This is called whenever an unrecognised entry point call is received.
+ */
+void defaultWrapper(shared_ptr<HttpServer::Response> response,
+		    shared_ptr<HttpServer::Request> request)
+{
+	CoreManagementApi *api = CoreManagementApi::getInstance();
+	api->defaultResource(response, request);
+}
+
+
+/**
+ * Handle a bad URL endpoint call
+ */
+void CoreManagementApi::defaultResource(shared_ptr<HttpServer::Response> response,
+					shared_ptr<HttpServer::Request> request)
+{
+	string payload("{ \"error\" : \"Unsupported URL: " + request->path + "\" }");
+	respond(response,
+		SimpleWeb::StatusCode::client_error_bad_request,
+		payload);
+}
+
+/**
  * Construct a microservices management API manager class
  */
 CoreManagementApi::CoreManagementApi(const string& name, const unsigned short port) : ManagementApi(name, port)
 {
+	// Services
 	m_server->resource[REGISTER_SERVICE]["POST"] = registerMicroServiceWrapper;
 	m_server->resource[UNREGISTER_SERVICE]["DELETE"] = unRegisterMicroServiceWrapper;
 
+	// Default wrapper
+	m_server->default_resource["GET"] = defaultWrapper;
+
+	// Set the ihnstance
 	m_instance = this;
 }
 
@@ -177,7 +206,7 @@ void CoreManagementApi::internalError(shared_ptr<HttpServer::Response> response,
 string payload = "{ \"Exception\" : \"";
 
         payload = payload + string(ex.what());
-        payload = payload + "\"";
+        payload = payload + "\" }";
 
         Logger *logger = Logger::getLogger();
         logger->error("CoreManagementApi Internal Error: %s\n", ex.what());

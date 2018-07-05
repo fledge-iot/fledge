@@ -7,12 +7,12 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <management_api.h>
 
 #define REGISTER_SERVICE	"/foglamp/service"
-#define UNREGISTER_SERVICE	"/foglamp/service/{[0-9A-F][0-9A-F\\-]*}"
+#define UNREGISTER_SERVICE	"/foglamp/service/([0-9A-F][0-9A-F\\-]*)"
 
 #define UUID_COMPONENT		1
 
@@ -24,10 +24,15 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 class CoreManagementApi : public ManagementApi {
 	public:
 		CoreManagementApi(const std::string& name, const unsigned short port);
-		~CoreManagementApi();
+		~CoreManagementApi() {};
 		static CoreManagementApi *getInstance();
-		void			registerMicroService(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
-		void			unRegisterMicroService(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void			registerMicroService(std::shared_ptr<HttpServer::Response> response,
+							     std::shared_ptr<HttpServer::Request> request);
+		void			unRegisterMicroService(std::shared_ptr<HttpServer::Response> response,
+							       std::shared_ptr<HttpServer::Request> request);
+		// Default handler for unsupported URLs
+		void			defaultResource(std::shared_ptr<HttpServer::Response> response,
+							std::shared_ptr<HttpServer::Request> request);
 	private:
 		static CoreManagementApi *m_instance;
 		void 		errorResponse(

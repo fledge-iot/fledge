@@ -11,9 +11,6 @@
 #include <sending.h>
 #include <csignal>
 
-// Used to identifies logs
-string LOG_SERVICE_NAME = "SendingProcess";
-
 // historian plugin to load
 #define PLUGIN_NAME "omf"
 
@@ -25,8 +22,7 @@ string LOG_SERVICE_NAME = "SendingProcess";
 #define PLUGIN_TYPES_KEY "OMF_TYPES"
 
 // Configuration retrieved from the Configuration Manager
-#define CONFIG_CATEGORY_NAME "North"
-#define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process for sending Readings to PI"
+#define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process"
 #define CATEGORY_OMF_TYPES_DESCRIPTION "Configuration of OMF types"
 
 // Default values for the creation of a new stream
@@ -34,8 +30,10 @@ string LOG_SERVICE_NAME = "SendingProcess";
 #define NEW_STREAM_DESCRIPTION "OMF north"
 #define NEW_STREAM_LAST_OBJECT 0
 
-
 using namespace std;
+
+// Used to identifies logs
+const string LOG_SERVICE_NAME = "SendingProcess/sending";
 
 static map<string, string> globalConfiguration = {};
 
@@ -63,7 +61,8 @@ static const string sendingDefaultConfig =
 		"into the output format and send them\", \"type\": \"string\", "
 		"\"default\": \"omf\" }, "
 	"\"stream_id\": {"
-		"\"description\": \"Stream ID for sending Reading to PI using OMF\", \"type\": \"integer\", \"default\": \"1\" }";
+		"\"description\": \"Identifies the specific stream to handle and the related information,"
+                " among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\" }";
 
 
 
@@ -97,7 +96,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         int i;
         for(i=0 ; i < argc ; i++)
         {
-                Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_SERVICE_NAME, i, argv[i]);
+                Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_SERVICE_NAME.c_str(), i, argv[i]);
         }
 
         // Set buffer of ReadingSet with NULLs
@@ -143,7 +142,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	// Fetch last_object sent from foglamp.streams
 	if (!this->getLastSentReadingId())
 	{
-		Logger::getLogger()->warn(LOG_SERVICE_NAME + "Last object id for stream '" + to_string(m_stream_id) + "' NOT found, creating a new stream.");
+		Logger::getLogger()->warn(LOG_SERVICE_NAME + " - Last object id for stream '" + to_string(m_stream_id) + "' NOT found, creating a new stream.");
 
 		if (!this->createStream(m_stream_id)) {
 
@@ -245,7 +244,7 @@ void SendingProcess::stop()
 	// Cleanup the plugin resources
 	this->m_plugin->shutdown();
 
-	Logger::getLogger()->info("SendingProcess succesfully terminated");
+	Logger::getLogger()->info("SendingProcess successfully terminated");
 }
 
 /**
@@ -378,7 +377,7 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 {
         // retrieves the configuration using the value of the --name parameter (received in the command line) as the key
         string catName(getName());
-        Logger::getLogger()->debug("%s - catName :%s:", LOG_SERVICE_NAME,  catName.c_str());
+        Logger::getLogger()->debug("%s - catName :%s:", LOG_SERVICE_NAME.c_str(),  catName.c_str());
 
 	// Build JSON merged configuration (sendingProcess + pluginConfig
 	string config("{ ");

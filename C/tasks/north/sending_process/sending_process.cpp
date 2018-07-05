@@ -40,6 +40,9 @@ mutex	waitMutex;
 // Block the calling thread until notified to resume.
 condition_variable cond_var;
 
+// Used to identifies logs
+const string LOG_SERVICE_NAME = "SendingProcess/sending_process";
+
 // Load data from storage
 static void loadDataThread(SendingProcess *loadData);
 // Send data from historian
@@ -219,7 +222,8 @@ static void sendDataThread(SendingProcess *sendData)
 
 				// DB update done
 				sendData->setUpdateDb(false);
-			}
+
+                        }
 
 			// Reset send index
 			sendIdx = 0;
@@ -242,7 +246,10 @@ static void sendDataThread(SendingProcess *sendData)
 
 			if (sendData->getUpdateDb())
 			{
-				// Update counters to Database
+                                //fixme
+                                Logger::getLogger()->debug("%s - BRK 01", LOG_SERVICE_NAME.c_str());
+
+                                // Update counters to Database
 				sendData->updateDatabaseCounters();
 
 				// numReadings sent so far
@@ -331,17 +338,37 @@ static void sendDataThread(SendingProcess *sendData)
 
 	if (sendData->getUpdateDb())
 	{
-		// Update counters to Database
+                //fixme
+                Logger::getLogger()->debug("%s - BRK 1", LOG_SERVICE_NAME.c_str());
+
+
+                // Update counters to Database
 		sendData->updateDatabaseCounters();
 
-		// numReadings sent so far
+                //fixme
+                Logger::getLogger()->debug("%s - BRK 2", LOG_SERVICE_NAME.c_str());
+
+
+                // numReadings sent so far
 		totSent += sendData->getSentReadings();
 
-		// Reset current sent readings
+                //fixme
+                Logger::getLogger()->debug("%s - BRK 3", LOG_SERVICE_NAME.c_str());
+
+
+                // Reset current sent readings
 		sendData->resetSentReadings();
 
-		sendData->setUpdateDb(false);
-	}
+                //fixme
+                Logger::getLogger()->debug("%s - BRK 4", LOG_SERVICE_NAME.c_str());
+
+
+                sendData->setUpdateDb(false);
+                //fixme
+                Logger::getLogger()->debug("%s - BRK 5", LOG_SERVICE_NAME.c_str());
+
+
+        }
 
 	/**
 	 * The loop is over: unlock the loadData thread

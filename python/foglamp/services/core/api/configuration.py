@@ -184,6 +184,8 @@ async def set_configuration_item(request):
         await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
     except ValueError:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex))
 
     result = await cf_mgr.get_category_item(category_name, config_item)
     if result is None:

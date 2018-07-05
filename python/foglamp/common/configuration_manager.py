@@ -124,17 +124,23 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if type(item_val) is not dict:
                 raise TypeError('item_value must be a dict for item_name {}'.format(item_name))
 
-            optional_item_entries = {'readonly': "false", 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
+            optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
                 expected_item_entries['value'] = 0
+
+            def get_entry_val(k):
+                v = [val for name, val in item_val.items() if name == k]
+                return v[0]
+
             for entry_name, entry_val in item_val.items():
                 if type(entry_name) is not str:
                     raise TypeError('entry_name must be a string for item_name {}'.format(item_name))
                 if type(entry_val) is not str:
                     raise TypeError(
                         'entry_val must be a string for item_name {} and entry_name {}'.format(item_name, entry_name))
+
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
                     d = {entry_name: entry_val}
@@ -156,7 +162,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for needed_key, needed_value in expected_item_entries.items():
                 if needed_value == 0:
                     raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
+
             if set_value_val_from_default_val:
+                if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
+                    raise ValueError('Unrecognized value name for item_name {}'.format(item_name))
+                item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
 
         return category_val_copy
@@ -344,14 +354,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            # get storage_value_entry and compare against new_value_value, update if different
-            storage_value_entry = await self._read_value_val(category_name, item_name)
+            # get storage_value_entry and compare against new_value_value with its type, update if different
+            storage_value_entry = await self._read_item_val(category_name, item_name)
             # check for category_name and item_name combination existence in storage
             if storage_value_entry is None:
                 raise ValueError("No detail found for the category_name: {} and item_name: {}"
                                  .format(category_name, item_name))
             if storage_value_entry == new_value_entry:
                 return
+
+            if self._validate_type_value(storage_value_entry['type'], new_value_entry) is False:
+                raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
+
+            new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
+            # TODO: FOGL-985 - it will break in case of JSON object
             await self._update_value_val(category_name, item_name, new_value_entry)
         except:
             _logger.exception(
@@ -695,3 +711,56 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 self._registered_interests[category_name].discard(callback)
                 if len(self._registered_interests[category_name]) == 0:
                     del self._registered_interests[category_name]
+
+    def _validate_type_value(self, _type, _value):
+        def _str_to_bool(item_val):
+            return item_val.lower() in ("true", "false")
+
+        def _str_to_int(item_val):
+            try:
+                _value = int(item_val)
+            except ValueError:
+                return False
+
+            return True
+
+        def _str_to_ipaddress(item_val):
+            import ipaddress
+            try:
+                ipaddress.ip_address(item_val)
+            except ValueError:
+                return False
+
+        def _str_to_json(item_val):
+            if _str_to_bool(item_val) or _str_to_int(item_val) or _str_to_ipaddress(
+                    item_val) or _str_to_password(item_val) or _str_to_x509cert(item_val):
+                return False
+            try:
+                json.loads(item_val)
+                return True
+            except Exception:
+                return False
+
+        def _str_to_password(v):
+            # TODO:
+            pass
+
+        def _str_to_x509cert(v):
+            # TODO:
+            pass
+
+        if _type == 'boolean':
+            return _str_to_bool(_value)
+        elif _type == 'integer':
+            return _str_to_int(_value)
+        elif _type == 'JSON':
+            return _str_to_json(_value)
+        elif _type == 'IPv4' or _type == 'IPv6':
+            return _str_to_ipaddress(_value)
+
+    def _clean(self, item_type, item_val):
+        if item_type == 'boolean':
+            return item_val.lower()
+        if item_type == 'JSON':
+            return json.dumps(json.loads(item_val))
+        return item_val

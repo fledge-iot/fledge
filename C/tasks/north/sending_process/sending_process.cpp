@@ -246,9 +246,6 @@ static void sendDataThread(SendingProcess *sendData)
 
 			if (sendData->getUpdateDb())
 			{
-                                //fixme
-                                Logger::getLogger()->debug("%s - BRK 01", LOG_SERVICE_NAME.c_str());
-
                                 // Update counters to Database
 				sendData->updateDatabaseCounters();
 
@@ -338,35 +335,16 @@ static void sendDataThread(SendingProcess *sendData)
 
 	if (sendData->getUpdateDb())
 	{
-                //fixme
-                Logger::getLogger()->debug("%s - BRK 1", LOG_SERVICE_NAME.c_str());
-
-
                 // Update counters to Database
 		sendData->updateDatabaseCounters();
-
-                //fixme
-                Logger::getLogger()->debug("%s - BRK 2", LOG_SERVICE_NAME.c_str());
-
 
                 // numReadings sent so far
 		totSent += sendData->getSentReadings();
 
-                //fixme
-                Logger::getLogger()->debug("%s - BRK 3", LOG_SERVICE_NAME.c_str());
-
-
                 // Reset current sent readings
 		sendData->resetSentReadings();
 
-                //fixme
-                Logger::getLogger()->debug("%s - BRK 4", LOG_SERVICE_NAME.c_str());
-
-
                 sendData->setUpdateDb(false);
-                //fixme
-                Logger::getLogger()->debug("%s - BRK 5", LOG_SERVICE_NAME.c_str());
-
 
         }
 

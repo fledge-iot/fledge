@@ -65,8 +65,6 @@ static const string sendingDefaultConfig =
                 " among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\" }";
 
 
-
-
 volatile std::sig_atomic_t signalReceived = 0;
 
 // Handle Signals
@@ -131,9 +129,30 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	 * Get Configuration from sending process and loaded plugin
 	 * Create or update configuration via FogLAMP API
 	 */
-	const map<string, string>& config = this->fetchConfiguration();
+	const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig);
 
-        Logger::getLogger()->info("SendingProcess stream id = %d", m_stream_id);
+        Logger::getLogger()->info("%s - stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+
+        // Checks if stream-id is undefined, it allocates a new one in the case
+        if (m_stream_id == 0) {
+
+                Logger::getLogger()->info("%s - stream-id is undefined, allocating a new one.", LOG_SERVICE_NAME.c_str());
+
+                m_stream_id = this->createNewStream();
+
+                if (m_stream_id == 0) {
+
+			string errMsg(LOG_SERVICE_NAME + " - it is not possible to create a new stream.");
+
+			Logger::getLogger()->fatal(errMsg);
+			throw runtime_error(errMsg);
+		} else {
+                        Logger::getLogger()->info("%s - new stream-id allocated :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+
+                        // fixme - Update configuration value m_stream_id
+                        Logger::getLogger()->info("%s - configuration updated using stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+                }
+        }
 
 
         // Init plugin with merged configuration from FogLAMP API
@@ -278,7 +297,7 @@ void SendingProcess::updateDatabaseCounters()
 	const Condition conditionStat(Equals);
 	Where wLastStat("key",
 			conditionStat,
-			string("SENT_" + streamId));
+			getName());
 
 	// Prepare value = value + inc
 	ExpressionValues updateValue;
@@ -335,7 +354,54 @@ bool SendingProcess::getLastSentReadingId()
 }
 
 /**
- * Create a new stream, adding a new row into the streams table.
+ * Creates a new stream, it adds a new row into the streams table allocating a new stream id
+ *
+ * @return newly created stream, 0 otherwise
+ */
+int SendingProcess::createNewStream()
+{
+        int streamId = 0;
+
+        InsertValues streamValues;
+        streamValues.push_back(InsertValue("destination_id", NEW_STREAM_DESTINATION));
+        streamValues.push_back(InsertValue("description",    getName()));
+        streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
+
+        if (getStorageClient()->insertTable("streams", streamValues) != 1) {
+
+                getLogger()->error("Failed to insert a row into the streams table");
+
+        } else {
+
+                // Select the row just created, having description='process name'
+                const Condition conditionId(Equals);
+                string name  = getName();
+                Where* wName = new Where("description", conditionId, name);
+                Query qName(wName);
+
+                ResultSet* rows = this->getStorageClient()->queryTable("streams", qName);
+
+                if (rows != NULL && rows->rowCount())
+                {
+                        // Get the first row only
+                        ResultSet::RowIterator it = rows->firstRow();
+                        // Access the element
+                        ResultSet::Row* row = *it;
+                        if (row)
+                        {
+                                // Get column value
+                                ResultSet::ColumnValue* theVal = row->getColumn("id");
+                                streamId = (unsigned long)theVal->getInteger();
+                        }
+                }
+
+        }
+
+        return streamId;
+}
+
+/**
+ * Creates a new stream, it adds a new row into the streams table allocating specific stream id
  *
  * @return true if successful created, false otherwise
  */
@@ -373,7 +439,7 @@ bool SendingProcess::createStream(int streamId)
  *
  * Return the configuration items as a map of JSON strings
  */
-const map<string, string>& SendingProcess::fetchConfiguration()
+const map<string, string>& SendingProcess::fetchConfiguration(const std::string& defaultConfig)
 {
         // retrieves the configuration using the value of the --name parameter (received in the command line) as the key
         string catName(getName());
@@ -383,7 +449,7 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 	string config("{ ");
 	config.append(this->m_plugin->config()[string(PLUGIN_CONFIG_KEY)]);
 	config += ", ";
-	config.append(sendingDefaultConfig);
+	config.append(defaultConfig);
 	config += " }";
 
 	try
@@ -392,7 +458,7 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 		DefaultConfigCategory category(catName, config);
 		category.setDescription(CONFIG_CATEGORY_DESCRIPTION);
 
-		if (!this->getManagementClient()->addCategory(category))
+		if (!this->getManagementClient()->addCategory(category, true))
 		{
 			string errMsg("Failure creating/updating configuration key '");
 			errMsg.append(catName);
@@ -410,7 +476,7 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 		DefaultConfigCategory types(string(PLUGIN_TYPES_KEY), configTypes);
 		category.setDescription(CATEGORY_OMF_TYPES_DESCRIPTION);
 
-		if (!this->getManagementClient()->addCategory(types))
+		if (!this->getManagementClient()->addCategory(types, true))
 		{
 			string errMsg("Failure creating/updating configuration key '");
 			errMsg.append(PLUGIN_TYPES_KEY);
@@ -433,7 +499,18 @@ const map<string, string>& SendingProcess::fetchConfiguration()
 		string blockSize = sendingProcessConfig.getValue("blockSize");
 		string duration = sendingProcessConfig.getValue("duration");
 		string sleepInterval = sendingProcessConfig.getValue("sleepInterval");
-                string streamId = sendingProcessConfig.getValue("stream_id");
+
+                // Handles the case in which the stream_id is not defined in the configuration
+                // and sets it to not defined (0)
+                string streamId = "";
+                try {
+                        streamId = sendingProcessConfig.getValue("stream_id");
+                } catch (std::exception* e) {
+
+                        streamId = "0";
+                } catch (...) {
+                        streamId = "0";
+                }
 
                 // Set member variables
 		m_block_size = strtoul(blockSize.c_str(), NULL, 10);

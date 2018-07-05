@@ -49,7 +49,8 @@ class ConfigCategory {
 							const std::string& type, const std::string def,
 							const std::string& value);
 		void				setDescription(const std::string& description);
-		std::string			getDescription() { return m_description; };
+		std::string                     getName() const { return m_name; };
+		std::string                     getDescription() const { return m_description; };
 		unsigned int			getCount() const { return m_items.size(); };
 		bool				itemExists(const std::string& name) const;
 		std::string			getValue(const std::string& name) const;

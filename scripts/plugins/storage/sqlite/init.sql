@@ -641,9 +641,11 @@ INSERT INTO foglamp.configuration ( key, description, value )
             );
 
 -- Statistics
+-- fixme
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
-     VALUES ( 'READINGS',   'Readings received by FogLAMP since startup', 0, 0 ),
-            ( 'BUFFERED',   'Readings currently in FogLAMP buffer', 0, 0 ),
+     VALUES ( 'READINGS',             'Readings received by FogLAMP since startup', 0, 0 ),
+            ( 'BUFFERED',             'Readings currently in FogLAMP buffer', 0, 0 ),
+            ( 'North_Readings_to_PI', 'Readings sent to historian', 0, 0 ),
             ( 'SENT_1',     'Readings sent to historian', 0, 0 ),
             ( 'SENT_2',     'FogLAMP statistics data sent to historian', 0, 0 ),
             ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),

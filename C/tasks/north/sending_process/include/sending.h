@@ -45,6 +45,7 @@ class SendingProcess : public FogLampProcess
 		void			updateDatabaseCounters();
 		bool			getLastSentReadingId();
                 bool			createStream(int);
+                int			createNewStream();
 		unsigned int		getDuration() const { return m_duration; };
 		unsigned int		getSleepTime() const { return m_sleep; };
 		bool			getUpdateDb() const { return m_update_db; };
@@ -59,7 +60,7 @@ class SendingProcess : public FogLampProcess
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
 		bool			loadPlugin(const std::string& pluginName);
-		const std::map<std::string, std::string>& fetchConfiguration();
+		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defaultConfig);
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);
                 SendingProcess&		operator=(SendingProcess const &);

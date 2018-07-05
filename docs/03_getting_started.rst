@@ -46,7 +46,7 @@ General Requirements
 This version of FogLAMP requires the following software to be installed in the same environment:
 
 - **Avahi 0.6.32+**
-- **Python 3.5+**
+- **Python 3.5.3+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
 
@@ -105,7 +105,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   Building dependency tree
   ...
   $
-  $ sudo apt-get install sqlite3 libslite3-dev
+  $ sudo apt-get install sqlite3 libsqlite3-dev
   Reading package lists... Done
   Building dependency tree
   ...
@@ -298,7 +298,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   FogLAMP starting.
   $
   $ scripts/foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP uptime:  175 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -703,7 +703,7 @@ Here are some extra notes for the CentOS users.
 
 .. code-block:: console
 
-  Starting FogLAMP v1.2.FogLAMP cannot start.
+  Starting FogLAMP v1.3.FogLAMP cannot start.
   Check /home/foglamp/FogLAMP/data/core.err for more information.
 
 Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP running, it means that the services are up and running.
@@ -711,11 +711,11 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
 .. code-block:: console
 
   $ foglamp start
-  Starting FogLAMP v1.2.FogLAMP cannot start.
+  Starting FogLAMP v1.3.FogLAMP cannot start.
   Check /home/foglamp/FogLAMP/data/core.err for more information.
   $
   $ foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP uptime:  6 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -738,7 +738,7 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
 .. code-block:: console
 
   $ foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP uptime:  6 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.

@@ -25,6 +25,38 @@ Version History
 FogLAMP v1
 ==========
 
+v1.3
+----
+
+Release Date: 2018-07-05
+
+
+New Features
+~~~~~~~~~~~~
+
+- **Changes in the REST API**
+
+  - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if FogLAMP requires REST API authentication.
+
+- **Storage Layer**
+
+  - **Default Storage Engine**: The default storage engine is now SQLite. We provide a script to migrate from PostgreSQL in 1.1.1 version to 1.2. PostgreSQL is still available in the main repository and package, but it will be removed to an operate repository in future versions. 
+  
+- **Admin and Maintenance Scripts**
+
+  - **foglamp status**: the command now shows what the ``ping`` REST method provides.
+  - **setenv script**: a new script has been added to simplify the user interaction. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *setenv.sh*.
+  - **foglamp service script**: a new service script has been added to setup FogLAMP as a service. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *foglamp.service*.
+
+
+Known Issues
+~~~~~~~~~~~~
+
+- **Issues in Documentation**
+
+  - **plugin documentation**: testing FogLAMP requires user to first install southbound plugins necessary (CoAP, http)
+
+
 
 v1.2
 ----

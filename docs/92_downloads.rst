@@ -42,6 +42,10 @@
 
    <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.2-x86_64.deb">v1.2</a>
 
+.. |intel 1.3| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64.deb">v1.3</a>
+
 .. |arm 1.0| raw:: html
 
    <a href="https://s3.amazonaws.com/foglamp/snaps/armhf/foglamp_1.0_armhf.snap">v1.0</a>
@@ -57,6 +61,10 @@
 .. |arm 1.2| raw:: html
 
    <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.2-armhf.deb">v1.2</a>
+
+.. |arm 1.3| raw:: html
+
+   <a href="https://s3.amazonaws.com/foglamp/debian/armhf/foglamp-1.3-armhf.deb">v1.3</a>
 
 .. |arm-envphat 1.2| raw:: html
 
@@ -90,19 +98,14 @@ FogLAMP Debian Packages for Intel
 ---------------------------------
 
 - |intel 1.2| - Released 2018-04-24
+- |intel 1.3| - Released 2018-07-05
 
 
 FogLAMP Debian Packages for ARM
 -------------------------------
 
 - |arm 1.2| - Released 2018-04-24
-
-Other Debian Packages for ARM
------------------------------
-
-- Enviro pHAT
-
-  - |arm-envphat 1.2| - Released 2018-04-24
+- |arm 1.3| - Released 2018-07-05
 
 
 Snap Packages

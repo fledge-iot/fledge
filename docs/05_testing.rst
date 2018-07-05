@@ -624,7 +624,7 @@ Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 
   }
   $
 
-You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2 uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
+You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2, or higher, uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
 
 .. code-block:: console
 

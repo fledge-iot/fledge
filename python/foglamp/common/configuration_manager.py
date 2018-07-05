@@ -8,6 +8,7 @@ from importlib import import_module
 import copy
 import json
 import inspect
+import ipaddress
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
@@ -721,13 +722,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 _value = int(item_val)
             except ValueError:
                 return False
-
-            return True
+            else:
+                return True
 
         def _str_to_ipaddress(item_val):
-            import ipaddress
             try:
-                ipaddress.ip_address(item_val)
+                return ipaddress.ip_address(item_val)
             except ValueError:
                 return False
 
@@ -737,9 +737,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return False
             try:
                 json.loads(item_val)
-                return True
             except Exception:
                 return False
+            else:
+                return True
 
         def _str_to_password(v):
             # TODO:

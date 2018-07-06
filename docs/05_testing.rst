@@ -184,13 +184,12 @@ Note: This following instructions assume you have downloaded and installed the C
 
 
 .. code-block:: console
-  # installing CoAP south plugin
-  git clone https://github.com/foglamp/foglamp-south-coap.
-  cd foglamp-south-coap
-  sudo cp -r python /usr/local/foglamp/python/foglamp/plugins/south/
-  sudo pip3 install -r /usr/local/foglamp/python/requirements-coap.txt
-  chown -R root:root /usr/local/foglamp/python/foglamp/plugins/south/coap
-  curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "CoAP", "type": "south", "plugin": "coap", "enabled": true}'
+  $ git clone https://github.com/foglamp/foglamp-south-coap.
+  $ cd foglamp-south-coap
+  $ sudo cp -r python /usr/local/foglamp/python/foglamp/plugins/south/
+  $ sudo pip3 install -r /usr/local/foglamp/python/requirements-coap.txt
+  $ chown -R root:root /usr/local/foglamp/python/foglamp/plugins/south/coap
+  $ curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "CoAP", "type": "south", "plugin": "coap", "enabled": true}'
 
 .. code-block:: console
 

@@ -56,7 +56,6 @@ class SendingProcess : public FogLampProcess
 		unsigned long		getReadBlockSize() const { return m_block_size; };
 
 	private:
-    		Logger			*m_logger;
 		void			setDuration(unsigned int val) { m_duration = val; };
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
@@ -68,9 +67,9 @@ class SendingProcess : public FogLampProcess
 
 	public:
 		std::vector<ReadingSet *>	m_buffer;
-		std::thread			*m_thread_load;
-		std::thread			*m_thread_send;
-		NorthPlugin			*m_plugin;
+		std::thread*			m_thread_load;
+		std::thread*			m_thread_send;
+		NorthPlugin*			m_plugin;
 
 	private:
 		bool				m_running;
@@ -81,6 +80,8 @@ class SendingProcess : public FogLampProcess
 		unsigned long			m_sleep;
 		unsigned long			m_block_size;
 		bool				m_update_db;
+                Logger*			        m_logger;
+
 };
 
 #endif

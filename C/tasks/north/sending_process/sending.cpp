@@ -25,9 +25,9 @@
 #define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Sending Process"
 #define CATEGORY_OMF_TYPES_DESCRIPTION "Configuration of OMF types"
 
-// Default values for the creation of a new stream
+// Default values for the creation of a new stream,
+// the description is derived from the parameter --name
 #define NEW_STREAM_DESTINATION 1
-#define NEW_STREAM_DESCRIPTION "OMF north"
 #define NEW_STREAM_LAST_OBJECT 0
 
 using namespace std;
@@ -38,31 +38,43 @@ const string LOG_SERVICE_NAME = "SendingProcess/sending";
 static map<string, string> globalConfiguration = {};
 
 // Sending process default configuration
-static const string sendingDefaultConfig =
-	"\"enable\": {"
-		"\"description\": \"A switch that can be used to enable or disable execution of "
-		"the sending process.\", \"type\": \"boolean\", \"default\": \"True\" },"
-	"\"duration\": {"
-		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
-		"\"type\": \"integer\", \"default\": \"60\" }, "
-	"\"source\": {"
-		"\"description\": \"Defines the source of the data to be sent on the stream, "
-		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "
-		"\"default\": \"readings\" }, "
-	"\"blockSize\": {"
-		"\"description\": \"The size of a block of readings to send in each transmission.\", "
-		"\"type\": \"integer\", \"default\": \"500\" }, "
-	"\"sleepInterval\": {"
-		"\"description\": \"A period of time, expressed in seconds, "
-		"to wait between attempts to send readings when there are no "
-		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\" }, "
-	"\"north\": {"
-		"\"description\": \"The name of the north to use to translate the readings "
-		"into the output format and send them\", \"type\": \"string\", "
-		"\"default\": \"omf\" }, "
-	"\"stream_id\": {"
-		"\"description\": \"Identifies the specific stream to handle and the related information,"
-                " among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\" }";
+static string sendingDefaultConfig = R"(
+    	"enable": {
+    		"description": "A switch that can be used to enable or disable execution of the sending process.",
+                "type":        "boolean",
+                "default":     "True"
+        },
+        "duration": {
+                "description": "How long the sending process should run (in seconds) before stopping.",
+                "type": "integer",
+                "default": "60"
+        },
+        "source": {
+                "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
+                "type": "string",
+                "default": "readings"
+        },
+    	"blockSize": {
+    		"description": "The size of a block of readings to send in each transmission.",
+    		"type": "integer",
+                "default": "500"
+        },
+    	"sleepInterval": {
+    		"description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
+                "type": "integer",
+                "default": "1"
+        },
+    	"north": {
+    		"description": "The name of the north to use to translate the readings into the output format and send them",
+                "type": "string",
+                "default": "omf"
+        },
+    	"streamId": {
+    		"description": "Identifies the specific stream to handle and the related information,among them the ID of the last object streamed.",
+                "type": "integer",
+                "default": "0"
+        }
+    )";
 
 
 volatile std::sig_atomic_t signalReceived = 0;
@@ -131,7 +143,18 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	 * Get Configuration from sending process and loaded plugin
 	 * Create or update configuration via FogLAMP API
 	 */
-	const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig);
+        // Cleanups the string
+        sendingDefaultConfig.erase(std::remove(sendingDefaultConfig.begin(),
+                                               sendingDefaultConfig.end(),
+                                               '\r'),
+                                   sendingDefaultConfig.end() );
+
+        sendingDefaultConfig.erase(std::remove(sendingDefaultConfig.begin(),
+                                               sendingDefaultConfig.end(),
+                                               '\t'),
+                                   sendingDefaultConfig.end() );
+
+        const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig);
 
         m_logger->debug("%s - stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
 
@@ -152,7 +175,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
                         m_logger->info("%s - new stream-id allocated :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
 
                         const string categoryName = this->getName();
-                        const string itemName = "stream_id";
+                        const string itemName = "streamId";
                         const string itemValue = to_string(m_stream_id);
 
                         // Prepares the error message in case of an error
@@ -190,12 +213,12 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 		if (!this->createStream(m_stream_id)) {
 
-			string errMsg(LOG_SERVICE_NAME + " - It is not possible to create a new stream for stream_id :" + to_string(m_stream_id) + ":.");
+			string errMsg(LOG_SERVICE_NAME + " - It is not possible to create a new stream for streamId :" + to_string(m_stream_id) + ":.");
 
                         m_logger->fatal(errMsg);
 			throw runtime_error(errMsg);
 		} else {
-                        m_logger->info(LOG_SERVICE_NAME + " - stream_id :" + to_string(m_stream_id) + ": created.");
+                        m_logger->info(LOG_SERVICE_NAME + " - streamId :" + to_string(m_stream_id) + ": created.");
 		}
 	}
 
@@ -392,7 +415,7 @@ int SendingProcess::createNewStream()
 
         InsertValues streamValues;
         streamValues.push_back(InsertValue("destination_id", NEW_STREAM_DESTINATION));
-        streamValues.push_back(InsertValue("description",    getName()));
+        streamValues.push_back(InsertValue("description",    this->getName()));
         streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
 
         if (getStorageClient()->insertTable("streams", streamValues) != 1) {
@@ -440,7 +463,7 @@ bool SendingProcess::createStream(int streamId)
 	InsertValues streamValues;
 	streamValues.push_back(InsertValue("id",             streamId));
 	streamValues.push_back(InsertValue("destination_id", NEW_STREAM_DESTINATION));
-	streamValues.push_back(InsertValue("description",    NEW_STREAM_DESCRIPTION));
+	streamValues.push_back(InsertValue("description",    this->getName()));
 	streamValues.push_back(InsertValue("last_object",    NEW_STREAM_LAST_OBJECT));
 
         if (getStorageClient()->insertTable("streams", streamValues) != 1) {
@@ -532,7 +555,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
                 // and sets it to not defined (0)
                 string streamId = "";
                 try {
-                        streamId = sendingProcessConfig.getValue("stream_id");
+                        streamId = sendingProcessConfig.getValue("streamId");
                 } catch (std::exception* e) {
 
                         delete e;

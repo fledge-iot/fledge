@@ -284,16 +284,16 @@ For example, if you are installing FogLAMP on an Intel x86_64 machine, you can t
 
 .. code-block:: console
 
-  $ wget https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64.deb
-  --2018-04-24 18:22:08--  https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64.deb
+  $ wget https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb
+  --2018-04-24 18:22:08--  https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb
   Resolving s3.amazonaws.com (s3.amazonaws.com)... 52.216.133.221
   Connecting to s3.amazonaws.com (s3.amazonaws.com)|52.216.133.221|:443... connected.
   HTTP request sent, awaiting response... 200 OK
   Length: 496094 (484K) [application/x-deb]
-  Saving to: ‘foglamp-1.3-x86_64.deb’
+  Saving to: ‘foglamp-1.3-x86_64_ubuntu_16_04.deb’
 
-  foglamp-1.3-x86_64.deb     100%[=============================================================>] 484.47K   521KB/s    in 0.9s
-  2018-04-24 18:22:10 (521 KB/s) - ‘foglamp-1.3-x86_64.deb’ saved [496094/496094]
+  foglamp-1.3-x86_64_ubuntu_16_04.deb     100%[=============================================================>] 484.47K   521KB/s    in 0.9s
+  2018-04-24 18:22:10 (521 KB/s) - ‘foglamp-1.3-x86_64_ubuntu_16_04.deb’ saved [496094/496094]
   $
 
 We recommend to execute an *update-upgrade-update* of the system first, then you may copy the FogLAMP package in the *apt cache* directory and install it.
@@ -308,13 +308,13 @@ We recommend to execute an *update-upgrade-update* of the system first, then you
   ...
   $ sudo apt update
   ...
-  $ sudo cp foglamp-1.3-x86_64.deb /var/cache/apt/archives/.
+  $ sudo cp foglamp-1.3-x86_64_ubuntu_16_04.deb /var/cache/apt/archives/.
   ...
-  $ sudo apt install /var/cache/apt/archives/foglamp-1.3-x86_64.deb
+  $ sudo apt install /var/cache/apt/archives/foglamp-1.3-x86_64_ubuntu_16_04.deb
   Reading package lists... Done
   Building dependency tree
   Reading state information... Done
-  Note, selecting 'foglamp' instead of '/var/cache/apt/archives/foglamp-1.3-x86_64.deb'
+  Note, selecting 'foglamp' instead of '/var/cache/apt/archives/foglamp-1.3-x86_64_ubuntu_16_04.deb'
   The following packages were automatically installed and are no longer required:
   ...
   Unpacking foglamp (1.3) ...

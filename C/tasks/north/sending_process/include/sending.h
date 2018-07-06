@@ -56,6 +56,7 @@ class SendingProcess : public FogLampProcess
 		unsigned long		getReadBlockSize() const { return m_block_size; };
 
 	private:
+    		Logger			*m_logger;
 		void			setDuration(unsigned int val) { m_duration = val; };
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };

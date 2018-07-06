@@ -88,13 +88,15 @@ SendingProcess::~SendingProcess()
 // SendingProcess Class Constructor
 SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, argv)
 {
+        m_logger = Logger::getLogger();
+
 	// the stream_id to use is retrieved from the configuration
         m_stream_id = -1;
 
         int i;
         for(i=0 ; i < argc ; i++)
         {
-                Logger::getLogger()->debug("%s - param :%d: :%s:", LOG_SERVICE_NAME.c_str(), i, argv[i]);
+                m_logger->debug("%s - param :%d: :%s:", LOG_SERVICE_NAME.c_str(), i, argv[i]);
         }
 
         // Set buffer of ReadingSet with NULLs
@@ -131,12 +133,12 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	 */
 	const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig);
 
-        Logger::getLogger()->info("%s - stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+        m_logger->debug("%s - stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
 
         // Checks if stream-id is undefined, it allocates a new one in the case
         if (m_stream_id == 0) {
 
-                Logger::getLogger()->info("%s - stream-id is undefined, allocating a new one.", LOG_SERVICE_NAME.c_str());
+                m_logger->info("%s - stream-id is undefined, allocating a new one.", LOG_SERVICE_NAME.c_str());
 
                 m_stream_id = this->createNewStream();
 
@@ -144,13 +146,36 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 			string errMsg(LOG_SERVICE_NAME + " - it is not possible to create a new stream.");
 
-			Logger::getLogger()->fatal(errMsg);
+			m_logger->fatal(errMsg);
 			throw runtime_error(errMsg);
 		} else {
-                        Logger::getLogger()->info("%s - new stream-id allocated :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+                        m_logger->info("%s - new stream-id allocated :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
 
-                        // fixme - Update configuration value m_stream_id
-                        Logger::getLogger()->info("%s - configuration updated using stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+                        const string categoryName = this->getName();
+                        const string itemName = "stream_id";
+                        const string itemValue = to_string(m_stream_id);
+
+                        // Prepares the error message in case of an error
+                        string errMsg(LOG_SERVICE_NAME + " - it is not possible to update the item :" + itemName + " : of the category :" + categoryName + ":");
+
+                        try {
+                                this->getManagementClient()->setCategoryItemValue(categoryName,
+                                                                                  itemName,
+                                                                                  itemValue);
+
+                                m_logger->info("%s - configuration updated, using stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+
+                        } catch (std::exception* e) {
+
+                                delete e;
+
+                                m_logger->error(errMsg);
+                                throw runtime_error(errMsg);
+
+                        } catch (...) {
+                                m_logger->fatal(errMsg);
+                                throw runtime_error(errMsg);
+                        }
                 }
         }
 
@@ -161,16 +186,16 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	// Fetch last_object sent from foglamp.streams
 	if (!this->getLastSentReadingId())
 	{
-		Logger::getLogger()->warn(LOG_SERVICE_NAME + " - Last object id for stream '" + to_string(m_stream_id) + "' NOT found, creating a new stream.");
+                m_logger->warn(LOG_SERVICE_NAME + " - Last object id for stream '" + to_string(m_stream_id) + "' NOT found, creating a new stream.");
 
 		if (!this->createStream(m_stream_id)) {
 
 			string errMsg(LOG_SERVICE_NAME + " - It is not possible to create a new stream for stream_id :" + to_string(m_stream_id) + ":.");
 
-			Logger::getLogger()->fatal(errMsg);
+                        m_logger->fatal(errMsg);
 			throw runtime_error(errMsg);
 		} else {
-			Logger::getLogger()->info(LOG_SERVICE_NAME + " - stream_id :" + to_string(m_stream_id) + ": created.");
+                        m_logger->info(LOG_SERVICE_NAME + " - stream_id :" + to_string(m_stream_id) + ": created.");
 		}
 	}
 
@@ -293,11 +318,14 @@ void SendingProcess::updateDatabaseCounters()
 					      lastId,
 					      wStreamId);
 
+        string statistics_key = this->getName();
+	for (auto & c: statistics_key) c = toupper(c);
+
 	// Prepare "WHERE SENT_x = val
 	const Condition conditionStat(Equals);
 	Where wLastStat("key",
 			conditionStat,
-			getName());
+                        statistics_key);
 
 	// Prepare value = value + inc
 	ExpressionValues updateValue;
@@ -507,6 +535,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
                         streamId = sendingProcessConfig.getValue("stream_id");
                 } catch (std::exception* e) {
 
+                        delete e;
                         streamId = "0";
                 } catch (...) {
                         streamId = "0";

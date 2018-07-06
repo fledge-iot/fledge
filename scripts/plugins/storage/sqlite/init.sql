@@ -614,7 +614,7 @@ DELETE FROM foglamp.configuration;
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North_Readings_to_PI',
               'OMF North Plugin - C Code',
-              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" }, "stream_id" : { "type" : "integer", "value" : "1", "default" : "1", "description" : "Stream ID for sending Reading to PI using OMF" } } '
+              ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
 
@@ -641,18 +641,17 @@ INSERT INTO foglamp.configuration ( key, description, value )
             );
 
 -- Statistics
--- fixme
 INSERT INTO foglamp.statistics ( key, description, value, previous_value )
      VALUES ( 'READINGS',             'Readings received by FogLAMP since startup', 0, 0 ),
             ( 'BUFFERED',             'Readings currently in FogLAMP buffer', 0, 0 ),
-            ( 'North_Readings_to_PI', 'Readings sent to historian', 0, 0 ),
-            ( 'SENT_1',     'Readings sent to historian', 0, 0 ),
-            ( 'SENT_2',     'FogLAMP statistics data sent to historian', 0, 0 ),
-            ( 'SENT_4',     'Readings sent to OCS', 0, 0 ),
-            ( 'UNSENT',     'Readings filtered out in the send process', 0, 0 ),
-            ( 'PURGED',     'Readings removed from buffer by purge process', 0, 0 ),
-            ( 'UNSNPURGED', 'Readings that were purged from the buffer before being sent', 0, 0 ),
-            ( 'DISCARDED',  'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
+            ( 'NORTH_READINGS_TO_PI', 'Readings sent to historian', 0, 0 ),
+            ( 'SENT_1',               'Readings sent to historian', 0, 0 ),
+            ( 'SENT_2',               'FogLAMP statistics data sent to historian', 0, 0 ),
+            ( 'SENT_4',               'Readings sent to OCS', 0, 0 ),
+            ( 'UNSENT',               'Readings filtered out in the send process', 0, 0 ),
+            ( 'PURGED',               'Readings removed from buffer by purge process', 0, 0 ),
+            ( 'UNSNPURGED',           'Readings that were purged from the buffer before being sent', 0, 0 ),
+            ( 'DISCARDED',            'Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.', 0, 0 );
 
 --
 -- Scheduled processes

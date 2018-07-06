@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 	{
         std::string tmp_str;
 
-		// Instantiate SendingProcess class
+                // Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
                 
 		// Launch the load thread

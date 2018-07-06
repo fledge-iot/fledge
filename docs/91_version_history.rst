@@ -25,6 +25,37 @@ Version History
 FogLAMP v1
 ==========
 
+v1.3
+----
+
+Release Date: 2018-07-05
+
+
+New Features
+~~~~~~~~~~~~
+
+- **Python version upgrade**
+
+  - **python 3 version**: The minimal supported python version is now python 3.5.3. 
+
+- **aiohttp python package version upgrade**
+
+  - **aiohttp package version**: aiohttp (version 3.2.1) and aiohttp_cors (version 0.7.0) is now being used
+  
+- **Removal of south plugins**
+
+  - **coap**: coap south plugin was moved into its own repository https://github.com/foglamp/foglamp-south-coap
+  - **http**: http south plugin was moved into its own repository https://github.com/foglamp/foglamp-south-http
+
+
+Known Issues
+~~~~~~~~~~~~
+
+- **Issues in Documentation**
+
+  - **plugin documentation**: testing FogLAMP requires user to first install southbound plugins necessary (CoAP, http)
+
+
 
 v1.2
 ----

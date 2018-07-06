@@ -34,19 +34,18 @@ Release Date: 2018-07-05
 New Features
 ~~~~~~~~~~~~
 
-- **Changes in the REST API**
+- **Python version upgrade**
 
-  - **ping Method**: the ping method now returns uptime, number of records read/sent/purged and if FogLAMP requires REST API authentication.
+  - **python 3 version**: The minimal supported python version is now python 3.5.3. 
 
-- **Storage Layer**
+- **aiohttp python package version upgrade**
 
-  - **Default Storage Engine**: The default storage engine is now SQLite. We provide a script to migrate from PostgreSQL in 1.1.1 version to 1.2. PostgreSQL is still available in the main repository and package, but it will be removed to an operate repository in future versions. 
+  - **aiohttp package version**: aiohttp (version 3.2.1) and aiohttp_cors (version 0.7.0) is now being used
   
-- **Admin and Maintenance Scripts**
+- **Removal of south plugins**
 
-  - **foglamp status**: the command now shows what the ``ping`` REST method provides.
-  - **setenv script**: a new script has been added to simplify the user interaction. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *setenv.sh*.
-  - **foglamp service script**: a new service script has been added to setup FogLAMP as a service. The script is in *$FOGLAMP_ROOT/extras/scripts* and it is called *foglamp.service*.
+  - **coap**: coap south plugin was moved into its own repository https://github.com/foglamp/foglamp-south-coap
+  - **http**: http south plugin was moved into its own repository https://github.com/foglamp/foglamp-south-http
 
 
 Known Issues

@@ -60,7 +60,7 @@ class SendingProcess : public FogLampProcess
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
 		bool			loadPlugin(const std::string& pluginName);
-		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defaultConfig);
+		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defaultConfig, std::string plugin_name);
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);
                 SendingProcess&		operator=(SendingProcess const &);
@@ -80,6 +80,7 @@ class SendingProcess : public FogLampProcess
 		unsigned long			m_sleep;
 		unsigned long			m_block_size;
 		bool				m_update_db;
+    		std::string			m_plugin_name;
                 Logger*			        m_logger;
 
 };

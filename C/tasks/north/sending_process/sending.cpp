@@ -13,6 +13,7 @@
 
 // historian plugin to load
 #define PLUGIN_NAME "omf"
+#define PLUGIN_UNDEFINED "none"
 
 // The type of the plugin managed by the Sending Process
 #define PLUGIN_TYPE "north"
@@ -76,7 +77,6 @@ static string sendingDefaultConfig = R"(
         }
     )";
 
-
 volatile std::sig_atomic_t signalReceived = 0;
 
 // Handle Signals
@@ -128,17 +128,6 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 	Logger::getLogger()->info("SendingProcess is starting");
 
-        if (!loadPlugin(string(PLUGIN_NAME)))
-	{
-		string errMsg("SendingProcess: failed to load north plugin '");
-		errMsg.append(PLUGIN_NAME);
-		errMsg += "'.";
-
-		Logger::getLogger()->fatal(errMsg.c_str());
-
-		throw runtime_error(errMsg);
-	}
-
 	/**
 	 * Get Configuration from sending process and loaded plugin
 	 * Create or update configuration via FogLAMP API
@@ -154,7 +143,10 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
                                                '\t'),
                                    sendingDefaultConfig.end() );
 
-        const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig);
+	// Read the sending process configuration
+	// fixme
+	this->fetchConfiguration(sendingDefaultConfig,
+				 PLUGIN_UNDEFINED);
 
         m_logger->debug("%s - stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
 
@@ -201,6 +193,23 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
                         }
                 }
         }
+
+	if (!loadPlugin(string(m_plugin_name)))
+	{
+		string errMsg("SendingProcess: failed to load north plugin '");
+		errMsg.append(PLUGIN_NAME);
+		errMsg += "'.";
+
+		Logger::getLogger()->fatal(errMsg.c_str());
+
+		throw runtime_error(errMsg);
+	}
+
+	// Read the sending process configuration merged with the ones related to the loaded plugin
+	// fixme
+	const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig,
+								     m_plugin_name);
+
 
 
         // Init plugin with merged configuration from FogLAMP API
@@ -490,16 +499,21 @@ bool SendingProcess::createStream(int streamId)
  *
  * Return the configuration items as a map of JSON strings
  */
-const map<string, string>& SendingProcess::fetchConfiguration(const std::string& defaultConfig)
-{
-        // retrieves the configuration using the value of the --name parameter (received in the command line) as the key
-        string catName(getName());
-        Logger::getLogger()->debug("%s - catName :%s:", LOG_SERVICE_NAME.c_str(),  catName.c_str());
+const map<string, string>& SendingProcess::fetchConfiguration(const std::string& defaultConfig,
+							            std::string  plugin_name) {
+
+	// retrieves the configuration using the value of the --name parameter (received in the command line) as the key
+	string catName(getName());
+	Logger::getLogger()->debug("%s - catName :%s:", LOG_SERVICE_NAME.c_str(), catName.c_str());
 
 	// Build JSON merged configuration (sendingProcess + pluginConfig
 	string config("{ ");
-	config.append(this->m_plugin->config()[string(PLUGIN_CONFIG_KEY)]);
-	config += ", ";
+
+	if (plugin_name != PLUGIN_UNDEFINED) {
+
+		config.append(this->m_plugin->config()[string(PLUGIN_CONFIG_KEY)]);
+		config += ", ";
+	}
 	config.append(defaultConfig);
 	config += " }";
 
@@ -519,29 +533,35 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 			throw runtime_error(errMsg);
 		}
 
-		// Create types category, with "default" values only 
-		string configTypes("{ ");
-		configTypes.append(this->m_plugin->config()[string(PLUGIN_TYPES_KEY)]);
-		configTypes += " }";
+		if (plugin_name != PLUGIN_UNDEFINED) {
 
-		DefaultConfigCategory types(string(PLUGIN_TYPES_KEY), configTypes);
-		category.setDescription(CATEGORY_OMF_TYPES_DESCRIPTION);
+			// Create types category, with "default" values only
+			string configTypes("{ ");
+			configTypes.append(this->m_plugin->config()[string(PLUGIN_TYPES_KEY)]);
+			configTypes += " }";
 
-		if (!this->getManagementClient()->addCategory(types, true))
-		{
-			string errMsg("Failure creating/updating configuration key '");
-			errMsg.append(PLUGIN_TYPES_KEY);
-			errMsg += "'";
+			DefaultConfigCategory types(string(PLUGIN_TYPES_KEY), configTypes);
+			category.setDescription(CATEGORY_OMF_TYPES_DESCRIPTION);
 
-			Logger::getLogger()->fatal(errMsg.c_str());
-			throw runtime_error(errMsg);
+			if (!this->getManagementClient()->addCategory(types, true)) {
+				string errMsg("Failure creating/updating configuration key '");
+				errMsg.append(PLUGIN_TYPES_KEY);
+				errMsg += "'";
+
+				Logger::getLogger()->fatal(errMsg.c_str());
+				throw runtime_error(errMsg);
+			}
 		}
 
 		// Get the category with values and defaults
 		ConfigCategory sendingProcessConfig = this->getManagementClient()->getCategory(catName);
+		ConfigCategory pluginTypes;
 
-		// Get the category with values and defaults for OMF_TYPES
-		ConfigCategory pluginTypes = this->getManagementClient()->getCategory(string(PLUGIN_TYPES_KEY));
+		if (plugin_name != PLUGIN_UNDEFINED) {
+
+			// Get the category with values and defaults for OMF_TYPES
+			pluginTypes = this->getManagementClient()->getCategory(string(PLUGIN_TYPES_KEY));
+		}
 
 		/**
 		 * Handle the sending process parameters here
@@ -563,6 +583,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
                 } catch (...) {
                         streamId = "0";
                 }
+                m_plugin_name = sendingProcessConfig.getValue("plugin");
 
                 // Set member variables
 		m_block_size = strtoul(blockSize.c_str(), NULL, 10);
@@ -570,15 +591,19 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 		m_duration = strtoul(duration.c_str(), NULL, 10);
                 m_stream_id = strtoul(streamId.c_str(), NULL, 10);
 
-		Logger::getLogger()->info("SendingProcess configuration parameters: blockSize=%d, "
+		Logger::getLogger()->info("SendingProcess configuration parameters: pluginName=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",
+					  plugin_name,
 					  m_block_size,
 					  m_duration,
 					  m_sleep,
                                           m_stream_id);
 
 		globalConfiguration[string(GLOBAL_CONFIG_KEY)] = sendingProcessConfig.itemsToJSON();
-		globalConfiguration[string(PLUGIN_TYPES_KEY)] = pluginTypes.itemsToJSON();
+
+		if (plugin_name != PLUGIN_UNDEFINED) {
+			globalConfiguration[string(PLUGIN_TYPES_KEY)] = pluginTypes.itemsToJSON();
+		}
 
 		// Return both values & defaults for config items only
 		return globalConfiguration;

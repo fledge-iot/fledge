@@ -20,9 +20,25 @@ _logger = logger.setup(__name__)
 _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 
-class PluginDiscoveryInstalled(object):
+
+class PluginDiscovery(object):
+    def __init__(self):
+        pass
+
     @classmethod
-    def get_plugins(cls, plugin_type):
+    def get_plugins_installed(cls, plugin_type=None):
+        if plugin_type is None:
+            plugins_list = []
+            plugins_list_north = cls.fetch_plugins_installed("north")
+            plugins_list_south = cls.fetch_plugins_installed("south")
+            plugins_list.extend(plugins_list_north)
+            plugins_list.extend(plugins_list_south)
+        else:
+            plugins_list = cls.fetch_plugins_installed(plugin_type)
+        return plugins_list
+
+    @classmethod
+    def fetch_plugins_installed(cls, plugin_type):
         directories = cls.get_plugin_folders(plugin_type)
         configs = []
         for d in directories:
@@ -32,9 +48,9 @@ class PluginDiscoveryInstalled(object):
     @classmethod
     def get_plugin_folders(cls, plugin_type):
         directories = []
+        dir_name = _FOGLAMP_ROOT + "/python/foglamp/plugins/"+plugin_type
         try:
-            directories = [d for d in os.listdir(_FOGLAMP_ROOT + "/python/foglamp/plugins/"+plugin_type)
-                           if os.path.isdir(_FOGLAMP_ROOT + "/python/foglamp/plugins/" + plugin_type + "/" + d) and
+            directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
                            not d.startswith("__") and d != "empty" and d != "common"]
         except FileNotFoundError:
             pass

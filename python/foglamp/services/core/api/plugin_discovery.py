@@ -5,7 +5,7 @@
 # FOGLAMP_END
 
 from aiohttp import web
-from foglamp.common.plugin_discovery import PluginDiscoveryInstalled
+from foglamp.common.plugin_discovery import PluginDiscovery
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -35,13 +35,6 @@ async def get_plugins_installed(request):
     if plugin_type is not None and plugin_type not in ['north', 'south']:
         raise web.HTTPNotFound(reason="Invalid plugin type. Must be 'north' or 'south'.")
 
-    if plugin_type is None:
-        plugins_list = []
-        plugins_list_north = PluginDiscoveryInstalled.get_plugins("north")
-        plugins_list_south = PluginDiscoveryInstalled.get_plugins("south")
-        plugins_list.extend(plugins_list_north)
-        plugins_list.extend(plugins_list_south)
-    else:
-        plugins_list = PluginDiscoveryInstalled.get_plugins(plugin_type)
+    plugins_list = PluginDiscovery.get_plugins_installed(plugin_type)
 
     return web.json_response({"plugins": plugins_list})

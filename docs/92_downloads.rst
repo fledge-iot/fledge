@@ -92,7 +92,7 @@ FogLAMP and the FogLAMP tools are on GitHub. You can view and download them here
 Debian Packages
 ===============
 
-We have created Debian for Intel and ARM architectures. The packages have been tested on Ubuntu 16.04 and Raspbian Stretch.
+We have created Debian for Intel and ARM architectures. The packages have been tested on Ubuntu 16.04, Ubuntu 18.04 and Raspbian Stretch.
 
 FogLAMP Debian Packages for Intel
 ---------------------------------

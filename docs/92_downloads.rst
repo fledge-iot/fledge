@@ -44,11 +44,11 @@
 
 .. |intel 1.3 Ubuntu 16.04| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb">v1.3</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb">v1.3 Ubuntu 16.04</a>
 
 .. |intel 1.3 Ubuntu 18.04| raw:: html
 
-   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_18_04.deb">v1.3</a>
+   <a href="https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_18_04.deb">v1.3 Ubuntu 18.04</a>
 
 .. |arm 1.0| raw:: html
 

@@ -36,8 +36,10 @@ async def get_plugins_installed(request):
         raise web.HTTPNotFound(reason="Invalid plugin type. Must be 'north' or 'south'.")
 
     if plugin_type is None:
-        plugins_list = PluginDiscoveryInstalled.get_plugins("north")
+        plugins_list = []
+        plugins_list_north = PluginDiscoveryInstalled.get_plugins("north")
         plugins_list_south = PluginDiscoveryInstalled.get_plugins("south")
+        plugins_list.extend(plugins_list_north)
         plugins_list.extend(plugins_list_south)
     else:
         plugins_list = PluginDiscoveryInstalled.get_plugins(plugin_type)

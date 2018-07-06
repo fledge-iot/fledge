@@ -38,7 +38,8 @@ class PluginDiscoveryInstalled(object):
                            not d.startswith("__") and d != "empty" and d != "common"]
         except FileNotFoundError:
             pass
-        return directories
+        else:
+            return directories
 
     @classmethod
     def get_plugin_config(cls, plugin_name, plugin_type):

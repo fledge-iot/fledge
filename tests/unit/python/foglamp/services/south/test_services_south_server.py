@@ -178,7 +178,7 @@ class TestServicesSouthServer:
             await south_server._start(loop)
             await asyncio.sleep(.5)
         assert 1 == log_error.call_count
-        log_error.assert_called_once_with('Unable to load module |{}| for device plugin |{}| - error details |{}|'
+        log_error.assert_called_once_with('Unable to load module |{}| for South plugin |{}| - error details |{}|'
                                           .format(south_server._name, south_server._name, south_server._name))
 
         # THEN

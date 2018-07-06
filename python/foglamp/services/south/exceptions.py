@@ -38,5 +38,5 @@ class InvalidPluginTypeError(Exception):
 
 
 class DataRetrievalError(Exception):
-    """ Unable to retrieve data from the South service """
+    """ Unable to retrieve data from the South plugin """
     pass

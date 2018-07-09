@@ -33,10 +33,10 @@ class InvalidAddressError(Exception):
 
 
 class InvalidPluginTypeError(Exception):
-    """ Invalid plugin type, only the type -device- is allowed """
+    """ Invalid plugin type, only the type -south- is allowed """
     pass
 
 
 class DataRetrievalError(Exception):
-    """ Unable to retrieve data from the device """
+    """ Unable to retrieve data from the South plugin """
     pass

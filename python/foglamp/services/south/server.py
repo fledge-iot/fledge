@@ -47,7 +47,7 @@ class Server(FoglampMicroservice):
         "e000001": "cannot proceed the execution, only the type -south- is allowed "
                    "- plugin name |{0}| plugin type |{1}|",
         "e000002": "Unable to obtain configuration of module for plugin |{0}|",
-        "e000003": "Unable to load module |{0}| for device plugin |{1}| - error details |{0}|",
+        "e000003": "Unable to load module |{0}| for South plugin |{1}| - error details |{0}|",
     }
     """ Messages used for Information, Warning and Error notice """
 

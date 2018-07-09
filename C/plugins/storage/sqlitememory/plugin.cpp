@@ -116,6 +116,7 @@ unsigned long	  age, size;
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
+		manager->release(connection);
 		/**
 		 * Throw PluginNotImplementedException for purge by size in SQLite 
 		 */

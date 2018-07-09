@@ -6,6 +6,7 @@
 
 import http.client
 import json
+import urllib.parse
 from foglamp.common import logger
 from foglamp.common.microservice_management_client import exceptions as client_exceptions
 
@@ -34,7 +35,10 @@ class MicroserviceManagementClient(object):
         management interface for that microservice
         :return: a JSON object containing the UUID of the newly registered service
         """
-        self._management_client_conn.request(method='POST', url='/foglamp/service', body=json.dumps(service_registration_payload))
+        url = '/foglamp/service'
+        url = urllib.parse.quote(url)
+
+        self._management_client_conn.request(method='POST', url=url, body=json.dumps(service_registration_payload))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
@@ -63,7 +67,10 @@ class MicroserviceManagementClient(object):
         :param microservice_id: string UUID of microservice
         :return: a JSON object containing the UUID of the unregistered service
         """
-        self._management_client_conn.request(method='DELETE', url='/foglamp/service/{}'.format(microservice_id))
+        url = '/foglamp/service/{}'.format(microservice_id)
+        url = urllib.parse.quote(url)
+
+        self._management_client_conn.request(method='DELETE', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
@@ -91,8 +98,11 @@ class MicroserviceManagementClient(object):
         :return: A JSON object containing a registration ID for this registration
         """
 
+        url = '/foglamp/interest'
+        url = urllib.parse.quote(url)
+
         payload = json.dumps({"category": category, "service": microservice_id}, sort_keys=True)
-        self._management_client_conn.request(method='POST', url='/foglamp/interest', body=payload)
+        self._management_client_conn.request(method='POST', url=url, body=payload)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
@@ -118,7 +128,10 @@ class MicroserviceManagementClient(object):
         :param registered_interest_id: registered interest id for a configuration category
         :return: A JSON object containing the unregistered interest id
         """
-        self._management_client_conn.request(method='DELETE', url='/foglamp/interest/{}'.format(registered_interest_id))
+        url = '/foglamp/interest/{}'.format(registered_interest_id)
+        url = urllib.parse.quote(url)
+
+        self._management_client_conn.request(method='DELETE', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
@@ -152,6 +165,8 @@ class MicroserviceManagementClient(object):
         if service_type:
             url = '{}{}type={}'.format(url, delimeter, service_type)
 
+        url = urllib.parse.quote(url)
+
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
@@ -182,6 +197,8 @@ class MicroserviceManagementClient(object):
         if category_name:
             url = "{}/{}".format(url, category_name)
 
+        url = urllib.parse.quote(url)
+
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
@@ -203,6 +220,7 @@ class MicroserviceManagementClient(object):
         :return:
         """
         url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
+        url = urllib.parse.quote(url)
 
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
@@ -224,6 +242,7 @@ class MicroserviceManagementClient(object):
         :return:
         """
         url = '/foglamp/service/category'
+        url = urllib.parse.quote(url)
 
         self._management_client_conn.request(method='POST', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
@@ -247,6 +266,7 @@ class MicroserviceManagementClient(object):
         :return:
         """
         url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
+        url = urllib.parse.quote(url)
 
         self._management_client_conn.request(method='PUT', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
@@ -269,6 +289,7 @@ class MicroserviceManagementClient(object):
         :return:
         """
         url = "/foglamp/service/category/{}/{}/value".format(category_name, config_item)
+        url = urllib.parse.quote(url)
 
         self._management_client_conn.request(method='DELETE', url=url)
         r = self._management_client_conn.getresponse()

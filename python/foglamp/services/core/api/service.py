@@ -13,6 +13,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core import server
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import StartUpSchedule
+from foglamp.common.storage_client.exceptions import StorageServerError
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -68,7 +69,7 @@ async def add_service(request):
     Create a new service to run a specific plugin
 
     :Example:
-             curl -X POST /foglamp/service -d '{"name": "furnace4", "type": "south", "plugin": "dht11"}'
+             curl -X POST http://localhost:8081/foglamp/service -d '{"name": "DHT 11", "type": "south", "plugin": "dht11", "enabled": true}'
     """
 
     try:
@@ -95,46 +96,50 @@ async def add_service(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-        storage = connect.get_storage_async()
-
-        # Check that the process name is not already registered
-        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
-        result = await storage.query_tbl_with_payload('scheduled_processes', payload)
-        count = result['count']
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A service with that name already exists')
-
-        # Check that the schedule name is not already registered
-        payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', name]).payload()
-        result = await storage.query_tbl_with_payload('schedules', payload)
-        count = result['count']
-        if count != 0:
-            raise web.HTTPBadRequest(reason='A schedule with that name already exists')
-
-        # First create the scheduled process entry for our new service
-        if service_type == 'south':
-            script = '["services/south"]'
-            plugin_module_path = "foglamp.plugins.south"
-        if service_type == 'north':
-            script = '["services/north"]'
-            plugin_module_path = "foglamp.plugins.north"
-        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
-        try:
-            res = await storage.insert_into_tbl("scheduled_processes", payload)
-        except Exception as ins_ex:
-            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
-
-        # Now load the plugin to fetch its configuration
+        # ---------------------------------------- Sanity checks
+        # Check if a valid plugin has been provided
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
+            plugin_module_path = "foglamp.plugins.south" if service_type == 'south' else \
+                                 "foglamp.plugins.north" if service_type == 'north' else None
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
             _plugin = __import__(import_file_name, fromlist=[''])
 
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config = plugin_info['config']
+        except ImportError as ex:
+            raise web.HTTPInternalServerError(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
+        # Check that the process name is not already registered
+        count = await check_scheduled_processes(name)
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A service with that name already exists')
+
+        # Check that the schedule name is not already registered
+        count = await check_schedules(name)
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A schedule with that name already exists')
+        # ----------------------------------------
+
+        # Now first create the scheduled process entry for the new service
+        storage = connect.get_storage_async()
+        script = '["services/south"]' if service_type == 'south' else \
+                 '["services/north"]' if service_type == 'north' else None
+        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
+        try:
+            res = await storage.insert_into_tbl("scheduled_processes", payload)
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
+        except Exception as ins_ex:
+            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
+
+        # If successful then create a configuration entry from plugin configuration
+        try:
             # Create a configuration category from the configuration defined in the plugin
             category_desc = plugin_config['plugin']['description']
             config_mgr = ConfigurationManager(storage)
@@ -143,24 +148,59 @@ async def add_service(request):
                                              category_value=plugin_config,
                                              keep_original_items=True)
         except ImportError as ex:
+            await revert_scheduled_processes(plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:
+            await revert_scheduled_processes(plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
-        # Next add a schedule to run the new service at startup
-        schedule = StartUpSchedule()  # TODO: For North plugin also?
-        schedule.name = name
-        schedule.process_name = name
-        schedule.repeat = datetime.timedelta(0)
-        schedule.exclusive = True
-        schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
+        # If all successful then lastly add a schedule to run the new service at startup
+        try:
+            schedule = StartUpSchedule()
+            schedule.name = name
+            schedule.process_name = name
+            schedule.repeat = datetime.timedelta(0)
+            schedule.exclusive = True
+            schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
 
-        # Save schedule
-        await server.Server.scheduler.save_schedule(schedule, is_enabled)
-        schedule = await server.Server.scheduler.get_schedule_by_name(name)
+            # Save schedule
+            await server.Server.scheduler.save_schedule(schedule, is_enabled)
+            schedule = await server.Server.scheduler.get_schedule_by_name(name)
+        except StorageServerError as ex:
+            await revert_configuration(name)  # Revert configuration entry
+            await revert_scheduled_processes(name)  # Revert scheduled_process entry
+            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
+        except Exception as ins_ex:
+            await revert_configuration(name)  # Revert configuration entry
+            await revert_scheduled_processes(name)  # Revert scheduled_process entry
+            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
 
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
 
+
+async def check_schedules(schedule_name):
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('scheduled_processes', payload)
+    return result['count']
+
+async def check_scheduled_processes(process_name):
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', process_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result['count']
+
+async def revert_scheduled_processes(process_name):
+    return
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
+    result = await storage.delete_from_tbl('scheduled_processes', payload)
+
+async def revert_configuration(key):
+    return
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    result = await storage.delete_from_tbl('configuration', payload)

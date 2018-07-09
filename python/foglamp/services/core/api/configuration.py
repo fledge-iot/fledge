@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 from aiohttp import web
+import urllib.parse
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -59,7 +60,7 @@ async def get_category(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/category/PURGE_READ
     """
-    category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(request.match_info.get('category_name', None))
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -131,8 +132,8 @@ async def get_category_item(request):
     :Example:
             curl -X GET http://localhost:8081/foglamp/category/PURGE_READ/age
     """
-    category_name = request.match_info.get('category_name', None)
-    config_item = request.match_info.get('config_item', None)
+    category_name = urllib.parse.unquote(request.match_info.get('category_name', None))
+    config_item = urllib.parse.unquote(request.match_info.get('config_item', None))
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -159,8 +160,8 @@ async def set_configuration_item(request):
         curl -X PUT -H "Content-Type: application/json" -d '{"value": 24}' http://localhost:8081/foglamp/category/PURGE_READ/age
 
     """
-    category_name = request.match_info.get('category_name', None)
-    config_item = request.match_info.get('config_item', None)
+    category_name = urllib.parse.unquote(request.match_info.get('category_name', None))
+    config_item = urllib.parse.unquote(request.match_info.get('config_item', None))
 
     data = await request.json()
     # TODO: make it optimized and elegant
@@ -196,8 +197,8 @@ async def add_configuration_item(request):
         curl -d '{"default": "true", "description": "Test description", "type": "boolean"}' -X POST https://localhost:1995/foglamp/category/{category_name}/{new_config_item} --insecure
         curl -d '{"default": "true", "description": "Test description", "type": "boolean", "value": "false"}' -X POST https://localhost:1995/foglamp/category/{category_name}/{new_config_item} --insecure
     """
-    category_name = request.match_info.get('category_name', None)
-    new_config_item = request.match_info.get('config_item', None)
+    category_name = urllib.parse.unquote(request.match_info.get('category_name', None))
+    new_config_item = urllib.parse.unquote(request.match_info.get('config_item', None))
 
     try:
         storage_client = connect.get_storage_async()
@@ -266,8 +267,8 @@ async def delete_configuration_item_value(request):
         curl -X DELETE http://localhost:8081/foglamp/category/PURGE_READ/age/value
 
     """
-    category_name = request.match_info.get('category_name', None)
-    config_item = request.match_info.get('config_item', None)
+    category_name = urllib.parse.unquote(request.match_info.get('category_name', None))
+    config_item = urllib.parse.unquote(request.match_info.get('config_item', None))
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())

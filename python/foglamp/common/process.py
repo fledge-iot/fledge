@@ -79,7 +79,7 @@ class FoglampProcess(ABC):
         try:    
             self._core_management_host = self.get_arg_value("--address")
             self._core_management_port = self.get_arg_value("--port")
-            self._name = self.get_arg_value("--name")
+            self._name = self.get_arg_value("--name").replace("+"," ")
         except ArgumentParserError:
             raise
         if self._core_management_host is None:

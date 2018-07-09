@@ -617,7 +617,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
-
 -- SEND_PR_1 - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'SEND_PR_1',

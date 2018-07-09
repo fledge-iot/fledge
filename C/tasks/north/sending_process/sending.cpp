@@ -11,9 +11,7 @@
 #include <sending.h>
 #include <csignal>
 
-// historian plugin to load
-#define PLUGIN_NAME "omf"
-#define PLUGIN_UNDEFINED "none"
+#define PLUGIN_UNDEFINED ""
 
 // The type of the plugin managed by the Sending Process
 #define PLUGIN_TYPE "north"
@@ -39,43 +37,28 @@ const string LOG_SERVICE_NAME = "SendingProcess/sending";
 static map<string, string> globalConfiguration = {};
 
 // Sending process default configuration
-static string sendingDefaultConfig = R"(
-    	"enable": {
-    		"description": "A switch that can be used to enable or disable execution of the sending process.",
-                "type":        "boolean",
-                "default":     "True"
-        },
-        "duration": {
-                "description": "How long the sending process should run (in seconds) before stopping.",
-                "type": "integer",
-                "default": "60"
-        },
-        "source": {
-                "description": "Defines the source of the data to be sent on the stream, this may be one of either readings, statistics or audit.",
-                "type": "string",
-                "default": "readings"
-        },
-    	"blockSize": {
-    		"description": "The size of a block of readings to send in each transmission.",
-    		"type": "integer",
-                "default": "500"
-        },
-    	"sleepInterval": {
-    		"description": "A period of time, expressed in seconds, to wait between attempts to send readings when there are no readings to be sent.",
-                "type": "integer",
-                "default": "1"
-        },
-    	"north": {
-    		"description": "The name of the north to use to translate the readings into the output format and send them",
-                "type": "string",
-                "default": "omf"
-        },
-    	"streamId": {
-    		"description": "Identifies the specific stream to handle and the related information,among them the ID of the last object streamed.",
-                "type": "integer",
-                "default": "0"
-        }
-    )";
+static const string sendingDefaultConfig =
+	"\"enable\": {"
+		"\"description\": \"A switch that can be used to enable or disable execution of "
+		"the sending process.\", \"type\": \"boolean\", \"default\": \"True\" },"
+	"\"duration\": {"
+		"\"description\": \"How long the sending process should run (in seconds) before stopping.\", "
+		"\"type\": \"integer\", \"default\": \"60\" }, "
+	"\"source\": {"
+		"\"description\": \"Defines the source of the data to be sent on the stream, "
+		"this may be one of either readings, statistics or audit.\", \"type\": \"string\", "
+		"\"default\": \"readings\" }, "
+	"\"blockSize\": {"
+		"\"description\": \"The size of a block of readings to send in each transmission.\", "
+		"\"type\": \"integer\", \"default\": \"500\" }, "
+	"\"sleepInterval\": {"
+		"\"description\": \"A period of time, expressed in seconds, "
+		"to wait between attempts to send readings when there are no "
+		"readings to be sent.\", \"type\": \"integer\", \"default\": \"1\" }, "
+	"\"streamId\": {"
+		"\"description\": \"Identifies the specific stream to handle and the related information,"
+		" among them the ID of the last object streamed.\", \"type\": \"integer\", \"default\": \"0\" }";
+
 
 volatile std::sig_atomic_t signalReceived = 0;
 
@@ -104,6 +87,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 	// the stream_id to use is retrieved from the configuration
         m_stream_id = -1;
+	m_plugin_name = PLUGIN_UNDEFINED;
 
         int i;
         for(i=0 ; i < argc ; i++)
@@ -132,21 +116,36 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 	 * Get Configuration from sending process and loaded plugin
 	 * Create or update configuration via FogLAMP API
 	 */
-        // Cleanups the string
-        sendingDefaultConfig.erase(std::remove(sendingDefaultConfig.begin(),
-                                               sendingDefaultConfig.end(),
-                                               '\r'),
-                                   sendingDefaultConfig.end() );
 
-        sendingDefaultConfig.erase(std::remove(sendingDefaultConfig.begin(),
-                                               sendingDefaultConfig.end(),
-                                               '\t'),
-                                   sendingDefaultConfig.end() );
-
-	// Read the sending process configuration
-	// fixme
+	// Reads the sending process configuration
 	this->fetchConfiguration(sendingDefaultConfig,
 				 PLUGIN_UNDEFINED);
+
+        if (m_plugin_name == PLUGIN_UNDEFINED) {
+
+                // Ends the execution if the plug-in is not defined
+
+                string errMsg(LOG_SERVICE_NAME + " - the plugin-in is not defined for the sending process :" +  this->getName() + " :.");
+
+                m_logger->fatal(errMsg);
+                throw runtime_error(errMsg);
+        }
+
+        // Loads the plug-in
+        if (!loadPlugin(string(m_plugin_name)))
+        {
+                string errMsg("SendingProcess: failed to load north plugin '");
+                errMsg.append(m_plugin_name);
+                errMsg += "'.";
+
+                Logger::getLogger()->fatal(errMsg);
+
+                throw runtime_error(errMsg);
+        }
+
+        // Reads the sending process configuration merged with the ones related to the loaded plugin
+        const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig,
+                                                                     m_plugin_name);
 
         m_logger->debug("%s - stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
 
@@ -193,24 +192,6 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
                         }
                 }
         }
-
-	if (!loadPlugin(string(m_plugin_name)))
-	{
-		string errMsg("SendingProcess: failed to load north plugin '");
-		errMsg.append(PLUGIN_NAME);
-		errMsg += "'.";
-
-		Logger::getLogger()->fatal(errMsg.c_str());
-
-		throw runtime_error(errMsg);
-	}
-
-	// Read the sending process configuration merged with the ones related to the loaded plugin
-	// fixme
-	const map<string, string>& config = this->fetchConfiguration(sendingDefaultConfig,
-								     m_plugin_name);
-
-
 
         // Init plugin with merged configuration from FogLAMP API
 	this->m_plugin->init(config);
@@ -503,7 +484,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 							            std::string  plugin_name) {
 
 	// retrieves the configuration using the value of the --name parameter (received in the command line) as the key
-	string catName(getName());
+	string catName(this->getName());
 	Logger::getLogger()->debug("%s - catName :%s:", LOG_SERVICE_NAME.c_str(), catName.c_str());
 
 	// Build JSON merged configuration (sendingProcess + pluginConfig
@@ -583,7 +564,17 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
                 } catch (...) {
                         streamId = "0";
                 }
-                m_plugin_name = sendingProcessConfig.getValue("plugin");
+
+                // sets to undefined if not defined in the configuration
+                try {
+                        m_plugin_name = sendingProcessConfig.getValue("plugin");
+                } catch (std::exception* e) {
+
+                        delete e;
+                        m_plugin_name = PLUGIN_UNDEFINED;
+                } catch (...) {
+                        m_plugin_name = PLUGIN_UNDEFINED;
+                }
 
                 // Set member variables
 		m_block_size = strtoul(blockSize.c_str(), NULL, 10);
@@ -593,7 +584,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: pluginName=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",
-					  plugin_name,
+					  plugin_name.c_str(),
 					  m_block_size,
 					  m_duration,
 					  m_sleep,

@@ -145,13 +145,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # If Entry item exists in optional list, then update expected item entries
                 if entry_name in optional_item_entries:
                     if entry_name == 'readonly':
-                        if entry_val.lower() not in ("true", "false"):
-                            raise ValueError('Unrecognized value for entry_name {}'.format(entry_name))
+                        if self._validate_type_value('boolean', entry_val) is False:
+                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
                     else:
-                        try:
-                            _value = int(entry_val)
-                        except Exception:
-                            raise ValueError('Unrecognized value for entry_name {}'.format(entry_name))
+                        if self._validate_type_value('integer', entry_val) is False:
+                            raise ValueError('Unrecognized value for item_name {}'.format(entry_name))
 
                     d = {entry_name: entry_val}
                     expected_item_entries.update(d)
@@ -176,9 +174,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if set_value_val_from_default_val:
                 if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
                     raise ValueError('Unrecognized value for item_name {}'.format(item_name))
+                if 'readonly' in item_val:
+                    item_val['readonly'] = self._clean('boolean',  item_val['readonly'])
+
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
-
+       
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):

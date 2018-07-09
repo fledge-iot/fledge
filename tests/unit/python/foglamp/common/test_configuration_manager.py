@@ -2,8 +2,10 @@
 
 import asyncio
 import json
+import ipaddress
 from unittest.mock import MagicMock, patch, call
 import pytest
+
 
 from foglamp.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _valid_type_strings, _logger
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -341,16 +343,25 @@ class TestConfigurationManager:
         assert 'Unrecognized entry_name unrecognized for item_name test_item_name' in str(
             excinfo.value)
 
-    @pytest.mark.parametrize("test_input", _valid_type_strings)
+    @pytest.mark.parametrize("test_input, test_value", [
+        ("boolean", "false"),
+        ("integer", "123"),
+        ("string", "blah"),
+        ("IPv4", "127.0.0.1"),
+        ("IPv6", "2001:db8::"),
+        ("password", "not implemented"),
+        ("X509 certificate", "not implemented"),
+        #("JSON", "Blocked from FOGL-985")
+    ])
     @pytest.mark.asyncio
-    async def test__validate_category_val_valid_type(self, reset_singleton, test_input):
+    async def test__validate_category_val_valid_type(self, reset_singleton, test_input, test_value):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config = {
             "test_item_name": {
                 "description": "test description val",
                 "type": test_input,
-                "default": "test default val",
+                "default": test_value,
             },
         }
         c_return_value = await c_mgr._validate_category_val(category_val=test_config, set_value_val_from_default_val=True)
@@ -742,7 +753,7 @@ class TestConfigurationManager:
         category_name = 'catname'
         item_name = 'itemname'
         new_value_entry = 'newvalentry'
-        with patch.object(ConfigurationManager, '_read_value_val', return_value=async_mock({})) as readpatch:
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock({'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'})) as readpatch:
             with patch.object(ConfigurationManager, '_update_value_val', return_value=async_mock(None)) as updatepatch:
                 with patch.object(ConfigurationManager, '_run_callbacks', return_value=async_mock(None)) as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
@@ -753,8 +764,8 @@ class TestConfigurationManager:
     @pytest.mark.asyncio
     async def test_set_category_item_value_entry_bad_update(self, reset_singleton):
 
-        async def async_mock(return_value):
-            return return_value
+        async def async_mock():
+            return {'value': 'test', 'description': 'Test desc', 'type': 'string', 'default': 'test'}
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -762,7 +773,7 @@ class TestConfigurationManager:
         item_name = 'itemname'
         new_value_entry = 'newvalentry'
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_value_val', return_value=async_mock({})) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock()) as readpatch:
                 with patch.object(ConfigurationManager, '_update_value_val', side_effect=Exception()) as updatepatch:
                     with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                         with pytest.raises(Exception):
@@ -786,7 +797,7 @@ class TestConfigurationManager:
         item_name = 'itemname'
         new_value_entry = 'newvalentry'
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_value_val', return_value=async_mock(None)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(None)) as readpatch:
                 with patch.object(ConfigurationManager, '_update_value_val') as updatepatch:
                     with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                         with pytest.raises(ValueError) as excinfo:
@@ -811,12 +822,28 @@ class TestConfigurationManager:
         item_name = 'itemname'
         new_value_entry = 'newvalentry'
 
-        with patch.object(ConfigurationManager, '_read_value_val', return_value=async_mock(new_value_entry)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock(new_value_entry)) as readpatch:
             with patch.object(ConfigurationManager, '_update_value_val') as updatepatch:
                 with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 callbackpatch.assert_not_called()
             updatepatch.assert_not_called()
+        readpatch.assert_called_once_with(category_name, item_name)
+
+    async def test_set_category_item_invalid_type_value(self, reset_singleton):
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'catname'
+        item_name = 'itemname'
+        new_value_entry = 'newvalentry'
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=async_mock({'value': 'test', 'description': 'Test desc', 'type': 'boolean', 'default': 'test'})) as readpatch:
+            with pytest.raises(Exception) as excinfo:
+                await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
+            assert excinfo.type is TypeError
+            assert 'Unrecognized value name for item_name itemname' == str(excinfo.value)
         readpatch.assert_called_once_with(category_name, item_name)
 
     @pytest.mark.asyncio
@@ -1611,3 +1638,30 @@ class TestConfigurationManager:
             with pytest.raises(ValueError) as excinfo:
                 await c_mgr._create_child("south", "http")
             assert str(msg) == str(excinfo.value)
+
+    @pytest.mark.parametrize("item_type, item_val, result", [
+        ("boolean", "True", "true"),
+        ("boolean", "true", "true"),
+        ("boolean", "false", "false"),
+        ("boolean", "False", "false"),
+        #('JSON', 'BLOCKED', 'FOGL-985')
+    ])
+    async def test__clean(self, item_type, item_val, result):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        assert result == c_mgr._clean(item_type, item_val)
+
+    @pytest.mark.parametrize("item_type, item_val, result", [
+        ("boolean", "false", True),
+        ("boolean", "true", True),
+        ("integer", "123", True),
+        ("IPv4", "127.0.0.1", ipaddress.IPv4Address('127.0.0.1')),
+        ("IPv6", "2001:db8::", ipaddress.IPv6Address('2001:db8::')),
+        ("password", "not implemented", None),
+        ("X509 certificate", "not implemented", None),
+        # ("JSON", "Blocked from FOGL-985")
+    ])
+    async def test__validate_type_value(self,item_type, item_val, result):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        assert result == c_mgr._validate_type_value(item_type, item_val)

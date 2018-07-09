@@ -18,33 +18,53 @@
 class ConfigurationManager {
         public:
 		static ConfigurationManager*	getInstance(const std::string&, short unsigned int);
-		// Called by GET /foglamp/service/category
+		// Called by microservice management API or the admin API:
+		// GET /foglamp/service/category
+		// GET /foglamp//category
 		ConfigCategories		getAllCategoryNames() const;
-		// Called by GET /foglamp/service/category/{category_name}
+		// Called by microservice management API or the admin API:
+		// GET /foglamp/service/category/{category_name}
+		// GET /foglamp/category/{category_name}
 		ConfigCategory			getCategoryAllItems(const std::string& categoryName) const;
-		// Called by POST /foglamp/service/category
+		// Called by microservice management API or the admin API:
+		// POST /foglamp/service/category
+		// POST /foglamp/category
 		ConfigCategory			createCategory(const std::string& categoryName,
 							       const std::string& categoryDescription,
 							       const std::string& categoryItems) const;
-		// Called by GET /foglamp/category/{categoryName}/{configItem}
+		// Called by microservice management API or the admin API:
+		// GET /foglamp/service/category/{categoryName}/{configItem}
+		// GET /foglamp/category/{categoryName}/{configItem}
 		std::string			getCategoryItem(const std::string& categoryName,
 								const std::string& itemName) const;
-		// Called by PUT /foglamp/category/{categoryName}/{configItem}
+		// Called by microservice management API or the admin API:
+		// PUT /foglamp/service/category/{categoryName}/{configItem}
+		// PUT /foglamp/service/{categoryName}/{configItem}
 		bool				setCategoryItemValue(const std::string& categoryName,
 								     const std::string& itemName,
 								     const std::string& newValue) const;
-		// Called by POST /foglamp/category/south/children
+		// Called by microservice management API or the admin API:
+		// POST /foglamp/service/category/{categoryName}/children
+		// POST /foglamp/category/{categoryName}/children
 		std::string			addChildCategory(const std::string& parentCategoryName,
 								 const std::string& childCategories) const;
-		// Called by GET /foglamp/category/{categoryName}/children
+		// Called by microservice management API or the admin API:
+		// GET /foglamp/service/category/{categoryName}/children
+		// GET /foglamp/category/{categoryName}/children
 		ConfigCategories		getChildCategories(const std::string& parentCategoryName) const;
-		// Called by DELETE /foglamp/category/{CategoryName}/children/{ChildCategory}
+		// Called by microservice management API or the admin API:
+		// DELETE /foglamp/service/category/{CategoryName}/children/{ChildCategory}
+		// DELETE /foglamp/category/{CategoryName}/children/{ChildCategory}
 		std::string			deleteChildCategory(const std::string& parentCategoryName,
 								    const std::string& childCategory) const;
-		// Called by DELETE /foglamp/category/{categoryName}/{configItem}/value
+		// Called by microservice management API or the admin API:
+		// DELETE /foglamp/service/category/{categoryName}/{configItem}/value
+		// DELETE /foglamp/category/{categoryName}/{configItem}/value
 		std::string 			deleteCategoryItemValue(const std::string& categoryName,
 									const std::string& itemName) const;
-		// Called by DELETE /foglamp/category/{categoryName}
+		// Called by microservice management API or the admin API:
+		// DELETE /foglamp/service/category/{categoryName}
+		// DELETE /foglamp/category/{categoryName}
 		ConfigCategories		deleteCategory(const std::string& categoryName) const;
 		// Internal usage
 		std::string			getCategoryItemValue(const std::string& categoryName,

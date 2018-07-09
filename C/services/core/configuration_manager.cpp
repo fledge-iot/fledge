@@ -210,8 +210,7 @@ ConfigCategory ConfigurationManager::getCategoryAllItems(const string& categoryN
 			// Free result set
 			delete categoryItems;
 		}
-		// Raise the specific exception
-		throw NoSuchCategory();
+		throw;
 	}
 	catch (...)
 	{
@@ -653,7 +652,7 @@ string ConfigurationManager::addChildCategory(const string& parentCategoryName,
 		throw ChildCategoriesEx();
 	}
 
-	bool skipInsert = false;
+	unsigned int rowsAdded = 0;
 
 	ResultSet* categoryItems = 0;
 
@@ -709,7 +708,6 @@ string ConfigurationManager::addChildCategory(const string& parentCategoryName,
 			{
 				// Free result set
 				delete categoryItems;
-				skipInsert = true;
 				continue;
 			}
 
@@ -727,6 +725,9 @@ string ConfigurationManager::addChildCategory(const string& parentCategoryName,
 			 * parent/child presence above
 			 */
 			m_storage->insertTable("category_children", newCategory);
+
+			// Increment counter
+			rowsAdded++;
 		}
 		catch (std::exception* e)
 		{
@@ -737,6 +738,15 @@ string ConfigurationManager::addChildCategory(const string& parentCategoryName,
 				delete categoryItems;
 			}
 			throw ChildCategoriesEx();
+		}
+		catch (NoSuchCategory& e)
+		{
+			if (categoryItems)
+			{
+				// Free result set
+				delete categoryItems;
+			}
+			throw;
 		}
 		catch (...)
 		{
@@ -749,8 +759,8 @@ string ConfigurationManager::addChildCategory(const string& parentCategoryName,
 		}
 	}
 
-	// If no insert succeded abort
-	if (skipInsert)
+	// If no rows have been inserted, then abort
+	if (!rowsAdded)
 	{
 		throw ExistingChildCategories();
 	}
@@ -993,10 +1003,7 @@ string ConfigurationManager::deleteCategoryItemValue(const string& categoryName,
 	}
 	catch (NoSuchCategoryItem& e)
 	{
-                string errMsg("No details found for the category_name: " + categoryName);
-                errMsg += " and config_item: " + itemName;
-
-		throw NoSuchCategoryItem(errMsg);
+		throw;
 	}
 	catch (...)
 	{
@@ -1053,6 +1060,10 @@ ConfigCategories ConfigurationManager::deleteCategory(const string& categoryName
 		{
 			return getAllCategoryNames();
 		}
+	}
+	catch (NoSuchCategory& ex)
+	{
+		throw;
 	}
 	catch (...)
 	{

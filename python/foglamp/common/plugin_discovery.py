@@ -42,7 +42,9 @@ class PluginDiscovery(object):
         directories = cls.get_plugin_folders(plugin_type)
         configs = []
         for d in directories:
-            configs.append(cls.get_plugin_config(d, plugin_type))
+            plugin_config = cls.get_plugin_config(d, plugin_type)
+            if plugin_config is not None:
+                configs.append(plugin_config)
         return configs
 
     @classmethod
@@ -60,11 +62,10 @@ class PluginDiscovery(object):
     @classmethod
     def get_plugin_config(cls, plugin_name, plugin_type):
         plugin_module_path = "foglamp.plugins.south" if plugin_type == 'south' else "foglamp.plugins.north"
+        plugin_config = None
 
         # Now load the plugin to fetch its configuration
         try:
-            # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
-            # folder, within the plugin_module_path.
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin_name, file=plugin_name)
             _plugin = __import__(import_file_name, fromlist=[''])
 
@@ -77,14 +78,8 @@ class PluginDiscovery(object):
                 'version': plugin_info['version']
             }
         except ImportError as ex:
-            plugin_config = {
-                'name': plugin_name,
-                'description': 'Plugin "{}" import problem from path "{}". {}'.format(plugin_name, plugin_module_path, str(ex))
-            }
+            _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_name, plugin_module_path, str(ex)))
         except Exception as ex:
-            plugin_config = {
-                'name': plugin_name,
-                'description': 'Plugin "{}" raised exception "{}" while fetching config'.format(plugin_name, str(ex))
-            }
+            _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_name, str(ex)))
 
         return plugin_config

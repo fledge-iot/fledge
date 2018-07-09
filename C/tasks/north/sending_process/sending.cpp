@@ -10,6 +10,7 @@
 
 #include <sending.h>
 #include <csignal>
+#include <sys/prctl.h>
 
 #define PLUGIN_UNDEFINED ""
 
@@ -65,7 +66,10 @@ volatile std::sig_atomic_t signalReceived = 0;
 // Handle Signals
 static void signalHandler(int signal)
 {
-  signalReceived = signal;
+
+        Logger::getLogger()->debug("%s - signal received :%d:", LOG_SERVICE_NAME.c_str(), signal);
+
+        signalReceived = signal;
 }
 
 /**
@@ -222,12 +226,17 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 // While running check signals and execution time
 void SendingProcess::run() const
 {
+
+        // Requests the kernel to deliver SIGHUP when parent dies
+        prctl(PR_SET_PDEATHSIG, SIGHUP);
+
 	// We handle these signals, add more if needed
+        std::signal(SIGHUP,  signalHandler);
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
 
-	// Check running time
+        // Check running time
 	time_t elapsedSeconds = 0;
 	while (elapsedSeconds < (time_t)m_duration)
 	{

@@ -37,7 +37,7 @@ Let's get started! In this chapter we will see where to find and how to build, i
 FogLAMP Platforms
 =================
 
-Due to the use of standard libraries, FogLAMP can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04, Ubuntu Core 16 and Raspbian, but we have installed and tested FogLAMP on other Linux distributions. In addition to the native support, FogLAMP can also run on Virtual Machines, Docker and LXC containers.
+Due to the use of standard libraries, FogLAMP can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 16.04, Ubuntu LTS 18.04, Ubuntu Core 16 and Raspbian, but we have installed and tested FogLAMP on other Linux distributions. In addition to the native support, FogLAMP can also run on Virtual Machines, Docker and LXC containers.
 
 
 General Requirements
@@ -46,7 +46,7 @@ General Requirements
 This version of FogLAMP requires the following software to be installed in the same environment:
 
 - **Avahi 0.6.32+**
-- **Python 3.5+**
+- **Python 3.5.3+**
 - **PostgreSQL 9.5+**
 - **SQLite 3.11+**
 
@@ -61,7 +61,7 @@ You may also want to install some utilities to make your life easier when you us
 Building FogLAMP
 ================
 
-In this section we will describe how to build FogLAMP on Ubuntu 16.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
+In this section we will describe how to build FogLAMP on Ubuntu 16.04 LTS (Server or Desktop), Ubuntu 18.04 LTS (Server or Desktop). Other Linux distributions, Debian or Red-Hat based, or even other versions of Ubuntu may differ. If you are not familiar with Linux and you do not want to build FogLAMP from the source code, you can download a ready-made Debian package (the list of packages is `available here <92_downloads.html>`_).
 
 
 Build Pre-Requisites
@@ -105,7 +105,7 @@ FogLAMP is currently based on C/C++ and Python code. The packages needed to buil
   Building dependency tree
   ...
   $
-  $ sudo apt-get install sqlite3 libslite3-dev
+  $ sudo apt-get install sqlite3 libsqlite3-dev
   Reading package lists... Done
   Building dependency tree
   ...
@@ -298,7 +298,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   FogLAMP starting.
   $
   $ scripts/foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP uptime:  175 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -418,7 +418,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 9.5 is the version available for Ubuntu 16.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 9.5 is the version available for Ubuntu 16.04 and Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -703,7 +703,7 @@ Here are some extra notes for the CentOS users.
 
 .. code-block:: console
 
-  Starting FogLAMP v1.2.FogLAMP cannot start.
+  Starting FogLAMP v1.3.FogLAMP cannot start.
   Check /home/foglamp/FogLAMP/data/core.err for more information.
 
 Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP running, it means that the services are up and running.
@@ -711,11 +711,11 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
 .. code-block:: console
 
   $ foglamp start
-  Starting FogLAMP v1.2.FogLAMP cannot start.
+  Starting FogLAMP v1.3.FogLAMP cannot start.
   Check /home/foglamp/FogLAMP/data/core.err for more information.
   $
   $ foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP uptime:  6 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -738,7 +738,7 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
 .. code-block:: console
 
   $ foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP uptime:  6 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.

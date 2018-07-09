@@ -122,7 +122,7 @@ For example, this is the command to use to install the *OpenWeather* South plugi
   May 16 01:36:09 ubuntu python3[13741]: FogLAMP[13741] INFO: scheduler: foglamp.services.core.scheduler.scheduler: Process started: Schedule 'stats collection' process 'stats coll
                                          ['tasks/statistics', '--port=40138', '--address=127.0.0.1', '--name=stats collector']
   ...
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP Uptime:  266 seconds.
   FogLAMP records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -154,7 +154,7 @@ For example, this is the command to use to install the *OpenWeather* South plugi
   openweathermap plugin installed.
   $
   $ foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP Uptime:  271 seconds.
   FogLAMP records: 36 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.

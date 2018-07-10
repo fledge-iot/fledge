@@ -23,6 +23,8 @@
 #define DELETE_CATEGORY			GET_CATEGORY
 #define DELETE_CHILD_CATEGORY		"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)/(children)/([A-Za-z][a-zA-Z_0-9]*)"
 #define ADD_CHILD_CATEGORIES		"/foglamp/service/category/([A-Za-z][a-zA-Z_0-9]*)/(children)"
+#define REGISTER_CATEGORY_INTEREST	"/foglamp/interest"	// TODO implment this, right now it's a fake.
+#define GET_SERVICE			REGISTER_SERVICE
 
 #define UUID_COMPONENT			1
 #define CATEGORY_NAME_COMPONENT		1

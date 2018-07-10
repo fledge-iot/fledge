@@ -23,9 +23,11 @@ __version__ = "${VERSION}"
 ADMIN_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'admin_user_token'}
 NORMAL_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'normal_user_token'}
 
+
 @asyncio.coroutine
 def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "auth-mandatory")
@@ -492,6 +494,39 @@ class TestAuthMandatory:
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE', '/foglamp/admin/2/delete')
+
+    async def test_logout(self, client, mocker):
+        ret_val = {'response': 'deleted', 'rows_affected': 1}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
+
+        with patch.object(auth._logger, 'info') as patch_auth_logger_info:
+            with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro(ret_val)) as patch_delete_user_token:
+                resp = await client.put('/foglamp/2/logout', headers=ADMIN_USER_HEADER)
+                assert 200 == resp.status
+                r = await resp.text()
+                assert {'logout': True} == json.loads(r)
+            patch_delete_user_token.assert_called_once_with("2")
+        patch_auth_logger_info.assert_called_once_with('User with id:<2> has been logged out successfully')
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/2/logout')
+
+    async def test_logout_with_bad_user(self, client, mocker):
+        ret_val = {'response': 'deleted', 'rows_affected': 0}
+        user_id = 111
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
+
+        with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro(ret_val)) as patch_delete_user_token:
+            with patch.object(auth._logger, 'warning') as patch_logger:
+                resp = await client.put('/foglamp/{}/logout'.format(user_id), headers=ADMIN_USER_HEADER)
+                assert 404 == resp.status
+                assert 'Not Found' == resp.reason
+            patch_logger.assert_called_once_with('Logout requested with bad user')
+        patch_delete_user_token.assert_called_once_with(str(user_id))
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
 
     async def test_logout_me(self, client, mocker):
         ret_val = {'response': 'deleted', 'rows_affected': 1}

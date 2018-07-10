@@ -90,7 +90,7 @@ async def plugin_send(handle, data_to_send, stream_id):
 
 def plugin_reconfigure(handle, new_config):
     """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the North device service.
+        operation of the North task.
         The new configuration category should be passed.
 
     Args:
@@ -109,7 +109,7 @@ def plugin_reconfigure(handle, new_config):
 
 
 def plugin_shutdown(handle):
-    """ Shutdowns the plugin doing required cleanup, to be called prior to the North device service being shut down.
+    """ Shutdowns the plugin doing required cleanup, to be called prior to the North task being shut down.
 
     Args:
         handle: handle returned by the plugin initialisation call

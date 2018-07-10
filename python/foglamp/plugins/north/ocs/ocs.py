@@ -445,7 +445,7 @@ def plugin_shutdown(data):
 
 def plugin_reconfigure():
     """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
+        operation of the South service.
         The new configuration category should be passed.
 
     Args:

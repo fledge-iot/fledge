@@ -1524,7 +1524,7 @@ long numReadings = 0;
 		}
 		else
 		{
- 			raiseError("purge", zErrMsg);
+ 			raiseError("purge - phase 1", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1559,7 +1559,7 @@ long numReadings = 0;
 		}
 		else
 		{
- 			raiseError("retrieve", zErrMsg);
+ 			raiseError("purge - phaase 2", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1592,7 +1592,7 @@ long numReadings = 0;
 
 	if (rc != SQLITE_OK)
 	{
- 		raiseError("retrieve", zErrMsg);
+ 		raiseError("purge - phase 3", zErrMsg);
 		sqlite3_free(zErrMsg);
 		return 0;
 	}
@@ -1624,7 +1624,7 @@ long numReadings = 0;
 	}
 	else
 	{
- 		raiseError("retrieve", zErrMsg);
+ 		raiseError("purge - phase 4", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
@@ -1641,7 +1641,7 @@ long numReadings = 0;
 	}
 	else
 	{
- 		raiseError("retrieve", zErrMsg);
+ 		raiseError("purge - phase 5", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 

@@ -59,7 +59,7 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-        curl -X POST -d '{"username": "user", "password": "foglamp"}' https://localhost:1995/foglamp/login --insecure
+        curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
     """
 
     data = await request.json()
@@ -98,7 +98,7 @@ async def logout_me(request):
     """ log out user
 
     :Example:
-        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/logout --insecure
+        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
 
     """
 
@@ -120,21 +120,27 @@ async def logout(request):
     """ log out user's all active sessions
 
     :Example:
-        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/{user_id}/logout --insecure
+        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/{user_id}/logout
 
     """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
 
     user_id = request.match_info.get('user_id')
 
-    check_authorization(request, user_id, "logout")
+    if int(request.user["role_id"]) == ADMIN_ROLE_ID or int(request.user["id"]) == int(user_id):
+        result = await User.Objects.delete_user_tokens(user_id)
 
-    result = await User.Objects.delete_user_tokens(user_id)
+        if not result['rows_affected']:
+            _logger.warning("Logout requested with bad user")
+            raise web.HTTPNotFound()
 
-    if not result['rows_affected']:
-        _logger.warning("Logout requested with bad user")
-        raise web.HTTPNotFound()
+        _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
+    else:
+        # requester is not an admin but trying to take action for another user
+        raise web.HTTPUnauthorized(reason="admin privileges are required to logout other user")
 
-    _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
     return web.json_response({"logout": True})
 
 
@@ -142,7 +148,7 @@ async def get_roles(request):
     """ get roles
 
     :Example:
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user/role --insecure
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user/role
     """
     result = await User.Objects.get_roles()
     return web.json_response({'roles': result})
@@ -152,10 +158,10 @@ async def get_user(request):
     """ get user info
 
     :Example:
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user --insecure
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?id=2 --insecure
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?username=admin --insecure
-        curl -H "authorization: <token>" -X GET "https://localhost:1995/foglamp/user?id=1&username=admin" --insecure
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
+        curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
     """
     user_id = None
     user_name = None
@@ -202,8 +208,8 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' https://localhost:1995/foglamp/admin/user --insecure
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' https://localhost:1995/foglamp/admin/user --insecure
+        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/admin/user
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -280,7 +286,7 @@ async def update_password(request):
     """ update password
 
         :Example:
-             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' https://localhost:1995/foglamp/user/<username>/password --insecure
+             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/foglamp/user/<username>/password
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -339,9 +345,9 @@ async def update_password(request):
 async def reset(request):
     """ reset user (only role and password)
         :Example:
-            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
-            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
-            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -407,7 +413,7 @@ async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
-        curl -H "authorization: <token>" -X DELETE  https://localhost:1995/foglamp/admin/{user_id}/delete --insecure
+        curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/admin/{user_id}/delete
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -467,13 +473,4 @@ def has_admin_permissions(request):
     if request.is_auth_optional is False:  # auth is mandatory
         if int(request.user["role_id"]) != ADMIN_ROLE_ID:
             return False
-    return True
-
-
-def check_authorization(request, user_id, action):
-    # use if has_admin_permissions(request):
-    if request.is_auth_optional is False:  # auth is mandatory
-        if int(request.user["role_id"]) != ADMIN_ROLE_ID and user_id != request.user["id"]:
-            # requester is not an admin but trying to take action for another user
-            raise web.HTTPUnauthorized(reason="admin privileges are required to {} other user".format(action))
     return True

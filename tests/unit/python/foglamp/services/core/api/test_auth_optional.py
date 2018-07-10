@@ -24,9 +24,11 @@ __version__ = "${VERSION}"
 FORBIDDEN = 'Forbidden'
 WARN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
 
+
 @asyncio.coroutine
 def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "auth-optional")
@@ -185,43 +187,13 @@ class TestAuthOptional:
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/foglamp/login')
 
     async def test_logout(self, client):
-        ret_val = {'response': 'deleted', 'rows_affected': 1}
-        user_id = 1
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro(ret_val)) as patch_user_logout:
-                    with patch.object(auth._logger, 'info') as patch_logger:
-                        resp = await client.put('/foglamp/{}/logout'.format(user_id))
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        assert {"logout": True} == json.loads(r)
-                    patch_logger.assert_called_once_with('User with id:<{}> has been logged out successfully'.format(user_id))
-                patch_user_logout.assert_called_once_with(str(user_id))
-            # TODO: Request patch VERB and Url
-            args, kwargs = patch_check_authorization.call_args
-            assert str(user_id) == args[1]
-            assert 'logout' == args[2]
-            # patch_check_authorization.assert_called_once_with('<Request PUT /foglamp/1/logout >', '1', 'logout')
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/{}/logout'.format(user_id))
-
-    async def test_logout_with_bad_user(self, client):
-        ret_val = {'response': 'deleted', 'rows_affected': 0}
-        user_id = 111
-        with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro(ret_val)) as patch_user_logout:
-                    with patch.object(auth._logger, 'warning') as patch_logger:
-                        resp = await client.put('/foglamp/{}/logout'.format(user_id))
-                        assert 404 == resp.status
-                        assert 'Not Found' == resp.reason
-                    patch_logger.assert_called_once_with('Logout requested with bad user')
-                patch_user_logout.assert_called_once_with(str(user_id))
-            # TODO: Request patch VERB and Url
-            args, kwargs = patch_check_authorization.call_args
-            assert str(user_id) == args[1]
-            assert 'logout' == args[2]
-            # patch_check_authorization.assert_called_once_with('<Request PUT /foglamp/1/logout >', '1', 'logout')
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/111/logout')
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/foglamp/2/logout')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/foglamp/2/logout')
 
     async def test_update_password(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:

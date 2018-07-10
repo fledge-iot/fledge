@@ -58,7 +58,7 @@ class FoglampMicroservice(FoglampProcess):
             # ----- Ref: FOGL-1155. We need to fetch host from configuration of plugin
             category = self._name
             config = default_config
-            config_descr = '{} Device'.format(self._name)
+            config_descr = '{} South plugin'.format(self._name)
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,

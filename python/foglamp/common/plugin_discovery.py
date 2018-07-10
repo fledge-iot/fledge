@@ -8,6 +8,7 @@
 
 import os
 from foglamp.common import logger
+from foglamp.common.common import _FOGLAMP_ROOT
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -16,9 +17,6 @@ __version__ = "${VERSION}"
 
 
 _logger = logger.setup(__name__)
-
-_FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
-_FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 
 
 class PluginDiscovery(object):

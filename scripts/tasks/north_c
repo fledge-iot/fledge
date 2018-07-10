@@ -14,4 +14,4 @@ fi
 # TODO: define the proper path
 cd "${FOGLAMP_ROOT}/cmake_build/C"
 
-./tasks/north/sending_process/sending_process $@
+./tasks/north/sending_process/sending_process "$@"

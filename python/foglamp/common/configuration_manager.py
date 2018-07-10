@@ -171,12 +171,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if needed_value == 0:
                     raise ValueError('Missing entry_name {} for item_name {}'.format(needed_key, item_name))
 
-            if set_value_val_from_default_val:
-                if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
-                    raise ValueError('Unrecognized value for item_name {}'.format(item_name))
-                if 'readonly' in item_val:
-                    item_val['readonly'] = self._clean('boolean',  item_val['readonly'])
+            # validate data type value
+            if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
+                raise ValueError('Unrecognized value for item_name {}'.format(item_name))
+            if 'readonly' in item_val:
+                item_val['readonly'] = self._clean('boolean', item_val['readonly'])
 
+            if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
        

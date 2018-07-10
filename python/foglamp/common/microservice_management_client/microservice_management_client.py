@@ -156,12 +156,10 @@ class MicroserviceManagementClient(object):
         url = '/foglamp/service'
         delimeter = '?'
         if service_name:
-            url = '{}{}name={}'.format(url, delimeter, service_name)
+            url = '{}{}name={}'.format(url, delimeter, urllib.parse.quote(service_name))
             delimeter = '&'
         if service_type:
-            url = '{}{}type={}'.format(url, delimeter, service_type)
-
-        url = urllib.parse.quote(url)
+            url = '{}{}type={}'.format(url, delimeter, urllib.parse.quote(service_type))
 
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
@@ -191,9 +189,7 @@ class MicroserviceManagementClient(object):
         url = '/foglamp/service/category'
 
         if category_name:
-            url = "{}/{}".format(url, category_name)
-
-        url = urllib.parse.quote(url)
+            url = "{}/{}".format(url, urllib.parse.quote(category_name))
 
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
@@ -215,8 +211,7 @@ class MicroserviceManagementClient(object):
         :param config_item:
         :return:
         """
-        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
-        url = urllib.parse.quote(url)
+        url = "/foglamp/service/category/{}/{}".format(urllib.parse.quote(category_name), urllib.parse.quote(config_item))
 
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()
@@ -260,8 +255,7 @@ class MicroserviceManagementClient(object):
         :param category_data: e.g. '{"value": "true"}'
         :return:
         """
-        url = "/foglamp/service/category/{}/{}".format(category_name, config_item)
-        url = urllib.parse.quote(url)
+        url = "/foglamp/service/category/{}/{}".format(urllib.parse.quote(category_name), urllib.parse.quote(config_item))
 
         self._management_client_conn.request(method='PUT', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
@@ -283,8 +277,7 @@ class MicroserviceManagementClient(object):
         :param config_item:
         :return:
         """
-        url = "/foglamp/service/category/{}/{}/value".format(category_name, config_item)
-        url = urllib.parse.quote(url)
+        url = "/foglamp/service/category/{}/{}/value".format(urllib.parse.quote(category_name), urllib.parse.quote(config_item))
 
         self._management_client_conn.request(method='DELETE', url=url)
         r = self._management_client_conn.getresponse()

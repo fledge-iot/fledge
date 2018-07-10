@@ -123,7 +123,6 @@ async def add_service(request):
         count = await check_schedules(name)
         if count != 0:
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
-        # ----------------------------------------
 
         # Now first create the scheduled process entry for the new service
         storage = connect.get_storage_async()
@@ -147,9 +146,6 @@ async def add_service(request):
                                              category_description=category_desc,
                                              category_value=plugin_config,
                                              keep_original_items=True)
-        except ImportError as ex:
-            await revert_scheduled_processes(plugin)  # Revert scheduled_process entry
-            raise web.HTTPInternalServerError(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:
             await revert_scheduled_processes(plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
@@ -194,13 +190,11 @@ async def check_scheduled_processes(process_name):
     return result['count']
 
 async def revert_scheduled_processes(process_name):
-    return
     storage = connect.get_storage_async()
     payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
     result = await storage.delete_from_tbl('scheduled_processes', payload)
 
 async def revert_configuration(key):
-    return
     storage = connect.get_storage_async()
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     result = await storage.delete_from_tbl('configuration', payload)

@@ -177,6 +177,7 @@ unsigned long	  age, size;
 		/**
 		 * Throw PluginNotImplementedException for purge by size in SQLite 
 		 */
+		manager->release(connection);
 		throw PluginNotImplementedException("Purge by size is not supported by 'SQLite' storage engine.");
 	}
 	else

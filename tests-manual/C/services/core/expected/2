@@ -1,0 +1,1 @@
+{"plugin" : { "description" : "Module that OMF North Statistics Plugin will load", "type" : "string", "value" : "omf", "default" : "omf" }}

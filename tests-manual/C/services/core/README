@@ -1,4 +1,6 @@
+=================================
 ConfigurationManger class tests.
+=================================
 
 Steps:
 
@@ -28,4 +30,18 @@ Steps:
 	# cmake ..
 	# make
 	# ./RunTests
+
+=====================================================================
+Integration tests for classes:
+ - FogLAMP Core C++
+ - ConfigurationManager C++ (which needs a running Storage Service)
+=====================================================================
+
+
+Steps:
+
+1) Set FOGLAMP_ROOT
+2) ./testRunner.sh
+3) Manually kill FogLAMP Core and Storage Service processes (this is required at the time being)
+
 

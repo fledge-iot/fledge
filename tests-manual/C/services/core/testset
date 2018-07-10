@@ -1,0 +1,3 @@
+EmptyChildCategories GET http://localhost:_CORE_PORT_/foglamp/service/category/test_cat/children
+GetCategoryName GET http://localhost:_CORE_PORT_/foglamp/service/category/SEND_PR_2
+GetCategoryItemName GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/item_4

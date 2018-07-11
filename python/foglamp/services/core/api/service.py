@@ -14,6 +14,7 @@ from foglamp.services.core import server
 from foglamp.services.core import connect
 from foglamp.services.core.scheduler.entities import StartUpSchedule
 from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.common import utils
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -88,6 +89,10 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
+        if utils.check_reserved(name) is False:
+            raise web.HTTPBadRequest(reason='Invalid name property in payload.')
+        if utils.check_reserved(plugin) is False:
+            raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
         if service_type not in ['south', 'north']:
             raise web.HTTPBadRequest(reason='Only north and south types are supported.')
         if enabled is not None:

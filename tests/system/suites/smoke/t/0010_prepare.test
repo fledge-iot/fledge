@@ -1,0 +1,12 @@
+#!/bin/bash
+
+$TEST_BASEDIR/bash/exec_any_foglamp_command.bash stop                                                                   1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+$TEST_BASEDIR/bash/exec_any_foglamp_command.bash kill                                                                   1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+$TEST_BASEDIR/bash/check_foglamp_status.bash
+
+# Double reset to ensure the execution
+echo -e "YES" | $TEST_BASEDIR/bash/exec_any_foglamp_command.bash reset                                                  1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+
+$TEST_BASEDIR/bash/sleep.bash 6
+
+echo -e "YES" | $TEST_BASEDIR/bash/exec_any_foglamp_command.bash reset                                                  1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"

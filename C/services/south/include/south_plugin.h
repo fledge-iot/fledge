@@ -12,6 +12,7 @@
 
 #include <plugin.h>
 #include <plugin_manager.h>
+#include <config_category.h>
 #include <string>
 #include <reading.h>
 
@@ -29,7 +30,7 @@
 class SouthPlugin : public Plugin {
 
 public:
-	SouthPlugin(PLUGIN_HANDLE handle);
+	SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category);
 	~SouthPlugin();
 
 	Reading		poll();

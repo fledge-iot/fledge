@@ -14,7 +14,9 @@
 #include <logger.h>
 #include <vector>
 #include <thread>
+#include <chrono>
 #include <mutex>
+#include <condition_variable>
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -25,20 +27,24 @@
 class Ingest {
 
 public:
-	Ingest(StorageClient& storage);
+	Ingest(StorageClient& storage, unsigned long timeout, unsigned int threshold);
 	~Ingest();
 
 	void		ingest(const Reading& reading);
 	bool		running();
 	void		processQueue();
+	void		waitForQueue();
 
 private:
 	StorageClient&		m_storage;
+	unsigned long		m_timeout;
+	unsigned int		m_queueSizeThreshold;
 	bool			m_running;
 	std::vector<Reading *>	*m_queue;
 	std::mutex		m_qMutex;
 	std::thread		*m_thread;
 	Logger			*m_logger;
+	std::condition_variable	m_cv;
 };
 
 #endif

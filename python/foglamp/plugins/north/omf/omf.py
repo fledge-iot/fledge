@@ -9,6 +9,8 @@ It is loaded by the send process (see The FogLAMP Sending Process) and runs in t
 to send the reading data to a PI Server (or Connector) using the OSIsoft OMF format.
 PICROMF = PI Connector Relay OMF"""
 
+import aiohttp
+
 from datetime import datetime
 import sys
 import copy
@@ -17,9 +19,7 @@ import resource
 import datetime
 import time
 import json
-import requests
 import logging
-import urllib3
 import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
@@ -79,7 +79,7 @@ _MESSAGES_LIST = {
     "e000000": "general error.",
 }
 # Configuration related to the OMF North
-_CONFIG_CATEGORY_DESCRIPTION = 'Configuration of OMF North plugin'
+_CONFIG_CATEGORY_DESCRIPTION = 'OMF North Plugin'
 _CONFIG_DEFAULT_OMF = {
     'plugin': {
         'description': 'OMF North Plugin',
@@ -87,33 +87,33 @@ _CONFIG_DEFAULT_OMF = {
         'default': 'omf'
     },
     "URL": {
-        "description": "The URL of the PI Connector to send data to",
+        "description": "URL of PI Connector to send data to",
         "type": "string",
         "default": "https://pi-server:5460/ingress/messages"
     },
     "producerToken": {
-        "description": "The producer token that represents this FogLAMP stream",
+        "description": "Producer token for this FogLAMP stream",
         "type": "string",
         "default": "omf_north_0001"
     },
     "OMFMaxRetry": {
-        "description": "Max number of retries for the communication with the OMF PI Connector Relay",
+        "description": "Max number of retries for communication with the OMF PI Connector Relay",
         "type": "integer",
         "default": "3"
     },
     "OMFRetrySleepTime": {
-        "description": "Seconds between each retry for the communication with the OMF PI Connector Relay, "
-                       "NOTE : the time is doubled at each attempt.",
+        "description": "Seconds between each retry for communication with the OMF PI Connector Relay. "
+                       "This time is doubled at each attempt.",
         "type": "integer",
         "default": "1"
     },
     "OMFHttpTimeout": {
-        "description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
+        "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
         "type": "integer",
         "default": "10"
     },
     "StaticData": {
-        "description": "Static data to include in each sensor reading sent to OMF.",
+        "description": "Static data to include in each sensor reading sent via OMF",
         "type": "JSON",
         "default": json.dumps(
             {
@@ -123,12 +123,12 @@ _CONFIG_DEFAULT_OMF = {
         )
     },
     "applyFilter": {
-        "description": "Whether to apply filter before processing the data",
+        "description": "Should filter be applied before processing the data?",
         "type": "boolean",
         "default": "False"
     },
     "filterRule": {
-        "description": "JQ formatted filter to apply (applicable if applyFilter is True)",
+        "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
         "type": "string",
         "default": ".[]"
     }
@@ -136,7 +136,7 @@ _CONFIG_DEFAULT_OMF = {
 
 # Configuration related to the OMF Types
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OMF_TYPES'
-_CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OMF types'
+_CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'OMF Types'
 
 CONFIG_DEFAULT_OMF_TYPES = {
     "type-id": {
@@ -169,8 +169,8 @@ OMF_TEMPLATE_TYPE = {
 }
 _OMF_TEMPLATE_CONTAINER = [
     {
-        "id":  "xxx",
-        "typeid":  "xxx"
+        "id": "xxx",
+        "typeid": "xxx"
     }
 ]
 _OMF_TEMPLATE_STATIC_DATA = [
@@ -333,6 +333,7 @@ def plugin_init(data):
     _config['OMFMaxRetry'] = int(data['OMFMaxRetry']['value'])
     _config['OMFRetrySleepTime'] = int(data['OMFRetrySleepTime']['value'])
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
+
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect
@@ -362,13 +363,10 @@ def plugin_init(data):
         _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)
 
-    # Avoids the warning message - InsecureRequestWarning
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
     return _config
 
-@_performance_log
-def plugin_send(data, raw_data, stream_id):
+
+async def plugin_send(data, raw_data, stream_id):
     """ Translates and sends to the destination system the data provided by the Sending Process
     Args:
         data: plugin_handle from sending_process
@@ -380,31 +378,39 @@ def plugin_send(data, raw_data, stream_id):
         num_sent     : Number of rows sent, used for the update of the statistics
     Raises:
     """
-    
+
     global _recreate_omf_objects
 
     is_data_sent = False
     config_category_name = data['_CONFIG_CATEGORY_NAME']
-    data_to_send = []
     type_id = _config_omf_types['type-id']['value']
 
     omf_north = OmfNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
 
     try:
+        # Alloc the in memory buffer
+        buffer_size = len(raw_data)
+        data_to_send = [None for x in range(buffer_size)]
+
         is_data_available, new_position, num_sent = omf_north.transform_in_memory_data(data_to_send, raw_data)
+
         if is_data_available:
-            omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+
+            await omf_north.create_omf_objects(raw_data, config_category_name, type_id)
+
             try:
-                omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
+                await omf_north.send_in_memory_data_to_picromf("Data", data_to_send)
+
             except Exception as ex:
                 # Forces the recreation of PIServer's objects on the first error occurred
                 if _recreate_omf_objects:
-                    omf_north.deleted_omf_types_already_created(config_category_name, type_id)
+                    await omf_north.deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
                     _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
                 raise ex
             else:
                 is_data_sent = True
+
     except Exception as ex:
         _logger.exception(plugin_common.MESSAGES_LIST["e000031"].format(ex))
         raise
@@ -440,7 +446,7 @@ class OmfNorthPlugin(object):
         self._config_omf_types = config_omf_types
         self._logger = _logger
 
-    def deleted_omf_types_already_created(self, config_category_name, type_id):
+    async def deleted_omf_types_already_created(self, config_category_name, type_id):
         """ Deletes OMF types/objects tracked as already created, it is used to force the recreation of the types
          Args:
             config_category_name: used to identify OMF objects already created
@@ -453,9 +459,9 @@ class OmfNorthPlugin(object):
             .AND_WHERE(['type_id', '=', type_id]) \
             .payload()
 
-        self._sending_process_instance._storage.delete_from_tbl("omf_created_objects", payload)
-    
-    def _retrieve_omf_types_already_created(self, configuration_key, type_id):
+        await self._sending_process_instance._storage_async.delete_from_tbl("omf_created_objects", payload)
+
+    async def _retrieve_omf_types_already_created(self, configuration_key, type_id):
         """ Retrieves the list of OMF types already defined/sent to the PICROMF
          Args:
              configuration_key - part of the key to identify the type
@@ -469,7 +475,7 @@ class OmfNorthPlugin(object):
             .AND_WHERE(['type_id', '=', type_id]) \
             .payload()
 
-        omf_created_objects = self._sending_process_instance._storage.query_tbl_with_payload('omf_created_objects', payload)
+        omf_created_objects = await self._sending_process_instance._storage_async.query_tbl_with_payload('omf_created_objects', payload)
         self._logger.debug("{func} - omf_created_objects {item} ".format(
                                                                     func="_retrieve_omf_types_already_created",
                                                                     item=omf_created_objects))
@@ -478,8 +484,8 @@ class OmfNorthPlugin(object):
         for row in omf_created_objects['rows']:
             rows.append(row['asset_code'])
         return rows
-    
-    def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
+
+    async def _flag_created_omf_type(self, configuration_key, type_id, asset_code):
         """ Stores into the Storage layer the successfully creation of the type into PICROMF.
          Args:
              configuration_key - part of the key to identify the type
@@ -493,8 +499,8 @@ class OmfNorthPlugin(object):
                     asset_code=asset_code,
                     type_id=type_id)\
             .payload()
-        self._sending_process_instance._storage.insert_into_tbl("omf_created_objects", payload)
-    
+        await self._sending_process_instance._storage_async.insert_into_tbl("omf_created_objects", payload)
+
     def _generate_omf_asset_id(self, asset_code):
         """ Generates an asset id usable by AF/PI Server from an asset code stored into the Storage layer
          Args:
@@ -505,7 +511,7 @@ class OmfNorthPlugin(object):
          """
         asset_id = asset_code.replace(" ", "")
         return asset_id
-    
+
     def _generate_omf_measurement(self, asset_code):
         """ Generates the measurement id associated to an asset code
          Args:
@@ -517,7 +523,7 @@ class OmfNorthPlugin(object):
         asset_id = asset_code.replace(" ", "")
         type_id = self._config_omf_types['type-id']['value']
         return type_id + _OMF_PREFIX_MEASUREMENT + asset_id
-     
+
     def _generate_omf_typename_automatic(self, asset_code):
         """ Generates the typename associated to an asset code for the automated generation of the OMF types
          Args:
@@ -528,8 +534,8 @@ class OmfNorthPlugin(object):
          """
         asset_id = asset_code.replace(" ", "")
         return asset_id + _OMF_SUFFIX_TYPENAME
-    
-    def _create_omf_objects_automatic(self, asset_info):
+
+    async def _create_omf_objects_automatic(self, asset_info):
         """ Handles the Automatic OMF Type Mapping
          Args:
              asset_info : Asset's information as retrieved from the Storage layer,
@@ -538,10 +544,10 @@ class OmfNorthPlugin(object):
              response_status_code: http response code related to the PICROMF request
          Raises:
          """
-        typename, omf_type = self._create_omf_type_automatic(asset_info)
-        self._create_omf_object_links(asset_info["asset_code"], typename, omf_type)
-    
-    def _create_omf_type_automatic(self, asset_info):
+        typename, omf_type = await self._create_omf_type_automatic(asset_info)
+        await self._create_omf_object_links(asset_info["asset_code"], typename, omf_type)
+
+    async def _create_omf_type_automatic(self, asset_info):
         """ Automatic OMF Type Mapping - Handles the OMF type creation
          Args:
              asset_info : Asset's information as retrieved from the Storage layer,
@@ -560,28 +566,30 @@ class OmfNorthPlugin(object):
         # Handles Static section
         # Generates elements evaluating the StaticData retrieved form the Configuration Manager
         omf_type[typename][0]["properties"]["Name"] = {
-                "type": "string",
-                "isindex": True
-            }
+            "type": "string",
+            "isindex": True
+        }
         omf_type[typename][0]["id"] = type_id + "_" + typename + "_sensor"
         for item in self._config['StaticData']:
             omf_type[typename][0]["properties"][item] = {"type": "string"}
         # Handles Dynamic section
         omf_type[typename][1]["properties"]["Time"] = {
-              "type": "string",
-              "format": "date-time",
-              "isindex": True
-            }
+            "type": "string",
+            "format": "date-time",
+            "isindex": True
+        }
         omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
         for item in asset_data:
             item_type = plugin_common.evaluate_type(asset_data[item])
             omf_type[typename][1]["properties"][item] = {"type": item_type}
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_automatic - sensor_id |{0}| - omf_type |{1}| ".format(sensor_id, str(omf_type)))
-        self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+
         return typename, omf_type
-    
-    def _create_omf_objects_configuration_based(self, asset_code, asset_code_omf_type):
+
+    async def _create_omf_objects_configuration_based(self, asset_code, asset_code_omf_type):
         """ Handles the Configuration Based OMF Type Mapping
          Args:
             asset_code
@@ -589,10 +597,10 @@ class OmfNorthPlugin(object):
          Returns:
          Raises:
          """
-        typename, omf_type = self._create_omf_type_configuration_based(asset_code_omf_type)
-        self._create_omf_object_links(asset_code, typename, omf_type)
-    
-    def _create_omf_type_configuration_based(self, asset_code_omf_type):
+        typename, omf_type = await self._create_omf_type_configuration_based(asset_code_omf_type)
+        await self._create_omf_object_links(asset_code, typename, omf_type)
+
+    async def _create_omf_type_configuration_based(self, asset_code_omf_type):
         """ Configuration Based OMF Type Mapping - Handles the OMF type creation
          Args:
             asset_code_omf_type : describe the OMF type as a python dict
@@ -613,10 +621,12 @@ class OmfNorthPlugin(object):
         omf_type[typename][1]["id"] = type_id + "_" + typename + "_measurement"
         if _log_debug_level == 3:
             self._logger.debug("_create_omf_type_configuration_based - omf_type |{0}| ".format(str(omf_type)))
-        self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+
+        await self.send_in_memory_data_to_picromf("Type", omf_type[typename])
+
         return typename, omf_type
-    
-    def _create_omf_object_links(self, asset_code, typename, omf_type):
+
+    async def _create_omf_object_links(self, asset_code, typename, omf_type):
         """ Handles the creation of the links between the OMF objects :
             sensor, its measurement, sensor type and measurement type
          Args:
@@ -654,13 +664,13 @@ class OmfNorthPlugin(object):
                                                                                                     str(static_data)))
             self._logger.debug("_create_omf_object_links - asset_code |{0}| - link_data |{1}| ".format(asset_code,
                                                                                                   str(link_data)))
-        self.send_in_memory_data_to_picromf("Container", containers)
-        self.send_in_memory_data_to_picromf("Data", static_data)
-        self.send_in_memory_data_to_picromf("Data", link_data)
+        await self.send_in_memory_data_to_picromf("Container", containers)
+        await self.send_in_memory_data_to_picromf("Data", static_data)
+        await self.send_in_memory_data_to_picromf("Data", link_data)
+
         return
-    
-    @_performance_log
-    def create_omf_objects(self, raw_data, config_category_name, type_id):
+
+    async def create_omf_objects(self, raw_data, config_category_name, type_id):
         """ Handles the creation of the OMF types related to the asset codes using one of the 2 possible ways :
                 Automatic OMF Type Mapping
                 Configuration Based OMF Type Mapping
@@ -672,11 +682,14 @@ class OmfNorthPlugin(object):
         Raises:
         """
         asset_codes_to_evaluate = plugin_common.identify_unique_asset_codes(raw_data)
-        asset_codes_already_created = self._retrieve_omf_types_already_created(config_category_name, type_id)
+        asset_codes_already_created = await self._retrieve_omf_types_already_created(config_category_name, type_id)
+
         for item in asset_codes_to_evaluate:
             asset_code = item["asset_code"]
+
             # Evaluates if it is a new OMF type
             if not any(tmp_item == asset_code for tmp_item in asset_codes_already_created):
+
                 asset_code_omf_type = ""
                 try:
                     asset_code_omf_type = copy.deepcopy(self._config_omf_types[asset_code]["value"])
@@ -684,19 +697,21 @@ class OmfNorthPlugin(object):
                     configuration_based = False
                 else:
                     configuration_based = True
+
                 if configuration_based:
                     self._logger.debug("creates type - configuration based - asset |{0}| ".format(asset_code))
-                    self._create_omf_objects_configuration_based(asset_code, asset_code_omf_type)
+                    await self._create_omf_objects_configuration_based(asset_code, asset_code_omf_type)
                 else:
+
                     # handling - Automatic OMF Type Mapping
                     self._logger.debug("creates type - automatic handling - asset |{0}| ".format(asset_code))
-                    self._create_omf_objects_automatic(item)
-                self._flag_created_omf_type(config_category_name, type_id, asset_code)
+                    await self._create_omf_objects_automatic(item)
+
+                await self._flag_created_omf_type(config_category_name, type_id, asset_code)
             else:
                 self._logger.debug("asset already created - asset |{0}| ".format(asset_code))
-    
-    @_performance_log
-    def send_in_memory_data_to_picromf(self, message_type, omf_data):
+
+    async def send_in_memory_data_to_picromf(self, message_type, omf_data):
         """ Sends data to PICROMF - it retries the operation using a sleep time increased *2 for every retry
             it logs a WARNING only at the end of the retry mechanism in case of a communication error
         Args:
@@ -726,23 +741,31 @@ class OmfNorthPlugin(object):
         while num_retry <= self._config['OMFMaxRetry']:
             _error = False
             try:
-                response = requests.post(self._config['URL'],
-                                         headers=msg_header,
-                                         data=omf_data_json,
-                                         verify=False,
-                                         timeout=self._config['OMFHttpTimeout'])
+                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+                    async with session.post(
+                                            url=self._config['URL'],
+                                            headers=msg_header,
+                                            data=omf_data_json,
+                                            timeout=self._config['OMFHttpTimeout']
+                                            ) as resp:
+
+                        status_code = resp.status
+                        text = await resp.text()
+
             except Exception as e:
                 _error = Exception(plugin_common.MESSAGES_LIST["e000024"].format(e))
                 _message = plugin_common.MESSAGES_LIST["e000024"].format(e)
             else:
                 # Evaluate the HTTP status codes
-                if not str(response.status_code).startswith('2'):
-                    tmp_text = str(response.status_code) + " " + response.text
+                if not str(status_code).startswith('2'):
+                    tmp_text = str(status_code) + " " + text
                     _message = plugin_common.MESSAGES_LIST["e000024"].format(tmp_text)
                     _error = plugin_exceptions.URLFetchError(_message)
-                self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(message_type,
-                                                                                 response.status_code,
-                                                                                 response.text))
+
+                self._logger.debug("message type |{0}| response: |{1}| |{2}| ".format(
+                                                                                message_type,
+                                                                                status_code,
+                                                                                text))
             if _error:
                 time.sleep(sleep_time)
                 num_retry += 1
@@ -752,91 +775,73 @@ class OmfNorthPlugin(object):
         if _error:
             self._logger.warning(_message)
             raise _error
-    
+
     @_performance_log
     def transform_in_memory_data(self, data_to_send, raw_data):
         """ Transforms the in memory data into a new structure that could be converted into JSON for the PICROMF
         Args:
+            data_to_send - Transformed/generated data
+            raw_data - Input data
         Returns:
+            data_available - True, there are new data
+            _new_position - It corresponds to the row_id of the last element
+            _num_sent - Number of elements handled, used to update the statistics
         Raises:
         """
 
-        new_position = 0
+        _new_position = 0
         data_available = False
+
         # statistics
-        num_sent = 0
-        # internal statistic - rows that generate errors in the preparation process, before sending them to OMF
-        num_unsent = 0
+        _num_sent = 0
+
+        idx = 0
+
         try:
+
             for row in raw_data:
-                row_id = row['id']
-                asset_code = row['asset_code']
+
                 # Identification of the object/sensor
-                measurement_id = self._generate_omf_measurement(asset_code)
-                
+                measurement_id = self._generate_omf_measurement(row['asset_code'])
+
                 try:
-                    self._transform_in_memory_row(data_to_send, row, measurement_id)
+                    # The expression **row['reading'] - joins the 2 dictionaries
+                    #
+                    # The code formats the date to the format OMF/the PI Server expects directly
+                    # without using python date library for performance reason and
+                    # because it is expected to receive the date in a precise/fixed format :
+                    #   2018-05-28 16:56:55.000000+00
+                    data_to_send[idx] = {
+                            "containerid": measurement_id,
+                            "values": [
+                                {
+                                    "Time": row['user_ts'][0:10] + "T" + row['user_ts'][11:23] + "Z",
+                                    **row['reading']
+                                }
+                            ]
+                        }
+
+                    if _log_debug_level == 3:
+                        self._logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
+                                           .format(measurement_id, row['asset_code'], str(row['id'])))
+
+                        self._logger.debug("in memory info |{0}| ".format(data_to_send[idx]))
+
+                    idx += 1
+
                     # Used for the statistics update
-                    num_sent += 1
+                    _num_sent += 1
+
                     # Latest position reached
-                    new_position = row_id
+                    _new_position = row['id']
+
                     data_available = True
+
                 except Exception as e:
-                    num_unsent += 1
                     self._logger.warning(plugin_common.MESSAGES_LIST["e000023"].format(e))
+
         except Exception:
             self._logger.error(plugin_common.MESSAGES_LIST["e000021"])
             raise
-        return data_available, new_position, num_sent
-    
-    def _transform_in_memory_row(self, data_to_send, row, target_stream_id):
-        """ Extends the in memory structure using data retrieved from the Storage Layer
-        Args:
-            data_to_send:      data block to send - updated/used by reference
-            row:               information retrieved from the Storage Layer that it is used to extend data_to_send
-            target_stream_id:  OMF container ID
-        Returns:
-        Raises:
-        """
-        data_available = False
-        try:
-            row_id = row['id']
-            asset_code = row['asset_code']
-            timestamp_raw = row['user_ts']
 
-            # Converts Date/time to a proper ISO format - Z is the zone designator for the zero UTC offset
-            step1 = datetime.datetime.strptime(timestamp_raw, '%Y-%m-%d %H:%M:%S.%f+00')
-            timestamp = step1.isoformat() + 'Z'
-
-            sensor_data = row['reading']
-            if _log_debug_level == 3:
-                self._logger.debug("stream ID : |{0}| sensor ID : |{1}| row ID : |{2}|  "
-                              .format(target_stream_id, asset_code, str(row_id)))
-            # Prepares new data for the PICROMF
-            new_data = [
-                {
-                    "containerid": target_stream_id,
-                    "values": [
-                        {
-                            "Time": timestamp
-                        }
-                    ]
-                }
-            ]
-            # Evaluates which data is available
-            for data_key in sensor_data:
-                try:
-                    new_data[0]["values"][0][data_key] = sensor_data[data_key]
-                    data_available = True
-                except KeyError:
-                    pass
-            if data_available:
-                # note : append produces a not properly constructed OMF message
-                data_to_send.extend(new_data)
-                if _log_debug_level == 3:
-                    self._logger.debug("in memory info |{0}| ".format(new_data))
-            else:
-                self._logger.warning(plugin_common.MESSAGES_LIST["e000020"])
-        except Exception:
-            self._logger.error(plugin_common.MESSAGES_LIST["e000022"])
-            raise
+        return data_available, _new_position, _num_sent

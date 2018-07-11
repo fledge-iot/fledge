@@ -6,7 +6,6 @@
 
 import os
 from aiohttp import web
-from foglamp.common import logger
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 
@@ -19,8 +18,6 @@ __version__ = "${VERSION}"
 _FOGLAMP_DATA = os.getenv("FOGLAMP_DATA", default=None)
 _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 
-
-_logger = logger.setup(__name__, level=20)
 
 _help = """
     -------------------------------------------------------------------------------
@@ -148,7 +145,7 @@ async def delete_certificate(request):
 
     # read config
     # if cert_name is currently set for 'certificateName' in config for 'rest_api'
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
     result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
     if cert_name == result['value']:
         raise web.HTTPConflict(reason='Certificate with name {} is already in use, you can not delete'

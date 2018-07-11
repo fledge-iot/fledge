@@ -24,6 +24,9 @@
 #include "crypto.hpp"
 #endif
 
+// Enable worker threads for readings append and fetch
+#define WORKER_THREADS		0
+
 /**
  * Definition of the Storage Service REST API
  */
@@ -36,7 +39,7 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 /**
  * The following are a set of wrapper C functions that are registered with the HTTP Server
- * for each of the API entry poitns. These must be outside if a class as the library has no
+ * for each of the API entry points. These must be outside if a class as the library has no
  * mechanism to have a class isntance and hence can not provide a "this" pointer for the callback.
  *
  * These functions do the minumum work needed to find the singleton instance of the StorageAPI
@@ -143,12 +146,13 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const int threads) {
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0) {
 
 	m_port = port;
 	m_threads = threads;
 	m_server = new HttpServer();
 	m_server->config.port = port;
+	m_server->config.thread_pool_size = threads;
 	StorageApi::m_instance = this;
 }
 
@@ -187,8 +191,28 @@ void StorageApi::initResources()
 	m_server->default_resource["PUT"] = defaultWrapper;
 	m_server->default_resource["GET"] = defaultWrapper;
 	m_server->default_resource["DELETE"] = defaultWrapper;
+#if WORKER_THREADS
+	m_server->resource[READING_ACCESS]["POST"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    thread work_thread([response, request] {
+      readingAppendWrapper(response, request);
+      response->write("Work done");
+    });
+    work_thread.detach();
+  };
+#else
 	m_server->resource[READING_ACCESS]["POST"] = readingAppendWrapper;
+#endif
+#if WORKER_THREADS
+	m_server->resource[READING_ACCESS]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+    thread work_thread([response, request] {
+      readingFetchWrapper(response, request);
+      response->write("Work done");
+    });
+    work_thread.detach();
+  };
+#else
 	m_server->resource[READING_ACCESS]["GET"] = readingFetchWrapper;
+#endif
 	m_server->resource[READING_QUERY]["PUT"] = readingQueryWrapper;
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
 
@@ -230,6 +254,14 @@ void StorageApi::wait() {
 void StorageApi::setPlugin(StoragePlugin *plugin)
 {
 	this->plugin = plugin;
+}
+
+/**
+ * Connect with the storage plugin
+ */
+void StorageApi::setReadingPlugin(StoragePlugin *plugin)
+{
+	this->readingPlugin = plugin;
 }
 
 /**
@@ -290,7 +322,6 @@ string  responsePayload;
 			mapError(responsePayload, plugin->lastError());
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
-		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -450,7 +481,6 @@ string  responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}
@@ -470,7 +500,7 @@ string  responsePayload;
 	stats.readingAppend++;
 	try {
 		payload = request->content.string();
-		int rval = plugin->readingsAppend(payload);
+		int rval = (readingPlugin ? readingPlugin : plugin)->readingsAppend(payload);
 		if (rval != -1)
 		{
 			responsePayload = "{ \"response\" : \"appended\", \"readings_added\" : ";
@@ -480,7 +510,7 @@ string  responsePayload;
 		}
 		else
 		{
-			mapError(responsePayload, plugin->lastError());
+			mapError(responsePayload, (readingPlugin ? readingPlugin : plugin)->lastError());
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
@@ -534,7 +564,7 @@ unsigned long			   count = 0;
 		}
 
 		// Get plugin data
-		char *responsePayload = plugin->readingsFetch(id, count);
+		char *responsePayload = (readingPlugin ? readingPlugin : plugin)->readingsFetch(id, count);
 		string res = responsePayload;
 
 		// Reply to client
@@ -560,7 +590,7 @@ string	payload;
 	try {
 		payload = request->content.string();
 
-		char *resultSet = plugin->readingsRetrieve(payload);
+		char *resultSet = (readingPlugin ? readingPlugin : plugin)->readingsRetrieve(payload);
 		string res = resultSet;
 
 		respond(response, res);
@@ -630,11 +660,11 @@ string        flags;
 		char *purged = NULL;
 		if (age)
 		{
-			purged = plugin->readingsPurge(age, flagsMask, lastSent);
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(age, flagsMask, lastSent);
 		}
 		else if (size)
 		{
-			purged = plugin->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
 		}
 		else
 		{
@@ -642,8 +672,8 @@ string        flags;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
 			return;
 		}
-		string responsePayload = purged;
-		respond(response, responsePayload);
+		respond(response, purged);
+		free(purged);
 	}
 	/** Handle PluginNotImplementedException exception here */
 	catch (PluginNotImplementedException& ex) {

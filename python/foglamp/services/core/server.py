@@ -24,7 +24,7 @@ from foglamp.common.configuration_manager import ConfigurationManager
 
 from foglamp.common.web import middleware
 from foglamp.common.storage_client.exceptions import *
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 from foglamp.services.core import routes as admin_routes
 from foglamp.services.core.api import configuration as conf_api
@@ -39,6 +39,7 @@ from foglamp.services.core.scheduler.scheduler import Scheduler
 from foglamp.services.core.service_registry.monitor import Monitor
 from foglamp.services.common.service_announcer import ServiceAnnouncer
 from foglamp.services.core.user_model import User
+from foglamp.common.storage_client import payload_builder
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
@@ -78,14 +79,14 @@ class Server:
 
     _SERVICE_DEFAULT_CONFIG = {
         'name': {
-            'description': 'The name of this FogLAMP service',
+            'description': 'Name of this FogLAMP service',
             'type': 'string',
             'default': 'FogLAMP'
         },
         'description': {
-            'description': 'The description of this FogLAMP service',
+            'description': 'Description of this FogLAMP service',
             'type': 'string',
-            'default': 'The FogLAMP administrative API'
+            'default': 'FogLAMP administrative API'
         }
     }
 
@@ -127,23 +128,22 @@ class Server:
 
     _REST_API_DEFAULT_CONFIG = {
         'httpPort': {
-            'description': 'The port to accept HTTP connections on',
+            'description': 'Port to accept HTTP connections on',
             'type': 'integer',
             'default': '8081'
         },
         'httpsPort': {
-            'description': 'The port to accept HTTPS connections on',
+            'description': 'Port to accept HTTPS connections on',
             'type': 'integer',
             'default': '1995'
         },
         'enableHttp': {
-            'description': 'Enable or disable the connection via HTTP',
+            'description': 'Enable HTTP (disable to use HTTPS)',
             'type': 'boolean',
             'default': 'true'
         },
         'authProviders': {
-            'description': 'A JSON object which is an array of authentication providers to use '
-                           'for the interface',
+            'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }'
         },
@@ -153,18 +153,18 @@ class Server:
             'default': 'foglamp'
         },
         'authentication': {
-            'description': 'To make the authentication mandatory or optional for API calls',
+            'description': 'API Call Authentication (mandatory or optional)',
             'type': 'string',
             'default': 'optional'
         },
         'allowPing': {
-            'description': 'To allow access to the ping, regardless of the authentication required and'
+            'description': 'Allow access to ping, regardless of the authentication required and'
                            ' authentication header',
             'type': 'boolean',
             'default': 'true'
         },
         'passwordChange': {
-            'description': 'Number of days which a password must be changed',
+            'description': 'Number of days after which passwords must be changed',
             'type': 'integer',
             'default': '0'
         }
@@ -175,6 +175,9 @@ class Server:
 
     _storage_client = None
     """ Storage client to storage service """
+
+    _storage_client_async = None
+    """ Async Storage client to storage service """
 
     _configuration_manager = None
     """ Instance of configuration manager (singleton) """
@@ -199,26 +202,26 @@ class Server:
         else:
             certs_dir = os.path.expanduser(_FOGLAMP_ROOT + '/data/etc/certs')
 
-        """ Generated using      
+        """ Generated using
                 $ openssl version
                 OpenSSL 1.0.2g  1 Mar 2016
-                 
+
         The openssl library is required to generate your own certificate. Run the following command in your local environment to see if you already have openssl installed installed.
-        
+
         $ which openssl
         /usr/bin/openssl
-        
+
         If the which command does not return a path then you will need to install openssl yourself:
-        
+
         $ apt-get install openssl
-        
+
         Generate private key and certificate signing request:
-        
+
         A private key and certificate signing request are required to create an SSL certificate.
-        When the openssl req command asks for a “challenge password”, just press return, leaving the password empty. 
-        This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke 
+        When the openssl req command asks for a “challenge password”, just press return, leaving the password empty.
+        This password is used by Certificate Authorities to authenticate the certificate owner when they want to revoke
         their certificate. Since this is a self-signed certificate, there’s no way to revoke it via CRL(Certificate Revocation List).
-        
+
         $ openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
         ...
         $ openssl rsa -passin pass:x -in server.pass.key -out foglamp.key
@@ -231,17 +234,17 @@ class Server:
         ...
         A challenge password []:
         ...
-       
+
         Generate SSL certificate:
-       
+
         The self-signed SSL certificate is generated from the server.key private key and server.csr files.
-        
+
         $ openssl x509 -req -sha256 -days 365 -in server.csr -signkey server.key -out server.cert
-        
+
         The server.cert file is the certificate suitable for use along with the server.key private key.
-        
+
         Put these in $FOGLAMP_DATA/etc/certs, $FOGLAMP_ROOT/data/etc/certs or /usr/local/foglamp/data/etc/certs
-        
+
         """
         cert = certs_dir + '/{}.cert'.format(cls.cert_file_name)
         key = certs_dir + '/{}.key'.format(cls.cert_file_name)
@@ -266,7 +269,7 @@ class Server:
             config = cls._REST_API_DEFAULT_CONFIG
             category = 'rest_api'
 
-            await cls._configuration_manager.create_category(category, config, 'The FogLAMP Admin and User REST API', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True)
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -313,7 +316,7 @@ class Server:
 
             if cls._configuration_manager is None:
                 _logger.error("No configuration manager available")
-            await cls._configuration_manager.create_category(category, config, 'The FogLAMP service configuration', True)
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True)
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -391,11 +394,11 @@ class Server:
     @classmethod
     async def _get_storage_client(cls):
         storage_service = None
-        while storage_service is None and cls._storage_client is None:
+        while storage_service is None and cls._storage_client_async is None:
             try:
                 found_services = ServiceRegistry.get(name="FogLAMP Storage")
                 storage_service = found_services[0]
-                cls._storage_client = StorageClient(cls._host, cls.core_management_port, svc=storage_service)
+                cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
                 await asyncio.sleep(5)
 
@@ -417,7 +420,7 @@ class Server:
             path = _FOGLAMP_ROOT + "/data"
         else:
             path = _FOGLAMP_DATA
-        return path + _FOGLAMP_PID_DIR + "/" + _FOGLAMP_PID_FILE 
+        return path + _FOGLAMP_PID_DIR + "/" + _FOGLAMP_PID_FILE
 
     @classmethod
     def _pidfile_exists(cls):
@@ -501,15 +504,25 @@ class Server:
             address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
             _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/foglamp/service for registered services
-
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
-            
+
             # get storage client
             loop.run_until_complete(cls._get_storage_client())
-            
+
+            # If readings table is empty, set last_object of all streams to 0
+            total_count_payload = payload_builder.PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")).payload()
+            result = loop.run_until_complete(cls._storage_client_async.query_tbl_with_payload('readings', total_count_payload))
+            total_count = result['rows'][0]['count']
+            if (total_count == 0):
+                _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
+                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
+                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+            else:
+                _logger.info("'foglamp.readings' has " + str(total_count) + " rows, 'foglamp.streams' last_objects reset is not required")    
+
             # obtain configuration manager and interest registry
-            cls._configuration_manager = ConfigurationManager(cls._storage_client)
+            cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
             # start scheduler
@@ -560,7 +573,7 @@ class Server:
             cls._register_core(host, cls.core_management_port, service_server_port)
 
             # Everything is complete in the startup sequence, write the audit log entry
-            cls._audit = AuditLogger(cls._storage_client)
+            cls._audit = AuditLogger(cls._storage_client_async)
             loop.run_until_complete(cls._audit.information('START', None))
 
             loop.run_forever()
@@ -602,7 +615,7 @@ class Server:
             await cls.stop_rest_server()
 
             # Must write the audit log entry before we stop the storage service
-            cls._audit = AuditLogger(cls._storage_client)
+            cls._audit = AuditLogger(cls._storage_client_async)
             await cls._audit.information('FSTOP', None)
 
             # stop storage
@@ -619,7 +632,7 @@ class Server:
     @classmethod
     async def stop_rest_server(cls):
         # Delete all user tokens
-        User.Objects.delete_all_user_tokens()
+        await User.Objects.delete_all_user_tokens()
         cls.service_server.close()
         await cls.service_server.wait_closed()
         await cls.service_app.shutdown()
@@ -748,8 +761,8 @@ class Server:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                    service_port, service_management_port, service_protocol)
                 try:
-                    if not cls._storage_client is None:
-                        cls._audit = AuditLogger(cls._storage_client)
+                    if not cls._storage_client_async is None:
+                        cls._audit = AuditLogger(cls._storage_client_async)
                         await cls._audit.information('SRVRG', { 'name' : service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
@@ -793,9 +806,9 @@ class Server:
 
             ServiceRegistry.unregister(service_id)
 
-            if cls._storage_client is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
+            if cls._storage_client_async is not None and services[0]._name not in ("FogLAMP Storage", "FogLAMP Core"):
                 try:
-                    cls._audit = AuditLogger(cls._storage_client)
+                    cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(str(ex))

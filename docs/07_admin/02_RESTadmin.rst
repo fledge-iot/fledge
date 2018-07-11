@@ -218,7 +218,7 @@ The response payload is a JSON object with an array of JSON objects, one per val
 
 .. code-block:: console
 
-  $ curl -X GET http://localhost:8081/foglamp/category 
+  $ curl -X GET http://localhost:8081/foglamp/category
   { "categories": [ { "key"         : "CC2650ASYN",
                       "description" : "TI SensorTag CC2650 async South Plugin" },
                     { "key"         : "CC2650POLL",
@@ -235,14 +235,12 @@ The response payload is a JSON object with an array of JSON objects, one per val
                       "description" : "OMF North Plugin Configuration" },
                     { "key"         : "SEND_PR_2",
                       "description" : "OMF North Statistics Plugin Configuration" },
-                    { "key"         : "SEND_PR_3",
-                      "description" : "HTTP North Plugin Configuration" },
                     { "key"         : "SEND_PR_4",
                       "description" : "OCS North Plugin Configuration" },
                     { "key"         : "SMNTR",
                       "description" : "Service Monitor configuration" },
                     { "key"         : "South",
-                      "description" : "South server configuration" },
+                      "description" : "South Service configuration" },
                     { "key"         : "rest_api",
                       "description" : "The FogLAMP Admin and User REST API" },
                     { "key"         : "service",
@@ -252,7 +250,7 @@ The response payload is a JSON object with an array of JSON objects, one per val
 |br|
 
 
-GET category 
+GET category
 ~~~~~~~~~~~~
 
 ``GET /foglamp/category/{name}`` - return the configuration items in the given category.
@@ -489,7 +487,7 @@ The response payload is the newly updated configuration item within the category
 
 |br|
 
- 
+
 POST category
 ~~~~~~~~~~~~~
 
@@ -540,7 +538,7 @@ A JSON object that defines the category.
         "item three": { "default": "three", "type": "string", "description": "The third item", "value": "three" } }
   }
   $
- 
+
 |br|
 
 
@@ -653,13 +651,13 @@ The response payload is a JSON object with an array of task objects.
 
 |br|
 
- 
+
 GET task latest
 ~~~~~~~~~~~~~~~
 
 ``GET /foglamp/task/latest`` - return the list of most recent task execution for each name.
 
-This call is designed to allow a monitoring interface to show when each task was last run and what the status of that task was. 
+This call is designed to allow a monitoring interface to show when each task was last run and what the status of that task was.
 
 
 **Request Parameters**
@@ -898,7 +896,7 @@ The response payload is some basic health information in a JSON object.
 statistics
 ----------
 
-The *statistics* interface allows the retrieval of live statistics and statistical history for the FogLAMP device. 
+The *statistics* interface allows the retrieval of live statistics and statistical history for the FogLAMP device.
 
 
 GET statistics
@@ -928,8 +926,6 @@ The response payload is a JSON document with statistical information (all numeri
 +------------------------+-----------------------------------------------------------------------------+
 | SENT_2                 | The number of statistics sent to the PI system via the OMF plugin           |
 +------------------------+-----------------------------------------------------------------------------+
-| SENT_3                 | The number of readings sent to another system via the HTTP plugin           |
-+------------------------+-----------------------------------------------------------------------------+
 | SENT_4                 | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
 +------------------------+-----------------------------------------------------------------------------+
 | UNSENT                 | The number of readings filtered out in the send process                     |
@@ -956,7 +952,7 @@ The response payload is a JSON document with statistical information (all numeri
   ... ]
   $
 
- 
+
 GET statistics/history
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -990,8 +986,6 @@ A JSON document containing an array of statistical information, these statistics
 | statistics[].SENT_1       | The number of readings sent to the PI system via the OMF plugin             |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].SENT_2       | The number of statistics sent to the PI system via the OMF plugin           |
-+---------------------------+-----------------------------------------------------------------------------+
-| statistics[].SENT_3       | The number of readings sent to another system via the HTTP plugin           |
 +---------------------------+-----------------------------------------------------------------------------+
 | statistics[].SENT_4       | The number of readings sent to the OSIsoft Cloud Service via the OCS plugin |
 +---------------------------+-----------------------------------------------------------------------------+
@@ -1028,7 +1022,6 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/WALL CLOCK": 0,
                        "SENT_1": 0,
                        "FOGBENCH/PRESSURE": 0,
-                       "SENT_3": 0,
                        "FOGBENCH/SWITCH": 0,
                        "history_ts": "2018-05-15 22:39:10.374" },
                      { "READINGS": 0,
@@ -1049,9 +1042,8 @@ A JSON document containing an array of statistical information, these statistics
                        "FOGBENCH/WALL CLOCK": 0,
                        "SENT_1": 0,
                        "FOGBENCH/PRESSURE": 0,
-                       "SENT_3": 0,
                        "FOGBENCH/SWITCH": 0,
                        "history_ts": "2018-05-15 22:38:55.653" } ]
   $
 
- 
+

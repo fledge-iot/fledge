@@ -54,6 +54,7 @@ def enable_cors(app):
     # Configure default CORS settings.
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
+            allow_methods=["GET", "POST", "PUT", "DELETE"],
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",

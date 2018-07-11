@@ -42,6 +42,7 @@ class ConnectionManager {
 		std::mutex                   inUseLock;
 		std::mutex                   errorLock;
 		PLUGIN_ERROR		     lastError;
+		bool			     m_trace;
 };
 
 #endif

@@ -1,0 +1,27 @@
+ConfigurationManger class tests.
+
+Steps:
+
+1) make sure FogLAMP storage layer is running on port 8080
+	if not, set FOGLAMP_DATA to "." and start it.
+	# export FOGLAMP_DATA=.
+
+	Set FOGLAMP_ROOT if needed
+	# export FOGLAMP_ROOT=/some/path
+
+	Start sirage service
+	# $FOGLAMP_ROOT/services/storage	
+
+2) delete category "testcategory"
+	# curl -X DELETE -d '{"where":{"column":"key","condition":"=","value":"testcategory"}}' 'http://127.0.0.1:8080/storage/table/configuration'
+	Check
+	curl -X GET 'http://127.0.0.1:8080/storage/table/configuration?key=testcategory'
+
+3) Make / Run tests
+
+	# mkdir build
+	# cd build
+	# cmake ..
+	# make
+	# ./RunTests
+

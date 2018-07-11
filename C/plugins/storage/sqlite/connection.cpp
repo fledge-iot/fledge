@@ -18,7 +18,7 @@
 #include "rapidjson/error/error.h"
 #include "rapidjson/error/en.h"
 #include <string>
-#include <regex>
+#include <map>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sstream>
@@ -113,9 +113,10 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	 * Thus we apply default FOGLAMP formatting:
 	 * "%Y-%m-%d %H:%M:%f" with 'localtime'
 	 */
-
 	if (sqlite3_column_database_name(pStmt, i) != NULL &&
-		sqlite3_column_table_name(pStmt, i) != NULL)
+		sqlite3_column_table_name(pStmt, i) != NULL &&
+		(strcmp(sqlite3_column_origin_name(pStmt, i),
+			sqlite3_column_name(pStmt, i)) == 0))
 	{
 		const char* pzDataType;
 		int retType = sqlite3_table_column_metadata(dbHandle,
@@ -283,6 +284,8 @@ Connection::Connection()
 	const char *dataDir = getenv("FOGLAMP_DATA");
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 
+	m_logSQL = false;
+
 	if (defaultConnection == NULL)
 	{
 		// Set DB base path
@@ -303,6 +306,9 @@ Connection::Connection()
 	{
 		dbPath = defaultConnection;
 	}
+
+	// Allow usage of URI for filename
+	sqlite3_config(SQLITE_CONFIG_URI, 1);
 
 	/**
 	 * Make a connection to the database
@@ -386,6 +392,15 @@ Connection::~Connection()
 	sqlite3_close_v2(dbHandle);
 }
 
+/**
+ * Enable or disable the tracing of SQL statements
+ *
+ * @param flag	Desired state of the SQL trace flag
+ */
+void Connection::setTrace(bool flag)
+{
+	m_logSQL = flag;
+}
 /**
  * Map a SQLite3 result set to a string version of a JSON document
  *
@@ -767,6 +782,8 @@ SQLBuffer	jsonConstraints;
 		int rc;
 		sqlite3_stmt *stmt;
 
+		logSQL("CommonRetrive", query);
+
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 
@@ -829,19 +846,9 @@ int		col = 0;
 		if (itr->value.IsString())
 		{
 			const char *str = itr->value.GetString();
-			// Check if the string is a function
-			string s (str);
-  			regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-  			if (regex_match (s,e))
+			if (strcmp(str, "now()") == 0)
 			{
-				if (strcmp(str, "now()") == 0)
-				{
-					values.append(SQLITE3_NOW);
-				}
-				else
-				{
-					values.append(str);
-				}
+				values.append(SQLITE3_NOW);
 			}
 			else
 			{
@@ -872,6 +879,7 @@ int		col = 0;
 	sql.append(");");
 
 	const char *query = sql.coalesce();
+	logSQL("CommonInsert", query);
 	char *zErrMsg = NULL;
 	int rc;
 
@@ -940,19 +948,9 @@ int		col = 0;
 				if (itr->value.IsString())
 				{
 					const char *str = itr->value.GetString();
-					// Check if the string is a function
-					string s (str);
-					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-					if (regex_match (s,e))
+					if (strcmp(str, "now()") == 0)
 					{
-						if (strcmp(str, "now()") == 0)
-						{
-							sql.append(SQLITE3_NOW);
-						}
-						else
-						{
-							sql.append(str);
-						}
+						sql.append(SQLITE3_NOW);
 					}
 					else
 					{
@@ -1026,12 +1024,9 @@ int		col = 0;
 				if (value.IsString())
 				{
 					const char *str = value.GetString();
-					// Check if the string is a function
-					string s (str);
-					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-					if (regex_match (s,e))
+					if (strcmp(str, "now()") == 0)
 					{
-						sql.append(str);
+						sql.append(SQLITE3_NOW);
 					}
 					else
 					{
@@ -1136,12 +1131,9 @@ int		col = 0;
 				if (value.IsString())
 				{
 					const char *str = value.GetString();
-					// Check if the string is a function
-					string s (str);
-					regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-					if (regex_match (s,e))
+					if (strcmp(str, "now()") == 0)
 					{
-						sql.append(str);
+						sql.append(SQLITE3_NOW);
 					}
 					else
 					{
@@ -1199,6 +1191,7 @@ int		col = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("CommonUpdate", query);
 	char *zErrMsg = NULL;
 	int update = 0;
 	int rc;
@@ -1276,6 +1269,7 @@ SQLBuffer	sql;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("CommonDelete", query);
 	char *zErrMsg = NULL;
 	int delete_rows;
 	int rc;
@@ -1374,19 +1368,9 @@ int		row = 0;
 		sql.append(buffer.GetString());
 		sql.append("\', ");
 		const char *str = (*itr)["user_ts"].GetString();
-		// Check if the string is a function
-		string s (str);
-		regex e ("[a-zA-Z][a-zA-Z0-9_]*\\(.*\\)");
-		if (regex_match (s,e))
+		if (strcmp(str, "now()") == 0)
 		{
-			if (strcmp(str, "now()") == 0)
-			{
-				sql.append(SQLITE3_NOW);
-			}
-			else
-			{
-				sql.append(str);
-			}
+			sql.append(SQLITE3_NOW);
 		}
 		else
 		{
@@ -1400,6 +1384,7 @@ int		row = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("ReadingsAppend", query);
 	char *zErrMsg = NULL;
 	int rc;
 
@@ -1460,6 +1445,7 @@ int retrieve;
 		 id,
 		 blksize);
 
+	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
 	if (sqlite3_prepare_v2(dbHandle,
@@ -1589,6 +1575,7 @@ long numReadings = 0;
 	}
 	sql.append(';');
 	const char *query = sql.coalesce();
+	logSQL("ReadingsPurge", query);
 	char *zErrMsg = NULL;
 	int rc;
 	int rows_deleted;
@@ -1618,6 +1605,7 @@ long numReadings = 0;
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query_r = retainedBuffer.coalesce();
+	logSQL("ReadingsPurge", query_r);
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
@@ -2546,4 +2534,18 @@ string  newString;
     newString = string(buffer);
     free(buffer);
     return newString;
+}
+
+/**
+ * Optionally log SQL statement execution
+ *
+ * @param	tag	A string tag that says why the SQL is being executed
+ * @param	stmt	The SQL statement itself
+ */
+void Connection::logSQL(const char *tag, const char *stmt)
+{
+	if (m_logSQL)
+	{
+		Logger::getLogger()->info("%s: %s", tag, stmt);
+	}
 }

@@ -15,6 +15,7 @@ that is devolved to the translation plugin in order to allow for flexibility
 in the translation process.
 """
 
+import aiohttp
 import resource
 import asyncio
 import sys
@@ -28,13 +29,13 @@ import json
 import foglamp.plugins.north.common.common as plugin_common
 
 from foglamp.common.parser import Parser
-from foglamp.common.storage_client.storage_client import StorageClient, ReadingsStorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.common import logger
-from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client import payload_builder
-from foglamp.common.statistics import Statistics
+from foglamp.common import statistics
 from foglamp.common.jqfilter import JQFilter
 from foglamp.common.audit_logger import AuditLogger
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 
 __author__ = "Stefano Simonelli, Massimiliano Pinto, Mark Riddoch"
@@ -82,6 +83,8 @@ _MESSAGES_LIST = {
     "e000025": "Required argument '--name' is missing - command line |{0}|",
     "e000026": "Required argument '--port' is missing - command line |{0}|",
     "e000027": "Required argument '--address' is missing - command line |{0}|",
+    "e000028": "cannot complete the fetch operation - error details |{0}|",
+    "e000029": "an error occurred  during the teardown operation - error details |{0}|",
 
 }
 """ Messages used for Information, Warning and Error notice """
@@ -115,6 +118,7 @@ class InvalidCommandLineParameters(RuntimeError):
     """ Invalid command line parameters, the stream id is the only required """
     pass
 
+
 def apply_date_format(in_data):
     """ This routine adds the default UTC zone format to the input date time string
     If a timezone (strting with + or -) is found, all the following chars
@@ -124,6 +128,8 @@ def apply_date_format(in_data):
           at the time being this routine expects UTC date time values.
 
     Examples:
+        2018-05-28 16:56:55              ==> 2018-05-28 16:56:55.000000+00
+        2018-05-28 13:42:28.84           ==> 2018-05-28 13:42:28.840000+00
         2018-03-22 17:17:17.166347       ==> 2018-03-22 17:17:17.166347+00
         2018-03-22 17:17:17.166347+00:00 ==> 2018-03-22 17:17:17.166347+00
         2018-03-22 17:17:17.166347+00    ==> 2018-03-22 17:17:17.166347+00
@@ -143,6 +149,15 @@ def apply_date_format(in_data):
         zone_index = in_data.rfind("+")
 
     if zone_index == -1:
+
+        if in_data.rfind(".") == -1:
+
+            # there are no milliseconds in the date
+            in_data += ".000000"
+
+        # Pads with 0 if needed
+        in_data = in_data.ljust(26, '0')
+
         # Just add +00
         timestamp = in_data + "+00"
     else:
@@ -248,6 +263,18 @@ class SendingProcess:
     _stop_execution = False
     """ sets to True when a signal is captured and a termination is needed """
 
+    TASK_FETCH_SLEEP = 0.5
+    """ The amount of time the fetch operation will sleep if there are no more data to load or in case of an error """
+
+    TASK_SEND_SLEEP = 0.5
+    """ The amount of time the sending operation will sleep in case of an error """
+
+    TASK_SLEEP_MAX_INCREMENTS = 4
+    """ Maximum number of increments for the sleep handling, the amount of time is doubled at every sleep """
+
+    TASK_SEND_UPDATE_POSITION_MAX = 10
+    """ the position is updated after the specified numbers of interactions of the sending task """
+
     # Filesystem path where the norths reside
     _NORTH_PATH = "foglamp.plugins.north."
 
@@ -264,39 +291,41 @@ class SendingProcess:
 
     # Configuration retrieved from the Configuration Manager
     _CONFIG_CATEGORY_NAME = 'SEND_PR'
-    _CONFIG_CATEGORY_DESCRIPTION = 'Configuration of the Sending Process'
+    _CONFIG_CATEGORY_DESCRIPTION = 'Sending Process'
     _CONFIG_DEFAULT = {
         "enable": {
-            "description": "A switch that can be used to enable or disable execution of "
-                           "the sending process.",
+            "description": "Enable execution of the sending process",
             "type": "boolean",
             "default": "True"
         },
         "duration": {
-            "description": "How long the sending process should run (in seconds) before stopping.",
+            "description": "Time in seconds the sending process should run",
             "type": "integer",
             "default": "60"
         },
+        "sleepInterval": {
+            "description": "Time in seconds to wait between duration checks",
+            "type": "integer",
+            "default": "1"
+        },
         "source": {
-            "description": "Defines the source of the data to be sent on the stream, "
-                           "this may be one of either readings, statistics or audit.",
+            "description": "Source of data to be sent on the stream. "
+                           "May be either readings, statistics or audit.",
             "type": "string",
             "default": _DATA_SOURCE_READINGS
         },
         "blockSize": {
-            "description": "The size of a block of readings to send in each transmission.",
+            "description": "Bytes to send in each transmission",
             "type": "integer",
             "default": "500"
         },
-        "sleepInterval": {
-            "description": "A period of time, expressed in seconds, "
-                           "to wait between attempts to send readings when there are no "
-                           "readings to be sent.",
+        "memory_buffer_size": {
+            "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
-            "default": "5"
+            "default": "10"
         },
         "north": {
-            "description": "The name of the north to use to translate the readings "
+            "description": "Name of the north plugin to use to translate readings "
                            "into the output format and send them",
             "type": "string",
             "default": "omf"
@@ -306,9 +335,10 @@ class SendingProcess:
             "type": "integer",
             "default": "1"
         }
+
     }
 
-    def __init__(self):
+    def __init__(self, loop=None):
         """
         Args:
             _mgt_name: Unique name that represents the microservice
@@ -328,7 +358,8 @@ class SendingProcess:
             'duration': int(self._CONFIG_DEFAULT['duration']['default']),
             'source': self._CONFIG_DEFAULT['source']['default'],
             'blockSize': int(self._CONFIG_DEFAULT['blockSize']['default']),
-            'sleepInterval': int(self._CONFIG_DEFAULT['sleepInterval']['default']),
+            'memory_buffer_size': int(self._CONFIG_DEFAULT['memory_buffer_size']['default']),
+            'sleepInterval': float(self._CONFIG_DEFAULT['sleepInterval']['default']),
             'north': self._CONFIG_DEFAULT['north']['default'],
         }
         self._config_from_manager = ""
@@ -347,7 +378,7 @@ class SendingProcess:
         self._mgt_port = None
         self._mgt_address = None
         ''' Parameters for the Storage layer '''
-        self._storage = None
+        self._storage_async = None
         self._readings = None
         """" Interfaces to the FogLAMP Storage Layer """
         self._audit = None
@@ -359,7 +390,26 @@ class SendingProcess:
         self._log_debug_level = None
         """ Defines what and the level of details for logging """
 
-        self._event_loop = asyncio.get_event_loop()
+        self._task_fetch_data_run = True
+        self._task_send_data_run = True
+        """" The specific task will run until the value is True """
+
+        self._task_fetch_data_task_id = None
+        self._task_send_data_task_id = None
+        """" Used to to managed the fetch/send operations """
+
+        self._task_fetch_data_sem = None
+        self._task_send_data_sem = None
+        """" Semaphores used for the synchronization of the fetch/send operations """
+
+        self._memory_buffer = [None]
+        """" In memory buffer where the data is loaded from the storage layer before to send it to the plugin """
+
+        self._memory_buffer_fetch_idx = 0
+        self._memory_buffer_send_idx = 0
+        """" Used to to managed the in memory buffer for the fetch/send operations """
+
+        self._event_loop = asyncio.get_event_loop() if loop is None else loop
 
     @staticmethod
     def _signal_handler(_signal_num, _stack_frame):
@@ -376,18 +426,16 @@ class SendingProcess:
             func="_signal_handler",
             signal_num=_signal_num))
 
-    def _is_stream_id_valid(self, stream_id):
+    async def _is_stream_id_valid(self, stream_id):
         """ Checks if the provided stream id  is valid
         Args:
             stream_id: managed stream id
         Returns:
             True/False
         Raises:
-        Todo:
-            it should evolve using the DB layer
         """
         try:
-            streams = self._storage.query_tbl('streams', 'id={0}'.format(stream_id))
+            streams = await self._storage_async.query_tbl('streams', 'id={0}'.format(stream_id))
             rows = streams['rows']
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -414,7 +462,6 @@ class SendingProcess:
         Returns:
             north_ok: True if the north is a proper one
         Raises:
-        Todo:
         """
         north_ok = False
         try:
@@ -427,7 +474,7 @@ class SendingProcess:
             raise
         return north_ok
 
-    def _load_data_into_memory(self, last_object_id):
+    async def _load_data_into_memory(self, last_object_id):
         """ Identifies the data source requested and call the appropriate handler
         Args:
         Returns:
@@ -438,16 +485,15 @@ class SendingProcess:
                 value      - dictionary, like for example {"lux": 53570.172}
         Raises:
             UnknownDataSource
-        Todo:
         """
         SendingProcess._logger.debug("{0} ".format("_load_data_into_memory"))
         try:
             if self._config['source'] == self._DATA_SOURCE_READINGS:
-                data_to_send = self._load_data_into_memory_readings(last_object_id)
+                data_to_send = await self._load_data_into_memory_readings(last_object_id)
             elif self._config['source'] == self._DATA_SOURCE_STATISTICS:
-                data_to_send = self._load_data_into_memory_statistics(last_object_id)
+                data_to_send = await self._load_data_into_memory_statistics(last_object_id)
             elif self._config['source'] == self._DATA_SOURCE_AUDIT:
-                data_to_send = self._load_data_into_memory_audit(last_object_id)
+                data_to_send = await self._load_data_into_memory_audit(last_object_id)
             else:
                 _message = _MESSAGES_LIST["e000008"]
                 SendingProcess._logger.error(_message)
@@ -458,24 +504,29 @@ class SendingProcess:
             raise
         return data_to_send
 
-    @_performance_log
-    def _load_data_into_memory_readings(self, last_object_id):
+    async def _load_data_into_memory_readings(self, last_object_id):
         """ Extracts from the DB Layer data related to the readings loading into a memory structure
         Args:
             last_object_id: last value already handled
         Returns:
             raw_data: data extracted from the DB Layer
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - position {1} ".format("_load_data_into_memory_readings", last_object_id))
         raw_data = None
+
+        converted_data = []
         try:
             # Loads data, +1 as > is needed
-            readings = self._readings.fetch(last_object_id + 1, self._config['blockSize'])
+            readings = await self._readings.fetch(last_object_id + 1, self._config['blockSize'])
 
             raw_data = readings['rows']
             converted_data = self._transform_in_memory_data_readings(raw_data)
+
+        except aiohttp.client_exceptions.ClientPayloadError as _ex:
+
+            _message = _MESSAGES_LIST["e000009"].format(str(_ex))
+            SendingProcess._logger.warning(_message)
 
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000009"].format(str(_ex))
@@ -527,8 +578,7 @@ class SendingProcess:
 
         return converted_data
 
-    @_performance_log
-    def _load_data_into_memory_statistics(self, last_object_id):
+    async def _load_data_into_memory_statistics(self, last_object_id):
         """ Extracts statistics data from the DB Layer, converts it into the proper format
             loading into a memory structure
         Args:
@@ -536,7 +586,6 @@ class SendingProcess:
         Returns:
             converted_data: data extracted from the DB Layer and converted in the proper format
         Raises:
-        Todo:
         """
         SendingProcess._logger.debug("{0} - position |{1}| ".format("_load_data_into_memory_statistics", last_object_id))
         raw_data = None
@@ -548,7 +597,7 @@ class SendingProcess:
                 .ORDER_BY(['id', 'ASC']) \
                 .payload()
 
-            statistics_history = self._storage.query_tbl_with_payload('statistics_history', payload)
+            statistics_history = await self._storage_async.query_tbl_with_payload('statistics_history', payload)
 
             raw_data = statistics_history['rows']
             converted_data = self._transform_in_memory_data_statistics(raw_data)
@@ -570,7 +619,6 @@ class SendingProcess:
         Returns:
             converted_data: converted data
         Raises:
-        Todo:
         """
         converted_data = []
         # Extracts only the asset_code column
@@ -596,7 +644,7 @@ class SendingProcess:
             raise e
         return converted_data
 
-    def _load_data_into_memory_audit(self, last_object_id):
+    async def _load_data_into_memory_audit(self, last_object_id):
         """ Extracts from the DB Layer data related to the statistics audit into the memory
         #
         Args:
@@ -618,19 +666,17 @@ class SendingProcess:
             raise
         return raw_data
 
-    def _last_object_id_read(self, stream_id):
+    async def _last_object_id_read(self, stream_id):
         """ Retrieves the starting point for the send operation
         Args:
             stream_id: managed stream id
         Returns:
             last_object_id: starting point for the send operation
         Raises:
-        Todo:
-            it should evolve using the DB layer
         """
         try:
             where = 'id={0}'.format(stream_id)
-            streams = self._storage.query_tbl('streams', where)
+            streams = await self._storage_async.query_tbl('streams', where)
             rows = streams['rows']
             if len(rows) == 0:
                 _message = _MESSAGES_LIST["e000016"].format(str(stream_id))
@@ -647,13 +693,11 @@ class SendingProcess:
             raise
         return last_object_id
 
-    def _last_object_id_update(self, new_last_object_id, stream_id):
+    async def _last_object_id_update(self, new_last_object_id, stream_id):
         """ Updates reached position
         Args:
             new_last_object_id: Last row id already sent
             stream_id:          Managed stream id
-        Todo:
-            it should evolve using the DB layer
         """
         try:
             SendingProcess._logger.debug("Last position, sent |{0}| ".format(str(new_last_object_id)))
@@ -663,113 +707,354 @@ class SendingProcess:
                 .SET(last_object=new_last_object_id, ts='now()') \
                 .WHERE(['id', '=', stream_id]) \
                 .payload()
-            self._storage.update_tbl("streams", payload)
+            await self._storage_async.update_tbl("streams", payload)
+
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000020"].format(_ex)
             SendingProcess._logger.error(_message)
             raise
 
-    @_performance_log
-    def _send_data_block(self, stream_id):
-        """ Sends a block of data to the destination using the configured plugin
-        Args:
-        Returns:
-        Raises:
-        Todo:
-        """
-        data_sent = False
-        SendingProcess._logger.debug("{0} - ".format("_send_data_block"))
-        try:
-            last_object_id = self._last_object_id_read(stream_id)
-            data_to_send = self._load_data_into_memory(last_object_id)
-            if data_to_send:
-                if self._config_from_manager['applyFilter']["value"].upper() == "TRUE":
-                    jqfilter = JQFilter()
-
-                    # Steps needed to proper format the data generated by the JQFilter to the one expected by the SP
-                    data_to_send_2 = jqfilter.transform(data_to_send, self._config_from_manager['filterRule']["value"])
-                    data_to_send_3 = json.dumps(data_to_send_2)
-                    del data_to_send_2
-
-                    data_to_send_4 = eval(data_to_send_3)
-                    del data_to_send_3
-
-                    data_to_send = data_to_send_4[0]
-                    del data_to_send_4
-
-                data_sent, new_last_object_id, num_sent = self._plugin.plugin_send(self._plugin_handle, data_to_send, stream_id)
-                if data_sent:
-                    # Updates reached position, statistics and logs the operation within the Storage Layer
-                    self._last_object_id_update(new_last_object_id, stream_id)
-                    self._update_statistics(num_sent, stream_id)
-                    loop = asyncio.get_event_loop()
-                    loop.run_until_complete(self._audit.information(self._AUDIT_CODE, {"sentRows": num_sent}))
-        except Exception:
-            _message = _MESSAGES_LIST["e000006"]
-            SendingProcess._logger.error(_message)
-            raise
-        return data_sent
-
-    def send_data(self, stream_id):
+    async def send_data(self, stream_id):
         """ Handles the sending of the data to the destination using the configured plugin
             for a defined amount of time
         Args:
+            stream_id:          Managed stream id
         Returns:
         Raises:
         """
-        SendingProcess._logger.debug("{0} - ".format("send_data"))
+        SendingProcess._logger.debug("{0} - start".format("send_data"))
+
+        # Prepares the in memory buffer for the fetch/send operations
+        self._memory_buffer = [None for x in range(self._config['memory_buffer_size'])]
+
+        self._task_fetch_data_sem = asyncio.Semaphore(0)
+        self._task_send_data_sem = asyncio.Semaphore(0)
+
+        self._task_fetch_data_task_id = asyncio.ensure_future(self._task_fetch_data(stream_id))
+        self._task_send_data_task_id = asyncio.ensure_future(self._task_send_data(stream_id))
+
+        self._task_fetch_data_run = True
+        self._task_send_data_run = True
+
         try:
             start_time = time.time()
             elapsed_seconds = 0
 
             while elapsed_seconds < self._config['duration']:
+
                 # Terminates the execution in case a signal has been received
                 if SendingProcess._stop_execution:
                     SendingProcess._logger.info("{func} - signal received, stops the execution".format(
                             func="send_data"))
                     break
 
-                try:
-                    data_sent = self._send_data_block(stream_id)
-                except Exception as e:
-                    data_sent = False
-                    _message = _MESSAGES_LIST["e000021"].format(e)
-                    SendingProcess._logger.error(_message)
-
-                if not data_sent:
-                    SendingProcess._logger.debug("{0} - sleeping".format("send_data"))
-                    time.sleep(self._config['sleepInterval'])
+                # Context switch to either the fetch or the send operation
+                await asyncio.sleep(self._config['sleepInterval'])
 
                 elapsed_seconds = time.time() - start_time
-                SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format(
-                                                            "send_data",
-                                                            elapsed_seconds))
-        except Exception:
-            _message = _MESSAGES_LIST["e000021"].format("")
+                SendingProcess._logger.debug("{0} - elapsed_seconds {1}".format("send_data", elapsed_seconds))
+
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000021"].format(ex)
             SendingProcess._logger.error(_message)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message}))
+
+            await self._audit.failure(self._AUDIT_CODE, {"error - on send_data": _message})
+
+        try:
+            # Graceful termination of the tasks
+            self._task_fetch_data_run = False
+            self._task_send_data_run = False
+
+            # Unblocks the task if it is waiting
+            self._task_fetch_data_sem.release()
+            self._task_send_data_sem.release()
+
+            await self._task_fetch_data_task_id
+            await self._task_send_data_task_id
+
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000029"].format(ex)
+            SendingProcess._logger.error(_message)
+
+        SendingProcess._logger.debug("{0} - completed".format("send_data"))
+
+    async def _task_fetch_data(self, stream_id):
+        """ Read data from the Storage Layer into a memory structure
+        Args:
+            stream_id:          Managed stream id
+        """
+
+        try:
+            last_object_id = await self._last_object_id_read(stream_id)
+            self._memory_buffer_fetch_idx = 0
+
+            SendingProcess._logger.debug("task {0} - start".format("_task_fetch_data"))
+
+            sleep_time = self.TASK_FETCH_SLEEP
+            sleep_num_increments = 1
+
+            while self._task_fetch_data_run:
+
+                slept = False
+
+                if self._memory_buffer_fetch_idx < self._config['memory_buffer_size']:
+
+                    # Checks if there is enough space to load a new block of data
+                    if self._memory_buffer[self._memory_buffer_fetch_idx] is None:
+
+                        try:
+                            data_to_send = await self._load_data_into_memory(last_object_id)
+
+                        except Exception as ex:
+                            _message = _MESSAGES_LIST["e000028"].format(ex)
+                            SendingProcess._logger.error(_message)
+                            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_fetch_data": _message})
+
+                            data_to_send = False
+
+                            slept = True
+                            await asyncio.sleep(sleep_time)
+
+                        if data_to_send:
+                            SendingProcess._logger.debug("task {f} - loaded - idx |{idx}|".format(
+                                                                        f="fetch_data",
+                                                                        idx=self._memory_buffer_fetch_idx))
+
+                            # Handles the JQFilter functionality
+                            if self._config_from_manager['applyFilter']["value"].upper() == "TRUE":
+                                jqfilter = JQFilter()
+
+                                # Steps needed to proper format the data generated by the JQFilter
+                                # to the one expected by the SP
+                                data_to_send_2 = jqfilter.transform(data_to_send,
+                                                                    self._config_from_manager['filterRule']["value"])
+                                data_to_send_3 = json.dumps(data_to_send_2)
+                                del data_to_send_2
+
+                                data_to_send_4 = eval(data_to_send_3)
+                                del data_to_send_3
+
+                                data_to_send = data_to_send_4[0]
+                                del data_to_send_4
+
+                            # Loads the block of data into the in memory buffer
+                            self._memory_buffer[self._memory_buffer_fetch_idx] = data_to_send
+                            last_position = len(data_to_send) - 1
+                            last_object_id = data_to_send[last_position]['id']
+
+                            self._memory_buffer_fetch_idx += 1
+
+                            self._task_fetch_data_sem.release()
+
+                            self.performance_track("task _task_fetch_data")
+                        else:
+                            # There is no more data to load
+                            SendingProcess._logger.debug("task {f} - idle : no more data to load - idx |{idx}| "
+                                                         .format(f="fetch_data", idx=self._memory_buffer_fetch_idx))
+
+                            slept = True
+                            await asyncio.sleep(sleep_time)
+
+                    else:
+                        # There is no more space in the in memory buffer
+                        SendingProcess._logger.debug("task {f} - idle : memory buffer full - idx |{idx}| "
+                                                     .format(f="fetch_data", idx=self._memory_buffer_fetch_idx))
+
+                        await self._task_send_data_sem.acquire()
+                else:
+                    self._memory_buffer_fetch_idx = 0
+
+                # Handles the sleep time, it is doubled every time up to a limit
+                if slept:
+                    sleep_num_increments += 1
+                    sleep_time *= 2
+
+                    if sleep_num_increments > self.TASK_SLEEP_MAX_INCREMENTS:
+                        sleep_time = self.TASK_FETCH_SLEEP
+                        sleep_num_increments = 1
+
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000028"].format(ex)
+            SendingProcess._logger.error(_message)
+
+            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_fetch_data": _message})
             raise
 
-    def _update_statistics(self, num_sent, stream_id):
+        SendingProcess._logger.debug("task {0} - end".format("_task_fetch_data"))
+
+    async def _task_send_data(self, stream_id):
+        """ Sends the data from the in memory structure to the destination using the loaded plugin
+        Args:
+            stream_id: Managed stream id
+        """
+
+        data_sent = False
+        db_update = False
+        update_last_object_id = 0
+        tot_num_sent = 0
+        update_position_idx = 0
+
+        try:
+            self._memory_buffer_send_idx = 0
+
+            SendingProcess._logger.debug("task {0} - start".format("_task_send_data"))
+
+            sleep_time = self.TASK_SEND_SLEEP
+            sleep_num_increments = 1
+
+            while self._task_send_data_run:
+
+                slept = False
+
+                if self._memory_buffer_send_idx < self._config['memory_buffer_size']:
+
+                    # Checks if there are data to send
+                    if self._memory_buffer[self._memory_buffer_send_idx] is not None:
+
+                        SendingProcess._logger.debug("task {f} - sending - idx |{idx}| ".format(
+                                                                    f="send_data",
+                                                                    idx=self._memory_buffer_send_idx))
+
+                        try:
+                            data_sent, new_last_object_id, num_sent = await self._plugin.plugin_send(
+                                self._plugin_handle,
+                                self._memory_buffer[self._memory_buffer_send_idx],
+                                stream_id)
+
+                        except Exception as ex:
+                            _message = _MESSAGES_LIST["e000021"].format(ex)
+                            SendingProcess._logger.error(_message)
+                            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_send_data": _message})
+
+                            data_sent = False
+
+                            slept = True
+                            await asyncio.sleep(sleep_time)
+
+                        if data_sent:
+                            db_update = True
+                            update_last_object_id = new_last_object_id
+                            tot_num_sent = tot_num_sent + num_sent
+
+                            self._memory_buffer[self._memory_buffer_send_idx] = None
+
+                            self._memory_buffer_send_idx += 1
+
+                            self._task_send_data_sem.release()
+
+                            self.performance_track("task _task_send_data")
+                    else:
+                        # There is no data to send
+                        SendingProcess._logger.debug("task {f} - idle : no data to send - idx |{idx}| "
+                                                     .format(f="send_data", idx=self._memory_buffer_send_idx))
+
+                        # Updates the position before going to wait for the semaphore
+                        if db_update:
+                            await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+                            update_position_idx = 0
+                            tot_num_sent = 0
+                            db_update = False
+
+                        await self._task_fetch_data_sem.acquire()
+
+                    # Updates the Storage layer every 'self.UPDATE_POSITION_MAX' interactions
+                    if db_update:
+
+                        if update_position_idx >= self.TASK_SEND_UPDATE_POSITION_MAX:
+
+                            SendingProcess._logger.debug("task {f} - update position - idx/max |{idx}/{max}| ".format(
+                                            f="send_data",
+                                            idx=update_position_idx,
+                                            max=self.TASK_SEND_UPDATE_POSITION_MAX))
+
+                            await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+                            update_position_idx = 0
+                            tot_num_sent = 0
+                            db_update = False
+                        else:
+                            update_position_idx += 1
+                else:
+                    self._memory_buffer_send_idx = 0
+
+                # Handles the sleep time, it is doubled every time up to a limit
+                if slept:
+                    sleep_num_increments += 1
+                    sleep_time *= 2
+
+                    if sleep_num_increments > self.TASK_SLEEP_MAX_INCREMENTS:
+                        sleep_time = self.TASK_SEND_SLEEP
+                        sleep_num_increments = 1
+
+            # Checks if the information on the Storage layer needs to be updates
+            if db_update:
+                await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+
+        except Exception as ex:
+            _message = _MESSAGES_LIST["e000021"].format(ex)
+            SendingProcess._logger.error(_message)
+
+            if db_update:
+                await self._update_position_reached(stream_id, update_last_object_id, tot_num_sent)
+
+            await self._audit.failure(self._AUDIT_CODE, {"error - on _task_send_data": _message})
+            raise
+
+        SendingProcess._logger.debug("task {0} - end".format("_task_send_data"))
+
+    async def _update_position_reached(self, stream_id, update_last_object_id, tot_num_sent):
+        """ Updates last_object_id, statistics and audit
+        Args:
+        Returns:
+        Raises:
+        """
+
+        SendingProcess._logger.debug("{f} - update position - last_object/sent |{last}/{sent}| ".format(
+            f="_update_position_reached",
+            last=update_last_object_id,
+            sent=tot_num_sent))
+
+        await self._last_object_id_update(update_last_object_id, stream_id)
+
+        await self._update_statistics(tot_num_sent, stream_id)
+
+        await self._audit.information(self._AUDIT_CODE, {"sentRows": tot_num_sent})
+
+    async def _update_statistics(self, num_sent, stream_id):
         """ Updates FogLAMP statistics
         Raises :
         """
         try:
             key = 'SENT_' + str(stream_id)
-            _stats = Statistics(self._storage)
-            self._event_loop.run_until_complete(_stats.update(key, num_sent))
+            _stats = await statistics.create_statistics(self._storage_async)
+
+            await _stats.update(key, num_sent)
+
         except Exception:
             _message = _MESSAGES_LIST["e000010"]
             SendingProcess._logger.error(_message)
             raise
+
+    @staticmethod
+    def performance_track(message):
+        """ Tracks information for performance measurement
+        Args:
+        Returns:
+        Raises:
+        """
+
+        if _log_performance:
+            usage = resource.getrusage(resource.RUSAGE_SELF)
+            process_memory = usage.ru_maxrss / 1000
+
+            SendingProcess._logger.debug("PERFORMANCE - {0} : memory MB |{1:>8,}|".format(
+                                                                message,
+                                                                process_memory))
 
     def _plugin_load(self):
         """ Loads the plugin
         Args:
         Returns:
         Raises:
-        Todo:
         """
         module_to_import = self._NORTH_PATH + self._config['north'] + "." + self._config['north']
         try:
@@ -782,13 +1067,15 @@ class SendingProcess:
     def _fetch_configuration(self, cat_name=None, cat_desc=None, cat_config=None, cat_keep_original=False):
         """ Retrieves the configuration from the Configuration Manager"""
         SendingProcess._logger.debug("{0} - ".format("_fetch_configuration"))
-        cfg_manager = ConfigurationManager(self._storage)
         try:
-            self._event_loop.run_until_complete(cfg_manager.create_category(cat_name,
-                                                                            cat_config,
-                                                                            cat_desc,
-                                                                            cat_keep_original))
-            _config_from_manager = self._event_loop.run_until_complete(cfg_manager.get_category_all_items(cat_name))
+            config_payload = json.dumps({
+                "key": cat_name,
+                "description": cat_desc,
+                "value": cat_config,
+                "keep_original_items": cat_keep_original
+            })
+            self._core_task_management_client.create_configuration_category(config_payload)
+            _config_from_manager = self._core_task_management_client.get_configuration_category(category_name=cat_name)
             return _config_from_manager
         except Exception:
             _message = _MESSAGES_LIST["e000003"]
@@ -819,7 +1106,8 @@ class SendingProcess:
             self._config['duration'] = int(_config_from_manager['duration']['value'])
             self._config['source'] = _config_from_manager['source']['value']
             self._config['blockSize'] = int(_config_from_manager['blockSize']['value'])
-            self._config['sleepInterval'] = int(_config_from_manager['sleepInterval']['value'])
+            self._config['memory_buffer_size'] = int(_config_from_manager['memory_buffer_size']['value'])
+            self._config['sleepInterval'] = float(_config_from_manager['sleepInterval']['value'])
             self._config['north'] = _config_from_manager['plugin']['value']
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = config_category_name
             self._config_from_manager = _config_from_manager
@@ -828,7 +1116,7 @@ class SendingProcess:
             SendingProcess._logger.error(_message)
             raise
 
-    def _start(self, stream_id):
+    async def _start(self, stream_id):
         """ Setup the correct state for the Sending Process
         Args:
             stream_id: managed stream id
@@ -836,7 +1124,6 @@ class SendingProcess:
             False = the sending process is disabled
         Raises:
             PluginInitialiseFailed
-        Todo:
         """
         exec_sending_process = False
         SendingProcess._logger.debug("{0} - ".format("start"))
@@ -845,7 +1132,8 @@ class SendingProcess:
             start_message = "" + _MODULE_NAME + "" + prg_text + " " + __copyright__ + " "
             SendingProcess._logger.info("{0}".format(start_message))
             SendingProcess._logger.info(_MESSAGES_LIST["i000001"])
-            if self._is_stream_id_valid(stream_id):
+            is_valid_stream = await self._is_stream_id_valid(stream_id)
+            if is_valid_stream:
                 # config from sending process
                 self._retrieve_configuration(stream_id, cat_keep_original=True)
                 exec_sending_process = self._config['enable']
@@ -879,12 +1167,14 @@ class SendingProcess:
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000004"].format(str(_ex))
             SendingProcess._logger.error(_message)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on start": _message}))
+            await self._audit.failure(self._AUDIT_CODE, {"error - on start": _message})
             raise
         return exec_sending_process
 
-    def start(self):
+    async def start(self):
+        """
+
+        """
         # Command line parameter handling
         global _log_performance
         global _LOGGER
@@ -903,9 +1193,9 @@ class SendingProcess:
             SendingProcess._logger.exception(message)
             sys.exit(1)
         try:
-            self._storage = StorageClient(self._mgt_address, self._mgt_port)
-            self._readings = ReadingsStorageClient(self._mgt_address, self._mgt_port)
-            self._audit = AuditLogger(self._storage)
+            self._storage_async = StorageClientAsync(self._mgt_address, self._mgt_port)
+            self._readings = ReadingsStorageClientAsync(self._mgt_address, self._mgt_port)
+            self._audit = AuditLogger(self._storage_async)
         except Exception as ex:
             message = _MESSAGES_LIST["e000023"].format(str(ex))
             SendingProcess._logger.exception(message)
@@ -917,6 +1207,9 @@ class SendingProcess:
             logger_name = _MODULE_NAME + "_" + str(self.input_stream_id)
 
             SendingProcess._logger = logger.setup(logger_name, destination=_LOGGER_DESTINATION, level=_LOGGER_LEVEL)
+            
+            # TODO: Create a separate "MicroserviceManagementClient" like client for tasks
+            self._core_task_management_client = MicroserviceManagementClient(self._mgt_address, self._mgt_port)
 
             try:
                 # Set the debug level
@@ -929,8 +1222,10 @@ class SendingProcess:
                 _LOGGER = SendingProcess._logger
 
                 # Start sending
-                if self._start(self.input_stream_id):
-                    self.send_data(self.input_stream_id)
+                is_started = await self._start(self.input_stream_id)
+                if is_started:
+                    await self.send_data(self.input_stream_id)
+
                 # Stop Sending
                 self.stop()
                 SendingProcess._logger.info(_MESSAGES_LIST["i000002"])
@@ -945,17 +1240,18 @@ class SendingProcess:
         Args:
         Returns:
         Raises:
-        Todo:
         """
         try:
             self._plugin.plugin_shutdown(self._plugin_handle)
         except Exception:
             _message = _MESSAGES_LIST["e000007"]
             SendingProcess._logger.error(_message)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on stop": _message}))
+            self._event_loop.run_until_complete(self._audit.failure(self._AUDIT_CODE, {"error - on stop": _message}))
             raise
 
 
 if __name__ == "__main__":
-    SendingProcess().start()
+
+    loop = asyncio.get_event_loop()
+    sp = SendingProcess(loop)
+    loop.run_until_complete(sp.start())

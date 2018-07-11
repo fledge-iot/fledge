@@ -8,19 +8,8 @@
 .. Images
 
 .. Links
-.. _here: 05_testing.html#setting-the-omf-translator-plugin
-.. _these steps: 04_installation.html
-
-.. |Getting Started| raw:: html
-
-   <a href="03_getting_started.html#building-foglamp">here</a>
 
 .. Links in new tabs
-
-.. |GPIO| raw:: html
-
-   <a href="https://www.raspberrypi.org/documentation/usage/gpio-plus-and-raspi2/README.md" target="_blank">here</a>
-
 
 .. =============================================
 
@@ -140,7 +129,6 @@ Using a simple example of our sensor reading a GPIO pin, we extract the new pin 
       """
 
       new_handle = new_config['gpiopin']['value']
-
       return new_handle
 
 |br|

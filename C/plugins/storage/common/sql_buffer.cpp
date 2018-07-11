@@ -254,7 +254,7 @@ SQLBuffer::Buffer::~Buffer()
 {
 	if (attached)
 	{
-		delete data;
+		delete[] data;
 		data = 0;
 	}
 }

@@ -7,20 +7,20 @@
 """ Storage layer python client
 """
 
-__author__ = "Praveen Garg"
+__author__ = "Praveen Garg, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-from abc import ABC, abstractmethod
+import aiohttp
 import http.client
 import json
+from abc import ABC, abstractmethod
 
 from foglamp.common import logger
 from foglamp.common.service_record import ServiceRecord
 from foglamp.common.storage_client.exceptions import *
 from foglamp.common.storage_client.utils import Utils
-
 
 _LOGGER = logger.setup(__name__)
 
@@ -47,8 +47,7 @@ class AbstractStorage(ABC):
         self.disconnect()
 
 
-class StorageClient(AbstractStorage):
-
+class StorageClientAsync(AbstractStorage):
     def __init__(self, core_management_host, core_management_port, svc=None):
         try:
             if svc:
@@ -97,7 +96,7 @@ class StorageClient(AbstractStorage):
         r = conn.getresponse()
 
         if r.status in range(400, 500):
-            _LOGGER.error("Get Service: Client error code: %d, %s", r.status. r.reason)
+            _LOGGER.error("Get Service: Client error code: %d, %s", r.status.r.reason)
         if r.status in range(500, 600):
             _LOGGER.error("Get Service: Server error code: %d, %s", r.status, r.reason)
 
@@ -112,7 +111,8 @@ class StorageClient(AbstractStorage):
         if len(svc) == 0:
             raise InvalidServiceInstance
         self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
-                                     m_port=svc["management_port"], s_address=svc["address"], s_protocol=svc["protocol"])
+                                     m_port=svc["management_port"], s_address=svc["address"],
+                                     s_protocol=svc["protocol"])
 
         return self
 
@@ -121,7 +121,7 @@ class StorageClient(AbstractStorage):
 
     # FIXME: As per JIRA-615 strict=false at python side (interim solution)
     # fix is required at storage layer (error message with escape sequence using a single quote)
-    def insert_into_tbl(self, tbl_name, data):
+    async def insert_into_tbl(self, tbl_name, data):
         """ insert json payload into given table
 
         :param tbl_name:
@@ -131,7 +131,7 @@ class StorageClient(AbstractStorage):
         :Example:
             curl -X POST http://0.0.0.0:8080/storage/table/statistics_history -d @payload2.json
             @payload2.json content:
-            
+
             {
                 "key" : "SENT_test",
                 "history_ts" : "now()",
@@ -147,25 +147,20 @@ class StorageClient(AbstractStorage):
         if not Utils.is_json(data):
             raise TypeError("Provided data to insert must be a valid JSON")
 
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
-
         post_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
-
-        conn.request('POST', url=post_url, body=data)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.info("POST %s, with payload: %s", post_url, data)
-            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self.base_url + post_url
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=data) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("POST %s, with payload: %s", post_url, data)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    def update_tbl(self, tbl_name, data):
+    async def update_tbl(self, tbl_name, data):
         """ update json payload for specified condition into given table
 
         :param tbl_name:
@@ -195,24 +190,21 @@ class StorageClient(AbstractStorage):
         if not Utils.is_json(data):
             raise TypeError("Provided data to update must be a valid JSON")
 
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
         put_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
-        conn.request('PUT', url=put_url, body=data)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.info("PUT %s, with payload: %s", put_url, data)
-            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self.base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=data) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("PUT %s, with payload: %s", put_url, data)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    def delete_from_tbl(self, tbl_name, condition=None):
+    async def delete_from_tbl(self, tbl_name, condition=None):
         """ Delete for specified condition from given table
 
         :param tbl_name:
@@ -232,27 +224,24 @@ class StorageClient(AbstractStorage):
         if not tbl_name:
             raise ValueError("Table name is missing")
 
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
         del_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
         if condition and (not Utils.is_json(condition)):
             raise TypeError("condition payload must be a valid JSON")
 
-        conn.request('DELETE', url=del_url, body=condition)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
-            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self.base_url + del_url
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(url, data=condition) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("DELETE %s, with payload: %s", del_url, condition if condition else '')
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    def query_tbl(self, tbl_name, query=None):
+    async def query_tbl(self, tbl_name, query=None):
         """ Simple SELECT query for the specified table with optional query params
 
         :param tbl_name:
@@ -266,28 +255,24 @@ class StorageClient(AbstractStorage):
         if not tbl_name:
             raise ValueError("Table name is missing")
 
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
-
         get_url = '/storage/table/{tbl_name}'.format(tbl_name=tbl_name)
 
         if query:  # else SELECT * FROM <tbl_name>
             get_url += '?{}'.format(query)
 
-        conn.request('GET', url=get_url)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.info("GET %s", get_url)
-            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self.base_url + get_url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("GET %s", get_url)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    def query_tbl_with_payload(self, tbl_name, query_payload):
+    async def query_tbl_with_payload(self, tbl_name, query_payload):
         """ Complex SELECT query for the specified table with a payload
 
         :param tbl_name:
@@ -312,35 +297,30 @@ class StorageClient(AbstractStorage):
         if not Utils.is_json(query_payload):
             raise TypeError("Query payload must be a valid JSON")
 
-        conn = http.client.HTTPConnection(self.base_url)
-        # TODO: need to set http / https based on service protocol
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
 
-        conn.request('PUT', url=put_url, body=query_payload)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
-            _LOGGER.error("Error code: %d, reason: %s, details: %s", r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self.base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=query_payload) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.info("PUT %s, with query payload: %s", put_url, query_payload)
+                    _LOGGER.error("Error code: %d, reason: %s, details: %s", resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
 
-class ReadingsStorageClient(StorageClient):
+class ReadingsStorageClientAsync(StorageClientAsync):
     """ Readings table operations """
-
     _base_url = ""
 
     def __init__(self, core_mgt_host, core_mgt_port, svc=None):
         super().__init__(core_management_host=core_mgt_host, core_management_port=core_mgt_port, svc=svc)
         self.__class__._base_url = self.base_url
 
-    @classmethod
-    def append(cls, readings):
+    async def append(self, readings):
         """
         :param readings:
         :return:
@@ -367,30 +347,25 @@ class ReadingsStorageClient(StorageClient):
 
         """
 
-        conn = http.client.HTTPConnection(cls._base_url)
-        # TODO: need to set http / https based on service protocol
-
         if not readings:
             raise ValueError("Readings payload is missing")
 
         if not Utils.is_json(readings):
             raise TypeError("Readings payload must be a valid JSON")
 
-        conn.request('POST', url='/storage/reading', body=readings)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
-                          '/storage/reading', readings, r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self._base_url + '/storage/reading'
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=readings) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("POST url %s with payload: %s, Error code: %d, reason: %s, details: %s",
+                                  '/storage/reading', readings, resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    @classmethod
-    def fetch(cls, reading_id, count):
+    async def fetch(self, reading_id, count):
         """
 
         :param reading_id: the first reading ID in the block that is retrieved
@@ -400,9 +375,6 @@ class ReadingsStorageClient(StorageClient):
             curl -X  GET http://0.0.0.0:8080/storage/reading?id=2&count=3
 
         """
-
-        conn = http.client.HTTPConnection(cls._base_url)
-        # TODO: need to set http / https based on service protocol
 
         if reading_id is None:
             raise ValueError("first reading id to retrieve the readings block is required")
@@ -416,20 +388,19 @@ class ReadingsStorageClient(StorageClient):
             raise
 
         get_url = '/storage/reading?id={}&count={}'.format(reading_id, count)
-        conn.request('GET', url=get_url)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", get_url, r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self._base_url + get_url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("GET url: %s, Error code: %d, reason: %s, details: %s", url, resp.status,
+                                  resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    @classmethod
-    def query(cls, query_payload):
+    async def query(self, query_payload):
         """
 
         :param query_payload:
@@ -453,24 +424,19 @@ class ReadingsStorageClient(StorageClient):
         if not Utils.is_json(query_payload):
             raise TypeError("Query payload must be a valid JSON")
 
-        conn = http.client.HTTPConnection(cls._base_url)
-        # TODO: need to set http / https based on service protocol
-
-        conn.request('PUT', url='/storage/reading/query', body=query_payload)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        if r.status in range(400, 600):
-            _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
-                          '/storage/reading/query', query_payload, r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self._base_url + '/storage/reading/query'
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=query_payload) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("PUT url %s with query payload: %s, Error code: %d, reason: %s, details: %s",
+                                  '/storage/reading/query', query_payload, resp.status, resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc
 
-    @classmethod
-    def purge(cls, age=None, sent_id=0, size=None, flag=None):
+    async def purge(self, age=None, sent_id=0, size=None, flag=None):
         """ Purge readings based on the age of the readings
 
         :param age: the maximum age of data to retain, expressed in hours
@@ -510,9 +476,6 @@ class ReadingsStorageClient(StorageClient):
         except ValueError:
             raise
 
-        conn = http.client.HTTPConnection(cls._base_url)
-        # TODO: need to set http / https based on service protocol
-
         if age:
             put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
         if size:
@@ -520,15 +483,14 @@ class ReadingsStorageClient(StorageClient):
         if flag:
             put_url += "&flags={}".format(flag.lower())
 
-        conn.request('PUT', url=put_url, body=None)
-        r = conn.getresponse()
-        res = r.read().decode()
-        conn.close()
-        jdoc = json.loads(res, strict=False)
-
-        # NOTE: If the data could not be deleted because of a conflict, then the error “409 Conflict” will be returned.
-        if r.status in range(400, 600):
-            _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, r.status, r.reason, jdoc)
-            raise StorageServerError(code=r.status, reason=r.reason, error=jdoc)
+        url = 'http://' + self._base_url + put_url
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, data=None) as resp:
+                status_code = resp.status
+                jdoc = await resp.json()
+                if status_code not in range(200, 209):
+                    _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
+                                  resp.reason, jdoc)
+                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
 
         return jdoc

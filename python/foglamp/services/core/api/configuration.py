@@ -41,7 +41,7 @@ async def get_categories(request):
             curl -X GET http://localhost:8081/foglamp/category
     """
     # TODO: make it optimized and elegant
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
     categories = await cf_mgr.get_all_category_names()
     categories_json = [{"key": c[0], "description": c[1]} for c in categories]
 
@@ -62,7 +62,7 @@ async def get_category(request):
     category_name = request.match_info.get('category_name', None)
 
     # TODO: make it optimized and elegant
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
     category = await cf_mgr.get_category_all_items(category_name)
 
     if category is None:
@@ -83,7 +83,7 @@ async def create_category(request):
             curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}' -X POST http://localhost:8081/foglamp/category
     """
     try:
-        cf_mgr = ConfigurationManager(connect.get_storage())
+        cf_mgr = ConfigurationManager(connect.get_storage_async())
         data = await request.json()
         if not isinstance(data, dict):
             raise ValueError('Data payload must be a dictionary')
@@ -135,7 +135,7 @@ async def get_category_item(request):
     config_item = request.match_info.get('config_item', None)
 
     # TODO: make it optimized and elegant
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
 
     if category_item is None:
@@ -164,7 +164,7 @@ async def set_configuration_item(request):
 
     data = await request.json()
     # TODO: make it optimized and elegant
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
 
     try:
         value = data['value']
@@ -200,7 +200,7 @@ async def add_configuration_item(request):
     new_config_item = request.match_info.get('config_item', None)
 
     try:
-        storage_client = connect.get_storage()
+        storage_client = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage_client)
 
         data = await request.json()
@@ -233,7 +233,7 @@ async def add_configuration_item(request):
 
         # update category value in storage
         payload = PayloadBuilder().SET(value=merge_cat_val).WHERE(["key", "=", category_name]).payload()
-        result = storage_client.update_tbl("configuration", payload)
+        result = await storage_client.update_tbl("configuration", payload)
         response = result['response']
 
         # logged audit new config item for category
@@ -270,7 +270,7 @@ async def delete_configuration_item_value(request):
     config_item = request.match_info.get('config_item', None)
 
     # TODO: make it optimized and elegant
-    cf_mgr = ConfigurationManager(connect.get_storage())
+    cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:
         category_item = await cf_mgr.get_category_item(category_name, config_item)
         if category_item is None:

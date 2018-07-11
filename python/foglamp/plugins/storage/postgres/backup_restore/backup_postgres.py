@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2017
+# Copyright (C) 2017, 2018
 
 """ Backups the entire FogLAMP repository into a file in the local filesystem,
 it executes a full warm backup.
@@ -30,7 +29,7 @@ import foglamp.plugins.storage.postgres.backup_restore.lib as lib
 import foglamp.plugins.storage.postgres.backup_restore.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017, 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -88,6 +87,7 @@ class Backup(object):
     """ Messages used for Information, Warning and Error notice """
 
     _logger = None
+    STORAGE_TABLE_BACKUPS = None
 
     def __init__(self, _storage):
         self._storage = _storage
@@ -98,8 +98,9 @@ class Backup(object):
                                           level=_LOGGER_LEVEL)
 
         self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self.STORAGE_TABLE_BACKUPS = self._backup_lib.STORAGE_TABLE_BACKUPS
 
-    def get_all_backups(
+    async def get_all_backups(
                                 self,
                                 limit: int,
                                 skip: int,
@@ -126,13 +127,12 @@ class Backup(object):
         if status:
             payload.WHERE(['status', '=', status])
             
-        backups_from_storage = self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
-
+        backups_from_storage = await self._storage.query_tbl_with_payload(self._backup_lib.STORAGE_TABLE_BACKUPS, payload.payload())
         backups_information = backups_from_storage['rows']
 
         return backups_information
 
-    def get_backup_details(self, backup_id: int) -> dict:
+    async def get_backup_details(self, backup_id: int) -> dict:
         """ Returns the details of a backup
 
         Args:
@@ -145,12 +145,22 @@ class Backup(object):
             exceptions.DoesNotExist
             exceptions.NotUniqueBackup
         """
+        payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+            .WHERE(['id', '=', backup_id]).payload()
 
-        backup_information = self._backup_lib.sl_get_backup_details(backup_id)
+        backup_from_storage = await self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload)
+
+        if backup_from_storage['count'] == 0:
+            raise exceptions.DoesNotExist
+        elif backup_from_storage['count'] == 1:
+            backup_information = backup_from_storage['rows'][0]
+        else:
+            raise exceptions.NotUniqueBackup
 
         return backup_information
 
-    def delete_backup(self, backup_id: int):
+    async def delete_backup(self, backup_id: int):
         """ Deletes a backup
 
         Args:
@@ -161,40 +171,32 @@ class Backup(object):
         """
 
         try:
-            backup_information = self._backup_lib.sl_get_backup_details(backup_id)
-
+            backup_information = await self.get_backup_details(backup_id)
             file_name = backup_information['file_name']
 
             # Deletes backup file from the file system
             if os.path.exists(file_name):
-
                 try:
                     os.remove(file_name)
-
                 except Exception as _ex:
                     _message = self._MESSAGES_LIST["e000001"].format(backup_id, file_name, _ex)
                     Backup._logger.error(_message)
-
                     raise
 
             # Deletes backup information from the Storage layer
             # only if it was possible to delete the file from the file system
             try:
-                self._delete_backup_information(backup_id)
-
+                await self._delete_backup_information(backup_id)
             except Exception as _ex:
                 _message = self._MESSAGES_LIST["e000002"].format(backup_id, file_name, _ex)
                 self._logger.error(_message)
-
                 raise
-
         except exceptions.DoesNotExist:
             _message = self._MESSAGES_LIST["e000003"].format(backup_id)
             self._logger.warning(_message)
-
             raise
 
-    def _delete_backup_information(self, _id):
+    async def _delete_backup_information(self, _id):
         """ Deletes backup information from the Storage layer
 
         Args:
@@ -202,12 +204,10 @@ class Backup(object):
         Returns:
         Raises:
         """
-
         payload = payload_builder.PayloadBuilder() \
             .WHERE(['id', '=', _id]) \
             .payload()
-
-        self._storage.delete_from_tbl(self._backup_lib.STORAGE_TABLE_BACKUPS, payload)
+        await self._storage.delete_from_tbl(self._backup_lib.STORAGE_TABLE_BACKUPS, payload)
 
     async def create_backup(self):
         """ Run a backup task using the scheduler on-demand schedule mechanism to run the script,
@@ -218,20 +218,15 @@ class Backup(object):
             status: str - {"running"|"failed"}
         Raises:
         """
-
         self._logger.debug("{func}".format(func="create_backup"))
-
         try:
             await server.Server.scheduler.queue_task(uuid.UUID(Backup._SCHEDULE_BACKUP_ON_DEMAND))
-
             _message = self._MESSAGES_LIST["i000003"]
             Backup._logger.info("{0}".format(_message))
             status = "running"
-
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000004"].format(_ex)
             Backup._logger.error("{0}".format(_message))
-
             status = "failed"
 
         return status
@@ -295,14 +290,14 @@ class BackupProcess(FoglampProcess):
                                         destination=_LOGGER_DESTINATION,
                                         level=_LOGGER_LEVEL)
 
-        self._backup = Backup(self._storage)
-        self._backup_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self._backup = Backup(self._storage_async)
+        self._backup_lib = lib.BackupRestoreLib(self._storage_async, self._logger)
 
         self._job = lib.Job()
 
         # Creates the objects references used by the library
         lib._logger = self._logger
-        lib._storage = self._storage
+        lib._storage = self._storage_async
 
     def _generate_file_name(self):
         """ Generates the file name for the backup operation, it uses hours/minutes/seconds for the file name generation
@@ -312,7 +307,6 @@ class BackupProcess(FoglampProcess):
             _backup_file: generated file name
         Raises:
         """
-
         self._logger.debug("{func}".format(func="_generate_file_name"))
 
         # Evaluates the parameters
@@ -333,27 +327,20 @@ class BackupProcess(FoglampProcess):
         Raises:
             exceptions.BackupOrRestoreAlreadyRunning
         """
-
         self._logger.debug("{func}".format(func="init"))
-
         self._backup_lib.evaluate_paths()
-
         self._backup_lib.retrieve_configuration()
-
         self._backup_lib.check_for_execution_backup()
 
         # Checks for backup/restore synchronization
         pid = self._job.is_running()
         if pid == 0:
-
             # no job is running
             pid = os.getpid()
             self._job.set_as_running(self._backup_lib.JOB_SEM_FILE_BACKUP, pid)
-
         else:
             _message = self._MESSAGES_LIST["e000008"].format(pid)
             self._logger.warning("{0}".format(_message))
-
             raise exceptions.BackupOrRestoreAlreadyRunning
 
     def execute_backup(self):
@@ -379,7 +366,7 @@ class BackupProcess(FoglampProcess):
 
         self._backup_lib.sl_backup_status_update(backup_information['id'], status, exit_code)
 
-        audit = AuditLogger(self._storage)
+        audit = AuditLogger(self._storage_async)
         loop = asyncio.get_event_loop()
         if status != lib.BackupStatus.COMPLETED:
 
@@ -397,11 +384,11 @@ class BackupProcess(FoglampProcess):
         Raises:
         """
 
-        backups_info = self._backup.get_all_backups(
+        backups_info = asyncio.get_event_loop().run_until_complete(self._backup.get_all_backups(
                                             self._backup_lib.MAX_NUMBER_OF_BACKUPS_TO_RETRIEVE,
                                             0,
                                             None,
-                                            lib.SortOrder.ASC)
+                                            lib.SortOrder.ASC))
 
         # Evaluates which backup should be deleted
         backups_n = len(backups_info)
@@ -420,7 +407,7 @@ class BackupProcess(FoglampProcess):
                 self._logger.debug("{func} - id |{id}| - file_name |{file}|".format(func="_purge_old_backups",
                                                                                     id=backup_id,
                                                                                     file=file_name))
-                self._backup.delete_backup(backup_id)
+                asyncio.get_event_loop().run_until_complete(self._backup.delete_backup(backup_id))
 
     def _run_backup_command(self, _backup_file):
         """ Backups the entire FogLAMP repository into a file in the local file system
@@ -477,9 +464,7 @@ class BackupProcess(FoglampProcess):
         Returns:
         Raises:
         """
-
         self._logger.debug("{func}".format(func="shutdown"))
-
         self._job.set_as_completed(self._backup_lib.JOB_SEM_FILE_BACKUP)
 
     def run(self):
@@ -489,35 +474,28 @@ class BackupProcess(FoglampProcess):
         Returns:
         Raises:
         """
-
         self.init()
 
         try:
             self.execute_backup()
-
         except Exception as _ex:
             _message = _MESSAGES_LIST["e000002"].format(_ex)
             _logger.error(_message)
-
             self.shutdown()
-
             raise exceptions.RestoreFailed(_message)
         else:
             self.shutdown()
 
 
 if __name__ == "__main__":
-
     # Initializes the logger
     try:
         _logger = logger.setup(_MODULE_NAME,
                                destination=_LOGGER_DESTINATION,
                                level=_LOGGER_LEVEL)
-
     except Exception as ex:
         message = _MESSAGES_LIST["e000001"].format(str(ex))
         current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-
         print("[FOGLAMP] {0} - ERROR - {1}".format(current_time, message), file=sys.stderr)
         sys.exit(1)
 
@@ -527,11 +505,9 @@ if __name__ == "__main__":
     # Initializes FoglampProcess and Backup classes - handling the command line parameters
     try:
         backup_process = BackupProcess()
-
     except Exception as ex:
         message = _MESSAGES_LIST["e000004"].format(ex)
         _logger.exception(message)
-
         _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)
 
@@ -543,16 +519,12 @@ if __name__ == "__main__":
             name=backup_process._name,
             addr=backup_process._core_management_host,
             port=backup_process._core_management_port))
-
         backup_process.run()
-
         _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(0)
-
     except Exception as ex:
         message = _MESSAGES_LIST["e000002"].format(ex)
         _logger.exception(message)
-
         backup_process.shutdown()
         _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)

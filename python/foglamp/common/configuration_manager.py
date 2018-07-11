@@ -10,8 +10,8 @@ import json
 import inspect
 
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
-from foglamp.common.storage_client.storage_client import StorageClient
-
+from foglamp.common.storage_client.storage_client import StorageClientAsync
+from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
@@ -69,7 +69,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
         if self._storage is None:
-            if not isinstance(storage, StorageClient):
+            if not isinstance(storage, StorageClientAsync):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
         if self._registered_interests is None:
@@ -158,17 +158,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await audit.information('CONAD', {'name': category_name, 'category': category_val})
             payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
                                               value=category_val).payload()
-            result = self._storage.insert_into_tbl("configuration", payload)
+            result = await self._storage.insert_into_tbl("configuration", payload)
             response = result['response']
         except KeyError:
             raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
 
     async def _read_all_category_names(self):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.ts FROM configuration
         payload = PayloadBuilder().SELECT("key", "description", "value", "ts") \
             .ALIAS("return", ("ts", 'timestamp')) \
             .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
-        results = self._storage.query_tbl_with_payload('configuration', payload)
+        results = await self._storage.query_tbl_with_payload('configuration', payload)
 
         category_info = []
         for row in results['rows']:
@@ -179,7 +182,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         # SELECT configuration.key, configuration.description, configuration.value,
         # configuration.ts FROM configuration WHERE configuration.key = :key_1
         payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", category_name]).payload()
-        results = self._storage.query_tbl_with_payload('configuration', payload)
+        results = await self._storage.query_tbl_with_payload('configuration', payload)
         for row in results['rows']:
             return row['value']
 
@@ -191,7 +194,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
             .WHERE(["key", "=", category_name]).payload()
 
-        results = self._storage.query_tbl_with_payload('configuration', payload)
+        results = await self._storage.query_tbl_with_payload('configuration', payload)
         if len(results['rows']) == 0:
             return None
 
@@ -205,35 +208,44 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
             .WHERE(["key", "=", category_name]).payload()
 
-        results = self._storage.query_tbl_with_payload('configuration', payload)
+        results = await self._storage.query_tbl_with_payload('configuration', payload)
         if len(results['rows']) == 0:
             return None
 
         return results['rows'][0]['value']
 
     async def _update_value_val(self, category_name, item_name, new_value_val):
-        old_value = await self._read_value_val(category_name, item_name)
-        # UPDATE foglamp.configuration
-        # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
-        # WHERE key='PURGE_READ'
-        payload = PayloadBuilder().SELECT("key", "description", "ts", "value")\
-            .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
-            .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
-            .WHERE(["key", "=", category_name]).payload()
+        try:
+            old_value = await self._read_value_val(category_name, item_name)
+            # UPDATE foglamp.configuration
+            # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
+            # WHERE key='PURGE_READ'
+            payload = PayloadBuilder().SELECT("key", "description", "ts", "value")\
+                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
+                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+                .WHERE(["key", "=", category_name]).payload()
 
-        self._storage.update_tbl("configuration", payload)
-        audit = AuditLogger(self._storage)
-        audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value, 'newValue': new_value_val}
-        await audit.information('CONCH', audit_details)
+            await self._storage.update_tbl("configuration", payload)
+            audit = AuditLogger(self._storage)
+            audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value, 'newValue': new_value_val}
+            await audit.information('CONCH', audit_details)
+        except KeyError as ex:
+            raise ValueError(str(ex))
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
 
     async def _update_category(self, category_name, category_val, category_description):
         try:
             payload = PayloadBuilder().SET(value=category_val, description=category_description). \
                 WHERE(["key", "=", category_name]).payload()
-            result = self._storage.update_tbl("configuration", payload)
+            result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
         except KeyError:
             raise ValueError(result['message'])
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
 
     async def get_all_category_names(self):
         """Get all category names in the FogLAMP system
@@ -690,5 +702,5 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 #     import asyncio
 #     loop = asyncio.get_event_loop()
 #     # storage client object
-#     _storage = StorageClient(core_management_host="0.0.0.0", core_management_port=44511, svc=None)
+#     _storage = StorageClientAsync(core_management_host="0.0.0.0", core_management_port=44511, svc=None)
 #     loop.run_until_complete(_main(_storage))

@@ -108,8 +108,8 @@ async def asset_counts(request):
 
     results = {}
     try:
-        _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('readings', payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
         asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
@@ -142,12 +142,12 @@ async def asset(request):
 
     # Add the order by and limit, offset clause
     _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:
-        _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('readings', payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
@@ -197,12 +197,12 @@ async def asset_reading(request):
 
     # Add the order by and limit, offset clause
     _limit_skip_payload = prepare_limit_skip_payload(request, _and_where)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:
-        _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('readings', payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])
@@ -249,8 +249,8 @@ async def asset_summary(request):
 
     results = {}
     try:
-        _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('readings', payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]
     except KeyError:
@@ -333,12 +333,12 @@ async def asset_averages(request):
 
     # Add LIMIT, OFFSET, ORDER BY timestamp DESC
     _limit_skip_payload = prepare_limit_skip_payload(request, _group)
-    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["timestamp", "desc"]).payload()
+    payload = PayloadBuilder(_limit_skip_payload).ORDER_BY(["user_ts", "desc"]).payload()
 
     results = {}
     try:
-        _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('readings', payload)
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         response = results['rows']
     except KeyError:
         raise web.HTTPBadRequest(reason=results['message'])

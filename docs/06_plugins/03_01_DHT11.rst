@@ -11,26 +11,30 @@
    :target: https://s3.amazonaws.com/foglamp/readthedocs/images/06_dht11_tags_in_PI.jpg 
 
 .. Links
-.. _here: 05_testing.html#setting-the-omf-translator-plugin
-.. _these steps: 04_installation.html
+.. |these INSTALLATION| raw:: html
+
+   <a href="../04_installation.html">these</a>
 
 .. |Getting Started| raw:: html
 
-   <a href="03_getting_started.html#building-foglamp">here</a>
+   <a href="../03_getting_started.html#building-foglamp">here</a>
 
 .. Links in new tabs
+.. |setting OMF| raw:: html
+
+   <a href="../05_testing.html#setting-the-omf-translator-plugin">here</a>
+
+.. |DHT Repo| raw:: html
+
+   <a href="https://github.com/foglamp/foglamp-south-dht11" target="_blank">FogLAMP DHT11 South Plugin</a>
 
 .. |ADAFruit| raw:: html
 
    <a href="https://github.com/adafruit/Adafruit_Python_DHT" target="_blank">ADAFruit DHT Library</a>
 
-.. |here BT| raw:: html
-
-   <a href="https://bugs.launchpad.net/snappy/+bug/1674509" target="_blank">here</a>
-
 .. |DHT Description| raw:: html
 
-   <a href="http://www.aosong.com/en/products/details.asp?id=109" target="_blank">DHT11 Product Description</a>
+   <a href="https://www.adafruit.com/product/386" target="_blank">DHT11 Product Description</a>
 
 .. |DHT Manual| raw:: html
 
@@ -50,7 +54,7 @@
 
 .. |GPIO| raw:: html
 
-   <a href="https://www.raspberrypi.org/documentation/usage/gpio-plus-and-raspi2/README.md" target="_blank">here</a>
+   <a href="https://www.raspberrypi.org/documentation/usage/gpio/README.md" target="_blank">here</a>
 
 
 .. =============================================
@@ -59,7 +63,7 @@
 A South Plugin Example: the DHT11 Sensor
 ----------------------------------------
 
-Let's try to put all the information together and write a plugin. We can continue to use the example of an inexpensive sensor, the DHT11, used to measure temperature and humidity, directly wired to a Raspberry PI. This plugin is also available in the FogLAMP project on GitHub, in the *contrib* folder.
+Let's try to put all the information together and write a plugin. We can continue to use the example of an inexpensive sensor, the DHT11, used to measure temperature and humidity, directly wired to a Raspberry PI. This plugin is available on github, |DHT Repo|.
 
 First, here is a set of links where you can find more information regarding this sensor:
 
@@ -119,6 +123,12 @@ This is the code for the plugin:
 
 .. code-block:: python
 
+  # -*- coding: utf-8 -*-
+
+  # FOGLAMP_BEGIN
+  # See: http://foglamp.readthedocs.io/
+  # FOGLAMP_END
+
   """ Plugin for a DHT11 temperature and humidity sensor attached directly
       to the GPIO pins of a Raspberry Pi
 
@@ -136,10 +146,9 @@ This is the code for the plugin:
       allow FogLAMP access to the device.
       """
 
+
   from datetime import datetime, timezone
-  import Adafruit_DHT
   import uuid
-  import copy
 
   from foglamp.common import logger
   from foglamp.services.south import exceptions
@@ -151,25 +160,26 @@ This is the code for the plugin:
 
   _DEFAULT_CONFIG = {
       'plugin': {
-          'description': 'Python module name of the plugin to load',
-          'type':        'string',
-          'default':     'dht11pi'
+           'description': 'Python module name of the plugin to load',
+           'type': 'string',
+           'default': 'dht11'
       },
       'pollInterval': {
           'description': 'The interval between poll calls to the device poll routine expressed in milliseconds.',
-          'type':        'integer',
-          'default':     '1000'
+          'type': 'integer',
+          'default': '1000'
       },
       'gpiopin': {
-          'description': 'The GPIO pin into which the DHT11 data pin is connected',
-          'type':        'integer',
-          'default':     '4'
+          'description': 'The GPIO pin into which the DHT11 data pin is connected', 
+          'type': 'integer',
+          'default': '4'
       }
 
   }
 
   _LOGGER = logger.setup(__name__)
   """ Setup the access to the logging system of FogLAMP """
+
 
   def plugin_info():
       """ Returns information about the plugin.
@@ -181,12 +191,12 @@ This is the code for the plugin:
       """
 
       return {
-          'name':      'DHT11 GPIO',
-          'version':   '1.0',
-          'mode':      'poll',
-          'type':      'south',
+          'name': 'DHT11 GPIO',
+          'version': '1.0',
+          'mode': 'poll',
+          'type': 'south',
           'interface': '1.0',
-          'config':    _DEFAULT_CONFIG
+          'config': _DEFAULT_CONFIG
       }
 
 
@@ -222,7 +232,7 @@ This is the code for the plugin:
           humidity, temperature = Adafruit_DHT.read_retry(Adafruit_DHT.DHT11, handle)
           if humidity is not None and temperature is not None:
               time_stamp = str(datetime.now(tz=timezone.utc))
-              readings =  { 'temperature': temperature , 'humidity' : humidity }
+              readings = {'temperature': temperature, 'humidity': humidity}
               wrapper = {
                       'asset':     'dht11',
                       'timestamp': time_stamp,
@@ -264,97 +274,49 @@ This is the code for the plugin:
       Returns:
       Raises:
       """
-
-
-The configuration
-~~~~~~~~~~~~~~~~~
-
-Since the plugin is still experimental, it works only in a build environment, the snap version will be available in the next release.
-
-The configuration must be set manually in the FogLAMP metadata. in the repository, the file *cmds.sql* in the *contrib/plugins/south/dht11pi* folder must be executed with *psql* (or another PostgreSQL client) to add the configuration to the FogLAMP metadata.
- 
-Let's see the SQL commands:
-
-.. code-block:: sql
-
-  --- Create the South service instannce
-  INSERT INTO foglamp.scheduled_processes ( name, script )
-       VALUES ( 'dht11pi', '["services/south"]');
-
-  --- Add the schedule to start the service at system startup
-  INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,schedule_interval, exclusive )
-       VALUES ( '543a59ce-a9ca-11e7-abc4-cec278b6b11a', 'device', 'dht11pi', 1, '0:0', true );
-
-  --- Insert the config needed to load the plugin
-  INSERT INTO foglamp.configuration ( key, description, value )
-       VALUES ( 'dht11pi', 'DHT11 on Raspberry Pi Configuration',
-                '{"plugin" : { "type" : "string", "value" : "dht11pi", "default" : "dht11pi", "description" : "Plugin to load" } }' );
+      pass
 
 
 Building FogLAMP and Adding the Plugin
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you have not built FogLAMP yet, follow the steps described |Getting Started|. After the build, you can optionally install FogLAMP following `these steps`_.
-
-Once the Storage database has been setup, let's update the configurarion to include the new plugin:
-
-.. code-block:: console
-
-  $ psql -d foglamp -f cmds.sql
-  INSERT 0 1
-  INSERT 0 1
-  INSERT 0 1
-  $
+If you have not built FogLAMP yet, follow the steps described |Getting Started|. After the build, you can optionally install FogLAMP following |these INSTALLATION| steps.
 
 
-Now it is time to apply a workaround and include our new plugin. 
-
-- If you intend to start and execute FogLAMP from the build folder: copy the structure of the *contrib* folder into the *python* folder:
+- If you have started FogLAMP from the build directory, copy the structure of the *foglamp-south-dht11/python/* directory into the *python* directory:
 
 .. code-block:: console
 
   $ cd ~/FogLAMP
-  $ cp -R contrib/plugins python/foglamp/.
+  $ cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 python/foglamp/plugin/south/
   $
 
-- If you have installed FogLAMP by executing ``sudo make install``, copy the structure of the *contrib* folder into the installed *python* folder:
+- If you have installed FogLAMP by executing ``sudo make install``, copy the structure of the *foglamp-south-dht11/python/* directory into the installed *python* directory:
 
 .. code-block:: console
 
-  $ cd ~/FogLAMP
-  $ sudo cp -R contrib/plugins /usr/local/FogLAMP/python/foglamp/.
+  $ sudo cp -R ~/foglamp-south-dht11/python/foglamp/plugins/south/dht11 /usr/local/foglamp/python/foglamp/plugin/south/
   $
 
 .. note:: If you have installed FogLAMP using an alternative *DESTDIR*, remember to add the path to the destination directory to the ``cp`` command.
 
 
+- Add service
+
+.. code-block:: console
+
+   $ curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "dht11", "type": "south", "plugin": "dht11", "enabled": true}'
+
+.. note:: Each plugin repo has its own debian packaging script and documentation, And that is the recommended way to go! As above method(s) may need explicit action for linux and/or python dependencies installation.
+
 Using the Plugin
 ~~~~~~~~~~~~~~~~
 
-Now you are ready to use the DHT11 plugin. If stop and restart FogLAMP if it is already running, or start it now.
-
-- Starting FogLAMP from the build folder:
+Once south plugin is added as an enabled service, You are ready to use the DHT11 plugin.
 
 .. code-block:: console
 
-  $ cd ~/FogLAMP
-  $ export FOGLAMP_ROOT=$HOME/FogLAMP
-  $ scripts/foglamp start
-  Starting FogLAMP................
-  FogLAMP started.
-  $
-
-
-- Starting FogLAMP from the installed folder:
-
-.. code-block:: console
-
-  $ cd /usr/local/FogLAMP
-  $ bin/foglamp start
-  Starting FogLAMP................
-  FogLAMP started.
-  $
-
+   $ curl -X GET http://localhost:8081/foglamp/service | jq
 
 Let's see what we have collected so far:
 
@@ -458,7 +420,7 @@ Clearly we will not see many changes in temperature or humidity, unless we place
   ]
   $
 
-Needless to say, the North plugin will send the buffered data to the PI system using the PI Connector Relay OMF. Do not forget to set the correct IP address for the PI Connector Relay, as it is described `here`_.
+Needless to say, the North plugin will send the buffered data to the PI system using the PI Connector Relay OMF. Do not forget to set the correct IP address for the PI Connector Relay, as it is described |setting OMF|.
 
 |DHT11 in PI|
 

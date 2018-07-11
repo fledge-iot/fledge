@@ -4,13 +4,20 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+""" Test foglamp.services.core server """
 
+import asyncio
 import json
+from unittest import mock
 from unittest.mock import MagicMock, patch
 from aiohttp import web
+from aiohttp.test_utils import make_mocked_request
+from aiohttp.streams import StreamReader
+from multidict import CIMultiDict
 import pytest
 
 from foglamp.services.common.microservice_management import routes as management_routes
+from foglamp.services.core import server
 from foglamp.services.core.server import Server
 from foglamp.common.web import middleware
 from foglamp.services.core.interest_registry.interest_registry import InterestRegistry
@@ -20,7 +27,7 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.api import configuration as conf_api
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.audit_logger import AuditLogger
 
@@ -31,9 +38,23 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+def mock_request(data, loop):
+    payload = StreamReader(loop=loop)
+    payload.feed_data(data.encode())
+    payload.feed_eof()
+
+    protocol = mock.Mock()
+    app = mock.Mock()
+    headers = CIMultiDict([('CONTENT-TYPE', 'application/json')])
+    req = make_mocked_request('POST', '/sensor-reading', headers=headers,
+                              protocol=protocol, payload=payload, app=app, loop=loop)
+    return req
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("services", "core", "server")
 class TestServer:
+
     @pytest.fixture
     def client(self, loop, test_client):
         app = web.Application(middlewares=[middleware.error_middleware])
@@ -41,11 +62,174 @@ class TestServer:
         return loop.run_until_complete(test_client(app))
 
     ############################
+    # start stop
+    ############################
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_get_certificates(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__rest_api_config(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_service_config(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__make_app(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__make_core_app(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_service_monitor(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_stop_service_monitor(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test___start_scheduler(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_storage(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_storage(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__get_storage_client(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_app(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_pid_filename(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__pidfile_exists(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__remove_pid(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__write_pid(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__start_core(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__register_core(self):
+        pass
+
+    @pytest.mark.asyncio
+    async def test_start(self):
+        with patch.object(Server, "_start_core", return_value=None) as patched_start_core:
+            Server.start()
+        args, kwargs = patched_start_core.call_args
+        assert 1 == patched_start_core.call_count
+        assert isinstance(kwargs['loop'], asyncio.unix_events._UnixSelectorEventLoop)
+
+    @pytest.mark.asyncio
+    async def test__stop(self, mocker):
+        mocked__stop_scheduler = mocker.patch.object(Server, "_stop_scheduler")
+        mocked_stop_microservices = mocker.patch.object(Server, "stop_microservices")
+        mocked_stop_service_monitor = mocker.patch.object(Server, "stop_service_monitor")
+        mocked_stop_rest_server = mocker.patch.object(Server, "stop_rest_server")
+        mocked_stop_storage = mocker.patch.object(Server, "stop_storage")
+        mocked__remove_pid = mocker.patch.object(Server, "_remove_pid")
+
+        async def return_async_value(val):
+            return val
+
+        mocked__stop_scheduler.return_value = return_async_value('stopping scheduler..')
+        mocked_stop_microservices.return_value = return_async_value('stopping msvc..')
+        mocked_stop_service_monitor.return_value = return_async_value('stopping svc monitor..')
+        mocked_stop_rest_server.return_value = return_async_value('stopping REST server..')
+        mocked_stop_storage.return_value = return_async_value('stopping storage..')
+
+        mocked__remove_pid.return_value = 'removing PID..'
+
+        with patch.object(AuditLogger, '__init__', return_value=None):
+            with patch.object(AuditLogger, 'information', return_value=return_async_value(None)) as audit_info_patch:
+                await Server._stop()
+            # Must write the audit log entry before we stop the storage service
+            args, kwargs = audit_info_patch.call_args
+            assert 'FSTOP' == args[0]
+            assert None is args[1]
+
+        assert 1 == mocked__stop_scheduler.call_count
+        assert 1 == mocked_stop_microservices.call_count
+        assert 1 == mocked_stop_service_monitor.call_count
+        assert 1 == mocked_stop_rest_server.call_count
+        assert 1 == mocked_stop_storage.call_count
+        assert 1 == mocked__remove_pid.call_count
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_stop_rest_server(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_stop_storage(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test_stop_microservices(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__request_microservice_shutdown(self):
+        pass
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be implemented")
+    async def test__stop_scheduler(self):
+        pass
+
+    ############################
     # Configuration Management
     ############################
+
     """ Tests the calls to configuration manager via core management api
-        No negative tests added since these are already covered in 
-        foglamp/services/core/api/test_configuration.py
+    
+    No negative tests added since these are already covered in foglamp/services/core/api/test_configuration.py
     """
     async def test_get_configuration_categories(self, client):
         async def async_mock():
@@ -142,7 +326,7 @@ class TestServer:
         ("?category=Y&microserviceid=0c501cd3-c45a-439a-bec6-fc08d13f9699",  {'microservice_uuid': '0c501cd3-c45a-439a-bec6-fc08d13f9699', 'category_name': 'Y'})
     ])
     async def test_get_interest_with_filter(self, client, params, expected_kwargs):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
         with patch.object(Server._interest_registry, 'get', return_value=[]) as patch_get_interest_reg:
@@ -163,7 +347,7 @@ class TestServer:
          {'microservice_uuid': '0c501cd3-c45a-439a-bec6-fc08d13f9699', 'category_name': 'Y'}, "No interest registered for category Y and microservice id 0c501cd3-c45a-439a-bec6-fc08d13f9699")
     ])
     async def test_get_interest_exception(self, client, params, message, expected_kwargs):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
         with patch.object(Server._interest_registry, 'get', side_effect=interest_registry_exceptions.DoesNotExist) as patch_get_interest_reg:
@@ -174,7 +358,7 @@ class TestServer:
         assert expected_kwargs == kwargs
 
     async def test_get_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -201,7 +385,7 @@ class TestServer:
         assert 'Invalid microservice id X' == resp.reason
 
     async def test_bad_register_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -214,7 +398,7 @@ class TestServer:
         assert (request_data['service'], request_data['category']) == args
 
     async def test_register_interest_exceptions(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -227,7 +411,7 @@ class TestServer:
         assert (request_data['service'], request_data['category']) == args
 
     async def test_register_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -248,7 +432,7 @@ class TestServer:
         assert 'Invalid registration id blah' == resp.reason
 
     async def test_unregister_interest_exception(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -261,7 +445,7 @@ class TestServer:
         assert {'registration_id': reg_id} == kwargs
 
     async def test_unregister_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -373,6 +557,8 @@ class TestServer:
         async def async_mock(return_value):
             return return_value
 
+        Server._storage_client = MagicMock(StorageClientAsync)
+        Server._storage_client_async = MagicMock(StorageClientAsync)
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
         with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
             with patch.object(AuditLogger, '__init__', return_value=None):
@@ -410,7 +596,8 @@ class TestServer:
         data = []
         record = ServiceRecord(service_id, sname, stype, sprotocol, saddress, sport, smgtport)
         data.append(record)
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
+        Server._storage_client_async = MagicMock(StorageClientAsync)
         with patch.object(ServiceRegistry, 'get', return_value=data) as patch_get_unregister:
             with patch.object(ServiceRegistry, 'unregister') as patch_unregister:
                 with patch.object(AuditLogger, '__init__', return_value=None):
@@ -439,9 +626,28 @@ class TestServer:
         assert 'uptime' in json_response
         assert 0.0 < json_response["uptime"]
 
-    # TODO: tricky one
-    async def test_shutdown(self, client):
-        pass
+    @pytest.mark.asyncio
+    async def test_shutdown(self, mocker):
+        async def return_async_value(val):
+            return val
+
+        mocked__stop = mocker.patch.object(Server, "_stop")
+        mocked__stop.return_value = return_async_value('stopping...')
+        mocked_log_info = mocker.patch.object(server._logger, "info")
+
+        request = mock_request(data="", loop=asyncio.get_event_loop())
+        resp = await Server.shutdown(request)
+
+        assert 1 == mocked__stop.call_count
+        assert 200 == resp.status
+
+        json_response = json.loads(resp.body.decode())
+
+        assert 1 == mocked_log_info.call_count
+        args, kwargs = mocked_log_info.call_args
+        assert 'Stopping the FogLAMP Core event loop. Good Bye!' == args[0]
+        assert 'message' in json_response
+        assert 'FogLAMP stopped successfully. Wait for few seconds for process cleanup.' == json_response["message"]
 
     async def test_change(self):
         pass

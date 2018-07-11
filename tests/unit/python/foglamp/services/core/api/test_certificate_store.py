@@ -13,7 +13,7 @@ from aiohttp import web
 import pytest
 
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.core import routes
 from foglamp.services.core.api import certificate_store
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -192,10 +192,10 @@ class TestCertificateStore:
         async def async_mock():
             return {'value': 'foglamp'}
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch('os.path.isfile', return_value=True):
-            with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
                     resp = await client.delete('/foglamp/certificate/foglamp')
                     assert 409 == resp.status
@@ -208,9 +208,9 @@ class TestCertificateStore:
         async def async_mock():
             return {'value': 'test'}
 
-        storage_client_mock = MagicMock(StorageClient)
+        storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(connect, 'get_storage', return_value=storage_client_mock):
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=async_mock()):
                 with patch('os.path.isfile', return_value=True):
                     with patch('os.remove', return_value=True) as patch_remove:

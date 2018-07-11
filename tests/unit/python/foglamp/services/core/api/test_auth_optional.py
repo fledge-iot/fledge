@@ -4,6 +4,7 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import asyncio
 import json
 from unittest.mock import patch
 from aiohttp import web
@@ -23,6 +24,9 @@ __version__ = "${VERSION}"
 FORBIDDEN = 'Forbidden'
 WARN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
 
+@asyncio.coroutine
+def mock_coro(*args, **kwargs):
+    return None if len(args) == 0 else args[0]
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "auth-optional")
@@ -40,7 +44,7 @@ class TestAuthOptional:
 
     async def test_get_roles(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'get_roles', return_value=[]) as patch_user_obj:
+            with patch.object(User.Objects, 'get_roles', return_value=mock_coro([])) as patch_user_obj:
                 resp = await client.get('/foglamp/user/role')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -55,7 +59,7 @@ class TestAuthOptional:
     ])
     async def test_get_all_users(self, client, ret_val, exp_result):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'all', return_value=ret_val) as patch_user_obj:
+            with patch.object(User.Objects, 'all', return_value=mock_coro(ret_val)) as patch_user_obj:
                 resp = await client.get('/foglamp/user')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -74,7 +78,7 @@ class TestAuthOptional:
         result = {}
         result.update(exp_result)
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'get', return_value=result) as patch_user_obj:
+            with patch.object(User.Objects, 'get', return_value=mock_coro(result)) as patch_user_obj:
                 resp = await client.get('/foglamp/user{}'.format(request_params))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -139,7 +143,7 @@ class TestAuthOptional:
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=[]) as patch_delete_token:
+                with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro([])) as patch_delete_token:
                     with patch.object(auth._logger, 'warning') as patch_logger:
                         resp = await client.post('/foglamp/login', data=json.dumps(request_data))
                         assert status_code == resp.status
@@ -185,7 +189,7 @@ class TestAuthOptional:
         user_id = 1
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=ret_val) as patch_user_logout:
+                with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro(ret_val)) as patch_user_logout:
                     with patch.object(auth._logger, 'info') as patch_logger:
                         resp = await client.put('/foglamp/{}/logout'.format(user_id))
                         assert 200 == resp.status
@@ -205,7 +209,7 @@ class TestAuthOptional:
         user_id = 111
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth, 'check_authorization', return_value=True) as patch_check_authorization:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=ret_val) as patch_user_logout:
+                with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro(ret_val)) as patch_user_logout:
                     with patch.object(auth._logger, 'warning') as patch_logger:
                         resp = await client.put('/foglamp/{}/logout'.format(user_id))
                         assert 404 == resp.status
@@ -270,9 +274,9 @@ class TestAuthOptional:
         (2, True),
         (3, False)
     ])
-    def test_valid_role(self, role_id, expected):
+    async def test_valid_role(self, role_id, expected):
         ret_val = [{"id": "1", "description": "for the users having all CRUD privileges including other admin users", "name": "admin"}, {"id": "2", "description": "all CRUD operations and self profile management", "name": "user"}]
-        with patch.object(User.Objects, 'get_roles', return_value=ret_val) as patch_get_roles:
-            actual = auth.is_valid_role(role_id)
+        with patch.object(User.Objects, 'get_roles', return_value=mock_coro(ret_val)) as patch_get_roles:
+            actual = await auth.is_valid_role(role_id)
             assert expected is actual
         patch_get_roles.assert_called_once_with()

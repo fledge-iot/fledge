@@ -265,7 +265,7 @@ foglamp_kill() {
         exit 1
     fi
 
-    # Kill the python processes
+    # Kills the python processes
     list_to_kill=`ps -ef | grep 'python3 -m foglamp' | grep -v 'grep' | grep -v 'backup_restore' | awk '{print $2}'`
     if [[ "${list_to_kill}" != "" ]]
     then
@@ -274,6 +274,13 @@ foglamp_kill() {
 
     # Kill the services processes
     list_to_kill=`ps -ef | grep 'services/storage --address' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill FogLAMP tasks
+    list_to_kill=`ps -ef | grep '/bin/sh tasks' | grep -v 'grep' | awk '{print $2}'`
     if [[ "${list_to_kill}" != "" ]]
     then
         echo ${list_to_kill} | xargs kill -9
@@ -387,6 +394,10 @@ foglamp_status() {
                 # Show Tasks
                 foglamp_log "info" "=== FogLAMP tasks:" "outonly" "pretty"
                 ps -ef | grep -o 'python3 -m foglamp.tasks.*' | grep -o 'foglamp.tasks.*' | grep -v 'foglamp.tasks\.\*' || true
+
+                # Show Tasks in C code
+                # TODO: improve the mechanism for the recognition of the C tasks
+                ps -ef | grep -o './tasks.*' | grep -o 'tasks.*' | grep -v '.*\.\*'
             fi
             ;;
         *)

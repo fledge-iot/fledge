@@ -40,6 +40,9 @@ mutex	waitMutex;
 // Block the calling thread until notified to resume.
 condition_variable cond_var;
 
+// Used to identifies logs
+const string LOG_SERVICE_NAME = "SendingProcess/sending_process";
+
 // Load data from storage
 static void loadDataThread(SendingProcess *loadData);
 // Send data from historian
@@ -49,9 +52,11 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		// Instantiate SendingProcess class
-		SendingProcess sendingProcess(argc, argv);
+        std::string tmp_str;
 
+                // Instantiate SendingProcess class
+		SendingProcess sendingProcess(argc, argv);
+                
 		// Launch the load thread
 		sendingProcess.m_thread_load = new thread(loadDataThread, &sendingProcess);
 		// Launch the send thread
@@ -217,7 +222,8 @@ static void sendDataThread(SendingProcess *sendData)
 
 				// DB update done
 				sendData->setUpdateDb(false);
-			}
+
+                        }
 
 			// Reset send index
 			sendIdx = 0;
@@ -240,7 +246,7 @@ static void sendDataThread(SendingProcess *sendData)
 
 			if (sendData->getUpdateDb())
 			{
-				// Update counters to Database
+                                // Update counters to Database
 				sendData->updateDatabaseCounters();
 
 				// numReadings sent so far
@@ -329,17 +335,18 @@ static void sendDataThread(SendingProcess *sendData)
 
 	if (sendData->getUpdateDb())
 	{
-		// Update counters to Database
+                // Update counters to Database
 		sendData->updateDatabaseCounters();
 
-		// numReadings sent so far
+                // numReadings sent so far
 		totSent += sendData->getSentReadings();
 
-		// Reset current sent readings
+                // Reset current sent readings
 		sendData->resetSentReadings();
 
-		sendData->setUpdateDb(false);
-	}
+                sendData->setUpdateDb(false);
+
+        }
 
 	/**
 	 * The loop is over: unlock the loadData thread

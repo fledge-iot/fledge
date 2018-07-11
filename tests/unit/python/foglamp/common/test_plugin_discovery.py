@@ -5,12 +5,10 @@
 # FOGLAMP_END
 
 import asyncio
-import json
 import os
 import copy
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 import pytest
-import builtins
 from foglamp.common.plugin_discovery import PluginDiscovery
 
 
@@ -147,27 +145,29 @@ class TestPluginDiscovery:
         plugin_folders = PluginDiscovery.get_plugin_folders("north")
         assert TestPluginDiscovery.mock_north_folders == plugin_folders
 
-    @pytest.mark.skip(reason="Investigate why getting error- TypeError: 'Mock' object does not support indexing")
-    def test_get_plugin_config(self, mocker):
-        _CONFIG_DEFAULT = {
-            'plugin': {
-                'description': "Modbus RTU plugin",
-                'type': 'string',
-                'default': 'modbus'
-            }
-        }
-
-        def mock_plugin_info():
-            return {
-                'name': "modbus",
+    def test_get_plugin_config(self):
+        mock_plugin_info = {
+                'name': "furnace4",
                 'version': "1.1",
                 'type': "south",
                 'interface': "1.0",
-                'config': _CONFIG_DEFAULT
+                'config': {
+                            'plugin': {
+                                'description': "Modbus RTU plugin",
+                                'type': 'string',
+                                'default': 'modbus'
+                            }
             }
-        mock = Mock()
-        attrs = {"plugin_info.return_value": mock_plugin_info()}
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
         mock.configure_mock(**attrs)
-        mock_import = mocker.patch.object(builtins, "__import__", mock)
-        plugin_config = PluginDiscovery.get_plugin_config("modbus", "south")
-        assert TestPluginDiscovery.mock_plugins_config[0] == plugin_config
+
+        with patch('builtins.__import__', return_value=mock):
+            actual = PluginDiscovery.get_plugin_config("modbus", "south")
+            expected = TestPluginDiscovery.mock_plugins_south_config[0]
+            # TODO: Investigate why import json at module top is not working and also why
+            #       assert expected == actual is not working
+            import json
+            assert json.loads(expected) == json.loads(actual)

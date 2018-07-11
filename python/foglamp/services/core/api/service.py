@@ -45,7 +45,7 @@ def get_service_records():
                 'protocol': service_record._protocol,
                 'status': ServiceRecord.Status(int(service_record._status)).name.lower()
             })
-    recs = {'services' : sr_list}
+    recs = {'services': sr_list}
     return recs
 
 
@@ -88,7 +88,7 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
-        if not service_type in ['south', 'north']:
+        if service_type not in ['south', 'north']:
             raise web.HTTPBadRequest(reason='Only north and south types are supported.')
         if enabled is not None:
             if enabled not in ['t', 'f', 'true', 'false', 0, 1]:
@@ -175,19 +175,22 @@ async def add_service(request):
         raise web.HTTPNotFound(reason=str(ex))
 
 
-async def check_schedules(storage, schedule_name):
-    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', schedule_name]).payload()
+async def check_scheduled_processes(storage, process_name):
+    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
     result = await storage.query_tbl_with_payload('scheduled_processes', payload)
     return result['count']
 
-async def check_scheduled_processes(storage, process_name):
-    payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', process_name]).payload()
+
+async def check_schedules(storage, schedule_name):
+    payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
     result = await storage.query_tbl_with_payload('schedules', payload)
     return result['count']
+
 
 async def revert_scheduled_processes(storage, process_name):
     payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
     await storage.delete_from_tbl('scheduled_processes', payload)
+
 
 async def revert_configuration(storage, key):
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()

@@ -83,6 +83,16 @@ class Purge(FoglampProcess):
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
                                           self._CONFIG_CATEGORY_DESCRIPTION)
+
+        # Create the parent category for all processes
+        try:
+            parent_payload = json.dumps({"key": "Processes", "description":"Processes","value":{},
+                "children": [self._CONFIG_CATEGORY_NAME], "keep_original_items":True})
+            self._core_microservice_management_client.create_configuration_category(parent_payload)
+        except KeyError:
+            _LOGGER.error("Failed to create parent configuratrion category for purge process")
+            raise
+
         return await cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME)
 
     async def purge_data(self, config):

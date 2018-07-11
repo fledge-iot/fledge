@@ -108,7 +108,7 @@ async def add_service(request):
             plugin_info = _plugin.plugin_info()
             plugin_config = plugin_info['config']
         except ImportError as ex:
-            raise web.HTTPInternalServerError(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+            raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 

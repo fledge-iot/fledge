@@ -159,7 +159,7 @@ class MicroserviceManagementClient(object):
             url = '{}{}name={}'.format(url, delimeter, urllib.parse.quote(service_name))
             delimeter = '&'
         if service_type:
-            url = '{}{}type={}'.format(url, delimeter, urllib.parse.quote(service_type))
+            url = '{}{}type={}'.format(url, delimeter, service_type)
 
         self._management_client_conn.request(method='GET', url=url)
         r = self._management_client_conn.getresponse()

@@ -35,11 +35,11 @@ storage=`get_storage_plugin`
 
 if [ "${storage}" == "sqlite" ]; then
 
-    python3 -m foglamp.plugins.storage.sqlite.backup_restore.backup_sqlite $@
+    python3 -m foglamp.plugins.storage.sqlite.backup_restore.backup_sqlite "$@"
 
 elif [ "${storage}" == "postgres" ]; then
 
-    python3 -m foglamp.plugins.storage.postgres.backup_restore.backup_postgres $@
+    python3 -m foglamp.plugins.storage.postgres.backup_restore.backup_postgres "$@"
 else
     logger "ERROR: the backup functionality for the storage engine :${storage}: is not implemented."
     exit 1

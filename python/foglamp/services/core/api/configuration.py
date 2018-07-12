@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 from aiohttp import web
+import urllib.parse
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
@@ -63,6 +64,7 @@ async def get_category(request):
             curl -X GET http://localhost:8081/foglamp/category/PURGE_READ
     """
     category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -143,6 +145,9 @@ async def get_category_item(request):
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
 
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+    config_item = urllib.parse.unquote(config_item) if config_item is not None else None
+
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     category_item = await cf_mgr.get_category_item(category_name, config_item)
@@ -170,6 +175,9 @@ async def set_configuration_item(request):
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
+
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+    config_item = urllib.parse.unquote(config_item) if config_item is not None else None
 
     data = await request.json()
     # TODO: make it optimized and elegant
@@ -209,6 +217,9 @@ async def add_configuration_item(request):
     """
     category_name = request.match_info.get('category_name', None)
     new_config_item = request.match_info.get('config_item', None)
+
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+    new_config_item = urllib.parse.unquote(new_config_item) if new_config_item is not None else None
 
     try:
         storage_client = connect.get_storage_async()
@@ -279,6 +290,9 @@ async def delete_configuration_item_value(request):
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
+
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+    config_item = urllib.parse.unquote(config_item) if config_item is not None else None
 
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())

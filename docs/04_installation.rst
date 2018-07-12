@@ -58,7 +58,7 @@ Once you have built FogLAMP following the instructions presented |build foglamp|
 
   $ sudo make install
   mkdir -p /usr/local/foglamp
-  Installing FogLAMP version 1.2, DB schema 1
+  Installing FogLAMP version 1.3, DB schema 2
   -- FogLAMP DB schema check OK: Info: /usr/local/foglamp is empty right now. Skipping DB schema check.
   cp VERSION /usr/local/foglamp
   cd cmake_build ; cmake /home/foglamp/FogLAMP/
@@ -113,7 +113,7 @@ FogLAMP is now present in */usr/local/foglamp* and ready to start. The start scr
   $
   $ bin/foglamp help
   Usage: foglamp {start|stop|status|reset|kill|help|version}
-  FogLAMP v1.2 admin script
+  FogLAMP v1.3 admin script
   The script is used to start FogLAMP
   Arguments:
    start   - Start FogLAMP core (core will start other services).
@@ -284,16 +284,16 @@ For example, if you are installing FogLAMP on an Intel x86_64 machine, you can t
 
 .. code-block:: console
 
-  $ wget https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.2-x86_64.deb
-  --2018-04-24 18:22:08--  https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.2-x86_64.deb
+  $ wget https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb
+  --2018-04-24 18:22:08--  https://s3.amazonaws.com/foglamp/debian/x86_64/foglamp-1.3-x86_64_ubuntu_16_04.deb
   Resolving s3.amazonaws.com (s3.amazonaws.com)... 52.216.133.221
   Connecting to s3.amazonaws.com (s3.amazonaws.com)|52.216.133.221|:443... connected.
   HTTP request sent, awaiting response... 200 OK
   Length: 496094 (484K) [application/x-deb]
-  Saving to: ‘foglamp-1.2-x86_64.deb’
+  Saving to: ‘foglamp-1.3-x86_64_ubuntu_16_04.deb’
 
-  foglamp-1.2-x86_64.deb     100%[=============================================================>] 484.47K   521KB/s    in 0.9s
-  2018-04-24 18:22:10 (521 KB/s) - ‘foglamp-1.2-x86_64.deb’ saved [496094/496094]
+  foglamp-1.3-x86_64_ubuntu_16_04.deb     100%[=============================================================>] 484.47K   521KB/s    in 0.9s
+  2018-04-24 18:22:10 (521 KB/s) - ‘foglamp-1.3-x86_64_ubuntu_16_04.deb’ saved [496094/496094]
   $
 
 We recommend to execute an *update-upgrade-update* of the system first, then you may copy the FogLAMP package in the *apt cache* directory and install it.
@@ -308,17 +308,17 @@ We recommend to execute an *update-upgrade-update* of the system first, then you
   ...
   $ sudo apt update
   ...
-  $ sudo cp foglamp-1.2-x86_64.deb /var/cache/apt/archives/.
+  $ sudo cp foglamp-1.3-x86_64_ubuntu_16_04.deb /var/cache/apt/archives/.
   ...
-  $ sudo apt install /var/cache/apt/archives/foglamp-1.2-x86_64.deb
+  $ sudo apt install /var/cache/apt/archives/foglamp-1.3-x86_64_ubuntu_16_04.deb
   Reading package lists... Done
   Building dependency tree
   Reading state information... Done
-  Note, selecting 'foglamp' instead of '/var/cache/apt/archives/foglamp-1.2-x86_64.deb'
+  Note, selecting 'foglamp' instead of '/var/cache/apt/archives/foglamp-1.3-x86_64_ubuntu_16_04.deb'
   The following packages were automatically installed and are no longer required:
   ...
-  Unpacking foglamp (1.2) ...
-  Setting up foglamp (1.2) ...
+  Unpacking foglamp (1.3) ...
+  Setting up foglamp (1.3) ...
   Resolving data directory
   Data directory does not exist. Using new data directory
   Installing service script
@@ -340,7 +340,7 @@ Check the newly installed package:
 .. code-block:: console
 
   $ sudo dpkg -l | grep foglamp
-  ii  foglamp            1.2             amd64        FogLAMP, the open source platform for the Internet of Things
+  ii  foglamp            1.3             amd64        FogLAMP, the open source platform for the Internet of Things
   $
 
 
@@ -370,7 +370,7 @@ Check if FogLAMP is up and running with the ``foglamp`` command:
 .. code-block:: console
 
   $ /usr/local/foglamp/bin/foglamp status
-  FogLAMP v1.2 running.
+  FogLAMP v1.3 running.
   FogLAMP Uptime:  162 seconds.
   FogLAMP records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -410,7 +410,7 @@ Use the ``apt`` or the ``apt-get`` command to uninstall FogLAMP:
   After this operation, 0 B of additional disk space will be used.
   Do you want to continue? [Y/n]
   (Reading database ... 211747 files and directories currently installed.)
-  Removing foglamp (1.2) ...
+  Removing foglamp (1.3) ...
   FogLAMP is currently running.
   Stop FogLAMP service.
   Kill FogLAMP.

@@ -66,9 +66,6 @@ volatile std::sig_atomic_t signalReceived = 0;
 // Handle Signals
 static void signalHandler(int signal)
 {
-
-        Logger::getLogger()->debug("%s - signal received :%d:", LOG_SERVICE_NAME.c_str(), signal);
-
         signalReceived = signal;
 }
 
@@ -250,7 +247,7 @@ void SendingProcess::run() const
 			break;
 		}
 
-		// Just sleep
+                // Just sleep
 		sleep(m_sleep);
 
 		elapsedSeconds = time(NULL) - this->getStartTime();

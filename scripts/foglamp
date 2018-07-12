@@ -279,8 +279,16 @@ foglamp_kill() {
         echo ${list_to_kill} | xargs kill -9
     fi
 
-    # Kill FogLAMP tasks
+    # Kill FogLAMP tasks - parent tasks
     list_to_kill=`ps -ef | grep '/bin/sh tasks' | grep -v 'grep' | awk '{print $2}'`
+    if [[ "${list_to_kill}" != "" ]]
+    then
+        echo ${list_to_kill} | xargs kill -9
+    fi
+
+    # Kill FogLAMP tasks - child tasks
+    # TODO: improve the mechanism for the recognition of the C tasks
+    list_to_kill=`ps -ef | grep './tasks' | grep -v 'grep' | awk '{print $2}'`
     if [[ "${list_to_kill}" != "" ]]
     then
         echo ${list_to_kill} | xargs kill -9

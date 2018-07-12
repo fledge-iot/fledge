@@ -14,7 +14,6 @@ from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, 
     IntervalSchedule, ManualSchedule
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common import utils
-from foglamp.common import logger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -26,8 +25,6 @@ _help = """
     | GET POST            | /foglamp/scheduled/task                               |
     -------------------------------------------------------------------------------
 """
-
-_logger = logger.setup(__name__)
 
 
 #################################
@@ -70,11 +67,13 @@ async def add_task(request):
 
         name = data.get('name', None)
         plugin = data.get('plugin', None)
+
         schedule_type = data.get('type', None)
         schedule_day = data.get('day', None)
         schedule_time = data.get('time', None)
         schedule_repeat = data.get('repeat', None)
         enabled = data.get('enabled', None)
+
         with_configuration = data.get('with_configuration', None)
         cmd_params = data.get('cmd_params', None)
 
@@ -99,6 +98,7 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='Error in type: {}'.format(schedule_type))
         if int(schedule_type) not in list(Schedule.Type):
             raise web.HTTPBadRequest(reason='Schedule type error: {}'.format(schedule_type))
+
         schedule_type = int(schedule_type)
 
         if schedule_day is not None:
@@ -143,7 +143,7 @@ async def add_task(request):
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
-            plugin_module_path = "foglamp.plugins.south" if task_type == 'south' else "foglamp.plugins.north"
+            plugin_module_path = "foglamp.plugins.{}".format(task_type)
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
             _plugin = __import__(import_file_name, fromlist=[''])
 
@@ -185,8 +185,10 @@ async def add_task(request):
             # Create a configuration category from the configuration defined in the plugin
             category_desc = plugin_config['plugin']['description']
             config_mgr = ConfigurationManager(storage)
-            merged_config = {**plugin_config, **with_configuration} if with_configuration is not None and len(with_configuration) > 0 else plugin_config
-            _logger.debug(">>>>>>>>>>>>>>>>>> %s", merged_config)
+            if with_configuration is not None and len(with_configuration) > 0:
+                merged_config = {**plugin_config, **with_configuration}
+            else:
+                merged_config = plugin_config
             await config_mgr.create_category(category_name=name,
                                              category_description=category_desc,
                                              category_value=merged_config,

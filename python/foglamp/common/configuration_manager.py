@@ -556,6 +556,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
+        def diff(lst1, lst2):
+            return [v for v in lst2 if v not in lst1]
+
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
 
@@ -572,19 +575,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if category is None:
                     raise ValueError('No such {} child exist'.format(child))
 
-            for child in children:
-                result = await self._create_child(category_name, child)
+            # Read children from storage
+            _existing_children = await self._read_all_child_category_names(category_name)
+            children_from_storage = [item['child'] for item in _existing_children]
+            # Diff in existing children and requested children
+            new_children = diff(children_from_storage, children)
+            for a_new_child in new_children:
+                result = await self._create_child(category_name, a_new_child)
+                children_from_storage.append(a_new_child)
 
-            if result == 'inserted':
-                cat_dict = await self.get_category_all_items(category_name)
-                child_dict = await self._read_all_child_category_names(category_name)
-                _children = []
-                for item in child_dict:
-                    _children.append(item['child'])
+            cat_dict = await self.get_category_all_items(category_name)
+            cat_dict["children"] = children_from_storage
 
-                cat_dict["children"] = _children
-
-            # TODO: Shall we write audit trail code entry here? log_code?
+            # TODO: [TO BE DECIDED] - Audit Trail Entry
         except KeyError:
             raise ValueError(result['message'])
 

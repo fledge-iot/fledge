@@ -41,18 +41,12 @@ async def add_task(request):
      '{
         "name": "North Readings to PI",
         "plugin": "omf",
-        "enabled": true,
-        "type": 3,
-        "day": 0,
-        "time": 0,
-        "repeat": 30,
-        "with_configuration": {
-            "OMFHttpTimeout": {
-                "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
-                "type": "integer",
-                "default": "15"
-            }
-        },
+        "type": "north",
+        "schedule_type": 3,
+        "schedule_day": 0,
+        "schedule_time": 0,
+        "schedule_repeat": 30,
+        "schedule_enabled": true,
         "cmd_params": {
             "stream_id": "1",
             "debug_level": "1"
@@ -67,27 +61,28 @@ async def add_task(request):
 
         name = data.get('name', None)
         plugin = data.get('plugin', None)
+        task_type = data.get('type', None)
 
-        schedule_type = data.get('type', None)
-        schedule_day = data.get('day', None)
-        schedule_time = data.get('time', None)
-        schedule_repeat = data.get('repeat', None)
-        enabled = data.get('enabled', None)
+        schedule_type = data.get('schedule_type', None)
+        schedule_day = data.get('schedule_day', None)
+        schedule_time = data.get('schedule_time', None)
+        schedule_repeat = data.get('schedule_repeat', None)
+        enabled = data.get('schedule_enabled', None)
 
-        with_configuration = data.get('with_configuration', None)
         cmd_params = data.get('cmd_params', None)
 
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if plugin is None:
             raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
+        if task_type is None:
+            raise web.HTTPBadRequest(reason='Missing type property in payload.')
         if utils.check_reserved(name) is False:
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
-        if with_configuration is not None:
-            if not isinstance(with_configuration, dict):
-                raise web.HTTPBadRequest(reason='with_configuration must be a dict.')
+        if task_type not in ['south', 'north']:
+            raise web.HTTPBadRequest(reason='Only north and south types are supported.')
         if cmd_params is not None:
             if not isinstance(cmd_params, dict):
                 raise web.HTTPBadRequest(reason='cmd_params must be a dict.')
@@ -98,6 +93,8 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='Error in type: {}'.format(schedule_type))
         if int(schedule_type) not in list(Schedule.Type):
             raise web.HTTPBadRequest(reason='Schedule type error: {}'.format(schedule_type))
+        if int(schedule_type) == Schedule.Type.STARTUP:
+            raise web.HTTPBadRequest(reason='Schedule type cannot be STARTUP: {}'.format(schedule_type))
 
         schedule_type = int(schedule_type)
 
@@ -137,8 +134,6 @@ async def add_task(request):
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
-        task_type = 'north'
-
         # Check if a valid plugin has been provided
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
@@ -170,7 +165,7 @@ async def add_task(request):
         # Now first create the scheduled process entry for the new task
         cmdln_params = [', "--{}={}"'.format(i, v) for i, v in cmd_params.items()] if cmd_params is not None and len(cmd_params) > 0 else []
         cmdln_params_str = "".join(cmdln_params)
-        script = '["tasks/' + task_type + '"' + cmdln_params_str + ']'
+        script = '["tasks/{}"{}]'.format(task_type, cmdln_params_str)
         payload = PayloadBuilder().INSERT(name=name, script=script).payload()
         try:
             res = await storage.insert_into_tbl("scheduled_processes", payload)
@@ -185,13 +180,9 @@ async def add_task(request):
             # Create a configuration category from the configuration defined in the plugin
             category_desc = plugin_config['plugin']['description']
             config_mgr = ConfigurationManager(storage)
-            if with_configuration is not None and len(with_configuration) > 0:
-                merged_config = {**plugin_config, **with_configuration}
-            else:
-                merged_config = plugin_config
             await config_mgr.create_category(category_name=name,
                                              category_description=category_desc,
-                                             category_value=merged_config,
+                                             category_value=plugin_config,
                                              keep_original_items=True)
         except Exception as ex:
             await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
@@ -199,8 +190,7 @@ async def add_task(request):
 
         # If all successful then lastly add a schedule to run the new task at startup
         try:
-            schedule = StartUpSchedule() if schedule_type == Schedule.Type.STARTUP else \
-                       TimedSchedule() if schedule_type == Schedule.Type.TIMED else \
+            schedule = TimedSchedule() if schedule_type == Schedule.Type.TIMED else \
                        IntervalSchedule() if schedule_type == Schedule.Type.INTERVAL else \
                        ManualSchedule()
             schedule.name = name

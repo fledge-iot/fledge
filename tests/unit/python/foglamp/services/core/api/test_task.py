@@ -48,8 +48,10 @@ class TestService:
         ("blah", 404, "Data payload must be a dictionary"),
         ({}, 400, 'Missing name property in payload.'),
         ({"name": "test"}, 400, "Missing plugin property in payload."),
-        ({"name": "test", "plugin": "omf"}, 400, 'Schedule Type is mandatory'),
-        ({"name": "test", "plugin": "omf", "type": 3}, 400, 'Repeat is required for INTERVAL Schedule type.')
+        ({"name": "test", "plugin": "omf"}, 400, 'Missing type property in payload.'),
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 3}, 400, 'Repeat is required for INTERVAL Schedule type.'),
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 1}, 400,
+             'Schedule type cannot be STARTUP: 1')
     ])
     async def test_add_task_with_bad_params(self, client, code, payload, message):
         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(payload))
@@ -57,7 +59,7 @@ class TestService:
         assert message == resp.reason
 
     async def test_dupe_process_name_add_task(self, client):
-        data = {"name": "north bound", "type": 3, "plugin": "omf", "repeat": 30}
+        data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
         async def async_mock():
             expected = {'count': 1, 'rows': [{'name': 'north bound'}]}
             return expected
@@ -75,7 +77,7 @@ class TestService:
                 assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "north bound"}} == p
 
     async def test_insert_scheduled_process_exception_add_task(self, client):
-        data = {"name": "north bound", "type": 3, "plugin": "omf", "repeat": 30}
+        data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
 
         @asyncio.coroutine
         def async_mock():
@@ -116,7 +118,7 @@ class TestService:
             expected = {'rows_affected': 1, "response": "inserted"}
             return expected
 
-        data = {"name": "north bound", "plugin": "omf", "type": 3, "repeat": 30}
+        data = {"name": "north bound", "plugin": "omf", "type": "north", "schedule_type": 3, "schedule_repeat": 30}
         description = '{} service configuration'.format(data['name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -178,18 +180,12 @@ class TestService:
         data = {
                 "name": "north bound",
                 "plugin": "omf",
-                "enabled": True,
-                "type": 3,
-                "day": 0,
-                "time": 0,
-                "repeat": 30,
-                "with_configuration": {
-                    "OMFHttpTimeout": {
-                        "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
-                        "type": "integer",
-                        "default": "15"
-                    }
-                },
+                "type": "north",
+                "schedule_type": 3,
+                "schedule_day": 0,
+                "schedule_time": 0,
+                "schedule_repeat": 30,
+                "schedule_enabled": True,
                 "cmd_params": {
                     "stream_id": "1",
                     "debug_level": "1"
@@ -199,7 +195,7 @@ class TestService:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        val = {'OMFHttpTimeout': {'description': 'Timeout in seconds for HTTP operations with the OMF PI Connector Relay', 'type': 'integer', 'default': '15'}, 'plugin': {'description': 'North OMF plugin', 'type': 'string', 'default': 'omf'}}
+        val = {'plugin': {'description': 'North OMF plugin', 'type': 'string', 'default': 'omf'}}
 
         with patch('builtins.__import__', return_value=mock):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -223,6 +219,5 @@ class TestService:
                     p = json.loads(args[1])
                     assert p['name'] == 'north bound'
                     assert p['script'] in ['["tasks/north", "--stream_id=1", "--debug_level=1"]','["tasks/north", "--debug_level=1", "--stream_id=1"]']
-                    # assert {'name': 'north bound', 'script': '["tasks/north", "--stream_id=1", "--debug_level=1"]'} == p
 
     # TODO: Add test for negative scenarios

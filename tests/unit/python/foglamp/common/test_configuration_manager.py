@@ -1495,19 +1495,50 @@ class TestConfigurationManager:
 
         cat_name = 'south'
         child_name = "coap"
+        all_child_ret_val = [{'parent': cat_name, 'child': 'http'}]
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
+            with patch.object(ConfigurationManager, '_read_all_child_category_names',
+                              return_value=async_mock(all_child_ret_val)) as patch_readall_child:
+                with patch.object(ConfigurationManager, '_create_child',
+                                  return_value=async_mock('inserted')) as patch_create_child:
+                    with patch.object(ConfigurationManager, 'get_category_all_items',
+                                      return_value=async_mock({"info": "blah"})) as patch_get_cat:
+                        ret_val = await c_mgr.create_child_category(cat_name, [child_name])
+                        assert 'blah' == ret_val['info']
+                        assert set(['coap', 'http']) == set(ret_val['children'])
+                    patch_get_cat.assert_called_once_with(cat_name)
+            patch_readall_child.assert_called_once_with(cat_name)
+        patch_create_child.assert_called_once_with(cat_name, child_name)
+
+    async def test_create_child_category_if_exists(self, reset_singleton):
+        @asyncio.coroutine
+        def q_result(*args):
+            if args[0] == cat_name:
+                return async_mock('blah1')
+            if args[0] == child_name:
+                return async_mock('blah2')
+
+        async def async_mock(return_value):
+            return return_value
+
+        cat_name = 'south'
+        child_name = "coap"
         all_child_ret_val = [{'parent': cat_name, 'child': child_name}]
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
-            with patch.object(ConfigurationManager, '_create_child', return_value=async_mock('inserted')) as patch_create_child:
-                with patch.object(ConfigurationManager, 'get_category_all_items', return_value=async_mock({"info": "blah"})) as patch_get_cat:
-                    with patch.object(ConfigurationManager, '_read_all_child_category_names', return_value=async_mock(all_child_ret_val)) as patch_readall_child:
-                        ret_val = await c_mgr.create_child_category(cat_name, [child_name])
-                        assert {'info': 'blah', 'children': ['coap']} == ret_val
-                    patch_readall_child.assert_called_once_with(cat_name)
+            with patch.object(ConfigurationManager, '_read_all_child_category_names',
+                              return_value=async_mock(all_child_ret_val)) as patch_readall_child:
+                with patch.object(ConfigurationManager, 'get_category_all_items',
+                                  return_value=async_mock({"info": "blah"})) as patch_get_cat:
+                    ret_val = await c_mgr.create_child_category(cat_name, [child_name])
+                    assert {'info': 'blah', 'children': ['coap']} == ret_val
                 patch_get_cat.assert_called_once_with(cat_name)
-            patch_create_child.assert_called_once_with(cat_name, child_name)
+            patch_readall_child.assert_called_once_with(cat_name)
 
     @pytest.mark.parametrize("cat_name, child_name, message", [
         (1, "coap", 'category_name must be a string'),

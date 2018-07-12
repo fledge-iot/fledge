@@ -1,0 +1,229 @@
+# -*- coding: utf-8 -*-
+
+# FOGLAMP_BEGIN
+# See: http://foglamp.readthedocs.io/
+# FOGLAMP_END
+
+import datetime
+from aiohttp import web
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
+from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core import server
+from foglamp.services.core import connect
+from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, \
+    IntervalSchedule, ManualSchedule
+from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.common import utils
+from foglamp.common import logger
+
+__author__ = "Amarendra K Sinha"
+__copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
+_help = """
+    -------------------------------------------------------------------------------
+    | GET POST            | /foglamp/scheduled/task                                      |
+    -------------------------------------------------------------------------------
+"""
+
+_logger = logger.setup(__name__)
+
+
+#################################
+#  Task
+#################################
+
+
+async def add_task(request):
+    """
+    Create a new task to run a specific plugin
+
+    :Example:
+     curl -X POST http://localhost:8081/foglamp/scheduled/task -d 
+     '{
+        "name": "North Readings to PI",
+        "plugin": "omf",
+        "enabled": true,
+        "type": 3,
+        "day": 0,
+        "time": 0,
+        "repeat": 30,
+        "with_configuration": {
+            "OMFHttpTimeout": {
+                "description": "Timeout in seconds for HTTP operations with the OMF PI Connector Relay",
+                "type": "integer",
+                "default": "15"
+            }
+        },
+        "cmd_params": {
+            "stream_id": "1",
+            "debug_level": "1"
+        }
+     }'
+    """
+
+    try:
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Data payload must be a dictionary')
+
+        name = data.get('name', None)
+        plugin = data.get('plugin', None)
+        schedule_type = data.get('type', None)
+        schedule_day = data.get('day', None)
+        schedule_time = data.get('time', None)
+        schedule_repeat = data.get('repeat', None)
+        enabled = data.get('enabled', None)
+        with_configuration = data.get('with_configuration', None)
+        cmd_params = data.get('cmd_params', None)
+
+        if name is None:
+            raise web.HTTPBadRequest(reason='Missing name property in payload.')
+        if plugin is None:
+            raise web.HTTPBadRequest(reason='Missing plugin property in payload.')
+        if utils.check_reserved(name) is False:
+            raise web.HTTPBadRequest(reason='Invalid name property in payload.')
+        if utils.check_reserved(plugin) is False:
+            raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
+        if with_configuration is not None:
+            if not isinstance(with_configuration, dict):
+                raise web.HTTPBadRequest(reason='with_configuration must be a dict.')
+        if cmd_params is not None:
+            if not isinstance(cmd_params, dict):
+                raise web.HTTPBadRequest(reason='cmd_params must be a dict.')
+
+        if schedule_type is None:
+            raise web.HTTPBadRequest(reason='Schedule Type is mandatory')
+        if not isinstance(schedule_type, int) and not schedule_type.isdigit():
+            raise web.HTTPBadRequest(reason='Error in type: {}'.format(schedule_type))
+        if int(schedule_type) not in list(Schedule.Type):
+            raise web.HTTPBadRequest(reason='Schedule type error: {}'.format(schedule_type))
+        schedule_type = int(schedule_type)
+
+        if schedule_day is not None:
+            if isinstance(schedule_day, float) or (isinstance(schedule_day, str) and (schedule_day.strip() != "" and not schedule_day.isdigit())):
+                raise web.HTTPBadRequest(reason='Error in day: {}'.format(schedule_day))
+        else:
+            schedule_day = int(schedule_day) if schedule_day is not None else None
+
+        if schedule_time is not None and (not isinstance(schedule_time, int) and not schedule_time.isdigit()):
+            raise web.HTTPBadRequest(reason='Error in time: {}'.format(schedule_time))
+        else:
+            schedule_time = int(schedule_time) if schedule_time is not None else None
+
+        if schedule_repeat is not None and (not isinstance(schedule_repeat, int) and not schedule_repeat.isdigit()):
+            raise web.HTTPBadRequest(reason='Error in repeat: {}'.format(schedule_repeat))
+        else:
+            schedule_repeat = int(schedule_repeat) if schedule_repeat is not None else None
+
+        if schedule_type == Schedule.Type.TIMED:
+            if not schedule_time:
+                raise web.HTTPBadRequest(reason='Schedule time cannot be empty/None for TIMED schedule.')
+            if schedule_day is not None and (not (schedule_day < 1 or schedule_day > 7)):
+                raise web.HTTPBadRequest(reason='Day must either be None or must be an integer and in range 1-7.')
+            if schedule_time < 0 or schedule_time > 86399:
+                raise web.HTTPBadRequest(reason='Time must be an integer and in range 0-86399.')
+
+        if schedule_type == Schedule.Type.INTERVAL:
+            if schedule_repeat is None:
+                raise web.HTTPBadRequest(reason='Repeat is required for INTERVAL Schedule type.')
+            elif not isinstance(schedule_repeat, int):
+                raise web.HTTPBadRequest(reason='Repeat must be an integer.')
+
+        if enabled is not None:
+            if enabled not in ['t', 'f', 'true', 'false', 0, 1]:
+                raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
+        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
+            (type(enabled) is bool and enabled is True))) else False
+
+        task_type = 'north'
+
+        # Check if a valid plugin has been provided
+        try:
+            # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
+            # folder, within the plugin_module_path.
+            plugin_module_path = "foglamp.plugins.south" if task_type == 'south' else "foglamp.plugins.north"
+            import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
+            _plugin = __import__(import_file_name, fromlist=[''])
+
+            # Fetch configuration from the configuration defined in the plugin
+            plugin_info = _plugin.plugin_info()
+            plugin_config = plugin_info['config']
+        except ImportError as ex:
+            raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
+        except Exception as ex:
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+
+        storage = connect.get_storage_async()
+
+        # Check that the process name is not already registered
+        count = await utils.check_scheduled_processes(storage, name)
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A task with that name already exists')
+
+        # Check that the schedule name is not already registered
+        count = await utils.check_schedules(storage, name)
+        if count != 0:
+            raise web.HTTPBadRequest(reason='A schedule with that name already exists')
+
+        # Now first create the scheduled process entry for the new task
+        cmdln_params = [', "--{}={}"'.format(i, v) for i, v in cmd_params.items()] if cmd_params is not None and len(cmd_params) > 0 else []
+        cmdln_params_str = "".join(cmdln_params)
+        script = '["tasks/south"'+cmdln_params_str+']' if task_type == 'south' else '["tasks/north"'+cmdln_params_str+']'
+        payload = PayloadBuilder().INSERT(name=name, script=script).payload()
+        try:
+            res = await storage.insert_into_tbl("scheduled_processes", payload)
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(err_response))
+        except Exception as ins_ex:
+            raise web.HTTPInternalServerError(reason='Failed to created scheduled process. {}'.format(str(ins_ex)))
+
+        # If successful then create a configuration entry from plugin configuration
+        try:
+            # Create a configuration category from the configuration defined in the plugin
+            category_desc = plugin_config['plugin']['description']
+            config_mgr = ConfigurationManager(storage)
+            merged_config = {**plugin_config, **with_configuration} if with_configuration is not None and len(with_configuration) > 0 else plugin_config
+            _logger.debug(">>>>>>>>>>>>>>>>>> %s", merged_config)
+            await config_mgr.create_category(category_name=name,
+                                             category_description=category_desc,
+                                             category_value=merged_config,
+                                             keep_original_items=True)
+        except Exception as ex:
+            await utils.revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
+            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+
+        # If all successful then lastly add a schedule to run the new task at startup
+        try:
+            schedule = StartUpSchedule() if schedule_type == Schedule.Type.STARTUP else \
+                       TimedSchedule() if schedule_type == Schedule.Type.TIMED else \
+                       IntervalSchedule() if schedule_type == Schedule.Type.INTERVAL else \
+                       ManualSchedule()
+            schedule.name = name
+            schedule.process_name = name
+            schedule.day = schedule_day
+            m, s = divmod(schedule_time if schedule_time is not None else 0, 60)
+            h, m = divmod(m, 60)
+            schedule.time = datetime.time().replace(hour=h, minute=m, second=s)
+            schedule.repeat = datetime.timedelta(schedule_repeat if schedule_repeat is not None else 0)
+            schedule.exclusive = True
+            schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
+
+            # Save schedule
+            await server.Server.scheduler.save_schedule(schedule, is_enabled)
+            schedule = await server.Server.scheduler.get_schedule_by_name(name)
+        except StorageServerError as ex:
+            await utils.revert_configuration(storage, name)  # Revert configuration entry
+            await utils.revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
+            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
+        except Exception as ins_ex:
+            await utils.revert_configuration(storage, name)  # Revert configuration entry
+            await utils.revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
+            raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
+
+        return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
+
+    except ValueError as ex:
+        raise web.HTTPNotFound(reason=str(ex))

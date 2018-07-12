@@ -6,6 +6,7 @@
 
 """Common utilities"""
 
+from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,3 +35,25 @@ def check_reserved(string):
         if s in reserved:
             return False
     return True
+
+
+async def check_scheduled_processes(storage, process_name):
+    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
+    result = await storage.query_tbl_with_payload('scheduled_processes', payload)
+    return result['count']
+
+
+async def check_schedules(storage, schedule_name):
+    payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result['count']
+
+
+async def revert_scheduled_processes(storage, process_name):
+    payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
+    await storage.delete_from_tbl('scheduled_processes', payload)
+
+
+async def revert_configuration(storage, key):
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    await storage.delete_from_tbl('configuration', payload)

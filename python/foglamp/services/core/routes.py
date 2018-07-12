@@ -17,6 +17,7 @@ from foglamp.services.core.api import service
 from foglamp.services.core.api import certificate_store
 from foglamp.services.core.api import support
 from foglamp.services.core.api import plugin_discovery
+from foglamp.services.core.api import task
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -122,6 +123,9 @@ def setup(app):
 
     # Get Plugin
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
+
+    # Task
+    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
 
     # enable cors support
     enable_cors(app)

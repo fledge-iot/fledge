@@ -6,7 +6,6 @@
 
 """Common utilities"""
 
-from foglamp.common.storage_client.payload_builder import PayloadBuilder
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"

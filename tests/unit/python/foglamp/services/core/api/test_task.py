@@ -45,13 +45,12 @@ class TestService:
         return loop.run_until_complete(test_client(app))
 
     @pytest.mark.parametrize("payload, code, message", [
-        ("blah", 404, "Data payload must be a dictionary"),
+        ("blah", 500, "Data payload must be a dictionary"),
         ({}, 400, 'Missing name property in payload.'),
         ({"name": "test"}, 400, "Missing plugin property in payload."),
         ({"name": "test", "plugin": "omf"}, 400, 'Missing type property in payload.'),
-        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 3}, 400, 'Repeat is required for INTERVAL Schedule type.'),
-        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 1}, 400,
-             'Schedule type cannot be STARTUP: 1')
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 3}, 400, 'schedule_repeat is required for INTERVAL schedule_type.'),
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 1}, 400, 'schedule_type cannot be STARTUP: 1')
     ])
     async def test_add_task_with_bad_params(self, client, code, payload, message):
         resp = await client.post('/foglamp/scheduled/task', data=json.dumps(payload))

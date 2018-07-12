@@ -10,8 +10,7 @@ from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.services.core import server
 from foglamp.services.core import connect
-from foglamp.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, \
-    IntervalSchedule, ManualSchedule
+from foglamp.services.core.scheduler.entities import Schedule, TimedSchedule, IntervalSchedule, ManualSchedule
 from foglamp.common.storage_client.exceptions import StorageServerError
 from foglamp.common import utils
 
@@ -25,11 +24,6 @@ _help = """
     | GET POST            | /foglamp/scheduled/task                               |
     -------------------------------------------------------------------------------
 """
-
-
-#################################
-#  Task
-#################################
 
 
 async def add_task(request):
@@ -81,52 +75,52 @@ async def add_task(request):
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
-        if task_type not in ['south', 'north']:
-            raise web.HTTPBadRequest(reason='Only north and south types are supported.')
+        if task_type not in ['north']:
+            raise web.HTTPBadRequest(reason='Only north type is supported.')
         if cmd_params is not None:
             if not isinstance(cmd_params, dict):
                 raise web.HTTPBadRequest(reason='cmd_params must be a dict.')
 
         if schedule_type is None:
-            raise web.HTTPBadRequest(reason='Schedule Type is mandatory')
+            raise web.HTTPBadRequest(reason='schedule_type is mandatory')
         if not isinstance(schedule_type, int) and not schedule_type.isdigit():
-            raise web.HTTPBadRequest(reason='Error in type: {}'.format(schedule_type))
+            raise web.HTTPBadRequest(reason='Error in schedule_type: {}'.format(schedule_type))
         if int(schedule_type) not in list(Schedule.Type):
-            raise web.HTTPBadRequest(reason='Schedule type error: {}'.format(schedule_type))
+            raise web.HTTPBadRequest(reason='schedule_type error: {}'.format(schedule_type))
         if int(schedule_type) == Schedule.Type.STARTUP:
-            raise web.HTTPBadRequest(reason='Schedule type cannot be STARTUP: {}'.format(schedule_type))
+            raise web.HTTPBadRequest(reason='schedule_type cannot be STARTUP: {}'.format(schedule_type))
 
         schedule_type = int(schedule_type)
 
         if schedule_day is not None:
             if isinstance(schedule_day, float) or (isinstance(schedule_day, str) and (schedule_day.strip() != "" and not schedule_day.isdigit())):
-                raise web.HTTPBadRequest(reason='Error in day: {}'.format(schedule_day))
+                raise web.HTTPBadRequest(reason='Error in schedule_day: {}'.format(schedule_day))
         else:
             schedule_day = int(schedule_day) if schedule_day is not None else None
 
         if schedule_time is not None and (not isinstance(schedule_time, int) and not schedule_time.isdigit()):
-            raise web.HTTPBadRequest(reason='Error in time: {}'.format(schedule_time))
+            raise web.HTTPBadRequest(reason='Error in schedule_time: {}'.format(schedule_time))
         else:
             schedule_time = int(schedule_time) if schedule_time is not None else None
 
         if schedule_repeat is not None and (not isinstance(schedule_repeat, int) and not schedule_repeat.isdigit()):
-            raise web.HTTPBadRequest(reason='Error in repeat: {}'.format(schedule_repeat))
+            raise web.HTTPBadRequest(reason='Error in schedule_repeat: {}'.format(schedule_repeat))
         else:
             schedule_repeat = int(schedule_repeat) if schedule_repeat is not None else None
 
         if schedule_type == Schedule.Type.TIMED:
             if not schedule_time:
-                raise web.HTTPBadRequest(reason='Schedule time cannot be empty/None for TIMED schedule.')
+                raise web.HTTPBadRequest(reason='schedule_time cannot be empty/None for TIMED schedule.')
             if schedule_day is not None and (not (schedule_day < 1 or schedule_day > 7)):
-                raise web.HTTPBadRequest(reason='Day must either be None or must be an integer and in range 1-7.')
+                raise web.HTTPBadRequest(reason='schedule_day must either be None or must be an integer, 1(Monday) to 7(Sunday).')
             if schedule_time < 0 or schedule_time > 86399:
-                raise web.HTTPBadRequest(reason='Time must be an integer and in range 0-86399.')
+                raise web.HTTPBadRequest(reason='schedule_time must be an integer and in range 0-86399.')
 
         if schedule_type == Schedule.Type.INTERVAL:
             if schedule_repeat is None:
-                raise web.HTTPBadRequest(reason='Repeat is required for INTERVAL Schedule type.')
+                raise web.HTTPBadRequest(reason='schedule_repeat is required for INTERVAL schedule_type.')
             elif not isinstance(schedule_repeat, int):
-                raise web.HTTPBadRequest(reason='Repeat must be an integer.')
+                raise web.HTTPBadRequest(reason='schedule_repeat must be an integer.')
 
         if enabled is not None:
             if enabled not in ['t', 'f', 'true', 'false', 0, 1]:
@@ -218,8 +212,7 @@ async def add_task(request):
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
     except ValueError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
-
+        raise web.HTTPInternalServerError(reason=str(ex))
 
 
 async def check_scheduled_processes(storage, process_name):

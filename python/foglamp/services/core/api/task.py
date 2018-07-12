@@ -23,7 +23,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET POST            | /foglamp/scheduled/task                                      |
+    | GET POST            | /foglamp/scheduled/task                               |
     -------------------------------------------------------------------------------
 """
 
@@ -158,19 +158,19 @@ async def add_task(request):
         storage = connect.get_storage_async()
 
         # Check that the process name is not already registered
-        count = await utils.check_scheduled_processes(storage, name)
+        count = await check_scheduled_processes(storage, name)
         if count != 0:
             raise web.HTTPBadRequest(reason='A task with that name already exists')
 
         # Check that the schedule name is not already registered
-        count = await utils.check_schedules(storage, name)
+        count = await check_schedules(storage, name)
         if count != 0:
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
 
         # Now first create the scheduled process entry for the new task
         cmdln_params = [', "--{}={}"'.format(i, v) for i, v in cmd_params.items()] if cmd_params is not None and len(cmd_params) > 0 else []
         cmdln_params_str = "".join(cmdln_params)
-        script = '["tasks/south"'+cmdln_params_str+']' if task_type == 'south' else '["tasks/north"'+cmdln_params_str+']'
+        script = '["tasks/' + task_type + '"' + cmdln_params_str + ']'
         payload = PayloadBuilder().INSERT(name=name, script=script).payload()
         try:
             res = await storage.insert_into_tbl("scheduled_processes", payload)
@@ -192,7 +192,7 @@ async def add_task(request):
                                              category_value=merged_config,
                                              keep_original_items=True)
         except Exception as ex:
-            await utils.revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
+            await revert_scheduled_processes(storage, plugin)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
 
         # If all successful then lastly add a schedule to run the new task at startup
@@ -215,15 +215,38 @@ async def add_task(request):
             await server.Server.scheduler.save_schedule(schedule, is_enabled)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
-            await utils.revert_configuration(storage, name)  # Revert configuration entry
-            await utils.revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
+            await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(ex.error))
         except Exception as ins_ex:
-            await utils.revert_configuration(storage, name)  # Revert configuration entry
-            await utils.revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
+            await revert_configuration(storage, name)  # Revert configuration entry
+            await revert_scheduled_processes(storage, name)  # Revert scheduled_process entry
             raise web.HTTPInternalServerError(reason='Failed to created schedule. {}'.format(str(ins_ex)))
 
         return web.json_response({'name': name, 'id': str(schedule.schedule_id)})
 
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
+
+
+
+async def check_scheduled_processes(storage, process_name):
+    payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', process_name]).payload()
+    result = await storage.query_tbl_with_payload('scheduled_processes', payload)
+    return result['count']
+
+
+async def check_schedules(storage, schedule_name):
+    payload = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', '=', schedule_name]).payload()
+    result = await storage.query_tbl_with_payload('schedules', payload)
+    return result['count']
+
+
+async def revert_scheduled_processes(storage, process_name):
+    payload = PayloadBuilder().WHERE(['name', '=', process_name]).payload()
+    await storage.delete_from_tbl('scheduled_processes', payload)
+
+
+async def revert_configuration(storage, key):
+    payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
+    await storage.delete_from_tbl('configuration', payload)

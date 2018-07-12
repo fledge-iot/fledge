@@ -17,7 +17,9 @@ namespace SimpleWeb {
   public:
     Client(const std::string &server_port_path, bool verify_certificate = true, const std::string &cert_file = std::string(),
            const std::string &private_key_file = std::string(), const std::string &verify_file = std::string())
-        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tlsv12) {
+        // TODO : tlsv1 is required for the integration with the PI Server
+        // : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tlsv12) {
+        : ClientBase<HTTPS>::ClientBase(server_port_path, 443), context(asio::ssl::context::tlsv1) {
       if(cert_file.size() > 0 && private_key_file.size() > 0) {
         context.use_certificate_chain_file(cert_file);
         context.use_private_key_file(private_key_file, asio::ssl::context::pem);

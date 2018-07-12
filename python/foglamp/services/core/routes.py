@@ -16,6 +16,7 @@ from foglamp.services.core.api import update
 from foglamp.services.core.api import service
 from foglamp.services.core.api import certificate_store
 from foglamp.services.core.api import support
+from foglamp.services.core.api import plugin_discovery
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -123,6 +124,9 @@ def setup(app):
     # Get Syslog
     app.router.add_route('GET', '/foglamp/syslog', support.get_syslog_entries)
 
+    # Get Plugin
+    app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
+
     # enable cors support
     enable_cors(app)
 
@@ -140,6 +144,7 @@ def enable_cors(app):
     # Configure default CORS settings.
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
+            allow_methods=["GET", "POST", "PUT", "DELETE"],
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",

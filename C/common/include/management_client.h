@@ -29,21 +29,48 @@ class ManagementClient {
 		bool 			getService(ServiceRecord& service);
 		bool 			registerCategory(const std::string& categoryName);
 		bool 			unregisterCategory(const std::string& categoryName);
-		ConfigCategories	getCategories();
-		ConfigCategory		getCategory(const std::string& categoryName);
+		ConfigCategories	getCategories() const;
+		ConfigCategory		getCategory(const std::string& categoryName) const;
+                std::string             setCategoryItemValue(const std::string& categoryName,
+                                                             const std::string& itemName,
+                                                             const std::string& itemValue) const;
 
-	private:
+private:
 		HttpClient				*m_client;
 		std::string				*m_uuid;
 		Logger					*m_logger;
 		std::map<std::string, std::string>	m_categories;
 	public:
 		// member template must be here and not in .cpp file
-		template<class T> bool	addCategory(const T& t)
+		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)
 		{
 			try {
 				std::string url = "/foglamp/service/category";
-				auto res = m_client->request("POST", url.c_str(), t.toJSON());
+
+                                // Build the JSON payload
+                                std::ostringstream payload;
+                                payload << "{ \"key\" : \"" << t.getName();
+                                payload << "\", \"description\" : \"" << t.getDescription();
+                                payload << "\", \"value\" : " << t.itemsToJSON();
+
+				/**
+				 * Note:
+				 * At the time being the keep_original_items is added into payload
+				 * and configuration manager in the FogLAMP handles it.
+				 *
+				 * In the near future keep_original_items will be passed
+				 * as URL modifier, i.e: 'URL?keep_original_items=true'
+				 */
+				if (keepOriginalItems)
+				{
+					payload << ", \"keep_original_items\" : true";
+				}
+
+				// Terminate JSON string
+				payload << " }";
+
+				auto res = m_client->request("POST", url.c_str(), payload.str());
+
 				Document doc;
 				std::string response = res->content.string();
 

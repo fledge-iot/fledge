@@ -7,12 +7,14 @@
 """Backup and Restore Rest API support"""
 
 import sys
-
+import zipfile
+from pathlib import Path
 from aiohttp import web
 from enum import IntEnum
 from collections import OrderedDict
 
 from foglamp.services.core import connect
+from foglamp.common.common import _FOGLAMP_ROOT
 
 if 'foglamp.plugins.storage.common.backup' not in sys.modules:
     from foglamp.plugins.storage.common.backup import Backup
@@ -22,7 +24,8 @@ if 'foglamp.plugins.storage.common.restore' not in sys.modules:
 
 from foglamp.plugins.storage.common import exceptions
 
-__author__ = "Vaibhav Singhal"
+
+__author__ = "Vaibhav Singhal, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -34,6 +37,7 @@ _help = """
     ------------------------------------------------------------------------------------
     | GET, POST       | /foglamp/backup                                                |
     | GET, DELETE     | /foglamp/backup/{backup-id}                                    |
+    | GET             | /foglamp/backup/{backup-id}/download                           |
     | PUT             | /foglamp/backup/{backup-id}/restore                            |
     | GET             | /foglamp/backup/status                                         |
     ------------------------------------------------------------------------------------
@@ -142,6 +146,45 @@ async def get_backup_details(request):
         raise web.HTTPException(reason=(str(ex)))
 
     return web.json_response(resp)
+
+
+async def get_backup_download(request):
+    """ download back up file by id
+
+    :Example:
+        curl -O http://localhost:8081/foglamp/backup/1/download
+
+        curl -X GET http://localhost:8081/foglamp/backup/1/download
+        -H "Accept-Encoding: gzip" --write-out "size_download=%{size_download}\n" --compressed
+
+    """
+    backup_id = request.match_info.get('backup_id', None)
+    try:
+        backup_id = int(backup_id)
+        backup = Backup(connect.get_storage_async())
+        backup_json = await backup.get_backup_details(backup_id)
+
+        # Strip filename from backup path
+        file_name = str(backup_json["file_name"]).split('data/backup/')
+        _file = '{}.zip'.format(file_name[1])
+
+        # Archive backup file
+        archive = zipfile.ZipFile(_file, mode='w')
+        archive.write(backup_json["file_name"], arcname="backup_{}".format(backup_id))
+        archive.close()
+
+        # Path of an archive file
+        dir_name = _FOGLAMP_ROOT + "/" + _file
+        p = Path(dir_name)
+
+    except ValueError:
+        raise web.HTTPBadRequest(reason='Invalid backup id')
+    except exceptions.DoesNotExist:
+        raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
+    except Exception as ex:
+        raise web.HTTPException(reason=(str(ex)))
+
+    return web.FileResponse(path=p)
 
 
 async def delete_backup(request):

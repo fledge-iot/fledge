@@ -102,6 +102,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/backup/status', backup_restore.get_backup_status)
     app.router.add_route('GET', '/foglamp/backup/{backup_id}', backup_restore.get_backup_details)
     app.router.add_route('DELETE', '/foglamp/backup/{backup_id}', backup_restore.delete_backup)
+    app.router.add_route('GET', '/foglamp/backup/{backup_id}/download', backup_restore.get_backup_download)
     app.router.add_route('PUT', '/foglamp/backup/{backup_id}/restore', backup_restore.restore_backup)
 
     # Package Update on demand

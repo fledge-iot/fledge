@@ -149,7 +149,7 @@ async def get_backup_details(request):
 
 
 async def get_backup_download(request):
-    """ download back up file by id
+    """ Download back up file by id
 
     :Example:
         curl -O http://localhost:8081/foglamp/backup/1/download
@@ -166,11 +166,12 @@ async def get_backup_download(request):
 
         # Strip filename from backup path
         file_name = str(backup_json["file_name"]).split('data/backup/')
-        _file = '{}.zip'.format(file_name[1])
+        file_name_without_ext = str(file_name[1]).split('.')
+        _file = '{}.zip'.format(file_name_without_ext[0])
 
         # Archive backup file
         archive = zipfile.ZipFile(_file, mode='w')
-        archive.write(backup_json["file_name"], arcname="backup_{}".format(backup_id))
+        archive.write(backup_json["file_name"], arcname="foglamp-{}".format(backup_id))
         archive.close()
 
         # Path of an archive file

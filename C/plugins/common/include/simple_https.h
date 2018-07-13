@@ -32,12 +32,14 @@ class SimpleHttps: public HttpSender
 		~SimpleHttps();
 
 		/**
-		 * HTTP(S) request: pass method and path, HTTP headers and POST/PUT payload.
+		 * HTTP(S) request: pass method and path HTTP headers and POST/PUT payload.
 		 */
 		int sendRequest(const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
 				const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
 				const std::string& payload = std::string());
+
+                std::string getHostPort() { return m_host_port; };
 	private:
 		// Make private the copy constructor and operator=
 		SimpleHttps(const SimpleHttps&);

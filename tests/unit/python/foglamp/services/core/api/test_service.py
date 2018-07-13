@@ -5,6 +5,7 @@
 # FOGLAMP_END
 
 
+import builtins
 import asyncio
 import json
 from aiohttp import web
@@ -132,15 +133,16 @@ class TestService:
             return expected
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                resp = await client.post('/foglamp/service', data=json.dumps(data))
-                assert 400 == resp.status
-                assert 'A service with that name already exists' == resp.reason
-            args, kwargs = query_table_patch.call_args
-            assert 'scheduled_processes' == args[0]
-            p = json.loads(args[1])
-            assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "furnace4"}} == p
+        with patch('builtins.__import__', side_effect=MagicMock()):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
+                    resp = await client.post('/foglamp/service', data=json.dumps(data))
+                    assert 400 == resp.status
+                    assert 'A service with that name already exists' == resp.reason
+                args, kwargs = query_table_patch.call_args
+                assert 'scheduled_processes' == args[0]
+                p = json.loads(args[1])
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "furnace4"}} == p
 
     async def test_insert_scheduled_process_exception_add_service(self, client):
         data = {"name": "furnace4", "type": "north", "plugin": "dht11"}
@@ -151,20 +153,21 @@ class TestService:
             return expected
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
-                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
-                    resp = await client.post('/foglamp/service', data=json.dumps(data))
-                    assert 500 == resp.status
-                    assert 'Internal Server Error' == resp.reason
-                # args, kwargs = insert_table_patch.call_args
-                # assert 'scheduled_processes' == args[0]
-                # p1 = json.loads(args[1])
-                # assert {'name': 'furnace4', 'script': '["services/north"]'} == p1
-            args1, kwargs1 = query_table_patch.call_args
-            assert 'schedules' == args1[0]
-            p2 = json.loads(args1[1])
-            assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == p2
+        with patch('builtins.__import__', side_effect=MagicMock()):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=async_mock()) as query_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()) as insert_table_patch:
+                        resp = await client.post('/foglamp/service', data=json.dumps(data))
+                        assert 500 == resp.status
+                        assert 'Internal Server Error' == resp.reason
+                    # args, kwargs = insert_table_patch.call_args
+                    # assert 'scheduled_processes' == args[0]
+                    # p1 = json.loads(args[1])
+                    # assert {'name': 'furnace4', 'script': '["services/north"]'} == p1
+                args1, kwargs1 = query_table_patch.call_args
+                assert 'schedules' == args1[0]
+                p2 = json.loads(args1[1])
+                assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=', 'value': 'furnace4'}} == p2
 
     async def test_dupe_schedule_name_add_service(self, client):
         def q_result(*arg):
@@ -188,16 +191,16 @@ class TestService:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         val = {'plugin': {'default': data['plugin'], 'description': 'Python module name of the plugin to load', 'type': 'string'}}
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock()) as insert_table_patch:
-                    with patch.object(c_mgr, 'create_category', return_value=None) as patch_create_cat:
-                        resp = await client.post('/foglamp/service', data=json.dumps(data))
-                        assert 500 == resp.status
-                        assert 'Internal Server Error' == resp.reason
-                    assert 0 == patch_create_cat.call_count
+        with patch('builtins.__import__', side_effect=MagicMock()):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock()) as insert_table_patch:
+                        with patch.object(c_mgr, 'create_category', return_value=None) as patch_create_cat:
+                            resp = await client.post('/foglamp/service', data=json.dumps(data))
+                            assert 500 == resp.status
+                            assert 'Internal Server Error' == resp.reason
+                        assert 0 == patch_create_cat.call_count
 
-    @pytest.mark.skip(reason="TODO: FOGL-1449 - Mock loading a North/South plugin in add_service() call in tests")
     async def test_add_service(self, client):
         async def async_mock(return_value):
             return return_value
@@ -207,6 +210,7 @@ class TestService:
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
             return schedule
 
+        @asyncio.coroutine
         def q_result(*arg):
             table = arg[0]
             payload = arg[1]
@@ -222,29 +226,50 @@ class TestService:
             expected = {'rows_affected': 1, "response": "inserted"}
             return expected
 
+        mock_plugin_info = {
+                'name': "furnace4",
+                'version': "1.1",
+                'type': "south",
+                'interface': "1.0",
+                'config': {
+                            'plugin': {
+                                'description': "Modbus RTU plugin",
+                                'type': 'string',
+                                'default': 'dht11'
+                            }
+            }
+        }
+
+        mock = MagicMock()
+        attrs = {"plugin_info.side_effect": [mock_plugin_info]}
+        mock.configure_mock(**attrs)
+
         server.Server.scheduler = Scheduler(None, None)
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
-        description = '{} service configuration'.format(data['name'])
+        description = "Modbus RTU plugin"
+
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        val = {'plugin': {'default': data['plugin'], 'description': 'Python module name of the plugin to load', 'type': 'string'}}
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) as insert_table_patch:
-                    with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
-                        with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
-                            with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                resp = await client.post('/foglamp/service', data=json.dumps(data))
-                                server.Server.scheduler = None
-                                assert 200 == resp.status
-                                result = await resp.text()
-                                json_response = json.loads(result)
-                                assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'furnace4'} == json_response
-                            patch_get_schedule.assert_called_once_with(data['name'])
-                        patch_save_schedule.called_once_with()
-                    patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=True)
+        val = {'plugin': {'default': data['plugin'], 'description': 'Modbus RTU plugin', 'type': 'string'}}
 
-                args, kwargs = insert_table_patch.call_args
-                assert 'scheduled_processes' == args[0]
-                p = json.loads(args[1])
-                assert {'name': 'furnace4', 'script': '["services/south"]'} == p
+        with patch('builtins.__import__', return_value=mock):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=async_mock_insert()) as insert_table_patch:
+                        with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
+                            with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
+                                with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                    resp = await client.post('/foglamp/service', data=json.dumps(data))
+                                    server.Server.scheduler = None
+                                    assert 200 == resp.status
+                                    result = await resp.text()
+                                    json_response = json.loads(result)
+                                    assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b', 'name': 'furnace4'} == json_response
+                                patch_get_schedule.assert_called_once_with(data['name'])
+                            patch_save_schedule.called_once_with()
+                        patch_create_cat.assert_called_once_with(category_name=data['name'], category_description=description, category_value=val, keep_original_items=True)
+
+                    args, kwargs = insert_table_patch.call_args
+                    assert 'scheduled_processes' == args[0]
+                    p = json.loads(args[1])
+                    assert {'name': 'furnace4', 'script': '["services/south"]'} == p

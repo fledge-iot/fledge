@@ -49,7 +49,7 @@ class TestService:
         ({}, 400, 'Missing name property in payload.'),
         ({"name": "test"}, 400, "Missing plugin property in payload."),
         ({"name": "test", "plugin": "omf"}, 400, 'Missing type property in payload.'),
-        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 3}, 400, 'schedule_repeat is required for INTERVAL schedule_type.'),
+        ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 3}, 400, 'schedule_repeat None is required for INTERVAL schedule_type.'),
         ({"name": "test", "plugin": "omf", "type": "north", "schedule_type": 1}, 400, 'schedule_type cannot be STARTUP: 1')
     ])
     async def test_add_task_with_bad_params(self, client, code, payload, message):

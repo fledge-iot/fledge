@@ -24,7 +24,6 @@ Statistics reported by Purge process are:
 """
 import asyncio
 import time
-import json
 
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.configuration_manager import ConfigurationManager
@@ -87,9 +86,8 @@ class Purge(FoglampProcess):
 
         # Create the parent category for all processes
         try:
-            parent_payload = json.dumps({"key": "Processes", "description":"Processes","value":{},
-                "children": [self._CONFIG_CATEGORY_NAME], "keep_original_items":True})
-            self._core_microservice_management_client.create_configuration_category(parent_payload)
+            cfg_manager.create_category("Processes", {}, "Processses", True)
+            cfg_manager.create_child_category("Processes", [self._CONFIG_CATEGORY_NAME])
         except KeyError:
             _LOGGER.error("Failed to create parent configuratrion category for purge process")
             raise

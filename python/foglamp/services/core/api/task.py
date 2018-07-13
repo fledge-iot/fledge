@@ -193,7 +193,7 @@ async def add_task(request):
             m, s = divmod(schedule_time if schedule_time is not None else 0, 60)
             h, m = divmod(m, 60)
             schedule.time = datetime.time().replace(hour=h, minute=m, second=s)
-            schedule.repeat = datetime.timedelta(schedule_repeat if schedule_repeat is not None else 0)
+            schedule.repeat = datetime.timedelta(seconds=schedule_repeat if schedule_repeat is not None else 0)
             schedule.exclusive = True
             schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
 

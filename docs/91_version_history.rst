@@ -25,6 +25,21 @@ Version History
 FogLAMP v1
 ==========
 
+v1.3.1
+----
+
+Release Date: 2018-07-13
+
+
+Fixed Issues
+~~~~~~~~~~~~
+
+- **Open File Descriptiors**
+
+  - **open file descriptors**: Storage service did not close open files, leading to multiple open file descriptors
+
+
+
 v1.3
 ----
 

@@ -213,7 +213,7 @@ class TestBackup:
         with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(Backup, 'get_backup_details', return_value=mock_coro(response)) as patch_backup_detail:
-                    with patch('zipfile.ZipFile'):
+                    with patch('tarfile.open'):
                         resp = await client.get('/foglamp/backup/{}/download'.format(1))
                         assert 200 == resp.status
                         assert 'OK' == resp.reason

@@ -111,16 +111,16 @@ async def add_task(request):
         if schedule_type == Schedule.Type.TIMED:
             if not schedule_time:
                 raise web.HTTPBadRequest(reason='schedule_time cannot be empty/None for TIMED schedule.')
-            if schedule_day is not None and (not (schedule_day < 1 or schedule_day > 7)):
-                raise web.HTTPBadRequest(reason='schedule_day must either be None or must be an integer, 1(Monday) to 7(Sunday).')
+            if schedule_day is not None and (schedule_day < 1 or schedule_day > 7):
+                raise web.HTTPBadRequest(reason='schedule_day {} must either be None or must be an integer, 1(Monday) to 7(Sunday).'.format(schedule_day))
             if schedule_time < 0 or schedule_time > 86399:
-                raise web.HTTPBadRequest(reason='schedule_time must be an integer and in range 0-86399.')
+                raise web.HTTPBadRequest(reason='schedule_time {} must be an integer and in range 0-86399.'.format(schedule_time))
 
         if schedule_type == Schedule.Type.INTERVAL:
             if schedule_repeat is None:
-                raise web.HTTPBadRequest(reason='schedule_repeat is required for INTERVAL schedule_type.')
+                raise web.HTTPBadRequest(reason='schedule_repeat {} is required for INTERVAL schedule_type.'.format(schedule_repeat))
             elif not isinstance(schedule_repeat, int):
-                raise web.HTTPBadRequest(reason='schedule_repeat must be an integer.')
+                raise web.HTTPBadRequest(reason='schedule_repeat {} must be an integer.'.format(schedule_repeat))
 
         if enabled is not None:
             if enabled not in ['t', 'f', 'true', 'false', 0, 1]:

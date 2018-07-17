@@ -48,8 +48,9 @@ async def get_categories(request):
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
-    if 'root' in request.query and request.query['root'].lower() == 'true':
-        categories = await cf_mgr.get_all_category_names(root=True)
+    if 'root' in request.query and request.query['root'].lower() in ['true', 'false']:
+        str_to_bool = True if request.query['root'].lower() == 'true' else False
+        categories = await cf_mgr.get_all_category_names(root=str_to_bool)
     else:
         categories = await cf_mgr.get_all_category_names()
         

@@ -209,8 +209,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             category_info.append((row['key'], row['description']))
         return category_info
 
-    async def _read_all_groups(self):
-        payload = PayloadBuilder().SELECT("key", "description", "value").WHERE(["value", "=", "{}"]).payload()
+    async def _read_all_groups(self, root):
+        payload = PayloadBuilder().SELECT("key", "description", "value").chain_payload()
+        if root is True:
+            payload = PayloadBuilder(payload).WHERE(["value", "=", "{}"]).payload()
+        else:
+            payload = PayloadBuilder(payload).WHERE(["value", "!=", "{}"]).payload()
+
         results = await self._storage.query_tbl_with_payload('configuration', payload)
 
         group_info = []
@@ -287,17 +292,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def get_all_category_names(self, root=False):
+    async def get_all_category_names(self, root=None):
         """Get all category names in the FogLAMP system
 
         Args:
-            root: root of the configuration tree
+            root: If true will return only categories that have no parent.
+                  If root is set to false then it will return categories that do have a parent
+                  If root is None then it will return all categories
         Return Values:
         a list of tuples (string category_name, string category_description)
         None
         """
         try:
-            return await self._read_all_groups() if root else await self._read_all_category_names()
+            if root is not None:
+                info = await self._read_all_groups(root)
+            else:
+                info = await self._read_all_category_names()
+
+            return info
         except:
             _logger.exception(
                 'Unable to read all category names')

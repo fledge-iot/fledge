@@ -46,7 +46,12 @@ async def get_categories(request):
     """
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-    categories = await cf_mgr.get_all_category_names()
+
+    if 'root' in request.query and request.query['root'].lower() == 'true':
+        categories = await cf_mgr.get_all_category_names(root=True)
+    else:
+        categories = await cf_mgr.get_all_category_names()
+        
     categories_json = [{"key": c[0], "description": c[1]} for c in categories]
 
     return web.json_response({'categories': categories_json})

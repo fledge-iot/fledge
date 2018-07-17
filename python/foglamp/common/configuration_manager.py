@@ -209,6 +209,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             category_info.append((row['key'], row['description']))
         return category_info
 
+    async def _read_all_groups(self):
+        payload = PayloadBuilder().SELECT("key", "description", "value").WHERE(["value", "=", "{}"]).payload()
+        results = await self._storage.query_tbl_with_payload('configuration', payload)
+
+        group_info = []
+        for row in results['rows']:
+            group_info.append((row['key'], row['description']))
+        return group_info
+
     async def _read_category_val(self, category_name):
         # SELECT configuration.key, configuration.description, configuration.value,
         # configuration.ts FROM configuration WHERE configuration.key = :key_1
@@ -278,15 +287,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def get_all_category_names(self):
+    async def get_all_category_names(self, root=False):
         """Get all category names in the FogLAMP system
 
+        Args:
+            root: root of the configuration tree
         Return Values:
         a list of tuples (string category_name, string category_description)
         None
         """
         try:
-            return await self._read_all_category_names()
+            return await self._read_all_groups() if root else await self._read_all_category_names()
         except:
             _logger.exception(
                 'Unable to read all category names')

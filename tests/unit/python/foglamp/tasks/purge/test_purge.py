@@ -82,7 +82,7 @@ class TestPurge:
         def q_result(*args):
             if args[0] == 'PURGE_READ':
                assert 3 == len(args)
-            if args[0] == 'Processes':
+            if args[0] == 'Utilities':
                 assert 4 == len(args)
 
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
@@ -97,7 +97,7 @@ class TestPurge:
                         with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_return()) as mock_get_cat:
                             await p.set_configuration()
                             mock_get_cat.assert_called_once_with('PURGE_READ')
-                    mock_create_child_cat.assert_called_once_with('Processes', ['PURGE_READ'])
+                    mock_create_child_cat.assert_called_once_with('Utilities', ['PURGE_READ'])
 
     @pytest.fixture()
     async def store_purge(self, **kwargs):

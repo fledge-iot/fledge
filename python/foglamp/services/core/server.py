@@ -499,8 +499,7 @@ class Server:
             await cls._configuration_manager.create_category("General", {}, 'General', True)
             await cls._configuration_manager.create_child_category("General", ["service","rest_api"])
         except KeyError:
-            message = self._MESSAGES_LIST['e000004'].format(self._name)
-            _LOGGER.error(message)
+            _logger.error('Failed to create General parent confoguration category for service')
             raise
 
         # Create the parent category for all advanced configuration categories
@@ -508,8 +507,7 @@ class Server:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
             await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
         except KeyError:
-            message = self._MESSAGES_LIST['e000004'].format(self._name)
-            _LOGGER.error(message)
+            _logger.error('Failed to create Advanced parent confoguration category for service')
             raise
 
 

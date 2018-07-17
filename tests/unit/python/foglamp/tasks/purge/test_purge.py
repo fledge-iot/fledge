@@ -81,9 +81,9 @@ class TestPurge:
         @asyncio.coroutine
         def q_result(*args):
             if args[0] == 'PURGE_READ':
-               assert len(args) == 3
+               assert 3 == len(args)
             if args[0] == 'Processes':
-                assert len(args) == 4
+                assert 4 == len(args)
 
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClientAsync)

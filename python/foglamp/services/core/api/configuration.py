@@ -43,6 +43,7 @@ async def get_categories(request):
 
     :Example:
             curl -X GET http://localhost:8081/foglamp/category
+            curl -X GET http://localhost:8081/foglamp/category?root=true
     """
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())

@@ -1080,12 +1080,11 @@ class SendingProcess:
 
             # Create the parent category for all north services
             try:
-                parent_payload = json.dumps({"key": "North", "description":"North tasks","value":{},
-                    "children": [cat_name], "keep_original_items":True})
+                parent_payload = json.dumps({"key": "North", "description": "North tasks", "value": {},
+                                             "children": [cat_name], "keep_original_items": True})
                 self._core_task_management_client.create_configuration_category(parent_payload)
             except KeyError:
-                message = self._MESSAGES_LIST['e000030'].format(self._name)
-                _LOGGER.error(message)
+                _LOGGER.error("Failed to create North parent configuration category for sending process")
                 raise
 
             return _config_from_manager

@@ -86,10 +86,10 @@ class Purge(FoglampProcess):
 
         # Create the parent category for all processes
         try:
-            cfg_manager.create_category("Processes", {}, "Utilities", True)
-            cfg_manager.create_child_category("Processes", [self._CONFIG_CATEGORY_NAME])
+            await cfg_manager.create_category("Processes", {}, "Utilities", True)
+            await cfg_manager.create_child_category("Processes", [self._CONFIG_CATEGORY_NAME])
         except KeyError:
-            _LOGGER.error("Failed to create parent configuratrion category for purge process")
+            self._logger.error("Failed to create Processes parent configuration category for purge process")
             raise
 
         return await cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME)

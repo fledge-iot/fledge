@@ -304,12 +304,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         None
         """
         try:
-            if root is not None:
-                info = await self._read_all_groups(root)
-            else:
-                info = await self._read_all_category_names()
-
-            return info
+           info = await self._read_all_groups(root) if root is not None else await self._read_all_category_names()
+           return info
         except:
             _logger.exception(
                 'Unable to read all category names')

@@ -51,6 +51,51 @@ class TestConfiguration:
                 assert result == json_response
             patch_get_all_items.assert_called_once_with()
 
+    @pytest.mark.parametrize("value", [
+        "True", "true", "trUe", "TRUE"
+    ])
+    async def test_get_categories_with_root_true(self, client, value):
+        async def async_mock():
+            return [('General', 'General'), ('Advanced', 'Advanced')]
+
+        result = {'categories': [{'key': 'General', 'description': 'General'},
+                                 {'key': 'Advanced', 'description': 'Advanced'}]}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_all_category_names', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.get('/foglamp/category?root={}'.format(value))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_get_all_items.assert_called_once_with(root=True)
+
+    @pytest.mark.parametrize("value", [
+        "False", "false", "fAlsE", "FALSE"
+    ])
+    async def test_get_categories_with_root_false(self, client, value):
+        async def async_mock():
+            return [('service', 'FogLAMP Service'), ('rest_api', 'FogLAMP Admin and User REST API'),
+                    ('SMNTR', 'Service Monitor'), ('SCHEDULER', 'Scheduler configuration')]
+
+        result = {'categories': [{'key': 'service', 'description': 'FogLAMP Service'},
+                                 {'key': 'rest_api', 'description': 'FogLAMP Admin and User REST API'},
+                                 {'key': 'SMNTR', 'description': 'Service Monitor'},
+                                 {'key': 'SCHEDULER', 'description': 'Scheduler configuration'}]}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_all_category_names', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.get('/foglamp/category?root={}'.format(value))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_get_all_items.assert_called_once_with(root=False)
+
     async def test_get_category_not_found(self, client, category_name='blah'):
         async def async_mock():
             return None

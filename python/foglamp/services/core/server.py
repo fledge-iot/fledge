@@ -510,6 +510,12 @@ class Server:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
 
+        # Create the parent category for all Utilities configuration categories
+        try:
+            await cls._configuration_manager.create_category("Utilities", {}, "Utilities", True)
+        except KeyError:
+            _logger.error('Failed to create Utilities parent configuration category for task')
+            raise
 
     @classmethod
     def _start_core(cls, loop=None):

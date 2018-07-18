@@ -986,6 +986,22 @@ class TestConfigurationManager:
         readpatch.assert_called_once_with()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", [
+        "True", "False"
+    ])
+    async def test_get_all_category_names_with_root(self, reset_singleton, value):
+
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(ConfigurationManager, '_read_all_groups', return_value=async_mock('bla')) as readpatch:
+            ret_val = await c_mgr.get_all_category_names(root=value)
+            assert 'bla' == ret_val
+        readpatch.assert_called_once_with(value)
+
+    @pytest.mark.asyncio
     async def test_get_all_category_names_bad(self, reset_singleton):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -1159,6 +1175,26 @@ class TestConfigurationManager:
         p = json.loads(args[1])
         assert {"return": ["key", "description", "value", {"column": "ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS.MS"}]} == p
         assert [] == ret_val
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value, operator", [
+        (True, "="),
+        (False, "!=")
+    ])
+    async def test__read_all_groups(self, reset_singleton, value, operator):
+        @asyncio.coroutine
+        def mock_coro():
+            return {'rows': [{'key': 'General', 'description': 'General'}]}
+
+        attrs = {"query_tbl_with_payload.return_value": mock_coro()}
+        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        ret_val = await c_mgr._read_all_groups(root=value)
+        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
+        assert 'configuration' == args[0]
+        p = json.loads(args[1])
+        assert {"return": ["key", "description", "value"], "where": {"value": "{}", "condition": operator, "column": "value"}} == p
+        assert [('General', 'General')] == ret_val
 
     @pytest.mark.asyncio
     async def test__read_category_val_1_row(self, reset_singleton):

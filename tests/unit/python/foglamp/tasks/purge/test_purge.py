@@ -78,6 +78,13 @@ class TestPurge:
         def mock_cm_return():
             return ""
 
+        @asyncio.coroutine
+        def q_result(*args):
+            if args[0] == 'PURGE_READ':
+               assert 3 == len(args)
+            if args[0] == 'Utilities':
+                assert 4 == len(args)
+
         mockStorageClientAsync = MagicMock(spec=StorageClientAsync)
         mockAuditLogger = AuditLogger(mockStorageClientAsync)
         with patch.object(FoglampProcess, '__init__'):
@@ -85,14 +92,12 @@ class TestPurge:
                 p = Purge()
                 p._storage = MagicMock(spec=StorageClientAsync)
                 mock_cm = ConfigurationManager(p._storage)
-                with patch.object(mock_cm, 'create_category', return_value=mock_cm_return()) as mock_create_cat:
-                    with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_return()) \
-                            as mock_get_cat:
-                        await p.set_configuration()
-                        mock_get_cat.assert_called_once_with('PURGE_READ')
-                    args, kwargs = mock_create_cat.call_args
-                    assert len(args) == 3
-                    assert args[0] == 'PURGE_READ'
+                with patch.object(mock_cm, 'create_category', side_effect=q_result):
+                    with patch.object(mock_cm, 'create_child_category', return_value=mock_cm_return()) as mock_create_child_cat:
+                        with patch.object(mock_cm, 'get_category_all_items', return_value=mock_cm_return()) as mock_get_cat:
+                            await p.set_configuration()
+                            mock_get_cat.assert_called_once_with('PURGE_READ')
+                    mock_create_child_cat.assert_called_once_with('Utilities', ['PURGE_READ'])
 
     @pytest.fixture()
     async def store_purge(self, **kwargs):

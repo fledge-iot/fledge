@@ -48,6 +48,7 @@ class Server(FoglampMicroservice):
                    "- plugin name |{0}| plugin type |{1}|",
         "e000002": "Unable to obtain configuration of module for plugin |{0}|",
         "e000003": "Unable to load module |{0}| for South plugin |{1}| - error details |{0}|",
+        "e000004": "Unable to create south configuration category"
     }
     """ Messages used for Information, Warning and Error notice """
 
@@ -97,6 +98,15 @@ class Server(FoglampMicroservice):
                 self._plugin = __import__(import_file_name, fromlist=[''])
             except Exception as ex:
                 message = self._MESSAGES_LIST['e000003'].format(plugin_module_name, self._name, str(ex))
+                _LOGGER.error(message)
+                raise
+            # Create the parent category for all south service
+            try:
+                parent_payload = json.dumps({"key": "South", "description": "South microservices", "value": {},
+                                             "children": [self._name], "keep_original_items": True})
+                self._core_microservice_management_client.create_configuration_category(parent_payload)
+            except KeyError:
+                message = self._MESSAGES_LIST['e000004'].format(self._name)
                 _LOGGER.error(message)
                 raise
 

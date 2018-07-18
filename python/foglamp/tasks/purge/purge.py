@@ -83,6 +83,16 @@ class Purge(FoglampProcess):
         await cfg_manager.create_category(self._CONFIG_CATEGORY_NAME,
                                           self._DEFAULT_PURGE_CONFIG,
                                           self._CONFIG_CATEGORY_DESCRIPTION)
+
+        # Create the parent category for all processes
+        try:
+            await cfg_manager.create_category("Utilities", {}, "Utilities", True)
+            await cfg_manager.create_child_category("Utilities", [self._CONFIG_CATEGORY_NAME])
+
+        except KeyError:
+            self._logger.error("Failed to create Utilities parent configuration category for purge process")
+            raise
+
         return await cfg_manager.get_category_all_items(self._CONFIG_CATEGORY_NAME)
 
     async def purge_data(self, config):

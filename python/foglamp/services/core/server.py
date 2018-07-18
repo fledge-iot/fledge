@@ -493,6 +493,25 @@ class Server:
             sys.exit(1)
 
     @classmethod
+    async def _config_parents(cls):
+        # Create the parent category for all general configuration categories
+        try:
+            await cls._configuration_manager.create_category("General", {}, 'General', True)
+            await cls._configuration_manager.create_child_category("General", ["service", "rest_api"])
+        except KeyError:
+            _logger.error('Failed to create General parent configuration category for service')
+            raise
+
+        # Create the parent category for all advanced configuration categories
+        try:
+            await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
+        except KeyError:
+            _logger.error('Failed to create Advanced parent configuration category for service')
+            raise
+
+
+    @classmethod
     def _start_core(cls, loop=None):
         _logger.info("start core")
 
@@ -571,6 +590,9 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
+
+            # Create the configuration category parents
+            loop.run_until_complete(cls._config_parents())
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)

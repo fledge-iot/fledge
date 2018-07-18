@@ -1135,7 +1135,7 @@ class SendingProcess:
             is_valid_stream = await self._is_stream_id_valid(stream_id)
             if is_valid_stream:
                 # config from sending process
-                self._retrieve_configuration(stream_id, cat_keep_original=True)
+                self._retrieve_configuration(stream_id, cat_name=self._mgt_name, cat_keep_original=True)
                 exec_sending_process = self._config['enable']
                 if self._config['enable']:
                     self._plugin_load()
@@ -1148,7 +1148,7 @@ class SendingProcess:
                     if self._is_north_valid():
                         try:
                             # config from plugin
-                            self._retrieve_configuration(stream_id, cat_config=self._plugin_info['config'], cat_keep_original=True)
+                            self._retrieve_configuration(stream_id, cat_name=self._mgt_name, cat_config=self._plugin_info['config'], cat_keep_original=True)
                             data = self._config_from_manager
                             data.update({'sending_process_instance': self})
                             self._plugin_handle = self._plugin.plugin_init(data)

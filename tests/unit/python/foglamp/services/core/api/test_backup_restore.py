@@ -4,8 +4,10 @@
 # See: http://foglamp.readthedocs.io/
 # FOGLAMP_END
 
+import os
 import asyncio
 import json
+
 from unittest.mock import MagicMock, patch
 from collections import Counter
 from aiohttp import web
@@ -32,6 +34,7 @@ def mock_coro(*args, **kwargs):
         return args[0]
     else:
         return ""
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "backup")
@@ -188,6 +191,34 @@ class TestBackup:
                                  {'index': 4, 'name': 'INTERRUPTED'},
                                  {'index': 5, 'name': 'FAILED'},
                                  {'index': 6, 'name': 'RESTORED'}]} == json_response
+
+    @pytest.mark.parametrize("input_exception, response_code, response_message", [
+        (ValueError, 400, "Invalid backup id"),
+        (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
+        (Exception, 500, "Internal Server Error")
+    ])
+    async def test_get_backup_download_exceptions(self, client, input_exception, response_code, response_message):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
+                resp = await client.get('/foglamp/backup/{}/download'.format(8))
+                assert response_code == resp.status
+                assert response_message == resp.reason
+
+    async def test_get_backup_download(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        response = {'id': 1, 'file_name': '/usr/local/foglamp/data/backup/foglamp.db', 'ts': '2018-02-15 15:18:41',
+                    'status': '2', 'type': '1'}
+
+        with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(Backup, 'get_backup_details', return_value=mock_coro(response)) as patch_backup_detail:
+                    with patch('tarfile.open'):
+                        resp = await client.get('/foglamp/backup/{}/download'.format(1))
+                        assert 200 == resp.status
+                        assert 'OK' == resp.reason
+                patch_backup_detail.assert_called_once_with(1)
+        assert 1 == file_res.call_count
 
 
 @pytest.allure.feature("unit")

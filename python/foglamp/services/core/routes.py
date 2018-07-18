@@ -17,6 +17,7 @@ from foglamp.services.core.api import service
 from foglamp.services.core.api import certificate_store
 from foglamp.services.core.api import support
 from foglamp.services.core.api import plugin_discovery
+from foglamp.services.core.api import task
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -102,6 +103,7 @@ def setup(app):
     app.router.add_route('GET', '/foglamp/backup/status', backup_restore.get_backup_status)
     app.router.add_route('GET', '/foglamp/backup/{backup_id}', backup_restore.get_backup_details)
     app.router.add_route('DELETE', '/foglamp/backup/{backup_id}', backup_restore.delete_backup)
+    app.router.add_route('GET', '/foglamp/backup/{backup_id}/download', backup_restore.get_backup_download)
     app.router.add_route('PUT', '/foglamp/backup/{backup_id}/restore', backup_restore.restore_backup)
 
     # Package Update on demand
@@ -122,6 +124,9 @@ def setup(app):
 
     # Get Plugin
     app.router.add_route('GET', '/foglamp/plugins/installed', plugin_discovery.get_plugins_installed)
+
+    # Task
+    app.router.add_route('POST', '/foglamp/scheduled/task', task.add_task)
 
     # enable cors support
     enable_cors(app)

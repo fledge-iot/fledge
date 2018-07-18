@@ -102,8 +102,8 @@ class Server(FoglampMicroservice):
                 raise
             # Create the parent category for all south service
             try:
-                parent_payload = json.dumps({"key": "South", "description":"South microservies","value":{},
-                    "children": [self._name], "keep_original_items":True})
+                parent_payload = json.dumps({"key": "South", "description": "South microservices", "value": {},
+                                             "children": [self._name], "keep_original_items": True})
                 self._core_microservice_management_client.create_configuration_category(parent_payload)
             except KeyError:
                 message = self._MESSAGES_LIST['e000004'].format(self._name)

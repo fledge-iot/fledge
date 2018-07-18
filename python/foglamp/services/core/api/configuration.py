@@ -43,10 +43,17 @@ async def get_categories(request):
 
     :Example:
             curl -X GET http://localhost:8081/foglamp/category
+            curl -X GET http://localhost:8081/foglamp/category?root=true
     """
     # TODO: make it optimized and elegant
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-    categories = await cf_mgr.get_all_category_names()
+
+    if 'root' in request.query and request.query['root'].lower() in ['true', 'false']:
+        str_to_bool = True if request.query['root'].lower() == 'true' else False
+        categories = await cf_mgr.get_all_category_names(root=str_to_bool)
+    else:
+        categories = await cf_mgr.get_all_category_names()
+        
     categories_json = [{"key": c[0], "description": c[1]} for c in categories]
 
     return web.json_response({'categories': categories_json})

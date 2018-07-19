@@ -106,7 +106,7 @@ struct tm tm;
 	// Work out the microseconds from the fractional part of the seconds
 	char fractional[10];
 	sscanf(str, "%*d-%*d-%*d %*d:%*d:%*d.%[0-9]*", fractional);
-	int multiplier = 6 - strlen(fractional);
+	int multiplier = 6 - (int)strlen(fractional);
 	if (multiplier < 0)
 		multiplier = 0;
 	while (multiplier--)

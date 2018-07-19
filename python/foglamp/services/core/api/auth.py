@@ -59,7 +59,7 @@ async def login(request):
     """ Validate user with its username and password
 
     :Example:
-        curl -X POST -d '{"username": "user", "password": "foglamp"}' https://localhost:1995/foglamp/login --insecure
+        curl -X POST -d '{"username": "user", "password": "foglamp"}' http://localhost:8081/foglamp/login
     """
 
     data = await request.json()
@@ -83,7 +83,7 @@ async def login(request):
         return web.HTTPNotFound(reason=str(ex))
     except User.PasswordExpired as ex:
         # delete all user token for this user
-        User.Objects.delete_user_tokens(str(ex))
+        await User.Objects.delete_user_tokens(str(ex))
 
         msg = 'Your password has been expired. Please set your password again'
         _logger.warning(msg)
@@ -98,7 +98,7 @@ async def logout_me(request):
     """ log out user
 
     :Example:
-        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/logout --insecure
+        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/logout
 
     """
 
@@ -106,7 +106,7 @@ async def logout_me(request):
         # no action needed
         return web.json_response({"logout": True})
 
-    result = User.Objects.delete_token(request.token)
+    result = await User.Objects.delete_token(request.token)
 
     if not result['rows_affected']:
         _logger.warning("Logout requested with bad user token")
@@ -120,21 +120,27 @@ async def logout(request):
     """ log out user's all active sessions
 
     :Example:
-        curl -H "authorization: <token>" -X PUT https://localhost:1995/foglamp/{user_id}/logout --insecure
+        curl -H "authorization: <token>" -X PUT http://localhost:8081/foglamp/{user_id}/logout
 
     """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
 
     user_id = request.match_info.get('user_id')
 
-    check_authorization(request, user_id, "logout")
+    if int(request.user["role_id"]) == ADMIN_ROLE_ID or int(request.user["id"]) == int(user_id):
+        result = await User.Objects.delete_user_tokens(user_id)
 
-    result = User.Objects.delete_user_tokens(user_id)
+        if not result['rows_affected']:
+            _logger.warning("Logout requested with bad user")
+            raise web.HTTPNotFound()
 
-    if not result['rows_affected']:
-        _logger.warning("Logout requested with bad user")
-        raise web.HTTPNotFound()
+        _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
+    else:
+        # requester is not an admin but trying to take action for another user
+        raise web.HTTPUnauthorized(reason="admin privileges are required to logout other user")
 
-    _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
     return web.json_response({"logout": True})
 
 
@@ -142,9 +148,9 @@ async def get_roles(request):
     """ get roles
 
     :Example:
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user/role --insecure
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user/role
     """
-    result = User.Objects.get_roles()
+    result = await User.Objects.get_roles()
     return web.json_response({'roles': result})
 
 
@@ -152,10 +158,10 @@ async def get_user(request):
     """ get user info
 
     :Example:
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user --insecure
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?id=2 --insecure
-        curl -H "authorization: <token>" -X GET https://localhost:1995/foglamp/user?username=admin --insecure
-        curl -H "authorization: <token>" -X GET "https://localhost:1995/foglamp/user?id=1&username=admin" --insecure
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?id=2
+        curl -H "authorization: <token>" -X GET http://localhost:8081/foglamp/user?username=admin
+        curl -H "authorization: <token>" -X GET "http://localhost:8081/foglamp/user?id=1&username=admin"
     """
     user_id = None
     user_name = None
@@ -174,7 +180,7 @@ async def get_user(request):
 
     if user_id or user_name:
         try:
-            user = User.Objects.get(user_id, user_name)
+            user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
@@ -184,7 +190,7 @@ async def get_user(request):
             _logger.warning(str(ex))
             raise web.HTTPNotFound(reason=str(ex))
     else:
-        users = User.Objects.all()
+        users = await User.Objects.all()
         res = []
         for row in users:
             u = OrderedDict()
@@ -202,8 +208,8 @@ async def create_user(request):
     """ create user
 
     :Example:
-        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' https://localhost:1995/foglamp/admin/user --insecure
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' https://localhost:1995/foglamp/admin/user --insecure
+        curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/foglamp/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/foglamp/admin/user
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -226,7 +232,7 @@ async def create_user(request):
         _logger.warning(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
-    if not is_valid_role(role_id):
+    if not (await is_valid_role(role_id)):
         _logger.warning("Create user requested with bad role id")
         return web.HTTPBadRequest(reason="Invalid or bad role id")
 
@@ -238,7 +244,7 @@ async def create_user(request):
         raise web.HTTPBadRequest(reason=msg)
 
     try:
-        User.Objects.get(username=username)
+        await User.Objects.get(username=username)
     except User.DoesNotExist:
         pass
     else:
@@ -247,11 +253,11 @@ async def create_user(request):
 
     u = dict()
     try:
-        result = User.Objects.create(username, password, role_id)
+        result = await User.Objects.create(username, password, role_id)
         if result['rows_affected']:
             # FIXME: we should not do get again!
             # we just need inserted user id; insert call should return that
-            user = User.Objects.get(username=username)
+            user = await User.Objects.get(username=username)
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
@@ -280,7 +286,7 @@ async def update_password(request):
     """ update password
 
         :Example:
-             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' https://localhost:1995/foglamp/user/<username>/password --insecure
+             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/foglamp/user/<username>/password
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -307,14 +313,14 @@ async def update_password(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    user_id = User.Objects.is_user_exists(username, current_password)
+    user_id = await User.Objects.is_user_exists(username, current_password)
     if not user_id:
         msg = 'Invalid current password'
         _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
 
     try:
-        User.Objects.update(int(user_id), {'password': new_password})
+        await User.Objects.update(int(user_id), {'password': new_password})
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -339,9 +345,9 @@ async def update_password(request):
 async def reset(request):
     """ reset user (only role and password)
         :Example:
-            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
-            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
-            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' https://localhost:1995/foglamp/admin/{user_id}/reset --insecure
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": "1"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
+            curl -H "authorization: <token>" -X PUT -d '{"role_id": 1, "password": "F0gl@mp!"}' http://localhost:8081/foglamp/admin/{user_id}/reset
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -362,7 +368,7 @@ async def reset(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    if role_id and not is_valid_role(role_id):
+    if role_id and not (await is_valid_role(role_id)):
         msg = "Invalid or bad role id"
         _logger.warning(msg)
         return web.HTTPBadRequest(reason=msg)
@@ -381,7 +387,7 @@ async def reset(request):
         user_data.update({'password': data['password']})
 
     try:
-        User.Objects.update(user_id, user_data)
+        await User.Objects.update(user_id, user_data)
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -407,7 +413,7 @@ async def delete_user(request):
     """ Delete a user from users table
 
     :Example:
-        curl -H "authorization: <token>" -X DELETE  https://localhost:1995/foglamp/admin/{user_id}/delete --insecure
+        curl -H "authorization: <token>" -X DELETE  http://localhost:8081/foglamp/admin/{user_id}/delete
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -432,7 +438,7 @@ async def delete_user(request):
         raise web.HTTPBadRequest(reason=msg)
 
     try:
-        result = User.Objects.delete(user_id)
+        result = await User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist
 
@@ -452,8 +458,8 @@ async def delete_user(request):
     return web.json_response({'message': "User has been deleted successfully"})
 
 
-def is_valid_role(role_id):
-    roles = [int(r["id"]) for r in User.Objects.get_roles()]
+async def is_valid_role(role_id):
+    roles = [int(r["id"]) for r in await User.Objects.get_roles()]
     try:
         role = int(role_id)
         if role not in roles:
@@ -467,13 +473,4 @@ def has_admin_permissions(request):
     if request.is_auth_optional is False:  # auth is mandatory
         if int(request.user["role_id"]) != ADMIN_ROLE_ID:
             return False
-    return True
-
-
-def check_authorization(request, user_id, action):
-    # use if has_admin_permissions(request):
-    if request.is_auth_optional is False:  # auth is mandatory
-        if int(request.user["role_id"]) != ADMIN_ROLE_ID and user_id != request.user["id"]:
-            # requester is not an admin but trying to take action for another user
-            raise web.HTTPUnauthorized(reason="admin privileges are required to {} other user".format(action))
     return True

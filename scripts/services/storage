@@ -4,7 +4,7 @@ if [ "${FOGLAMP_ROOT}" = "" ]; then
 		logger "Unable to find FogLAMP storage microservice in the default location"
 		exit 1
 	else
-		/usr/local/foglamp/services/storage $@
+		/usr/local/foglamp/services/storage "$@"
 		exit 0
 	fi
 else
@@ -12,7 +12,7 @@ else
 		logger "Unable to find FogLAMP storage microservice in ${FOGLAMP_ROOT}/services/storage"
 		exit 1
 	else
-		${FOGLAMP_ROOT}/services/storage $@
+		${FOGLAMP_ROOT}/services/storage "$@"
 		exit 0
 	fi
 fi

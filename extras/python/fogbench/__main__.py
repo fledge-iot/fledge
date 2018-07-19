@@ -61,7 +61,6 @@ import aiohttp
 from aiocoap import *
 from cbor2 import dumps
 
-# FIXME: remove relative import
 from .exceptions import *
 
 __author__ = "Praveen Garg"
@@ -79,8 +78,8 @@ _tot_byte_transferred = []
 _num_iterated = 0
 """Statistics to be collected"""
 
-# TODO: have its own sys/ console logger
 # _logger = logger.setup(__name__)
+
 
 def local_timestamp():
     """
@@ -194,10 +193,7 @@ def read_out_file(_file=None, _keep=False, _iterations=1, _interval=0, send_to='
                     break
         elif send_to == 'http':
             _start_time.append(datetime.now())
-            for r in readings_list:
-                is_sent = loop.run_until_complete(send_to_http(r))
-                if not is_sent:
-                    break
+            loop.run_until_complete(send_to_http(readings_list))
 
         _end_time.append(datetime.now())  # End time of every iteration
         _tot_msgs_transferred.append(msg_transferred_itr)
@@ -225,7 +221,6 @@ async def send_to_coap(payload):
     request = Message(payload=dumps(payload), code=POST)
     request.opt.uri_host = arg_host
     request.opt.uri_port = arg_port
-    # request.opt.uri_path = ("other", "block")
     request.opt.uri_path = ("other", "sensor-values")
 
     response = await context.request(request).response

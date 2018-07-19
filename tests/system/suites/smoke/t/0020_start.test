@@ -1,0 +1,12 @@
+#!/bin/bash
+
+$TEST_BASEDIR/bash/exec_any_foglamp_command.bash start                                                                  1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+
+$TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"
+
+$TEST_BASEDIR/bash/check_foglamp_status.bash > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
+
+# Grab the 1st line and remove all digits (version #), spaces and dots
+head -n1 ${RESULT_DIR}/$TEST_NAME.temp | tr -d '[0-9]. '
+
+

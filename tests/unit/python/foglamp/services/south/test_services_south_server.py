@@ -12,7 +12,7 @@ import pytest
 
 from foglamp.services.south import server as South
 from foglamp.services.south.server import Server
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.services.common.microservice import FoglampMicroservice
 from foglamp.services.south.ingest import Ingest
 
@@ -107,7 +107,7 @@ class TestServicesSouthServer:
         mocker.patch.object(FoglampMicroservice, "__init__", return_value=None)
 
         south_server = Server()
-        south_server._storage = MagicMock(spec=StorageClient)
+        south_server._storage = MagicMock(spec=StorageClientAsync)
 
         attrs = {
                     'create_configuration_category.return_value': None,
@@ -152,7 +152,7 @@ class TestServicesSouthServer:
         mocker.patch.object(FoglampMicroservice, "__init__", return_value=None)
 
         south_server = Server()
-        south_server._storage = MagicMock(spec=StorageClient)
+        south_server._storage = MagicMock(spec=StorageClientAsync)
 
         mocker.patch.object(south_server, '_name', 'test')
         mocker.patch.object(south_server, '_stop', return_value=mock_coro())
@@ -178,7 +178,7 @@ class TestServicesSouthServer:
             await south_server._start(loop)
             await asyncio.sleep(.5)
         assert 1 == log_error.call_count
-        log_error.assert_called_once_with('Unable to load module |{}| for device plugin |{}| - error details |{}|'
+        log_error.assert_called_once_with('Unable to load module |{}| for South plugin |{}| - error details |{}|'
                                           .format(south_server._name, south_server._name, south_server._name))
 
         # THEN

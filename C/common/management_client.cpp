@@ -247,7 +247,7 @@ ostringstream convert;
 /**
  * Get the set of all categories from the core micro service.
  */
-ConfigCategories ManagementClient::getCategories()
+ConfigCategories ManagementClient::getCategories() const
 {
 	try {
 		string url = "/foglamp/service/category";
@@ -285,7 +285,7 @@ ConfigCategories ManagementClient::getCategories()
  * @return ConfigCategory	The configuration category
  * @throw	exception	If the category does not exist or theresult can not be parsed
  */
-ConfigCategory ManagementClient::getCategory(const string& categoryName)
+ConfigCategory ManagementClient::getCategory(const string& categoryName) const
 {
 	try {
 		string url = "/foglamp/service/category/" + categoryName;
@@ -308,6 +308,50 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 		else
 		{
 			return ConfigCategory(categoryName, response);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get config category failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
+ * Set a category configuration item value
+ *
+ * @param categoryName  The given category name
+ * @param itemName      The given item name
+ * @param itemValue     The item value to set
+ * @return              JSON string of the updated
+ *                      category item
+ * @throw               std::exception
+ */
+string ManagementClient::setCategoryItemValue(const string& categoryName,
+					      const string& itemName,
+					      const string& itemValue) const
+{
+	try {
+		string url = "/foglamp/service/category/" + categoryName + "/" + itemName;
+		string payload = "{ \"value\" : \"" + itemValue + "\" }";
+
+		auto res = m_client->request("PUT", url.c_str(), payload);
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failed to parse result of setting configuration category item value: %s",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to set configuration category item value: %s.",
+					doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			return response;
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get config category failed %s.", e.what());

@@ -11,7 +11,7 @@ import pytest
 
 from foglamp.tasks.statistics import statistics_history
 from foglamp.common import logger
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.tasks.statistics.statistics_history import StatisticsHistory
 from foglamp.common.process import FoglampProcess
 from foglamp.common.audit_logger import AuditLogger
@@ -24,7 +24,7 @@ __version__ = "${VERSION}"
 
 @pytest.fixture
 async def _stats_history_instance():
-    mock_storage_client = MagicMock(spec=StorageClient)
+    mock_storage_client = MagicMock(spec=StorageClientAsync)
     mock_audit_logger = AuditLogger(mock_storage_client)
     with patch.object(FoglampProcess, "__init__"):
         with patch.object(logger, "setup"):

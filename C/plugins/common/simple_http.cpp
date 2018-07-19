@@ -24,8 +24,8 @@ SimpleHttp::SimpleHttp(const string& host_port,
 		       HttpSender(), m_host_port(host_port)
 {
 	m_sender = new HttpClient(host_port);
-	m_sender->config.timeout = request_timeout;
-	m_sender->config.timeout_connect = connect_timeout;
+	m_sender->config.timeout = (time_t)request_timeout;
+	m_sender->config.timeout_connect = (time_t)connect_timeout;
 }
 
 /**

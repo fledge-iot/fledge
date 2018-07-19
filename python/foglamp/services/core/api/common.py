@@ -46,16 +46,12 @@ async def ping(request):
     try:
         auth_token = request.token
     except AttributeError:
-        cfg_mgr = ConfigurationManager(connect.get_storage())
+        cfg_mgr = ConfigurationManager(connect.get_storage_async())
         category_item = await cfg_mgr.get_category_item('rest_api', 'allowPing')
         allow_ping = True if category_item['value'].lower() == 'true' else False
         if request.is_auth_optional is False and allow_ping is False:
             _logger.warning("Permission denied for Ping when Auth is mandatory.")
             raise web.HTTPForbidden
-
-    def get_stats(k):
-        v = [a['value'] for a in stats if a['key'] == k]
-        return int(v[0])
 
     since_started = time.time() - __start_time
 
@@ -63,19 +59,24 @@ async def ping(request):
     stats_res = await get_statistics(stats_request)
     stats = json.loads(stats_res.body.decode())
 
+    def get_stats(k):
+        v = [s['value'] for s in stats if s['key'] == k]
+        return int(v[0])
+
+    def get_sent_stats():
+        return sum([int(s['value']) for s in stats if s['key'].startswith('SENT_')])
+
     data_read = get_stats('READINGS')
-    data_sent_1 = get_stats('SENT_1')
-    data_sent_2 = get_stats('SENT_2')
-    data_sent_3 = get_stats('SENT_3')
-    data_sent_4 = get_stats('SENT_4')
+    data_sent = get_sent_stats()
     data_purged = get_stats('PURGED')
 
     return web.json_response({'uptime': since_started,
                               'dataRead': data_read,
-                              'dataSent': data_sent_1 + data_sent_2 + data_sent_3 + data_sent_4,
+                              'dataSent': data_sent,
                               'dataPurged': data_purged,
                               'authenticationOptional': request.is_auth_optional
                               })
+
 
 async def shutdown(request):
     """

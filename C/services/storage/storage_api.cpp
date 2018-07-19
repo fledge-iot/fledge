@@ -481,7 +481,6 @@ string  responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-		respond(response, responsePayload);
 	} catch (exception ex) {
 		internalError(response, ex);
 	}

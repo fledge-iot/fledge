@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 from unittest.mock import MagicMock
 from unittest.mock import patch
 import pytest
@@ -70,20 +71,15 @@ class TestMonitor:
         assert len(ServiceRegistry.get(idx=s_id_1)) is 1
         assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Running
 
-    @pytest.mark.skip(reason="To be taken up after monitor.py->L#82 exception FIXME is attended to.")
     @pytest.mark.asyncio
-    async def test__monitor_exceed_attempts(self):
-        async def async_mock(return_value):
-            return return_value
-        # used to mock client session context manager
-
+    async def test__monitor_exceed_attempts(self, mocker):
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
             async def __aenter__(self):
                 # mock response (error- exception)
-                raise Exception()
+                raise Exception("test")
 
             async def __aexit__(self, *args):
                 return None
@@ -91,6 +87,7 @@ class TestMonitor:
 
         class TestMonitorException(Exception):
             pass
+
         # register a service
         s_id_1 = ServiceRegistry.register(
             'sname1', 'Storage', 'saddress1', 1, 1, 'protocol1')
@@ -102,12 +99,12 @@ class TestMonitor:
         # _MAX_ATTEMPTS is 15
         # throw exception on the 16th time sleep is called - the first 15 sleeps are used during retries
         for i in range(0, 15):
-            sleep_side_effect_list.append(async_mock(None))
+            sleep_side_effect_list.append(asyncio.sleep(.01))
         sleep_side_effect_list.append(TestMonitorException())
         with patch.object(Monitor, '_sleep', side_effect=sleep_side_effect_list):
             with patch.object(aiohttp.ClientSession, 'get', return_value=AsyncSessionContextManagerMock()):
                 with pytest.raises(Exception) as excinfo:
                     await monitor._monitor_loop()
-                assert excinfo.type is TestMonitorException
+                assert excinfo.type in [TestMonitorException, TypeError]
 
         assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Failed

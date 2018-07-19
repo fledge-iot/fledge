@@ -325,6 +325,7 @@ int		col = 0;
 	sql.append(");");
 
 	const char *query = sql.coalesce();
+	logSQL("CommonInsert", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -606,6 +607,7 @@ int		col = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("CommonUpdate", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -661,6 +663,7 @@ SQLBuffer	sql;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("CommonDelete", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -754,6 +757,7 @@ int		row = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("ReadingsAppend", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
@@ -776,6 +780,7 @@ char	sqlbuffer[200];
 	snprintf(sqlbuffer, sizeof(sqlbuffer),
 		"SELECT id, asset_code, read_key, reading, user_ts AT TIME ZONE 'UTC' as \"user_ts\", ts AT TIME ZONE 'UTC' as \"ts\" FROM foglamp.readings WHERE id >= %ld ORDER BY id LIMIT %d;", id, blksize);
 	
+	logSQL("ReadingsFetch", sqlbuffer);
 	PGresult *res = PQexec(dbConnection, sqlbuffer);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
 	{
@@ -807,6 +812,7 @@ long numReadings = 0;
 		SQLBuffer oldest;
 		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from foglamp.readings;");
 		const char *query = oldest.coalesce();
+		logSQL("ReadingsPurge", query);
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
 		if (PQresultStatus(res) == PGRES_TUPLES_OK)
@@ -831,6 +837,7 @@ long numReadings = 0;
 		unsentBuffer.append(sent);
 		unsentBuffer.append(';');
 		const char *query = unsentBuffer.coalesce();
+		logSQL("ReadingsPurge", query);
 		PGresult *res = PQexec(dbConnection, query);
 		delete[] query;
 		if (PQresultStatus(res) == PGRES_TUPLES_OK)
@@ -855,6 +862,7 @@ long numReadings = 0;
 	}
 	sql.append(';');
 	const char *query = sql.coalesce();
+	logSQL("ReadingsPurge", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
 	if (PQresultStatus(res) != PGRES_COMMAND_OK)
@@ -871,6 +879,7 @@ long numReadings = 0;
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query1 = retainedBuffer.coalesce();
+	logSQL("ReadingsPurge", query1);
 	res = PQexec(dbConnection, query1);
 	delete[] query1;
 	if (PQresultStatus(res) == PGRES_TUPLES_OK)
@@ -1778,4 +1787,18 @@ string  newString;
     newString = string(buffer);
     free(buffer);
     return newString;
+}
+
+/**
+ * Optionally log SQL statement execution
+ *
+ * @param	tag	A string tag that says why the SQL is being executed
+ * @param	stmt	The SQL statement itself
+ */
+void Connection::logSQL(const char *tag, const char *stmt)
+{
+	if (m_logSQL)
+	{
+		Logger::getLogger()->info("%s: %s", tag, stmt);
+	}
 }

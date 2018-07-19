@@ -10,8 +10,6 @@
 #include <modbus_south.h>
 #include <reading.h>
 
-#define DEBUG 0
-
 using namespace std;
 
 /**
@@ -38,16 +36,7 @@ Modbus::Modbus(const string& device, int baud, char parity, int bits, int stopBi
 	m_device(device), m_address(""), m_port(0), m_tcp(false)
 {
 	m_modbus = modbus_new_rtu(device.c_str(), baud, parity, bits, stopBits);
-#if DEBUG
-	modbus_set_debug(m_modbus, true);
-#endif
-	modbus_set_slave(m_modbus, 1);
-	modbus_rtu_set_serial_mode(m_modbus, MODBUS_RTU_RS485);
-
-	if (modbus_connect(m_modbus) == -1)
-	{
-		m_connected = false;
-	}
+	m_connected = true;
 }
 /**
  * Destructor for the modbus interface
@@ -65,6 +54,16 @@ Modbus::~Modbus()
 		delete *it;
 	}
 	modbus_free(m_modbus);
+}
+
+/**
+ * Set the slave ID of the modbus node we are interacting with
+ *
+ * @param slave		The modbus slave ID
+ */
+void Modbus::setSlave(int slave)
+{
+	modbus_set_slave(m_modbus, slave);
 }
 
 /**

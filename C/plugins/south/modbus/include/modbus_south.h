@@ -11,8 +11,6 @@
  */
 #include <reading.h>
 #include <modbus/modbus.h>
-#include <modbus/modbus-rtu.h>
-#include <modbus/modbus-tcp.h>
 #include <string>
 
 class Modbus {
@@ -20,6 +18,7 @@ class Modbus {
 		Modbus(const std::string& ip, const unsigned short port);
 		Modbus(const std::string& device, int baud, char parity, int bits, int stopBits);
 		~Modbus();
+		void		setSlave(int slave);
 		void		setAssetName(const std::string& assetName) { m_assetName = assetName; };
 		void		addRegister(const std::string& value, const unsigned int registerNo)
 				{

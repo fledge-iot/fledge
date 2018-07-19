@@ -36,15 +36,17 @@ using namespace std;
 		"\"baud\" : { \"description\" : \"Baud rate  of Modbus RTU\", " \
 			"\"type\" : \"integer\", \"default\" : \"9600\" }, "\
 		"\"bits\" : { \"description\" : \"Number of data bits for Modbus RTU\", " \
-			"\"type\" : \"integer\", \"default\" : \"7\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"8\" }, "\
 		"\"stopbits\" : { \"description\" : \"Number of stop bits for Modbus RTU\", " \
-			"\"type\" : \"integer\", \"default\" : \"2\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"1\" }, "\
+		"\"slave\" : { \"description\", \"The Modbus device slae ID\", " \
+			"\"type\" : \"integer\", \"default\" : \"1\" }, "\
 		"\"map\" : { \"description\" : \"Modbus register map\", " \
 			"\"type\" : \"JSON\", \"default\" : { " \
 				"\"coils\" : { }, " \
 				"\"inputs\" : { }, " \
-				"\"registers\" : { \"temperature\" : 7," \
-				  		  "\"humidity\" : 8 }," \
+				"\"registers\" : { \"temperature\" : 1," \
+				  		  "\"humidity\" : 2 }," \
 				"\"inputRegisters\" : { }" \
 			"} } }"
 
@@ -130,19 +132,27 @@ string	device, address;
 				string value = config->getValue("bits");
 				bits = atoi(value.c_str());
 			}
-			if (config->itemExists("stopbits"))
+			if (config->itemExists("stopBits"))
 			{
-				string value = config->getValue("stopbits");
+				string value = config->getValue("stopBits");
 				stopBits = atoi(value.c_str());
 			}
 			modbus = new Modbus(device.c_str(), baud, parity, bits, stopBits);
 		}
 	}
+	if (config->itemExists("slave"))
+	{
+		modbus->setSlave(atoi(config->getValue("asset").c_str()));
+	}
 
 	if (config->itemExists("asset"))
+	{
 		modbus->setAssetName(config->getValue("asset"));
+	}
 	else
+	{
 		modbus->setAssetName("modbus");
+	}
 
 	// Now process the Modbus regster map
 	string map = config->getValue("map");

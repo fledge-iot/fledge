@@ -39,7 +39,9 @@ using namespace std;
 			"\"type\" : \"integer\", \"default\" : \"8\" }, "\
 		"\"stopbits\" : { \"description\" : \"Number of stop bits for Modbus RTU\", " \
 			"\"type\" : \"integer\", \"default\" : \"1\" }, "\
-		"\"slave\" : { \"description\", \"The Modbus device slae ID\", " \
+		"\"parity\" : { \"description\" : \"Parity to use\", " \
+			"\"type\" : \"string\", \"default\" : \"none\" }, "\
+		"\"slave\" : { \"description\" : \"The Modbus device slae ID\", " \
 			"\"type\" : \"integer\", \"default\" : \"1\" }, "\
 		"\"map\" : { \"description\" : \"Modbus register map\", " \
 			"\"type\" : \"JSON\", \"default\" : { " \
@@ -103,9 +105,9 @@ string	device, address;
 		if (! device.empty())
 		{
 			int baud = 9600;
-			char parity = 'E';
-			int bits = 7;
-			int stopBits = 2;
+			char parity = 'N';
+			int bits = 8;
+			int stopBits = 1;
 			if (config->itemExists("baud"))
 			{
 				string value = config->getValue("baud");
@@ -142,7 +144,7 @@ string	device, address;
 	}
 	if (config->itemExists("slave"))
 	{
-		modbus->setSlave(atoi(config->getValue("asset").c_str()));
+		modbus->setSlave(atoi(config->getValue("slave").c_str()));
 	}
 
 	if (config->itemExists("asset"))

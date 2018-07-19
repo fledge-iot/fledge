@@ -17,9 +17,12 @@ class DHT11 {
 	public:
 		DHT11(unsigned int pin=7);
 		~DHT11();
+		void            setAssetName(const std::string& assetName) { m_assetName = assetName; };
+		std::string 	getAssetName() { return m_assetName; };
 		Reading		takeReading(bool firstReading=false);
 	private:
 		unsigned int	m_pin;
+		std::string     m_assetName;
 		bool		readSensorData(uint8_t sensorData[]);
 };
 #endif

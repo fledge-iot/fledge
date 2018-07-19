@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Amandeep Singh Arora
  */
 #include <dht11.h>
 #include <plugin_api.h>
@@ -62,16 +62,22 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory *config)
 {
-	unsigned int pin=7;
+	unsigned int pin;
 
 	if (config->itemExists("pin"))
         {
                 pin = stoul(config->getValue("pin"), nullptr, 0);
         }
-	
-	//Logger::getLogger()->info("DHT11 C++ plugin_init: config='%s' ", config->toJSON().c_str());
 
 	DHT11 *dht11= new DHT11(pin);
+
+	if (config->itemExists("asset"))
+                dht11->setAssetName(config->getValue("asset"));
+        else
+                dht11->setAssetName("dht11");
+
+	Logger::getLogger()->info("m_assetName set to %s", dht11->getAssetName());
+
 	return (PLUGIN_HANDLE)dht11;
 }
 

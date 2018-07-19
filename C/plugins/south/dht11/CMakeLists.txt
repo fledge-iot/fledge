@@ -13,11 +13,6 @@ file(GLOB SOURCES *.cpp)
 include_directories(include ../../../services/common/include ../common/include ../../../common/include ../../../thirdparty/rapidjson/include /usr/local/include/)
 
 file(GLOB SOURCES "*.cpp" ../common/*.cpp)
-#file(GLOB SOURCES plugin.cpp dht11.cpp ../common/*.cpp)
-#file(GLOB TEST_SOURCES test.cpp dht11_basic.cpp ../common/*.cpp)
-
-#add_executable(test ${TEST_SOURCES})
-#target_link_libraries(test ${WIRINGPILIBS})
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})

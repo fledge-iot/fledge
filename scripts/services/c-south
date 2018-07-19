@@ -13,4 +13,4 @@ fi
 cd "${FOGLAMP_ROOT}"
 
 ./services/south "$@"
-#python3 -m foglamp.services.south "$@"
+

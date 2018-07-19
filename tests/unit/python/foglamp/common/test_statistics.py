@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from foglamp.common import statistics
-from foglamp.common.storage_client.storage_client import StorageClientAsync as StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 
 __author__ = "Ashish Jabble, Mark Riddoch, Vaibhav Singhal"
@@ -30,14 +30,14 @@ class TestStatistics:
         assert str(excinfo.value) == 'Must be a valid Async Storage object'
 
     async def test_init_with_storage(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
 
         async def mock_coro():
             return ""
         with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
             s = await statistics.create_statistics(storage_client_mock)
             assert isinstance(s, statistics.Statistics)
-            assert isinstance(s._storage, StorageClient)
+            assert isinstance(s._storage, StorageClientAsync)
         storage_client_mock.reset_mock()
 
     async def test_singleton(self):
@@ -47,16 +47,16 @@ class TestStatistics:
             return ""
 
         with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
-                storageMock1 = MagicMock(spec=StorageClient)
+                storageMock1 = MagicMock(spec=StorageClientAsync)
                 s1 = await statistics.create_statistics(storageMock1)
                 with patch.object(statistics.Statistics, '_load_keys', return_value=mock_coro()):
-                    storageMock2 = MagicMock(spec=StorageClient)
+                    storageMock2 = MagicMock(spec=StorageClientAsync)
                     s2 = await statistics.create_statistics(storageMock2)
                     assert s1._storage == s2._storage
 
     async def test_register(self):
         """ Test that register results in a database insert """
-        storageMock = MagicMock(spec=StorageClient)
+        storageMock = MagicMock(spec=StorageClientAsync)
         stats = statistics.Statistics(storageMock)
         stats._registered_keys = []
 
@@ -77,7 +77,7 @@ class TestStatistics:
 
     async def test_register_twice(self):
         """ Test that register results in a database insert only once for same key"""
-        storageMock = MagicMock(spec=StorageClient)
+        storageMock = MagicMock(spec=StorageClientAsync)
         stats = statistics.Statistics(storageMock)
         stats._registered_keys = []
 
@@ -93,7 +93,7 @@ class TestStatistics:
         stats._storage.insert_into_tbl.reset_mock()
 
     async def test_register_exception(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
         with patch.object(statistics._logger, 'exception') as logger_exception:
             with patch.object(s._storage, 'insert_into_tbl', side_effect=Exception):
@@ -105,7 +105,7 @@ class TestStatistics:
 
     async def test_load_keys(self):
         """Test the load key"""
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
         s._registered_keys = []
 
@@ -119,7 +119,7 @@ class TestStatistics:
 
     async def test_load_keys_exception(self):
         """Test the load key exception"""
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
         s._registered_keys = []
 
@@ -133,7 +133,7 @@ class TestStatistics:
         assert args[0] == 'Failed to retrieve statistics keys, %s'
 
     async def test_update(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
 
         async def mock_coro():
@@ -155,7 +155,7 @@ class TestStatistics:
         ('READINGS', None, ValueError, "value must be an integer")
     ])
     async def test_update_with_invalid_params(self, key, value_increment, exception_name, exception_message):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
 
         with pytest.raises(exception_name) as excinfo:
@@ -163,7 +163,7 @@ class TestStatistics:
         assert exception_message == str(excinfo.value)
 
     async def test_update_exception(self):
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
         msg = 'Unable to update statistics value based on statistics_key %s and value_increment %d,' \
               ' error %s', 'BUFFERED', 5, ''
@@ -175,7 +175,7 @@ class TestStatistics:
 
     async def test_add_update(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
         payload = '{"where": {"column": "key", "condition": "=", "value": "FOGBENCH/TEMPERATURE"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 1}]}'
@@ -189,7 +189,7 @@ class TestStatistics:
 
     async def test_insert_when_key_error(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
 
         async def mock_coro():
@@ -206,7 +206,7 @@ class TestStatistics:
 
     async def test_add_update_exception(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}
-        storage_client_mock = MagicMock(spec=StorageClient)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
         msg = 'Unable to update statistics value based on statistics_key %s and value_increment' \
               ' %s, error %s', "FOGBENCH/TEMPERATURE", 1, ''

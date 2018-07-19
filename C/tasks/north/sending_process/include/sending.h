@@ -44,6 +44,8 @@ class SendingProcess : public FogLampProcess
 		void			resetSentReadings() { m_tot_sent = 0; };
 		void			updateDatabaseCounters();
 		bool			getLastSentReadingId();
+                bool			createStream(int);
+                int			createNewStream();
 		unsigned int		getDuration() const { return m_duration; };
 		unsigned int		getSleepTime() const { return m_sleep; };
 		bool			getUpdateDb() const { return m_update_db; };
@@ -58,16 +60,16 @@ class SendingProcess : public FogLampProcess
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
 		bool			loadPlugin(const std::string& pluginName);
-		const std::map<std::string, std::string>& fetchConfiguration();
+		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defaultConfig, std::string plugin_name);
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);
                 SendingProcess&		operator=(SendingProcess const &);
 
 	public:
 		std::vector<ReadingSet *>	m_buffer;
-		std::thread			*m_thread_load;
-		std::thread			*m_thread_send;
-		NorthPlugin			*m_plugin;
+		std::thread*			m_thread_load;
+		std::thread*			m_thread_send;
+		NorthPlugin*			m_plugin;
 
 	private:
 		bool				m_running;
@@ -78,6 +80,9 @@ class SendingProcess : public FogLampProcess
 		unsigned long			m_sleep;
 		unsigned long			m_block_size;
 		bool				m_update_db;
+    		std::string			m_plugin_name;
+                Logger*			        m_logger;
+
 };
 
 #endif

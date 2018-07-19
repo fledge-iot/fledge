@@ -16,6 +16,7 @@
 #include <purge_result.h>
 #include <query.h>
 #include <insert.h>
+#include <json_properties.h>
 #include <expression.h>
 #include <logger.h>
 #include <string>
@@ -34,6 +35,8 @@ class StorageClient {
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		int 		insertTable(const std::string& tableName, const InsertValues& values);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const Where& where);
+		int		updateTable(const std::string& tableName, const JSONProperties& json, const Where& where);
+		int		updateTable(const std::string& tableName, const InsertValues& values, const JSONProperties& json, const Where& where);
 		int		updateTable(const std::string& tableName, const ExpressionValues& values, const Where& where);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Where& where);
 		int		deleteTable(const std::string& tableName, const Query& query);

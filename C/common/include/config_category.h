@@ -21,6 +21,8 @@ class ConfigCategoryDescription {
 				m_name(name), m_description(description) {};
 		std::string	getName() const { return m_name; };
 		std::string	getDescription() const { return m_description; };
+		// JSON string with m_name and m_description
+		std::string 	toJSON() const;
 	private:
 		const std::string	m_name;
 		const std::string	m_description;
@@ -28,12 +30,18 @@ class ConfigCategoryDescription {
 
 class ConfigCategories {
 	public:
-		ConfigCategories(const std::string& json);
+		ConfigCategories(const std::string& json); 
+		ConfigCategories(); // Constructor without parameters
 		~ConfigCategories();
 		unsigned int			length() { return m_categories.size(); };
 		ConfigCategoryDescription 	*operator[] (const unsigned int idx) {
 						return m_categories[idx];
 					};
+		// Add one category name with description
+		void			addCategoryDescription(ConfigCategoryDescription* elem);
+		// JSON string of all categories
+		std::string		toJSON() const;
+
 	private:
 		std::vector<ConfigCategoryDescription *> 	m_categories;
 	
@@ -49,7 +57,8 @@ class ConfigCategory {
 							const std::string& type, const std::string def,
 							const std::string& value);
 		void				setDescription(const std::string& description);
-		std::string			getDescription() { return m_description; };
+		std::string                     getName() const { return m_name; };
+		std::string                     getDescription() const { return m_description; };
 		unsigned int			getCount() const { return m_items.size(); };
 		bool				itemExists(const std::string& name) const;
 		std::string			getValue(const std::string& name) const;
@@ -61,6 +70,9 @@ class ConfigCategory {
 		std::string			toJSON() const;
 		std::string			itemsToJSON() const;
 		ConfigCategory& 		operator=(ConfigCategory const& rhs);
+		void				setItemsValueFromDefault();
+		void				checkDefaultValuesOnly() const;
+		std::string 			itemToJSON(const std::string& itemName) const;
 
 	protected:
 		class CategoryItem {
@@ -123,5 +135,27 @@ class ConfigMalformed : public std::exception {
 		{
 			return "Configuration category JSON is malformed";
 		}
+};
+
+/**
+ * This exception must be raised when at least one of the JSON items of a
+ * new being created category have both "value" and "default" fields.
+ */
+class ConfigValueFoundWithDefault : public std::exception {
+	public:
+		// Constructor with parameter
+		ConfigValueFoundWithDefault(const std::string& item)
+		{
+			m_errmsg = "Configuration item '";
+			m_errmsg.append(item);
+			m_errmsg += "' has both 'value' and 'default' fields.";
+		};
+
+		virtual const char *what() const throw()
+		{
+			return m_errmsg.c_str();
+		}
+	private:
+		std::string	m_errmsg;
 };
 #endif

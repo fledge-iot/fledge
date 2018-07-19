@@ -28,7 +28,9 @@ class Connection {
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
 		long		tableSize(const std::string& table);
+		void		setTrace(bool flag) { m_logSQL = flag; };
 	private:
+		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
@@ -39,5 +41,6 @@ class Connection {
 		char		*trim(char *str);
 		const char	*escape(const char *);
 		const std::string	escape(const std::string&);
+		void		logSQL(const char *, const char *);
 };
 #endif

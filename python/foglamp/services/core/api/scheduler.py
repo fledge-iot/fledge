@@ -77,8 +77,8 @@ async def get_scheduled_process(request):
     scheduled_process_name = request.match_info.get('scheduled_process_name', None)
 
     payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", scheduled_process_name]).payload()
-    _storage = connect.get_storage()
-    scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
+    _storage = connect.get_storage_async()
+    scheduled_process = await _storage.query_tbl_with_payload('scheduled_processes', payload)
 
     if len(scheduled_process['rows']) == 0:
         raise web.HTTPNotFound(reason='No such Scheduled Process: {}.'.format(scheduled_process_name))
@@ -214,8 +214,8 @@ async def _check_schedule_post_parameters(data, curr_value=None):
 
     # Raise error if scheduled_process name is wrong
     payload = PayloadBuilder().SELECT("name").WHERE(["name", "=", _schedule.get('schedule_process_name')]).payload()
-    _storage = connect.get_storage()
-    scheduled_process = _storage.query_tbl_with_payload('scheduled_processes', payload)
+    _storage = connect.get_storage_async()
+    scheduled_process = await _storage.query_tbl_with_payload('scheduled_processes', payload)
 
     if len(scheduled_process['rows']) == 0:
         raise ScheduleProcessNameNotFoundError('No such Scheduled Process name: {}'.format(_schedule.get('schedule_process_name')))
@@ -700,8 +700,8 @@ async def get_tasks_latest(request):
         payload.WHERE(["process_name", "=", name])
 
     try:
-        _storage = connect.get_storage()
-        results = _storage.query_tbl_with_payload('tasks', payload.payload())
+        _storage = connect.get_storage_async()
+        results = await _storage.query_tbl_with_payload('tasks', payload.payload())
 
         if len(results['rows']) == 0:
             raise web.HTTPNotFound(reason="No Tasks found")

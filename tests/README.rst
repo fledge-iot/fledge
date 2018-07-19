@@ -17,7 +17,6 @@
    <a href="https://docs.pytest.org/en/latest/mark.html" target="_blank">pytest</a>
 
 .. _Unit: unit\\python\\
-.. _Integration: integration\\
 .. _System: system\\
 .. _here: ..\\README.rst
 
@@ -27,11 +26,10 @@
 FogLAMP Test Scripts
 ********************
 
-FogLAMP scripted tests are classified into three categories:
+FogLAMP scripted tests are classified into two categories:
 
 - `Unit`_ - Tests that checks the expected output of a code block.
-- `Integration`_ - Tests that checks the integration of different FogLAMP units that work as a single component.
-- `System`_ - Tests that checks the end to end flows in FogLAMP
+- `System`_ - Tests that checks the end to end and integration flows in FogLAMP
 
 
 Running FogLAMP scripted tests
@@ -63,15 +61,14 @@ Running the python tests:
 - ``pytest test_filename.py::TestClass`` -  This will execute all test methods in a single class TestClass in file test_filename.py
 - ``pytest test_filename.py::TestClass::test_case`` - This will execute test method test_case in class TestClass in file test_filename.py
 
-**NOTE:** *FogLAMP integration tests can be executed individually and not in suite because of an open issue.
-Further information to run the different categories of tests can be found in their respective documentation*
+**NOTE:** *Information to run the different categories of tests can be found in their respective documentation*
 
 FogLAMP also use |pytest decorators| heavily. For example pytest allure decorators like:
 ::
    @pytest.allure.feature("unit")
    @pytest.allure.story("south")
 
-feature can be anything from unit, integration and system and story is FogLAMP component/sub-component.
+feature can be anything from unit or system and story is FogLAMP component/sub-component.
 These decorators are used in generating allure test reports on CI systems.
 
 

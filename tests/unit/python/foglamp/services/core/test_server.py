@@ -27,7 +27,7 @@ from foglamp.services.core.service_registry.service_registry import ServiceRegis
 from foglamp.common.service_record import ServiceRecord
 from foglamp.services.core.service_registry import exceptions as service_registry_exceptions
 from foglamp.services.core.api import configuration as conf_api
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.configuration_manager import ConfigurationManager
 from foglamp.common.audit_logger import AuditLogger
 
@@ -326,7 +326,7 @@ class TestServer:
         ("?category=Y&microserviceid=0c501cd3-c45a-439a-bec6-fc08d13f9699",  {'microservice_uuid': '0c501cd3-c45a-439a-bec6-fc08d13f9699', 'category_name': 'Y'})
     ])
     async def test_get_interest_with_filter(self, client, params, expected_kwargs):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
         with patch.object(Server._interest_registry, 'get', return_value=[]) as patch_get_interest_reg:
@@ -347,7 +347,7 @@ class TestServer:
          {'microservice_uuid': '0c501cd3-c45a-439a-bec6-fc08d13f9699', 'category_name': 'Y'}, "No interest registered for category Y and microservice id 0c501cd3-c45a-439a-bec6-fc08d13f9699")
     ])
     async def test_get_interest_exception(self, client, params, message, expected_kwargs):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
         with patch.object(Server._interest_registry, 'get', side_effect=interest_registry_exceptions.DoesNotExist) as patch_get_interest_reg:
@@ -358,7 +358,7 @@ class TestServer:
         assert expected_kwargs == kwargs
 
     async def test_get_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -385,7 +385,7 @@ class TestServer:
         assert 'Invalid microservice id X' == resp.reason
 
     async def test_bad_register_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -398,7 +398,7 @@ class TestServer:
         assert (request_data['service'], request_data['category']) == args
 
     async def test_register_interest_exceptions(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -411,7 +411,7 @@ class TestServer:
         assert (request_data['service'], request_data['category']) == args
 
     async def test_register_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -432,7 +432,7 @@ class TestServer:
         assert 'Invalid registration id blah' == resp.reason
 
     async def test_unregister_interest_exception(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -445,7 +445,7 @@ class TestServer:
         assert {'registration_id': reg_id} == kwargs
 
     async def test_unregister_interest(self, client):
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(Server._storage_client)
         Server._interest_registry = InterestRegistry(Server._configuration_manager)
 
@@ -557,6 +557,8 @@ class TestServer:
         async def async_mock(return_value):
             return return_value
 
+        Server._storage_client = MagicMock(StorageClientAsync)
+        Server._storage_client_async = MagicMock(StorageClientAsync)
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
         with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
             with patch.object(AuditLogger, '__init__', return_value=None):
@@ -594,7 +596,8 @@ class TestServer:
         data = []
         record = ServiceRecord(service_id, sname, stype, sprotocol, saddress, sport, smgtport)
         data.append(record)
-        Server._storage_client = MagicMock(StorageClient)
+        Server._storage_client = MagicMock(StorageClientAsync)
+        Server._storage_client_async = MagicMock(StorageClientAsync)
         with patch.object(ServiceRegistry, 'get', return_value=data) as patch_get_unregister:
             with patch.object(ServiceRegistry, 'unregister') as patch_unregister:
                 with patch.object(AuditLogger, '__init__', return_value=None):

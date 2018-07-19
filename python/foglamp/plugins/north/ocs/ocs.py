@@ -21,7 +21,6 @@ import time
 import json
 import logging
 # noinspection PyPackageRequirements
-import urllib3
 import foglamp.plugins.north.common.common as plugin_common
 import foglamp.plugins.north.common.exceptions as plugin_exceptions
 from foglamp.common import logger
@@ -102,7 +101,7 @@ _CONFIG_DEFAULT_OMF = {
     "URL": {
         "description": "The URL of OCS (OSIsoft Cloud Services) ",
         "type": "string",
-        "default": "https://qi-data.osisoft.com/api/omf"
+        "default": "https://dat-a.osisoft.com/api/omf"
     },
     "producerToken": {
         "description": "The producer token used to authenticate as a valid publisher and "
@@ -369,9 +368,6 @@ def plugin_init(data):
         _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)
 
-    # Avoids the warning message - InsecureRequestWarning
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
     return _config
 
 
@@ -449,7 +445,7 @@ def plugin_shutdown(data):
 
 def plugin_reconfigure():
     """ Reconfigures the plugin, it should be called when the configuration of the plugin is changed during the
-        operation of the South device service.
+        operation of the South service.
         The new configuration category should be passed.
 
     Args:

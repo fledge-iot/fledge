@@ -1,4 +1,21 @@
 #!/bin/bash
 
+
+# Declares used variables
+declare TEST_BASEDIR
+declare SUITE_BASEDIR
+declare FOGLAMP_SERVER
+declare FOGLAMP_PORT
+declare SCHEDULE_ID_OMF_PLUGIN
+declare RESULT_DIR
+declare TEST_NAME
+declare SENDING_PROCESS_DATA
+declare PI_SERVER
+declare PI_SERVER_PORT
+declare OMF_PRODUCER_TOKEN
+declare OMF_TYPE_ID
+
 $TEST_BASEDIR/bash/exec_any_foglamp_command.bash start > ${RESULT_DIR}/$TEST_NAME.temp 2>&1
 tail -n1 ${RESULT_DIR}/$TEST_NAME.temp
+
+$TEST_BASEDIR/bash/wait_foglamp_status.bash RUNNING                                                                     1>>"${RESULT_DIR}/${TEST_NAME}_out.temp" 2>>"${RESULT_DIR}/${TEST_NAME}_err.temp"

@@ -10,7 +10,7 @@ import pytest
 from foglamp.services.core.service_registry.service_registry import ServiceRegistry
 from foglamp.services.core.service_registry.exceptions import DoesNotExist
 from foglamp.services.core import connect
-from foglamp.common.storage_client.storage_client import StorageClient
+from foglamp.common.storage_client.storage_client import StorageClientAsync
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -31,8 +31,8 @@ class TestConnect:
     def test_get_storage(self):
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
             ServiceRegistry.register("FogLAMP Storage", "Storage", "127.0.0.1", 37449, 37843)
-            storage_client = connect.get_storage()
-            assert isinstance(storage_client, StorageClient)
+            storage_client = connect.get_storage_async()
+            assert isinstance(storage_client, StorageClientAsync)
         assert 1 == log_info.call_count
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
@@ -42,7 +42,7 @@ class TestConnect:
     @patch('foglamp.services.core.connect._logger')
     def test_exception_when_no_storage(self, mock_logger):
         with pytest.raises(DoesNotExist) as excinfo:
-            connect.get_storage()
+            connect.get_storage_async()
         assert str(excinfo).endswith('DoesNotExist')
         mock_logger.exception.assert_called_once_with('')
 
@@ -57,6 +57,6 @@ class TestConnect:
                                 'management port=2, status=1>')
 
         with pytest.raises(DoesNotExist) as excinfo:
-            connect.get_storage()
+            connect.get_storage_async()
         assert str(excinfo).endswith('DoesNotExist')
         mock_logger.exception.assert_called_once_with('')

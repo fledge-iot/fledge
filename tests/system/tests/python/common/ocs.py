@@ -15,7 +15,7 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-OCS_URL = "https://qi-data.osisoft.com"
+OCS_URL = "https://dat-a.osisoft.com"
 
 
 def retrieve_authentication_token(tenant, client_id, client_secret,):

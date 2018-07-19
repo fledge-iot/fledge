@@ -45,6 +45,8 @@ const char *json = "{ \"key\" : \"test\", \"description\" : \"Test description\"
 		"\"value\" : {\"first\":\"FogLAMP\",\"second\":\"json\"}, "
 		"\"default\" : {\"first\":\"FogLAMP\",\"second\":\"json\"} }} }";
 
+const char *allCategories = "[{\"key\": \"cat1\", \"description\" : \"desc1\"}, {\"key\": \"cat2\", \"description\" : \"desc2\"}]";
+
 TEST(CategoriesTest, Count)
 {
 	ConfigCategories confCategories(categories);
@@ -57,6 +59,28 @@ TEST(CategoriesTest, Index)
 	const ConfigCategoryDescription *item = confCategories[0];
 	ASSERT_EQ(0, item->getName().compare("cat1"));
 	ASSERT_EQ(0, item->getDescription().compare("First category"));
+}
+
+TEST(CategoriesTest, addElements)
+{
+	ConfigCategories categories;
+	ConfigCategoryDescription *one = new ConfigCategoryDescription(string("cat1"), string("desc1"));
+	ConfigCategoryDescription *two = new ConfigCategoryDescription(string("cat2"), string("desc2"));
+	categories.addCategoryDescription(one);
+	categories.addCategoryDescription(two);
+	ASSERT_EQ(2, categories.length());
+}
+
+TEST(CategoriesTest, toJSON)
+{
+	ConfigCategories categories;
+	ConfigCategoryDescription *one = new ConfigCategoryDescription(string("cat1"), string("desc1"));
+	ConfigCategoryDescription *two = new ConfigCategoryDescription(string("cat2"), string("desc2"));
+	categories.addCategoryDescription(one);
+	categories.addCategoryDescription(two);
+	string result =  categories.toJSON();
+	ASSERT_EQ(2, categories.length());
+	ASSERT_EQ(0, result.compare(allCategories));
 }
 
 TEST(CategoryTest, Construct)

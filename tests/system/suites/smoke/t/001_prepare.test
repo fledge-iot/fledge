@@ -1,7 +1,0 @@
-#!/bin/bash
-
-$TEST_BASEDIR/bash/exec_any_foglamp_command.bash stop > /dev/null 2>&1
-$TEST_BASEDIR/bash/exec_any_foglamp_command.bash kill > /dev/null 2>&1
-$TEST_BASEDIR/bash/check_foglamp_status.bash
-echo -e "YES" | $TEST_BASEDIR/bash/exec_any_foglamp_command.bash reset > /dev/null 2>&1
-

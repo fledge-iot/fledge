@@ -64,12 +64,12 @@ async def auth_middleware(app, handler):
         if token:
             try:
                 # validate the token and get user id
-                uid = User.Objects.validate_token(token)
+                uid = await User.Objects.validate_token(token)
                 # extend the token expiry, as token is valid
                 # and no bad token exception raised
-                User.Objects.refresh_token_expiry(token)
+                await User.Objects.refresh_token_expiry(token)
                 # set the user to request object
-                request.user = User.Objects.get(uid=uid)
+                request.user = await User.Objects.get(uid=uid)
                 # set the token to request
                 request.token = token
             except(User.InvalidToken, User.TokenExpired) as e:
@@ -106,7 +106,7 @@ def has_permission(permission):
                 raise RuntimeError(msg)
 
             if request.is_auth_optional is False:  # auth is mandatory
-                roles_id = [int(r["id"]) for r in User.Objects.get_role_id_by_name(permission)]
+                roles_id = [int(r["id"]) for r in await User.Objects.get_role_id_by_name(permission)]
                 if int(request.user["role_id"]) not in roles_id:
                     raise web.HTTPForbidden
 

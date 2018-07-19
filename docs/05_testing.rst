@@ -85,7 +85,6 @@ When you have a running FogLAMP, check the extra information provided by the ``f
   FogLAMP does not require authentication.
   === FogLAMP services:
   foglamp.services.core
-  foglamp.services.south --port=44180 --address=127.0.0.1 --name=COAP
   === FogLAMP tasks:
   foglamp.tasks.north.sending_process --stream_id 1 --debug_level 1 --port=44180 --address=127.0.0.1 --name=sending process
   foglamp.tasks.north.sending_process --stream_id 2 --debug_level 1 --port=44180 --address=127.0.0.1 --name=statistics to pi
@@ -161,7 +160,7 @@ The default port for the REST API is 8081. Using curl, try this command:
 
 The ``echo`` at the end of the line is simply used to add an extra new line to the output.
 |br| |br|
-If you are using Postman, select the *GET* method and type ``http://localhost:8081/foglamp/ping`` in the URI line. If you are accessing a remote machine, replace *localhost* with the correct IP address. The output should be something like:
+If you are using Postman, select the *GET* method and type ``http://localhost:8081/foglamp/ping`` in the URI address input. If you are accessing a remote machine, replace *localhost* with the correct IP address. The output should be something like:
 
 |postman_ping|
 
@@ -181,6 +180,19 @@ fogbench: a Brief Intro
 
 FogLAMP comes with a little but pretty handy tool called **fogbench**. The tools is written in Python and it uses the same libraries of other modules of FogLAMP, therefore no extra libraries are needed. With *fogbench* you can do many things, like inserting data stored in files, running benchmarks to understand how FogLAMP performs in a given environment, or test an end-to-end installation.
 
+Note: This following instructions assume you have downloaded and installed the CoAP south plugin from https://github.com/foglamp/foglamp-south-coap.
+
+
+.. code-block:: console
+
+  $ git clone https://github.com/foglamp/foglamp-south-coap
+  $ cd foglamp-south-coap
+  $ sudo cp -r python /usr/local/foglamp/python/foglamp/plugins/south/
+  $ sudo pip3 install -r /usr/local/foglamp/python/requirements-coap.txt
+  $ chown -R root:root /usr/local/foglamp/python/foglamp/plugins/south/coap
+  $ curl -sX POST http://localhost:8081/foglamp/service -d '{"name": "CoAP", "type": "south", "plugin": "coap", "enabled": true}'
+
+
 Depending on your environment, you can call *fogbench* in one of those ways:
 
 - In a development environment, use the script *scripts/extras/fogbench*, inside your project repository (remember to set the *FOGLAMP_ROOT* environment variable with the path to your project repository folder).
@@ -192,7 +204,7 @@ Regardless of the position or environment, the *fogbench* tool, responds to your
 .. code-block:: console
 
   $ foglamp.fogbench
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
                   [-i INTERVAL] [-S {total}]
@@ -204,7 +216,7 @@ Regardless of the position or environment, the *fogbench* tool, responds to your
 .. code-block:: console
 
   $ foglamp.fogbench -h
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   usage: fogbench [-h] [-v] [-k {y,yes,n,no}] -t TEMPLATE [-o OUTPUT]
                   [-I ITERATIONS] [-O OCCURRENCES] [-H HOST] [-P PORT]
                   [-i INTERVAL] [-S {total}]
@@ -298,7 +310,7 @@ The output of your command should be:
 .. code-block:: console
 
   $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   Total Statistics:
 
   Start Time: 2017-12-17 07:17:50.615433
@@ -327,7 +339,7 @@ If you want to stress FogLAMP a bit, you may insert the same data sample several
 .. code-block:: console
 
   $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json -I 100
-  >>> Make sure device service is running & CoAP server is listening on specified host and port
+  >>> Make sure south CoAP plugin service is running & listening on specified host and port
   Total Statistics:
 
   Start Time: 2017-12-17 07:33:40.568130
@@ -459,15 +471,9 @@ If you are curious to see which categories are available in FogLAMP, simply type
 .. code-block:: console
 
   $ curl -s http://localhost:8081/foglamp/category ; echo
-  { "categories": [ { "key": "CC2650ASYN", "description": "TI SensorTag CC2650 async South Plugin"    },
-                    { "key": "CC2650POLL", "description": "TI SensorTag CC2650 polling South Plugin"  },
-                    { "key": "COAP",       "description": "COAP Device"                               },
-                    { "key": "HTTP_SOUTH", "description": "HTTP_SOUTH Device"                         },
-                    { "key": "POLL",       "description": "South Plugin polling template"             },
-                    { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
+  { "categories": [ { "key": "SCHEDULER",  "description": "Scheduler configuration"                   },
                     { "key": "SEND_PR_1",  "description": "OMF North Plugin Configuration"            },
                     { "key": "SEND_PR_2",  "description": "OMF North Statistics Plugin Configuration" },
-                    { "key": "SEND_PR_3",  "description": "HTTP North Plugin Configuration"           },
                     { "key": "SEND_PR_4",  "description": "OCS North Plugin Configuration"            },
                     { "key": "SMNTR",      "description": "Service Monitor configuration"             },
                     { "key": "South",      "description": "South Service configuration"               },
@@ -477,6 +483,8 @@ If you are curious to see which categories are available in FogLAMP, simply type
   }
   $
 
+
+For each plugin, you will see corresponding category e.g. For foglamp-south-coap the registered category will be ``{ "key": "COAP", "description": "CoAP Listener South Plugin"}``.
 The configuration for the OMF Translator used to stream the South data is initially disabled, all you can see about the settings is:
 
 .. code-block:: console
@@ -629,7 +637,7 @@ Once enabled, the plugin will be executed inside the *SEND_PR_1* task within 30 
   }
   $
 
-You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2 uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
+You can look at the descriptions to have a taste of what you can control with this plugin. The default configuration should be fine, with the exception of the *URL*, which of course should refer to the IP address of the machine and the port used by the PI Connector Relay OMF. The PI Connector Relay OMF 1.0 used the HTTP protocol with port 8118 and version 1.2, or higher, uses the HTTPS and port 5460. Assuming that the port is *5460* and the IP address is *192.168.56.101*, you can set the new URL with this PUT method:
 
 .. code-block:: console
 

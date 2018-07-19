@@ -1,0 +1,17 @@
+#!/bin/sh
+# Run a FogLAMP task written in C
+
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+	logger "FogLAMP home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+
+# TODO: define the proper path
+cd "${FOGLAMP_ROOT}/cmake_build/C"
+
+./tasks/north/sending_process/sending_process "$@"

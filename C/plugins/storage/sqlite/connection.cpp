@@ -284,6 +284,8 @@ Connection::Connection()
 	const char *dataDir = getenv("FOGLAMP_DATA");
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
 
+	m_logSQL = false;
+
 	if (defaultConnection == NULL)
 	{
 		// Set DB base path
@@ -390,6 +392,15 @@ Connection::~Connection()
 	sqlite3_close_v2(dbHandle);
 }
 
+/**
+ * Enable or disable the tracing of SQL statements
+ *
+ * @param flag	Desired state of the SQL trace flag
+ */
+void Connection::setTrace(bool flag)
+{
+	m_logSQL = flag;
+}
 /**
  * Map a SQLite3 result set to a string version of a JSON document
  *
@@ -771,6 +782,8 @@ SQLBuffer	jsonConstraints;
 		int rc;
 		sqlite3_stmt *stmt;
 
+		logSQL("CommonRetrive", query);
+
 		// Prepare the SQL statement and get the result set
 		rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 
@@ -866,6 +879,7 @@ int		col = 0;
 	sql.append(");");
 
 	const char *query = sql.coalesce();
+	logSQL("CommonInsert", query);
 	char *zErrMsg = NULL;
 	int rc;
 
@@ -1177,6 +1191,7 @@ int		col = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("CommonUpdate", query);
 	char *zErrMsg = NULL;
 	int update = 0;
 	int rc;
@@ -1254,6 +1269,7 @@ SQLBuffer	sql;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("CommonDelete", query);
 	char *zErrMsg = NULL;
 	int delete_rows;
 	int rc;
@@ -1368,6 +1384,7 @@ int		row = 0;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
+	logSQL("ReadingsAppend", query);
 	char *zErrMsg = NULL;
 	int rc;
 
@@ -1428,6 +1445,7 @@ int retrieve;
 		 id,
 		 blksize);
 
+	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
 	if (sqlite3_prepare_v2(dbHandle,
@@ -1506,7 +1524,7 @@ long numReadings = 0;
 		}
 		else
 		{
- 			raiseError("purge", zErrMsg);
+ 			raiseError("purge - phase 1", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1541,7 +1559,7 @@ long numReadings = 0;
 		}
 		else
 		{
- 			raiseError("retrieve", zErrMsg);
+ 			raiseError("purge - phaase 2", zErrMsg);
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1557,6 +1575,7 @@ long numReadings = 0;
 	}
 	sql.append(';');
 	const char *query = sql.coalesce();
+	logSQL("ReadingsPurge", query);
 	char *zErrMsg = NULL;
 	int rc;
 	int rows_deleted;
@@ -1573,7 +1592,7 @@ long numReadings = 0;
 
 	if (rc != SQLITE_OK)
 	{
- 		raiseError("retrieve", zErrMsg);
+ 		raiseError("purge - phase 3", zErrMsg);
 		sqlite3_free(zErrMsg);
 		return 0;
 	}
@@ -1586,6 +1605,7 @@ long numReadings = 0;
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query_r = retainedBuffer.coalesce();
+	logSQL("ReadingsPurge", query_r);
 	int retained_unsent = 0;
 
 	// Exec query and get result in 'retained_unsent' via 'countCallback'
@@ -1604,7 +1624,7 @@ long numReadings = 0;
 	}
 	else
 	{
- 		raiseError("retrieve", zErrMsg);
+ 		raiseError("purge - phase 4", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
@@ -1621,7 +1641,7 @@ long numReadings = 0;
 	}
 	else
 	{
- 		raiseError("retrieve", zErrMsg);
+ 		raiseError("purge - phase 5", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
@@ -2514,4 +2534,18 @@ string  newString;
     newString = string(buffer);
     free(buffer);
     return newString;
+}
+
+/**
+ * Optionally log SQL statement execution
+ *
+ * @param	tag	A string tag that says why the SQL is being executed
+ * @param	stmt	The SQL statement itself
+ */
+void Connection::logSQL(const char *tag, const char *stmt)
+{
+	if (m_logSQL)
+	{
+		Logger::getLogger()->info("%s: %s", tag, stmt);
+	}
 }

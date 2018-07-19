@@ -184,7 +184,7 @@ class RestoreProcess(FoglampProcess):
 
             raise exceptions.ArgumentParserError(_message)
 
-        self._restore_lib = lib.BackupRestoreLib(self._storage, self._logger)
+        self._restore_lib = lib.BackupRestoreLib(self._storage_async, self._logger)
 
         self._job = lib.Job()
 
@@ -193,7 +193,7 @@ class RestoreProcess(FoglampProcess):
 
         # Creates the objects references used by the library
         lib._logger = self._logger
-        lib._storage = self._storage
+        lib._storage = self._storage_async
 
     def _identifies_backup_to_restore(self):
         """Identifies the backup to restore either
@@ -646,7 +646,6 @@ class RestoreProcess(FoglampProcess):
             if self._force_restore:
                 # Retrieve the backup-id after the restore operation
                 backup_info = self.get_backup_details_from_file_name(file_name)
-                # FIXME:
                 backup_id = backup_info[0]
 
             # Updates the backup as restored

@@ -36,15 +36,19 @@ using namespace std;
 		"\"baud\" : { \"description\" : \"Baud rate  of Modbus RTU\", " \
 			"\"type\" : \"integer\", \"default\" : \"9600\" }, "\
 		"\"bits\" : { \"description\" : \"Number of data bits for Modbus RTU\", " \
-			"\"type\" : \"integer\", \"default\" : \"7\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"8\" }, "\
 		"\"stopbits\" : { \"description\" : \"Number of stop bits for Modbus RTU\", " \
-			"\"type\" : \"integer\", \"default\" : \"2\" }, "\
+			"\"type\" : \"integer\", \"default\" : \"1\" }, "\
+		"\"parity\" : { \"description\" : \"Parity to use\", " \
+			"\"type\" : \"string\", \"default\" : \"none\" }, "\
+		"\"slave\" : { \"description\" : \"The Modbus device slae ID\", " \
+			"\"type\" : \"integer\", \"default\" : \"1\" }, "\
 		"\"map\" : { \"description\" : \"Modbus register map\", " \
 			"\"type\" : \"JSON\", \"default\" : { " \
 				"\"coils\" : { }, " \
 				"\"inputs\" : { }, " \
-				"\"registers\" : { \"temperature\" : 7," \
-				  		  "\"humidity\" : 8 }," \
+				"\"registers\" : { \"temperature\" : 1," \
+				  		  "\"humidity\" : 2 }," \
 				"\"inputRegisters\" : { }" \
 			"} } }"
 
@@ -101,9 +105,9 @@ string	device, address;
 		if (! device.empty())
 		{
 			int baud = 9600;
-			char parity = 'E';
-			int bits = 7;
-			int stopBits = 2;
+			char parity = 'N';
+			int bits = 8;
+			int stopBits = 1;
 			if (config->itemExists("baud"))
 			{
 				string value = config->getValue("baud");
@@ -138,11 +142,19 @@ string	device, address;
 			modbus = new Modbus(device.c_str(), baud, parity, bits, stopBits);
 		}
 	}
+	if (config->itemExists("slave"))
+	{
+		modbus->setSlave(atoi(config->getValue("slave").c_str()));
+	}
 
 	if (config->itemExists("asset"))
+	{
 		modbus->setAssetName(config->getValue("asset"));
+	}
 	else
+	{
 		modbus->setAssetName("modbus");
+	}
 
 	// Now process the Modbus regster map
 	string map = config->getValue("map");

@@ -617,14 +617,14 @@ INSERT INTO foglamp.configuration ( key, description, value )
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
--- SEND_PR_1 - OMF Translator for readings
+-- North Readings to PI - OMF Translator for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Readings to PI',
               'OMF North Plugin',
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
             );
 
--- SEND_PR_2 - OMF Translator for statistics
+-- North Statistics to PI - OMF Translator for statistics
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Statistics to PI',
               'OMF North Statistics Plugin',
@@ -632,7 +632,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
             );
 
 
--- SEND_PR_4 - OSIsoft Cloud Services plugin for readings
+-- North Readings to OCS - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Readings to OCS',
               'OCS North Plugin',

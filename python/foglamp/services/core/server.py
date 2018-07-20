@@ -516,8 +516,16 @@ class Server:
             total_count = result['rows'][0]['count']
             if (total_count == 0):
                 _logger.info("'foglamp.readings' table is empty, force reset of 'foglamp.streams' last_objects")
-                payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
-                loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+
+                # Get total count of streams
+                result = loop.run_until_complete(
+                    cls._storage_client_async.query_tbl_with_payload('streams', total_count_payload))
+                total_streams_count = result['rows'][0]['count']
+
+                # If streams table is non empty, then initialize it
+                if (total_streams_count != 0):
+                    payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').payload()
+                    loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
             else:
                 _logger.info("'foglamp.readings' has " + str(total_count) + " rows, 'foglamp.streams' last_objects reset is not required")    
 

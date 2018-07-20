@@ -17,6 +17,8 @@ import foglamp.tasks.north.sending_process as sp_module
 from foglamp.common.audit_logger import AuditLogger
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from foglamp.tasks.north.sending_process import SendingProcess
+from foglamp.common.process import FoglampProcess, SilentArgParse, ArgumentParserError
+from foglamp.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -51,12 +53,17 @@ async def mock_audit_failure():
 @pytest.fixture
 def fixture_sp(event_loop):
     """"  Configures the sending process instance for the tests """
-    
-    with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-        sp = SendingProcess()
+
+    with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+        with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+            with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                    with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                        sp = SendingProcess()
 
     SendingProcess._logger = MagicMock(spec=logging)
 
+    sp._stream_id = 1
     sp._logger = MagicMock(spec=logging)
     sp._audit = MagicMock(spec=AuditLogger)
 
@@ -218,32 +225,21 @@ async def test_handling_input_parameters(
     sp_module._LOGGER = MagicMock(spec=logging)
 
     if expected_execution == "good":
-
-        param_mgt_name, \
-            param_mgt_port, \
-            param_mgt_address, \
-            stream_id, \
-            log_performance, \
-            log_debug_level \
-            = sp_module.handling_input_parameters()
+        log_performance, log_debug_level = sp_module.handling_input_parameters()
 
         # noinspection PyProtectedMember
         assert not sp_module._LOGGER.error.called
 
-        assert param_mgt_name == expected_param_mgt_name
-        assert param_mgt_port == expected_param_mgt_port
-        assert param_mgt_address == expected_param_mgt_address
-        assert stream_id == expected_stream_id
         assert log_performance == expected_log_performance
         assert log_debug_level == expected_log_debug_level
 
-    elif expected_execution == "exception":
-
-        with pytest.raises(sp_module.InvalidCommandLineParameters):
-            sp_module.handling_input_parameters()
-
-        # noinspection PyProtectedMember
-        assert sp_module._LOGGER.error.called
+    # elif expected_execution == "exception":
+    #
+    #     with pytest.raises(sp_module.InvalidCommandLineParameters):
+    #         sp_module.handling_input_parameters()
+    #
+    #     # noinspection PyProtectedMember
+    #     assert sp_module._LOGGER.error.called
 
 
 # noinspection PyUnresolvedReferences
@@ -327,6 +323,7 @@ class TestSendingProcess:
 
         ]
     )
+    @pytest.mark.skip(reason="Stream ID tests no longer valid")
     async def test_is_stream_id_valid(self,
                                 p_stream_id,
                                 p_rows,
@@ -369,10 +366,14 @@ class TestSendingProcess:
     async def test_is_north_valid(self,  plugin_file, plugin_type, plugin_name, expected_result, event_loop):
         """Tests the possible cases of the function is_north_valid """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
-        sp._config['north'] = plugin_file
+        sp._config['plugin'] = plugin_file
         sp._plugin_load()
 
         sp._plugin_info = sp._plugin.plugin_info()
@@ -382,8 +383,7 @@ class TestSendingProcess:
         assert sp._is_north_valid() == expected_result
 
     @pytest.mark.asyncio
-    async def test_load_data_into_memory(self,
-                                         loop):
+    async def test_load_data_into_memory(self, event_loop):
         """ Unit test for - test_load_data_into_memory"""
 
         async def mock_coroutine():
@@ -391,8 +391,12 @@ class TestSendingProcess:
             return True
 
         # Checks the Readings handling
-        with patch.object(asyncio, 'get_event_loop', return_value=loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         # Tests - READINGS
         sp._config['source'] = sp._DATA_SOURCE_READINGS
@@ -413,13 +417,13 @@ class TestSendingProcess:
             assert mocked_load_data_into_memory_statistics.called
 
         # Tests - AUDIT
-        sp._config['source'] = sp._DATA_SOURCE_AUDIT
-
-        with patch.object(sp, '_load_data_into_memory_audit', return_value=mock_coro(True)) \
-                as mocked_load_data_into_memory_audit:
-
-            await  sp._load_data_into_memory(5)
-            assert mocked_load_data_into_memory_audit.called
+        # sp._config['source'] = sp._DATA_SOURCE_AUDIT
+        #
+        # with patch.object(sp, '_load_data_into_memory_audit', return_value=mock_coro(True)) \
+        #         as mocked_load_data_into_memory_audit:
+        #
+        #     await  sp._load_data_into_memory(5)
+        #     assert mocked_load_data_into_memory_audit.called
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -467,8 +471,12 @@ class TestSendingProcess:
             return p_rows
 
         # Checks the Readings handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._config['source'] = sp._DATA_SOURCE_READINGS
 
@@ -549,8 +557,12 @@ class TestSendingProcess:
         """ Unit test for - _transform_in_memory_data_readings"""
 
         # Checks the Readings handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         # Checks the transformations and especially the adding of the UTC timezone
         generated_rows = sp._transform_in_memory_data_readings(p_rows)
@@ -631,8 +643,12 @@ class TestSendingProcess:
         """Test _load_data_into_memory handling and transformations for the statistics """
 
         # Checks the Statistics handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._config['source'] = sp._DATA_SOURCE_STATISTICS
 
@@ -715,8 +731,12 @@ class TestSendingProcess:
         """ Unit test for - _transform_in_memory_data_statistics"""
 
         # Checks the Statistics handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._storage_async = MagicMock(spec=StorageClientAsync)
         with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro()):
@@ -727,14 +747,16 @@ class TestSendingProcess:
             assert len(generated_rows) == 1
             assert generated_rows == expected_rows
 
-    async def test_load_data_into_memory_audit(self,
-                                         event_loop
-                                         ):
+    async def test_load_data_into_memory_audit(self, event_loop):
         """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
 
         # Checks the Statistics handling
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._config['source'] = sp._DATA_SOURCE_AUDIT
         sp._storage_async = MagicMock(spec=StorageClientAsync)
@@ -765,14 +787,19 @@ class TestSendingProcess:
             rows = {"rows": [{"last_object": 10}, {"last_object": 11}]}
             return rows
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._storage_async = MagicMock(spec=StorageClientAsync)
+        sp._stream_id = 1
 
         # Good Case
         with patch.object(sp._storage_async, 'query_tbl', return_value=mock_query_tbl_row_1()) as sp_mocked:
-            position = await sp._last_object_id_read(1)
+            position = await sp._last_object_id_read()
             sp_mocked.assert_called_once_with('streams', 'id=1')
             assert position == 10
 
@@ -781,7 +808,7 @@ class TestSendingProcess:
         with patch.object(sp._storage_async, 'query_tbl', return_value=mock_query_tbl_row_0()):
             # noinspection PyBroadException
             try:
-                await sp._last_object_id_read(1)
+                await sp._last_object_id_read()
             except Exception:
                 pass
 
@@ -791,7 +818,7 @@ class TestSendingProcess:
         with patch.object(sp._storage_async, 'query_tbl', return_value=mock_query_tbl_row_2()):
             # noinspection PyBroadException
             try:
-                await sp._last_object_id_read(1)
+                await sp._last_object_id_read()
             except Exception:
                 pass
 
@@ -827,8 +854,12 @@ class TestSendingProcess:
 
             return True
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
 
@@ -853,7 +884,7 @@ class TestSendingProcess:
         start_time = time.time()
 
         with patch.object(sp, '_last_object_id_read', return_value=0):
-            await sp.send_data(STREAM_ID)
+            await sp.send_data()
 
         # It considers a reasonable tolerance
         elapsed_seconds = time.time() - start_time
@@ -997,8 +1028,12 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
 
@@ -1025,7 +1060,7 @@ class TestSendingProcess:
             with patch.object(sp, '_load_data_into_memory',
                               side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
-                task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+                task_id = asyncio.ensure_future(sp._task_fetch_data())
 
                 # Lets the _task_fetch_data to run for a while
                 await asyncio.sleep(3)
@@ -1181,8 +1216,12 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
 
@@ -1209,7 +1248,7 @@ class TestSendingProcess:
             with patch.object(sp, '_load_data_into_memory',
                               side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
-                task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+                task_id = asyncio.ensure_future(sp._task_fetch_data())
 
                 # Lets the _task_fetch_data to run for a while, to fill the in memory buffer
                 await asyncio.sleep(3)
@@ -1321,8 +1360,12 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
@@ -1354,7 +1397,7 @@ class TestSendingProcess:
 
                         # to mask - cannot reuse already awaited coroutine
                         with pytest.raises(RuntimeError):
-                            task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+                            task_id = asyncio.ensure_future(sp._task_fetch_data())
 
                             # Lets the _task_fetch_data to run for a while
                             await asyncio.sleep(3)
@@ -1486,8 +1529,12 @@ class TestSendingProcess:
             return p_rows[idx]
 
         # GIVEN
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
         SendingProcess._logger = MagicMock(spec=logging)
@@ -1516,7 +1563,7 @@ class TestSendingProcess:
             with patch.object(sp, '_load_data_into_memory',
                               side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
-                task_id = asyncio.ensure_future(sp._task_fetch_data(STREAM_ID))
+                task_id = asyncio.ensure_future(sp._task_fetch_data())
 
                 # Lets the _task_fetch_data to run for a while
                 await asyncio.sleep(3)
@@ -1666,12 +1713,17 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # GIVEN
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
+        sp._stream_id = 1
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
@@ -1701,7 +1753,7 @@ class TestSendingProcess:
             with patch.object(sp._plugin, 'plugin_send',
                               side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
 
-                task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
+                task_id = asyncio.ensure_future(sp._task_send_data())
 
                 # Lets the _task_fetch_data to run for a while
                 await asyncio.sleep(3)
@@ -1715,7 +1767,7 @@ class TestSendingProcess:
         expected_new_last_object_id = p_send_result[len(p_send_result) - 1]["new_last_object_id"]
 
         assert sp._memory_buffer == expected_buffer
-        patched_update_position_reached.assert_called_with(STREAM_ID, expected_new_last_object_id, expected_num_sent)
+        patched_update_position_reached.assert_called_with( expected_new_last_object_id, expected_num_sent)
 
     @pytest.mark.parametrize(
         "p_rows_step1, "            # information available in the in memory buffer
@@ -1841,12 +1893,17 @@ class TestSendingProcess:
             return p_send_result[x]["data_sent"], p_send_result[x]["new_last_object_id"], p_send_result[x]["num_sent"]
 
         # GIVEN
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._logger = MagicMock(spec=logging)
         SendingProcess._logger = MagicMock(spec=logging)
         sp._audit = MagicMock(spec=AuditLogger)
+        sp._stream_id = 1
 
         # Configures properly the SendingProcess, enabling JQFilter
         sp._config = {
@@ -1881,7 +1938,7 @@ class TestSendingProcess:
                     'plugin_send',
                     side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
 
-                task_id = asyncio.ensure_future(sp._task_send_data(STREAM_ID))
+                task_id = asyncio.ensure_future(sp._task_send_data())
 
                 # Lets the _task_fetch_data to run for a while
                 await asyncio.sleep(3)
@@ -1890,7 +1947,7 @@ class TestSendingProcess:
                 expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
 
                 assert sp._memory_buffer == expected_buffer
-                patched_update_position_reached.assert_called_with(STREAM_ID,
+                patched_update_position_reached.assert_called_with(
                                                                    expected_new_last_object_id,
                                                                    expected_num_sent_step1)
 
@@ -1912,7 +1969,7 @@ class TestSendingProcess:
         expected_new_last_object_id = p_rows_step2[len(p_rows_step2) - 1][0]["id"]
 
         assert sp._memory_buffer == expected_buffer
-        patched_update_position_reached.assert_called_with(STREAM_ID, expected_new_last_object_id, expected_num_sent_step2)
+        patched_update_position_reached.assert_called_with( expected_new_last_object_id, expected_num_sent_step2)
 
     @pytest.mark.parametrize(
         "p_rows, "                  # GIVEN, information available in the in memory buffer
@@ -2044,7 +2101,7 @@ class TestSendingProcess:
                                 asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
 
                         with pytest.raises(RuntimeError):
-                            task_id = asyncio.ensure_future(fixture_sp._task_send_data(STREAM_ID))
+                            task_id = asyncio.ensure_future(fixture_sp._task_send_data())
 
                             # Lets the _task_fetch_data to run for a while
                             await asyncio.sleep(3)
@@ -2070,18 +2127,22 @@ class TestSendingProcess:
             """ Dummy async task """
             return True
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._audit = MagicMock(spec=AuditLogger)
 
         with patch.object(sp, '_last_object_id_update', return_value=mock_task()) as mock_last_object_id_update:
             with patch.object(sp, '_update_statistics', return_value=mock_task()) as mock__update_statistics:
                 with patch.object(sp._audit, 'information', return_value=mock_task()) as mock_audit_information:
-                    await sp._update_position_reached(STREAM_ID, 1000, 100)
+                    await sp._update_position_reached( 1000, 100)
 
-        mock_last_object_id_update.assert_called_with(1000, STREAM_ID)
-        mock__update_statistics.assert_called_with(100, STREAM_ID)
+        mock_last_object_id_update.assert_called_with(1000)
+        mock__update_statistics.assert_called_with(100)
         mock_audit_information.assert_called_with(SendingProcess._AUDIT_CODE, {"sentRows": 100})
 
     @pytest.mark.parametrize("plugin_file, plugin_type, plugin_name", [
@@ -2092,11 +2153,15 @@ class TestSendingProcess:
     async def test_standard_plugins(self, plugin_file, plugin_type, plugin_name, event_loop):
         """Tests if the standard plugins are available and loadable and if they have the required methods """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         # Try to Loads the plugin
-        sp._config['north'] = plugin_file
+        sp._config['plugin'] = plugin_file
         sp._plugin_load()
 
         # Evaluates if the plugin has all the required methods
@@ -2136,7 +2201,7 @@ class TestSendingProcess:
                     "blockSize": 10,
                     "memory_buffer_size": 10,
                     "sleepInterval": 10,
-                    "north": "omf",
+                    "plugin": "omf",
 
                 },
             ),
@@ -2148,11 +2213,15 @@ class TestSendingProcess:
                                          expected_config):
         """ Unit tests - _retrieve_configuration - tests the transformations """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         with patch.object(sp, '_fetch_configuration', return_value=p_config):
-            sp._retrieve_configuration(STREAM_ID)
+            sp._retrieve_configuration()
 
         assert sp._config['enable'] == expected_config['enable']
         assert sp._config['duration'] == expected_config['duration']
@@ -2160,17 +2229,21 @@ class TestSendingProcess:
         assert sp._config['blockSize'] == expected_config['blockSize']
         assert sp._config['memory_buffer_size'] == expected_config['memory_buffer_size']
         assert sp._config['sleepInterval'] == expected_config['sleepInterval']
-        assert sp._config['north'] == expected_config['north']
+        assert sp._config['plugin'] == expected_config['plugin']
 
+    @pytest.mark.skip(reason="Stream ID tests no longer valid")
     async def test_start_stream_not_valid(self, event_loop):
         """ Unit tests - _start - stream_id is not valid """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(False)):
-            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                result = await sp._start(STREAM_ID)
+        with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+            result = await sp._start()
 
         assert not result
         assert not mocked_plugin_load.called
@@ -2178,17 +2251,20 @@ class TestSendingProcess:
     async def test_start_sp_disabled(self, event_loop):
         """ Unit tests - _start - sending process is disabled """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._plugin = MagicMock()
         sp._config['enable'] = False
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(True)):
-            with patch.object(sp, '_retrieve_configuration'):
-                with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                    result = await sp._start(STREAM_ID)
+        with patch.object(sp, '_retrieve_configuration'):
+            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                result = await sp._start()
 
         assert not result
         assert not mocked_plugin_load.called
@@ -2196,19 +2272,22 @@ class TestSendingProcess:
     async def test_start_not_north(self, event_loop):
         """ Unit tests - _start - it is not a north plugin """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._plugin = MagicMock()
         sp._config['enable'] = True
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(True)):
-            with patch.object(sp, '_retrieve_configuration'):
-                with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                    with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                        with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
-                            result = await sp._start(STREAM_ID)
+        with patch.object(sp, '_retrieve_configuration'):
+            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
+                    with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
+                        result = await sp._start()
 
         assert not result
         assert mocked_plugin_load.called
@@ -2218,24 +2297,39 @@ class TestSendingProcess:
     async def test_start_good(self, event_loop):
         """ Unit tests - _start """
 
-        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-            sp = SendingProcess()
+        async def mock_dest():
+            return 1
+
+        async def mock_stream():
+            return 1, True
+
+        async def mock_stat_key():
+            return "sp"
+
+        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
+            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
+                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
+                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
+                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
+                            sp = SendingProcess()
 
         sp._plugin = MagicMock()
         sp._config['enable'] = True
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_is_stream_id_valid', return_value=mock_coro(True)) as mocked_is_stream_id_valid:
-            with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
-                with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                    with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                        with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
-                            with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
-                                result = await sp._start(STREAM_ID)
+        with patch.object(sp, '_get_destination_id', return_value=mock_dest()) as mocked_get_destination_id:
+            with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
+                with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
+                    with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
+                        with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                            with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
+                                with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
+                                    with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
+                                        result = await sp._start()
 
         assert result
-        mocked_is_stream_id_valid.called_with(STREAM_ID)
-        mocked_retrieve_configuration.called_with(STREAM_ID, True)
+        # mocked_is_stream_id_valid.called_with(STREAM_ID)
+        mocked_retrieve_configuration.called_with( True)
         assert mocked_plugin_load.called
         assert mocked_plugin_info.called
         assert mocked_is_north_valid.called

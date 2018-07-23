@@ -399,7 +399,7 @@ class TestSendingProcess:
                             sp = SendingProcess()
 
         # Tests - READINGS
-        sp._config['source'] = sp._DATA_SOURCE_READINGS
+        sp._config['source'] = 'readings'
 
         with patch.object(sp, '_load_data_into_memory_readings', return_value=mock_coroutine()) \
                 as mocked_load_data_into_memory_readings:
@@ -408,7 +408,7 @@ class TestSendingProcess:
             assert mocked_load_data_into_memory_readings.called
 
         # Tests - STATISTICS
-        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
+        sp._config['source'] = 'statistics'
 
         with patch.object(sp, '_load_data_into_memory_statistics', return_value=mock_coro(True)) \
                 as mocked_load_data_into_memory_statistics:
@@ -417,7 +417,7 @@ class TestSendingProcess:
             assert mocked_load_data_into_memory_statistics.called
 
         # Tests - AUDIT
-        # sp._config['source'] = sp._DATA_SOURCE_AUDIT
+        # sp._config['source'] = 'audit'
         #
         # with patch.object(sp, '_load_data_into_memory_audit', return_value=mock_coro(True)) \
         #         as mocked_load_data_into_memory_audit:
@@ -478,7 +478,7 @@ class TestSendingProcess:
                         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
                             sp = SendingProcess()
 
-        sp._config['source'] = sp._DATA_SOURCE_READINGS
+        sp._config['source'] = 'readings'
 
         sp._readings = MagicMock(spec=ReadingsStorageClientAsync)
 
@@ -650,7 +650,7 @@ class TestSendingProcess:
                         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
                             sp = SendingProcess()
 
-        sp._config['source'] = sp._DATA_SOURCE_STATISTICS
+        sp._config['source'] = 'statistics'
 
         sp._storage_async = MagicMock(spec=StorageClientAsync)
 
@@ -758,7 +758,7 @@ class TestSendingProcess:
                         with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
                             sp = SendingProcess()
 
-        sp._config['source'] = sp._DATA_SOURCE_AUDIT
+        sp._config['source'] = 'audit'
         sp._storage_async = MagicMock(spec=StorageClientAsync)
 
         generated_rows = await sp._load_data_into_memory_audit(5)
@@ -2186,7 +2186,7 @@ class TestSendingProcess:
                 {
                     "enable": {"value": "true"},
                     "duration": {"value": "10"},
-                    "source": {"value": SendingProcess._DATA_SOURCE_READINGS},
+                    "source": {"value": 'readings'},
                     "blockSize": {"value": "10"},
                     "memory_buffer_size": {"value": "10"},
                     "sleepInterval": {"value": "10"},
@@ -2197,7 +2197,7 @@ class TestSendingProcess:
                 {
                     "enable": True,
                     "duration": 10,
-                    "source": SendingProcess._DATA_SOURCE_READINGS,
+                    "source": 'readings',
                     "blockSize": 10,
                     "memory_buffer_size": 10,
                     "sleepInterval": 10,

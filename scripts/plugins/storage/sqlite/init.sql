@@ -861,10 +861,3 @@ INSERT INTO foglamp.destinations ( id, type, description) VALUES ( 1, 1, 'OMF');
 INSERT INTO foglamp.destinations ( id, type, description) VALUES ( 2, 2, 'ElasticSearch');
 -- Readings to OMF to OCS
 INSERT INTO foglamp.destinations( id, type, description) VALUES ( 3, 3, 'OCS');
-
---INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
---       VALUES ( 1, 1, 'OMF north', 0 );
--- Stats to OMF to PI
---INSERT INTO foglamp.streams ( id, destination_id, description, last_object )
---       VALUES ( 2, 1, 'FogLAMP statistics into PI', 0 );
---INSERT INTO foglamp.streams( id, destination_id, description, last_object ) VALUES ( 4, 3, 'OCS north', 0 );

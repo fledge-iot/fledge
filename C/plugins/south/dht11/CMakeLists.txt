@@ -4,19 +4,17 @@ project(dht11)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(WIRINGPILIBS -lwiringPi -lwiringPiDev)
-
-# Find source files
-file(GLOB SOURCES *.cpp)
+set(WIRING_PI_LIBS -lwiringPi -lwiringPiDev)
 
 # Include header files
 include_directories(include ../../../services/common/include ../common/include ../../../common/include ../../../thirdparty/rapidjson/include /usr/local/include/)
 
+# Find source files
 file(GLOB SOURCES "*.cpp" ../common/*.cpp)
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
-target_link_libraries(${PROJECT_NAME} ${WIRINGPILIBS})
+target_link_libraries(${PROJECT_NAME} ${WIRING_PI_LIBS})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

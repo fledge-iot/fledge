@@ -620,7 +620,7 @@ INSERT INTO foglamp.configuration ( key, description, value )
 -- dht11 - South plugin for DHT11 - C
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'dht11',
-              'DHT11 South Plugin',
+              'DHT11 South C Plugin',
               ' { "plugin" : { "type" : "string", "value" : "dht11", "default" : "dht11", "description" : "Module that DHT11 South Plugin will load" } } '
             );
 

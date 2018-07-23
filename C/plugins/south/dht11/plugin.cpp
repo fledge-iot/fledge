@@ -82,13 +82,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *config)
 }
 
 /**
- * Start the Async handling for the plugin
- */
-void plugin_start(PLUGIN_HANDLE *handle)
-{
-}
-
-/**
  * Poll for a plugin reading
  */
 Reading plugin_poll(PLUGIN_HANDLE *handle)

@@ -9,7 +9,6 @@ if [ ! -d "${FOGLAMP_ROOT}" ]; then
 	exit 1
 fi
 
-# We run the Python code from the python directory
 cd "${FOGLAMP_ROOT}"
 
 ./services/south "$@"

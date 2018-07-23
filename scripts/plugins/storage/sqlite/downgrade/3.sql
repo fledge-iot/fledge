@@ -12,9 +12,9 @@ UPDATE statistics SET key = 'SENT_4' WHERE key = 'North Readings to OCS';
 DELETE from foglamp.configuration WHERE key = 'North Audit to PI';
 DELETE from foglamp.statistics WHERE key = 'North Audit to PI';
 
-UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_1', script = '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' ) WHERE name = 'North Readings to PI';
-UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_2', script = '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' ) WHERE name = 'North Statistics to PI';
-UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_4', script = '["tasks/north", "--stream_id", "1", "--debug_level", "1"]' ) WHERE name = 'North Readings to OCS';
+UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_1', script = '["tasks/north", "--stream_id", "1", "--debug_level", "1"]'  WHERE name = 'North Readings to PI';
+UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_2', script = '["tasks/north", "--stream_id", "1", "--debug_level", "1"]'  WHERE name = 'North Statistics to PI';
+UPDATE foglamp.scheduled_processes SET name = 'SEND_PR_4', script = '["tasks/north", "--stream_id", "1", "--debug_level", "1"]'  WHERE name = 'North Readings to OCS';
 DELETE from foglamp.scheduled_processes WHERE name = 'North Audit to PI';
 
 UPDATE foglamp.schedules SET process_name = 'SEND_PR_1' WHERE process_name = 'North Readings to PI';

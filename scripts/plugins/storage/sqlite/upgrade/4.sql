@@ -17,9 +17,9 @@ UPDATE statistics SET key = 'North Readings to PI' WHERE key = 'SENT_1';
 UPDATE statistics SET key = 'North Statistics to PI' WHERE key = 'SENT_2';
 UPDATE statistics SET key = 'North Readings to OCS' WHERE key = 'SENT_4';
 
-UPDATE foglamp.scheduled_processes SET name = 'North Readings to PI', script = '["tasks/north"]' ) WHERE name = 'SEND_PR_1';
-UPDATE foglamp.scheduled_processes SET name = 'North Statistics to PI', script = '["tasks/north"]' ) WHERE name = 'SEND_PR_2';
-UPDATE foglamp.scheduled_processes SET name = 'North Readings to OCS', script = '["tasks/north"]' ) WHERE name = 'SEND_PR_4';
+UPDATE foglamp.scheduled_processes SET name = 'North Readings to PI', script = '["tasks/north"]'  WHERE name = 'SEND_PR_1';
+UPDATE foglamp.scheduled_processes SET name = 'North Statistics to PI', script = '["tasks/north"]'  WHERE name = 'SEND_PR_2';
+UPDATE foglamp.scheduled_processes SET name = 'North Readings to OCS', script = '["tasks/north"]'  WHERE name = 'SEND_PR_4';
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Audit to PI',      '["tasks/north"]' );
 
 UPDATE foglamp.schedules SET process_name = 'North Readings to PI' WHERE process_name = 'SEND_PR_1';

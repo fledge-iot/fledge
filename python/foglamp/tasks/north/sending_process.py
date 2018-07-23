@@ -199,11 +199,6 @@ class SendingProcess(FoglampProcess):
     _PLUGIN_TYPE = "north"
     """Define the type of the plugin managed by the Sending Process"""
 
-    _DATA_SOURCE_READINGS = "readings"
-    _DATA_SOURCE_STATISTICS = "statistics"
-    _DATA_SOURCE_AUDIT = "audit"
-    """Types of sources for the data blocks"""
-
     _AUDIT_CODE = "STRMN"
     """Audit code to use"""
 
@@ -528,11 +523,11 @@ class SendingProcess(FoglampProcess):
     async def _load_data_into_memory(self, last_object_id):
         """ Identifies the data source requested and call the appropriate handler"""
         try:
-            if self._config['source'] == self._DATA_SOURCE_READINGS:
+            if self._config['source'] == 'readings':
                 data_to_send = await self._load_data_into_memory_readings(last_object_id)
-            elif self._config['source'] == self._DATA_SOURCE_STATISTICS:
+            elif self._config['source'] == 'statistics':
                 data_to_send = await self._load_data_into_memory_statistics(last_object_id)
-            elif self._config['source'] == self._DATA_SOURCE_AUDIT:
+            elif self._config['source'] == 'audit':
                 data_to_send = await self._load_data_into_memory_audit(last_object_id)
             else:
                 SendingProcess._logger.error(_MESSAGES_LIST["e000008"])
@@ -777,7 +772,7 @@ class SendingProcess(FoglampProcess):
         return north_ok
 
     def _plugin_load(self):
-        module_to_import = self._NORTH_PATH + self._config['plugin'] + "." + self._config['plugin']
+        module_to_import = "{path_to}{foldername}.{filename}".format(path_to=self._NORTH_PATH,foldername=self._config['plugin'],filename=self._config['plugin'])
         try:
             self._plugin = __import__(module_to_import, fromlist=[''])
         except ImportError:
@@ -928,7 +923,7 @@ class SendingProcess(FoglampProcess):
             self._event_loop.run_until_complete(
                 self._audit.failure(self._AUDIT_CODE, {"error - on stop": _MESSAGES_LIST["e000007"]}))
             raise
-        SendingProcess._logger.debug("Stopped")
+        SendingProcess._logger.info("Stopped")
 
 
 if __name__ == "__main__":

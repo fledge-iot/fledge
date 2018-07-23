@@ -12,7 +12,7 @@
 #include <management_api.h>
 
 #define REGISTER_SERVICE	"/foglamp/service"
-#define UNREGISTER_SERVICE	"/foglamp/service/([0-9A-F][0-9A-F\\-]*)"
+#define UNREGISTER_SERVICE	"/foglamp/service/{[0-9A-F][0-9A-F\\-]*}"
 
 #define UUID_COMPONENT		1
 

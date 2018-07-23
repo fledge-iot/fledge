@@ -323,7 +323,7 @@ bool 		first = true;
 	{
 		if (! first)
 			json << ", ";
-		json << "\"returns\" : [ ";
+		json << "\"return\" : [ ";
 		for (auto it = m_returns.cbegin(); it != m_returns.cend(); ++it)
 		{
 			if (it != m_returns.cbegin())

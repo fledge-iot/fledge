@@ -143,7 +143,7 @@ TEST(QueryTest, SingleReturn)
 {
 Query query(new Where("c1", Equals, "10"));
 string json;
-string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"returns\" : [ \"c2\" ] }");
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"return\" : [ \"c2\" ] }");
 
 	query.returns(new Returns("c2"));
 	json = query.toJSON();
@@ -154,7 +154,7 @@ TEST(QueryTest, MultipleReturn)
 {
 Query query(new Where("c1", Equals, "10"));
 string json;
-string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"returns\" : [ \"c1\", \"c2\", \"c3\" ] }");
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"return\" : [ \"c1\", \"c2\", \"c3\" ] }");
 
 	query.returns(new Returns("c1"));
 	query.returns(new Returns("c2"));
@@ -167,7 +167,7 @@ TEST(QueryTest, MultipleReturn2)
 {
 Query query(new Where("c1", Equals, "10"));
 string json;
-string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"returns\" : [ \"c1\", { \"column\" : \"c2\", \"alias\" : \"Col2\" }, { \"column\" : \"c3\", \"alias\" : \"Col3\", \"format\" : \"DD-MM-YY HH:MI:SS\" } ] }");
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"return\" : [ \"c1\", { \"column\" : \"c2\", \"alias\" : \"Col2\" }, { \"column\" : \"c3\", \"alias\" : \"Col3\", \"format\" : \"DD-MM-YY HH:MI:SS\" } ] }");
 
 	query.returns(new Returns("c1"));
 	query.returns(new Returns("c2", "Col2"));
@@ -180,7 +180,7 @@ TEST(QueryTest, MultipleReturnVector)
 {
 Query query(new Where("c1", Equals, "10"));
 string json;
-string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"returns\" : [ \"c1\", \"c2\", \"c3\" ] }");
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"return\" : [ \"c1\", \"c2\", \"c3\" ] }");
 
 	query.returns(vector<Returns *> {new Returns("c1"),
 				         new Returns("c2"),
@@ -196,7 +196,7 @@ Query query(vector<Returns *> {new Returns("c1"),
 			       new Returns("c3")}, 
             new Where("c1", Equals, "10"));
 string json;
-string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"returns\" : [ \"c1\", \"c2\", \"c3\" ] }");
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"value\" : \"10\" }, \"return\" : [ \"c1\", \"c2\", \"c3\" ] }");
 
 	json = query.toJSON();
 	ASSERT_EQ(json.compare(expected), 0);
@@ -206,7 +206,7 @@ TEST(QueryTest, fullTable)
 {
 Query query(new Returns("c1"));
 string json;
-string expected("{ \"returns\" : [ \"c1\" ] }");
+string expected("{ \"return\" : [ \"c1\" ] }");
 
 	json = query.toJSON();
 	ASSERT_EQ(json.compare(expected), 0);
@@ -216,7 +216,7 @@ TEST(QueryTest, distinctTable)
 {
 Query query(new Returns("c1"));
 string json;
-string expected("{ \"returns\" : [ \"c1\" ], \"modifier\" : \"distinct\" }");
+string expected("{ \"return\" : [ \"c1\" ], \"modifier\" : \"distinct\" }");
 
 	query.distinct();
 	json = query.toJSON();

@@ -332,8 +332,6 @@ class SendingProcess(FoglampProcess):
     async def _last_object_id_update(self, new_last_object_id):
         """ Updates reached position"""
         try:
-            # TODO : FOGL-623 - avoid the update of the field ts when it will be managed by the DB itself
-            #
             payload = payload_builder.PayloadBuilder() \
                 .SET(last_object=new_last_object_id, ts='now()') \
                 .WHERE(['id', '=', self._stream_id]) \
@@ -451,10 +449,10 @@ class SendingProcess(FoglampProcess):
                 timestamp = apply_date_format(row['ts'])  # Adds timezone UTC
                 asset_code = row['key'].strip()
                 new_row = {
-                    'id': row['id'],  # Row id
-                    'asset_code': asset_code,  # Asset code
-                    'user_ts': timestamp,  # Timestamp
-                    'reading': {'value': row['value']}  # Converts raw data to a Dictionary
+                    'id': row['id'],
+                    'asset_code': asset_code,
+                    'user_ts': timestamp,
+                    'reading': {'value': row['value']}
                 }
                 converted_data.append(new_row)
         except Exception as e:

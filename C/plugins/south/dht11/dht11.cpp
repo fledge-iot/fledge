@@ -14,7 +14,7 @@
 #include <dht11.h>
 #include <logger.h>
 
-#define MAX_SENSOR_READ_RETRIES		(100)
+#define MAX_SENSOR_READ_RETRIES	(100)
 
 using namespace std;
 
@@ -23,8 +23,7 @@ using namespace std;
  *
  * @param pin	The RPi pin to which DHT11 sensor's data pin is attached (e.g. pin 7 = GPIO 4, this is the default)
  */
-DHT11::DHT11(unsigned int pin) :
-m_pin(pin)
+DHT11::DHT11(unsigned int pin) : m_pin(pin)
 {
 	if ( wiringPiSetup() == -1 ) {
 		Logger::getLogger()->fatal("wiringPiSetup failed for dht11, can't proceed");
@@ -51,7 +50,7 @@ bool DHT11::readSensorData(uint8_t sensorData[])
         uint8_t counter         = 0;
         uint8_t j               = 0, i;
         float   f; /* fahrenheit */
-	uint8_t dht11_dat[5] = {0, 0, 0, 0, 0};
+        uint8_t dht11_dat[5] = {0, 0, 0, 0, 0};
 
         /* pull pin down for 18 milliseconds */
         pinMode( m_pin, OUTPUT );
@@ -64,7 +63,7 @@ bool DHT11::readSensorData(uint8_t sensorData[])
         pinMode( m_pin, INPUT );
 
         /* detect change and read data */
-        for ( i = 0; i < MAXTIMINGS; i++ )
+        for ( i = 0; i < MAX_TIMINGS; i++ )
         {
                 counter = 0;
                 while ( digitalRead( m_pin ) == laststate )
@@ -131,7 +130,7 @@ Reading DHT11::takeReading(bool firstReading)
 
         vector<Datapoint *> vec;
 
-	stringstream tmp;
+	ostringstream tmp;
         tmp << ((unsigned int)sensorData[0]) << "." << ((unsigned int)sensorData[1]);
 	DatapointValue dpv1(stod(tmp.str()));
         vec.push_back(new Datapoint("Humidity", dpv1));

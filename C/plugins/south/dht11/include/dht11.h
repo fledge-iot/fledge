@@ -11,11 +11,11 @@
  */
 #include <reading.h>
 
-#define MAXTIMINGS      85   /* was 85 */
+#define MAX_TIMINGS      85
 
 class DHT11 {
 	public:
-		DHT11(unsigned int pin=7);
+		DHT11(unsigned int pin);
 		~DHT11();
 		void            setAssetName(const std::string& assetName) { m_assetName = assetName; };
 		std::string 	getAssetName() { return m_assetName; };

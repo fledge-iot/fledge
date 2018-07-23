@@ -638,7 +638,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "audit", "value": "audit"}}'
             );
 
-
 -- North Readings to OCS - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Readings to OCS',

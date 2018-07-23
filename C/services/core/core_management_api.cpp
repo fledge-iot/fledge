@@ -65,6 +65,9 @@ void CoreManagementApi::defaultResource(shared_ptr<HttpServer::Response> respons
  */
 CoreManagementApi::CoreManagementApi(const string& name, const unsigned short port) : ManagementApi(name, port)
 {
+	m_server->resource[REGISTER_SERVICE]["POST"] = registerMicroServiceWrapper;
+	m_server->resource[UNREGISTER_SERVICE]["DELETE"] = unRegisterMicroServiceWrapper;
+
 	// Services
 	m_server->resource[REGISTER_SERVICE]["POST"] = registerMicroServiceWrapper;
 	m_server->resource[UNREGISTER_SERVICE]["DELETE"] = unRegisterMicroServiceWrapper;
@@ -72,7 +75,7 @@ CoreManagementApi::CoreManagementApi(const string& name, const unsigned short po
 	// Default wrapper
 	m_server->default_resource["GET"] = defaultWrapper;
 
-	// Set the ihnstance
+	// Set the instance
 	m_instance = this;
 }
 

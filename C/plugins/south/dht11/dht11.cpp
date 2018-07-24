@@ -127,6 +127,9 @@ Reading DHT11::takeReading(bool firstReading)
 		valid = readSensorData(sensorData);
 		count++;
 	} while(!valid && firstReading && count < MAX_SENSOR_READ_RETRIES);
+	
+	if (firstReading && count >= MAX_SENSOR_READ_RETRIES)
+		Logger::getLogger()->error("Unable to get initial valid reading from DHT11 sensor connected to pin %d even after %d tries", m_pin, MAX_SENSOR_READ_RETRIES);
 
         vector<Datapoint *> vec;
 

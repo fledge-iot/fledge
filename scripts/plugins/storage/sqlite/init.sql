@@ -689,7 +689,7 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Reading
 
 -- South Tasks - C code
 --
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'dht11',   '["services/c-south"]' );
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'dht11',   '["services/south_c"]' );
 
 --
 -- Schedules

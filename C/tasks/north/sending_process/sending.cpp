@@ -404,6 +404,8 @@ bool SendingProcess::getLastSentReadingId()
 			foundId = true;
 		}
 	}
+	// Free result set
+	delete lastObjectId;
 
 	return foundId;
 }

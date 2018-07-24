@@ -218,6 +218,11 @@ static void loadDataThread(SendingProcess *loadData)
 			}
 			else
 			{
+				// Free empty result set
+				if (readings)
+				{
+					delete readings;
+				}
 				// Error or no data read: just wait
 				// TODO: add increments from 1 to TASK_SLEEP_MAX_INCREMENTS
 				this_thread::sleep_for(chrono::milliseconds(TASK_FETCH_SLEEP));

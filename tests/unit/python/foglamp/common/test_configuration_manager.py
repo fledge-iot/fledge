@@ -477,7 +477,7 @@ class TestConfigurationManager:
         ("IPv6", "2001:db8::"),
         ("password", "not implemented"),
         ("X509 certificate", "not implemented"),
-        # ("JSON", "Blocked from FOGL-985")
+        ("JSON", "{\"foo\": \"bar\"}")
     ])
     @pytest.mark.asyncio
     async def test__validate_category_val_valid_type(self, reset_singleton, test_input, test_value):
@@ -492,6 +492,7 @@ class TestConfigurationManager:
         }
         c_return_value = await c_mgr._validate_category_val(category_val=test_config, set_value_val_from_default_val=True)
         assert c_return_value["test_item_name"]["type"] == test_input
+        assert c_return_value["test_item_name"]["value"] == test_value
 
     @pytest.mark.asyncio
     async def test__validate_category_val_invalid_type(self, reset_singleton):
@@ -1836,8 +1837,7 @@ class TestConfigurationManager:
         ("boolean", "True", "true"),
         ("boolean", "true", "true"),
         ("boolean", "false", "false"),
-        ("boolean", "False", "false"),
-        # ('JSON', 'BLOCKED', 'FOGL-985')
+        ("boolean", "False", "false")
     ])
     async def test__clean(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -1852,7 +1852,16 @@ class TestConfigurationManager:
         ("IPv6", "2001:db8::", ipaddress.IPv6Address('2001:db8::')),
         ("password", "not implemented", None),
         ("X509 certificate", "not implemented", None),
-        # ("JSON", "Blocked from FOGL-985")
+        ("JSON", "Blah", False),
+        ("JSON", True, False),
+        ("JSON", "True", False),
+        ("JSON", {}, False),
+        ("JSON", [], False),
+        ("JSON", None, False),
+        ("JSON", "{}", True),
+        ("JSON", "1", True),
+        ("JSON", "[]", True),
+        ("JSON", "{\"age\": 31}", True),
     ])
     async def test__validate_type_value(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

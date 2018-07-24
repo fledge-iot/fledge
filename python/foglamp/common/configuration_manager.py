@@ -13,6 +13,7 @@ import ipaddress
 from foglamp.common.storage_client.payload_builder import PayloadBuilder
 from foglamp.common.storage_client.storage_client import StorageClientAsync
 from foglamp.common.storage_client.exceptions import StorageServerError
+from foglamp.common.storage_client.utils import Utils
 from foglamp.common import logger
 from foglamp.common.audit_logger import AuditLogger
 
@@ -269,7 +270,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
                 .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
                 .WHERE(["key", "=", category_name]).payload()
-
             await self._storage.update_tbl("configuration", payload)
             audit = AuditLogger(self._storage)
             audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value, 'newValue': new_value_val}
@@ -398,7 +398,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise TypeError('Unrecognized value name for item_name {}'.format(item_name))
 
             new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
-            # TODO: FOGL-985 - it will break in case of JSON object
             await self._update_value_val(category_name, item_name, new_value_entry)
         except:
             _logger.exception(
@@ -747,6 +746,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     del self._registered_interests[category_name]
 
     def _validate_type_value(self, _type, _value):
+        # TODO: Not implemented for password and X509 certificate type
         def _str_to_bool(item_val):
             return item_val.lower() in ("true", "false")
 
@@ -764,37 +764,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             except ValueError:
                 return False
 
-        def _str_to_json(item_val):
-            if _str_to_bool(item_val) or _str_to_int(item_val) or _str_to_ipaddress(
-                    item_val) or _str_to_password(item_val) or _str_to_x509cert(item_val):
-                return False
-            try:
-                json.loads(item_val)
-            except Exception:
-                return False
-            else:
-                return True
-
-        def _str_to_password(v):
-            # TODO:
-            pass
-
-        def _str_to_x509cert(v):
-            # TODO:
-            pass
-
         if _type == 'boolean':
             return _str_to_bool(_value)
         elif _type == 'integer':
             return _str_to_int(_value)
         elif _type == 'JSON':
-            return _str_to_json(_value)
+            return Utils.is_json(_value)
         elif _type == 'IPv4' or _type == 'IPv6':
             return _str_to_ipaddress(_value)
 
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':
             return item_val.lower()
-        if item_type == 'JSON':
-            return json.dumps(json.loads(item_val))
+
         return item_val

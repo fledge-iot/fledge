@@ -235,16 +235,6 @@ class SendingProcess(FoglampProcess):
             'type': 'string',
             'default': 'omf'
         },
-        'filter': {
-            'description': 'Data filtering rules to apply to the data that has been pulled from the storage layer.',
-            'type': 'string',
-            'default': 'None'
-        },
-        'aggregate': {
-            'description': 'Aggregation rules to apply to the data',
-            'type': 'string',
-            'default': 'None'
-        },
         "memory_buffer_size": {
             "description": "Number of elements of blockSize size to be buffered in memory",
             "type": "integer",
@@ -263,9 +253,6 @@ class SendingProcess(FoglampProcess):
             'source': self._CONFIG_DEFAULT['source']['default'],
             'blockSize': int(self._CONFIG_DEFAULT['blockSize']['default']),
             'sleepInterval': float(self._CONFIG_DEFAULT['sleepInterval']['default']),
-            'plugin': self._CONFIG_DEFAULT['plugin']['default'],
-            'filter': self._CONFIG_DEFAULT['filter']['default'],
-            'aggregate': self._CONFIG_DEFAULT['aggregate']['default'],
             'memory_buffer_size': int(self._CONFIG_DEFAULT['memory_buffer_size']['default']),
         }
         self._config_from_manager = ""
@@ -698,16 +685,26 @@ class SendingProcess(FoglampProcess):
             raise e
         return stream_id, stream_id_valid
 
-    async def _get_destination_id(self, destination_type, description):
-        async def add_destination(destination_type, description):
+    async def _get_destination_id(self, description):
+        async def add_destination(description):
+            # Get largest type
             payload = payload_builder.PayloadBuilder() \
-                .INSERT(type=destination_type,
+                .SELECT("id", "type", "description") \
+                .ORDER_BY(["type", "desc"]) \
+                .LIMIT(1) \
+                .payload()
+            destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
+            rows = destinations['rows']
+            next_type = 1 if len(rows) == 0 else int(rows[0]['type']) + 1
+
+            payload = payload_builder.PayloadBuilder() \
+                .INSERT(type=next_type,
                         description=description) \
                 .payload()
             await self._storage_async.insert_into_tbl("destinations", payload)
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("id", "type", "description") \
-                .WHERE(['type', '=', destination_type]) \
+                .WHERE(['type', '=', next_type]) \
                 .LIMIT(1) \
                 .payload()
             destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
@@ -717,12 +714,12 @@ class SendingProcess(FoglampProcess):
         try:
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("id", "type", "description") \
-                .WHERE(['type', '=', destination_type]) \
+                .WHERE(['description', '=', description]) \
                 .LIMIT(1) \
                 .payload()
             destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
             rows = destinations['rows']
-            destination_id = await add_destination(destination_type, description) if len(rows) == 0 else rows[0]['id']
+            destination_id = await add_destination(description) if len(rows) == 0 else rows[0]['id']
         except (ValueError, Exception) as e:
             SendingProcess._logger.error(_MESSAGES_LIST["e000013"].format(str(e)))
             raise e
@@ -842,9 +839,7 @@ class SendingProcess(FoglampProcess):
                         data = self._config_from_manager
 
                         # Fetch destination_id and stream_id
-                        self._destination_type = int(
-                            data['destination_type']['value']) if 'destination_type' in data else 1
-                        self._destination_id = await self._get_destination_id(self._destination_type, self._name)
+                        self._destination_id = await self._get_destination_id(self._config['plugin'])
                         self._stream_id, is_stream_valid = await self._get_stream_id(self._destination_id)
                         if is_stream_valid is False:
                             raise ValueError("Error in Stream Id for Sending Process {}".format(self._name))

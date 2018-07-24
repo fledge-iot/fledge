@@ -1063,15 +1063,3 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 true,                                   -- exclusive
                 false                                   -- disabled
               );
-
---
--- Configuration for North Plugins OMF
---
--- WARNING : update the sequence foglamp.streams_id_seq accordingly
-
--- Readings to OMF to PI
-INSERT INTO foglamp.destinations ( id, type, description, ts ) VALUES ( 1, 1, 'OMF', now() );
--- Readings to ElasticSearch
-INSERT INTO foglamp.destinations ( id, type, description, ts ) VALUES ( 2, 2, 'ElasticSearch', now() );
--- Readings to OMF to OCS
-INSERT INTO foglamp.destinations( id, type, description, ts ) VALUES ( 3, 3, 'OCS', now() );

@@ -39,7 +39,3 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
 
 DELETE from foglamp.destinations;
 DELETE from foglamp.streams;
-
-INSERT INTO foglamp.destinations ( id, type, description) VALUES ( 1, 1, 'OMF');
-INSERT INTO foglamp.destinations ( id, type, description) VALUES ( 2, 2, 'ElasticSearch');
-INSERT INTO foglamp.destinations( id, type, description) VALUES ( 3, 3, 'OCS');

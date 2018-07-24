@@ -32,6 +32,7 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 # LOG configuration
 _LOG_LEVEL_DEBUG = 10
 _LOG_LEVEL_INFO = 20
@@ -177,11 +178,6 @@ _CONFIG_DEFAULT_OMF = {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int32"
-    },
-    "destination_type": {
-        "description": "Destination: 1-OMF, 2-Elasticsearch, 3-OCS",
-        "type": "integer",
-        "default": "3"
     }
 }
 

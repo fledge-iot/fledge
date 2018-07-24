@@ -18,13 +18,7 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "Empty North Plugin"
 
-_DEFAULT_CONFIG = {
-    "destination_type": {
-        "description": "Destination: 1-OMF, 2-Elasticsearch, 3-OCS",
-        "type": "integer",
-        "default": "0"
-    }
-}
+_DEFAULT_CONFIG = {}
 
 _logger = logger.setup(__name__)
 

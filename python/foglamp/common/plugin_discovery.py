@@ -71,7 +71,7 @@ class PluginDiscovery(object):
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config =  {
-                'name': plugin_info['config']['plugin']['value'],
+                'name': plugin_info['config']['plugin']['default'],
                 'type': plugin_info['type'],
                 'description': plugin_info['config']['plugin']['description'],
                 'version': plugin_info['version']

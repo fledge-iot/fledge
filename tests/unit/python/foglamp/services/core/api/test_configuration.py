@@ -290,7 +290,7 @@ class TestConfiguration:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             resp = await client.post('/foglamp/category', data=json.dumps(payload))
             assert 400 == resp.status
-            assert "keep_original_items should be boolean true | false" == resp.reason
+            assert "Specifying value_name and value_val for item_name info is not allowed if desired behavior is to use default_val as value_val" == resp.reason
 
     async def test_create_category_invalid_category(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}

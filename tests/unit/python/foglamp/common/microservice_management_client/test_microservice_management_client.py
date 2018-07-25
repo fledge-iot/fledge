@@ -467,8 +467,7 @@ class TestMicroserviceManagementClient:
                     'value': '5',
                     'default': '5'
                 }
-            },
-            'keep_original_items': False
+            }
         }
 
         undecoded_data_mock.decode.return_value = json.dumps(test_dict)
@@ -503,8 +502,7 @@ class TestMicroserviceManagementClient:
                     'value': '5',
                     'default': '5'
                 }
-            },
-            'keep_original_items': False
+            }
         }
 
         undecoded_data_mock.decode.return_value = json.dumps(test_dict)
@@ -556,8 +554,10 @@ class TestMicroserviceManagementClient:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.create_configuration_category(test_dict)
             response_patch.assert_called_once_with()
-        request_patch.assert_called_once_with(body=test_dict, method='POST', url='/foglamp/service/category')
-        assert test_dict == ret_value
+        request_patch.assert_called_once_with(body=test_dict, method='POST', url='/foglamp/service/category?keep_original_items=true')
+        assert test_dict['key'] == ret_value['key']
+        assert test_dict['description'] == ret_value['description']
+        assert test_dict['value'] == ret_value['value']
 
     def test_update_configuration_item(self):
         microservice_management_host = 'host1'

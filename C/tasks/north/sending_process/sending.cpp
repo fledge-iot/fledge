@@ -275,7 +275,8 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 
         if (pluginName.empty())
         {
-                Logger::getLogger()->error("Unable to fetch north plugin '%s' from configuration.", pluginName);
+                Logger::getLogger()->error("Unable to fetch north plugin '%s' from configuration.",
+					   pluginName.c_str());
                 return false;
         }
         Logger::getLogger()->info("Load north plugin '%s'.", pluginName.c_str());
@@ -448,7 +449,7 @@ int SendingProcess::createNewStream()
                         {
                                 // Get column value
                                 ResultSet::ColumnValue* theVal = row->getColumn("id");
-                                streamId = (unsigned long)theVal->getInteger();
+                                streamId = (int)theVal->getInteger();
                         }
                 }
 
@@ -599,7 +600,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 		m_block_size = strtoul(blockSize.c_str(), NULL, 10);
 		m_sleep = strtoul(sleepInterval.c_str(), NULL, 10);
 		m_duration = strtoul(duration.c_str(), NULL, 10);
-                m_stream_id = strtoul(streamId.c_str(), NULL, 10);
+                m_stream_id = atoi(streamId.c_str());
 		// Set the data source type: readings (default) or statistics
 		m_data_source_t = sendingProcessConfig.getValue("source");
 

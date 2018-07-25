@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
-
 from http.client import HTTPConnection, HTTPResponse
 import json
 import pytest

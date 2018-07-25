@@ -477,7 +477,7 @@ class TestConfigurationManager:
         ("IPv6", "2001:db8::", "2001:db8::"),
         ("password", "not implemented", "not implemented"),
         ("X509 certificate", "not implemented", "not implemented"),
-        ("JSON", "{\"foo\": \"bar\"}", {'foo': 'bar'})
+        ("JSON", "{\"foo\": \"bar\"}", '{"foo": "bar"}')
     ])
     @pytest.mark.asyncio
     async def test__validate_category_val_valid_type(self, reset_singleton, test_input, test_value, clean_value):
@@ -1855,7 +1855,7 @@ class TestConfigurationManager:
         ("JSON", "Blah", False),
         ("JSON", True, False),
         ("JSON", "True", False),
-        ("JSON", {}, False),
+        ("JSON", {}, True), # allow a dict
         ("JSON", [], False),
         ("JSON", None, False),
         ("JSON", "{}", True),

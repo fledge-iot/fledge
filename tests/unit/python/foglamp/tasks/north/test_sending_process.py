@@ -9,6 +9,7 @@ import asyncio
 import logging
 import sys
 import time
+import uuid
 from unittest.mock import patch, MagicMock, ANY
 
 import pytest
@@ -602,6 +603,7 @@ class TestSendingProcess:
                         "id": 1,
                         "asset_code": "test_asset_code",
                         "reading": {"value": 20},
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "user_ts": "16/04/2018 16:32:55.000000+00"
                     },
                 ]
@@ -628,6 +630,7 @@ class TestSendingProcess:
                             "id": 1,
                             "asset_code": "test_asset_code",
                             "reading": {"value": 21},
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "user_ts": "16/04/2018 16:32:55.000000+00"
                         },
                     ]
@@ -655,12 +658,13 @@ class TestSendingProcess:
         sp._storage_async = MagicMock(spec=StorageClientAsync)
 
         # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-        with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro(p_rows)):
+        with patch.object(uuid, 'uuid4', return_value=uuid.UUID("ef6e1368-4182-11e8-842f-0ed5f89f718b")):
+            with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro(p_rows)):
 
-            generated_rows = await sp._load_data_into_memory_statistics(5)
+                generated_rows = await sp._load_data_into_memory_statistics(5)
 
-            assert len(generated_rows) == 1
-            assert generated_rows == expected_rows
+                assert len(generated_rows) == 1
+                assert generated_rows == expected_rows
 
     @pytest.mark.parametrize(
         "p_rows, "
@@ -692,6 +696,7 @@ class TestSendingProcess:
                         "id": 1,
                         "asset_code": "test_asset_code",
                         "reading": {"value": 20},
+                        "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                         "user_ts": "16/04/2018 16:32:55.000000+00"
                     },
                 ]
@@ -716,6 +721,7 @@ class TestSendingProcess:
                             "id": 1,
                             "asset_code": "test_asset_code",
                             "reading": {"value": 21},
+                            "read_key": "ef6e1368-4182-11e8-842f-0ed5f89f718b",
                             "user_ts": "16/04/2018 16:32:55.000000+00"
                         },
                     ]
@@ -739,13 +745,14 @@ class TestSendingProcess:
                             sp = SendingProcess()
 
         sp._storage_async = MagicMock(spec=StorageClientAsync)
-        with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro()):
+        with patch.object(uuid, 'uuid4', return_value=uuid.UUID("ef6e1368-4182-11e8-842f-0ed5f89f718b")):
+            with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro()):
 
-            # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
-            generated_rows = sp._transform_in_memory_data_statistics(p_rows)
+                # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
+                generated_rows = sp._transform_in_memory_data_statistics(p_rows)
 
-            assert len(generated_rows) == 1
-            assert generated_rows == expected_rows
+                assert len(generated_rows) == 1
+                assert generated_rows == expected_rows
 
     async def test_load_data_into_memory_audit(self, event_loop):
         """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
@@ -2314,6 +2321,7 @@ class TestSendingProcess:
                             sp = SendingProcess()
 
         sp._plugin = MagicMock()
+        sp._config['plugin'] = MagicMock()
         sp._config['enable'] = True
         sp._config_from_manager = {}
 

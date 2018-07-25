@@ -121,7 +121,6 @@ class TestOCS:
         assert config['OMFMaxRetry'] == 100
         assert config['OMFRetrySleepTime'] == 100
         assert config['OMFHttpTimeout'] == 100
-        assert config['destination_type'] == "3"
 
         # Check conversion from String to Dict
         assert isinstance(config['StaticData'], dict)

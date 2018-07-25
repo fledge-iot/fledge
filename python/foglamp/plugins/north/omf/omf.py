@@ -344,7 +344,6 @@ def plugin_init(data):
     _config['OMFHttpTimeout'] = int(data['OMFHttpTimeout']['value'])
 
     _config['StaticData'] = ast.literal_eval(data['StaticData']['value'])
-    _config['destination_type'] = data['destination_type']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect

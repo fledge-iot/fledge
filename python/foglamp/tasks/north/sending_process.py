@@ -25,6 +25,7 @@ import logging
 import datetime
 import signal
 import json
+import uuid
 import foglamp.plugins.north.common.common as plugin_common
 from foglamp.common.parser import Parser
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
@@ -438,8 +439,9 @@ class SendingProcess(FoglampProcess):
                 new_row = {
                     'id': row['id'],
                     'asset_code': asset_code,
+                    'read_key': str(uuid.uuid4()),
+                    'reading': {'value': row['value']},
                     'user_ts': timestamp,
-                    'reading': {'value': row['value']}
                 }
                 converted_data.append(new_row)
         except Exception as e:
@@ -660,12 +662,12 @@ class SendingProcess(FoglampProcess):
                         description=description) \
                 .payload()
             await self._storage_async.insert_into_tbl("streams", payload)
-            rows = get_rows(description=self._name)
+            rows = await get_rows(description=self._name)
             return rows[0]['id']
 
         stream_id = None
         try:
-            rows = get_rows(description=self._name)
+            rows = await get_rows(description=self._name)
             if len(rows) == 0:
                 stream_id = await add_stream(destination_id, self._name)
                 stream_id_valid = True
@@ -743,11 +745,11 @@ class SendingProcess(FoglampProcess):
                 .INSERT(key=key, description=description) \
                 .payload()
             await self._storage_async.insert_into_tbl("statistics", payload)
-            rows = get_rows(key=key)
+            rows = await get_rows(key=key)
             return rows[0]['key']
 
         try:
-            rows = get_rows(key=self._name)
+            rows = await get_rows(key=self._name)
             statistics_key = await add_statistics(key=self._name, description=self._name) if len(rows) == 0 else rows[0]['key']
         except Exception as e:
             SendingProcess._logger.error("Unable to fetch statistics key for {} | {}".format(self._name, str(e)))

@@ -340,7 +340,6 @@ def plugin_init(data):
 
     _config['formatNumber'] = data['formatNumber']['value']
     _config['formatInteger'] = data['formatInteger']['value']
-    _config['destination_type'] = data['destination_type']['value']
 
     # TODO: compare instance fetching via inspect vs as param passing
     # import inspect

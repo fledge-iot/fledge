@@ -71,6 +71,7 @@ COMMON_SCRIPTS_SRC          := scripts/common
 POSTGRES_SCRIPT_SRC         := scripts/plugins/storage/postgres.sh
 SQLITE_SCRIPT_SRC           := scripts/plugins/storage/sqlite.sh
 SOUTH_SCRIPT_SRC            := scripts/services/south
+SOUTH_C_SCRIPT_SRC          := scripts/services/south_c
 STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
 NORTH_SCRIPT_SRC            := scripts/tasks/north
@@ -238,6 +239,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_postgres_script \
 	install_sqlite_script \
 	install_south_script \
+	install_south_c_script \
 	install_storage_service_script \
 	install_north_script \
 	install_purge_script \
@@ -272,6 +274,9 @@ install_sqlite_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
 
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+
+install_south_c_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_C_SCRIPT_SRC)
+	$(CP) $(SOUTH_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_storage_service_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SERVICE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SERVICE_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)

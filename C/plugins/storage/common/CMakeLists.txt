@@ -20,5 +20,5 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library
-install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/lib/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/lib)
 

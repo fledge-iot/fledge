@@ -157,16 +157,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 num_entries = expected_item_entries.get(entry_name)
                 if set_value_val_from_default_val and entry_name == 'value':
-                    raise ValueError(
-                        'Specifying value_name and value_val for item_name {} is not allowed if desired behavior is to use default_val as value_val'.format(
-                            item_name))
+                    raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
+                                     'desired behavior is to use default_val as value_val'.format(item_name))
                 if num_entries is None:
                     raise ValueError('Unrecognized entry_name {} for item_name {}'.format(entry_name, item_name))
                 if entry_name == 'type':
                     if entry_val not in _valid_type_strings:
                         raise ValueError(
-                            'Invalid entry_val for entry_name "type" for item_name {}. valid: {}'.format(item_name,
-                                                                                                         _valid_type_strings))
+                            'Invalid entry_val for entry_name "type" for item_name {}. valid: {}'.format(
+                                item_name, _valid_type_strings))
                 expected_item_entries[entry_name] = 1
             for needed_key, needed_value in expected_item_entries.items():
                 if needed_value == 0:
@@ -746,7 +745,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     del self._registered_interests[category_name]
 
     def _validate_type_value(self, _type, _value):
+
         # TODO: Not implemented for password and X509 certificate type
+
         def _str_to_bool(item_val):
             return item_val.lower() in ("true", "false")
 
@@ -769,14 +770,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         elif _type == 'integer':
             return _str_to_int(_value)
         elif _type == 'JSON':
+            if isinstance(_value, dict):
+                return True
             return Utils.is_json(_value)
         elif _type == 'IPv4' or _type == 'IPv6':
             return _str_to_ipaddress(_value)
 
     def _clean(self, item_type, item_val):
+
         if item_type == 'boolean':
             return item_val.lower()
-        if item_type == 'JSON':
-            return json.loads(item_val)
 
         return item_val

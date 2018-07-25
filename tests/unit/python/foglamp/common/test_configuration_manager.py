@@ -1855,7 +1855,7 @@ class TestConfigurationManager:
         ("JSON", "Blah", False),
         ("JSON", True, False),
         ("JSON", "True", False),
-        ("JSON", {}, True), # allow a dict
+        ("JSON", {}, True),  # allow a dict
         ("JSON", [], False),
         ("JSON", None, False),
         ("JSON", "{}", True),

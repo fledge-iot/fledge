@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 2.4.0)
+
+project(common-lib)
+
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(UUIDLIB -luuid)
+
+# Find source files
+file(GLOB SOURCES *.cpp)
+
+# Include header files
+include_directories(include ../services/common/include ../common/include ../thirdparty/rapidjson/include ../thirdparty/Simple-Web-Server)
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
+
+message("CMAKE_CURRENT_LIST_FILE: ${CMAKE_CURRENT_LIST_FILE}")
+message("CMAKE_BUILD_DIR: ${CMAKE_BUILD_DIR}")
+message("PROJECT_BINARY_DIR: ${PROJECT_BINARY_DIR}")
+message("PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
+
+# Create shared library
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
+target_link_libraries(${PROJECT_NAME} ${UUIDLIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
+
+# Install library
+install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/lib/${PROJECT_NAME})

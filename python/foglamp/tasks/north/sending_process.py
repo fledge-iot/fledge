@@ -607,7 +607,7 @@ class SendingProcess(FoglampProcess):
         """ Handles the sending of the data to the destination using the configured plugin for a defined amount of time"""
 
         # Prepares the in memory buffer for the fetch/send operations
-        self._memory_buffer = [None for x in range(self._config['memory_buffer_size'])]
+        self._memory_buffer = [None for _ in range(self._config['memory_buffer_size'])]
         self._task_fetch_data_sem = asyncio.Semaphore(0)
         self._task_send_data_sem = asyncio.Semaphore(0)
         self._task_fetch_data_task_id = asyncio.ensure_future(self._task_fetch_data())
@@ -646,28 +646,26 @@ class SendingProcess(FoglampProcess):
             SendingProcess._logger.error(_MESSAGES_LIST["e000029"].format(ex))
 
     async def _get_stream_id(self, destination_id):
+        async def get_rows(description):
+            payload = payload_builder.PayloadBuilder() \
+                .SELECT("id", "description", "active") \
+                .WHERE(['description', '=', description]) \
+                .payload()
+            streams = await self._storage_async.query_tbl_with_payload("streams", payload)
+            return streams['rows']
+
         async def add_stream(destination_id, description):
             payload = payload_builder.PayloadBuilder() \
                 .INSERT(destination_id=destination_id,
                         description=description) \
                 .payload()
             await self._storage_async.insert_into_tbl("streams", payload)
-            payload = payload_builder.PayloadBuilder() \
-                .SELECT("id", "description", "active") \
-                .WHERE(['description', '=', self._name]) \
-                .payload()
-            streams = await self._storage_async.query_tbl_with_payload("streams", payload)
-            rows = streams['rows']
+            rows = get_rows(description=self._name)
             return rows[0]['id']
 
         stream_id = None
         try:
-            payload = payload_builder.PayloadBuilder() \
-                .SELECT("id", "description", "active") \
-                .WHERE(['description', '=', self._name]) \
-                .payload()
-            streams = await self._storage_async.query_tbl_with_payload("streams", payload)
-            rows = streams['rows']
+            rows = get_rows(description=self._name)
             if len(rows) == 0:
                 stream_id = await add_stream(destination_id, self._name)
                 stream_id_valid = True
@@ -719,38 +717,40 @@ class SendingProcess(FoglampProcess):
                 .payload()
             destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
             rows = destinations['rows']
-            destination_id = await add_destination(description) if len(rows) == 0 else rows[0]['id']
+            if len(rows) == 0:
+                destination_id = await add_destination(description)
+            elif len(rows) > 1:
+                raise ValueError("Fatal to have more than one destination for [{}]".format(description))
+            else:
+                destination_id = rows[0]['id']
         except (ValueError, Exception) as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000013"].format(str(e)))
+            SendingProcess._logger.error("Unable to fetch destination_id for plugin {} | {}".format(description, str(e)))
             raise e
         return destination_id
 
     async def _get_statistics_key(self):
-        async def add_statistics(key, description):
-            payload = payload_builder.PayloadBuilder() \
-                .INSERT(key=key, description=description) \
-                .payload()
-            await self._storage_async.insert_into_tbl("statistics", payload)
+        async def get_rows(key):
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("key", "description") \
                 .WHERE(['key', '=', key]) \
                 .LIMIT(1) \
                 .payload()
             statistics = await self._storage_async.query_tbl_with_payload("statistics", payload)
-            rows = statistics['rows']
+            return statistics['rows']
+
+        async def add_statistics(key, description):
+            payload = payload_builder.PayloadBuilder() \
+                .INSERT(key=key, description=description) \
+                .payload()
+            await self._storage_async.insert_into_tbl("statistics", payload)
+            rows = get_rows(key=key)
             return rows[0]['key']
 
         try:
-            payload = payload_builder.PayloadBuilder() \
-                .SELECT("key", "description") \
-                .WHERE(['key', '=', self._name]) \
-                .LIMIT(1) \
-                .payload()
-            statistics = await self._storage_async.query_tbl_with_payload("statistics", payload)
-            rows = statistics['rows']
-            statistics_key = await add_statistics(self._name, self._name) if len(rows) == 0 else rows[0]['key']
+            rows = get_rows(key=self._name)
+            statistics_key = await add_statistics(key=self._name, description=self._name) if len(rows) == 0 else rows[0]['key']
         except Exception as e:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000013"].format(str(e)))
+            SendingProcess._logger.error("Unable to fetch statistics key for {} | {}".format(self._name, str(e)))
             raise e
         return statistics_key
 

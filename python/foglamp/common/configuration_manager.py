@@ -776,5 +776,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     def _clean(self, item_type, item_val):
         if item_type == 'boolean':
             return item_val.lower()
+        if item_type == 'JSON':
+            return json.loads(item_val)
 
         return item_val

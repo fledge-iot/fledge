@@ -469,18 +469,18 @@ class TestConfigurationManager:
         assert 'Unrecognized entry_name unrecognized for item_name test_item_name' in str(
             excinfo.value)
 
-    @pytest.mark.parametrize("test_input, test_value", [
-        ("boolean", "false"),
-        ("integer", "123"),
-        ("string", "blah"),
-        ("IPv4", "127.0.0.1"),
-        ("IPv6", "2001:db8::"),
-        ("password", "not implemented"),
-        ("X509 certificate", "not implemented"),
-        ("JSON", "{\"foo\": \"bar\"}")
+    @pytest.mark.parametrize("test_input, test_value, clean_value", [
+        ("boolean", "false", "false"),
+        ("integer", "123", "123"),
+        ("string", "blah", "blah"),
+        ("IPv4", "127.0.0.1", "127.0.0.1"),
+        ("IPv6", "2001:db8::", "2001:db8::"),
+        ("password", "not implemented", "not implemented"),
+        ("X509 certificate", "not implemented", "not implemented"),
+        ("JSON", "{\"foo\": \"bar\"}", {'foo': 'bar'})
     ])
     @pytest.mark.asyncio
-    async def test__validate_category_val_valid_type(self, reset_singleton, test_input, test_value):
+    async def test__validate_category_val_valid_type(self, reset_singleton, test_input, test_value, clean_value):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config = {
@@ -492,7 +492,7 @@ class TestConfigurationManager:
         }
         c_return_value = await c_mgr._validate_category_val(category_val=test_config, set_value_val_from_default_val=True)
         assert c_return_value["test_item_name"]["type"] == test_input
-        assert c_return_value["test_item_name"]["value"] == test_value
+        assert c_return_value["test_item_name"]["value"] == clean_value
 
     @pytest.mark.asyncio
     async def test__validate_category_val_invalid_type(self, reset_singleton):

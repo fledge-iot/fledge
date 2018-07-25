@@ -1177,24 +1177,41 @@ class TestConfigurationManager:
         assert [] == ret_val
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("value, operator", [
-        (True, "="),
-        (False, "!=")
+    @pytest.mark.parametrize("value, payload1, result1, payload2, result2, payload3, result3, result, count", [
+        (True, {"return": ["parent"], "modifier": "distinct"}, {"count": 1, "rows": [{"parent": "Advanced"}]},
+         {"return": ["child"]}, {"count": 1, "rows": [{"child": "service"}]},
+         {"return": ["key", "description"], "where": {"column": "key", "condition": "=", "value": "Advanced"}},
+         {"count": 1, "rows": [{"key": "Advanced", "description": "Advanced"}]}, [('Advanced', 'Advanced')], 3),
+        (False, {"return": ["parent"]}, {"count": 1, "rows": [{"parent": "Advanced"}]},
+         {"return": ["child"], "modifier": "distinct"}, {"count": 1, "rows": [{"child": "rest_api"}]},
+         {"return": ["key", "description"], "where": {"column": "key", "condition": "=", "value": "Advanced"}},
+         {"count": 1, "rows": [{"key": "General", "description": "General"}]}, [], 2)
     ])
-    async def test__read_all_groups(self, reset_singleton, value, operator):
+    async def test__read_all_groups(self, reset_singleton, value, payload1, result1, payload2, result2, payload3,
+                                    result3, result, count):
         @asyncio.coroutine
-        def mock_coro():
-            return {'rows': [{'key': 'General', 'description': 'General'}]}
+        def q_result(*args):
+            table = args[0]
+            payload = json.loads(args[1])
+            for k, v in payload.items():
+                if 'parent' in v:
+                    assert 'category_children' == table
+                    assert payload1 == payload
+                    return result1
+                elif 'child' in v:
+                    assert 'category_children' == table
+                    assert payload2 == payload
+                    return result2
+            if table == 'configuration':
+                assert payload3 == payload
+                return result3
 
-        attrs = {"query_tbl_with_payload.return_value": mock_coro()}
-        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        ret_val = await c_mgr._read_all_groups(root=value)
-        args, kwargs = storage_client_mock.query_tbl_with_payload.call_args
-        assert 'configuration' == args[0]
-        p = json.loads(args[1])
-        assert {"return": ["key", "description", "value"], "where": {"value": "{}", "condition": operator, "column": "value"}} == p
-        assert [('General', 'General')] == ret_val
+        with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_tbl_patch:
+            ret_val = await c_mgr._read_all_groups(root=value)
+            assert result == ret_val
+        assert count == query_tbl_patch.call_count
 
     @pytest.mark.asyncio
     async def test__read_category_val_1_row(self, reset_singleton):

@@ -210,17 +210,44 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_info
 
     async def _read_all_groups(self, root):
-        payload = PayloadBuilder().SELECT("key", "description", "value").chain_payload()
-        if root is True:
-            payload = PayloadBuilder(payload).WHERE(["value", "=", "{}"]).payload()
-        else:
-            payload = PayloadBuilder(payload).WHERE(["value", "!=", "{}"]).payload()
-
-        results = await self._storage.query_tbl_with_payload('configuration', payload)
-
         group_info = []
-        for row in results['rows']:
-            group_info.append((row['key'], row['description']))
+        if root:
+            # SELECT DISTINCT parent FROM category_children WHERE parent NOT IN (SELECT child FROM category_children);
+            payload = PayloadBuilder().SELECT("parent").DISTINCT(["parent"]).payload()
+            result = await self._storage.query_tbl_with_payload('category_children', payload)
+            # TODO: FOGL-668 Need support for subquery
+            payload2 = PayloadBuilder().SELECT("child").payload()
+            result2 = await self._storage.query_tbl_with_payload('category_children', payload2)
+
+            def has_children(parent):
+                if parent in [row['child'] for row in result2['rows']]:
+                    return True
+                return False
+
+            for row in result['rows']:
+                if not has_children(row['parent']):
+                    p = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", row['parent']]).payload()
+                    r = await self._storage.query_tbl_with_payload('configuration', p)
+                    group_info.append((r['rows'][0]['key'], r['rows'][0]['description']))
+        else:
+            # SELECT DISTINCT child FROM category_children WHERE child IN (SELECT parent FROM category_children);
+            payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
+            result = await self._storage.query_tbl_with_payload('category_children', payload)
+            # TODO: FOGL-668 Need support for subquery
+            payload2 = PayloadBuilder().SELECT("parent").payload()
+            result2 = await self._storage.query_tbl_with_payload('category_children', payload2)
+
+            def is_parent(child):
+                if child in [row['parent'] for row in result2['rows']]:
+                    return True
+                return False
+
+            for row in result['rows']:
+                if is_parent(row['child']):
+                    p = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", row['child']]).payload()
+                    r = await self._storage.query_tbl_with_payload('configuration', p)
+                    group_info.append((r['rows'][0]['key'], r['rows'][0]['description']))
+
         return group_info
 
     async def _read_category_val(self, category_name):

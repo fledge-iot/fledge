@@ -64,7 +64,7 @@ async def ping(request):
         return int(v[0])
 
     def get_sent_stats():
-        return sum([int(s['value']) for s in stats if s['key'].startswith('SENT_')])
+        return sum([int(s['value']) for s in stats if s['key'].upper().startswith('NORTH')])
 
     data_read = get_stats('READINGS')
     data_sent = get_sent_stats()

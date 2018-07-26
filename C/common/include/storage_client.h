@@ -33,6 +33,7 @@ class StorageClient {
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
+		ReadingSet	*queryTableToReadings(const std::string& tableName, const Query& query);
 		int 		insertTable(const std::string& tableName, const InsertValues& values);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const Where& where);
 		int		updateTable(const std::string& tableName, const JSONProperties& json, const Where& where);

@@ -354,6 +354,7 @@ void CoreManagementApi::defaultResource(shared_ptr<HttpServer::Response> respons
 CoreManagementApi::CoreManagementApi(const string& name,
 				     const unsigned short port) : ManagementApi(name, port)
 {
+
 	// Setup supported URL and HTTP methods
 	// Services
 	m_server->resource[REGISTER_SERVICE]["POST"] = registerMicroServiceWrapper;
@@ -373,7 +374,7 @@ CoreManagementApi::CoreManagementApi(const string& name,
 	m_server->default_resource["HEAD"] = defaultWrapper;
 	m_server->default_resource["CONNECT"] = defaultWrapper;
 
-	// Set the ihnstance
+	// Set the instance
 	m_instance = this;
 }
 

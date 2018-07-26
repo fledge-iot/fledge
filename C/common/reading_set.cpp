@@ -117,6 +117,9 @@ struct tm tm;
 /**
  * Construct a reading from a JSON document
  *
+ * The data can be in the "value" property as single numeric value
+ * or in the JSON "reading" with different values and types
+ *
  * @param json	The JSON document that contains the reading
  */
 JSONReading::JSONReading(const Value& json)
@@ -128,62 +131,95 @@ JSONReading::JSONReading(const Value& json)
 	convert_timestamp(json["user_ts"].GetString(), &m_userTimestamp);
 	m_uuid = json["read_key"].GetString();
 
-	// Add 'reading' values
-	for (auto& m : json["reading"].GetObject())
+	// We have a single value here which is a number
+	if (json.HasMember("value") && json["value"].IsNumber())
 	{
-		switch (m.value.GetType())
+		const Value &m = json["value"];
+		
+		if (m.IsInt() ||
+		    m.IsUint() ||
+		    m.IsInt64() ||
+		    m.IsUint64())
 		{
-			// String
-			case (kStringType):
-			{
-				DatapointValue value(m.value.GetString());
-				this->addDatapoint(new Datapoint(m.name.GetString(),
-								 value));
-				break;
-			}
+			DatapointValue value(m.GetInt());
+			this->addDatapoint(new Datapoint("value",
+							 value));
+		}
+		else if (m.IsDouble())
+		{
+			DatapointValue value(m.GetDouble());
+			this->addDatapoint(new Datapoint("value",
+							 value));
+		}
+		else
+		{
+			string errMsg = "Cannot parse the numeric type";
+			errMsg += " of reading element '";
+			errMsg.append("value");
+			errMsg += "'";
 
-			// Number
-			case (kNumberType):
+			throw new ReadingSetException(errMsg.c_str());
+		}
+	}
+	else
+	{
+		// Add 'reading' values
+		for (auto& m : json["reading"].GetObject())
+		{
+			switch (m.value.GetType())
 			{
-				if (m.value.IsInt() ||
-				    m.value.IsUint() ||
-				    m.value.IsInt64() ||
-				    m.value.IsUint64())
+				// String
+				case (kStringType):
 				{
-					DatapointValue value(m.value.GetInt());
+					DatapointValue value(m.value.GetString());
 					this->addDatapoint(new Datapoint(m.name.GetString(),
 									 value));
 					break;
 				}
-				else if (m.value.IsDouble())
+
+				// Number
+				case (kNumberType):
 				{
-					DatapointValue value(m.value.GetDouble());
-					this->addDatapoint(new Datapoint(m.name.GetString(),
-									 value));
-					break;
+					if (m.value.IsInt() ||
+					    m.value.IsUint() ||
+					    m.value.IsInt64() ||
+					    m.value.IsUint64())
+					{
+						DatapointValue value(m.value.GetInt());
+						this->addDatapoint(new Datapoint(m.name.GetString(),
+										 value));
+						break;
+					}
+					else if (m.value.IsDouble())
+					{
+						DatapointValue value(m.value.GetDouble());
+						this->addDatapoint(new Datapoint(m.name.GetString(),
+										 value));
+						break;
+					}
+					else
+					{
+						string errMsg = "Cannot parse the numeric type";
+						errMsg += " of reading element '";
+						errMsg.append(m.name.GetString());
+						errMsg += "'";
+
+						throw new ReadingSetException(errMsg.c_str());
+						break;
+					}
 				}
-				else
+
+				default:
 				{
-					string errMsg = "Cannot parse the numeric type";
-					errMsg += " of reading element '";
+					string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
+					errMsg += "' of reading element '";
 					errMsg.append(m.name.GetString());
 					errMsg += "'";
 
 					throw new ReadingSetException(errMsg.c_str());
+
 					break;
 				}
-			}
-
-			default:
-			{
-				string errMsg = "Cannot handle unsupported type '" + m.value.GetType();
-				errMsg += "' of reading element '";
-				errMsg.append(m.name.GetString());
-				errMsg += "'";
-
-				throw new ReadingSetException(errMsg.c_str());
-
-				break;
 			}
 		}
 	}

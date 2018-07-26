@@ -12,10 +12,13 @@
 #include <rapidjson/document.h>
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/writer.h>
+#include "rapidjson/error/error.h"
+#include "rapidjson/error/en.h"
 #include <sstream>
 #include <iostream>
 #include <time.h>
 #include <stdlib.h>
+#include <logger.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -39,6 +42,8 @@ ConfigCategories::ConfigCategories(const std::string& json)
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
+		Logger::getLogger()->error("Configuration parse error in %s: %s at %d", json.c_str(),
+			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		throw new ConfigMalformed();
 	}
 	if (doc.HasMember("categories"))
@@ -133,6 +138,9 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
+		Logger::getLogger()->error("Configuration parse error in category %s, %s: %s at %d",
+			name.c_str(), json.c_str(),
+			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		throw new ConfigMalformed();
 	}
 	for (Value::ConstMemberIterator itr = doc.MemberBegin(); itr != doc.MemberEnd(); ++itr)

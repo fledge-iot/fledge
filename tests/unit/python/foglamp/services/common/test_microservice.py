@@ -30,9 +30,9 @@ _DEFAULT_CONFIG = {
     },
     'local_services': {
         'description': 'Restrict microservice to localhost',
-        'type': 'string',
-        'default': '127.0.0.1',
-        'value': '127.0.0.1',
+        'type': 'boolean',
+        'default': 'false',
+        'value': 'false',
     }
 }
 

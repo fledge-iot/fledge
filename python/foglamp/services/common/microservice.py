@@ -57,8 +57,8 @@ class FoglampMicroservice(FoglampProcess):
             default_config = {
                 'local_services': {
                     'description': 'Restrict microservice to localhost',
-                    'type': 'string',
-                    'default': '127.0.0.1',
+                    'type': 'boolean',
+                    'default': 'false',
                 }
             }
 
@@ -77,7 +77,8 @@ class FoglampMicroservice(FoglampProcess):
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
-            host = config['local_services']['value']
+            is_local_services = True if config['local_services']['value'].lower() in ['true', 't', '1', 1] else False
+            host = '127.0.0.1' if is_local_services is True else '0.0.0.0'
             # -----
 
             self._make_microservice_management_app()

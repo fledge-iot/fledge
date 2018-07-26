@@ -180,7 +180,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
-       
+
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
@@ -210,18 +210,25 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_info
 
     async def _read_all_groups(self, root):
-        payload = PayloadBuilder().SELECT("key", "description", "value").chain_payload()
-        if root is True:
-            payload = PayloadBuilder(payload).WHERE(["value", "=", "{}"]).payload()
-        else:
-            payload = PayloadBuilder(payload).WHERE(["value", "!=", "{}"]).payload()
+        # SELECT key, description FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description").payload()
+        all_categories = await self._storage.query_tbl_with_payload('configuration', payload)
 
-        results = await self._storage.query_tbl_with_payload('configuration', payload)
+        # SELECT DISTINCT child FROM category_children
+        unique_category_children_payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
+        unique_category_children = await self._storage.query_tbl_with_payload('category_children', unique_category_children_payload)
 
-        group_info = []
-        for row in results['rows']:
-            group_info.append((row['key'], row['description']))
-        return group_info
+        list_child = [row['child'] for row in unique_category_children['rows']]
+        list_root = []
+        list_not_root = []
+
+        for row in all_categories['rows']:
+            if row["key"] in list_child:
+                list_not_root.append((row["key"], row["description"]))
+            else:
+                list_root.append((row["key"], row["description"]))
+
+        return list_root if root else list_not_root
 
     async def _read_category_val(self, category_name):
         # SELECT configuration.key, configuration.description, configuration.value,
@@ -265,9 +272,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # UPDATE foglamp.configuration
             # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
             # WHERE key='PURGE_READ'
-            payload = PayloadBuilder().SELECT("key", "description", "ts", "value")\
-                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
-                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            payload = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val)) \
+                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                 .WHERE(["key", "=", category_name]).payload()
             await self._storage.update_tbl("configuration", payload)
             audit = AuditLogger(self._storage)
@@ -295,16 +302,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         """Get all category names in the FogLAMP system
 
         Args:
-            root: If true will return only categories that have no parent.
-                  If root is set to false then it will return categories that do have a parent
+            root: If true then select all keys from categories table and then filter out
+                  that are children of another category. So the root categories are those
+                  entries in configuration table that do not appear in distinct child in category_children
+                  If false then it will return distinct child in category_childreb
                   If root is None then it will return all categories
         Return Values:
-        a list of tuples (string category_name, string category_description)
-        None
+                    a list of tuples (string category_name, string category_description)
         """
         try:
-           info = await self._read_all_groups(root) if root is not None else await self._read_all_category_names()
-           return info
+            info = await self._read_all_groups(root) if root is not None else await self._read_all_category_names()
+            return info
         except:
             _logger.exception(
                 'Unable to read all category names')
@@ -745,9 +753,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     del self._registered_interests[category_name]
 
     def _validate_type_value(self, _type, _value):
-
         # TODO: Not implemented for password and X509 certificate type
-
         def _str_to_bool(item_val):
             return item_val.lower() in ("true", "false")
 
@@ -777,7 +783,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return _str_to_ipaddress(_value)
 
     def _clean(self, item_type, item_val):
-
         if item_type == 'boolean':
             return item_val.lower()
 

@@ -12,6 +12,7 @@
 #include <management_api.h>
 #include <configuration_manager.h>
 
+
 #define REGISTER_SERVICE		"/foglamp/service"
 #define UNREGISTER_SERVICE		"/foglamp/service/([0-9A-F][0-9A-F\\-]*)"
 #define GET_ALL_CATEGORIES		"/foglamp/service/category"

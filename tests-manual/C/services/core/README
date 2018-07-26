@@ -12,6 +12,9 @@ Steps:
 	Set FOGLAMP_ROOT if needed
 	# export FOGLAMP_ROOT=/some/path
 
+	Make we have a FogLAMP SQlite3 database:
+	# export DEFAULT_SQLITE_DB_FILE=/some_path/foglamp.db
+
 	Start storage service
 	# $FOGLAMP_ROOT/services/storage	
 

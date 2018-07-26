@@ -63,8 +63,6 @@ void getServiceWrapper(shared_ptr<HttpServer::Response> response,
 		if (foundService)
 		{
 			// Set JSON string with service details
-			// Note: the service UUID is missing at the time being
-			// TODO add all API required fields
 			foundService->asJSON(payload);
 		}
 		else
@@ -78,9 +76,6 @@ void getServiceWrapper(shared_ptr<HttpServer::Response> response,
 	}
 	else
 	{
-		/**
-		 * TODO implement other findService methods
-		 */
 		string errorMsg("{ \"message\": \"error: find service by name is supported right now\" }");
 		*response << "HTTP/1.1 200 OK\r\nContent-Length: " << errorMsg.length() << "\r\n"
 			  <<  "Content-type: application/json\r\n\r\n" << errorMsg;
@@ -223,6 +218,14 @@ void CoreManagementApi::getCategory(shared_ptr<HttpServer::Response> response,
 		// Send JSON data to client
 		respond(response, convert.str());
 	}
+	catch (NoSuchCategory& ex)
+	{
+		// Return proper error message
+		this->errorResponse(response,
+				    SimpleWeb::StatusCode::client_error_bad_request,
+                                    "get category",
+				    ex.what());
+	}
 	// TODO: also catch the exceptions from ConfigurationManager
 	// and return proper message
 	catch (exception ex)
@@ -257,8 +260,36 @@ void CoreManagementApi::getCategoryItem(shared_ptr<HttpServer::Response> respons
 			respond(response, categoryIitem);
 		}
 	}
-	// TODO: also catch the exceptions from ConfigurationManager
+	// Catch the exceptions from ConfigurationManager
 	// and return proper message
+	catch (ChildCategoriesEx& ex)
+	{
+		this->errorResponse(response,
+				    SimpleWeb::StatusCode::client_error_bad_request,
+				    "get child categories",
+				    ex.what());
+	}
+	catch (NoSuchCategory& ex)
+	{
+		this->errorResponse(response,
+				    SimpleWeb::StatusCode::client_error_bad_request,
+				    "get category item",
+				    ex.what());
+	}
+	catch (ConfigCategoryEx& ex)
+	{
+		this->errorResponse(response,
+				    SimpleWeb::StatusCode::client_error_bad_request,
+				    "get category item",
+				    ex.what());
+	}
+	catch (CategoryDetailsEx& ex)
+	{
+		this->errorResponse(response,
+				    SimpleWeb::StatusCode::client_error_bad_request,
+				    "get category item",
+				    ex.what());
+	}
 	catch (exception ex)
 	{
 		internalError(response, ex);
@@ -323,6 +354,7 @@ void CoreManagementApi::defaultResource(shared_ptr<HttpServer::Response> respons
 CoreManagementApi::CoreManagementApi(const string& name,
 				     const unsigned short port) : ManagementApi(name, port)
 {
+
 	// Setup supported URL and HTTP methods
 	// Services
 	m_server->resource[REGISTER_SERVICE]["POST"] = registerMicroServiceWrapper;
@@ -342,7 +374,7 @@ CoreManagementApi::CoreManagementApi(const string& name,
 	m_server->default_resource["HEAD"] = defaultWrapper;
 	m_server->default_resource["CONNECT"] = defaultWrapper;
 
-	// Set the ihnstance
+	// Set the instance
 	m_instance = this;
 }
 
@@ -749,7 +781,7 @@ void CoreManagementApi::deleteChildCategory(shared_ptr<HttpServer::Response> res
 
 /**
  * Create a new configuration category
- * Received PUT /foglamp/service/category
+ * Received POST /foglamp/service/category
  *
  * Send to client the JSON string of new category's items
  */
@@ -829,7 +861,7 @@ void CoreManagementApi::createCategory(shared_ptr<HttpServer::Response> response
 
 /**
  * Add child categories to a given category name
- * Received PUT /foglamp/service/category/{categoryName}/children
+ * Received POST /foglamp/service/category/{categoryName}/children
  *
  * Send to client the JSON string with child categories
  */

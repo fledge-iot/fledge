@@ -1,0 +1,1 @@
+{ "key" : "testcategory", "description" : "category_description", "value" : {"info" : { "description" : "Test", "type" : "string", "value" : "ONE", "default" : "ONE" }, "detail" : { "description" : "detail", "type" : "integer", "value" : "99", "default" : "99" }} }

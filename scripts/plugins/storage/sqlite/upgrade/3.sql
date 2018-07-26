@@ -1,9 +1,3 @@
--- Create the configuration category_children table
-CREATE TABLE foglamp.category_children (
-       parent	character varying(255)	NOT NULL,
-       child	character varying(255)	NOT NULL,
-       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
-
 UPDATE foglamp.configuration SET key = 'North Readings to PI' WHERE key = 'SEND_PR_1';
 UPDATE foglamp.configuration SET key = 'North Statistics to PI' WHERE key = 'SEND_PR_2';
 UPDATE foglamp.configuration SET key = 'North Readings to OCS' WHERE key = 'SEND_PR_4';

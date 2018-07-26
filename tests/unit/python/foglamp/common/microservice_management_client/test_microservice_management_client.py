@@ -476,7 +476,10 @@ class TestMicroserviceManagementClient:
                 ret_value = ms_mgt_client.create_configuration_category(test_dict)
                 assert json.loads(test_dict) == ret_value
             response_patch.assert_called_once_with()
-        request_patch.assert_called_once_with(method='POST', url='/foglamp/service/category', body=test_dict)
+        args, kwargs = request_patch.call_args_list[0]
+        assert 'POST' == kwargs['method']
+        assert '/foglamp/service/category' == kwargs['url']
+        assert json.loads(test_dict) == json.loads(kwargs['body'])
 
     @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
     def test_create_configuration_category_exception(self, status_code, host):
@@ -518,7 +521,10 @@ class TestMicroserviceManagementClient:
                 msg = '{} error code: %d, Reason: %s'.format(host)
                 log_error.assert_called_once_with(msg, status_code, 'this is the reason')
             response_patch.assert_called_once_with()
-        request_patch.assert_called_once_with(body=test_dict, method='POST', url='/foglamp/service/category')
+        args, kwargs = request_patch.call_args_list[0]
+        assert 'POST' == kwargs['method']
+        assert '/foglamp/service/category' == kwargs['url']
+        assert json.loads(test_dict) == json.loads(kwargs['body'])
 
     def test_create_configuration_category_keep_original(self):
         microservice_management_host = 'host1'
@@ -569,9 +575,12 @@ class TestMicroserviceManagementClient:
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 ret_value = ms_mgt_client.create_configuration_category(test_dict)
+                assert json.loads(test_dict) == ret_value
             response_patch.assert_called_once_with()
-        request_patch.assert_called_once_with(body=expected_test_dict, method='POST', url='/foglamp/service/category?keep_original_items=true')
-        assert json.loads(test_dict) == ret_value
+        args, kwargs = request_patch.call_args_list[0]
+        assert 'POST' == kwargs['method']
+        assert '/foglamp/service/category?keep_original_items=true' == kwargs['url']
+        assert json.loads(expected_test_dict) == json.loads(kwargs['body'])
 
     def test_update_configuration_item(self):
         microservice_management_host = 'host1'

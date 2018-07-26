@@ -180,7 +180,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
-       
+
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description):
@@ -210,45 +210,26 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_info
 
     async def _read_all_groups(self, root):
-        group_info = []
-        if root:
-            # SELECT DISTINCT parent FROM category_children WHERE parent NOT IN (SELECT child FROM category_children);
-            payload = PayloadBuilder().SELECT("parent").DISTINCT(["parent"]).payload()
-            result = await self._storage.query_tbl_with_payload('category_children', payload)
-            # TODO: FOGL-668 Need support for subquery
-            payload2 = PayloadBuilder().SELECT("child").payload()
-            result2 = await self._storage.query_tbl_with_payload('category_children', payload2)
+        # SELECT key, description FROM configuration
+        payload = PayloadBuilder().SELECT("key", "description").payload()
+        result = await self._storage.query_tbl_with_payload('configuration', payload)
 
-            def has_children(parent):
-                if parent in [row['child'] for row in result2['rows']]:
-                    return True
-                return False
+        # SELECT DISTINCT child FROM category_children
+        payload2 = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
+        result2 = await self._storage.query_tbl_with_payload('category_children', payload2)
 
-            for row in result['rows']:
-                if not has_children(row['parent']):
-                    p = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", row['parent']]).payload()
-                    r = await self._storage.query_tbl_with_payload('configuration', p)
-                    group_info.append((r['rows'][0]['key'], r['rows'][0]['description']))
-        else:
-            # SELECT DISTINCT child FROM category_children WHERE child IN (SELECT parent FROM category_children);
-            payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
-            result = await self._storage.query_tbl_with_payload('category_children', payload)
-            # TODO: FOGL-668 Need support for subquery
-            payload2 = PayloadBuilder().SELECT("parent").payload()
-            result2 = await self._storage.query_tbl_with_payload('category_children', payload2)
+        list_child = [row['child'] for row in result2['rows']]
 
-            def is_parent(child):
-                if child in [row['parent'] for row in result2['rows']]:
-                    return True
-                return False
+        list_root = []
+        list_not_root = []
 
-            for row in result['rows']:
-                if is_parent(row['child']):
-                    p = PayloadBuilder().SELECT("key", "description").WHERE(["key", "=", row['child']]).payload()
-                    r = await self._storage.query_tbl_with_payload('configuration', p)
-                    group_info.append((r['rows'][0]['key'], r['rows'][0]['description']))
+        for row in result['rows']:
+            if row["key"] in list_child:
+                list_not_root.append((row["key"], row["description"]))
+            else:
+                list_root.append((row["key"], row["description"]))
 
-        return group_info
+        return list_root if root else list_not_root
 
     async def _read_category_val(self, category_name):
         # SELECT configuration.key, configuration.description, configuration.value,
@@ -292,9 +273,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # UPDATE foglamp.configuration
             # SET value = jsonb_set(value, '{retainUnsent,value}', '"12"')
             # WHERE key='PURGE_READ'
-            payload = PayloadBuilder().SELECT("key", "description", "ts", "value")\
-                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val))\
-                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))\
+            payload = PayloadBuilder().SELECT("key", "description", "ts", "value") \
+                .JSON_PROPERTY(("value", [item_name, "value"], new_value_val)) \
+                .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                 .WHERE(["key", "=", category_name]).payload()
             await self._storage.update_tbl("configuration", payload)
             audit = AuditLogger(self._storage)
@@ -322,16 +303,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         """Get all category names in the FogLAMP system
 
         Args:
-            root: If true will return only categories that have no parent.
-                  If root is set to false then it will return categories that do have a parent
+            root: If true then select all keys from categories table and then filter out
+                  that are children of another category. So the root categories are those
+                  entries in configuration table that do not appear in distinct child in category_children
+                  If false then it will return distinct child in category_childreb
                   If root is None then it will return all categories
         Return Values:
-        a list of tuples (string category_name, string category_description)
-        None
+                    a list of tuples (string category_name, string category_description)
         """
         try:
-           info = await self._read_all_groups(root) if root is not None else await self._read_all_category_names()
-           return info
+            info = await self._read_all_groups(root) if root is not None else await self._read_all_category_names()
+            return info
         except:
             _logger.exception(
                 'Unable to read all category names')
@@ -772,9 +754,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     del self._registered_interests[category_name]
 
     def _validate_type_value(self, _type, _value):
-
         # TODO: Not implemented for password and X509 certificate type
-
         def _str_to_bool(item_val):
             return item_val.lower() in ("true", "false")
 
@@ -804,7 +784,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return _str_to_ipaddress(_value)
 
     def _clean(self, item_type, item_val):
-
         if item_type == 'boolean':
             return item_val.lower()
 

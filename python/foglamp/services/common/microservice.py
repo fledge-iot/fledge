@@ -50,15 +50,25 @@ class FoglampMicroservice(FoglampProcess):
     _protocol = "http"
     """ communication protocol """
 
-    def __init__(self, default_config):
+    def __init__(self):
         super().__init__()
         try:
+            # Configuration handled through the Configuration Manager
+            default_config = {
+                'local_services': {
+                    'description': 'Restrict microservice to localhost',
+                    'type': 'string',
+                    'default': '127.0.0.1',
+                }
+            }
+
             loop = asyncio.get_event_loop()
 
-            # ----- Ref: FOGL-1155. We need to fetch host from configuration of plugin
-            category = self._name
+            # ----- Ref: FOGL-1155/1439.
+            # TODO: Add parent category "GENERAL" post merger of FOGL-1432
+            category = "Security"
             config = default_config
-            config_descr = '{} South plugin'.format(self._name)
+            config_descr = 'Microservices Security'
             config_payload = json.dumps({
                 "key": category,
                 "description": config_descr,
@@ -67,7 +77,7 @@ class FoglampMicroservice(FoglampProcess):
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
-            host = config['management_host']['value']
+            host = config['local_services']['value']
             # -----
 
             self._make_microservice_management_app()

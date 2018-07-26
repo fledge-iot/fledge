@@ -229,6 +229,7 @@ ConfigCategory ConfigurationManager::getCategoryAllItems(const string& categoryN
  * @param categoryName		The category name
  * @param categoryDescription	The category description
  * @param categoryItems		The category items
+ * @param keepOriginalItems	Keep stored iterms or replace them
  * @return			The ConfigCategory object
  *				with "value" and "default"
  *				of the new category added
@@ -241,7 +242,8 @@ ConfigCategory ConfigurationManager::getCategoryAllItems(const string& categoryN
 
 ConfigCategory ConfigurationManager::createCategory(const std::string& categoryName,
 						    const std::string& categoryDescription,
-						    const std::string& categoryItems) const
+						    const std::string& categoryItems,
+						    bool keepOriginalItems) const
 {
 	// Fill the ready to insert category object with input data
 	ConfigCategory preparedValue(categoryName, categoryItems);
@@ -339,13 +341,18 @@ ConfigCategory ConfigurationManager::createCategory(const std::string& categoryN
 			Document::AllocatorType& allocator = doc.GetAllocator();
 			Value inputValues = doc.GetObject();
 
-			/** Merge input data with stored data:
-			 * Note: stored configuration items are always replaced
-			 * in this current implementation: no merge with found items.
+			/**
+			 * Merge input data with stored data:
+			 * stored configuration items are merged or replaced
+			 * accordingly to keepOriginalItems parameter value.
+			 *
 			 * Items "value" are preserved for items being updated, only "default" values
 			 * are overwritten.
 			 */
-			mergeCategoryValues(inputValues, storedData, allocator);
+			mergeCategoryValues(inputValues,
+					    storedData,
+					    allocator,
+					    keepOriginalItems);
 
 			// Create the new JSON string representation of merged category items
 			rapidjson::StringBuffer buffer;
@@ -419,9 +426,8 @@ ConfigCategory ConfigurationManager::createCategory(const std::string& categoryN
 /**
  * Merge the input data with stored data:
  *
- * NOTE:
- * the stored configuration items are always replaced
- * in this current implementation: there is no merge with found items.
+ * The stored configuration items are merged with new ones if
+ * paramter keepOriginalItems is true otherwise they are replaced.
  *
  * The confguration items "value" objects are preserved
  * for the item names being updated, only the "default" values
@@ -441,16 +447,19 @@ ConfigCategory ConfigurationManager::createCategory(const std::string& categoryN
  * that entry is completely replaced by the new one "value" : {"item_1" : { ...}}
  *
  *
- * @param newValues	JSON document with new inout configuration items
- * @param storedValues	Current stored values in storage layer
- * @throw		NotSupportedDataType exception
+ * @param inputValues		New inout configuration items
+ * @param storedValues		Current stored items in storage layer
+ * @param keepOriginalItems	Keep stored items or replace them
+ * @throw			NotSupportedDataType exception
  */
 
 void ConfigurationManager::mergeCategoryValues(Value& inputValues,
 						const Value* storedValues,
-						Document::AllocatorType& allocator) const
+						Document::AllocatorType& allocator,
+						bool keepOriginalItems) const
 {
 	// Loop throught input data
+	// For each item fetch the value of stored one, if existent
 	for (Value::MemberIterator itr = inputValues.MemberBegin(); itr != inputValues.MemberEnd(); ++itr)
 	{
 		// Get current item name
@@ -461,12 +470,15 @@ void ConfigurationManager::mergeCategoryValues(Value& inputValues,
 
 		if (storedItr != storedValues->MemberEnd() && storedItr->value.IsObject())
 		{
-			// Remove current "value"
+			// Item name is present in stored data
+
+			// 1. Remove current "value"
 			itr->value.EraseMember("value");
-			// Get itemName "value" in stored data
+			// 2. Get itemName "value" in stored data
 			auto& v = storedItr->value.GetObject()["value"];
 			Value object;
 
+			// 3. Set new value
 			switch (v.GetType())
 			{
 				// String
@@ -482,19 +494,47 @@ void ConfigurationManager::mergeCategoryValues(Value& inputValues,
 				{
 					rapidjson::StringBuffer strbuf;
 					rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-					Value tmpObj;
 					v.Accept(writer);
 					object.SetString(strbuf.GetString(), allocator);
 					itr->value.AddMember("value", object, allocator);
 
 					break;
 				}
-				// Object & Array not supported yet
+				//  Array and numbers not supported yet
 				default:
 				{
 					throw NotSupportedDataType();
 					break;
 				}
+			}
+		}
+	}
+
+	// Add stored items not found in input items only if we want to keep them.
+	if (keepOriginalItems == true)
+	{
+		Value::ConstMemberIterator itr;
+
+		// Loop throught stored data
+		for (itr = storedValues->MemberBegin(); itr != storedValues->MemberEnd(); ++itr )
+		{
+			string itemName = itr->name.GetString();
+
+			// Find the itemName in the inout data
+			Value::MemberIterator inputItr = inputValues.FindMember(itemName.c_str());
+
+			if (inputItr == inputValues.MemberEnd())
+			{
+				// Set item name
+				Value name(itemName.c_str(), allocator);
+				
+				Value object;
+				object.SetObject();
+				// Object copy
+				object.CopyFrom(itr->value, allocator);
+				
+				// Add the new object
+				inputValues.AddMember(name, object, allocator);
 			}
 		}
 	}

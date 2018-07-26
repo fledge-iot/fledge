@@ -63,6 +63,8 @@ void getServiceWrapper(shared_ptr<HttpServer::Response> response,
 		if (foundService)
 		{
 			// Set JSON string with service details
+			// Note: the service UUID is missing at the time being
+			// TODO add all API required fields
 			foundService->asJSON(payload);
 		}
 		else
@@ -790,6 +792,24 @@ void CoreManagementApi::createCategory(shared_ptr<HttpServer::Response> response
 {
 	try
 	{
+		bool keepOriginalItems = false;
+
+		// Get query_string
+		string queryString = request->query_string;
+
+		size_t pos = queryString.find("keep_original_items");
+		if (pos != std::string::npos)
+		{
+			string paramValue = queryString.substr(pos + strlen("keep_original_items="));
+
+			for (auto &c: paramValue) c = tolower(c);
+
+			if (paramValue.compare("true") == 0)
+			{
+				keepOriginalItems = true;
+			}	
+		}
+
 		// Get POST data
 		string payload = request->content.string();
 
@@ -827,7 +847,8 @@ void CoreManagementApi::createCategory(shared_ptr<HttpServer::Response> response
 		// Create the new config category
 		ConfigCategory items = m_config->createCategory(categoryName,
 								categoryDescription,
-								sItems);
+								sItems,
+								keepOriginalItems);
 
 		// Return JSON string of the new created category
 		this->respond(response, items.toJSON());

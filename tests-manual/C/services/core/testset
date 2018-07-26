@@ -10,6 +10,8 @@ GetCategoryItemName GET http://localhost:_CORE_PORT_/foglamp/service/category/te
 GetCategoryNonExistingItemName GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/foobar
 CreateCategory_a POST http://localhost:_CORE_PORT_/foglamp/service/category create_category_a.json
 CreateCategory_b POST http://localhost:_CORE_PORT_/foglamp/service/category create_category_b.json
+UpdateCategoryKeepItems_b POST http://localhost:_CORE_PORT_/foglamp/service/category?keep_original_items=true create_category_update_b.json
+UpdateCreateCategory_b POST http://localhost:_CORE_PORT_/foglamp/service/category?keep_original_items=false create_category_b.json
 AddChildCategories POST http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children add_child_categories.json
 AddSameChildCategories POST http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children add_child_categories.json
 GetChildCategories GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children

@@ -76,11 +76,38 @@ TEST(ConfigurationManagerTest, addCategoryWithDefaultValues)
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
 	{
+		// Don't force keep_original_items, just use the default (false)
 		ConfigCategory category = cfgManager->createCategory("testcategory", "category_description", "{\"item_1\": {\"description\": \"Test\", \"type\": \"string\", \"default\": \"ONE\"}, \"item_2\": {\"description\": \"test_2\", \"type\": \"string\", \"default\": \"____\"}}");
 
 		// Test success
 		ASSERT_EQ(2, category.getCount());
 		ASSERT_EQ(0, category.getDescription().compare("category_description"));
+	}
+	catch (...)
+	{
+		// Test failure
+		ASSERT_FALSE(true);
+	}
+}
+
+// Update category and keep original items
+TEST(ConfigurationManagerTest, updateCategoryKeepItems)
+{
+	// Before the test start the storage layer with FOGLAMP_DATA=.
+	// TCP port will be 8080
+	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+	try
+	{
+		// Force keep_original_items = true
+		ConfigCategory category = cfgManager->createCategory("testcategory",
+								     "category_description_merge",
+								     "{\"item_99\": {\"description\": \"TestMerge\", "
+								     "\"type\": \"string\", \"default\": \"99\"}}",
+								     true);
+
+		// Test success
+		ASSERT_EQ(3, category.getCount());
+		ASSERT_EQ(0, category.getDescription().compare("category_description_merge"));
 	}
 	catch (...)
 	{
@@ -97,7 +124,8 @@ TEST(ConfigurationManagerTest, UpdateCategory)
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
 	{
-		ConfigCategory category = cfgManager->createCategory("testcategory", "category_description", "{\"item_1\": {\"description\": \"run\", \"type\": \"string\", \"default\": \"TWO\"}, \"item_3\": {\"description\": \"test_3\", \"type\": \"string\", \"default\": \"_3_\"}, \"item_4\": {\"description\": \"the operation\", \"type\": \"integer\", \"default\": \"101\"}}");
+		// Force keep_original_items = false (which is the default)
+		ConfigCategory category = cfgManager->createCategory("testcategory", "category_description", "{\"item_1\": {\"description\": \"run\", \"type\": \"string\", \"default\": \"TWO\"}, \"item_3\": {\"description\": \"test_3\", \"type\": \"string\", \"default\": \"_3_\"}, \"item_4\": {\"description\": \"the operation\", \"type\": \"integer\", \"default\": \"101\"}}", false);
 
 		// item_1 gets updated
 		// item_2 is removed
@@ -224,6 +252,51 @@ TEST(ConfigurationManagerTest, SetCategoryNotExistingItemValue)
 	}
 }
 
+
+// Create category A
+TEST(ConfigurationManagerTest, addCategoryA)
+{       
+        // Before the test start the storage layer with FOGLAMP_DATA=.
+        // TCP port will be 8080
+        ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+        try
+        {       
+                // Don't force keep_original_items, just use the default (false)
+                ConfigCategory category = cfgManager->createCategory("CAT_A", "category_A", "{\"item_1\": {\"description\": \"CAT_A\", \"type\": \"string\", \"default\": \"a\"}}");
+                
+                // Test success
+                ASSERT_EQ(1, category.getCount());
+                ASSERT_EQ(0, category.getDescription().compare("category_A"));
+        }
+        catch (...)
+        {       
+                // Test failure
+                ASSERT_FALSE(true);
+        }
+}
+
+// Create category B
+TEST(ConfigurationManagerTest, addCategoryB)
+{       
+        // Before the test start the storage layer with FOGLAMP_DATA=.
+        // TCP port will be 8080
+        ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
+        try
+        {       
+                // Don't force keep_original_items, just use the default (false)
+                ConfigCategory category = cfgManager->createCategory("CAT_B", "category_B", "{\"item_1\": {\"description\": \"CAT_B\", \"type\": \"string\", \"default\": \"b\"}}");
+                
+                // Test success
+                ASSERT_EQ(1, category.getCount());
+                ASSERT_EQ(0, category.getDescription().compare("category_B"));
+        }
+        catch (...)
+        {       
+                // Test failure
+                ASSERT_FALSE(true);
+        }
+}
+
 // Add child categories
 // Success when adding 2 or 1 child categories
 TEST(ConfigurationManagerTest, AddChildCategories)
@@ -233,7 +306,7 @@ TEST(ConfigurationManagerTest, AddChildCategories)
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
 	{
-		string childCategories = cfgManager->addChildCategory("testcategory", "{\"children\": [\"COAP\", \"HTTP_SOUTH\"]}");
+		string childCategories = cfgManager->addChildCategory("testcategory", "{\"children\": [\"CAT_A\", \"CAT_B\"]}");
 	
 		// Test success
 		ASSERT_TRUE(true);
@@ -256,7 +329,7 @@ TEST(ConfigurationManagerTest, AddExistingChildCategories)
 	ConfigurationManager *cfgManager = ConfigurationManager::getInstance("127.0.0.1", 8080);
 	try
 	{
-		string childCategories = cfgManager->addChildCategory("testcategory", "{\"children\": [\"COAP\", \"HTTP_SOUTH\"]}");
+		string childCategories = cfgManager->addChildCategory("testcategory", "{\"children\": [\"CAT_A\", \"CAT_B\"]}");
 	
 		// Test failure
 		ASSERT_FALSE(true);
@@ -374,7 +447,7 @@ TEST(ConfigurationManagerTest, DeleteChildCategory)
 		ConfigCategories beginChildCategories = cfgManager->getChildCategories("testcategory");
 		int numChildCategories = beginChildCategories.length();
 
-		string childCategories = cfgManager->deleteChildCategory("testcategory", "COAP");
+		string childCategories = cfgManager->deleteChildCategory("testcategory", "CAT_B");
 
 		ConfigCategories endChildCategories = cfgManager->getChildCategories("testcategory");
 		int finalChildCategories = endChildCategories.length();
@@ -409,4 +482,3 @@ TEST(ConfigurationManagerTest, DeleteCategory)
 		ASSERT_FALSE(true);
 	}
 }
-

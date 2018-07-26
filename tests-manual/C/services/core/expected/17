@@ -1,1 +1,1 @@
-{ "categories" : [{"key": "CAT_B", "description" : "category_b"}] }
+{ "categories" : [{"key": "CAT_A", "description" : "category_A"}, {"key": "CAT_B", "description" : "category_b"}] }

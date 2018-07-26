@@ -31,7 +31,8 @@ class ConfigurationManager {
 		// POST /foglamp/category
 		ConfigCategory			createCategory(const std::string& categoryName,
 							       const std::string& categoryDescription,
-							       const std::string& categoryItems) const;
+							       const std::string& categoryItems,
+							       bool keepOriginalIterms = false) const;
 		// Called by microservice management API or the admin API:
 		// GET /foglamp/service/category/{categoryName}/{configItem}
 		// GET /foglamp/category/{categoryName}/{configItem}
@@ -76,7 +77,8 @@ class ConfigurationManager {
 		~ConfigurationManager();
 		void		mergeCategoryValues(rapidjson::Value& inputValues,
 						    const rapidjson::Value* storedValues,
-						    rapidjson::Document::AllocatorType& allocator) const;
+						    rapidjson::Document::AllocatorType& allocator,
+						    bool keepOriginalitems) const;
 		// Internal usage
 		std::string	fetchChildCategories(const std::string& parentCategoryName) const;
 		std::string	getCategoryDescription(const std::string& categoryName) const;

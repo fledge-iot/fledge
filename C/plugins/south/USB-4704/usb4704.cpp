@@ -10,8 +10,9 @@
 #include <usb4704.h>
 #include <reading.h>
 #include <bdaqctrl.h>
+#include <logger.h>
 
-#define      deviceDescription  L"FogLAMP4704,BID#0"
+#define      deviceDescription  L"USB-4704,BID#0"
 
 using namespace std;
 using namespace Automation::BDaq;
@@ -49,8 +50,10 @@ void USB4704::addAnalogueConnection(const std::string& name, const std::string& 
 	{
 		m_instantAiCtrl = AdxInstantAiCtrlCreate();
 		DeviceInformation devInfo(deviceDescription);
-		if (BioFailed(m_instantAiCtrl->setSelectedDevice(devInfo)))
+		ErrorCode ret = m_instantAiCtrl->setSelectedDevice(devInfo);
+		if (BioFailed(ret))
 		{
+			Logger::getLogger()->error("Failed to initialise USB-4704, error code %x", ret);
 			throw USB4704InitialisationFailed();
 		}
 		m_analogueChannelMax = m_instantAiCtrl->getFeatures()->getChannelCountMax();
@@ -91,11 +94,13 @@ USB4704::Analogue::Analogue(const string& name, const string& pin, double scale)
 {
 	if (pin.compare(0, 2, "AI") != 0)
 	{
+		Logger::getLogger()->error("USB-4704 invalid pin definition");
 		throw InvalidPin(pin);
 	}
 	m_channel = atoi(&(pin.c_str())[2]);
 	if (m_channel < 0 || m_channel > 7)
 	{
+		Logger::getLogger()->error("USB-4704 invalid pin definition");
 		throw InvalidPin(pin);
 	}
 

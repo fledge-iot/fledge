@@ -111,6 +111,7 @@ USB4704 *usb = 0;
 				}
 				else
 				{
+					Logger::getLogger()->error("Analogue connection for USB-4704 is missing definition of pin");
 					throw exception();
 				}
 			}

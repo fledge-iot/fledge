@@ -128,6 +128,10 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 	} catch (exception& ex) {
 		m_logger->error("Failed to query readings: %s", ex.what());
 		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to query readings: %s", ex->what());
+		delete ex;
+		throw exception();
 	}
 	return 0;
 }
@@ -160,6 +164,10 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 	} catch (exception& ex) {
 		m_logger->error("Failed to fetch readings: %s", ex.what());
 		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to fetch readings: %s", ex->what());
+		delete ex;
+		throw exception();
 	}
 	return 0;
 }
@@ -189,6 +197,10 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 	} catch (exception& ex) {
 		m_logger->error("Failed to purge readings: %s", ex.what());
 		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to purge readings: %s", ex->what());
+		delete ex;
+		throw exception();
 	}
 	return PurgeResult();
 }
@@ -217,6 +229,10 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 	} catch (exception& ex) {
 		m_logger->error("Failed to fetch readings: %s", ex.what());
 		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to fetch readings: %s", ex->what());
+		delete ex;
+		throw exception();
 	}
 	return PurgeResult();
 }
@@ -248,6 +264,49 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 	} catch (exception& ex) {
 		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex.what());
 		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex->what());
+		delete ex;
+		throw exception();
+	}
+	return 0;
+}
+
+/**
+ * Query a table and return a ReadingSet pointer
+ *
+ * @param tablename	The name of the table to query
+ * @param query		The query payload
+ * @return ReadingSet*	The resultset of the query as
+ *			ReadingSet class pointer
+ */
+ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
+						const Query& query)
+{
+	try {
+		ostringstream convert;
+
+		convert << query.toJSON();
+		char url[128];
+		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
+
+		auto res = m_client->request("PUT", url, convert.str());
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ReadingSet* result = new ReadingSet(resultPayload.str().c_str());
+			return result;
+		}
+		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
+	} catch (exception& ex) {
+		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex.what());
+		throw;
+	} catch (exception* ex) {
+		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex->what());
+		delete ex;
+		throw exception();
 	}
 	return 0;
 }

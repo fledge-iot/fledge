@@ -298,7 +298,7 @@ You can check the status of FogLAMP with the ``foglamp status`` command. For few
   FogLAMP starting.
   $
   $ scripts/foglamp status
-  FogLAMP v1.3 running.
+  FogLAMP v1.3.1 running.
   FogLAMP uptime:  175 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -703,7 +703,7 @@ Here are some extra notes for the CentOS users.
 
 .. code-block:: console
 
-  Starting FogLAMP v1.3.FogLAMP cannot start.
+  Starting FogLAMP v1.3.1.FogLAMP cannot start.
   Check /home/foglamp/FogLAMP/data/core.err for more information.
 
 Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP running, it means that the services are up and running.
@@ -711,11 +711,11 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
 .. code-block:: console
 
   $ foglamp start
-  Starting FogLAMP v1.3.FogLAMP cannot start.
+  Starting FogLAMP v1.3.1.FogLAMP cannot start.
   Check /home/foglamp/FogLAMP/data/core.err for more information.
   $
   $ foglamp status
-  FogLAMP v1.3 running.
+  FogLAMP v1.3.1 running.
   FogLAMP uptime:  6 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.
@@ -738,7 +738,7 @@ Check the *core.err* file, but if it is empty and *foglamp status* shows FogLAMP
 .. code-block:: console
 
   $ foglamp status
-  FogLAMP v1.3 running.
+  FogLAMP v1.3.1 running.
   FogLAMP uptime:  6 seconds.
   FogLAMP Records: 0 read, 0 sent, 0 purged.
   FogLAMP does not require authentication.

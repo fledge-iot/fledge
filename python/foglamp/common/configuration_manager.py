@@ -212,18 +212,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _read_all_groups(self, root):
         # SELECT key, description FROM configuration
         payload = PayloadBuilder().SELECT("key", "description").payload()
-        result = await self._storage.query_tbl_with_payload('configuration', payload)
+        all_categories = await self._storage.query_tbl_with_payload('configuration', payload)
 
         # SELECT DISTINCT child FROM category_children
-        payload2 = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
-        result2 = await self._storage.query_tbl_with_payload('category_children', payload2)
+        unique_category_children_payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).payload()
+        unique_category_children = await self._storage.query_tbl_with_payload('category_children', unique_category_children_payload)
 
-        list_child = [row['child'] for row in result2['rows']]
-
+        list_child = [row['child'] for row in unique_category_children['rows']]
         list_root = []
         list_not_root = []
 
-        for row in result['rows']:
+        for row in all_categories['rows']:
             if row["key"] in list_child:
                 list_not_root.append((row["key"], row["description"]))
             else:

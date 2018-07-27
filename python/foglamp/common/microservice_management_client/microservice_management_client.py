@@ -232,9 +232,15 @@ class MicroserviceManagementClient(object):
         :param category_data: e.g. '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}'
         :return:
         """
-        url = '/foglamp/service/category'
+        data = json.loads(category_data)
+        if 'keep_original_items' in data:
+            keep_original_item = 'true' if data['keep_original_items'] is True else 'false'
+            url = '/foglamp/service/category?keep_original_items={}'.format(keep_original_item)
+            del data['keep_original_items']
+        else:
+            url = '/foglamp/service/category'
 
-        self._management_client_conn.request(method='POST', url=url, body=category_data)
+        self._management_client_conn.request(method='POST', url=url, body=json.dumps(data))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)

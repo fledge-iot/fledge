@@ -120,7 +120,7 @@ class TestService:
         ({"name": "a;b", "plugin": "dht11", "type": "south"}, 400, "Invalid name property in payload."),
         ({"name": "test", "plugin": "dht@11", "type": "south"}, 400, "Invalid plugin property in payload."),
         ({"name": "test", "plugin": "dht11", "type": "south", "enabled": "blah"}, 400,
-         'Only "t", "f", "true", "false" are allowed for value of enabled.'),
+         'Only "true", "false", True, False are allowed for value of enabled.'),
         ({"name": "test", "plugin": "dht11"}, 400, "Missing type property in payload."),
         ({"name": "test", "plugin": "dht11", "type": "blah"}, 400, "Only south type is supported."),
         ({"name": "test", "plugin": "dht11", "type": "North"}, 406, "north type is not supported for the time being.")

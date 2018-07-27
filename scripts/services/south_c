@@ -1,0 +1,15 @@
+#!/bin/sh
+# Run a FogLAMP south service written in C/C++
+if [ "${FOGLAMP_ROOT}" = "" ]; then
+	FOGLAMP_ROOT=/usr/local/foglamp
+fi
+
+if [ ! -d "${FOGLAMP_ROOT}" ]; then
+	logger "FogLAMP home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+cd "${FOGLAMP_ROOT}"
+
+./services/south "$@"
+

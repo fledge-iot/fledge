@@ -64,7 +64,6 @@ class FoglampMicroservice(FoglampProcess):
 
             loop = asyncio.get_event_loop()
 
-            # ----- Ref: FOGL-1155/1439.
             category = "Security"
             config = default_config
             config_descr = 'Microservices Security'

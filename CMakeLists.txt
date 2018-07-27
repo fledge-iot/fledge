@@ -9,6 +9,6 @@ add_subdirectory(C/plugins/storage/sqlite)
 add_subdirectory(C/plugins/storage/sqlitememory)
 add_subdirectory(C/services/south)
 add_subdirectory(C/plugins/south/dummy)
-add_subdirectory(C/plugins/south/dht11)
+#add_subdirectory(C/plugins/south/dht11)     # TODO: this has dependency on libwiringPi C library, which cannot be installed automatically presently in build process, so commenting out dht11 plugin build step for now.
 add_subdirectory(C/tasks/north)
 add_subdirectory(C/plugins/north/omf)

@@ -79,7 +79,6 @@ class FoglampMicroservice(FoglampProcess):
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
             is_local_services = True if config['local_services']['value'].lower() in ['true', 't', '1', 1] else False
             host = '127.0.0.1' if is_local_services is True else '0.0.0.0'
-            # -----
 
             self._make_microservice_management_app()
             self._run_microservice_management_app(loop, host)

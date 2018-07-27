@@ -28,8 +28,7 @@ _CLEAR_PENDING_TASKS_TIMEOUT = 5
 class Server(FoglampMicroservice):
     """" Implements the South Microservice """
 
-    # Configuration handled through the Configuration Manager
-    _DEFAULT_CONFIG = {}
+    _DEFAULT_CONFIG = {}  # South Server configuration which will get updated with process configuration from DB.
 
     _PLUGIN_MODULE_PATH = "foglamp.plugins.south"
 

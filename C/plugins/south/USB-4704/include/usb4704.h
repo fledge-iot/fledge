@@ -22,6 +22,7 @@ class USB4704
 		~USB4704();
 		void			setAssetName(const std::string& asset);
 		void			addAnalogueConnection(const std::string& name, const std::string& pin, double scale);
+		void			addDigitalConnection(const std::string& name, const std::vector<std::string>& pin);
 		Reading			takeReading();
 	private:
 		class Analogue {
@@ -36,9 +37,21 @@ class USB4704
 				int32_t		m_channel;
 				
 		};
+		class Digital {
+			public:
+				Digital(const std::string& name, const std::vector<std::string>& pins);
+				std::string 	getName() { return m_name; };
+				uint8_t		getValue(Automation::BDaq::InstantDiCtrl *ctrl);
+			private:
+				std::string	m_name;
+				uint8_t		m_pinMask;
+				
+		};
 		std::string				m_asset;
 		std::vector<Analogue *>			m_analogue;
+		std::vector<Digital *>			m_digital;
 		Automation::BDaq::InstantAiCtrl		*m_instantAiCtrl;
+		Automation::BDaq::InstantDiCtrl		*m_instantDiCtrl;
 		int					m_analogueChannelMax;
 };
 

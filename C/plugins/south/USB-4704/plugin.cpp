@@ -19,6 +19,7 @@
 #include <rapidjson/document.h>
 
 using namespace std;
+using namespace rapidjson;
 
 /**
  * Default configuration
@@ -117,7 +118,16 @@ USB4704 *usb = 0;
 			}
 			else if (strcmp(type, "digital") == 0)
 			{
-				// TODO add support for digitial inputs
+				if (itr->value.HasMember("pins") && itr->value["pins"].IsArray())
+				{
+					vector<string> pins;
+					for (Value::ConstValueIterator pitr = itr->value.Begin();
+								pitr != itr->value.End(); ++pitr)
+					{
+						pins.push_back(string(pitr->GetString()));
+					}
+					usb->addDigitalConnection(itr->name.GetString(), pins);
+				}
 			}
 			else
 			{

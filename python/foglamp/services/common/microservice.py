@@ -65,7 +65,6 @@ class FoglampMicroservice(FoglampProcess):
             loop = asyncio.get_event_loop()
 
             # ----- Ref: FOGL-1155/1439.
-            # TODO: Add parent category "GENERAL" post merger of FOGL-1432
             category = "Security"
             config = default_config
             config_descr = 'Microservices Security'
@@ -76,6 +75,8 @@ class FoglampMicroservice(FoglampProcess):
                 "keep_original_items": True
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
+            # TODO: Uncomment below line and remove this TODO post merger of FOGL-1432
+            # self._core_microservice_management_client.create_child_category("General", ["Security"])
             config = self._core_microservice_management_client.get_configuration_category(category_name=category)
             is_local_services = True if config['local_services']['value'].lower() == 'true' else False
             host = '127.0.0.1' if is_local_services is True else '0.0.0.0'

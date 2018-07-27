@@ -54,13 +54,15 @@ class SendingProcess : public FogLampProcess
 						    return m_update_db;
 		};
 		unsigned long		getReadBlockSize() const { return m_block_size; };
+		const std::string& 	getDataSourceType() const { return m_data_source_t; };
 
 	private:
 		void			setDuration(unsigned int val) { m_duration = val; };
 		void			setSleepTime(unsigned long val) { m_sleep = val; };
 		void			setReadBlockSize(unsigned long size) { m_block_size = size; };
 		bool			loadPlugin(const std::string& pluginName);
-		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defaultConfig, std::string plugin_name);
+		const std::map<std::string, std::string>& fetchConfiguration(const std::string& defCfg,
+									     const std::string& plugin_name);
 		// Make private the copy constructor and operator=
 		SendingProcess(const SendingProcess &);
                 SendingProcess&		operator=(SendingProcess const &);
@@ -82,7 +84,7 @@ class SendingProcess : public FogLampProcess
 		bool				m_update_db;
     		std::string			m_plugin_name;
                 Logger*			        m_logger;
-
+		std::string			m_data_source_t;
 };
 
 #endif

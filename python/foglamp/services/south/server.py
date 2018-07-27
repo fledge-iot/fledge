@@ -28,14 +28,7 @@ _CLEAR_PENDING_TASKS_TIMEOUT = 5
 class Server(FoglampMicroservice):
     """" Implements the South Microservice """
 
-    # Configuration handled through the Configuration Manager
-    _DEFAULT_CONFIG = {
-        'management_host': {
-            'description': 'Management host',
-            'type': 'string',
-            'default': '127.0.0.1',
-        }
-    }
+    _DEFAULT_CONFIG = {}  # South Server configuration which will get updated with process configuration from DB.
 
     _PLUGIN_MODULE_PATH = "foglamp.plugins.south"
 
@@ -65,7 +58,7 @@ class Server(FoglampMicroservice):
     _task_main = None
 
     def __init__(self):
-        super().__init__(self._DEFAULT_CONFIG)
+        super().__init__()
 
     async def _start(self, loop) -> None:
         error = None

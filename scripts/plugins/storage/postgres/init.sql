@@ -1001,8 +1001,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 1,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '01:00:00',                             -- schedule_interval (evey hour)
-                't',                                   -- exclusive
-                'f'                                    -- enabled
+                true,                                   -- exclusive
+                false                                   -- disabled
               );
 
 -- Readings OMF to PI

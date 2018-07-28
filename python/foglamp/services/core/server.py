@@ -894,6 +894,28 @@ class Server:
             raise web.HTTPException(reason=str(ex))
 
     @classmethod
+    async def restart(cls, request):
+        """ Restart the core microservice and its components """
+        try:
+
+            await cls._stop()
+            loop = request.loop
+            # allow some time
+            await asyncio.sleep(2.0, loop=loop)
+            _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
+            loop.stop()
+
+            cmd_with_args = ['python3', '-m', 'foglamp.services.core']
+            subprocess.call(cmd_with_args, cwd=_FOGLAMP_ROOT)
+
+            return web.json_response({'message': 'FogLAMP stopped successfully. '
+                                                 'Wait for few seconds for restart.'})
+        except TimeoutError as err:
+            raise web.HTTPInternalServerError(reason=str(err))
+        except Exception as ex:
+            raise web.HTTPException(reason=str(ex))
+
+    @classmethod
     async def register_interest(cls, request):
         """ Register an interest in a configuration category
 

@@ -28,6 +28,7 @@ __version__ = "${VERSION}"
 def setup(app):
     app.router.add_route('GET', '/foglamp/ping', api_common.ping)
     app.router.add_route('PUT', '/foglamp/shutdown', api_common.shutdown)
+    app.router.add_route('PUT', '/foglamp/restart', api_common.restart)
 
     # user
     app.router.add_route('GET', '/foglamp/user', auth.get_user)

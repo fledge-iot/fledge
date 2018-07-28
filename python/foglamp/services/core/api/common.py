@@ -70,11 +70,24 @@ async def ping(request):
     data_sent = get_sent_stats()
     data_purged = get_stats('PURGED')
 
+    import socket
+    h_name = socket.gethostname()
+
+    import subprocess
+    result = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE)
+    ip_addresses = result.stdout.decode('utf-8').replace("\n", "").strip().split(" ")
+    # ip_addresses = ', '.join(ip_addresses)
+
+    health = "Running"  # return from enum FAILED, DOWN, UNRESPONSIVE when its a microservice
     return web.json_response({'uptime': since_started,
                               'dataRead': data_read,
                               'dataSent': data_sent,
                               'dataPurged': data_purged,
-                              'authenticationOptional': request.is_auth_optional
+                              'authenticationOptional': request.is_auth_optional,
+                              'serviceName': server.Server._service_name,
+                              'hostName': h_name,
+                              'ipAddresses': ip_addresses,
+                              'health': health
                               })
 
 

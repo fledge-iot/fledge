@@ -206,7 +206,17 @@ class TestService:
                             assert 'Internal Server Error' == resp.reason
                         assert 0 == patch_create_cat.call_count
 
-    async def test_add_service(self, client):
+    p1 = '{"name": "furnace4", "type": "south", "plugin": "dht11"}'
+    p2 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": false}'
+    p3 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": true}'
+    p4 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": "true"}'
+    p5 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": "false"}'
+
+    @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5])
+    async def test_add_service(self, client, payload):
+
+        data = json.loads(payload)
+
         async def async_mock(return_value):
             return return_value
 
@@ -250,7 +260,7 @@ class TestService:
         mock.configure_mock(**attrs)
 
         server.Server.scheduler = Scheduler(None, None)
-        data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
+
         description = "Modbus RTU plugin"
 
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -264,7 +274,7 @@ class TestService:
                         with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
                             with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
                                 with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                    resp = await client.post('/foglamp/service', data=json.dumps(data))
+                                    resp = await client.post('/foglamp/service', data=payload)
                                     server.Server.scheduler = None
                                     assert 200 == resp.status
                                     result = await resp.text()

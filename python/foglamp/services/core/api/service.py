@@ -101,7 +101,7 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Only south type is supported.')
         if enabled is not None:
             if enabled not in ['true', 'false', True, False]:
-                raise web.HTTPBadRequest(reason='Only "true", "false", True, False'
+                raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
                                                 ' are allowed for value of enabled.')
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False

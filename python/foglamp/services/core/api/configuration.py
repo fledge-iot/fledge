@@ -85,8 +85,10 @@ async def create_category(request):
             curl -d '{"key": "TEST", "description": "description", "value": {"info": {"description": "Test", "type": "boolean", "default": "true"}}}' -X POST http://localhost:8081/foglamp/category
     """
     keep_original_items = None
-    if 'keep_original_items' in request.query and urllib.parse.unquote(request.query['keep_original_items']) != '':
-        keep_original_items = urllib.parse.unquote(request.query['keep_original_items'])
+    if 'keep_original_items' in request.query and request.query['keep_original_items'] != '':
+        keep_original_items = request.query['keep_original_items'].lower()
+        if keep_original_items not in ['true', 'false']:
+            raise ValueError("Only 'true' and 'false' are allowed for keep_original_items. {} given.".format(keep_original_items))
 
     try:
         cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -103,7 +105,7 @@ async def create_category(request):
         category_desc = data.get('description')
         category_value = data.get('value')
 
-        should_keep_original_items = True if keep_original_items is not None and keep_original_items.lower() in ['true', '1', 1, 't'] else False
+        should_keep_original_items = True if keep_original_items == 'true' else False
 
         await cf_mgr.create_category(category_name=category_name, category_description=category_desc,
                                      category_value=category_value, keep_original_items=should_keep_original_items)

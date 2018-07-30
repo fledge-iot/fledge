@@ -5,7 +5,6 @@
 # FOGLAMP_END
 
 
-import builtins
 import asyncio
 import json
 from aiohttp import web
@@ -115,19 +114,35 @@ class TestService:
         assert 6 == log_patch_info.call_count
 
     @pytest.mark.parametrize("payload, code, message", [
-        ("blah", 404, "Data payload must be a dictionary"),
-        ({}, 400, "Missing name property in payload."),
-        ({"name": "test"}, 400, "Missing plugin property in payload."),
-        ({"name": "test", "plugin": "dht11"}, 400, "Missing type property in payload."),
-        ({"name": "test", "plugin": "dht11", "type": "blah"}, 400, "Only north and south types are supported.")
+        ('"blah"', 404, "Data payload must be a dictionary"''),
+        ('{}', 400, "Missing name property in payload."),
+        ('{"name": "test"}', 400, "Missing plugin property in payload."),
+        ('{"name": "a;b", "plugin": "dht11", "type": "south"}', 400, "Invalid name property in payload."),
+        ('{"name": "test", "plugin": "dht@11", "type": "south"}', 400, "Invalid plugin property in payload."),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "blah"}', 400,
+         'Only "true", "false", true, false are allowed for value of enabled.'),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "t"}', 400,
+         'Only "true", "false", true, false are allowed for value of enabled.'),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "True"}', 400,
+         'Only "true", "false", true, false are allowed for value of enabled.'),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "False"}', 400,
+         'Only "true", "false", true, false are allowed for value of enabled.'),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "1"}', 400,
+         'Only "true", "false", true, false are allowed for value of enabled.'),
+        ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
+         'Only "true", "false", true, false are allowed for value of enabled.'),
+        ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south type is supported."),
+        ('{"name": "test", "plugin": "dht11", "type": "North"}', 406, "north type is not supported for the time being.")
     ])
     async def test_add_service_with_bad_params(self, client, code, payload, message):
-        resp = await client.post('/foglamp/service', data=json.dumps(payload))
+        resp = await client.post('/foglamp/service', data=payload)
         assert code == resp.status
         assert message == resp.reason
 
     async def test_dupe_process_name_add_service(self, client):
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
+
         async def async_mock():
             expected = {'count': 1, 'rows': [{'name': 'furnace4'}]}
             return expected
@@ -145,7 +160,7 @@ class TestService:
                 assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "furnace4"}} == p
 
     async def test_insert_scheduled_process_exception_add_service(self, client):
-        data = {"name": "furnace4", "type": "north", "plugin": "dht11"}
+        data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
         @asyncio.coroutine
         def async_mock():
@@ -186,7 +201,7 @@ class TestService:
             expected = {'rows_affected': 1, "response": "inserted"}
             return expected
 
-        data = {"name": "furnace4", "type": "north", "plugin": "dht11"}
+        data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         description = '{} service configuration'.format(data['name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -201,7 +216,17 @@ class TestService:
                             assert 'Internal Server Error' == resp.reason
                         assert 0 == patch_create_cat.call_count
 
-    async def test_add_service(self, client):
+    p1 = '{"name": "furnace4", "type": "south", "plugin": "dht11"}'
+    p2 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": false}'
+    p3 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": true}'
+    p4 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": "true"}'
+    p5 = '{"name": "furnace4", "type": "south", "plugin": "dht11", "enabled": "false"}'
+
+    @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5])
+    async def test_add_service(self, client, payload):
+
+        data = json.loads(payload)
+
         async def async_mock(return_value):
             return return_value
 
@@ -245,7 +270,7 @@ class TestService:
         mock.configure_mock(**attrs)
 
         server.Server.scheduler = Scheduler(None, None)
-        data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
+
         description = "Modbus RTU plugin"
 
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -259,7 +284,7 @@ class TestService:
                         with patch.object(c_mgr, 'create_category', return_value=async_mock(None)) as patch_create_cat:
                             with patch.object(server.Server.scheduler, 'save_schedule', return_value=async_mock("")) as patch_save_schedule:
                                 with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                    resp = await client.post('/foglamp/service', data=json.dumps(data))
+                                    resp = await client.post('/foglamp/service', data=payload)
                                     server.Server.scheduler = None
                                     assert 200 == resp.status
                                     result = await resp.text()

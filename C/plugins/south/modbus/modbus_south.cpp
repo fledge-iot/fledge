@@ -57,6 +57,16 @@ Modbus::~Modbus()
 }
 
 /**
+ * Set the slave ID of the modbus node we are interacting with
+ *
+ * @param slave		The modbus slave ID
+ */
+void Modbus::setSlave(int slave)
+{
+	modbus_set_slave(m_modbus, slave);
+}
+
+/**
  * Take a reading from the modbus
  */
 Reading	Modbus::takeReading()

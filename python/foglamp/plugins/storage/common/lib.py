@@ -777,6 +777,8 @@ class BackupRestoreLib(object):
             self._CONFIG_CATEGORY_NAME,
             self._CONFIG_DEFAULT,
             self._CONFIG_CATEGORY_DESCRIPTION))
+        _event_loop.run_until_complete(cfg_manager.create_child_category(
+            "Utilities", [self._CONFIG_CATEGORY_NAME]))
         self._config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                                    (self._CONFIG_CATEGORY_NAME))
         self._decode_configuration_from_manager(self._config_from_manager)

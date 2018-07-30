@@ -739,6 +739,12 @@ CREATE TABLE foglamp.backups (
 -- FogLAMP DB version
 CREATE TABLE foglamp.version (id CHAR(10));
 
+-- Create the cnfiguration category_children table
+CREATE TABLE foglamp.category_children (
+       parent	character varying(255)	NOT NULL,
+       child	character varying(255)	NOT NULL,
+       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+
 -- Grants to foglamp schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA foglamp TO PUBLIC;
 

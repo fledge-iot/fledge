@@ -905,8 +905,8 @@ class Server:
             _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
             loop.stop()
 
-            cmd_with_args = ['python3', '-m', 'foglamp.services.core']
-            subprocess.call(cmd_with_args, cwd=_FOGLAMP_ROOT)
+            python3 = sys.executable
+            os.execl(python3, python3, *sys.argv)
 
             return web.json_response({'message': 'FogLAMP stopped successfully. '
                                                  'Wait for few seconds for restart.'})

@@ -25,9 +25,9 @@ using namespace rapidjson;
  * Default configuration
  */
 #define CONFIG	"{\"plugin\" : { \"description\" : \"Advantech USB-4704 Data Acquisition Module\", " \
-			"\"type\" : \"string\", \"default\" : \"usb-4704\" }, " \
+			"\"type\" : \"string\", \"default\" : \"usb4704\" }, " \
 		"\"asset\" : { \"description\" : \"Asset name to use for readings\", " \
-			"\"type\" : \"string\", \"default\" : \"usb-4704\" }, " \
+			"\"type\" : \"string\", \"default\" : \"usb4704\" }, " \
 		"\"connections\" : { \"description\" : \"Utilisation of connections on USB-4704\", " \
 			"\"type\" : \"JSON\", \"default\" : { " \
 				"\"analogue_example\" : { " \
@@ -53,7 +53,7 @@ extern "C" {
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"usb-4704",               // Name
+	"usb4704",                // Name
 	"1.0.0",                  // Version
 	0,    			  // Flags
 	PLUGIN_TYPE_SOUTH,        // Type

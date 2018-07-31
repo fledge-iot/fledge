@@ -7,12 +7,19 @@
 import asyncio
 import time
 import json
-from foglamp.common import logger
+import logging
+import socket
+import subprocess
+
 from aiohttp import web
+
+from foglamp.common import logger
 from foglamp.services.core import server
 from foglamp.services.core.api.statistics import get_statistics
 from foglamp.services.core import connect
 from foglamp.common.configuration_manager import ConfigurationManager
+from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+from foglamp.common.service_record import ServiceRecord
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -21,12 +28,13 @@ __version__ = "${VERSION}"
 
 __start_time = time.time()
 
-_logger = logger.setup(__name__, level=20)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 _help = """
     -------------------------------------------------------------------------------
     | GET             | /foglamp/ping                                             |
     | PUT             | /foglamp/shutdown                                         |
+    | PUT             | /foglamp/restart                                          |
     -------------------------------------------------------------------------------
 """
 
@@ -56,39 +64,23 @@ async def ping(request):
     since_started = time.time() - __start_time
 
     stats_request = request.clone(rel_url='foglamp/statistics')
-    stats_res = await get_statistics(stats_request)
-    stats = json.loads(stats_res.body.decode())
+    data_read, data_sent, data_purged = await get_stats(stats_request)
 
-    def get_stats(k):
-        v = [s['value'] for s in stats if s['key'] == k]
-        return int(v[0])
+    host_name = socket.gethostname()
+    # all addresses for the host
+    all_ip_addresses_cmd_res = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE)
+    ip_addresses = all_ip_addresses_cmd_res.stdout.decode('utf-8').replace("\n", "").strip().split(" ")
 
-    def get_sent_stats():
-        return sum([int(s['value']) for s in stats if s['key'].startswith('SENT_')])
-
-    data_read = get_stats('READINGS')
-    data_sent = get_sent_stats()
-    data_purged = get_stats('PURGED')
-
-    import socket
-    h_name = socket.gethostname()
-
-    import subprocess
-    result = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE)
-    ip_addresses = result.stdout.decode('utf-8').replace("\n", "").strip().split(" ")
-
-
-    from foglamp.services.core.service_registry.service_registry import ServiceRegistry
-    from foglamp.common.service_record import ServiceRecord
+    svc_name = server.Server._service_name
 
     def services_health_litmus_test():
-        all_svc_status = [ServiceRecord.Status(int(service_record._status)).name.lower()
+        all_svc_status = [ServiceRecord.Status(int(service_record._status)).name.upper()
                           for service_record in ServiceRegistry.all()]
-        if 'down' in all_svc_status:
+        if 'DOWN' in all_svc_status:
             return 'red'
-        elif 'failed' in all_svc_status:
+        elif 'FAILED' in all_svc_status:
             return 'red'
-        elif 'unresponsive' in all_svc_status:
+        elif 'UNRESPONSIVE' in all_svc_status:
             return 'amber'
         return 'green'
 
@@ -99,11 +91,34 @@ async def ping(request):
                               'dataSent': data_sent,
                               'dataPurged': data_purged,
                               'authenticationOptional': request.is_auth_optional,
-                              'serviceName': server.Server._service_name,
-                              'hostName': h_name,
+                              'serviceName': svc_name,
+                              'hostName': host_name,
                               'ipAddresses': ip_addresses,
                               'health': status_color
                               })
+
+
+async def get_stats(req):
+    """
+    :param req: a clone of 'foglamp/statistics' endpoint request
+    :return:  data_read, data_sent, data_purged
+    """
+
+    res = await get_statistics(req)
+    stats = json.loads(res.body.decode())
+
+    def filter_stat(k):
+        v = [s['value'] for s in stats if s['key'] == k]
+        return int(v[0])
+
+    def filter_sent_stat():
+        return sum([int(s['value']) for s in stats if s['key'].startswith('SENT_')])
+
+    data_read = filter_stat('READINGS')
+    data_sent = filter_sent_stat()
+    data_purged = filter_stat('PURGED')
+
+    return data_read, data_sent, data_purged
 
 
 async def shutdown(request):

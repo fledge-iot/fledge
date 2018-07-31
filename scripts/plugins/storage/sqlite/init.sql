@@ -556,6 +556,11 @@ CREATE TABLE foglamp.backups (
 -- FogLAMP DB version: keeps the schema version id
 CREATE TABLE foglamp.version (id CHAR(10));
 
+-- Create the cnfiguration category_children table
+CREATE TABLE foglamp.category_children (
+       parent	character varying(255)	NOT NULL,
+       child	character varying(255)	NOT NULL,
+       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -615,6 +620,13 @@ INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North_Readings_to_PI',
               'OMF North Plugin - C Code',
               ' { "plugin" : { "type" : "string", "value" : "omf", "default" : "omf", "description" : "Module that OMF North Plugin will load" } } '
+            );
+
+-- dht11 - South plugin for DHT11 - C
+INSERT INTO foglamp.configuration ( key, description, value )
+     VALUES ( 'dht11',
+              'DHT11 South C Plugin',
+              ' { "plugin" : { "type" : "string", "value" : "dht11", "default" : "dht11", "description" : "Module that DHT11 South Plugin will load" } } '
             );
 
 -- North_Statistics_to_PI - OMF Translator for statistics
@@ -696,6 +708,10 @@ INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Reading
 --
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Readings_to_PI',   '["tasks/north_c"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North_Statistics_to_PI', '["tasks/north_c"]' );
+
+-- South Tasks - C code
+--
+INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'dht11',   '["services/south_c"]' );
 
 --
 -- Schedules
@@ -819,6 +835,19 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 'f'                                     -- disabled
               );
 
+
+-- DHT11 sensor south plugin - C Code
+INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '6b25f4d9-c7f3-4fc8-bd4a-4cf79f7055ca', -- id
+                'dht11',                                -- schedule_name
+                'dht11',                                -- process_name
+                1,                                      -- schedule_type (interval)
+                NULL,                                   -- schedule_time
+                '01:00:00',                             -- schedule_interval (evey hour)
+                't',                                    -- exclusive
+                'f'                                     -- enabled
+              );
 
 -- Readings OMF to PI
 INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,

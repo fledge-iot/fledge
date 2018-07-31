@@ -517,6 +517,31 @@ class Server:
                 total_count) + " rows, 'foglamp.streams' last_objects reset is not required")
 
     @classmethod
+    async def _config_parents(cls):
+        # Create the parent category for all general configuration categories
+        try:
+            await cls._configuration_manager.create_category("General", {}, 'General', True)
+            await cls._configuration_manager.create_child_category("General", ["service", "rest_api"])
+        except KeyError:
+            _logger.error('Failed to create General parent configuration category for service')
+            raise
+
+        # Create the parent category for all advanced configuration categories
+        try:
+            await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
+        except KeyError:
+            _logger.error('Failed to create Advanced parent configuration category for service')
+            raise
+
+        # Create the parent category for all Utilities configuration categories
+        try:
+            await cls._configuration_manager.create_category("Utilities", {}, "Utilities", True)
+        except KeyError:
+            _logger.error('Failed to create Utilities parent configuration category for task')
+            raise
+
+    @classmethod
     def _start_core(cls, loop=None):
         _logger.info("start core")
 
@@ -587,6 +612,9 @@ class Server:
             # registering now only when service_port is ready to listen the request
             # TODO: if ssl then register with protocol https
             cls._register_core(host, cls.core_management_port, service_server_port)
+
+            # Create the configuration category parents
+            loop.run_until_complete(cls._config_parents())
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
@@ -904,6 +932,28 @@ class Server:
 
             return web.json_response({'message': 'FogLAMP stopped successfully. '
                                                  'Wait for few seconds for process cleanup.'})
+        except TimeoutError as err:
+            raise web.HTTPInternalServerError(reason=str(err))
+        except Exception as ex:
+            raise web.HTTPException(reason=str(ex))
+
+    @classmethod
+    async def restart(cls, request):
+        """ Restart the core microservice and its components """
+        try:
+
+            await cls._stop()
+            loop = request.loop
+            # allow some time
+            await asyncio.sleep(2.0, loop=loop)
+            _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
+            loop.stop()
+
+            python3 = sys.executable
+            os.execl(python3, python3, *sys.argv)
+
+            return web.json_response({'message': 'FogLAMP stopped successfully. '
+                                                 'Wait for few seconds for restart.'})
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:

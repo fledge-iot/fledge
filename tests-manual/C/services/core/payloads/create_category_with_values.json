@@ -1,0 +1,9 @@
+{
+    "key" : "testcategory",
+    "description" : "create_category_with_value_and_default_properties",
+    "value" :
+        {
+           "info": {"description": "Test", "type": "string", "default": "ONE", "value" : "ONE"},
+           "detail": {"description": "detail", "type": "integer", "default" : "99"}
+        }
+}

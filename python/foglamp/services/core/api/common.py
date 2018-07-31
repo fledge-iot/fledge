@@ -108,3 +108,20 @@ def do_shutdown(request):
     except RuntimeError as e:
         _logger.exception("Error while stopping FogLAMP server: {}".format(str(e)))
         raise
+
+
+async def restart(request):
+    """
+    :Example:
+            curl -X PUT http://localhost:8081/foglamp/restart
+    """
+    _logger.info("Executing controlled shutdown and start")
+    try:
+        asyncio.ensure_future(server.Server.restart(request), loop=request.loop)
+        return web.json_response({'message': 'FogLAMP restart has been scheduled.'})
+    except TimeoutError as e:
+        _logger.exception("Error while stopping FogLAMP server: %s", e)
+        raise web.HTTPInternalServerError(reason=e)
+    except Exception as ex:
+        _logger.exception("Error while stopping FogLAMP server: %s", ex)
+        raise web.HTTPException(reason=ex)

@@ -51,6 +51,51 @@ class TestConfiguration:
                 assert result == json_response
             patch_get_all_items.assert_called_once_with()
 
+    @pytest.mark.parametrize("value", [
+        "True", "true", "trUe", "TRUE"
+    ])
+    async def test_get_categories_with_root_true(self, client, value):
+        async def async_mock():
+            return [('General', 'General'), ('Advanced', 'Advanced')]
+
+        result = {'categories': [{'key': 'General', 'description': 'General'},
+                                 {'key': 'Advanced', 'description': 'Advanced'}]}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_all_category_names', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.get('/foglamp/category?root={}'.format(value))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_get_all_items.assert_called_once_with(root=True)
+
+    @pytest.mark.parametrize("value", [
+        "False", "false", "fAlsE", "FALSE"
+    ])
+    async def test_get_categories_with_root_false(self, client, value):
+        async def async_mock():
+            return [('service', 'FogLAMP Service'), ('rest_api', 'FogLAMP Admin and User REST API'),
+                    ('SMNTR', 'Service Monitor'), ('SCHEDULER', 'Scheduler configuration')]
+
+        result = {'categories': [{'key': 'service', 'description': 'FogLAMP Service'},
+                                 {'key': 'rest_api', 'description': 'FogLAMP Admin and User REST API'},
+                                 {'key': 'SMNTR', 'description': 'Service Monitor'},
+                                 {'key': 'SCHEDULER', 'description': 'Scheduler configuration'}]}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_all_category_names', return_value=async_mock()) as patch_get_all_items:
+                resp = await client.get('/foglamp/category?root={}'.format(value))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_get_all_items.assert_called_once_with(root=False)
+
     async def test_get_category_not_found(self, client, category_name='blah'):
         async def async_mock():
             return None
@@ -290,7 +335,7 @@ class TestConfiguration:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             resp = await client.post('/foglamp/category', data=json.dumps(payload))
             assert 400 == resp.status
-            assert "keep_original_items should be boolean true | false" == resp.reason
+            assert "Specifying value_name and value_val for item_name info is not allowed if desired behavior is to use default_val as value_val" == resp.reason
 
     async def test_create_category_invalid_category(self, client, name="test_cat", desc="Test desc"):
         info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
@@ -391,7 +436,6 @@ class TestConfiguration:
         def async_audit_mock(return_value):
             return return_value
 
-
         @asyncio.coroutine
         def async_mock_expected():
             expected = {'rows_affected': 1, "response": "updated"}
@@ -431,3 +475,100 @@ class TestConfiguration:
             resp = await client.post('/foglamp/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
+
+    async def test_get_child_category(self, client):
+        @asyncio.coroutine
+        def async_mock():
+            return []
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_child', return_value=async_mock()) as patch_get_child_cat:
+                resp = await client.get('/foglamp/category/south/children')
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"categories": []} == json_response
+        patch_get_child_cat.assert_called_once_with('south')
+
+    async def test_create_child_category(self, client):
+        data = {"children": ["coap", "http", "sinusoid"]}
+        result = {"management_host": {"description": "Management host", "type": "string", "default": "127.0.0.1"}, "children": data["children"]}
+
+        @asyncio.coroutine
+        def async_mock():
+            return result
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'create_child_category', return_value=async_mock()) as patch_create_child_cat:
+                resp = await client.post('/foglamp/category/{}/children'.format("south"), data=json.dumps(data))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert result == json_response
+            patch_create_child_cat.assert_called_once_with('south', data['children'])
+
+    async def test_delete_child_category(self, client):
+        @asyncio.coroutine
+        def async_mock():
+            return ["http", "sinusoid"]
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'delete_child_category', return_value=async_mock()) as patch_delete_child_cat:
+                resp = await client.delete('/foglamp/category/{}/children/{}'.format("south", "coap"))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"children": ["http", "sinusoid"]} == json_response
+            patch_delete_child_cat.assert_called_once_with('south', 'coap')
+
+    async def test_delete_parent_category(self, client):
+        @asyncio.coroutine
+        def async_mock():
+            return None
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'delete_parent_category', return_value=async_mock()) as patch_delete_parent_cat:
+                resp = await client.delete('/foglamp/category/{}/parent'.format("south"))
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {'message': 'Parent-child relationship for the parent-south is deleted'} == json_response
+            patch_delete_parent_cat.assert_called_once_with('south')
+
+    async def test_create_category_with_children(self, client, name="test_cat", desc="Test desc"):
+        info = {'info': {'type': 'boolean', 'value': 'False', 'description': 'Test', 'default': 'False'}}
+        children = ["child1", "child2"]
+        payload = {"key": name, "description": desc, "value": info, "children": children}
+
+        async def async_mock_create_cat():
+            return None
+
+        async def async_mock():
+            return info
+
+        async def async_mock2():
+            return {"children": children}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'create_category', return_value=async_mock_create_cat()) as patch_create_cat:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=async_mock()) as patch_cat_all_item:
+                    with patch.object(c_mgr, 'create_child_category', return_value=async_mock2()) as patch_create_child:
+                        resp = await client.post('/foglamp/category', data=json.dumps(payload))
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        json_response = json.loads(r)
+                        assert payload == json_response
+                    patch_create_child.assert_called_once_with(name, payload["children"])
+                patch_cat_all_item.assert_called_once_with(category_name=name)
+            patch_create_cat.assert_called_once_with(category_name=name, category_description=desc,
+                                                     category_value=info, keep_original_items=False)

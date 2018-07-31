@@ -82,6 +82,7 @@ _MESSAGES_LIST = {
     "e000027": "Required argument '--address' is missing - command line |{0}|",
     "e000028": "cannot complete the fetch operation - error details |{0}|",
     "e000029": "an error occurred  during the teardown operation - error details |{0}|",
+    "e000030": "unable to create parent configurtion category",
 }
 """ Messages used for Information, Warning and Error notice """
 
@@ -786,8 +787,16 @@ class SendingProcess(FoglampProcess):
                 "keep_original_items": cat_keep_original
             })
             self._core_microservice_management_client.create_configuration_category(config_payload)
-            _config_from_manager = self._core_microservice_management_client.get_configuration_category(
-                category_name=cat_name)
+            _config_from_manager = self._core_microservice_management_client.get_configuration_category(category_name=cat_name)
+
+            # Create the parent category for all north services
+            try:
+                parent_payload = json.dumps({"key": "North", "description": "North tasks", "value": {},
+                                             "children": [cat_name], "keep_original_items": True})
+                self._core_microservice_management_client.create_configuration_category(parent_payload)
+            except KeyError:
+                _LOGGER.error("Failed to create North parent configuration category for sending process")
+                raise
             return _config_from_manager
         except Exception:
             SendingProcess._logger.error(_MESSAGES_LIST["e000003"])

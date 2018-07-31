@@ -28,11 +28,11 @@ _DEFAULT_CONFIG = {
         'default': 'coap_listen',
         'value': 'coap_listen'
     },
-    'management_host': {
-        'description': 'Management host',
-        'type': 'string',
-        'default': '127.0.0.1',
-        'value': '127.0.0.1',
+    'local_services': {
+        'description': 'Restrict microservice to localhost',
+        'type': 'boolean',
+        'default': 'false',
+        'value': 'false',
     }
 }
 
@@ -73,7 +73,7 @@ class TestFoglampMicroservice:
     def test_constructor_good(self, loop):
         class FoglampMicroserviceImp(FoglampMicroservice):
             def __init__(self):
-                super().__init__(_DEFAULT_CONFIG)
+                super().__init__()
 
             def run(self):
                 pass
@@ -117,7 +117,7 @@ class TestFoglampMicroservice:
     def test_constructor_exception(self, loop):
         class FoglampMicroserviceImp(FoglampMicroservice):
             def __init__(self):
-                super().__init__(_DEFAULT_CONFIG)
+                super().__init__()
 
             def run(self):
                 pass
@@ -145,7 +145,7 @@ class TestFoglampMicroservice:
     async def test_ping(self, loop):
         class FoglampMicroserviceImp(FoglampMicroservice):
             def __init__(self):
-                super().__init__(_DEFAULT_CONFIG)
+                super().__init__()
 
             def run(self):
                 pass

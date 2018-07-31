@@ -5,6 +5,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
 set(UUIDLIB -luuid)
+set(COMMON_LIB -lcommon-lib)
+set(SERVICE_COMMON_LIB -lservices-common-lib)
 
 include_directories(. include ../../thirdparty/Simple-Web-Server ../../thirdparty/rapidjson/include  ../common/include ../../common/include)
 
@@ -26,14 +28,15 @@ if(APPLE)
 endif()
 
 file(GLOB storage_src "*.cpp")
-file(GLOB service_common_src "../common/*.cpp")
-file(GLOB common_src "../../common/*.cpp")
+link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
 add_executable(storage ${storage_src} ${service_common_src} ${common_src})
 target_link_libraries(storage ${Boost_LIBRARIES})
 target_link_libraries(storage ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(storage ${DLLIB})
 target_link_libraries(storage ${UUIDLIB})
+target_link_libraries(storage ${COMMON_LIB})
+target_link_libraries(storage ${SERVICE_COMMON_LIB})
 
 install(TARGETS storage RUNTIME DESTINATION foglamp/services)
 

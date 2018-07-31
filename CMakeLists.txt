@@ -3,7 +3,11 @@ project (FogLAMP)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 
+add_subdirectory(C/common)
+add_subdirectory(C/services/common)
+add_subdirectory(C/plugins/common)
 add_subdirectory(C/services/storage)
+add_subdirectory(C/plugins/storage/common)
 add_subdirectory(C/plugins/storage/postgres)
 add_subdirectory(C/plugins/storage/sqlite)
 add_subdirectory(C/plugins/storage/sqlitememory)

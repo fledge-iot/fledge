@@ -20,7 +20,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 file(GLOB SOURCES *.cpp)
 
 # Include header files
-include_directories(include ../../common/include ../../thirdparty/Simple-Web-Server)
+include_directories(include ../../common/include ../../services/common/include ../../thirdparty/Simple-Web-Server)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
 
@@ -30,7 +30,7 @@ target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Create get_plugin_info utility
-add_executable(get_plugin_info get_plugin_info.c)
+add_executable(get_plugin_info get_plugin_info.cpp)
 target_link_libraries(get_plugin_info -ldl)
 
 # Install library

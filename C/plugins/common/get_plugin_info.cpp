@@ -4,17 +4,6 @@
 #include <dlfcn.h>
 #include "plugin_api.h"
 
-#if 0
-typedef struct {
-  const char  *name;
-  const char  *version;
-  unsigned int  options;
-  const char  *type;
-  const char  *interface;
-  const char  *config;
-} PLUGIN_INFORMATION;
-#endif
-
 typedef PLUGIN_INFORMATION *(*func_t)();
 
 int main(int argc, char *argv[])

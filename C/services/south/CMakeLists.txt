@@ -36,7 +36,7 @@ target_link_libraries(south ${Boost_LIBRARIES})
 target_link_libraries(south ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(south ${DLLIB})
 target_link_libraries(south ${UUIDLIB})
-target_link_libraries(south  ${COMMON_LIB})
+target_link_libraries(south ${COMMON_LIB})
 target_link_libraries(south ${SERVICE_COMMON_LIB})
 
 install(TARGETS south RUNTIME DESTINATION foglamp/services)

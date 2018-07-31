@@ -38,6 +38,8 @@ class SimpleHttps: public HttpSender
 				const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
 				const std::string& payload = std::string());
+
+                std::string getHostPort() { return m_host_port; };
 	private:
 		// Make private the copy constructor and operator=
 		SimpleHttps(const SimpleHttps&);

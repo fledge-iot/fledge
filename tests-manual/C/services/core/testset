@@ -1,0 +1,23 @@
+EmptyChildCategories GET http://localhost:_CORE_PORT_/foglamp/service/category/test_cat/children
+GetCategoryName GET http://localhost:_CORE_PORT_/foglamp/service/category/PURGE_READ
+GetNonExistentCategoryName GET http://localhost:_CORE_PORT_/foglamp/service/category/NOT_EXISTENT
+GetNonExistentCategoryItemName GET http://localhost:_CORE_PORT_/foglamp/service/category/NOT_EXISTENT/item_456
+DeleteCategoryItemValue DELETE http://localhost:_CORE_PORT_/foglamp/service/category/PURGE_READ/age/value
+SetCategoryItemValue PUT http://localhost:_CORE_PORT_/foglamp/service/category/PURGE_READ/age setvalue.json
+FailureCreateCategory POST http://localhost:_CORE_PORT_/foglamp/service/category create_category_with_values.json
+CreateCategory POST http://localhost:_CORE_PORT_/foglamp/service/category create_category.json
+GetCategoryItemName GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/info
+GetCategoryNonExistingItemName GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/foobar
+CreateCategory_a POST http://localhost:_CORE_PORT_/foglamp/service/category create_category_a.json
+CreateCategory_b POST http://localhost:_CORE_PORT_/foglamp/service/category create_category_b.json
+UpdateCategoryKeepItems_b POST http://localhost:_CORE_PORT_/foglamp/service/category?keep_original_items=true create_category_update_b.json
+UpdateCreateCategory_b POST http://localhost:_CORE_PORT_/foglamp/service/category?keep_original_items=false create_category_b.json
+AddChildCategories POST http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children add_child_categories.json
+AddSameChildCategories POST http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children add_child_categories.json
+GetChildCategories GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children
+DeleteChildCategory_a DELETE http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children/CAT_A
+GetRemainingChildCategories GET http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children
+DeleteNonExistentChildCategory DELETE http://localhost:_CORE_PORT_/foglamp/service/category/testcategory/children/CAT_XYZ
+DeleteCategoryName_a DELETE http://localhost:_CORE_PORT_/foglamp/service/category/CAT_A
+DeleteCategoryName_b DELETE http://localhost:_CORE_PORT_/foglamp/service/category/CAT_B
+DeleteCategoryName DELETE http://localhost:_CORE_PORT_/foglamp/service/category/testcategory

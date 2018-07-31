@@ -30,8 +30,6 @@ endif()
 
 file(GLOB sending_process_src "*.cpp")
 
-message("PROJECT_BINARY_DIR: ${PROJECT_BINARY_DIR}")
-
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
 add_executable(sending_process ${sending_process_src})

@@ -15,7 +15,7 @@ link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
-#target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIBS})
+target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIBS})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library

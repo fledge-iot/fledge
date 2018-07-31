@@ -14,11 +14,6 @@ include_directories(include ../services/common/include ../common/include ../thir
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
 
-message("CMAKE_CURRENT_LIST_FILE: ${CMAKE_CURRENT_LIST_FILE}")
-message("CMAKE_BUILD_DIR: ${CMAKE_BUILD_DIR}")
-message("PROJECT_BINARY_DIR: ${PROJECT_BINARY_DIR}")
-message("PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
-
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})

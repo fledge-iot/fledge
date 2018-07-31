@@ -158,8 +158,9 @@ async def restart(request):
     :Example:
             curl -X PUT http://localhost:8081/foglamp/restart
     """
-    _logger.info("Executing controlled shutdown and start")
+
     try:
+        _logger.info("Executing controlled shutdown and start")
         asyncio.ensure_future(server.Server.restart(request), loop=request.loop)
         return web.json_response({'message': 'FogLAMP restart has been scheduled.'})
     except TimeoutError as e:

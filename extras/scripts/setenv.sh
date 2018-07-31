@@ -33,3 +33,5 @@ export FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
 
 export PATH="${FOGLAMP_ROOT}/bin:${PATH}"
 
+export LD_LIBRARY_PATH="${FOGLAMP_ROOT}/lib:$LD_LIBRARY_PATH"
+

@@ -218,6 +218,7 @@ You can call the script from your shell or you can add the same command to your 
   export FOGLAMP_DATA="${FOGLAMP_ROOT}/data"
 
   export PATH="${FOGLAMP_ROOT}/bin:${PATH}"
+  export LD_LIBRARY_PATH="${FOGLAMP_ROOT}/lib:${LD_LIBRARY_PATH}"
 
   $ source /usr/local/foglamp/extras/scripts/setenv.sh
   $

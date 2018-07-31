@@ -76,9 +76,24 @@ async def ping(request):
     import subprocess
     result = subprocess.run(['hostname', '-I'], stdout=subprocess.PIPE)
     ip_addresses = result.stdout.decode('utf-8').replace("\n", "").strip().split(" ")
-    # ip_addresses = ', '.join(ip_addresses)
 
-    health = "Running"  # return from enum FAILED, DOWN, UNRESPONSIVE when its a microservice
+
+    from foglamp.services.core.service_registry.service_registry import ServiceRegistry
+    from foglamp.common.service_record import ServiceRecord
+
+    def services_health_litmus_test():
+        all_svc_status = [ServiceRecord.Status(int(service_record._status)).name.lower()
+                          for service_record in ServiceRegistry.all()]
+        if 'down' in all_svc_status:
+            return 'red'
+        elif 'failed' in all_svc_status:
+            return 'red'
+        elif 'unresponsive' in all_svc_status:
+            return 'amber'
+        return 'green'
+
+    status_color = services_health_litmus_test()
+
     return web.json_response({'uptime': since_started,
                               'dataRead': data_read,
                               'dataSent': data_sent,
@@ -87,7 +102,7 @@ async def ping(request):
                               'serviceName': server.Server._service_name,
                               'hostName': h_name,
                               'ipAddresses': ip_addresses,
-                              'health': health
+                              'health': status_color
                               })
 
 

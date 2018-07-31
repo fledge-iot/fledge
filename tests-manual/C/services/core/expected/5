@@ -1,0 +1,1 @@
+{"age" : { "description" : "Age of data to be retained (in hours). All data older than this value will be removed,unless retained.", "type" : "integer", "value" : "", "default" : "72" }}

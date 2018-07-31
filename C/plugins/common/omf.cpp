@@ -8,6 +8,7 @@
  * Author: Massimiliano Pinto
  */
 
+
 #include <iostream>
 #include <string>
 #include <omf.h>
@@ -96,13 +97,22 @@ bool OMF::sendDataTypes(const Reading& row) const
 		res = m_sender.sendRequest("POST", m_path, resType, typeData);
 		if (res != 200 && res != 204)
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type' error: HTTP code %d", res);
+			Logger::getLogger()->error("Sending JSON dataType message 'Type' error: HTTP code |%d| - HostPort |%s| - path |%s| - message |%s|",
+						   res,
+						   m_sender.getHostPort().c_str(),
+						   m_path.c_str(),
+						   typeData.c_str() );
 			return false;
 		}
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Type' error: %s", e.what());
+                Logger::getLogger()->error("Sending JSON dataType message 'Type' error |%s| - HostPort |%s| - path |%s| - message |%s|",
+                                           e.what(),
+                                           m_sender.getHostPort().c_str(),
+                                           m_path.c_str(),
+                                           typeData.c_str() );
+
 		return false;
 	}
 

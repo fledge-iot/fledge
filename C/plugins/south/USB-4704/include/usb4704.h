@@ -20,7 +20,7 @@ class USB4704
 	public:
 		USB4704();
 		~USB4704();
-		void			setAssetName(const std::string& asset);
+		void			setAssetName(const std::string& asset) { m_asset = asset; };
 		void			addAnalogueConnection(const std::string& name, const std::string& pin, double scale);
 		void			addDigitalConnection(const std::string& name, const std::vector<std::string>& pin);
 		Reading			takeReading();

@@ -1071,6 +1071,11 @@ class Server:
         return res
 
     @classmethod
+    async def create_child_category(cls, request):
+        res = await conf_api.create_child_category(request)
+        return res
+
+    @classmethod
     async def get_configuration_category(cls, request):
         res = await conf_api.get_category(request)
         return res

@@ -115,7 +115,8 @@ static void loadDataThread(SendingProcess *loadData)
                 if (canLoad)
                 {
 			Logger::getLogger()->info("SendingProcess loadDataThread: "
-						  "(stream id %d), readIdx %u, buffer is NOT empty, waiting ...",
+						  "('%s' stream id %d), readIdx %u, buffer is NOT empty, waiting ...",
+						  loadData->getDataSourceType().c_str(),
 						  loadData->getStreamId(),
 						  readIdx);
 
@@ -129,12 +130,52 @@ static void loadDataThread(SendingProcess *loadData)
 			ReadingSet* readings = NULL;
 			try
 			{
-				// Read from storage all readings with id > last sent id
-				unsigned long lastReadId = loadData->getLastSentId() + 1;
-
+				bool isReading = !loadData->getDataSourceType().compare("statistics") ? false : true; 
 				//high_resolution_clock::time_point t1 = high_resolution_clock::now();
-				readings = loadData->getStorageClient()->readingFetch(lastReadId,
-										      loadData->getReadBlockSize());
+				if (isReading)
+				{
+					// Read from storage all readings with id > last sent id
+					unsigned long lastReadId = loadData->getLastSentId() + 1;
+					readings = loadData->getStorageClient()->readingFetch(lastReadId,
+											      loadData->getReadBlockSize());
+				}
+				else
+				{
+					// SELECT id,
+					//	  key AS asset_code,
+					//	  key AS read_key,
+					//	  ts,
+					//	  history_ts AS user_ts,
+					//	  value
+					// FROM statistic_history
+					// WHERE id > lastId
+					// ORDER BY ID ASC
+					// LIMIT blockSize
+					const Condition conditionId(GreaterThan);
+					// WHERE id > lastId
+					Where* wId = new Where("id",
+								conditionId,
+								to_string(loadData->getLastSentId()));
+					vector<Returns *> columns;
+					// Add colums and needed aliases
+					columns.push_back(new Returns("id"));
+					columns.push_back(new Returns("key", "asset_code"));
+					columns.push_back(new Returns("key", "read_key"));
+					columns.push_back(new Returns("ts"));
+					columns.push_back(new Returns("history_ts", "user_ts"));
+					columns.push_back(new Returns("value"));
+					// Build the query with fields, aliases and where
+					Query qStatistics(columns, wId);
+					// Set limit
+					qStatistics.limit(loadData->getReadBlockSize());
+					// Set sort
+					Sort* sort = new Sort("id");
+					qStatistics.sort(sort);
+
+					// Query the statistics_history tbale and get a ReadingSet result
+					readings = loadData->getStorageClient()->queryTableToReadings("statistics_history",
+												      qStatistics);
+				}
 				//high_resolution_clock::time_point t2 = high_resolution_clock::now();
 				//auto duration = duration_cast<microseconds>( t2 - t1 ).count();
 			}
@@ -177,6 +218,11 @@ static void loadDataThread(SendingProcess *loadData)
 			}
 			else
 			{
+				// Free empty result set
+				if (readings)
+				{
+					delete readings;
+				}
 				// Error or no data read: just wait
 				// TODO: add increments from 1 to TASK_SLEEP_MAX_INCREMENTS
 				this_thread::sleep_for(chrono::milliseconds(TASK_FETCH_SLEEP));
@@ -184,7 +230,8 @@ static void loadDataThread(SendingProcess *loadData)
                 }
         }
 
-	Logger::getLogger()->info("SendingProcess loadData thread: Last ID read is %lu",
+	Logger::getLogger()->info("SendingProcess loadData thread: Last ID '%s' read is %lu",
+				  loadData->getDataSourceType().c_str(),
 				  loadData->getLastSentId()); 
 
 	/**
@@ -240,7 +287,8 @@ static void sendDataThread(SendingProcess *sendData)
                 if (canSend == NULL)
                 {
                         Logger::getLogger()->info("SendingProcess sendDataThread: " \
-                                                  "(stream id %d), sendIdx %u, buffer is empty, waiting ...",
+                                                  "('%s' stream id %d), sendIdx %u, buffer is empty, waiting ...",
+						  sendData->getDataSourceType().c_str(),
                                                   sendData->getStreamId(),
                                                   sendIdx);
 
@@ -273,6 +321,7 @@ static void sendDataThread(SendingProcess *sendData)
 			 */
 
 			const vector<Reading *> &readingData = sendData->m_buffer.at(sendIdx)->getAllReadings();
+
 			uint32_t sentReadings = sendData->m_plugin->send(readingData);
 
 			if (sentReadings)
@@ -303,7 +352,8 @@ static void sendDataThread(SendingProcess *sendData)
 			else
 			{
 				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending" \
-							   "(stream id %d), sendIdx %u. N. (%d readings)",
+							   "('%s' stream id %d), sendIdx %u. N. (%d readings)",
+							   sendData->getDataSourceType().c_str(),
 							   sendData->getStreamId(),
 							   sendIdx,
 							   sendData->m_buffer[sendIdx]->getCount());
@@ -330,8 +380,9 @@ static void sendDataThread(SendingProcess *sendData)
                 }
         }
 
-	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total readings",
-				  totSent);
+	Logger::getLogger()->info("SendingProcess sendData thread: sent %lu total '%s'",
+				  totSent,
+				  sendData->getDataSourceType().c_str());
 
 	if (sendData->getUpdateDb())
 	{

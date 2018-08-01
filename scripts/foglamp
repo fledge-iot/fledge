@@ -44,6 +44,12 @@ if [[ ! -d "${FOGLAMP_ROOT}" ]]; then
     exit 1
 fi
 
+# Check/set LD_LIBRARY_PATH
+libPathSet=0
+libdir=${FOGLAMP_ROOT}/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
+libdir=${FOGLAMP_ROOT}/cmake_build/C/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
+[ "$libPathSet" -eq "0" ] && echo "Unable to set/update LD_LIBRARY_PATH to include path of Foglamp shared libraries: check whether ${FOGLAMP_ROOT}/lib or ${FOGLAMP_ROOT}/cmake_build/C/lib exists" && exit 1
+
 
 ##########
 ## INCLUDE SECTION

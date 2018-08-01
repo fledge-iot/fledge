@@ -98,7 +98,6 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
         // Set buffer of ReadingSet with NULLs
 	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
-	m_buffer.resize(DATA_BUFFER_ELMS, NULL);
 
 	// Mark running state
 	m_running = true;
@@ -153,7 +152,8 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
         // Checks if stream-id is undefined, it allocates a new one in the case
         if (m_stream_id == 0) {
 
-                m_logger->info("%s - stream-id is undefined, allocating a new one.", LOG_SERVICE_NAME.c_str());
+                m_logger->info("%s - stream-id is undefined, allocating a new one.",
+			       LOG_SERVICE_NAME.c_str());
 
                 m_stream_id = this->createNewStream();
 
@@ -164,7 +164,9 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 			m_logger->fatal(errMsg);
 			throw runtime_error(errMsg);
 		} else {
-                        m_logger->info("%s - new stream-id allocated :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+			m_logger->info("%s - new stream-id allocated :%d:",
+				       LOG_SERVICE_NAME.c_str(),
+				       m_stream_id);
 
                         const string categoryName = this->getName();
                         const string itemName = "streamId";
@@ -178,7 +180,9 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
                                                                                   itemName,
                                                                                   itemValue);
 
-                                m_logger->info("%s - configuration updated, using stream-id :%d:", LOG_SERVICE_NAME.c_str() , m_stream_id);
+                                m_logger->info("%s - configuration updated, using stream-id :%d:",
+					       LOG_SERVICE_NAME.c_str(),
+					       m_stream_id);
 
                         } catch (std::exception* e) {
 
@@ -215,6 +219,9 @@ SendingProcess::SendingProcess(int argc, char** argv) : FogLampProcess(argc, arg
 
 	Logger::getLogger()->info("SendingProcess initialised with %d data buffers.",
 				  DATA_BUFFER_ELMS);
+
+	Logger::getLogger()->info("SendingProcess data source type is '%s'",
+				  this->getDataSourceType().c_str());
 
 	Logger::getLogger()->info("SendingProcess reads data from last id %lu",
 				  this->getLastSentId());
@@ -268,7 +275,8 @@ bool SendingProcess::loadPlugin(const string& pluginName)
 
         if (pluginName.empty())
         {
-                Logger::getLogger()->error("Unable to fetch north plugin '%s' from configuration.", pluginName);
+                Logger::getLogger()->error("Unable to fetch north plugin '%s' from configuration.",
+					   pluginName.c_str());
                 return false;
         }
         Logger::getLogger()->info("Load north plugin '%s'.", pluginName.c_str());
@@ -337,10 +345,11 @@ void SendingProcess::updateDatabaseCounters()
 					      lastId,
 					      wStreamId);
 
-        string statistics_key = this->getName();
+	// Prepare foglamp.statistics update
+	string statistics_key = this->getName();
 	for (auto & c: statistics_key) c = toupper(c);
 
-	// Prepare "WHERE SENT_x = val
+	// Prepare "WHERE key = name
 	const Condition conditionStat(Equals);
 	Where wLastStat("key",
 			conditionStat,
@@ -352,7 +361,7 @@ void SendingProcess::updateDatabaseCounters()
 			      "+",
 			      (int)this->getSentReadings()));
 
-	// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'y'
+	// Perform UPDATE foglamp.statistics SET value = value + x WHERE key = 'name'
 	this->getStorageClient()->updateTable("statistics",
 					      updateValue,
 					      wLastStat);
@@ -396,6 +405,8 @@ bool SendingProcess::getLastSentReadingId()
 			foundId = true;
 		}
 	}
+	// Free result set
+	delete lastObjectId;
 
 	return foundId;
 }
@@ -438,7 +449,7 @@ int SendingProcess::createNewStream()
                         {
                                 // Get column value
                                 ResultSet::ColumnValue* theVal = row->getColumn("id");
-                                streamId = (unsigned long)theVal->getInteger();
+                                streamId = (int)theVal->getInteger();
                         }
                 }
 
@@ -487,7 +498,8 @@ bool SendingProcess::createStream(int streamId)
  * Return the configuration items as a map of JSON strings
  */
 const map<string, string>& SendingProcess::fetchConfiguration(const std::string& defaultConfig,
-							            std::string  plugin_name) {
+							      const std::string&  plugin_name)
+{
 
 	// retrieves the configuration using the value of the --name parameter (received in the command line) as the key
 	string catName(this->getName());
@@ -582,11 +594,15 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
                         m_plugin_name = PLUGIN_UNDEFINED;
                 }
 
-                // Set member variables
+		/**
+		 * Set member variables
+		 */
 		m_block_size = strtoul(blockSize.c_str(), NULL, 10);
 		m_sleep = strtoul(sleepInterval.c_str(), NULL, 10);
 		m_duration = strtoul(duration.c_str(), NULL, 10);
-                m_stream_id = strtoul(streamId.c_str(), NULL, 10);
+                m_stream_id = atoi(streamId.c_str());
+		// Set the data source type: readings (default) or statistics
+		m_data_source_t = sendingProcessConfig.getValue("source");
 
 		Logger::getLogger()->info("SendingProcess configuration parameters: pluginName=%s, blockSize=%d, "
 					  "duration=%d, sleepInterval=%d, streamId=%d",

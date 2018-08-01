@@ -93,12 +93,17 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
-        if service_type not in ['south', 'north']:
-            raise web.HTTPBadRequest(reason='Only north and south types are supported.')
+
+        service_type = str(service_type).lower()
+        if service_type == 'north':
+            raise web.HTTPNotAcceptable(reason='north type is not supported for the time being.')
+        if service_type not in ['south']:
+            raise web.HTTPBadRequest(reason='Only south type is supported.')
         if enabled is not None:
-            if enabled not in ['t', 'f', 'true', 'false', 0, 1]:
-                raise web.HTTPBadRequest(reason='Only "t", "f", "true", "false" are allowed for value of enabled.')
-        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['t', 'true']) or (
+            if enabled not in ['true', 'false', True, False]:
+                raise web.HTTPBadRequest(reason='Only "true", "false", true, false'
+                                                ' are allowed for value of enabled.')
+        is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
         # Check if a valid plugin has been provided
@@ -160,7 +165,8 @@ async def add_service(request):
             schedule.process_name = name
             schedule.repeat = datetime.timedelta(0)
             schedule.exclusive = True
-            schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
+            #  if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
+            schedule.enabled = False
 
             # Save schedule
             await server.Server.scheduler.save_schedule(schedule, is_enabled)

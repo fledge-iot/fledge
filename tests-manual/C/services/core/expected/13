@@ -1,0 +1,1 @@
+{ "key" : "CAT_B", "description" : "category_b_UPD", "value" : {"new_b" : { "description" : "new_b", "type" : "integer", "value" : "1001", "default" : "1001" }, "b" : { "description" : "b", "type" : "integer", "value" : "87", "default" : "87" }} }

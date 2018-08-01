@@ -58,26 +58,27 @@ class PluginDiscovery(object):
             return directories
 
     @classmethod
-    def get_plugin_config(cls, plugin_name, plugin_type):
+    def get_plugin_config(cls, plugin_dir, plugin_type):
         plugin_module_path = "foglamp.plugins.south" if plugin_type == 'south' else "foglamp.plugins.north"
         plugin_config = None
 
         # Now load the plugin to fetch its configuration
         try:
-            import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin_name, file=plugin_name)
+            plugin_module_name = plugin_dir
+            import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin_dir, file=plugin_module_name)
             _plugin = __import__(import_file_name, fromlist=[''])
 
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config =  {
-                'name': plugin_info['name'],
+                'name': plugin_info['config']['plugin']['default'],
                 'type': plugin_info['type'],
                 'description': plugin_info['config']['plugin']['description'],
                 'version': plugin_info['version']
             }
         except ImportError as ex:
-            _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_name, plugin_module_path, str(ex)))
+            _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
         except Exception as ex:
-            _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_name, str(ex)))
+            _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
 
         return plugin_config

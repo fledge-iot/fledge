@@ -2,7 +2,7 @@
  * FogLAMP south plugin.
  *
  * This plugin is for the Advantech USB-4704 Portable Data Acquisition Module.
- * It supports a numerbof digitial and analogue inputs on that device. The mapping
+ * It supports a number of digitial and analogue inputs on that device. The mapping
  * of an input to a reading value within the JSON reading paylog is controlled
  * via the plugin configuratio category.
  *

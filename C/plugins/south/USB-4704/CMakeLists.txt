@@ -6,7 +6,6 @@ set(BIODAQDIR $ENV{BIODAQDIR})
 find_library(BIODAQLIB biodaq ${BIODAQDIR}/libs)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-# set(BIODAQLIB -lbiodaq)
 
 # Find source files
 file(GLOB SOURCES *.cpp)

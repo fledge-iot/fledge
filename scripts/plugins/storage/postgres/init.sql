@@ -841,14 +841,6 @@ INSERT INTO foglamp.configuration ( key, description, value )
               '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "statistics", "value": "statistics"}}'
             );
 
--- North Audit to PI - OMF Translator for audit
-INSERT INTO foglamp.configuration ( key, description, value )
-     VALUES ( 'North Audit to PI',
-              'OMF North Audit Plugin',
-              '{"plugin": {"description": "OMF North Plugin", "type": "string", "default": "omf", "value": "omf"}, "source": {"description": "Source of data to be sent on the stream. May be either readings, statistics or audit.", "type": "string", "default": "audit", "value": "audit"}}'
-            );
-
-
 -- North Readings to OCS - OSIsoft Cloud Services plugin for readings
 INSERT INTO foglamp.configuration ( key, description, value )
      VALUES ( 'North Readings to OCS',
@@ -864,7 +856,6 @@ INSERT INTO foglamp.statistics ( key, description, value, previous_value )
             ( 'NORTH_STATISTICS_TO_PI', 'Statistics sent to historian', 0, 0 ),
             ( 'North Readings to PI', 'Readings sent to the historian', 0, 0 ),
             ( 'North Statistics to PI','Statistics data sent to the historian', 0, 0 ),
-            ( 'North Audit to PI',    'Audit data sent to the historian', 0, 0 ),
             ( 'North Readings to OCS','Readings sent to OCS', 0, 0 ),
             ( 'UNSENT',               'Readings filtered out in the send process', 0, 0 ),
             ( 'PURGED',               'Readings removed from the buffer by the purge process', 0, 0 ),
@@ -893,7 +884,6 @@ INSERT INTO foglamp.scheduled_processes (name, script) VALUES ('restore', '["tas
 --
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to PI',   '["tasks/north"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Statistics to PI', '["tasks/north"]' );
-INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Audit to PI',      '["tasks/north"]' );
 INSERT INTO foglamp.scheduled_processes ( name, script ) VALUES ( 'North Readings to OCS',  '["tasks/north"]' );
 
 -- North Tasks - C code
@@ -1037,8 +1027,8 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval
-                't',                                    -- exclusive
-                'f'                                     -- disabled
+                true,                                    -- exclusive
+                false                                     -- disabled
               );
 
 -- Readings OMF to PI
@@ -1060,19 +1050,6 @@ INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
        VALUES ( '1d7c327e-7dae-11e7-bb31-be2e44b06b34', -- id
                 'Stats OMF to PI north',                -- schedule_name
                 'North Statistics to PI',               -- process_name
-                3,                                      -- schedule_type (interval)
-                NULL,                                   -- schedule_time
-                '00:00:30',                             -- schedule_interval
-                true,                                   -- exclusive
-                false                                   -- disabled
-              );
-
--- Audit OMF to PI
-INSERT INTO foglamp.schedules ( id, schedule_name, process_name, schedule_type,
-                                schedule_time, schedule_interval, exclusive, enabled )
-       VALUES ( '9d9c329e-7dae-11e7-bb31-be2e44b06b99', -- id
-                'Audit OMF to PI north',                -- schedule_name
-                'North Audit to PI',                    -- process_name
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
                 '00:00:30',                             -- schedule_interval

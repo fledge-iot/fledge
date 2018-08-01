@@ -60,7 +60,7 @@ _MESSAGES_LIST = {
     "e000005": "cannot load the plugin |{0}|",
     "e000006": "cannot complete the sending operation of a block of data.",
     "e000007": "cannot complete the termination of the sending process.",
-    "e000008": "unknown data source, it could be only: readings, statistics or audit.",
+    "e000008": "unknown data source, it could be only: readings or statistics.",
     "e000009": "cannot load data into memory - error details |{0}|",
     "e000010": "cannot update statistics.",
     "e000011": "invalid input parameters, the stream id is required and it should be a number "
@@ -100,7 +100,7 @@ class PluginInitialiseFailed(RuntimeError):
 
 
 class UnknownDataSource(RuntimeError):
-    """ the data source could be only one among: readings, statistics or audit """
+    """ the data source could be only one among: readings or statistics"""
     pass
 
 
@@ -220,7 +220,7 @@ class SendingProcess(FoglampProcess):
             "default": "60"
         },
         "source": {
-            "description": "Source of data to be sent on the stream. May be either readings, statistics or audit.",
+            "description": "Source of data to be sent on the stream. May be either readings or statistics.",
             "type": "string",
             "default": "readings"
         },
@@ -426,22 +426,6 @@ class SendingProcess(FoglampProcess):
             await self._audit.failure(self._AUDIT_CODE, {"error - on _task_send_data": _message})
             raise
 
-    async def _load_data_into_memory_audit(self, last_object_id):
-        """ Extracts from the DB Layer data related to the statistics audit into the memory
-        Todo: TO BE IMPLEMENTED
-        """
-        raw_data = None
-        try:
-            # Temporary code
-            if self._module_template != "":
-                raw_data = ""
-            else:
-                raw_data = ""
-        except Exception:
-            SendingProcess._logger.error(_MESSAGES_LIST["e000000"])
-            raise
-        return raw_data
-
     @staticmethod
     def _transform_in_memory_data_statistics(raw_data):
         converted_data = []
@@ -527,8 +511,6 @@ class SendingProcess(FoglampProcess):
                 data_to_send = await self._load_data_into_memory_readings(last_object_id)
             elif self._config['source'] == 'statistics':
                 data_to_send = await self._load_data_into_memory_statistics(last_object_id)
-            elif self._config['source'] == 'audit':
-                data_to_send = await self._load_data_into_memory_audit(last_object_id)
             else:
                 SendingProcess._logger.error(_MESSAGES_LIST["e000008"])
                 raise UnknownDataSource

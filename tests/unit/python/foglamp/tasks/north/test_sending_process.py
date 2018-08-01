@@ -754,25 +754,6 @@ class TestSendingProcess:
                 assert len(generated_rows) == 1
                 assert generated_rows == expected_rows
 
-    async def test_load_data_into_memory_audit(self, event_loop):
-        """ Unit test for - _load_data_into_memory_audit, NB the function is currently not implemented """
-
-        # Checks the Statistics handling
-        with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
-            with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
-                with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
-                    with patch.object(StorageClientAsync, '__init__', return_value=None) as sc_async_patch:
-                        with patch.object(asyncio, 'get_event_loop', return_value=event_loop):
-                            sp = SendingProcess()
-
-        sp._config['source'] = 'audit'
-        sp._storage_async = MagicMock(spec=StorageClientAsync)
-
-        generated_rows = await sp._load_data_into_memory_audit(5)
-
-        assert len(generated_rows) == 0
-        assert generated_rows == ""
-
     async def test_last_object_id_read(self, event_loop):
         """Tests the possible cases for the function last_object_id_read """
 
@@ -2198,7 +2179,8 @@ class TestSendingProcess:
                     "memory_buffer_size": {"value": "10"},
                     "sleepInterval": {"value": "10"},
                     "plugin": {"value": "omf"},
-
+                    "stream_id": {"value": "1"},
+                    "destination_id": {"value": "1"}
                 },
                 # expected_config
                 {
@@ -2209,7 +2191,8 @@ class TestSendingProcess:
                     "memory_buffer_size": 10,
                     "sleepInterval": 10,
                     "plugin": "omf",
-
+                    "stream_id": 1,
+                    "destination_id": 1
                 },
             ),
         ]
@@ -2237,6 +2220,8 @@ class TestSendingProcess:
         assert sp._config['memory_buffer_size'] == expected_config['memory_buffer_size']
         assert sp._config['sleepInterval'] == expected_config['sleepInterval']
         assert sp._config['plugin'] == expected_config['plugin']
+        assert sp._config['stream_id'] == expected_config['stream_id']
+        assert sp._config['destination_id'] == expected_config['destination_id']
 
     @pytest.mark.skip(reason="Stream ID tests no longer valid")
     async def test_start_stream_not_valid(self, event_loop):
@@ -2258,6 +2243,15 @@ class TestSendingProcess:
     async def test_start_sp_disabled(self, event_loop):
         """ Unit tests - _start - sending process is disabled """
 
+        async def mock_dest():
+            return 1
+
+        async def mock_stream():
+            return 1, True
+
+        async def mock_stat_key():
+            return "sp"
+
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
@@ -2266,12 +2260,17 @@ class TestSendingProcess:
                             sp = SendingProcess()
 
         sp._plugin = MagicMock()
+        sp._config['plugin'] = MagicMock()
         sp._config['enable'] = False
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_retrieve_configuration'):
-            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                result = await sp._start()
+        with patch.object(sp, '_get_destination_id', return_value=mock_dest()) as mocked_get_destination_id:
+            with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
+                with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
+                    with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
+                        with patch.object(sp, '_retrieve_configuration'):
+                            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                                result = await sp._start()
 
         assert not result
         assert not mocked_plugin_load.called
@@ -2279,6 +2278,15 @@ class TestSendingProcess:
     async def test_start_not_north(self, event_loop):
         """ Unit tests - _start - it is not a north plugin """
 
+        async def mock_dest():
+            return 1
+
+        async def mock_stream():
+            return 1, True
+
+        async def mock_stat_key():
+            return "sp"
+
         with patch.object(SilentArgParse, 'silent_arg_parse', side_effect=['corehost', 0, 'sname']):
             with patch.object(MicroserviceManagementClient, '__init__', return_value=None) as mmc_patch:
                 with patch.object(ReadingsStorageClientAsync, '__init__', return_value=None) as rsc_async_patch:
@@ -2287,14 +2295,19 @@ class TestSendingProcess:
                             sp = SendingProcess()
 
         sp._plugin = MagicMock()
+        sp._config['plugin'] = MagicMock()
         sp._config['enable'] = True
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_retrieve_configuration'):
-            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                    with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
-                        result = await sp._start()
+        with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
+            with patch.object(sp, '_get_destination_id', return_value=mock_dest()) as mocked_get_destination_id:
+                with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
+                    with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
+                        with patch.object(sp, '_retrieve_configuration'):
+                            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                                with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
+                                    with patch.object(sp, '_is_north_valid', return_value=False) as mocked_is_north_valid:
+                                        result = await sp._start()
 
         assert not result
         assert mocked_plugin_load.called
@@ -2325,15 +2338,16 @@ class TestSendingProcess:
         sp._config['enable'] = True
         sp._config_from_manager = {}
 
-        with patch.object(sp, '_get_destination_id', return_value=mock_dest()) as mocked_get_destination_id:
-            with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
-                with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
-                    with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
-                        with patch.object(sp, '_plugin_load') as mocked_plugin_load:
-                            with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
-                                with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
-                                    with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
-                                        result = await sp._start()
+        with patch.object(sp._core_microservice_management_client, 'update_configuration_item'):
+            with patch.object(sp, '_get_destination_id', return_value=mock_dest()) as mocked_get_destination_id:
+                with patch.object(sp, '_get_stream_id', return_value=mock_stream()) as mocked_get_stream_id:
+                    with patch.object(sp, '_get_statistics_key', return_value=mock_stat_key()) as mocked_get_statistics_key:
+                        with patch.object(sp, '_retrieve_configuration') as mocked_retrieve_configuration:
+                            with patch.object(sp, '_plugin_load') as mocked_plugin_load:
+                                with patch.object(sp._plugin, 'plugin_info') as mocked_plugin_info:
+                                    with patch.object(sp, '_is_north_valid', return_value=True) as mocked_is_north_valid:
+                                        with patch.object(sp._plugin, 'plugin_init') as mocked_plugin_init:
+                                            result = await sp._start()
 
         assert result
         # mocked_is_stream_id_valid.called_with(STREAM_ID)

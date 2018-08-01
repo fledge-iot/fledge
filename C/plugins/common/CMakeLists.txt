@@ -29,10 +29,5 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
-# Create get_plugin_info utility
-add_executable(get_plugin_info get_plugin_info.cpp)
-target_link_libraries(get_plugin_info -ldl)
-
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION foglamp/lib)
-install(TARGETS get_plugin_info DESTINATION foglamp/extras/C)

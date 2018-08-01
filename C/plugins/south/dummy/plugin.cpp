@@ -36,7 +36,7 @@ static PLUGIN_INFORMATION info = {
 	0,    			  // Flags
 	PLUGIN_TYPE_SOUTH,        // Type
 	"1.0.0",                  // Interface version
-        CONFIG                    // Default configuration
+	CONFIG                    // Default configuration
 };
 
 /**

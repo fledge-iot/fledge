@@ -642,7 +642,7 @@ class SendingProcess(FoglampProcess):
         except Exception as ex:
             SendingProcess._logger.error(_MESSAGES_LIST["e000029"].format(ex))
 
-    async def _get_stream_id(self, destination_id):
+    async def _get_stream_id(self, config_stream_id, destination_id):
         async def get_rows(description):
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("id", "description", "active") \
@@ -670,6 +670,10 @@ class SendingProcess(FoglampProcess):
                 raise ValueError(_MESSAGES_LIST["e000013"].format(stream_id))
             else:
                 stream_id = rows[0]['id']
+                if config_stream_id != stream_id:
+                    SendingProcess._logger.info(
+                        "Mismatch in config_stream_id:{} and streams table streams_id: {}".format(config_stream_id, stream_id))
+                    stream_id_valid = False
                 if rows[0]['active'] == 't':
                     stream_id_valid = True
                 else:
@@ -679,26 +683,6 @@ class SendingProcess(FoglampProcess):
             SendingProcess._logger.error(_MESSAGES_LIST["e000013"].format(str(e)))
             raise e
         return stream_id, stream_id_valid
-
-    async def _get_destination_id(self, description):
-        try:
-            payload = payload_builder.PayloadBuilder() \
-                .SELECT("id", "type", "description") \
-                .WHERE(['description', '=', description]) \
-                .LIMIT(1) \
-                .payload()
-            destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
-            rows = destinations['rows']
-            if len(rows) == 0:
-                destination_id = 1  # the destination_id will be set to 1 when a new stream is created
-            elif len(rows) > 1:
-                raise ValueError("Fatal to have more than one destination for [{}]".format(description))
-            else:
-                destination_id = rows[0]['id']
-        except (ValueError, Exception) as e:
-            SendingProcess._logger.error("Unable to fetch destination_id for plugin {} | {}".format(description, str(e)))
-            raise e
-        return destination_id
 
     async def _get_statistics_key(self):
         async def get_rows(key):
@@ -808,8 +792,8 @@ class SendingProcess(FoglampProcess):
                                          cat_keep_original=True)
 
             # Fetch destination_id and stream_id
-            self._destination_id = await self._get_destination_id(self._config['plugin'])
-            self._stream_id, is_stream_valid = await self._get_stream_id(self._destination_id)
+            self._destination_id = self._config["destination_id"]  # always 1 for now
+            self._stream_id, is_stream_valid = await self._get_stream_id(self._config["stream_id"], self._destination_id)
             if is_stream_valid is False:
                 raise ValueError("Error in Stream Id for Sending Process {}".format(self._name))
             self.statistics_key = await self._get_statistics_key()

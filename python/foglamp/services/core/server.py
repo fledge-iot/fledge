@@ -906,7 +906,6 @@ class Server:
             curl -X POST http://localhost:<core mgt port>/foglamp/service/shutdown
         """
         try:
-
             await cls._stop()
             loop = request.loop
             # allow some time
@@ -925,7 +924,6 @@ class Server:
     async def restart(cls, request):
         """ Restart the core microservice and its components """
         try:
-
             await cls._stop()
             loop = request.loop
             # allow some time

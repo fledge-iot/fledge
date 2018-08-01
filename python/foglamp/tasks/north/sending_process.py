@@ -26,6 +26,8 @@ import datetime
 import signal
 import json
 import uuid
+import copy
+
 import foglamp.plugins.north.common.common as plugin_common
 from foglamp.common.parser import Parser
 from foglamp.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
@@ -242,6 +244,16 @@ class SendingProcess(FoglampProcess):
             "type": "integer",
             "default": "10"
         },
+        "destination_id": {
+            "description": "Destination ID",
+            "type": "integer",
+            "default": "1"
+        },
+        "stream_id": {
+            "description": "Stream ID",
+            "type": "integer",
+            "default": "0"
+        }
     }
 
     def __init__(self, loop=None):
@@ -687,31 +699,6 @@ class SendingProcess(FoglampProcess):
         return stream_id, stream_id_valid
 
     async def _get_destination_id(self, description):
-        async def add_destination(description):
-            # Get largest type
-            payload = payload_builder.PayloadBuilder() \
-                .SELECT("id", "type", "description") \
-                .ORDER_BY(["type", "desc"]) \
-                .LIMIT(1) \
-                .payload()
-            destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
-            rows = destinations['rows']
-            next_type = 1 if len(rows) == 0 else int(rows[0]['type']) + 1
-
-            payload = payload_builder.PayloadBuilder() \
-                .INSERT(type=next_type,
-                        description=description) \
-                .payload()
-            await self._storage_async.insert_into_tbl("destinations", payload)
-            payload = payload_builder.PayloadBuilder() \
-                .SELECT("id", "type", "description") \
-                .WHERE(['type', '=', next_type]) \
-                .LIMIT(1) \
-                .payload()
-            destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
-            rows = destinations['rows']
-            return rows[0]['id']
-
         try:
             payload = payload_builder.PayloadBuilder() \
                 .SELECT("id", "type", "description") \
@@ -721,7 +708,7 @@ class SendingProcess(FoglampProcess):
             destinations = await self._storage_async.query_tbl_with_payload("destinations", payload)
             rows = destinations['rows']
             if len(rows) == 0:
-                destination_id = await add_destination(description)
+                destination_id = 1  # the destination_id will be set to 1 when a new stream is created
             elif len(rows) > 1:
                 raise ValueError("Fatal to have more than one destination for [{}]".format(description))
             else:
@@ -818,6 +805,8 @@ class SendingProcess(FoglampProcess):
             self._config['plugin'] = _config_from_manager['plugin']['value']
             self._config['memory_buffer_size'] = int(_config_from_manager['memory_buffer_size']['value'])
             _config_from_manager['_CONFIG_CATEGORY_NAME'] = cat_name
+            self._config["stream_id"] = int(_config_from_manager['stream_id']['value'])
+            self._config["destination_id"] = int(_config_from_manager['destination_id']['value'])
             self._config_from_manager = _config_from_manager
         except Exception:
             SendingProcess._logger.error(_MESSAGES_LIST["e000003"])
@@ -835,6 +824,24 @@ class SendingProcess(FoglampProcess):
                                          cat_desc=self._CONFIG_CATEGORY_DESCRIPTION,
                                          cat_config=self._CONFIG_DEFAULT,
                                          cat_keep_original=True)
+
+            # Fetch destination_id and stream_id
+            self._destination_id = await self._get_destination_id(self._config['plugin'])
+            self._stream_id, is_stream_valid = await self._get_stream_id(self._destination_id)
+            if is_stream_valid is False:
+                raise ValueError("Error in Stream Id for Sending Process {}".format(self._name))
+            self.statistics_key = await self._get_statistics_key()
+
+            # update configuration with the new destination_id and stream_id
+            self._core_microservice_management_client.update_configuration_item(
+                                                category_name=self._name,
+                                                config_item="destination_id",
+                                                category_data=json.dumps({"value": str(self._destination_id)}))
+            self._core_microservice_management_client.update_configuration_item(
+                                                category_name=self._name,
+                                                config_item="stream_id",
+                                                category_data=json.dumps({"value": str(self._stream_id)}))
+
             exec_sending_process = self._config['enable']
 
             if self._config['enable']:
@@ -848,13 +855,6 @@ class SendingProcess(FoglampProcess):
                                                      cat_config=self._plugin_info['config'],
                                                      cat_keep_original=True)
                         data = self._config_from_manager
-
-                        # Fetch destination_id and stream_id
-                        self._destination_id = await self._get_destination_id(self._config['plugin'])
-                        self._stream_id, is_stream_valid = await self._get_stream_id(self._destination_id)
-                        if is_stream_valid is False:
-                            raise ValueError("Error in Stream Id for Sending Process {}".format(self._name))
-                        self.statistics_key = await self._get_statistics_key()
 
                         # Append stream_id, destination_id etc to payload to be send to the plugin init
                         data['stream_id'] = self._stream_id

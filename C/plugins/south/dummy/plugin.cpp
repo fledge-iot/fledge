@@ -18,6 +18,10 @@
 
 using namespace std;
 
+
+#define CONFIG	"{\"plugin\" : { \"description\" : \"Dummy C south plugin\", " \
+			"\"type\" : \"string\", \"default\" : \"foglamp-dummy\" } } "
+		  
 /**
  * The Dummy plugin interface
  */
@@ -31,7 +35,8 @@ static PLUGIN_INFORMATION info = {
 	"1.0.0",                  // Version
 	0,    			  // Flags
 	PLUGIN_TYPE_SOUTH,        // Type
-	"1.0.0"                   // Interface version
+	"1.0.0",                  // Interface version
+	CONFIG                    // Default configuration
 };
 
 /**

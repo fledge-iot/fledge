@@ -28,10 +28,9 @@ def setup(app, obj, is_core=False):
         app.router.add_route('POST', '/foglamp/service/category', obj.create_configuration_category)
         app.router.add_route('GET', '/foglamp/service/category/{category_name}', obj.get_configuration_category)
         app.router.add_route('GET', '/foglamp/service/category/{category_name}/{config_item}', obj.get_configuration_item)
-        app.router.add_route('PUT', '/foglamp/service/category/{category_name}/{config_item}',
-                             obj.update_configuration_item)
-        app.router.add_route('DELETE', '/foglamp/service/category/{category_name}/{config_item}/value',
-                             obj.delete_configuration_item)
+        app.router.add_route('PUT', '/foglamp/service/category/{category_name}/{config_item}', obj.update_configuration_item)
+        app.router.add_route('DELETE', '/foglamp/service/category/{category_name}/{config_item}/value', obj.delete_configuration_item)
+        app.router.add_route('POST', '/foglamp/service/category/{category_name}/children', obj.create_child_category)
 
         # Service Registration
         app.router.add_route('POST', '/foglamp/service', obj.register)

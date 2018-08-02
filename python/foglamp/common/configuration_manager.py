@@ -609,14 +609,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 result = await self._create_child(category_name, a_new_child)
                 children_from_storage.append(a_new_child)
 
-            cat_dict = await self.get_category_all_items(category_name)
-            cat_dict["children"] = children_from_storage
+            return {"children": children_from_storage}
 
             # TODO: [TO BE DECIDED] - Audit Trail Entry
         except KeyError:
             raise ValueError(result['message'])
-
-        return cat_dict
 
     async def delete_child_category(self, category_name, child_category):
         """Delete a parent-child relationship

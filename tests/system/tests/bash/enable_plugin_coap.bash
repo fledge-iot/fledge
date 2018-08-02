@@ -48,10 +48,21 @@ else
 fi
 
 #
-# Enables the plugin if needed
+# Installs python libraries required by the plugin
 #
+pip3 install -Ir  ${TMP_DIR}/${PLUGIN_COAP_NAME}/python/requirements-coap.txt --no-cache-dir
 
-# Checks if the COAP plugin code is already enabled
+#
+# Enables the plugin
+#
+curl -k -s -S -X POST http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/service -d '{ "name"   : "coap", "type"   : "south", "plugin" : "coap",  "enabled": true}' | jq -S "."
+
+#
+# Waits the availability of the plugin
+#
+$TEST_BASEDIR/bash/wait_plugin_available.bash "coap"
+
+# Checks if the COAP plugin is enabled
 export COAP_PLUGIN=`curl -k -s -S -X GET http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/service| jq --raw-output '.services | .[] | select(.name=="coap") | .name'`
 
 echo COAP_PLUGIN -${COAP_PLUGIN}-
@@ -60,15 +71,11 @@ if [[ "${COAP_PLUGIN}" == "" ]]
 then
     echo "COAP plugin is not already activated, enabling - |${COAP_PLUGIN}|"
 
-    curl -k -s -S -X POST http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/service -d '{ "name"   : "coap", "type"   : "south", "plugin" : "coap"}' | jq -S "."
-
     export SCHEDULE_ID=` curl -k -s -S -X GET http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule | jq --raw-output '.schedules | .[] | select(.processName=="coap") | .id'`
 
     echo SCHEDULE_ID -${SCHEDULE_ID}-
 
-    curl -k -s -S -X PUT http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID} -d '{ "enabled" : true}'  | jq -S "."
-
-    $TEST_BASEDIR/bash/sleep.bash 10
+    curl -k -s -S -X GET http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/schedule/${SCHEDULE_ID}   | jq -S "."
 
     curl -k -s -S -X GET http://${FOGLAMP_SERVER}:${FOGLAMP_PORT}/foglamp/service | jq -S "."
 else

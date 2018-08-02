@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
       exit(3);
     }
     PLUGIN_INFORMATION *info = (PLUGIN_INFORMATION *)(*infoEntry)();
-    printf("%s\n", info->config);
+    printf("{\"name\": \"%s\", \"version\": \"%s\", \"type\": \"%s\", \"interface\": \"%s\", \"config\": %s}\n", info->name, info->version, info->type, info->interface, info->config);
   }
   else
   {

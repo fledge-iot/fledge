@@ -23,7 +23,7 @@ using namespace std;
 /**
  * Default configuration
  */
-#define CONFIG	"{\"plugin\" : { \"description\" : \"Modbus TCP and RTU plugin\", " \
+#define CONFIG	"{\"plugin\" : { \"description\" : \"Modbus TCP and RTU C plugin\", " \
 			"\"type\" : \"string\", \"default\" : \"foglamp-modbus\" }, " \
 		"\"asset\" : { \"description\" : \"Asset name\", "\
 			"\"type\" : \"string\", \"default\" : \"modbus\" }, " \

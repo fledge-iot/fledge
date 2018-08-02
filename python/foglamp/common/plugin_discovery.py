@@ -8,7 +8,7 @@
 
 import os
 from foglamp.common import logger
-from foglamp.common.common import _FOGLAMP_ROOT
+from foglamp.services.core.api import utils
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -29,10 +29,15 @@ class PluginDiscovery(object):
             plugins_list = []
             plugins_list_north = cls.fetch_plugins_installed("north")
             plugins_list_south = cls.fetch_plugins_installed("south")
+            plugins_list_c_north = cls.fetch_c_plugins_installed("north")
+            plugins_list_c_south = cls.fetch_c_plugins_installed("south")
             plugins_list.extend(plugins_list_north)
+            plugins_list.extend(plugins_list_c_north)
             plugins_list.extend(plugins_list_south)
+            plugins_list.extend(plugins_list_c_south)
         else:
             plugins_list = cls.fetch_plugins_installed(plugin_type)
+            plugins_list.extend(cls.fetch_c_plugins_installed(plugin_type))
         return plugins_list
 
     @classmethod
@@ -48,7 +53,7 @@ class PluginDiscovery(object):
     @classmethod
     def get_plugin_folders(cls, plugin_type):
         directories = []
-        dir_name = _FOGLAMP_ROOT + "/python/foglamp/plugins/"+plugin_type
+        dir_name = utils._FOGLAMP_ROOT + "/python/foglamp/plugins/"+plugin_type
         try:
             directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
                            not d.startswith("__") and d != "empty" and d != "common"]
@@ -56,6 +61,31 @@ class PluginDiscovery(object):
             pass
         else:
             return directories
+
+    @classmethod
+    def get_c_plugin_folders(cls, plugin_type):
+        directories = []
+        if os.path.isdir(utils._FOGLAMP_ROOT + '/cmake_build'):
+            dir_name = utils._FOGLAMP_ROOT + "/cmake_build/C/plugins/" + plugin_type
+        else:
+            dir_name = utils._FOGLAMP_ROOT + "/plugins/" + plugin_type
+        try:
+            directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
+                           not d.startswith("__") and d != "utils" and d != "common" and d != "storage"]
+        except FileNotFoundError:
+            pass
+        else:
+            return directories
+
+    @classmethod
+    def fetch_c_plugins_installed(cls, plugin_type):
+        directories = cls.get_c_plugin_folders(plugin_type)
+        configs = []
+        for d in directories:
+            plugin_config = utils.get_plugin_info(plugin_type, d)
+            if plugin_config is not None:
+                configs.append(plugin_config)
+        return configs
 
     @classmethod
     def get_plugin_config(cls, plugin_dir, plugin_type):
@@ -70,7 +100,7 @@ class PluginDiscovery(object):
 
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
-            plugin_config =  {
+            plugin_config = {
                 'name': plugin_info['config']['plugin']['default'],
                 'type': plugin_info['type'],
                 'description': plugin_info['config']['plugin']['description'],

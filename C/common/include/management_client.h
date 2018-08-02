@@ -63,7 +63,7 @@ private:
 				 */
 				if (keepOriginalItems)
 				{
-					payload << ", \"keep_original_items\" : true";
+					url += "?keep_original_items=true";
 				}
 
 				// Terminate JSON string

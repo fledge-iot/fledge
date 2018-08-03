@@ -53,7 +53,7 @@ class PluginDiscovery(object):
     @classmethod
     def get_plugin_folders(cls, plugin_type):
         directories = []
-        dir_name = utils._FOGLAMP_ROOT + "/python/foglamp/plugins/"+plugin_type
+        dir_name = utils._FOGLAMP_ROOT + "/python/foglamp/plugins/" + plugin_type
         try:
             directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
                            not d.startswith("__") and d != "empty" and d != "common"]
@@ -70,8 +70,8 @@ class PluginDiscovery(object):
         else:
             dir_name = utils._FOGLAMP_ROOT + "/plugins/" + plugin_type
         try:
-            directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d) and
-                           not d.startswith("__") and d != "utils" and d != "common" and d != "storage"]
+            directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d)
+                           and d not in ["utils", "common", "storage"]]
         except FileNotFoundError:
             pass
         else:
@@ -82,7 +82,12 @@ class PluginDiscovery(object):
         directories = cls.get_c_plugin_folders(plugin_type)
         configs = []
         for d in directories:
-            plugin_config = utils.get_plugin_info(plugin_type, d)
+            jdoc = utils.get_plugin_info(plugin_type, d)
+            plugin_config = {'name': jdoc['config']['plugin']['default'],
+                             'type': plugin_type,
+                             'description': jdoc['config']['plugin']['description'],
+                             'version': jdoc['version']
+                             }
             if plugin_config is not None:
                 configs.append(plugin_config)
         return configs

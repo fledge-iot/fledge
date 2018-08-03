@@ -24,7 +24,7 @@ using namespace std;
  * Default configuration
  */
 #define CONFIG  "{\"plugin\" : { \"description\" : \"DHT11 C plugin\", " \
-                        "\"type\" : \"string\", \"default\" : \"foglamp-dht11\" }, " \
+                        "\"type\" : \"string\", \"default\" : \"dht11\" }, " \
                 "\"asset\" : { \"description\" : \"Asset name\", "\
                         "\"type\" : \"string\", \"default\" : \"dht11\" }, " \
                 "\"pin\" : { \"description\" : \"RPi pin to which DHT11 is attached\", " \

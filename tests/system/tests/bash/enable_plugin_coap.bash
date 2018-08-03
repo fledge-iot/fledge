@@ -50,7 +50,7 @@ fi
 #
 # Installs python libraries required by the plugin
 #
-pip3 install -Ir  ${TMP_DIR}/${PLUGIN_COAP_NAME}/python/requirements-coap.txt --no-cache-dir
+sudo pip3 install -Ir  ${TMP_DIR}/${PLUGIN_COAP_NAME}/python/requirements-coap.txt --no-cache-dir
 
 #
 # Enables the plugin

@@ -494,7 +494,7 @@ class TestConfiguration:
 
     async def test_create_child_category(self, client):
         data = {"children": ["coap", "http", "sinusoid"]}
-        result = {"management_host": {"description": "Management host", "type": "string", "default": "127.0.0.1"}, "children": data["children"]}
+        result = {"children": data["children"]}
 
         @asyncio.coroutine
         def async_mock():

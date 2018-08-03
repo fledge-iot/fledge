@@ -336,6 +336,8 @@ async def get_child_category(request):
             curl -X GET http://localhost:8081/foglamp/category/south/children
     """
     category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+
     cf_mgr = ConfigurationManager(connect.get_storage_async())
 
     try:
@@ -363,6 +365,8 @@ async def create_child_category(request):
         raise ValueError('Data payload must be a dictionary')
 
     category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
+
     children = data.get('children')
 
     try:
@@ -389,6 +393,7 @@ async def delete_child_category(request):
     """
     category_name = request.match_info.get('category_name', None)
     child_category = request.match_info.get('child_category', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
 
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:
@@ -415,6 +420,7 @@ async def delete_parent_category(request):
 
     """
     category_name = request.match_info.get('category_name', None)
+    category_name = urllib.parse.unquote(category_name) if category_name is not None else None
 
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     try:

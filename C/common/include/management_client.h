@@ -34,6 +34,8 @@ class ManagementClient {
                 std::string             setCategoryItemValue(const std::string& categoryName,
                                                              const std::string& itemName,
                                                              const std::string& itemValue) const;
+		std::string		addChildCategories(const std::string& parentCategory,
+							   const std::vector<std::string>& children) const;
 
 private:
 		HttpClient				*m_client;

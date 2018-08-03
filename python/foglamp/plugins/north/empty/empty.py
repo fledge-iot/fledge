@@ -18,9 +18,7 @@ __version__ = "${VERSION}"
 
 _MODULE_NAME = "Empty North Plugin"
 
-_DEFAULT_CONFIG = {
-
-}
+_DEFAULT_CONFIG = {}
 
 _logger = logger.setup(__name__)
 

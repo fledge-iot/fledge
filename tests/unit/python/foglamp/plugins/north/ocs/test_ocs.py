@@ -97,9 +97,8 @@ class TestOCS:
                         }
                     )
                 },
-
+                "destination_type": {"value": "3"},
                 'sending_process_instance': MagicMock(spec=SendingProcess),
-
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int32"},
 
@@ -107,6 +106,10 @@ class TestOCS:
 
         config_default_omf_types = ocs._CONFIG_DEFAULT_OMF_TYPES
         config_default_omf_types["type-id"]["value"] = "0001"
+        data["debug_level"] = None
+        data["log_performance"] = None
+        data["destination_id"] = 1
+        data["stream_id"] = 1
 
         with patch.object(data['sending_process_instance'], '_fetch_configuration',
                           return_value=config_default_omf_types):

@@ -5,10 +5,9 @@
 # FOGLAMP_END
 
 """ The OCS North is a plugin output formatter for the FogLAMP appliance.
-It is loaded by the send process (see The FogLAMP Sending Process) and runs in the context of the send process,
-to send the reading data to OSIsoft OCS (OSIsoft Cloud Services) using the OSIsoft OMF format.
-PICROMF = PI Connector Relay OMF
-
+    It is loaded by the send process (see The FogLAMP Sending Process) and runs in the context of the send process,
+    to send the reading data to OSIsoft OCS (OSIsoft Cloud Services) using the OSIsoft OMF format.
+    PICROMF = PI Connector Relay OMF
 """
 
 from datetime import datetime
@@ -33,6 +32,7 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
 # LOG configuration
 _LOG_LEVEL_DEBUG = 10
 _LOG_LEVEL_INFO = 20
@@ -45,6 +45,8 @@ _logger = None
 # Defines what and the level of details for logging
 _log_debug_level = 0
 _log_performance = False
+_stream_id = None
+_destination_id = None
 
 _MODULE_NAME = "ocs_north"
 
@@ -176,8 +178,7 @@ _CONFIG_DEFAULT_OMF = {
         "description": "OMF format property to apply to the type Integer",
         "type": "string",
         "default": "int32"
-    },
-
+    }
 }
 
 # Configuration related to the OMF Types
@@ -301,10 +302,16 @@ def plugin_init(data):
     global _config_omf_types
     global _logger
     global _recreate_omf_objects
+    global _log_debug_level, _log_performance, _stream_id, _destination_id
+
+    _log_debug_level = data['debug_level']
+    _log_performance = data['log_performance']
+    _stream_id = data['stream_id']
+    _destination_id = data['destination_id']
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
-        logger_name = _MODULE_NAME + "_" + str(data['stream_id']['value'])
+        logger_name = _MODULE_NAME + "_" + str(_stream_id)
 
         _logger = \
             logger.setup(logger_name, destination=_LOGGER_DESTINATION) if _log_debug_level == 0 else\

@@ -111,17 +111,19 @@ async def add_service(request):
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
-            # if same name is found, python preference
+            # if multiple plugin with same name are found, then python plugin import will be tried first
             plugin_module_path = "foglamp.plugins.south" if service_type == 'south' else "foglamp.plugins.north"
             import_file_name = "{path}.{dir}.{file}".format(path=plugin_module_path, dir=plugin, file=plugin)
             _plugin = __import__(import_file_name, fromlist=[''])
 
+            script = '["services/south"]' if service_type == 'south' else '["services/north"]'
             # Fetch configuration from the configuration defined in the plugin
             plugin_info = _plugin.plugin_info()
             plugin_config = plugin_info['config']
         except ImportError as ex:
             # Checking for C-type plugins
-            plugin_info = apiutils.get_plugin_info(service_type, plugin)
+            script = '["services/south_c"]' if service_type == 'south' else '["services/north_c"]'
+            plugin_info = apiutils.get_plugin_info(plugin)
             plugin_config = plugin_info['config']
             if not plugin_config:
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
@@ -141,7 +143,6 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='A schedule with that name already exists')
 
         # Now first create the scheduled process entry for the new service
-        script = '["services/south"]' if service_type == 'south' else '["services/north"]'
         payload = PayloadBuilder().INSERT(name=name, script=script).payload()
         try:
             res = await storage.insert_into_tbl("scheduled_processes", payload)

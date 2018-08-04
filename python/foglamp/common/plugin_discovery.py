@@ -63,26 +63,11 @@ class PluginDiscovery(object):
             return directories
 
     @classmethod
-    def get_c_plugin_folders(cls, plugin_type):
-        directories = []
-        if os.path.isdir(utils._FOGLAMP_ROOT + '/cmake_build'):
-            dir_name = utils._FOGLAMP_ROOT + "/cmake_build/C/plugins/" + plugin_type
-        else:
-            dir_name = utils._FOGLAMP_ROOT + "/plugins/" + plugin_type
-        try:
-            directories = [d for d in os.listdir(dir_name) if os.path.isdir(dir_name + "/" + d)
-                           and d not in ["utils", "common", "storage"]]
-        except FileNotFoundError:
-            pass
-        else:
-            return directories
-
-    @classmethod
     def fetch_c_plugins_installed(cls, plugin_type):
-        directories = cls.get_c_plugin_folders(plugin_type)
+        directories = utils.find_C_plugin_folders(plugin_type)#cls.get_c_plugin_folders(plugin_type)
         configs = []
         for d in directories:
-            jdoc = utils.get_plugin_info(plugin_type, d)
+            jdoc = utils.get_plugin_info(d)
             plugin_config = {'name': jdoc['config']['plugin']['default'],
                              'type': plugin_type,
                              'description': jdoc['config']['plugin']['description'],

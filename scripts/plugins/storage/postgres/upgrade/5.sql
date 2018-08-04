@@ -16,6 +16,3 @@ UPDATE foglamp.scheduled_processes SET name = 'North Readings to OCS', script = 
 UPDATE foglamp.schedules SET process_name = 'North Readings to PI' WHERE process_name = 'SEND_PR_1';
 UPDATE foglamp.schedules SET process_name = 'North Statistics to PI' WHERE process_name = 'SEND_PR_2';
 UPDATE foglamp.schedules SET process_name = 'North Readings to OCS' WHERE process_name = 'SEND_PR_4';
-
-DELETE from foglamp.destinations;
-DELETE from foglamp.streams;

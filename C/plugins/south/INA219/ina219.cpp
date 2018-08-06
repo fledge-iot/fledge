@@ -61,7 +61,7 @@ uint16_t config = 0;
 		m_powerMultiplier = 1;
 		m_currentDivider = 20;
 		config = INA219_CONFIG_BVOLTAGERANGE_16V |
-                    INA219_CONFIG_GAIN_1_40MV |
+                    INA219_CONFIG_GAIN_40MV |
                     INA219_CONFIG_BADCRES_12BIT |
                     INA219_CONFIG_SADCRES_12BIT_1S_532US |
                     INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS;
@@ -71,7 +71,7 @@ uint16_t config = 0;
 		m_powerMultiplier = 1;
 		m_currentDivider = 25;
 		config = INA219_CONFIG_BVOLTAGERANGE_32V |
-                    INA219_CONFIG_GAIN_8_320MV |
+                    INA219_CONFIG_GAIN_320MV |
                     INA219_CONFIG_BADCRES_12BIT |
                     INA219_CONFIG_SADCRES_12BIT_1S_532US |
                     INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS;
@@ -81,15 +81,15 @@ uint16_t config = 0;
 		m_powerMultiplier = 2;
 		m_currentDivider = 10;
 		config = INA219_CONFIG_BVOLTAGERANGE_32V |
-                    INA219_CONFIG_GAIN_8_320MV |
+                    INA219_CONFIG_GAIN_320MV |
                     INA219_CONFIG_BADCRES_12BIT |
                     INA219_CONFIG_SADCRES_12BIT_1S_532US |
                     INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS;
 		break;
 	}
 
-	wiringPiI2CWriteReg16(INA219_REG_CALIBRATION, ina219_calValue);
-	wiringPiI2CWriteReg16(fd, INA219_REG_CONFIG, config);
+	wiringPiI2CWriteReg16(m_fd, INA219_REG_CALIBRATION, m_calValue);
+	wiringPiI2CWriteReg16(m_fd, INA219_REG_CONFIG, config);
 }
 
 /**
@@ -99,18 +99,18 @@ Reading	INA219::takeReading()
 {
 vector<Datapoint *>	points;
 
-	double shuntVolts  = wiringPiI2CReadReg16(fd, INA219_REG_SHUNTVOLTAGE) * 0.01;
+	double shuntVolts  = wiringPiI2CReadReg16(m_fd, INA219_REG_SHUNTVOLTAGE) * 0.01;
 	DatapointValue value1(shuntVolts);
 	points.push_back(new Datapoint("shuntVoltage", value1));
-	double volts  = wiringPiI2CReadReg16(fd, INA219_REG_BUSVOLTAGE) * 0.001;
+	double volts  = wiringPiI2CReadReg16(m_fd, INA219_REG_BUSVOLTAGE) * 0.001;
 	DatapointValue value2(volts);
 	points.push_back(new Datapoint("voltage", value2));
-	wiringPiI2CWriteReg16(fd, INA219_REG_CALIBRATION, m_calValue);
-	double current  = wiringPiI2CReadReg16(fd, INA219_REG_CURRENT) / m_currentDivider;
+	wiringPiI2CWriteReg16(m_fd, INA219_REG_CALIBRATION, m_calValue);
+	double current  = wiringPiI2CReadReg16(m_fd, INA219_REG_CURRENT) / m_currentDivider;
 	DatapointValue value3(current);
 	points.push_back(new Datapoint("current", value3));
-	double power  = wiringPiI2CReadReg16(fd, INA219_REG_POWER) * m_powerMultipler;
+	double power  = wiringPiI2CReadReg16(m_fd, INA219_REG_POWER) * m_powerMultiplier;
 	DatapointValue value4(power);
 	points.push_back(new Datapoint("power", value4));
-	return Reading(m_assetName, points);
+	return Reading(m_asset, points);
 }

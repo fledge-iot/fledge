@@ -9,6 +9,8 @@
  *
  * Author: Mark Riddoch
  */
+#include <string>
+#include <reading.h>
 
 /**
  * Values for the gain setting
@@ -18,6 +20,12 @@ enum {
 	INA219_CONFIG_GAIN_80MV  =       0x0800,  // 80mV Range
 	INA219_CONFIG_GAIN_160MV =       0x1000,  // 160mV Range
 	INA219_CONFIG_GAIN_320MV =       0x1800,  // 320mV Range
+};
+
+enum
+{
+	INA219_CONFIG_BVOLTAGERANGE_16V =        0x0000,  // 0-16V Range
+	INA219_CONFIG_BVOLTAGERANGE_32V =        0x2000,  // 0-32V Range
 };
 
 #define INA219_CONFIG_BADCRES_MASK	0x0780 // ADC Resulotion Mask
@@ -66,6 +74,7 @@ typedef enum {
 /*
  * INA219 Registers
  */
+#define INA219_REG_CONFIG 	               0x00
 #define INA219_REG_SHUNTVOLTAGE                0x01
 #define INA219_REG_BUSVOLTAGE                  0x02
 #define INA219_REG_POWER                       0x03
@@ -78,6 +87,8 @@ class INA219
 		INA219(int address);
 		~INA219();
 		void		configure(INA219_CONFIGURATION conf);
+		void		setAssetName(const std::string& name);
+		Reading		takeReading();
 
 	private:
 		int		m_fd;		// FD to access I2C bus

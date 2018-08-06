@@ -34,7 +34,7 @@ using namespace std;
 			"}"
 
 /**
- * The Modbus plugin interface
+ * The INA219 plugin interface
  */
 extern "C" {
 
@@ -69,7 +69,7 @@ string	address, range;
 	if (config->itemExists("address"))
 	{
 		address = config->getValue("address");
-		ina219 = new INA219(address.c_str());
+		ina219 = new INA219(atoi(address.c_str()));
 	}
 	if (config->itemExists("range"))
 	{
@@ -101,7 +101,7 @@ void plugin_start(PLUGIN_HANDLE *handle)
  */
 Reading plugin_poll(PLUGIN_HANDLE *handle)
 {
-INA219 *ina219 = (Modbus *)handle;
+INA219 *ina219 = (INA219 *)handle;
 
 	if (!handle)
 		throw new exception();

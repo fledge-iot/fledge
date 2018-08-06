@@ -128,7 +128,7 @@ async def add_service(request):
             if not plugin_config:
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}". {}'.format(plugin, plugin_module_path, str(ex)))
         except Exception as ex:
-            raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(str(ex)))
+            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration. {}'.format(str(ex)))
 
         storage = connect.get_storage_async()
 

@@ -9,9 +9,8 @@ _logger = logger.setup(__name__)
 
 def get_plugin_info(name):
     try:
-        arg1 = find_C_libs_and_utils('get_plugin_info')
-        arg2 = find_C_libs_and_utils(name)
-
+        arg1 = _find_c_util('get_plugin_info')
+        arg2 = _find_c_lib(name)
         cmd_with_args = [arg1, arg2, "plugin_info"]
         p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
@@ -24,29 +23,34 @@ def get_plugin_info(name):
         return jdoc
 
 
-def find_C_libs_and_utils(name):
+def _find_c_lib(name):
     for path, subdirs, files in os.walk(_FOGLAMP_ROOT):
         for fname in files:
             # C-binary file
             if fname.endswith(name + '.so'):
                 return os.path.join(path, fname)
+
+
+def _find_c_util(name):
+    for path, subdirs, files in os.walk(_FOGLAMP_ROOT):
+        for fname in files:
             # C-utility file
             if fname == name:
                 return os.path.join(path, fname)
 
 
-def find_C_plugin_folders(direction):
-    directories = []
-    for root, dirs, files in os.walk(_FOGLAMP_ROOT, topdown=False):
+def find_c_plugin_libs(direction):
+    libraries = []
+    # FIXME: Duplicate binaries found only in case "make",
+    # follow_links=False by default in os.walk() should ignore such symbolic links but tight now its not working
+    for root, dirs, files in os.walk(_FOGLAMP_ROOT):
         for name in dirs:
-            if 'plugins' in dirs:
+            if 'plugins' in name:
                 p = os.path.join(root, name) + "/" + direction
                 for path, subdirs, f in os.walk(p):
                     for fname in f:
                         # C-binary file
                         if fname.endswith('.so'):
-                            # Split directory with /direction/
-                            c = path.split("/" + direction + "/")
-                            # TODO: Duplicate binaries found only in case "make"
-                            directories.append(c[1])
-    return directories
+                            # Replace lib and .so from fname
+                            libraries.append(fname.replace("lib", "").replace(".so", ""))
+    return libraries

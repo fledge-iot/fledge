@@ -532,10 +532,13 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 			throw runtime_error(errMsg);
 		}
 
+		bool plugin_types_key_present = false;
+
 		if (plugin_name != PLUGIN_UNDEFINED) {
 
 			const map<const string, const string>& plugin_cfg_map = this->m_plugin->config();
 			if (plugin_cfg_map.find(string(PLUGIN_TYPES_KEY)) != plugin_cfg_map.end()) {
+				plugin_types_key_present = true;
 				// Create types category, with "default" values only
 				string configTypes("{ ");
 				configTypes.append(this->m_plugin->config()[string(PLUGIN_TYPES_KEY)]);
@@ -561,7 +564,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 		ConfigCategory sendingProcessConfig = this->getManagementClient()->getCategory(catName);
 		ConfigCategory pluginTypes;
 
-		if (plugin_name != PLUGIN_UNDEFINED) {
+		if (plugin_name != PLUGIN_UNDEFINED && plugin_types_key_present) {
 
 			// Get the category with values and defaults for OMF_TYPES
 			pluginTypes = this->getManagementClient()->getCategory(string(PLUGIN_TYPES_KEY));
@@ -619,7 +622,7 @@ const map<string, string>& SendingProcess::fetchConfiguration(const std::string&
 
 		globalConfiguration[string(GLOBAL_CONFIG_KEY)] = sendingProcessConfig.itemsToJSON();
 
-		if (plugin_name != PLUGIN_UNDEFINED) {
+		if (plugin_name != PLUGIN_UNDEFINED && plugin_types_key_present) {
 			globalConfiguration[string(PLUGIN_TYPES_KEY)] = pluginTypes.itemsToJSON();
 		}
 

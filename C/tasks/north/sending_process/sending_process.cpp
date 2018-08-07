@@ -88,6 +88,25 @@ int main(int argc, char** argv)
 }
 
 /**
+ * Apply load filter
+ *
+ * Just call "ingest" methid of the first one
+ *
+ * @param loadData    pointer to SendingProcess instance
+ * @param readingSet  The current reading set loaded from storage
+ */
+void applyFilters(SendingProcess* loadData,
+		  ReadingSet* readingSet)
+{
+	// Get first filter
+	auto it = loadData->getFilters().begin();
+	// Call first filter "ingest"
+	// Note:
+	// next filters will be automatically called
+	(*it)->ingest(readingSet);
+}
+
+/**
  * Thread to load data from the storage layer.
  *
  * @param loadData    pointer to SendingProcess instance
@@ -205,8 +224,24 @@ static void loadDataThread(SendingProcess *loadData)
 				 * - the sending thread when processin it
 				 * OR
 				 * at program exit by a cleanup routine
+				 *					
+				 * Note: the readings set can be optionally filtered
+				 * if plugin filters are set.
 				 */
-	                      	loadData->m_buffer.at(readIdx) = readings;
+
+				// Apply filters to the reading set
+				if (loadData->getFiltersCount())
+				{
+					// Make the load readIdx available to filters
+					loadData->setLoadBufferIndex(readIdx);
+					// Apply filters
+					applyFilters(loadData, readings);
+				}
+				else
+				{
+					// No filters: just set buffer with current data
+              				loadData->m_buffer.at(readIdx) = readings;
+				}
 
                         	readMutex.unlock();
 
@@ -405,4 +440,3 @@ static void sendDataThread(SendingProcess *sendData)
 	unique_lock<mutex> lock(waitMutex);
 	cond_var.notify_one();
 }
-

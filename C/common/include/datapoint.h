@@ -97,6 +97,16 @@ class DatapointValue {
 			return *this;
 		};
 
+		void setValue(int value)
+		{
+			m_value.i = value;
+		}
+
+		void setValue(double value)
+		{
+			m_value.f = value;
+		}
+
 		/**
 		 * Return the value as a string
 		 */
@@ -174,9 +184,14 @@ class Datapoint {
 		{
 			return m_value;
 		}
+		// Return reference to Datapoint value
+		DatapointValue& getData()
+		{
+			return m_value;
+		}
 	private:
 		const std::string	m_name;
-		const DatapointValue	m_value;
+		DatapointValue		m_value;
 };
 #endif
 

@@ -112,7 +112,7 @@ async def get_stats(req):
         return int(v[0])
 
     def filter_sent_stat():
-        return sum([int(s['value']) for s in stats if s['key'].startswith('SENT_')])
+        return sum([int(s['value']) for s in stats if s['key'].upper().startswith('NORTH')])
 
     data_read = filter_stat('READINGS')
     data_sent = filter_sent_stat()

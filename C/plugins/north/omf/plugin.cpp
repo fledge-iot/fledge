@@ -51,6 +51,10 @@ using namespace std;
 				"\"description\": \"JQ formatted filter to apply (applicable if applyFilter is True)\", " \
 				"\"type\": \"string\", \"default\": \".[]\" }"
 
+#define OMF_PLUGIN_DESC "\"plugin\": {\"description\": \"OMF North C Plugin\", \"type\": \"string\", \"default\": \"omf\"}"
+
+#define PLUGIN_DEFAULT_CONFIG_INFO "{" OMF_PLUGIN_DESC ", " PLUGIN_DEFAULT_CONFIG "}"
+
 /**
  * The OMF plugin interface
  */
@@ -60,12 +64,12 @@ extern "C" {
  * The C API plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"OMF",			// Name
-	"1.0.0",		// Version
-	0,			// Flags
-	PLUGIN_TYPE_NORTH,	// Type
-	"1.0.0",		// Interface version
-	PLUGIN_DEFAULT_CONFIG   // Configuration
+	"OMF",				// Name
+	"1.0.0",			// Version
+	0,				// Flags
+	PLUGIN_TYPE_NORTH,		// Type
+	"1.0.0",			// Interface version
+	PLUGIN_DEFAULT_CONFIG_INFO   // Configuration
 };
 
 static const string omf_types_default_config =
